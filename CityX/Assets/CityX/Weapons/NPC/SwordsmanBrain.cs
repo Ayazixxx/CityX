@@ -161,6 +161,7 @@ namespace CityX.Weapons
         /// </summary>
         private void OnDied()
         {
+            EnemyPack.Leave(transform);   // a body on the ground takes no turn and is no one to step round
             if (_sword == null)
             {
                 return;
@@ -240,9 +241,76 @@ namespace CityX.Weapons
             WatchTarget(_targetCombat, _target);
             _combat?.Tick(deltaTime);
 
-            DuelistMind.Intent intent = Mind.Tick(Sense(), deltaTime);
+            DuelistMind.Senses senses = Sense();
+            ShareTheFight(ref senses, deltaTime);
+            DuelistMind.Intent intent = Mind.Tick(senses, deltaTime);
             _hurt = false;
             Act(intent, deltaTime);
+        }
+
+        private void OnEnable()
+        {
+            EnemyPack.Join(transform);
+        }
+
+        private void OnDisable()
+        {
+            EnemyPack.Leave(transform);
+        }
+
+        /// <summary>Close to the target by this much more than his fighting distance, he asks for his turn to attack, metres.</summary>
+        public const float AskTurnWithinMetres = DuelistMind.EngageMetres + 1.5f;
+
+        /// <summary>A turn he holds this long without attacking (the target turtles behind its guard) he hands on, seconds.</summary>
+        public const float UnusedTurnSeconds = 1.5f;
+
+        /// <summary>How hard he steps away from a packmate too close, as a share of a full step.</summary>
+        public const float SeparationWeight = 1.0f;
+
+        private bool _turnUsed;
+        private float _turnHeldFor;
+
+        /// <summary>He holds the turn to attack his target now (EnemyPack.Turns). For tests.</summary>
+        public bool HasTurn => EnemyPack.Turns.Holds(transform);
+
+        /// <summary>
+        /// FIGHTING IN A PACK (EnemyPack): he asks for his turn as he comes into reach and attacks only while it is his and no packmate stands in
+        /// the line; he hands it on once his attack is over (or when he has not used it for a while); and he circles away from his nearest
+        /// packmate. Alone he always has the turn, and fights as he always did.
+        /// </summary>
+        private void ShareTheFight(ref DuelistMind.Senses senses, float deltaTime)
+        {
+            float now = Time.time;
+            if (!senses.HasTarget)
+            {
+                EnemyPack.Turns.GiveBack(transform, now);
+                _turnUsed = false;
+                return;
+            }
+            bool attacking = Mind.State == DuelistState.Attack || Mind.State == DuelistState.Punish || senses.Committed;
+            bool wants = attacking || senses.Distance <= AskTurnWithinMetres;
+            bool turn = wants && EnemyPack.Turns.Ask(transform, _target, TurnKind.Melee, now);
+            if (turn)
+            {
+                _turnHeldFor += deltaTime;
+                if (attacking)
+                {
+                    _turnUsed = true;
+                }
+                else if (_turnUsed || _turnHeldFor > UnusedTurnSeconds)
+                {
+                    EnemyPack.Turns.GiveBack(transform, now);   // his attack is over (or he waited it out): the next one's go
+                    turn = false;
+                    _turnUsed = false;
+                }
+            }
+            if (!turn)
+            {
+                _turnHeldFor = 0.0f;
+            }
+            bool blocked = EnemyPack.AllyInTheWay(transform, transform.position, _target.transform.position);
+            senses.Waiting = !attacking && wants && (!turn || blocked);   // further off he comes in as ever, to ask
+            senses.CrowdSide = EnemyPack.CrowdSide(transform, _target.transform.position);
         }
 
         private DuelistMind.Senses Sense()
@@ -305,7 +373,7 @@ namespace CityX.Weapons
                 TryDash(intent.DashDirection, yaw);
             }
 
-            Vector2 move = Vector2.ClampMagnitude(intent.Move, 1.0f);
+            Vector2 move = Vector2.ClampMagnitude(intent.Move + EnemyPack.SeparationMove(transform, yaw) * SeparationWeight, 1.0f);
             bool slowed = _combat != null && _combat.SlowsMovement;
             bool blocking = _combat != null && _combat.IsBlocking;
             bool wantsSprint = intent.Sprint && !slowed && !blocking && move.y > 0.0f;

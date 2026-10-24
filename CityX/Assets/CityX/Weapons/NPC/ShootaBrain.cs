@@ -156,9 +156,20 @@ namespace CityX.Weapons
             }
         }
 
+        private void OnEnable()
+        {
+            EnemyPack.Join(transform);
+        }
+
+        private void OnDisable()
+        {
+            EnemyPack.Leave(transform);
+        }
+
         /// <summary>Killed: his rifle falls from his hands for the player to pick up (owner, 2026-10-17); on this machine alone, as he is.</summary>
         private void OnDied()
         {
+            EnemyPack.Leave(transform);
             if (_gun == null)
             {
                 return;
@@ -298,7 +309,20 @@ namespace CityX.Weapons
                 case ShootaState.Engage:
                 {
                     LocomotionInput input = AimAt(TargetAimPoint());
-                    if (_mind.ShouldFire && sees && _fireCooldown <= 0.0f && _magazine > 0 && !reloading)
+                    // In a pack (EnemyPack): he shoots on his turn (two at a time), never through a packmate -- he steps aside to clear the
+                    // line instead -- and keeps a step from the others.
+                    bool turn = _target != null && EnemyPack.Turns.Ask(transform, _target, TurnKind.Ranged, Time.time);
+                    bool blocked = _target != null && EnemyPack.AllyInTheWay(transform, transform.position, _target.transform.position);
+                    if (blocked)
+                    {
+                        float side = _target != null ? -EnemyPack.CrowdSide(transform, _target.transform.position) : 0.0f;
+                        input.Move = new Vector2(side != 0.0f ? side : 1.0f, 0.0f);
+                    }
+                    else
+                    {
+                        input.Move = EnemyPack.SeparationMove(transform, input.YawDegrees);
+                    }
+                    if (_mind.ShouldFire && sees && turn && !blocked && _fireCooldown <= 0.0f && _magazine > 0 && !reloading)
                     {
                         Fire();
                     }
@@ -416,9 +440,10 @@ namespace CityX.Weapons
                 else
                 {
                     IDamageable target = hit.collider.GetComponentInParent<IDamageable>();
-                    if (target != null && target.IsAlive && !ReferenceEquals(target, _vitals))
+                    if (target != null && target.IsAlive && !ReferenceEquals(target, _vitals)
+                        && DamageContext.Strike(target, _profile.Damage * DamageScale, origin, 0.0f, DamageKind.Bullet, 0.0f, hit.point, gameObject)
+                        != HitResponse.Ignored)
                     {
-                        DamageContext.Strike(target, _profile.Damage * DamageScale, origin, 0.0f, DamageKind.Bullet, 0.0f, hit.point);
                         Hits++;
                         if (!(target is PlayerVitals))
                         {

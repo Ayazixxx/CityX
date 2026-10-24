@@ -165,7 +165,7 @@ namespace CityX.UI
                     "/skills reset forgets everything but vaulting and gives the points back; /skills all learns everything; " +
                     "/skills new is a brand new character's (vaulting and one point)";
                 case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|shoota|swordsman|radio|mustang|book|" +
-                    "any item /equip takes>";
+                    "any item /equip takes> [how many, up to 30]";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
                 case "equip": return "/equip <bottle|cloak|coat|tshirt|bloodraven|redcamo|grapple|pistol|flamethrower|jetpack|parachute|" +

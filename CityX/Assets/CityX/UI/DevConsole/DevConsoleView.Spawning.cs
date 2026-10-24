@@ -16,10 +16,63 @@ namespace CityX.UI
 {
     public sealed partial class DevConsoleView
     {
-        private void Spawn(string what)
+        /// <summary>The most one /spawn puts down.</summary>
+        public const int MaxSpawnCount = 30;
+
+        /// <summary>Several spawned at once stand in a row across the player's view, this far apart, metres.</summary>
+        public const float SpawnSpacingMetres = 1.8f;
+
+        /// <summary>While several are spawned at once, each one's own line is not logged (one line says how many).</summary>
+        private bool _spawnQuiet;
+
+        /// <summary>
+        /// /spawn &lt;what&gt; [count] (owner, 2026-10-24: "if i add a number at the end of it after the item or mob i type out it will spawn that
+        /// many"): one, or that many in a row across the player's view.
+        /// </summary>
+        private void Spawn(string what, string countText)
+        {
+            int count = 1;
+            if (!string.IsNullOrEmpty(countText) && (!int.TryParse(countText, out count) || count < 1))
+            {
+                Log(DevCommands.UsageFor("spawn"));
+                return;
+            }
+            count = Mathf.Min(count, MaxSpawnCount);
+            Transform origin = Vitals != null ? Vitals.transform : transform;
+            int made = 0;
+            _spawnQuiet = count > 1;
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 offset = origin.right * ((i - (count - 1) * 0.5f) * SpawnSpacingMetres);
+                if (!SpawnOne(what, offset))
+                {
+                    break;
+                }
+                made++;
+            }
+            _spawnQuiet = false;
+            if (made == 0)
+            {
+                Log(DevCommands.UsageFor("spawn"));
+            }
+            else if (count > 1)
+            {
+                Log($"spawned {made} x {what}");
+            }
+        }
+
+        private void SpawnLog(string message)
+        {
+            if (!_spawnQuiet)
+            {
+                Log(message);
+            }
+        }
+
+        private bool SpawnOne(string what, Vector3 offset)
         {
             Transform origin = Vitals != null ? Vitals.transform : transform;
-            Vector3 where = origin.position + origin.forward * SpawnDistance;
+            Vector3 where = origin.position + origin.forward * SpawnDistance + offset;
             Quaternion facing = Quaternion.LookRotation(-origin.forward, Vector3.up);
 
             switch (what)
@@ -28,77 +81,77 @@ namespace CityX.UI
                     if (CivilianPrefab == null)
                     {
                         Log("no civilian prefab wired");
-                        return;
+                        return false;
                     }
                     Instantiate(CivilianPrefab, where, facing);
-                    Log("spawned civilian");
-                    return;
+                    SpawnLog("spawned civilian");
+                    return true;
 
                 case "flyer":
                     if (FlyingNpcPrefab == null)
                     {
                         Log("no flying npc prefab wired");
-                        return;
+                        return false;
                     }
                     // Airborne, not at ground level like every other /spawn
                     // case -- it is a flier, and dropping it on the street
                     // would just mean watching it climb to altitude before
                     // it does anything interesting.
                     Instantiate(FlyingNpcPrefab, where + Vector3.up * 30.0f, facing);
-                    Log("spawned a flying npc");
-                    return;
+                    SpawnLog("spawned a flying npc");
+                    return true;
 
                 case "crimsonclaw":
                     if (CrimsonClawPrefab == null)
                     {
                         Log("no crimson claw prefab wired");
-                        return;
+                        return false;
                     }
                     // A few metres up, like the flyer -- it hovers rather
                     // than falls, and HoverCorrect eases it down to its own
                     // ground-relative height the moment it ticks.
                     Instantiate(CrimsonClawPrefab, where + Vector3.up * 3.0f, facing);
-                    Log("spawned a crimson claw -- it will chase and attack you");
-                    return;
+                    SpawnLog("spawned a crimson claw -- it will chase and attack you");
+                    return true;
 
                 case "shoota":
                     if (ShootaPrefab == null)
                     {
                         Log("no shoota prefab wired");
-                        return;
+                        return false;
                     }
                     // Further off than the rest: he opens fire the moment he sees you, so you get a moment to react.
-                    Instantiate(ShootaPrefab, origin.position + origin.forward * ShootaSpawnDistance, facing);
-                    Log("spawned a Shoota -- he shoots on sight, takes cover when hurt or reloading");
-                    return;
+                    Instantiate(ShootaPrefab, origin.position + origin.forward * ShootaSpawnDistance + offset, facing);
+                    SpawnLog("spawned a Shoota -- he shoots on sight, takes cover when hurt or reloading");
+                    return true;
 
                 case "swordsman":
                     if (SwordsmanPrefab == null)
                     {
                         Log("no swordsman prefab wired");
-                        return;
+                        return false;
                     }
-                    Instantiate(SwordsmanPrefab, origin.position + origin.forward * SwordsmanSpawnDistance, facing);
-                    Log("spawned a swordsman -- draw your sword: he blocks, rolls and punishes a blade that bounces off his guard");
-                    return;
+                    Instantiate(SwordsmanPrefab, origin.position + origin.forward * SwordsmanSpawnDistance + offset, facing);
+                    SpawnLog("spawned a swordsman -- draw your sword: he blocks, rolls and punishes a blade that bounces off his guard");
+                    return true;
 
                 case "radio":
                     if (RadioPrefab == null)
                     {
                         Log("no radio prefab wired");
-                        return;
+                        return false;
                     }
                     // Dropped a little above the ground so it settles onto it
                     // rather than starting intersecting -- it is a real body.
                     Instantiate(RadioPrefab, where + Vector3.up * 0.5f, facing);
-                    Log("spawned radio -- press E to switch it on");
-                    return;
+                    SpawnLog("spawned radio -- press E to switch it on");
+                    return true;
 
                 case "mustang":
                     if (MustangPrefab == null)
                     {
                         Log("no mustang prefab wired");
-                        return;
+                        return false;
                     }
                     // A bigger distance and drop height than every other
                     // /spawn target (6m and 1.2m, not SpawnDistance's own
@@ -110,11 +163,11 @@ namespace CityX.UI
                     // them like every other spawn -- a car is walked up to
                     // and entered from the side, not looked at like a
                     // picked-up prop.
-                    Vector3 mustangWhere = origin.position + origin.forward * 6.0f + Vector3.up * 1.2f;
+                    Vector3 mustangWhere = origin.position + origin.forward * 6.0f + Vector3.up * 1.2f + offset;
                     Quaternion mustangFacing = Quaternion.Euler(0.0f, origin.eulerAngles.y, 0.0f);
                     Instantiate(MustangPrefab, mustangWhere, mustangFacing);
-                    Log("spawned a Mustang in front of you -- WASD to drive, Space to handbrake");
-                    return;
+                    SpawnLog("spawned a Mustang in front of you -- WASD to drive, Space to handbrake");
+                    return true;
 
                 case "dummy":
                     // BUILT HERE RATHER THAN INSTANTIATED, because a sparring
@@ -126,8 +179,8 @@ namespace CityX.UI
                     dummy.transform.SetPositionAndRotation(
                         where + Vector3.up * 1.0f, facing);
                     dummy.AddComponent<SparringDummy>();
-                    Log("spawned dummy");
-                    return;
+                    SpawnLog("spawned dummy");
+                    return true;
 
                 case "book":
                     // BUILT HERE TOO, same reason as dummy -- Book has no
@@ -137,20 +190,20 @@ namespace CityX.UI
                     if (Streamer == null || Streamer.BookMaterial == null)
                     {
                         Log("no book material wired");
-                        return;
+                        return false;
                     }
                     GameObject book = new GameObject("Book");
                     book.transform.SetPositionAndRotation(where, facing);
                     book.AddComponent<Book>().Build(Streamer.BookMaterial);
-                    Log("spawned a book -- press E to read it");
-                    return;
+                    SpawnLog("spawned a book -- press E to read it");
+                    return true;
 
                 default:
                     if (!SpawnItem(what, where))
                     {
-                        Log(DevCommands.UsageFor("spawn"));
+                        return false;
                     }
-                    return;
+                    return true;
             }
         }
 
@@ -181,7 +234,7 @@ namespace CityX.UI
             {
                 item.transform.position += Vector3.up * (floor - lowest + SpawnFloorClearance);
             }
-            Log($"spawned a {(ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? definition.DisplayName : itemId)} -- press E nearby to pick it up");
+            SpawnLog($"spawned a {(ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? definition.DisplayName : itemId)} -- press E nearby to pick it up");
             return true;
         }
 

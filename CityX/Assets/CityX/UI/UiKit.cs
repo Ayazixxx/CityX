@@ -32,6 +32,20 @@ namespace CityX.UI
             rect.offsetMax = Vector2.zero;
         }
 
+        /// <summary>Puts <paramref name="text"/> in a text box with the caret after it, ready to type on (a line brought back from InputHistory).</summary>
+        public static void SetTextCaretAtEnd(InputField field, string text)
+        {
+            if (field == null)
+            {
+                return;
+            }
+            field.text = text ?? string.Empty;
+            int end = field.text.Length;
+            field.caretPosition = end;
+            field.selectionAnchorPosition = end;
+            field.selectionFocusPosition = end;
+        }
+
         /// <summary>A label in the built-in font that clicks pass through, sized and placed by the caller.</summary>
         public static Text MakeText(Transform parent, string name, string content, int size, Color colour)
         {

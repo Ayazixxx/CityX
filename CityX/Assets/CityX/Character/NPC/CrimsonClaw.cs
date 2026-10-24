@@ -180,12 +180,21 @@ namespace CityX.Character
 
             if (_attackState != AttackState.Idle)
             {
+                if (_target != null)
+                {
+                    EnemyPack.Turns.Ask(transform, _target, TurnKind.Melee, Time.time);   // keeps the turn through the swing
+                }
                 TickAttack(deltaTime);
                 if (_target != null)
                 {
                     FaceTowards(_target.transform.position);
                 }
                 return;
+            }
+            if (_turnUsed)
+            {
+                EnemyPack.Turns.GiveBack(transform, Time.time);   // the swing is over: the next of the pack has its go
+                _turnUsed = false;
             }
 
             if (_target == null)
@@ -196,24 +205,55 @@ namespace CityX.Character
             Vector3 toTarget = _target.transform.position - transform.position;
             toTarget.y = 0.0f;
             float distance = toTarget.magnitude;
+            // In a pack (EnemyPack) it closes in and swings only on its turn; waiting, it hovers out at WaitMetres, drifting round away from
+            // the nearest packmate. Alone it always has the turn.
+            bool turn = distance <= WaitMetres + 1.0f && EnemyPack.Turns.Ask(transform, _target, TurnKind.Melee, Time.time);
             if (distance > DetectionRange)
             {
                 _target = null;
             }
-            else if (distance > AttackRange)
+            else if (distance > AttackRange && (turn || distance > WaitMetres))
             {
-                Vector3 direction = _steering.Steer(transform, toTarget / distance, deltaTime);
+                Vector3 direction = _steering.Steer(transform, (toTarget / distance + EnemyPack.Separation(transform)).normalized, deltaTime);
                 FaceAlong(direction);
                 transform.position += direction * ChaseSpeed * deltaTime;
             }
-            else
+            else if (turn && !EnemyPack.AllyInTheWay(transform, transform.position, _target.transform.position))
             {
                 FaceTowards(_target.transform.position);
                 if (_attackCooldownRemaining <= 0.0f)
                 {
                     StartAttack();
+                    _turnUsed = true;
                 }
             }
+            else
+            {
+                Vector3 toward = toTarget / Mathf.Max(distance, 1e-3f);
+                Vector3 round = Vector3.Cross(Vector3.up, toward) * -EnemyPack.CrowdSide(transform, _target.transform.position);
+                Vector3 inOut = distance < WaitMetres - 0.5f ? -toward : Vector3.zero;
+                Vector3 drift = Vector3.ClampMagnitude(round * 0.5f + inOut + EnemyPack.Separation(transform), 1.0f);
+                transform.position += drift * WaitSpeed * deltaTime;
+                FaceTowards(_target.transform.position);
+            }
+        }
+
+        /// <summary>Waiting its turn (another of the pack is attacking), it hovers out about here, metres: just out of its reach.</summary>
+        public const float WaitMetres = AttackRange + 2.5f;
+
+        /// <summary>How fast it drifts while it waits, metres per second.</summary>
+        public const float WaitSpeed = 2.0f;
+
+        private bool _turnUsed;
+
+        private void OnEnable()
+        {
+            EnemyPack.Join(transform);
+        }
+
+        private void OnDisable()
+        {
+            EnemyPack.Leave(transform);
         }
 
         /// <summary>
@@ -440,6 +480,7 @@ namespace CityX.Character
 
         private void Die()
         {
+            EnemyPack.Leave(transform);
             _isDead = true;
             _target = null;
             _attackState = AttackState.Idle;

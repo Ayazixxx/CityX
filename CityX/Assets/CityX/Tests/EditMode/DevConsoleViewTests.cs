@@ -352,5 +352,55 @@ namespace CityX.Tests
             Assert.DoesNotThrow(() => view.Submit("/camera nonsense 3"));
             Assert.AreEqual(ThirdPersonCamera.DefaultFramingHeight, follow.FramingHeight, 1e-4f, "a bad /camera changed the framing");
         }
+
+        /// <summary>Owner, 2026-10-24: "/spawn ... if i add a number at the end of it after the item or mob i type out it will spawn that many".</summary>
+        [Test]
+        public void SpawnWithANumberPutsDownThatManyInARow()
+        {
+            _bodyObject = new GameObject("Body");
+            var vitals = _bodyObject.AddComponent<PlayerVitals>();
+            _consoleObject = new GameObject("DevConsole");
+            var view = _consoleObject.AddComponent<DevConsoleView>();
+            view.Vitals = vitals;
+            view.Bind();
+            try
+            {
+                view.Submit("/spawn dummy 4");
+                SparringDummy[] dummies = Object.FindObjectsByType<SparringDummy>(FindObjectsSortMode.None);
+                Assert.AreEqual(4, dummies.Length, "/spawn dummy 4 did not put down four");
+                for (int i = 0; i < dummies.Length; i++)
+                {
+                    for (int j = i + 1; j < dummies.Length; j++)
+                    {
+                        Assert.Greater(Vector3.Distance(dummies[i].transform.position, dummies[j].transform.position), 1.0f, "two spawned in one spot");
+                    }
+                }
+                view.Submit("/spawn dummy");
+                Assert.AreEqual(5, Object.FindObjectsByType<SparringDummy>(FindObjectsSortMode.None).Length, "no number did not spawn one");
+                view.Submit("/spawn dummy lots");
+                view.Submit("/spawn dummy 0");
+                Assert.AreEqual(5, Object.FindObjectsByType<SparringDummy>(FindObjectsSortMode.None).Length, "a bad number spawned something");
+                view.Submit("/spawn dummy 500");
+                Assert.AreEqual(5 + DevConsoleView.MaxSpawnCount, Object.FindObjectsByType<SparringDummy>(FindObjectsSortMode.None).Length,
+                    "the count was not capped");
+            }
+            finally
+            {
+                foreach (SparringDummy dummy in Object.FindObjectsByType<SparringDummy>(FindObjectsSortMode.None))
+                {
+                    Object.DestroyImmediate(dummy.gameObject);
+                }
+            }
+        }
+
+        [Test]
+        public void ASentCommandIsKeptInTheConsolesOwnHistory()
+        {
+            _consoleObject = new GameObject("DevConsole");
+            var view = _consoleObject.AddComponent<DevConsoleView>();
+            view.Bind();
+            view.Submit("/help");
+            Assert.AreEqual("/help", view.History.Older(""));
+        }
     }
 }

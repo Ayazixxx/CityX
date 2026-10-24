@@ -49,6 +49,8 @@ namespace CityX.Character
     ///     it out, and only sometimes drives a heavy into it to drain it.
     ///  5. APPROACH -- closing the last stretch with a dash now and then -- then CIRCLE at fighting distance, changing direction every second
     ///     or three, keeping his distance.
+    /// IN A PACK (EnemyPack) he punishes and attacks only on his turn (<see cref="Senses.Waiting"/>); waiting, he circles out at
+    /// <see cref="WaitMetres"/>, the other way from his nearest packmate, still guarding and dashing as ever.
     /// After being hit he sometimes dashes away. Every dash is the player's own (double-tap Shift with a sword out), with its stamina, so he
     /// keeps a dash's worth in hand. Nothing is instant except the punish (the stagger already gave him time).
     /// </summary>
@@ -73,6 +75,12 @@ namespace CityX.Character
 
         /// <summary>When recovering stamina he backs off to about here.</summary>
         public const float RecoverMetres = 5.5f;
+
+        /// <summary>
+        /// Waiting his turn (another of the pack is attacking: EnemyPack, AttackTurns) he circles out here instead, just out of a cut's reach:
+        /// close enough to step in the moment the turn is his, far enough not to crowd the one attacking.
+        /// </summary>
+        public const float WaitMetres = 5.2f;
 
         // ---- timing (seconds) ----
 
@@ -184,6 +192,15 @@ namespace CityX.Character
 
             /// <summary>He was hurt since the last frame.</summary>
             public bool TookHit;
+
+            /// <summary>
+            /// Another of the pack holds the turn to attack the target, or a packmate stands in the way: he keeps his distance and does not swing
+            /// (EnemyPack). False when he fights alone.
+            /// </summary>
+            public bool Waiting;
+
+            /// <summary>Which side of him his nearest packmate is, as he faces the target: +1 right, -1 left, 0 none near. He circles the other way.</summary>
+            public float CrowdSide;
         }
 
         /// <summary>What he presses this frame. Move is in the target's frame: x to his right as he faces it, y toward it.</summary>
@@ -306,7 +323,7 @@ namespace CityX.Character
             }
 
             // 1. PUNISH: the target is open. No reaction delay: the stagger already gave him the time.
-            if (s.TargetStaggered && !s.TargetDashing)
+            if (s.TargetStaggered && !s.TargetDashing && !s.Waiting)
             {
                 bool opening = State != DuelistState.Punish;
                 Become(DuelistState.Punish);
@@ -369,7 +386,7 @@ namespace CityX.Character
                             }
                             break;
                         case Answer.Strike:
-                            if (s.Distance <= StrikeMetres && s.Stamina >= AttackStamina && _attackCooldown <= 0.0f)
+                            if (s.Distance <= StrikeMetres && s.Stamina >= AttackStamina && _attackCooldown <= 0.0f && !s.Waiting)
                             {
                                 StartAttack(ref intent, s);
                                 return intent;
@@ -445,7 +462,7 @@ namespace CityX.Character
             // ...or a new one.
             bool inReach = s.Distance <= StrikeMetres + 0.3f;
             if (inReach && _backOff <= 0.0f && _attackCooldown <= 0.0f && s.Stamina >= AttackStamina && !s.TargetDashing && !s.Committed
-                && !s.TargetAttacking)
+                && !s.TargetAttacking && !s.Waiting)
             {
                 if (!s.TargetBlocking || Chance() < IntoGuardChance)
                 {
@@ -455,13 +472,20 @@ namespace CityX.Character
                 _attackCooldown = Range(AttackCooldownMin, AttackCooldownMax);   // a raised guard: wait it out
             }
 
-            // 5. APPROACH, then CIRCLE.
-            if (s.Distance > EngageMetres + 0.4f && _backOff <= 0.0f)
+            // 5. APPROACH, then CIRCLE -- further out while another has the turn, and the other way from the nearest packmate, so the pack
+            // spreads round the target.
+            float ring = s.Waiting ? WaitMetres : EngageMetres;
+            if (s.CrowdSide != 0.0f)
+            {
+                _circleSign = -Mathf.Sign(s.CrowdSide);
+            }
+            if (s.Distance > ring + 0.4f && _backOff <= 0.0f)
             {
                 Become(DuelistState.Approach);
                 intent.Move = new Vector2(0.0f, 1.0f);
                 intent.Sprint = s.Distance > SprintBeyondMetres;
-                if (s.Distance >= DashInFromMetres && s.CanDash && s.Stamina >= DashStamina * 2.0f && Chance() < DashInPerSecond * deltaTime)
+                if (!s.Waiting && s.Distance >= DashInFromMetres && s.CanDash && s.Stamina >= DashStamina * 2.0f
+                    && Chance() < DashInPerSecond * deltaTime)
                 {
                     Dash(ref intent, new Vector2(0.0f, 1.0f));   // closing the gap
                 }
@@ -469,11 +493,11 @@ namespace CityX.Character
             }
             Become(DuelistState.Circle);
             float inOut = 0.0f;
-            if (_backOff > 0.0f || s.Distance < EngageMetres - 0.7f)
+            if (_backOff > 0.0f || s.Distance < ring - 0.7f)
             {
                 inOut = -0.8f;
             }
-            else if (s.Distance > EngageMetres + 0.2f)
+            else if (s.Distance > ring + 0.2f)
             {
                 inOut = 0.5f;
             }

@@ -230,5 +230,39 @@ namespace CityX.Tests
             }
             Assert.That(dashes / 200.0f, Is.InRange(DuelistMind.DashWhenHitChance - 0.12f, DuelistMind.DashWhenHitChance + 0.12f));
         }
+
+        /// <summary>In a pack (owner, 2026-10-24): waiting his turn he never swings, even at an opening, and circles further out.</summary>
+        [Test]
+        public void WaitingHisTurnHeHoldsOffAndCirclesFurtherOut()
+        {
+            var mind = new DuelistMind(5);
+            DuelistMind.Senses close = Facing(DuelistMind.StrikeMetres - 0.3f);
+            close.Waiting = true;
+            close.TargetStaggered = true;
+            DuelistMind.Intent intent = Run(mind, close, 3.0f, i => i.Light || i.Heavy);
+            Assert.IsFalse(intent.Light || intent.Heavy, "waiting his turn, he swung anyway");
+            Assert.Less(intent.Move.y, 0.0f, "waiting his turn, he stays in close instead of backing out to wait");
+
+            DuelistMind.Senses between = Facing((DuelistMind.EngageMetres + DuelistMind.WaitMetres) * 0.5f);
+            between.Waiting = true;
+            intent = Run(mind, between, 0.5f);
+            Assert.AreEqual(DuelistState.Circle, mind.State, "waiting at his own ring he is not circling");
+            between.Waiting = false;
+            intent = Run(mind, between, 0.2f);
+            Assert.Greater(intent.Move.y, 0.0f, "given the turn, he does not step in");
+        }
+
+        [Test]
+        public void HeCirclesAwayFromHisNearestPackmate()
+        {
+            var mind = new DuelistMind(6);
+            DuelistMind.Senses senses = Facing(DuelistMind.EngageMetres);
+            senses.CrowdSide = 1.0f;   // a packmate on his right
+            DuelistMind.Intent intent = Run(mind, senses, 0.5f);
+            Assert.Less(intent.Move.x, -0.3f, "he circles toward his packmate");
+            senses.CrowdSide = -1.0f;
+            intent = Run(mind, senses, 0.5f);
+            Assert.Greater(intent.Move.x, 0.3f, "he circles toward his packmate");
+        }
     }
 }

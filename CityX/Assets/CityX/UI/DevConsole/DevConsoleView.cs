@@ -193,6 +193,27 @@ namespace CityX.UI
                 Input.text = string.Empty;
                 Input.ActivateInputField();
             }
+            else if (IsOpen && Input != null && (keyboard.upArrowKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame))
+            {
+                _recalled = keyboard.upArrowKey.wasPressedThisFrame ? History.Older(Input.text) : History.Newer(Input.text);
+                _recall = true;
+            }
+        }
+
+        /// <summary>The commands typed before, walked with Up and Down (the chat keeps its own: PlayerChat.History).</summary>
+        public readonly InputHistory History = new InputHistory();
+
+        private bool _recall;
+        private string _recalled;
+
+        /// <summary>A line brought back with the arrows goes in after the text box has handled the same key (which moves the caret).</summary>
+        private void LateUpdate()
+        {
+            if (_recall)
+            {
+                _recall = false;
+                UiKit.SetTextCaretAtEnd(Input, _recalled);
+            }
         }
 
         public void Open()
@@ -206,6 +227,7 @@ namespace CityX.UI
                 Input.text = string.Empty;
                 Input.ActivateInputField();
             }
+            History.EndWalk();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
@@ -334,6 +356,7 @@ namespace CityX.UI
                 return;
             }
 
+            History.Add(text);
             Log("> " + text.Trim());
             Run(line);
         }
@@ -394,7 +417,7 @@ namespace CityX.UI
                     return;
 
                 case "spawn":
-                    Spawn(line.Argument(0));
+                    Spawn(line.Argument(0), line.Argument(1));
                     return;
 
                 case "car":

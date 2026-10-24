@@ -87,6 +87,10 @@ namespace CityX.Character
             {
                 return HitResponse.Ignored;
             }
+            if (EnemyPack.AreAllies(striker, target))
+            {
+                return HitResponse.Ignored;   // one enemy's blow on another: they are on the same side (EnemyPack)
+            }
             HitResponse response;
             using (new Scope(kind, penetration, contactPoint))
             {

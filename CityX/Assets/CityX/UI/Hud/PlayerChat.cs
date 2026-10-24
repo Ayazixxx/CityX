@@ -113,6 +113,27 @@ namespace CityX.UI
             {
                 Submit(Input != null ? Input.text : string.Empty);
             }
+            else if (Input != null && (keyboard.upArrowKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame))
+            {
+                _recalled = keyboard.upArrowKey.wasPressedThisFrame ? History.Older(Input.text) : History.Newer(Input.text);
+                _recall = true;
+            }
+        }
+
+        /// <summary>What was said before, walked with Up and Down: the chat's own, apart from the console's (DevConsoleView.History).</summary>
+        public readonly InputHistory History = new InputHistory();
+
+        private bool _recall;
+        private string _recalled;
+
+        /// <summary>A line brought back with the arrows goes in after the text box has handled the same key (which moves the caret).</summary>
+        private void LateUpdate()
+        {
+            if (_recall)
+            {
+                _recall = false;
+                UiKit.SetTextCaretAtEnd(Input, _recalled);
+            }
         }
 
         public void Open()
@@ -132,6 +153,7 @@ namespace CityX.UI
             {
                 Input.text = string.Empty;
             }
+            History.EndWalk();
             if (Panel != null) Panel.SetActive(true);
             if (Input != null) Input.ActivateInputField();
         }
@@ -159,6 +181,7 @@ namespace CityX.UI
             {
                 return;
             }
+            History.Add(trimmed);
             Dispatch(trimmed);
         }
 
