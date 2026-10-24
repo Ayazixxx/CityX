@@ -73,14 +73,27 @@ namespace CityX.Character
         public static HitResponse Strike(IDamageable target, float amount, UnityEngine.Vector3 fromPosition, float hitstunSeconds,
             DamageKind kind, float penetration, UnityEngine.Vector3? contactPoint)
         {
+            return Strike(target, amount, fromPosition, hitstunSeconds, kind, penetration, contactPoint, null);
+        }
+
+        /// <summary>
+        /// The same, saying who struck it: a blow that lands is then told to whoever shows it (<see cref="DamageDealt.Landed"/>, the damage
+        /// numbers). Every weapon and spell names its wielder; a hit forwarded from another player's machine names none.
+        /// </summary>
+        public static HitResponse Strike(IDamageable target, float amount, UnityEngine.Vector3 fromPosition, float hitstunSeconds,
+            DamageKind kind, float penetration, UnityEngine.Vector3? contactPoint, UnityEngine.GameObject striker)
+        {
             if (target == null)
             {
                 return HitResponse.Ignored;
             }
+            HitResponse response;
             using (new Scope(kind, penetration, contactPoint))
             {
-                return target.ApplyHit(amount, fromPosition, hitstunSeconds);
+                response = target.ApplyHit(amount, fromPosition, hitstunSeconds);
             }
+            DamageDealt.Report(striker, target, amount, hitstunSeconds, kind, contactPoint, response);
+            return response;
         }
 
         /// <summary>The penetration of a body's blows: its Armor Penetration stat, or none for a body without stats.</summary>

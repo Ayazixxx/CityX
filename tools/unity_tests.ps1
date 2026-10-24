@@ -42,7 +42,7 @@ param(
 
     [switch]$Graphics,
 
-    [int]$TimeoutMinutes = 20
+    [int]$TimeoutMinutes = 30
 )
 
 $ErrorActionPreference = 'Stop'

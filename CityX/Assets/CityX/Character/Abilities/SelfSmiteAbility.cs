@@ -337,7 +337,7 @@ namespace CityX.Character
             int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             HitResponse response = DamageContext.Strike(target, CombatTuning.DamageFor(baseDamage, spellPower), from, hitstun, DamageKind.Magic,
-                penetration);
+                penetration, null, gameObject);
             if (!target.IsAlive && target is IXpReward reward && _vitals != null)
             {
                 _vitals.AddXp(reward.XpReward);

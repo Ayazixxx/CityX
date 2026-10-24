@@ -130,7 +130,7 @@ namespace CityX.Weapons
             Vector3 forward = direction.normalized;
             FireballProjectile.Spawn(
                 FireballPrefab, origin + forward * SpawnForwardOffset,
-                forward * FireballSpeed, spellPower, ignoreColliders, penetration: penetration);
+                forward * FireballSpeed, spellPower, ignoreColliders, penetration: penetration, striker: gameObject);
             Fired?.Invoke(new AbilityEvent(0, origin + forward * SpawnForwardOffset, forward, FireballSpeed));
             return true;
         }

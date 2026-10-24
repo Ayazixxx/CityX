@@ -81,7 +81,7 @@ namespace CityX.Weapons
             // From where the body is when the blade comes through, along the direction the crosshair had when the key was pressed.
             Vector3 origin = transform.position + Vector3.up * _chestHeight;
             SwordWaveProjectile.Spawn(WavePrefab, origin + _direction * SpawnForwardOffset, _direction * WaveSpeed, strength, _ignore,
-                penetration: penetration);
+                penetration: penetration, striker: gameObject);
             Fired?.Invoke(new AbilityEvent(0, origin + _direction * SpawnForwardOffset, _direction, WaveSpeed));
         }
 

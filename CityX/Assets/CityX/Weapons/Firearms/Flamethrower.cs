@@ -344,7 +344,7 @@ namespace CityX.Weapons
                 // No hitstun -- matches PistolWeapon.Fire's own choice: a
                 // continuous stream that also locked its target in place
                 // every single frame would never let anything move again.
-                DamageContext.Strike(target, damageThisTick, origin, 0.0f, DamageKind.Physical, penetration);
+                DamageContext.Strike(target, damageThisTick, origin, 0.0f, DamageKind.Physical, penetration, null, wielder);
             }
         }
     }

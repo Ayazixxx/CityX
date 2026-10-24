@@ -1045,7 +1045,7 @@ namespace CityX.Character
                 response = _melee != null
                     ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)
                     : DamageContext.Strike(target, damage, transform.position, _current.HitstunSeconds, DamageKind.Physical,
-                        _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, point);
+                        _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, point, gameObject);
             }
 
             if (response == HitResponse.Ignored)

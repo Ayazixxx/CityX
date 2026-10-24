@@ -139,6 +139,9 @@ namespace CityX.UIEditor
                 }
             }
 
+            // The damage numbers: a canvas of their own, under the HUD's (DamageNumbers).
+            new GameObject("DamageNumbers", typeof(RectTransform)).AddComponent<DamageNumbers>();
+
             UiKit.EnsureEventSystem();
             return instance;
         }

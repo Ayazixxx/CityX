@@ -21,7 +21,7 @@ namespace CityX.Character
     /// far longer and give a worse answer to that question.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public sealed class Civilian : MonoBehaviour, IDamageable, IXpReward, ILaunchable
+    public sealed class Civilian : MonoBehaviour, IDamageable, IXpReward, ILaunchable, IHealthBar
     {
         public const float MaxHealth = 100.0f;
 
@@ -60,6 +60,8 @@ namespace CityX.Character
         public bool IsAlive => !IsDead;
 
         public float Health => _health;
+
+        float IHealthBar.MaxHealth => MaxHealth;
 
         int IXpReward.XpReward => XpRewardAmount;
 

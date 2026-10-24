@@ -20,11 +20,14 @@ namespace CityX.Weapons
 
         private Rigidbody _rigidbody;
         private int _throwerStrength;
+
+        /// <summary>Who threw it: named with its blows, so the thrower sees their damage (DamageDealt).</summary>
+        private GameObject _striker;
         private float _penetration;
         private bool _consumed;
 
         public static ThrownBottle Spawn(GameObject prefab, Vector3 origin, Vector3 velocity,
-            int throwerStrength, Collider[] ignoreColliders, float penetration = 0.0f)
+            int throwerStrength, Collider[] ignoreColliders, float penetration = 0.0f, GameObject striker = null)
         {
             if (prefab == null)
             {
@@ -39,6 +42,7 @@ namespace CityX.Weapons
             }
 
             thrown._throwerStrength = throwerStrength;
+            thrown._striker = striker;
             thrown._penetration = Mathf.Clamp01(penetration);
             // GetComponent RATHER THAN THE CACHED FIELD: Awake() has not
             // necessarily run yet on a clone made from an inactive prefab
@@ -112,7 +116,7 @@ namespace CityX.Weapons
             if (hitCharacter)
             {
                 float damage = CombatTuning.DamageFor(ThrowDamage, _throwerStrength);
-                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration);
+                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration, null, _striker);
             }
 
             Destroy(gameObject);

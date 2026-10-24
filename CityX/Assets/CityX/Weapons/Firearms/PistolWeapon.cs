@@ -1035,7 +1035,7 @@ namespace CityX.Weapons
                         float actualDamage = CombatTuning.DamageFor(Profile.Damage, firearmDamage);
                         // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
                         bool wasAlive = damageable.IsAlive;
-                        DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration, hit.point);
+                        DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration, hit.point, wielder);
                         hitDamageable = true;
                         killed = !damageable.IsAlive;
                         // A kill pays its XP, as a fist's or a sword's does (2026-10-15: a Shoota is worth some; a civilian always was). Once:

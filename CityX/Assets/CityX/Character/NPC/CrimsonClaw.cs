@@ -46,7 +46,7 @@ namespace CityX.Character
     /// directly with an explicit deltaTime, without needing a real Unity
     /// Update loop pumping.
     /// </summary>
-    public sealed class CrimsonClaw : MonoBehaviour, IDamageable
+    public sealed class CrimsonClaw : MonoBehaviour, IDamageable, IHealthBar
     {
         public const float MaxHealth = 150.0f;
         public const float DetectionRange = 16.0f;
@@ -126,6 +126,8 @@ namespace CityX.Character
 
         public bool IsAlive => !_isDead;
         public float Health => _health;
+
+        float IHealthBar.MaxHealth => MaxHealth;
 
         /// <summary>Exposed for tests -- which hand the NEXT attack swings.</summary>
         public bool NextAttackHandIsLeft => _nextAttackHandIsLeft;

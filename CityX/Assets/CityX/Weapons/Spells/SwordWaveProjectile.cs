@@ -23,6 +23,9 @@ namespace CityX.Weapons
         private Rigidbody _rigidbody;
         /// <summary>Points in the caster's Melee Damage (a sword technique: 2% a point), and how much of the target's armour and block it ignores.</summary>
         private int _casterStrength;
+
+        /// <summary>Who cast it: named with its blows, so the caster sees their damage (DamageDealt).</summary>
+        private GameObject _striker;
         private float _penetration;
         private float _age;
         private Collider[] _ignore;
@@ -36,7 +39,7 @@ namespace CityX.Weapons
         public bool Cosmetic { get; private set; }
 
         public static SwordWaveProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, int casterStrength, Collider[] ignoreColliders,
-            bool cosmetic = false, float penetration = 0.0f)
+            bool cosmetic = false, float penetration = 0.0f, GameObject striker = null)
         {
             if (prefab == null)
             {
@@ -49,6 +52,7 @@ namespace CityX.Weapons
                 return null;
             }
             wave._casterStrength = casterStrength;
+            wave._striker = striker;
             wave._penetration = Mathf.Clamp01(penetration);
             wave.Cosmetic = cosmetic;
             wave._ignore = ignoreColliders;
@@ -145,7 +149,7 @@ namespace CityX.Weapons
             if (target != null && target.IsAlive && _hit.Add(target))
             {
                 float damage = CombatTuning.DamageFor(BaseDamage, _casterStrength);
-                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration);
+                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration, null, _striker);
             }
         }
     }

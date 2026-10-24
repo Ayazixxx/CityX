@@ -123,6 +123,9 @@ namespace CityX.Weapons
 
         private int _strength;
         private Collider[] _ignore;
+
+        /// <summary>Who cast it: named with its blows, so the caster sees their damage (DamageDealt).</summary>
+        private GameObject _striker;
         private float _sinceCheck = AcidRain.CheckSeconds;   // the first burn lands the moment the warning ends
         private ParticleSystem[] _particles = new ParticleSystem[0];
         private ParticleSystem _rain;
@@ -161,7 +164,7 @@ namespace CityX.Weapons
         private static readonly RaycastHit[] Above = new RaycastHit[16];
         private readonly HashSet<IDamageable> _seen = new HashSet<IDamageable>();
 
-        public static AcidRainStorm Spawn(GameObject prefab, Vector3 centre, int strength, Collider[] ignore, bool cosmetic = false)
+        public static AcidRainStorm Spawn(GameObject prefab, Vector3 centre, int strength, Collider[] ignore, bool cosmetic = false, GameObject striker = null)
         {
             GameObject go = prefab != null ? Instantiate(prefab, centre, Quaternion.identity) : new GameObject("AcidRainStorm");
             go.transform.position = centre;
@@ -172,6 +175,7 @@ namespace CityX.Weapons
             }
             storm._strength = strength;
             storm._ignore = ignore;
+            storm._striker = striker;
             storm.Cosmetic = cosmetic;
             storm.Begin();
             return storm;
@@ -413,7 +417,7 @@ namespace CityX.Weapons
                 }
                 else
                 {
-                    DamageContext.Strike(target, amount, head + Vector3.up, 0.0f, DamageKind.Magic, 0.0f);
+                    DamageContext.Strike(target, amount, head + Vector3.up, 0.0f, DamageKind.Magic, 0.0f, null, _striker);
                 }
                 Burns++;
             }

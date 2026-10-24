@@ -21,6 +21,9 @@ namespace CityX.Weapons
         private Rigidbody _rigidbody;
         /// <summary>Points in the caster's Spell Power (2% a point, CombatTuning.DamageFor), and how much of the target's armour and block it ignores.</summary>
         private int _casterStrength;
+
+        /// <summary>Who cast it: named with its blows, so the caster sees their damage (DamageDealt).</summary>
+        private GameObject _striker;
         private float _penetration;
         private bool _consumed;
 
@@ -31,7 +34,7 @@ namespace CityX.Weapons
         public bool Cosmetic { get; private set; }
 
         public static FireballProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity,
-            int casterStrength, Collider[] ignoreColliders, bool cosmetic = false, float penetration = 0.0f)
+            int casterStrength, Collider[] ignoreColliders, bool cosmetic = false, float penetration = 0.0f, GameObject striker = null)
         {
             if (prefab == null)
             {
@@ -46,6 +49,7 @@ namespace CityX.Weapons
             }
 
             fireball._casterStrength = casterStrength;
+            fireball._striker = striker;
             fireball._penetration = Mathf.Clamp01(penetration);
             fireball.Cosmetic = cosmetic;
             // GetComponent RATHER THAN THE CACHED FIELD -- see ThrownBottle.
@@ -147,7 +151,7 @@ namespace CityX.Weapons
             if (target != null && target.IsAlive)
             {
                 float damage = CombatTuning.DamageFor(BaseDamage, _casterStrength);
-                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Magic, _penetration);
+                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Magic, _penetration, null, _striker);
             }
 
             FireBurst.Spawn(BurstPrefab, point, normal);

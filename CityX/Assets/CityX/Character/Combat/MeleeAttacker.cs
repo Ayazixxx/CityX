@@ -616,7 +616,7 @@ namespace CityX.Character
             foreach (Contact contact in ContactsInReach())
             {
                 HitResponse response =
-                    DamageContext.Strike(contact.Target, damage, transform.position, hitstun, DamageKind.Physical, Penetration, contact.Point);
+                    DamageContext.Strike(contact.Target, damage, transform.position, hitstun, DamageKind.Physical, Penetration, contact.Point, gameObject);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
@@ -705,7 +705,7 @@ namespace CityX.Character
                 return HitResponse.Ignored;
             }
 
-            HitResponse response = DamageContext.Strike(target, damage, transform.position, hitstunSeconds, DamageKind.Physical, Penetration, contactPoint);
+            HitResponse response = DamageContext.Strike(target, damage, transform.position, hitstunSeconds, DamageKind.Physical, Penetration, contactPoint, gameObject);
             if (response == HitResponse.Ignored)
             {
                 return response;
@@ -771,7 +771,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration, contact.Point);
+                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration, contact.Point, gameObject);
                 if (response == HitResponse.Ignored)
                 {
                     continue;

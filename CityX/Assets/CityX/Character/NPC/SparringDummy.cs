@@ -16,7 +16,7 @@ namespace CityX.Character
     /// chain land" is the question being asked far more often than "how much
     /// health is left".
     /// </summary>
-    public sealed class SparringDummy : MonoBehaviour, IDamageable
+    public sealed class SparringDummy : MonoBehaviour, IDamageable, IHealthBar
     {
         public float MaxHealth = 100.0f;
 
@@ -24,6 +24,8 @@ namespace CityX.Character
         public float FlinchSeconds = 0.3f;
 
         public float Health { get; private set; }
+
+        float IHealthBar.MaxHealth => MaxHealth;
 
         public int TimesHit { get; private set; }
 

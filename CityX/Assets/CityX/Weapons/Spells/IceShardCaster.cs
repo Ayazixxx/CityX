@@ -184,7 +184,7 @@ namespace CityX.Weapons
             int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             Vector3 spawnAt = _origin + aimed * SpawnForwardOffset;
-            _volley.Add(IceShardProjectile.Spawn(ShardPrefab, spawnAt, aimed * ShardSpeed, spellPower, _ignore, penetration: penetration));
+            _volley.Add(IceShardProjectile.Spawn(ShardPrefab, spawnAt, aimed * ShardSpeed, spellPower, _ignore, penetration: penetration, striker: gameObject));
             PlayCastSound();
             // B is how long the raised-hand pose should be held in all (the whole volley and its follow-through): sent with the first shard.
             float poseSeconds = _followThrough + (Mathf.Max(1, ShardCount) - 1) * _interval;
