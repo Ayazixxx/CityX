@@ -32,9 +32,6 @@ namespace CityX.Character
 
         public const float DisengageSeconds = 0.35f;
 
-        /// <summary>An attack takes over from the pose the body is in (the last one's recovery, a guard, the carry) across this share of its own length.</summary>
-        public const float AttackTakeoverShare = 0.3f;
-
         /// <summary>A guard comes up from, and the ready stance returns from, the pose the body is in over this long, seconds.</summary>
         public const float GuardTakeoverSeconds = 0.15f;
 
@@ -133,12 +130,80 @@ namespace CityX.Character
             {
                 _locomotion.ClearSwordPose();
             }
+            if (_trail != null)
+            {
+                _trail.Stop();
+            }
         }
 
-        /// <summary>An attack starts (an earlier one still going is replaced: the chain's next cut).</summary>
+        // ---- what a swing shows and sounds like ------------------------------------------------------------------------------------------
+        // Here rather than in the combat because this runs on every body the attack plays on: the owner's and each other player's copy.
+
+        private BladeTrail _trail;
+        private MeleeAttacker _melee;
+        private bool _lookedForTrail;
+        private bool _whooshed;
+
+        /// <summary>The light trailing from the blade (null until the first live window on a body that has a blade and the streak material).</summary>
+        public BladeTrail Trail => _trail;
+
+        /// <summary>True while the blade is live in the attack in progress: the stretch the trail is drawn for.</summary>
+        public bool BladeIsLive => _striking && Progress >= SwordStrikes.ActiveStart(_kind) && Progress < SwordStrikes.ActiveEnd(_kind);
+
+        /// <summary>
+        /// The light trailing from the blade while it is live (the sword spin's streak, <see cref="BladeTrail"/>), and the swish of it leaving
+        /// the hold: a cut is seen and heard, not inferred from the arm. The research has smears and trails on the strike only, never the wind-up
+        /// (slynyrd, "Melee attacks"), and a swing's sound carrying its weight as much as its picture does.
+        /// </summary>
+        private void ShowTheCut(ISwordBlade held)
+        {
+            if (_striking && !_whooshed && Progress >= SwordStrikes.StrikeStart(_kind))
+            {
+                _whooshed = true;
+                Vector3 point = held != null ? (held.BladeBaseWorld + held.BladeTipWorld) * 0.5f : transform.position + Vector3.up * 1.5f;
+                SwingWhoosh.Play(SwordStrikes.IsHeavy(_kind), point);
+            }
+
+            bool live = BladeIsLive;
+            if (!live)
+            {
+                if (_trail != null && _trail.IsEmitting)
+                {
+                    _trail.Stop();
+                }
+                return;
+            }
+            if (_trail != null && _trail.IsEmitting)
+            {
+                return;
+            }
+            if (!_lookedForTrail)
+            {
+                _lookedForTrail = true;
+                _melee = GetComponent<MeleeAttacker>();
+                _trail = GetComponent<BladeTrail>();   // shared with the spin and Octaslash; not ??, a missing component is a Unity "fake null"
+            }
+            Material streak = _melee != null ? _melee.SpinSlashMaterial : null;
+            if (held == null || streak == null)
+            {
+                return;
+            }
+            if (_trail == null)
+            {
+                _trail = gameObject.AddComponent<BladeTrail>();
+            }
+            _trail.Begin(held, streak);
+        }
+
+        /// <summary>
+        /// An attack starts (an earlier one still going is replaced: the chain's next cut). It takes over from the pose the body is in (the last
+        /// one's recovery, a guard, the carry) across its own wind-up and hold, so the body is wholly in the new pose the instant the strike leaves.
+        /// </summary>
         public void Begin(SwordStrikeKind kind)
         {
-            StartTakeover(SwordStrikes.Seconds(kind) * AttackTakeoverShare);
+            SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(kind);
+            StartTakeover(timing.WindUp + timing.Hold);
+            _whooshed = false;
             _kind = kind;
             _oneHanded = SwordStrikes.IsOneHanded(kind);
             _striking = true;
@@ -311,6 +376,7 @@ namespace CityX.Character
                     StartTakeover(ReadyToCarrySeconds);   // the guard lowered into the carry, not dropped
                 }
             }
+            ShowTheCut(held);
 
             bool fighting = _striking || _guarding || _rebounding || _readyRemaining > 0.0f;
             bool wantsPose = fighting || CarryIsPosed;

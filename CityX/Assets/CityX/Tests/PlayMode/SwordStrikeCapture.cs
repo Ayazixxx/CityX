@@ -157,11 +157,18 @@ namespace CityX.Tests
                     combat.Tick(Dt);
                     Assert.AreEqual(attack.Animation, combat.CurrentAttack?.Animation, $"{swordLabel} {label}: the wrong attack started");
 
-                    const int columns = 9;
+                    // Nine evenly spaced moments, and a couple of frames after the contact itself (the blade trail at its brightest).
+                    const int columns = 10;
                     float total = attack.Total;
+                    var shots = new float[columns];
+                    for (int c = 0; c < columns - 1; c++)
+                    {
+                        shots[c] = total * c / (columns - 2);
+                    }
+                    shots[columns - 1] = SwordStrikes.TryGet(attack.Animation, out SwordStrikeKind kind) ? total * SwordStrikes.ContactFraction(kind) + 2.0f * Dt : total;
+                    System.Array.Sort(shots);
                     var sheet = new Texture2D(Cell * columns, Cell * 3, TextureFormat.RGB24, false);
                     int column = 0;
-                    float nextShot = 0.0f;
                     float lowestTip = float.MaxValue, worstLeft = 0.0f, fastest = 0.0f;
                     Vector3 previousTip = sword.BladeTipWorld;
                     log.AppendLine($"--- {swordLabel} {label} ({attack.Animation}): startup {attack.Startup:0.00} active {attack.Active:0.00} recovery {attack.Recovery:0.00} ---");
@@ -186,13 +193,12 @@ namespace CityX.Tests
                                            $"blade=({bladeActual.x:0.00},{bladeActual.y:0.00},{bladeActual.z:0.00}) asked=({frame.Blade.x:0.00},{frame.Blade.y:0.00},{frame.Blade.z:0.00}) " +
                                            $"twist={frame.TwistDegrees:0} lean={frame.LeanDegrees:0} drop={frame.HipDrop:0.00} left={leftError * 100:0}cm");
                         }
-                        if (t >= nextShot - 0.0001f)
+                        if (t >= shots[column] - 0.0001f)
                         {
                             Shoot(camera, sheet, column, player, 0);
                             Shoot(camera, sheet, column, player, 1);
                             Shoot(camera, sheet, column, player, 2);
                             column++;
-                            nextShot += total / (columns - 1);
                         }
                         combat.Tick(Dt);
                         vitals.TickHitstun(Dt);

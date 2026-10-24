@@ -87,5 +87,19 @@ namespace CityX.Tests
             Assert.LessOrEqual(_combat.HitStopSeconds * _combat.HeavyHitStopMultiplier, PlayerLocomotion.MaxImpactFreezeSeconds,
                 "the heavy's hit-stop would be cut short by the body's own freeze cap");
         }
+
+        [Test]
+        public void ALightLandsInAThirdOfASecondAndTheChainRunsQuick()
+        {
+            // Owner, 2026-10-23: "light attacks feel snappy; heavy ones feel powerful". A light's click lands in about a third of a second (the
+            // research: a long anticipation on the player's own attack reads as input lag) and a chain's cuts come about every 0.6 s, hit-stop
+            // included; the heavies take over half a second to land, so they read as heavy beside them.
+            Assert.LessOrEqual(_combat.OneHandLight1.Startup + _combat.OneHandLight1.Active * 0.5f, 0.32f, "the one-handed slash is slow to land");
+            Assert.LessOrEqual(_combat.Light1.Startup + _combat.Light1.Active * 0.5f, 0.36f, "the two-handed sweep is slow to land");
+            Assert.LessOrEqual(ContactToContact(_combat.OneHandLight1, _combat.OneHandLight2) + _combat.HitStopSeconds, 0.6f, "the one-handed chain drags");
+            Assert.LessOrEqual(ContactToContact(_combat.Light1, _combat.Light2) + _combat.HitStopSeconds, 0.65f, "the two-handed chain drags");
+            Assert.GreaterOrEqual(_combat.Heavy.Startup, 0.55f, "the slam lands too soon to read as heavy");
+            Assert.GreaterOrEqual(_combat.OneHandHeavy.Startup, 0.5f, "the overhead lands too soon to read as heavy");
+        }
     }
 }

@@ -41,13 +41,22 @@ twists, leans and tilts, how far the hips drop. They are joined the way a good
 sword animation is built:
 
 * a wind-up (smoothstep: anticipation is never faster than the action) into a
-  short **hold** at the top;
-* a **strike** that accelerates all the way into the contact (fastest at the
-  moment it lands) along an arc (a Bezier through a control point) with the blade
-  swept through a `Via` direction so a flat cut stays flat instead of flipping
-  through the vertical;
-* a **follow-through** past the target that decelerates, then a slower recovery
-  to the ready stance;
+  **hold** at the top: a light's is a few frames (the click is answered at once),
+  a heavy's a real pause, the telegraph, through which the hand creeps a few cm
+  further back and the lean deepens (a moving hold, never a statue);
+* a **strike** that accelerates all the way into the contact (a cubic: fastest at
+  the moment it lands, three times its average rate, barely moving as it leaves
+  the hold) along an arc (a Bezier through a control point) with the blade swept
+  through a `Via` direction so a flat cut stays flat instead of flipping through
+  the vertical;
+* a **follow-through** past the target that decelerates (the same cubic
+  reversed, so the blade carries its speed through the contact), then a short
+  **settle** with the pose held (the animator's held frame after a blow: the
+  weight arriving), then the recovery to the ready stance, which a heavy
+  **overshoots** and settles back into like a weight coming to rest;
+* all of it timed in seconds per attack in `SwordStrikes.TimingOf` (wind-up,
+  hold, strike, follow-through, settle, recovery), from which the key times, the
+  live window and the combat's own Startup/Active/Recovery derive (2026-10-23);
 * the torso winds up against the cut and unwinds through it; the heavies sink the
   hips (`HipDrop`, handed to the foot IK so the feet stay planted);
 * the **edge leads** the motion (never the flat of the blade).
@@ -89,10 +98,10 @@ too far. What changed:
 
 | Attack | 1H (combat sword) | 2H (greatsword, spike sword, bat) |
 |---|---|---|
-| Light 1 | `sword1h_slash`: horizontal, right to left, chest height, 0.75 s | `sword2h_sweep`: FLAT FOREHAND, right to left at chest height, hips leading, the front foot striding, 0.85 s |
-| Light 2 | `sword1h_cut`: backhand from over the left shoulder down to the right, the right foot stepping through, 0.8 s | `sword2h_reverse`: FLAT BACKHAND, left to right at chest height, the right foot passing forward, 0.85 s |
-| Light 3 | `sword1h_thrust`: hilt to the hip, driven straight out in a lunge onto the right foot, 0.7 s | `sword2h_cut`: the finisher, a wide diagonal from over the right shoulder down to the lower left, a long step, 1.0 s |
-| Heavy | `sword1h_overhead`: from behind the head down the middle, hips sinking, 1.1 s | `sword2h_slam`: overhead with the longest hold, everything into the floor, 1.5 s |
+| Light 1 | `sword1h_slash`: horizontal, right to left, chest height, 0.62 s (lands at 0.28) | `sword2h_sweep`: FLAT FOREHAND, right to left at chest height, hips leading, the front foot striding, 0.72 s (lands at 0.34) |
+| Light 2 | `sword1h_cut`: backhand from over the left shoulder down to the right, the right foot stepping through, 0.62 s (0.29) | `sword2h_reverse`: FLAT BACKHAND, left to right at chest height, the right foot passing forward, 0.70 s (0.33) |
+| Light 3 | `sword1h_thrust`: hilt to the hip, driven straight out in a lunge onto the right foot, 0.56 s (0.26) | `sword2h_cut`: the finisher, a wide diagonal from over the right shoulder down to the lower left, a long step, 0.86 s (0.42) |
+| Heavy | `sword1h_overhead`: from behind the head down the middle, hips sinking, 1.21 s (a 0.22 s pause at the top, lands at 0.65) | `sword2h_slam`: overhead with the longest hold (0.30 s), everything into the floor, 1.5 s (lands at 0.84) |
 | Guard | `sword1h_guard`: blade across the body, free hand low | `sword2h_guard`: blade up across the front, both hands on the grip |
 
 ## The hold (the carry), 2026-10-16
@@ -123,13 +132,15 @@ hold), moves the roll into the **forearm** rather than the wrist
 (`WristTwist.ShareWithForearm`, up to 100 degrees), keeps the **tip above the
 ground** (`KeepTipAboveGround`), places the free hand (one-handed) or lets the
 support hand follow the grip (two-handed). A new attack or a guard **takes over
-from the pose the body is actually in** (the last swing's recovery) across a third
-of its length, so a chain never snaps. The ready stance lingers 3 s after the last
-swing, then lowers into the carry (see "The hold").
+from the pose the body is actually in** (the last swing's recovery) across its own
+wind-up and hold, so a chain never snaps and the body is wholly in the new pose the
+instant the strike leaves. The ready stance lingers 3 s after the last swing, then
+lowers into the carry (see "The hold").
 
 `SoulsAttack.FromStrike` derives each attack's Startup/Active/Recovery from the
-strike's own `ActiveStart`/`ActiveEnd`, so the blade is live from just before the
-contact into the follow-through. Pinned by
+strike's own `ActiveStart`/`ActiveEnd` (a quarter of the way into the strike to 70%
+of the way through the follow-through, from `TimingOf`), so the blade is live from
+just before the contact into the follow-through. Pinned by
 `SoulsSwordCombatPlayTests.TheActiveWindowSitsOnTheStrikesContact` and
 `SwordStrikesTests` (fastest inside the live window, edge perpendicular, tip never
 through the ground, two-handed poses within the left arm's reach, the slash flat and
@@ -234,8 +245,13 @@ data pages, the stamina/poise/i-frame tables, the animation guides on anticipati
 and follow-through, and the PvP netcode write-ups). Numbers are theirs where they
 have one, scaled to this game's 130-point stamina bar.
 
-* **Commitment.** Every attack is `Startup -> Active -> Recovery`. You cannot walk
-  out of it. The only exits are being staggered or rolling during Recovery.
+* **Commitment.** Every attack is `Startup -> Active -> Recovery`. Until the
+  recovery's **tail** (past its chain window, `InRecoveryTail`) you cannot walk out
+  of it: the exits are being staggered or dashing during Recovery. In the tail the
+  swing has done its hitting, and the body is free to move at full speed, raise a
+  guard (which ends the swing), dash or chain while the arm finishes on its own
+  (2026-10-23; before that a recovery held you to the end, which is what made
+  Kingdoms of Amalur's combat read as sluggish).
 * **Active frames only.** The blade hurts only during the Active window. Each
   target is hit at most once per swing.
 * **Stamina.** Swings, rolls and blocked hits spend the one bar. Recovery pauses
@@ -549,3 +565,45 @@ bat not meant to be a massive greatsword".
 - Tests: `SwordArmsClearPlayTests` holds each sword-combat weapon, standing and after a swing: no arm more than 3 cm into the torso, and a
   one-handed weapon's hand below the shoulder after a swing. `ElbowClearanceTests`, and
   `BluntWeaponTests.TheCrowbarsEdgeSitsInTheHandWhereTheCombatSwordsDoes`.
+
+## Update 2026-10-23: the feel pass (anticipation -> acceleration -> impact -> recovery)
+
+Owner: "research how to make melee combat feel smooth and satisfying. work on the fluidity and the reactivity", with ZumarDev's Unity
+melee clip as the reference (fast, readable swings with a bright trail on the strike and sparks on the hit; its enemies shatter into bits on
+death, which the owner does NOT want: the ragdoll stays), and "attacks should have clear anticipation -> acceleration -> impact ->
+recovery. Light attacks feel snappy; heavy ones feel powerful. Avoid floaty or weightless swings."
+
+Research (wayline.io on indie melee combat, slynyrd's pixelblog on melee attacks, Game Developer's "Combat Canceled" on God of War, the
+DGMI wiki and Dustloop on input buffers, SSBWiki and the KOF XIII frame data on hit-stop, Aztez's "Anatomy of a Successful Attack" and
+"The Amalur Problem", mocaponline's animation-polish guide): the player's own attacks must answer within a few frames (a long anticipation
+reads as input lag; spend the frames on the follow-through instead), the impact frame matters most, hold the follow-through for weight,
+overshoot-and-settle for heavy actions, hit-stop scaled by weight, trails only on the strike (never the wind-up), and let the recovery be
+cancelled by movement or another action once the hit window is over (Amalur's locked recoveries are what made it sluggish).
+
+What changed:
+
+- **Explicit phases, in seconds** (`SwordStrikes.TimingOf`: wind-up, hold, strike, follow-through, settle, recovery). Every attack's key
+  times, live window and `SoulsAttack` windows derive from it. Lights land in 0.26-0.34 s (the finisher 0.42); the heavies pause at the top
+  0.22-0.30 s and land at 0.65-0.84 s. Totals: 1H 0.62/0.62/0.56/1.21 s, 2H 0.72/0.70/0.86/1.50 s.
+- **Acceleration**: the strike and follow-through eases are cubic (`u^3`, `1-(1-u)^3`): the blade arrives at three times its average rate
+  (two before) and barely moves as it leaves the hold. The follow-through's seconds keep the equal-average-rate rule, so the blade carries its
+  speed through the contact.
+- **Impact**: a short **settle hold** at the end of the follow-through (0.04-0.07 s lights, 0.14-0.18 s heavies). The hit-stop and the
+  victim's freeze, shove, flash and blood are unchanged (2026-10-17).
+- **Recovery**: a heavy's **overshoots** the ready stance by a tenth of the travel (easeOutBack, 2-4 cm of hand, the lean with it) and
+  settles back; the blade's direction, the elbow and the feet never overshoot. A heavy's **hold creeps**: the hand draws 3 cm further back
+  and the lean deepens 2 degrees through the pause.
+- **The recovery's tail** (`SoulsSwordCombat.InRecoveryTail`, from the chain window on): movement goes back to full speed
+  (`SlowsMovement`, used by `PlayerInputReader` and `SwordsmanBrain`), and a held right-click **raises the guard** there, ending the swing.
+  Chaining and the dash already worked from the window.
+- **Tempo**: ChainAt 0.45 for the lights (0.5 the finisher), 0.55 the heavies; light stuns 0.45 (1H), 0.50/0.58 (2H sweep/backhand) keep the
+  rhythm rule (the next cut lands while the first still holds, `SoulsCombatRhythmTests`); the chain runs at about a cut every 0.57 s (1H) or
+  0.64 s (2H), hit-stop included.
+- **The cut is seen**: `SwordPoseDriver` lights the **blade trail** (`BladeTrail`, the spin's streak material) exactly while the blade is
+  live, on the owner's body and every copy (the driver runs on both).
+- **The cut is heard**: `SwingWhoosh`, a swish made in code (noise through a swept resonant filter, loudest and highest at the contact),
+  played as the strike leaves the hold; lower, longer and louder for a heavy. Also on every copy.
+- Tests: `SwordStrikesTests` (lights land fast / heavies pause and hold, the strike is a whip not a wave, the settle holds, the heavies
+  overshoot and the lights do not, the heavy hold creeps), `SoulsCombatRhythmTests.ALightLandsInAThirdOfASecondAndTheChainRunsQuick`,
+  `SoulsSwordCombatPlayTests` (the tail frees the body; a guard comes up in the tail), `SwingWhooshTests`, `SwordSwingShowPlayTests` (the
+  trail only while live and the swish, on the owner and on a copy told the attack's name).

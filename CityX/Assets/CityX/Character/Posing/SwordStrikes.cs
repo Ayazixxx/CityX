@@ -221,66 +221,87 @@ namespace CityX.Character
 
         public static bool IsHeavy(SwordStrikeKind kind) => kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Slam2H;
 
-        /// <summary>How long the whole attack takes, seconds: wind-up, hold, strike, follow-through and recovery.</summary>
-        public static float Seconds(SwordStrikeKind kind)
+        /// <summary>
+        /// THE PHASES OF AN ATTACK, in seconds (owner, 2026-10-23: "attacks should have clear anticipation -> acceleration -> impact -> recovery.
+        /// Light attacks feel snappy; heavy ones feel powerful. Avoid floaty or weightless swings"): the WIND-UP (the anticipation), a HOLD at
+        /// the top (a light's is a few frames, so the click is answered at once; a heavy's a real pause, the telegraph), the STRIKE (accelerating
+        /// all the way into the contact), the FOLLOW-THROUGH (the blade carrying on past the target, losing its speed), the SETTLE (the
+        /// follow-through's pose held a moment: the weight of the blade arriving, as an animator holds the frame after a blow) and the RECOVERY
+        /// to the ready stance (a heavy's overshoots it and settles back, like a weight coming to rest). The keys' times come from these, so an
+        /// attack is tuned here in seconds, and the game's own windows (SoulsAttack.FromStrike) follow.
+        /// </summary>
+        public readonly struct StrikeTiming
+        {
+            public readonly float WindUp, Hold, Strike, Follow, Settle, Recover;
+
+            public StrikeTiming(float windUp, float hold, float strike, float follow, float settle, float recover)
+            {
+                WindUp = windUp;
+                Hold = hold;
+                Strike = strike;
+                Follow = follow;
+                Settle = settle;
+                Recover = recover;
+            }
+
+            /// <summary>Seconds from the start to the contact: how long a click takes to land.</summary>
+            public float Contact => WindUp + Hold + Strike;
+
+            public float Total => Contact + Follow + Settle + Recover;
+        }
+
+        // The follow-through's seconds are its degrees over the strike's rate (see BuildKeys), so the blade carries its speed through the
+        // contact. A light lands about 0.3 s after the click (the research's "respond within a few frames, spend the frames on the follow-through
+        // instead of the wind-up"); a heavy pauses at the top for a fifth of a second or more and lands in 0.65-0.85 s.
+        public static StrikeTiming TimingOf(SwordStrikeKind kind)
         {
             switch (kind)
             {
-                case SwordStrikeKind.Slash1H: return 0.75f;
-                case SwordStrikeKind.Cut1H: return 0.80f;
-                case SwordStrikeKind.Thrust1H: return 0.70f;
-                case SwordStrikeKind.Overhead1H: return 1.10f;
-                case SwordStrikeKind.Cut2H: return 1.00f;
-                case SwordStrikeKind.Reverse2H: return 0.85f;
-                case SwordStrikeKind.Sweep2H: return 0.85f;
-                default: return 1.50f;
+                case SwordStrikeKind.Slash1H: return new StrikeTiming(0.13f, 0.04f, 0.11f, 0.10f, 0.05f, 0.19f);
+                case SwordStrikeKind.Cut1H: return new StrikeTiming(0.14f, 0.04f, 0.11f, 0.085f, 0.05f, 0.195f);
+                case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.12f, 0.04f, 0.10f, 0.06f, 0.04f, 0.20f);
+                case SwordStrikeKind.Overhead1H: return new StrikeTiming(0.30f, 0.22f, 0.13f, 0.12f, 0.14f, 0.30f);
+                case SwordStrikeKind.Cut2H: return new StrikeTiming(0.20f, 0.07f, 0.15f, 0.115f, 0.07f, 0.25f);
+                case SwordStrikeKind.Reverse2H: return new StrikeTiming(0.15f, 0.05f, 0.13f, 0.12f, 0.05f, 0.20f);
+                case SwordStrikeKind.Sweep2H: return new StrikeTiming(0.16f, 0.05f, 0.13f, 0.12f, 0.05f, 0.21f);
+                default: return new StrikeTiming(0.38f, 0.30f, 0.16f, 0.13f, 0.18f, 0.35f);
             }
         }
 
-        /// <summary>Where in the attack (0-1) the blade becomes dangerous: just as the strike leaves the hold.</summary>
+        /// <summary>The blade is live from this far into the strike (0-1) -- once it is moving in earnest -- to this far into the follow-through.</summary>
+        public const float LiveFromStrikeShare = 0.25f;
+
+        public const float LiveToFollowShare = 0.7f;
+
+        /// <summary>How long the whole attack takes, seconds: wind-up, hold, strike, follow-through, settle and recovery.</summary>
+        public static float Seconds(SwordStrikeKind kind) => TimingOf(kind).Total;
+
+        /// <summary>Where in the attack (0-1) the strike leaves the hold: the blade starts to move in earnest, and the swing is heard.</summary>
+        public static float StrikeStart(SwordStrikeKind kind)
+        {
+            StrikeTiming t = TimingOf(kind);
+            return (t.WindUp + t.Hold) / t.Total;
+        }
+
+        /// <summary>Where in the attack (0-1) the blade becomes dangerous: a quarter of the way into the strike.</summary>
         public static float ActiveStart(SwordStrikeKind kind)
         {
-            switch (kind)
-            {
-                case SwordStrikeKind.Slash1H: return 0.40f;
-                case SwordStrikeKind.Cut1H: return 0.40f;
-                case SwordStrikeKind.Thrust1H: return 0.38f;
-                case SwordStrikeKind.Overhead1H: return 0.54f;
-                case SwordStrikeKind.Cut2H: return 0.44f;
-                case SwordStrikeKind.Reverse2H: return 0.36f;
-                case SwordStrikeKind.Sweep2H: return 0.38f;
-                default: return 0.56f;
-            }
+            StrikeTiming t = TimingOf(kind);
+            return (t.WindUp + t.Hold + t.Strike * LiveFromStrikeShare) / t.Total;
         }
 
         /// <summary>Where in the attack (0-1) the blade stops being dangerous: into the follow-through, before it has slowed.</summary>
         public static float ActiveEnd(SwordStrikeKind kind)
         {
-            switch (kind)
-            {
-                case SwordStrikeKind.Slash1H: return 0.64f;
-                case SwordStrikeKind.Cut1H: return 0.66f;
-                case SwordStrikeKind.Thrust1H: return 0.62f;
-                case SwordStrikeKind.Overhead1H: return 0.76f;
-                case SwordStrikeKind.Cut2H: return 0.66f;
-                case SwordStrikeKind.Reverse2H: return 0.60f;
-                case SwordStrikeKind.Sweep2H: return 0.62f;
-                default: return 0.78f;
-            }
+            StrikeTiming t = TimingOf(kind);
+            return (t.Contact + t.Follow * LiveToFollowShare) / t.Total;
         }
 
         /// <summary>The moment of contact (0-1): the end of the strike, where the blade is fastest and the reach is 1.</summary>
         public static float ContactFraction(SwordStrikeKind kind)
         {
-            Key[] keys = KeysFor(kind);
-            foreach (Key key in keys)
-            {
-                if (key.Reach >= 0.999f)
-                {
-                    return key.T;
-                }
-            }
-            return 0.5f;
+            StrikeTiming t = TimingOf(kind);
+            return t.Contact / t.Total;
         }
 
         // ---- the body the keys are written against -------------------------------------------------------------------------------------
@@ -438,18 +459,24 @@ namespace CityX.Character
 
         private enum Ease
         {
-            /// <summary>Smoothstep: a wind-up (anticipation is never faster than the action), a recovery.</summary>
+            /// <summary>Smoothstep: a wind-up (anticipation is never faster than the action), a light's recovery.</summary>
             Smooth,
 
-            /// <summary>Fast off the mark, decelerating into the key: a follow-through losing its speed.</summary>
+            /// <summary>Fast off the mark, decelerating into the key (a cubic): a follow-through losing its speed.</summary>
             SlowIn,
 
-            /// <summary>Slow off the mark, accelerating hard into the key: the strike, fastest at the contact.</summary>
+            /// <summary>Slow off the mark, accelerating hard into the key (a cubic): the strike, fastest at the contact, a whip not a wave.</summary>
             Snap,
 
             /// <summary>Straight: a hold (the pose does not change).</summary>
             Linear,
+
+            /// <summary>Decelerating into the key, a little past it, and back: a heavy's recovery settling into the stance like a weight coming to rest.</summary>
+            Overshoot,
         }
+
+        /// <summary>How far past the key an <see cref="Ease.Overshoot"/> goes: easeOutBack's usual constant, a tenth of the travel (2-4 cm of hand).</summary>
+        private const float OvershootPull = 1.7f;
 
         private struct Key
         {
@@ -537,6 +564,46 @@ namespace CityX.Character
             return key;
         }
 
+        /// <summary>How far a heavy's hold creeps on back, metres and degrees: a moving hold, never a dead one.</summary>
+        private const float CreepMetres = 0.03f;
+
+        private const float CreepLeanDegrees = 2.0f;
+
+        /// <summary>A heavy's hold at the top: not frozen but still gathering, the hand drawn a little further back and the lean deepening, slowly.</summary>
+        private static Key Creep(Key key, float t)
+        {
+            key.T = t;
+            key.Ease = Ease.Smooth;
+            key.Hand.z -= CreepMetres / ArmMetres;
+            key.Lean -= CreepLeanDegrees;
+            return key;
+        }
+
+        /// <summary>
+        /// An attack's keys in order, timed by <see cref="TimingOf"/>: the ready stance, the wind-up, its hold (a heavy's creeping), the contact,
+        /// the follow-through, its settle, and the ready stance again (a heavy's reached with an overshoot).
+        /// </summary>
+        private static Key[] Assemble(SwordStrikeKind kind, Key ready, Key windup, Key contact, Key follow)
+        {
+            StrikeTiming tm = TimingOf(kind);
+            float total = tm.Total;
+            bool heavy = IsHeavy(kind);
+            float holdEnd = (tm.WindUp + tm.Hold) / total;
+            float followEnd = (tm.Contact + tm.Follow) / total;
+            Key back = At(ready, 1.0f);
+            back.Ease = heavy ? Ease.Overshoot : Ease.Smooth;
+            return new[]
+            {
+                ready,
+                At(windup, tm.WindUp / total),
+                heavy ? Creep(windup, holdEnd) : Hold(windup, holdEnd),
+                At(contact, tm.Contact / total),
+                At(follow, followEnd),
+                Hold(follow, followEnd + tm.Settle / total),
+                back,
+            };
+        }
+
         private static readonly Key[][] Cache = new Key[8][];
 
         private static Key[] KeysFor(SwordStrikeKind kind)
@@ -550,8 +617,9 @@ namespace CityX.Character
         }
 
         // THE STRIKE AND THE FOLLOW-THROUGH SWEEP THE BLADE AT THE SAME AVERAGE RATE (degrees of its plane over seconds): the strike (Snap)
-        // arrives at twice its average, the follow-through (SlowIn) leaves at twice its own, so with the two averages equal the blade does
-        // not stop dead at the contact. The key times below are set from that: follow-through seconds = its degrees / the strike's rate.
+        // arrives at three times its average, the follow-through (SlowIn) leaves at three times its own, so with the two averages equal the
+        // blade does not stop dead at the contact. A light's follow-through seconds in TimingOf = its degrees / the strike's rate; the heavies
+        // stop dead on purpose (they hit the ground). The poses here carry no times of their own: Assemble sets them from TimingOf.
         private static Key[] BuildKeys(SwordStrikeKind kind)
         {
             Key ready1 = ReadyKey1H;
@@ -564,104 +632,104 @@ namespace CityX.Character
                     // hips lead round, the arms reach out across the front at chest height with the blade flat, and it carries on round to the
                     // left with the shoulders past the hips; the stance opens into the step. 130 degrees in 0.136 s, 120 more in 0.126 s.
                     CutPlane cut = ForehandFlat;
-                    Key windup = Pose(0.30f, Ease.Smooth, new Vector3(0.45f, 1.58f, 0.0f), cut, -135.0f, elbow: 0.55f, twist: 45.0f, hips: 20.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.45f, 1.58f, 0.0f), cut, -135.0f, elbow: 0.55f, twist: 45.0f, hips: 20.0f,
                         lean: -3.0f, tilt: 4.0f, drop: 0.09f, lead: -1.0f, depth: 0.40f);
-                    Key contact = Arc(Pose(0.52f, Ease.Snap, new Vector3(0.04f, 1.48f, 0.70f), cut, -5.0f, elbow: 0.25f, twist: -10.0f, hips: -25.0f,
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.04f, 1.48f, 0.70f), cut, -5.0f, elbow: 0.25f, twist: -10.0f, hips: -25.0f,
                         lean: 6.0f, tilt: 2.0f, drop: 0.12f, lead: -1.0f, depth: 0.60f, reach: 1.0f), new Vector3(0.55f, 1.52f, 0.55f), 17.5f);
-                    Key follow = Pose(0.67f, Ease.SlowIn, new Vector3(-0.42f, 1.44f, 0.36f), cut, 115.0f, elbow: 0.40f, twist: -55.0f, hips: -40.0f,
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(-0.42f, 1.44f, 0.36f), cut, 115.0f, elbow: 0.40f, twist: -55.0f, hips: -40.0f,
                         lean: 3.0f, tilt: 0.0f, drop: 0.10f, lead: -1.0f, depth: 0.55f, reach: 0.6f);
-                    return new[] { ready2, windup, Hold(windup, 0.36f), contact, follow, At(ready2, 1.0f) };
+                    return Assemble(kind, ready2, windup, contact, follow);
                 }
                 case SwordStrikeKind.Reverse2H:
                 {
                     // THE BACKHAND, the return: the hands crossed to the left shoulder, the blade back over it, everything turned left; then flat
                     // across the front to the right at chest height, the hips leading round, the right foot passing forward into the step.
                     CutPlane cut = BackhandFlat;
-                    Key windup = Pose(0.28f, Ease.Smooth, new Vector3(-0.22f, 1.60f, 0.14f), cut, -135.0f, elbow: 0.30f, twist: -45.0f, hips: -22.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(-0.22f, 1.60f, 0.14f), cut, -135.0f, elbow: 0.30f, twist: -45.0f, hips: -22.0f,
                         lean: -2.0f, tilt: -4.0f, drop: 0.09f, lead: -0.2f, depth: 0.40f);
-                    Key contact = Arc(Pose(0.50f, Ease.Snap, new Vector3(0.16f, 1.48f, 0.66f), cut, -5.0f, elbow: 0.30f, twist: 12.0f, hips: 25.0f,
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.16f, 1.48f, 0.66f), cut, -5.0f, elbow: 0.30f, twist: 12.0f, hips: 25.0f,
                         lean: 6.0f, tilt: -2.0f, drop: 0.12f, lead: 1.0f, depth: 0.55f, reach: 1.0f), new Vector3(-0.50f, 1.52f, 0.60f), -16.5f);
-                    Key follow = Pose(0.65f, Ease.SlowIn, new Vector3(0.62f, 1.42f, 0.20f), cut, 115.0f, elbow: 0.35f, twist: 50.0f, hips: 38.0f,
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.62f, 1.42f, 0.20f), cut, 115.0f, elbow: 0.35f, twist: 50.0f, hips: 38.0f,
                         lean: 3.0f, tilt: 0.0f, drop: 0.10f, lead: 1.0f, depth: 0.50f, reach: 0.6f);
-                    return new[] { ready2, windup, Hold(windup, 0.34f), contact, follow, At(ready2, 1.0f) };
+                    return Assemble(kind, ready2, windup, contact, follow);
                 }
                 case SwordStrikeKind.Cut2H:
                 {
                     // THE FINISHER: both hands up at the right shoulder, the blade back over it; around the right side and down across the
                     // front to the lower left with a long step and the hips sinking, the body leaning in behind it.
                     CutPlane cut = DiagonalDown;
-                    Key windup = Pose(0.32f, Ease.Smooth, new Vector3(0.40f, 1.80f, -0.02f), cut, -127.5f, elbow: 0.60f, twist: 40.0f, hips: 18.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.40f, 1.80f, -0.02f), cut, -127.5f, elbow: 0.60f, twist: 40.0f, hips: 18.0f,
                         lean: -5.0f, tilt: -3.0f, drop: 0.08f, lead: -1.0f, depth: 0.35f);
-                    Key contact = Arc(Pose(0.58f, Ease.Snap, new Vector3(0.0f, 1.38f, 0.62f), cut, 10.0f, elbow: 0.30f, twist: -20.0f, hips: -30.0f,
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.0f, 1.38f, 0.62f), cut, 10.0f, elbow: 0.30f, twist: -20.0f, hips: -30.0f,
                         lean: 12.0f, tilt: 5.0f, drop: 0.14f, lead: -1.0f, depth: 0.70f, reach: 1.0f), new Vector3(0.55f, 1.60f, 0.50f), 10.0f);
-                    Key follow = Pose(0.70f, Ease.SlowIn, new Vector3(-0.42f, 1.36f, 0.34f), cut, 115.0f, elbow: 0.40f, twist: -55.0f, hips: -42.0f,
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(-0.42f, 1.36f, 0.34f), cut, 115.0f, elbow: 0.40f, twist: -55.0f, hips: -42.0f,
                         lean: 10.0f, tilt: 5.0f, drop: 0.13f, lead: -1.0f, depth: 0.65f, reach: 0.6f);
-                    return new[] { ready2, windup, Hold(windup, 0.42f), contact, follow, At(ready2, 1.0f) };
+                    return Assemble(kind, ready2, windup, contact, follow);
                 }
                 case SwordStrikeKind.Slam2H:
                 {
                     // The slam: high overhead leaning back, the longest hold of any attack, then down the middle with a long step and the hips
                     // sinking hard, the tip scraping the floor. It stops dead on purpose: it hits the ground.
                     CutPlane cut = Overhead;
-                    Key windup = Pose(0.34f, Ease.Smooth, new Vector3(0.25f, 2.42f, -0.12f), cut, -150.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.25f, 2.42f, -0.12f), cut, -150.0f,
                         elbow: 0.50f, twist: 5.0f, hips: 0.0f, lean: -12.0f, tilt: 0.0f, drop: 0.06f, lead: -1.0f, depth: 0.40f);
-                    Key contact = Arc(Pose(0.70f, Ease.Snap, new Vector3(0.12f, 1.55f, 0.76f), cut, 24.0f,
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.12f, 1.55f, 0.76f), cut, 24.0f,
                         elbow: 0.25f, twist: -5.0f, hips: -5.0f, lean: 20.0f, tilt: 0.0f, drop: 0.18f, lead: -1.0f, depth: 0.75f, reach: 1.0f),
                         new Vector3(0.15f, 2.45f, 0.45f), 0.0f);
-                    Key follow = Pose(0.82f, Ease.SlowIn, new Vector3(0.12f, 1.36f, 0.66f), cut, 27.0f,
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.12f, 1.36f, 0.66f), cut, 27.0f,
                         elbow: 0.30f, twist: -5.0f, hips: -5.0f, lean: 24.0f, tilt: 0.0f, drop: 0.20f, lead: -1.0f, depth: 0.75f, reach: 0.6f);
-                    return new[] { ready2, windup, Hold(windup, 0.54f), contact, follow, At(ready2, 1.0f) };
+                    return Assemble(kind, ready2, windup, contact, follow);
                 }
                 case SwordStrikeKind.Slash1H:
                 {
                     // Wound up out to the right at chest height with the blade trailing behind, hips and shoulders turned with it; a flat arc
                     // across the front; the follow-through carries it on round to the left, the arm straight out.
                     CutPlane cut = ForehandFlat;
-                    Key windup = Pose(0.28f, Ease.Smooth, new Vector3(0.85f, 1.58f, -0.08f), cut, -140.0f, elbow: 0.60f, twist: 40.0f, hips: 18.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.85f, 1.58f, -0.08f), cut, -140.0f, elbow: 0.60f, twist: 40.0f, hips: 18.0f,
                         lean: -3.0f, tilt: 3.0f, drop: 0.08f, lead: -0.5f, depth: 0.35f);
-                    Key contact = Arc(Pose(0.54f, Ease.Snap, new Vector3(-0.02f, 1.50f, 0.74f), cut, -8.0f, elbow: 0.25f, twist: -15.0f, hips: -25.0f,
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(-0.02f, 1.50f, 0.74f), cut, -8.0f, elbow: 0.25f, twist: -15.0f, hips: -25.0f,
                         lean: 6.0f, tilt: 2.0f, drop: 0.11f, lead: -1.0f, depth: 0.55f, reach: 1.0f), new Vector3(0.80f, 1.55f, 0.55f), 12.5f);
-                    Key follow = Pose(0.68f, Ease.SlowIn, new Vector3(-0.52f, 1.45f, 0.38f), cut, 110.0f, elbow: 0.40f, twist: -50.0f, hips: -35.0f,
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(-0.52f, 1.45f, 0.38f), cut, 110.0f, elbow: 0.40f, twist: -50.0f, hips: -35.0f,
                         lean: 4.0f, tilt: 0.0f, drop: 0.09f, lead: -1.0f, depth: 0.50f, reach: 0.6f);
-                    return new[] { ready1, windup, Hold(windup, 0.38f), contact, follow, At(ready1, 1.0f) };
+                    return Assemble(kind, ready1, windup, contact, follow);
                 }
                 case SwordStrikeKind.Cut1H:
                 {
                     // The backhand: the hand crosses to the left at head height with the blade back over the left shoulder, then cuts diagonally
                     // down across the front to the lower right, the right foot stepping through.
                     CutPlane cut = DiagonalDownBackhand;
-                    Key windup = Pose(0.30f, Ease.Smooth, new Vector3(-0.22f, 1.86f, 0.12f), cut, -127.5f, elbow: 0.60f, twist: -35.0f, hips: -15.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(-0.22f, 1.86f, 0.12f), cut, -127.5f, elbow: 0.60f, twist: -35.0f, hips: -15.0f,
                         lean: -3.0f, tilt: -2.0f, drop: 0.08f, lead: 0.0f, depth: 0.35f);
-                    Key contact = Arc(Pose(0.56f, Ease.Snap, new Vector3(0.34f, 1.44f, 0.58f), cut, 10.0f, elbow: 0.35f, twist: 25.0f, hips: 30.0f,
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.34f, 1.44f, 0.58f), cut, 10.0f, elbow: 0.35f, twist: 25.0f, hips: 30.0f,
                         lean: 9.0f, tilt: -4.0f, drop: 0.11f, lead: 1.0f, depth: 0.55f, reach: 1.0f), new Vector3(-0.45f, 1.75f, 0.50f), -5.0f);
-                    Key follow = Pose(0.70f, Ease.SlowIn, new Vector3(0.58f, 1.32f, 0.28f), cut, 115.0f, elbow: 0.50f, twist: 45.0f, hips: 38.0f,
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.58f, 1.32f, 0.28f), cut, 115.0f, elbow: 0.50f, twist: 45.0f, hips: 38.0f,
                         lean: 6.0f, tilt: -3.0f, drop: 0.10f, lead: 1.0f, depth: 0.50f, reach: 0.6f);
-                    return new[] { ready1, windup, Hold(windup, 0.38f), contact, follow, At(ready1, 1.0f) };
+                    return Assemble(kind, ready1, windup, contact, follow);
                 }
                 case SwordStrikeKind.Thrust1H:
                 {
                     // Drawn back to the hip, point forward, then driven straight out in a fencer's lunge onto the right foot.
-                    Key windup = Pose(0.28f, Ease.Smooth, new Vector3(0.52f, 1.40f, -0.10f), new Vector3(-0.08f, 0.12f, 0.99f), Vector3.left,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.52f, 1.40f, -0.10f), new Vector3(-0.08f, 0.12f, 0.99f), Vector3.left,
                         elbow: 0.55f, twist: 28.0f, hips: 15.0f, lean: -2.0f, tilt: 0.0f, drop: 0.08f, lead: 0.5f, depth: 0.40f);
-                    Key contact = Pose(0.54f, Ease.Snap, new Vector3(0.30f, 1.62f, 0.86f), new Vector3(-0.03f, 0.04f, 1.0f), Vector3.left,
+                    Key contact = Pose(0.0f, Ease.Snap, new Vector3(0.30f, 1.62f, 0.86f), new Vector3(-0.03f, 0.04f, 1.0f), Vector3.left,
                         elbow: 0.20f, twist: -20.0f, hips: -10.0f, lean: 14.0f, tilt: 0.0f, drop: 0.13f, lead: 1.0f, depth: 0.85f, reach: 1.0f);
-                    Key follow = Pose(0.64f, Ease.Linear, new Vector3(0.28f, 1.60f, 0.86f), new Vector3(-0.03f, 0.04f, 1.0f), Vector3.left,
+                    Key follow = Pose(0.0f, Ease.Linear, new Vector3(0.28f, 1.60f, 0.86f), new Vector3(-0.03f, 0.04f, 1.0f), Vector3.left,
                         elbow: 0.20f, twist: -20.0f, hips: -10.0f, lean: 14.0f, tilt: 0.0f, drop: 0.13f, lead: 1.0f, depth: 0.85f, reach: 0.9f);
-                    return new[] { ready1, windup, Hold(windup, 0.36f), contact, follow, At(ready1, 1.0f) };
+                    return Assemble(kind, ready1, windup, contact, follow);
                 }
                 default:
                 {
                     // The one-handed heavy: raised behind the head, a long hold leaning back, then over the top and down the middle with the
                     // hips sinking into a long step.
                     CutPlane cut = Overhead;
-                    Key windup = Pose(0.36f, Ease.Smooth, new Vector3(0.45f, 2.42f, -0.20f), cut, -145.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.45f, 2.42f, -0.20f), cut, -145.0f,
                         elbow: 0.55f, twist: 12.0f, hips: 5.0f, lean: -10.0f, tilt: 0.0f, drop: 0.06f, lead: -0.5f, depth: 0.40f);
-                    Key contact = Arc(Pose(0.68f, Ease.Snap, new Vector3(0.40f, 1.65f, 0.80f), cut, 17.0f,
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.40f, 1.65f, 0.80f), cut, 17.0f,
                         elbow: 0.20f, twist: -10.0f, hips: -8.0f, lean: 18.0f, tilt: 0.0f, drop: 0.16f, lead: -1.0f, depth: 0.70f, reach: 1.0f),
                         new Vector3(0.50f, 2.35f, 0.35f), 1.0f);
-                    Key follow = Pose(0.80f, Ease.SlowIn, new Vector3(0.40f, 1.34f, 0.70f), cut, 41.0f,
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.40f, 1.34f, 0.70f), cut, 41.0f,
                         elbow: 0.30f, twist: -12.0f, hips: -10.0f, lean: 22.0f, tilt: 0.0f, drop: 0.18f, lead: -1.0f, depth: 0.70f, reach: 0.6f);
-                    return new[] { ready1, windup, Hold(windup, 0.52f), contact, follow, At(ready1, 1.0f) };
+                    return Assemble(kind, ready1, windup, contact, follow);
                 }
             }
         }
@@ -674,8 +742,13 @@ namespace CityX.Character
             switch (ease)
             {
                 case Ease.Smooth: return u * u * (3.0f - 2.0f * u);
-                case Ease.SlowIn: return 1.0f - (1.0f - u) * (1.0f - u);
-                case Ease.Snap: return u * u;
+                case Ease.SlowIn: return 1.0f - (1.0f - u) * (1.0f - u) * (1.0f - u);
+                case Ease.Snap: return u * u * u;
+                case Ease.Overshoot:
+                {
+                    float v = u - 1.0f;
+                    return 1.0f + (OvershootPull + 1.0f) * v * v * v + OvershootPull * v * v;
+                }
                 default: return u;
             }
         }
@@ -732,13 +805,15 @@ namespace CityX.Character
             Key b = keys[i + 1];
             float span = Mathf.Max(b.T - a.T, 1e-4f);
             float u = Eased(b.Ease, (t01 - a.T) / span);
+            // The hand and the body may overshoot (Ease.Overshoot runs u past 1 and back); the blade's turn, the elbow and the feet never do.
+            float uc = Mathf.Clamp01(u);
 
             Vector3 blade;
             Vector3 edge;
             if (a.OnPlane && b.OnPlane && a.Plane.Forward == b.Plane.Forward && a.Plane.Across == b.Plane.Across)
             {
                 // Both ends in the same cut's plane: the blade turns IN the plane (a flat slash stays flat), the edge its tangent (leading).
-                float angle = Mathf.Lerp(a.Angle, b.Angle, u);
+                float angle = Mathf.Lerp(a.Angle, b.Angle, uc);
                 blade = a.Plane.Blade(angle);
                 edge = a.Plane.Edge(angle) * Mathf.Sign(b.Angle - a.Angle + 1e-6f);
                 if (Mathf.Abs(b.Angle - a.Angle) < 1e-3f)
@@ -748,8 +823,8 @@ namespace CityX.Character
             }
             else
             {
-                blade = b.HasVia ? Vector3.Slerp(Vector3.Slerp(a.Blade, b.BladeVia, u), Vector3.Slerp(b.BladeVia, b.Blade, u), u) : Vector3.Slerp(a.Blade, b.Blade, u);
-                edge = Vector3.Slerp(a.Edge, b.Edge, u);
+                blade = b.HasVia ? Vector3.Slerp(Vector3.Slerp(a.Blade, b.BladeVia, uc), Vector3.Slerp(b.BladeVia, b.Blade, uc), uc) : Vector3.Slerp(a.Blade, b.Blade, uc);
+                edge = Vector3.Slerp(a.Edge, b.Edge, uc);
             }
 
             var key = new Key
@@ -757,15 +832,15 @@ namespace CityX.Character
                 Hand = b.HasControl ? Bezier(a.Hand, b.Control, b.Hand, u) : Vector3.LerpUnclamped(a.Hand, b.Hand, u),
                 Blade = blade,
                 Edge = edge,
-                ElbowOut = Mathf.Lerp(a.ElbowOut, b.ElbowOut, u),
-                Twist = Mathf.Lerp(a.Twist, b.Twist, u),
-                Hips = Mathf.Lerp(a.Hips, b.Hips, u),
-                Lean = Mathf.Lerp(a.Lean, b.Lean, u),
-                Tilt = Mathf.Lerp(a.Tilt, b.Tilt, u),
-                Drop = Mathf.Lerp(a.Drop, b.Drop, u),
-                Lead = Mathf.Lerp(a.Lead, b.Lead, u),
-                Depth = Mathf.Lerp(a.Depth, b.Depth, u),
-                Reach = Mathf.Lerp(a.Reach, b.Reach, u),
+                ElbowOut = Mathf.Lerp(a.ElbowOut, b.ElbowOut, uc),
+                Twist = Mathf.LerpUnclamped(a.Twist, b.Twist, u),
+                Hips = Mathf.LerpUnclamped(a.Hips, b.Hips, u),
+                Lean = Mathf.LerpUnclamped(a.Lean, b.Lean, u),
+                Tilt = Mathf.LerpUnclamped(a.Tilt, b.Tilt, u),
+                Drop = Mathf.LerpUnclamped(a.Drop, b.Drop, u),
+                Lead = Mathf.Lerp(a.Lead, b.Lead, uc),
+                Depth = Mathf.Lerp(a.Depth, b.Depth, uc),
+                Reach = Mathf.Lerp(a.Reach, b.Reach, uc),
             };
             return Frame(key, 1.0f, twoHanded);
         }

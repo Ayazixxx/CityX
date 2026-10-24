@@ -306,11 +306,11 @@ namespace CityX.Weapons
             }
 
             Vector2 move = Vector2.ClampMagnitude(intent.Move, 1.0f);
-            bool committed = _combat != null && _combat.IsCommitted;
+            bool slowed = _combat != null && _combat.SlowsMovement;
             bool blocking = _combat != null && _combat.IsBlocking;
-            bool wantsSprint = intent.Sprint && !committed && !blocking && move.y > 0.0f;
+            bool wantsSprint = intent.Sprint && !slowed && !blocking && move.y > 0.0f;
             bool sprinting = _vitals.TickStamina(wantsSprint, deltaTime);
-            if (committed)
+            if (slowed)
             {
                 move *= _combat.CommittedMoveSpeedFraction;
             }

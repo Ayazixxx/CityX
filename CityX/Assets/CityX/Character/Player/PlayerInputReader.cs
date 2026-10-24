@@ -948,13 +948,14 @@ namespace CityX.Character
                 }
                 sprinting = false;
             }
-            else if (soulsArmed && soulsNow.IsCommitted)
+            else if (soulsArmed && soulsNow.SlowsMovement)
             {
                 // THE SWORD'S SWINGS PLAY ON THE UPPER BODY, so the legs walk
                 // under them -- Requested: "make the legs walk and not freeze
                 // up during sword use too." A committed swing still slows you
                 // hard (CommittedMoveSpeedFraction), it just no longer nails your
-                // feet to the floor; 0 there restores the old full root.
+                // feet to the floor; 0 there restores the old full root. The
+                // recovery's tail is free (SoulsSwordCombat.InRecoveryTail).
                 move *= soulsNow.CommittedMoveSpeedFraction;
                 sprinting = false;
             }

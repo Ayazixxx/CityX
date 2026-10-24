@@ -493,5 +493,125 @@ namespace CityX.Tests
             Assert.AreEqual(0.35f, ready.Blade.y, 0.15f);
             Assert.Less(SwordStrikes.HandPoint(ready).y, 1.55f, "the ready hands should be at the belly, not the chin");
         }
+
+        // ---- the phases (2026-10-23, owner: "clear anticipation -> acceleration -> impact -> recovery. Light attacks feel snappy; heavy
+        // ones feel powerful. Avoid floaty or weightless swings") ----
+
+        [Test]
+        public void ALightLandsFastAndAHeavyPausesAtTheTop()
+        {
+            // A light's click lands in about a third of a second (the research: a long anticipation on the player's own attack reads as input
+            // lag; spend the frames on the follow-through instead); a heavy pauses at the top for a fifth of a second or more -- the telegraph --
+            // lands past half a second, and holds its blow.
+            foreach (SwordStrikeKind kind in SwordStrikes.All)
+            {
+                SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
+                Assert.AreEqual(t.Total, SwordStrikes.Seconds(kind), 1e-4f);
+                Assert.AreEqual(t.Contact / t.Total, SwordStrikes.ContactFraction(kind), 1e-4f, $"{kind}: the contact is not where the timing says");
+                Assert.Greater(t.Settle, 0.0f, $"{kind}: the follow-through is not held at all");
+                if (SwordStrikes.IsHeavy(kind))
+                {
+                    Assert.GreaterOrEqual(t.Hold, 0.2f, $"{kind} does not pause at the top: no telegraph");
+                    Assert.GreaterOrEqual(t.Contact, 0.6f, $"{kind} lands in {t.Contact:0.00} s: a heavy should take its time");
+                    Assert.GreaterOrEqual(t.Settle, 0.12f, $"{kind}'s blow is not held: no weight");
+                }
+                else
+                {
+                    Assert.LessOrEqual(t.Contact, kind == SwordStrikeKind.Cut2H ? 0.45f : 0.35f, $"{kind} takes {t.Contact:0.00} s to land: not snappy");
+                    Assert.LessOrEqual(t.Hold, 0.08f, $"{kind} hangs at the top for {t.Hold:0.00} s");
+                }
+            }
+        }
+
+        [Test]
+        public void TheStrikeIsAWhipNotAWave()
+        {
+            // The blade accelerates all the way into the contact: its turning rate at the end of the strike is at least two and a half times its
+            // average over the strike (the cubic ease gives three; the old square gave two, and the cuts read as floaty), and it barely moves as
+            // it leaves the hold.
+            foreach (SwordStrikeKind kind in SwordStrikes.All)
+            {
+                if (kind == SwordStrikeKind.Thrust1H)
+                {
+                    continue;   // a thrust hardly turns the blade: it drives it
+                }
+                float start = SwordStrikes.StrikeStart(kind), contact = SwordStrikes.ContactFraction(kind);
+                float total = Vector3.Angle(SwordStrikes.Evaluate(kind, start).Blade, SwordStrikes.Evaluate(kind, contact).Blade);
+                float window = 0.05f * (contact - start);
+                float late = Vector3.Angle(SwordStrikes.Evaluate(kind, contact - window).Blade, SwordStrikes.Evaluate(kind, contact).Blade);
+                float early = Vector3.Angle(SwordStrikes.Evaluate(kind, start).Blade, SwordStrikes.Evaluate(kind, start + window).Blade);
+                Assert.Greater(late / (0.05f * total), 2.5f, $"{kind}: the blade arrives at only {late / (0.05f * total):0.0}x its average rate");
+                Assert.Less(early, late * 0.05f, $"{kind}: the blade leaves the hold at speed ({early:0.0} deg in the first 5%)");
+            }
+        }
+
+        [Test]
+        public void TheFollowThroughIsHeldAMomentBeforeTheRecovery()
+        {
+            // The blow's weight arriving: the pose at the end of the follow-through holds (the animator's held frame after a hit) before the
+            // arm gathers back. Nothing moves across the settle.
+            foreach (SwordStrikeKind kind in SwordStrikes.All)
+            {
+                SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
+                float followEnd = (t.Contact + t.Follow) / t.Total;
+                float settleEnd = followEnd + t.Settle / t.Total;
+                SwordFrame a = SwordStrikes.Evaluate(kind, followEnd + 0.001f);
+                SwordFrame b = SwordStrikes.Evaluate(kind, settleEnd - 0.001f);
+                Assert.Less(Vector3.Distance(a.Hand, b.Hand) * ArmLength, 0.005f, $"{kind}: the hand moves through the settle");
+                Assert.Less(Vector3.Angle(a.Blade, b.Blade), 0.5f, $"{kind}: the blade turns through the settle");
+                Assert.AreEqual(a.LeanDegrees, b.LeanDegrees, 0.1f, $"{kind}: the body moves through the settle");
+            }
+        }
+
+        [Test]
+        public void AHeavyOvershootsItsStanceAndSettlesBackALightDoesNot()
+        {
+            // A heavy's recovery is a weight coming to rest: the hand passes a little beyond the ready stance and comes back to it; a light's
+            // goes straight there. Both end exactly in it (EveryAttackStartsAndEndsInItsReadyStance).
+            foreach (SwordStrikeKind kind in SwordStrikes.All)
+            {
+                SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
+                float recoverStart = (t.Contact + t.Follow + t.Settle) / t.Total;
+                Vector3 ready = SwordStrikes.Evaluate(kind, 1.0f).Hand;
+                Vector3 way = (ready - SwordStrikes.Evaluate(kind, recoverStart).Hand).normalized;
+                float furthest = 0.0f;
+                for (float u = recoverStart; u <= 1.0f; u += 0.005f)
+                {
+                    furthest = Mathf.Max(furthest, Vector3.Dot(SwordStrikes.Evaluate(kind, u).Hand - ready, way) * ArmLength);
+                }
+                if (SwordStrikes.IsHeavy(kind))
+                {
+                    Assert.Greater(furthest, 0.015f, $"{kind}'s hand does not overshoot the stance ({furthest * 100:0.0} cm)");
+                    Assert.Less(furthest, 0.10f, $"{kind}'s hand overshoots the stance by {furthest * 100:0} cm: a flail");
+                }
+                else
+                {
+                    Assert.LessOrEqual(furthest, 0.002f, $"{kind}'s hand overshoots the stance ({furthest * 100:0.0} cm): a light settles straight");
+                }
+            }
+        }
+
+        [Test]
+        public void AHeavysHoldCreepsBackInsteadOfFreezing()
+        {
+            // A moving hold (the animator's): through the pause at the top the hand draws a little further back and the lean deepens, slowly,
+            // so the body is still gathering, never a statue. A light's hold is a few frames and stays still.
+            foreach (SwordStrikeKind kind in SwordStrikes.All)
+            {
+                SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
+                SwordFrame top = SwordStrikes.Evaluate(kind, t.WindUp / t.Total);
+                SwordFrame end = SwordStrikes.Evaluate(kind, (t.WindUp + t.Hold) / t.Total);
+                if (SwordStrikes.IsHeavy(kind))
+                {
+                    float back = (top.Hand.z - end.Hand.z) * ArmLength;
+                    Assert.That(back, Is.InRange(0.02f, 0.05f), $"{kind}: the hand creeps {back * 100:0.0} cm back through the hold");
+                    Assert.Less(end.LeanDegrees, top.LeanDegrees - 1.0f, $"{kind}: the lean does not deepen through the hold");
+                }
+                else
+                {
+                    Assert.Less(Vector3.Distance(top.Hand, end.Hand) * ArmLength, 0.002f, $"{kind}: a light's hold moves");
+                }
+            }
+        }
     }
 }

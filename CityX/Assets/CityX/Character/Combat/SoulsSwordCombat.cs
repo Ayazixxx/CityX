@@ -200,21 +200,24 @@ namespace CityX.Character
         // fight was whoever clicked first). The second cut of a chain lands while the first still holds, as a straight sword's R1-R1 does in
         // Dark Souls: a landed cut is a follow-up earned, and the way out is a guard held through the stun (the parry window catches the next
         // cut) or a dash the moment it ends. SoulsCombatRhythmTests pins the margin.
+        // THE TEMPO (2026-10-23, owner: "light attacks feel snappy; heavy ones feel powerful"): a light lands about 0.3 s after the click and
+        // its chain window opens 45% into its recovery, so a chain runs at roughly a cut every 0.55 s; the stuns came down with it to keep the
+        // margin above. The heavies keep their long stuns.
         [Header("Two-handed light chain (left click)")]
-        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.55f, 22.0f, 1.00f, 0.65f, 0.25f, 25.0f, false);
-        public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.55f, 22.0f, 1.05f, 0.75f, 0.25f, 25.0f, false);   // longer: the finisher after it winds up for 0.44 s
-        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.60f, 26.0f, 1.30f, 0.70f, 0.35f, 30.0f, false);
+        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.45f, 22.0f, 1.00f, 0.50f, 0.25f, 25.0f, false);
+        public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.45f, 22.0f, 1.05f, 0.58f, 0.25f, 25.0f, false);   // longer: the finisher after it winds up for 0.31 s
+        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.50f, 26.0f, 1.30f, 0.70f, 0.35f, 30.0f, false);
 
         [Header("Two-handed heavy (middle mouse)")]
-        public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.60f, 40.0f, 2.00f, 1.00f, 0.50f, 60.0f, true);
+        public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.55f, 40.0f, 2.00f, 1.00f, 0.50f, 60.0f, true);
 
         [Header("One-handed light chain (left click)")]
-        public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.50f, 16.0f, 0.80f, 0.60f, 0.20f, 20.0f, false);
-        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.50f, 16.0f, 0.85f, 0.60f, 0.20f, 20.0f, false);
-        public SoulsAttack OneHandLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.55f, 18.0f, 1.00f, 0.60f, 0.50f, 25.0f, false);
+        public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.45f, 16.0f, 0.80f, 0.45f, 0.20f, 20.0f, false);
+        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.45f, 16.0f, 0.85f, 0.45f, 0.20f, 20.0f, false);
+        public SoulsAttack OneHandLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.50f, 18.0f, 1.00f, 0.50f, 0.50f, 25.0f, false);
 
         [Header("One-handed heavy (middle mouse)")]
-        public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.60f, 30.0f, 1.60f, 0.90f, 0.35f, 50.0f, true);
+        public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.55f, 30.0f, 1.60f, 0.90f, 0.35f, 50.0f, true);
 
         [Header("Feel")]
         [Tooltip("How long an early attack press is remembered. Long enough that a click during a light swing still chains at its window, " +
@@ -313,8 +316,8 @@ namespace CityX.Character
         public const string IdleStateName = PlayerAnimationDriver.UpperEmptyStateName;
 
         [Tooltip(
-            "Fraction of walking speed while a swing is under way. The feet step under the swing (SwordFootwork); " +
-            "0 roots the body for the whole swing, 1 is no penalty.")]
+            "Fraction of walking speed while a swing is under way, up to its recovery's tail (SlowsMovement). The feet step under the swing " +
+            "(SwordFootwork); 0 roots the body for the swing, 1 is no penalty.")]
         public float CommittedMoveSpeedFraction = 0.65f;   // 0.4 until 2026-10-17 (owner: "move a little quicker not full walking speed but faster than you go now")
 
         [Tooltip("How fast the body turns to where the camera looks as a swing winds up, degrees per second. Whatever the turn, the body " +
@@ -395,8 +398,19 @@ namespace CityX.Character
 
         public SoulsPhase Phase => _phase;
 
-        /// <summary>True from the first frame of a swing until its recovery ends -- the body is rooted.</summary>
+        /// <summary>True from the first frame of a swing until its recovery ends: another attack or ability cannot start over it.</summary>
         public bool IsCommitted => _phase != SoulsPhase.Idle;
+
+        /// <summary>
+        /// THE RECOVERY'S TAIL: past the chain window, the swing has done its hitting and is only settling back into the stance. The body is free
+        /// here -- to chain, dash, raise a guard or move at full speed -- while the arm finishes on its own. Reckless Kingdoms of Amalur locked you
+        /// into every recovery and its combat read as sluggish for it (Aztez, "The Amalur Problem"); God of War and Bayonetta cancel the tail into
+        /// anything, and the swings feel reactive. Before 2026-10-23 only a dash could leave a recovery.
+        /// </summary>
+        public bool InRecoveryTail => _phase == SoulsPhase.Recovery && _current != null && _phaseTime >= _current.Recovery * _current.ChainAt;
+
+        /// <summary>True while a swing holds the legs to <see cref="CommittedMoveSpeedFraction"/>: from its first frame to its recovery's tail.</summary>
+        public bool SlowsMovement => IsCommitted && !InRecoveryTail;
 
         public bool IsBlocking => _blocking;
         public SoulsAttack CurrentAttack => _current;
@@ -544,10 +558,10 @@ namespace CityX.Character
             _bufferRemaining = 0.0f;
         }
 
-        /// <summary>Called every frame with whether the block button is down.</summary>
+        /// <summary>Called every frame with whether the block button is down. A guard may come up in a swing's recovery tail: it ends the swing.</summary>
         public void SetBlockHeld(bool held)
         {
-            bool canBlock = held && _equipped && _phase == SoulsPhase.Idle
+            bool canBlock = held && _equipped && (_phase == SoulsPhase.Idle || InRecoveryTail)
                 && _vitals != null && !_vitals.IsDead && !_vitals.IsStunned
                 && !_vitals.IsExhausted && _vitals.Stamina > 0.0f;
 
@@ -555,6 +569,12 @@ namespace CityX.Character
             {
                 if (!_blocking)
                 {
+                    if (_phase != SoulsPhase.Idle)
+                    {
+                        EndSwing();
+                        _buffered = Buffered.None;
+                        _bufferRemaining = 0.0f;
+                    }
                     _blocking = true;
                     _vitals.BlockDrainsStamina = true;
                     _vitals.BlockStaminaPerDamage = BlockStaminaPerDamage;

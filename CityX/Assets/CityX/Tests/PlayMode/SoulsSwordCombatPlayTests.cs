@@ -523,6 +523,41 @@ namespace CityX.Tests
         // --- roll cancel --------------------------------------------------------
 
         [Test]
+        public void TheRecoverysTailFreesTheBody()
+        {
+            // Past the chain window a swing has done its hitting: the legs go at full speed again (the research: a recovery you cannot leave is
+            // what made Amalur's combat sluggish) while the arm finishes on its own; another attack still cannot start over it except by chaining.
+            _combat.RequestLight(0.0f);
+            Assert.IsTrue(_combat.SlowsMovement, "the wind-up does not slow the legs");
+            Assert.IsFalse(_combat.InRecoveryTail);
+            Step(_combat.Light1.Startup + _combat.Light1.Active + 0.02f);
+            Assert.AreEqual(SoulsPhase.Recovery, _combat.Phase);
+            Assert.IsTrue(_combat.SlowsMovement, "the recovery's head does not slow the legs");
+            Assert.IsFalse(_combat.InRecoveryTail);
+            Step(_combat.Light1.Recovery * _combat.Light1.ChainAt);
+            Assert.AreEqual(SoulsPhase.Recovery, _combat.Phase, "the swing ended before its tail");
+            Assert.IsTrue(_combat.InRecoveryTail);
+            Assert.IsFalse(_combat.SlowsMovement, "the recovery's tail still slows the legs");
+            Assert.IsTrue(_combat.IsCommitted, "another attack could start over the tail");
+        }
+
+        [Test]
+        public void AGuardComesUpInTheRecoverysTailAndEndsTheSwing()
+        {
+            _combat.RequestLight(0.0f);
+            Step(_combat.Light1.Startup + _combat.Light1.Active + 0.02f);
+            _combat.SetBlockHeld(true);
+            Assert.IsFalse(_combat.IsBlocking, "a guard came up in the recovery's head");
+            Assert.AreEqual(SoulsPhase.Recovery, _combat.Phase);
+            Step(_combat.Light1.Recovery * _combat.Light1.ChainAt);
+            _combat.SetBlockHeld(true);
+            Assert.IsTrue(_combat.IsBlocking, "a guard could not come up in the recovery's tail");
+            Assert.AreEqual(SoulsPhase.Idle, _combat.Phase, "the guard did not end the swing");
+            Assert.IsTrue(_vitals.IsBlocking);
+            _combat.SetBlockHeld(false);
+        }
+
+        [Test]
         public void ARollIsRefusedDuringStartupAndActiveButAllowedInRecovery()
         {
             _combat.RequestLight(0.0f);
