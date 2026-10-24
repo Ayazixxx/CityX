@@ -60,12 +60,12 @@ namespace CityX.Character
 
         /// <summary>
         /// How far behind the pivot the camera hangs, metres (the spring arm's length, before walls pull it in). 4.0 was player.gd's own
-        /// spring_length, 4.8 the 2026-10-17 framing; 5.0 is Saints Row: The Third's 3.5 m on this 1.44x body, which with the narrower field of
-        /// view fills over half the screen's height with the body.
+        /// spring_length, 4.8 the 2026-10-17 framing, 5.0 Saints Row: The Third's 3.5 m on this 1.44x body; 6.0 is the owner's (2026-10-24:
+        /// "set it do camera distance 6 and add the same difference in zoom out to the scope in pov with guns" -- AimDistance a metre further too).
         /// </summary>
         public float Distance = DefaultDistance;
 
-        public const float DefaultDistance = 5.0f;
+        public const float DefaultDistance = 6.0f;
         public float LookDegreesPerPixel = 0.12f;
 
         /// <summary>The pitch the camera starts at, degrees down: looking a little down on the body, as the game's own camera rests.</summary>
@@ -117,15 +117,16 @@ namespace CityX.Character
         /// head is 0.7 m across with the gun held under its middle (a two-handed stance): from behind, a camera less than about 0.9 m to the
         /// side sees the head and not the gun (checked in FirearmCapture's renders at 0.6). So 1.0 m, kept when Saints Row: The Third's fine
         /// aim was copied on 2026-10-23 (its 0.75 m, measured from its frames, hid the Glock behind this body's bigger head:
-        /// FirearmPlayTests.TheGunIsOnScreenAndNotBehindTheHeadWhileAiming); its distance (AimDistance 2.9 m) and the camera's line at the
-        /// shoulders (AimPivotRaise) are copied. The gun agrees with the crosshair whatever this is (PlayerLocomotion aims the barrel at the
-        /// camera ray's point).
+        /// FirearmPlayTests.TheGunIsOnScreenAndNotBehindTheHeadWhileAiming); its distance (AimDistance, 2.9 m) and the camera's line at the
+        /// shoulders (AimPivotRaise) are copied. On 2026-10-24 the aim pulled back a metre with Distance (3.9 m), and this went to 1.3 m to
+        /// look past the head at the same angle (at 1.0 the head covered the Glock again). The gun agrees with the crosshair whatever this
+        /// is (PlayerLocomotion aims the barrel at the camera ray's point).
         /// </summary>
         public float AimShoulderOffset = DefaultAimShoulderOffset;
 
-        public const float DefaultAimShoulderOffset = 1.0f;
+        public const float DefaultAimShoulderOffset = 1.3f;
 
-        public const float DefaultAimDistance = 2.9f;
+        public const float DefaultAimDistance = 3.9f;
 
         public const float DefaultAimPivotRaise = 0.35f;
 

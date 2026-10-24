@@ -95,12 +95,12 @@ close over the right shoulder, the screen's middle at the shoulder, the head and
 | | Saints Row (1.8 m body) | Here, before | **Here, now** |
 |---|---|---|---|
 | Field of view on foot (vertical) | 50 | 75 | **50** |
-| Distance back | 3.5 | 4.8 | **5.0** |
+| Distance back | 3.5 | 4.8 | **6.0** (5.0 copied; the owner set 6 on 2026-10-24) |
 | Height of the camera's line over the pivot (`FramingHeight`) | look-at at the top of the head | 1.0 (head below the middle) | **0.6** (the camera's line at the top of the head) |
 | To the right of the spine (`ShoulderOffset`) | 0.6 | 0.5 | **0.87** |
 | Fine aim: field of view | 30 | 50 | **30** |
-| Fine aim: distance | 2.0 | 2.3 | **2.9** |
-| Fine aim: to the side | 0.6 (0.75 measured) | 1.0 | **1.0** (0.75 hid the Glock behind our bigger head) |
+| Fine aim: distance | 2.0 | 2.3 | **3.9** (2.9 copied; a metre further with the distance, 2026-10-24) |
+| Fine aim: to the side | 0.6 (0.75 measured) | 1.0 | **1.3** (0.75 hid the Glock behind our bigger head; 1.3 keeps the angle past the head at 3.9 m back) |
 | Fine aim: the camera's line | the shoulders (1.55) | the chest + 0.2 | **the chest + 0.35** |
 | Into fine aim / back out | 0.15 s / 0.5 s | 0.25 s / 0.25 s | **0.15 s / 0.5 s** |
 | Mouse-look while aiming | slower | 0.75x | **0.6x** (30/50, so a pixel moves the same on screen) |
