@@ -239,6 +239,19 @@ My suggestions (not decided):
 - Destruction in pieces (doors, windows, wall sections, floors) is doable; glass already breaks and is shared between players. A whole building collapsing is costly; a middle way is swapping a badly damaged building for a ruined version.
 - The repair robots as something to see and fight: drones and scaffolding arriving, a repair to attack or defend. In the lore they fit the "leftover AI and machinery" fighting over the abandoned city.
 
+## Items by rarity (owner, 2026-10-24)
+
+The owner's list, as given. ✅ = in the game now.
+
+- **Common:** Crowbar ✅, Bat ✅, Glass bottle ✅, T-Shirt ✅, Long Sleeve T-Shirt ✅, Hoodie, Machete, Slingshot, Magic Wand, Butcher Knife, Butter Knife, Kitchen Knife, Plastic Boomerang, Wooden Plank, Metal pole.
+- **Uncommon:** Combat Knife, Nail Bat, Wire Bat, Combat Sword ✅, Glock ✅ (the pistol), Fur Hood Parka, Longbow, Tactical Greatsword, Magic Staff, Wooden Boomerang, Golf club, Baton, Combat Axe, Bo Staff, Scythe.
+- **Rare:** Knight Helmet ✅, Black Fur Coat, AK-47 ✅, Deagle, Compound Bow, Crossbow, Dragunov, Barrett, Minigun, Grappling Hook ✅, Flame Staff, Frost Staff, Arcane Staff, Flamethrower ✅, Steel Boomerang, Combat Scythe.
+- **Very Rare:** Laser Gun, Laser Minigun, Laser Sword, RPG, Jetpack ✅, Demon Scythe.
+- **Legendary:** RPG Minigun, Rocket Pack.
+- **Godly:** (not filled in yet).
+
+In the game but not on the list yet: the spike sword, the parachute, the spray can, the top hat, the hooded cloak, the Midnight Coat, the Skelli jeans, and the Blood Raven, red camo and black T-shirts.
+
 ## Items and art
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.

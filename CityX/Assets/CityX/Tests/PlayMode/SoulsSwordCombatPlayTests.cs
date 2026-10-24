@@ -749,6 +749,79 @@ namespace CityX.Tests
             Assert.AreEqual(HitResponse.Guarded, late, "half a second in, the guard only soaks");
         }
 
+        /// <summary>
+        /// The heavies break guards (owner, 2026-10-24: "make it so holding click does a heavy guardbreaking attack"): a held guard that
+        /// catches one is broken open -- the body staggered, the blow answered as landed, however much stamina is left -- and only a parry
+        /// in the guard's first instant still stops it. A light against the same guard is only soaked.
+        /// </summary>
+        [Test]
+        public void AGuardBreakingBlowBreaksAHeldGuardButNotAParry()
+        {
+            Assert.IsTrue(_combat.Heavy.BreaksGuard && _combat.OneHandHeavy.BreaksGuard, "the heavies do not break guards");
+            Assert.IsFalse(_combat.Light1.BreaksGuard || _combat.OneHandLight1.BreaksGuard, "a light breaks guards");
+
+            _combat.SetBlockHeld(true);
+            using (DamageContext.GuardBreaking(true))
+            {
+                Assert.AreEqual(HitResponse.Blocked, ((IDamageable)_vitals).ApplyHit(30.0f, Vector3.forward * 2.0f, 0.4f),
+                    "a parry in the guard's first instant does not stop a guard-breaking blow");
+            }
+            for (int i = 0; i < 30; i++)
+            {
+                _combat.SetBlockHeld(true);
+                _combat.Tick(1.0f / 60.0f);
+                _vitals.TickHitstun(1.0f / 60.0f);
+            }
+            Assert.AreEqual(HitResponse.Guarded, ((IDamageable)_vitals).ApplyHit(10.0f, Vector3.forward * 2.0f, 0.4f), "a light was not soaked");
+            Assert.IsFalse(_vitals.IsStunned);
+            float stamina = _vitals.Stamina;
+            Assert.Greater(stamina, 50.0f, "the guard should still have plenty of stamina, so only the blow itself can break it");
+
+            bool broken = false;
+            _vitals.GuardBroken += () => broken = true;
+            HitResponse response;
+            using (DamageContext.GuardBreaking(true))
+            {
+                response = ((IDamageable)_vitals).ApplyHit(10.0f, Vector3.forward * 2.0f, 0.4f);
+            }
+            Assert.AreEqual(HitResponse.Landed, response, "a guard-breaking blow was soaked by a held guard");
+            Assert.IsTrue(broken, "the guard was not broken");
+            Assert.IsTrue(_vitals.IsStunned, "the broken guard does not leave the body staggered");
+            Assert.AreEqual(_combat.GuardBreakStunSeconds, _vitals.HitstunRemaining, 0.001f);
+            Assert.IsFalse(DamageContext.BreaksGuard, "the scope leaked");
+
+            _combat.SetBlockHeld(true);
+            Assert.IsFalse(_combat.IsBlocking, "the guard came straight back up while staggered");
+        }
+
+        [Test]
+        public void HoldingTheClickTurnsTheLightWindingUpIntoTheHeavy()
+        {
+            _combat.RequestLight(0.0f);
+            Step(SoulsSwordCombat.HeavyHoldSeconds);
+            Assert.AreEqual(SoulsPhase.Startup, _combat.Phase, "the light's wind-up is shorter than the hold");
+            float stamina = _vitals.Stamina;
+            _combat.HoldIntoHeavy(0.0f);
+            Assert.AreEqual(_combat.Heavy.Animation, _combat.CurrentAttack.Animation, "the held click did not become the heavy");
+            Assert.AreEqual(SoulsPhase.Startup, _combat.Phase, "the heavy does not start from its wind-up");
+            Assert.AreEqual(stamina - (_combat.Heavy.StaminaCost - _combat.Light1.StaminaCost), _vitals.Stamina, 0.01f,
+                "the light's stamina did not count towards the heavy's");
+            Step(_combat.Heavy.Startup + _combat.Heavy.Active + _combat.Heavy.Recovery + 0.05f);
+            Assert.AreEqual(SoulsPhase.Idle, _combat.Phase);
+        }
+
+        [Test]
+        public void HoldingTheClickPressedMidSwingAsksForTheHeavyNext()
+        {
+            _combat.RequestLight(0.0f);
+            Step(_combat.Light1.Startup + 0.02f);
+            _combat.RequestLight(0.0f);   // the chain's next, remembered
+            _combat.HoldIntoHeavy(0.0f);
+            Assert.AreEqual(_combat.Light1.Animation, _combat.CurrentAttack.Animation, "the live light was cut short");
+            Step(_combat.Light1.Active + _combat.Light1.Recovery * _combat.Light1.ChainAt + 0.03f);
+            Assert.AreEqual(_combat.Heavy.Animation, _combat.CurrentAttack.Animation, "the remembered press did not become the heavy");
+        }
+
         [Test]
         public void AnotherPlayersVerdictOfGuardedOrParriedStaggersThisAttacker()
         {

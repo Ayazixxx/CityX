@@ -81,7 +81,7 @@ namespace CityX.Character
             }
             LastRelayedHitId = ++_nextHitId;
             LastRelayWasSent = true;
-            SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId, (int)DamageContext.Kind, DamageContext.Penetration);
+            SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId, (int)DamageContext.Kind, DamageContext.Penetration, DamageContext.BreaksGuard);
             return true;
         }
 
@@ -146,7 +146,7 @@ namespace CityX.Character
 
         [ServerRpc(RequireOwnership = false)]
         private void SendHitToServer(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int kind, float penetration,
-            NetworkConnection sender = null)
+            bool breaksGuard, NetworkConnection sender = null)
         {
             if (!Allowed(sender, amount) || !Finite(fromPosition) || float.IsNaN(hitstunSeconds) || float.IsNaN(poiseDamage) || float.IsNaN(penetration))
             {
@@ -155,7 +155,7 @@ namespace CityX.Character
             if (Owner.IsValid)
             {
                 ApplyHitOnOwner(Owner, Mathf.Min(amount, MaxHitDamage), fromPosition, Mathf.Clamp(hitstunSeconds, 0.0f, 3.0f),
-                    Mathf.Clamp(poiseDamage, -1.0f, MaxPoiseDamage), hitId, sender.ClientId, Mathf.Clamp(kind, 0, (int)DamageKind.Magic), Mathf.Clamp01(penetration));
+                    Mathf.Clamp(poiseDamage, -1.0f, MaxPoiseDamage), hitId, sender.ClientId, Mathf.Clamp(kind, 0, (int)DamageKind.Magic), Mathf.Clamp01(penetration), breaksGuard);
             }
         }
 
@@ -174,9 +174,9 @@ namespace CityX.Character
 
         [TargetRpc]
         private void ApplyHitOnOwner(NetworkConnection target, float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int attackerClientId,
-            int kind, float penetration)
+            int kind, float penetration, bool breaksGuard)
         {
-            HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration);
+            HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration, breaksGuard);
             if (response != HitResponse.Landed)
             {
                 SendVerdictToServer(attackerClientId, hitId, (int)response);   // the attacker assumed "landed"; only a different answer needs carrying back
@@ -197,7 +197,7 @@ namespace CityX.Character
         /// this body's own armour, magic resistance and block chance answer it (2026-10-14). Public so a test can drive it without a network.
         /// </summary>
         public HitResponse ApplyHitHere(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage = -1.0f,
-            DamageKind kind = DamageKind.Physical, float penetration = 0.0f)
+            DamageKind kind = DamageKind.Physical, float penetration = 0.0f, bool breaksGuard = false)
         {
             if (_vitals == null)
             {
@@ -207,7 +207,10 @@ namespace CityX.Character
             {
                 _vitals.TakePoise(poiseDamage);
             }
-            return DamageContext.Strike(_vitals, amount, fromPosition, hitstunSeconds, kind, penetration);
+            using (DamageContext.GuardBreaking(breaksGuard))
+            {
+                return DamageContext.Strike(_vitals, amount, fromPosition, hitstunSeconds, kind, penetration);
+            }
         }
 
         // ---- the verdict back to the attacker ----

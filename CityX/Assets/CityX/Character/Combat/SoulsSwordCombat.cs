@@ -47,6 +47,9 @@ namespace CityX.Character
         [Tooltip("Hyper-armour: during this attack's wind-up and active frames, blows only stagger once the poise is spent (the heavies have it, the lights do not).")]
         public bool HyperArmour;
 
+        [Tooltip("The blow breaks a held guard open (only a parry stops it): the heavies, since 2026-10-24.")]
+        public bool BreaksGuard;
+
         [Tooltip("Length in seconds of the Mixamo clip at its own pace (measured -- see SoulsSwordCapture.MeasureClips).")]
         public float ClipSeconds;
 
@@ -89,6 +92,7 @@ namespace CityX.Character
                 chainAt, staminaCost, damageScale, hitstunSeconds, lungeMetres, 0.0f, 0.0f, 0.0f);
             attack.PoiseDamage = poiseDamage;
             attack.HyperArmour = hyperArmour;
+            attack.BreaksGuard = hyperArmour;   // the heavies
             return attack;
         }
 
@@ -208,7 +212,7 @@ namespace CityX.Character
         public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.45f, 22.0f, 1.05f, 0.58f, 0.25f, 25.0f, false);   // longer: the finisher after it winds up for 0.31 s
         public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.50f, 26.0f, 1.30f, 0.70f, 0.35f, 30.0f, false);
 
-        [Header("Two-handed heavy (middle mouse)")]
+        [Header("Two-handed heavy (held left click)")]
         public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.55f, 40.0f, 2.00f, 1.00f, 0.50f, 60.0f, true);
 
         [Header("One-handed light chain (left click)")]
@@ -216,7 +220,7 @@ namespace CityX.Character
         public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.45f, 16.0f, 0.85f, 0.45f, 0.20f, 20.0f, false);
         public SoulsAttack OneHandLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.50f, 18.0f, 1.00f, 0.50f, 0.50f, 25.0f, false);
 
-        [Header("One-handed heavy (middle mouse)")]
+        [Header("One-handed heavy (held left click)")]
         public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.55f, 30.0f, 1.60f, 0.90f, 0.35f, 50.0f, true);
 
         [Header("Feel")]
@@ -496,6 +500,44 @@ namespace CityX.Character
         public void RequestHeavy(float yawDegrees)
         {
             Buffer(Buffered.Heavy, yawDegrees);
+        }
+
+        /// <summary>
+        /// HOLDING THE CLICK MAKES IT THE HEAVY (owner, 2026-10-24: "make it so holding click does a heavy guardbreaking attack"). The light
+        /// still goes out on the press, so a click is answered at once (waiting for the release to tell a tap from a hold was the punch's
+        /// "horrible" lag); a click still held this long becomes the heavy while that light is still winding up. Shorter than every light's
+        /// wind-up (the quickest, the thrust's, is about 0.19 s), longer than a click (about 0.1 s).
+        /// </summary>
+        public const float HeavyHoldSeconds = 0.15f;
+
+        /// <summary>
+        /// The click is still held after <see cref="HeavyHoldSeconds"/>: the light it asked for becomes the heavy. A light still remembered
+        /// (a press mid-swing) is remembered as the heavy instead; a light still winding up is turned into the heavy from the pose it has
+        /// reached (the stamina it cost counts towards the heavy's); a light already live is followed by the heavy as the chain's next.
+        /// </summary>
+        public void HoldIntoHeavy(float yawDegrees)
+        {
+            if (!_equipped)
+            {
+                return;
+            }
+            if (_buffered == Buffered.Light)
+            {
+                _buffered = Buffered.Heavy;
+                _bufferedYaw = yawDegrees;
+                return;
+            }
+            if (_phase == SoulsPhase.Startup && _currentIsLight && _current != null && _hitStopRemaining <= 0.0f)
+            {
+                SoulsAttack heavy = HeavyAttack;
+                _vitals?.TrySpendCombatStamina(Mathf.Max(0.0f, heavy.StaminaCost - _current.StaminaCost), RegenDelaySeconds);
+                StartSwing(heavy, false, yawDegrees);
+                return;
+            }
+            if (_phase != SoulsPhase.Idle && _currentIsLight)
+            {
+                Buffer(Buffered.Heavy, yawDegrees);
+            }
         }
 
         private void Buffer(Buffered what, float yawDegrees)
@@ -997,10 +1039,14 @@ namespace CityX.Character
             var victim = target as PlayerVitals;
             victim?.TakePoise(_current.PoiseDamage);
 
-            HitResponse response = _melee != null
-                ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)
-                : DamageContext.Strike(target, damage, transform.position, _current.HitstunSeconds, DamageKind.Physical,
-                    _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, point);
+            HitResponse response;
+            using (DamageContext.GuardBreaking(_current.BreaksGuard))
+            {
+                response = _melee != null
+                    ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)
+                    : DamageContext.Strike(target, damage, transform.position, _current.HitstunSeconds, DamageKind.Physical,
+                        _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, point);
+            }
 
             if (response == HitResponse.Ignored)
             {

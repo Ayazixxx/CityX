@@ -47,6 +47,11 @@ namespace CityX.Character
 
         private float _punchHeldSeconds;
 
+        /// <summary>The sword's left click is still down since the press that asked for a light, and for how long (a hold makes it the heavy).</summary>
+        private bool _swordClickHeld;
+
+        private float _swordClickHeldSeconds;
+
         /// <summary>
         /// Punching, holding for a heavy one, and blocking.
         ///
@@ -386,14 +391,12 @@ namespace CityX.Character
                 return;
             }
 
-            // THE HEAVY IS THE MIDDLE MOUSE BUTTON (the wheel's click): the overhead with a one-handed sword, the slam with a two-handed one.
-            // F stays unbound -- explicit ask: "F shouldnt do anything yet."
-            if (mouse.middleButton.wasPressedThisFrame && !octaslashCharging && !spinning)
-            {
-                souls.RequestHeavy(yaw);
-            }
+            // LEFT CLICK: A TAP IS THE LIGHT, A HOLD THE HEAVY (owner, 2026-10-24: "make it so holding click does a heavy guardbreaking
+            // attack"; it was the wheel's click): the overhead with a one-handed sword, the slam with a two-handed one. The light goes out on
+            // the press; held on for SoulsSwordCombat.HeavyHoldSeconds it becomes the heavy. F stays unbound -- explicit ask.
             if (mouse.leftButton.wasPressedThisFrame)
             {
+                _swordClickHeld = false;
                 if (octaslashCharging)
                 {
                     _octaslash.Release();
@@ -401,7 +404,25 @@ namespace CityX.Character
                 else if (!spinning)
                 {
                     souls.RequestLight(yaw);
+                    _swordClickHeld = true;
+                    _swordClickHeldSeconds = 0.0f;
                 }
+            }
+            else if (_swordClickHeld && mouse.leftButton.isPressed)
+            {
+                _swordClickHeldSeconds += Time.deltaTime;
+                if (_swordClickHeldSeconds >= SoulsSwordCombat.HeavyHoldSeconds)
+                {
+                    _swordClickHeld = false;
+                    if (!spinning)
+                    {
+                        souls.HoldIntoHeavy(yaw);
+                    }
+                }
+            }
+            else
+            {
+                _swordClickHeld = false;
             }
 
             if (!octaslashBusy)

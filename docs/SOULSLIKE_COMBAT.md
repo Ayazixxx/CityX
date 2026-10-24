@@ -18,7 +18,7 @@ better"), and the spike sword keeps its frame and hold.
 | Input | What it does |
 |---|---|
 | Left-click | Light attack. Two-handed: chains light 1 -> 2 -> 3 -> back to 1. One-handed: the two slashes back and forth (no thrust, owner 2026-10-17). You keep 65% of walking speed while swinging (40% until 2026-10-17). |
-| Middle-click | Heavy attack: slow wind-up, big damage, long stagger, hyper-armour. (F stays unbound: explicit ask.) |
+| Left-click (hold) | Heavy attack (since 2026-10-24; it was the wheel's click): slow wind-up, big damage, long stagger, hyper-armour, and it **breaks a held guard**. The light goes out on the press; still held after 0.15 s it becomes the heavy from the pose the light has reached. (F stays unbound: explicit ask.) |
 | Right-click (hold) | Guard. Its **first 0.2 s parries** (tap to parry, hold to block). Slows you to half speed (legs keep walking). Costs stamina per hit absorbed. |
 | Double-tap Shift | Roll (dodge). Legal out of idle or the tail of a swing, never out of a wind-up. 0.42 s of i-frames. |
 | 2 | The old spin attack (unchanged). |
@@ -607,3 +607,21 @@ What changed:
   overshoot and the lights do not, the heavy hold creeps), `SoulsCombatRhythmTests.ALightLandsInAThirdOfASecondAndTheChainRunsQuick`,
   `SoulsSwordCombatPlayTests` (the tail frees the body; a guard comes up in the tail), `SwingWhooshTests`, `SwordSwingShowPlayTests` (the
   trail only while live and the swish, on the owner and on a copy told the attack's name).
+
+## Update 2026-10-24: hold the click for a guard-breaking heavy
+
+Owner, on hearing the heavy was on the wheel's click: "i dont like that make it so holding click does a heavy guardbreaking attack".
+
+- **Hold left click for the heavy.** The light still goes out on the press, so a click is answered at once (waiting for the release to tell
+  a tap from a hold is what made the punch feel laggy). Held on for `SoulsSwordCombat.HeavyHoldSeconds` (0.15 s: longer than a click, shorter
+  than every light's wind-up), `HoldIntoHeavy` turns the light still winding up into the heavy from the pose it has reached (the light's
+  stamina counts towards the heavy's); a light remembered mid-swing is remembered as the heavy; a light already live is followed by the heavy.
+  The wheel's click does nothing now.
+- **The heavies break guards** (`SoulsAttack.BreaksGuard`). The blow is struck inside `DamageContext.GuardBreaking`; a held guard that
+  catches it is broken open (`PlayerVitals.BreakGuard`: the reduced damage, staggered `GuardBreakStunSeconds`, `GuardBroken` raised, the
+  blow answered as landed), whatever stamina is left, and block chance cannot turn it aside. Only a **parry** (the guard's first 0.2 s)
+  still stops it, so the answer to a heavy is a timed guard or a dash. The flag crosses the network with the hit (`NetworkedDamage`), so
+  another player's guard breaks on their own machine. The test swordsman's heavies break guards too.
+- Tests: `SoulsSwordCombatPlayTests` (a guard-breaking blow breaks a held guard but not a parry; a held click turns the light into the
+  heavy; a held press mid-swing asks for the heavy next), `SoulsSwordRealInputPlayTests.HoldingTheClickSwingsTheHeavyATapTheLight`,
+  `NetworkedPlayerStateSyncPlayTests.AGuardBreakingHitOnACopyBreaksThatPlayersRealGuard`.

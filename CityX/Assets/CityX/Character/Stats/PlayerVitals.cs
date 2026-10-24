@@ -521,10 +521,10 @@ namespace CityX.Character
                 return HitResponse.Blocked;
             }
 
-            // BLOCK CHANCE (2026-10-14): a block can stop a blow outright, a bullet included (owner: "if you hold block you deflect enemy
-            // bullets ... it starts at a lower chance and lets you upgrade it") -- everyone's BaseBlockChance plus the stat, cut by the
-            // attacker's Armor Penetration. Nothing gets through and no stamina is spent; the attacker hears what any block answers.
-            if (blocked && Roll() < BlockChance * (1.0f - penetration))
+            // A GUARD-BREAKING BLOW (the sword's held-click heavy) past the parry: the guard is broken open -- the reduced damage taken, the
+            // defender staggered for GuardBreakStunSeconds -- whatever stamina is left, and no block chance turns it aside.
+            bool breaksGuard = blocked && DamageContext.BreaksGuard;
+            if (blocked && !breaksGuard && Roll() < BlockChance * (1.0f - penetration))
             {
                 _healthRegenDelay = HealthRegenDelaySeconds;   // still a fight
                 Deflected?.Invoke(fromPosition, kind);
@@ -546,6 +546,11 @@ namespace CityX.Character
             TakeDamage(amount, blocked);
             DeathImpulse = Vector3.zero;
 
+            if (breaksGuard)
+            {
+                return BreakGuard(fromPosition, amount);
+            }
+
             // SOULS GUARD: a held block pays for what it stops in stamina, and
             // a hit it cannot afford breaks the guard -- you eat the reduced
             // damage anyway and are staggered wide open. Only when the sword
@@ -558,13 +563,7 @@ namespace CityX.Character
                 {
                     _stamina = 0.0f;
                     _exhausted = true;
-                    BlockRemaining = 0.0f;
-                    HitstunRemaining = Mathf.Max(HitstunRemaining, GuardBreakStunSeconds);
-                    DelayStaminaRegen(GuardBreakStunSeconds);
-                    GuardBroken?.Invoke();
-                    Wounded?.Invoke(fromPosition, amount * CombatTuning.BlockDamageMultiplier, GuardBreakStunSeconds);
-                    Hit?.Invoke(fromPosition);
-                    return HitResponse.Landed;
+                    return BreakGuard(fromPosition, amount);
                 }
                 _stamina -= drain;
                 DelayStaminaRegen(0.5f);
@@ -624,6 +623,18 @@ namespace CityX.Character
                 return HitResponse.Landed;
             }
             return BlockDrainsStamina ? HitResponse.Guarded : HitResponse.Blocked;
+        }
+
+        /// <summary>The guard is broken open: dropped, the body staggered for GuardBreakStunSeconds, the blow answered as one that landed.</summary>
+        private HitResponse BreakGuard(Vector3 fromPosition, float amount)
+        {
+            BlockRemaining = 0.0f;
+            HitstunRemaining = Mathf.Max(HitstunRemaining, GuardBreakStunSeconds);
+            DelayStaminaRegen(GuardBreakStunSeconds);
+            GuardBroken?.Invoke();
+            Wounded?.Invoke(fromPosition, amount * CombatTuning.BlockDamageMultiplier, GuardBreakStunSeconds);
+            Hit?.Invoke(fromPosition);
+            return HitResponse.Landed;
         }
 
         /// <summary>Spends mana on a spell: false, and nothing spent, when there is not enough.</summary>

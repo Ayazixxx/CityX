@@ -127,6 +127,63 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Owner, 2026-10-24: "make it so holding click does a heavy guardbreaking attack". A click held a quarter of a second makes the
+        /// heavy (the slam, with the two-handed spike sword); a quick click stays the light; the wheel's click no longer does anything.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator HoldingTheClickSwingsTheHeavyATapTheLight()
+        {
+#if UNITY_EDITOR
+            yield return LoadSceneWithASword();
+            Time.captureFramerate = 60;
+            try
+            {
+                Press(_mouse.leftButton);
+                for (int i = 0; i < 4; i++)   // about 0.07 s: a click
+                {
+                    yield return null;
+                }
+                Release(_mouse.leftButton);
+                for (int i = 0; i < 20; i++)
+                {
+                    yield return null;
+                }
+                Assert.AreEqual(_combat.Light1.Animation, _combat.CurrentAttack?.Animation, "a quick click did not stay the light");
+                for (int i = 0; i < 180 && _combat.IsCommitted; i++)
+                {
+                    yield return null;
+                }
+
+                Press(_mouse.middleButton);
+                yield return null;
+                Release(_mouse.middleButton);
+                yield return null;
+                Assert.IsFalse(_combat.IsCommitted, "the wheel's click still swings");
+                for (int i = 0; i < 60; i++)
+                {
+                    yield return null;
+                }
+
+                Press(_mouse.leftButton);
+                for (int i = 0; i < 15; i++)   // a quarter of a second
+                {
+                    yield return null;
+                }
+                Release(_mouse.leftButton);
+                yield return null;
+                Assert.AreEqual(_combat.Heavy.Animation, _combat.CurrentAttack?.Animation, "holding the click did not swing the heavy");
+                Assert.IsTrue(_combat.CurrentAttack.BreaksGuard, "the held heavy does not break guards");
+            }
+            finally
+            {
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+            }
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>Explicit ask: "F shouldnt do anything yet." The heavy exists but has no key.</summary>
         [UnityTest]
         public IEnumerator FDoesNothing()

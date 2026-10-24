@@ -33,6 +33,32 @@ namespace CityX.Character
         /// </summary>
         public static UnityEngine.Vector3? ContactPoint { get; private set; }
 
+        /// <summary>
+        /// The blow breaks a held guard (the sword's held-click heavy; owner, 2026-10-24: "make it so holding click does a heavy guardbreaking
+        /// attack"): a guard that catches it is broken open instead of soaking it. Only a parry, the guard's first instant, still stops it.
+        /// Separate from <see cref="Scope"/> so a <see cref="Strike"/> inside it keeps it.
+        /// </summary>
+        public static bool BreaksGuard { get; private set; }
+
+        /// <summary>Opens a scope in which blows break guards (or not, when <paramref name="breaks"/> is false).</summary>
+        public static GuardBreakScope GuardBreaking(bool breaks) => new GuardBreakScope(breaks);
+
+        public readonly struct GuardBreakScope : IDisposable
+        {
+            private readonly bool _before;
+
+            public GuardBreakScope(bool breaks)
+            {
+                _before = BreaksGuard;
+                BreaksGuard = breaks;
+            }
+
+            public void Dispose()
+            {
+                BreaksGuard = _before;
+            }
+        }
+
         /// <summary>Opens a scope: until it is disposed, blows are of this kind and penetration.</summary>
         public static Scope As(DamageKind kind, float penetration) => new Scope(kind, penetration, null);
 

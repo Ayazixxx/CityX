@@ -534,6 +534,32 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>A guard-breaking blow (the held-click heavy) struck at another player's copy breaks that player's real guard on their own machine.</summary>
+        [UnityTest]
+        public IEnumerator AGuardBreakingHitOnACopyBreaksThatPlayersRealGuard()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            var realVitals = _bOnB.GetComponent<PlayerVitals>();
+            var copyVitals = _bOnA.GetComponent<PlayerVitals>();
+            realVitals.Roll = () => 1.0f;   // no outright blocks (Block Chance)
+            bool broken = false;
+            realVitals.GuardBroken += () => broken = true;
+            realVitals.StartBlock();
+            Assert.IsTrue(realVitals.IsBlocking);
+
+            using (DamageContext.GuardBreaking(true))
+            {
+                ((IDamageable)copyVitals).ApplyHit(20.0f, _aOnA.transform.position, 0.4f);
+            }
+            yield return WaitUntil(() => broken, "the guard-breaking hit to break player B's real guard");
+            Assert.IsTrue(realVitals.IsStunned, "player B's broken guard does not leave them staggered");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator YouCannotHurtYourselfThroughTheRelayAndForgedHitsAreRefused()
         {
