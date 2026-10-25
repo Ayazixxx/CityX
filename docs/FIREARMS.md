@@ -192,7 +192,9 @@ crosshair, pointing at it; a test checks it is on screen and that the line from 
   a whole frame it comes out a touch SLOWER at 60 fps (about 8.6-10 a second). What made it look faster was drawing a tracer on every round, a
   continuous streak. Counter-Strike draws them on only some rounds for most rifles (the M4A4 every third, and since a patch always on the
   first): the AK now does the same (`FirearmProfile.TracerEvery` 3, `PistolWeapon.ShowsTracer`), on other players' copies too. The Glock keeps
-  one on every shot.
+  one on every shot. **Undone 2026-10-25** (owner: "not every bullet is leaving a trail try testing the ak rapid fire"): every round draws one
+  again (`TracerEvery` 1). The same day the tracer's material was made truly additive (`SeeThroughMaterial`): set up with `_Surface`/`_Blend`
+  alone it drew as a solid, and the cel look's black lines traced it into a black line.
 - **"serious frame drops when rapid firing the ak at windows"**: fixed in the city streamer, see [PERFORMANCE.md](PERFORMANCE.md) (a refresh
   bookkeeping bug, tangents and colliders moved off the main thread; worst frame of a 3 s spray 18-46 ms before, ~4-5 ms after).
 - Sources: [AK-47 vs SG 553 -- csdb.gg](https://csdb.gg/compare/ak-47-vs-sg-553/) and [How to use the AK in CS2 -- Profilerr](https://profilerr.net/how-to-use-the-ak-in-cs2-correctly-and-effectively/)

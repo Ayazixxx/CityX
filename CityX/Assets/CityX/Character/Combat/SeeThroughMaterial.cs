@@ -9,7 +9,7 @@ namespace CityX.Character
     /// material drawing as a solid, so the cel look's black lines (CityXOutline, drawn on the opaque world) traced a thin spark until it was all
     /// line.
     /// </summary>
-    internal static class SeeThroughMaterial
+    public static class SeeThroughMaterial
     {
         public static void Apply(Material material, bool additive)
         {

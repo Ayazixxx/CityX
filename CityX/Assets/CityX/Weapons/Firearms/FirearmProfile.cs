@@ -66,8 +66,8 @@ namespace CityX.Weapons
 
         public float KickRecoverPerSecond = 16.0f;
 
-        [Tooltip("A visible tracer on every n-th round of a burst (always on its first), as Counter-Strike's rifles do: one on every " +
-                 "round of an automatic reads as a hose, not as shots. 1: every round.")]
+        [Tooltip("A visible tracer on every n-th round of a burst (always on its first), as Counter-Strike's rifles do. 1: every round, " +
+                 "which every gun draws since 2026-10-25 (owner: \"not every bullet is leaving a trail\" on the AK).")]
         public int TracerEvery = 1;
 
         [Tooltip("Pitch of the shot sound (1 = the clip as recorded).")]
@@ -207,7 +207,6 @@ namespace CityX.Weapons
                     new Vector2(0.25f, 0.1f), new Vector2(0.4f, 0.1f), new Vector2(0.2f, 0.1f), new Vector2(-0.2f, 0.1f), new Vector2(-0.35f, 0.1f),
                 },
                 RecoilResetSeconds = 0.35f,
-                TracerEvery = 3,
                 RecoilHoldSeconds = 0.13f,
                 AdsRecoilMultiplier = 0.8f,
                 ShakeDegrees = 0.35f,

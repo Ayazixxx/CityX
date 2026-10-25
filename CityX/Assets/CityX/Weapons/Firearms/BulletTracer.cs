@@ -189,8 +189,8 @@ namespace CityX.Weapons
             }
             _material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
             _material.color = Color.white;
-            _material.SetFloat("_Surface", 1.0f);
-            _material.SetFloat("_Blend", 2.0f); // Additive
+            // Truly additive: given only _Surface and _Blend it drew as a solid, and the cel look's black lines traced it into a black streak.
+            CityX.Character.SeeThroughMaterial.Apply(_material, additive: true);
             return _material;
         }
 

@@ -58,7 +58,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheAKDrawsATracerOnEveryThirdRoundLikeCounterStrikesRiflesAndThePistolOnEvery()
+        public void EveryRoundOfTheAKAndThePistolDrawsATracer()
         {
             var akObject = new GameObject("AK");
             akObject.AddComponent<SphereCollider>();
@@ -71,7 +71,7 @@ namespace CityX.Tests
                 var glock = glockObject.AddComponent<PistolWeapon>();
                 for (int shot = 0; shot < 9; shot++)
                 {
-                    Assert.AreEqual(shot % 3 == 0, ak.ShowsTracer(shot), $"AK round {shot + 1}");
+                    Assert.IsTrue(ak.ShowsTracer(shot), $"AK round {shot + 1}");
                     Assert.IsTrue(glock.ShowsTracer(shot), $"Glock round {shot + 1}");
                 }
                 Assert.AreEqual(600.0f, FirearmProfile.AK47().FireRatePerSecond * 60.0f, 0.01f, "Counter-Strike 2's AK-47: 600 rounds a minute");

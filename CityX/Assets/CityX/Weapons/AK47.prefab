@@ -603,7 +603,7 @@ MonoBehaviour:
     KickBackMetres: 0.035
     KickUpDegrees: 2.5
     KickRecoverPerSecond: 20
-    TracerEvery: 3
+    TracerEvery: 1
     ShotPitch: 0.78
     MotionResource: AK47/AK47Reload
     ReloadSeconds: 2.17
