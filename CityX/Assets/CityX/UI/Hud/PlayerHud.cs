@@ -312,10 +312,16 @@ namespace CityX.UI
                 if (first)
                 {
                     Frame(PortraitCamera, headBounds, top, body.forward);
-                    _portraitBody = body;
-                    _portraitPose = PoseSnapshot.Of(skeleton);
-                    _portraitCameraPosition = body.InverseTransformPoint(PortraitCamera.transform.position);
-                    _portraitCameraRotation = Quaternion.Inverse(body.rotation) * PortraitCamera.transform.rotation;
+                    // Kept only in the plain pose: a shot of fists up (a punch thrown as the world loaded) or of anything else stands in
+                    // until the body is plain, then is taken again (Update) and that pose kept.
+                    _awaitingPlainPose = !InPlainPose(body, hands);
+                    if (!_awaitingPlainPose)
+                    {
+                        _portraitBody = body;
+                        _portraitPose = PoseSnapshot.Of(skeleton);
+                        _portraitCameraPosition = body.InverseTransformPoint(PortraitCamera.transform.position);
+                        _portraitCameraRotation = Quaternion.Inverse(body.rotation) * PortraitCamera.transform.rotation;
+                    }
                 }
                 else
                 {
@@ -351,6 +357,36 @@ namespace CityX.UI
 
         /// <summary>How many portraits have been taken: for tests of when it is retaken.</summary>
         public int PortraitsTaken { get; private set; }
+
+        /// <summary>The portrait shown was taken out of the plain pose and waits to be taken again in it (and only then kept).</summary>
+        private bool _awaitingPlainPose;
+
+        /// <summary>The plain walk/idle state (PlayerLocomotion.LocomotionClipsOwnTheSpine's), restarted for a portrait taken late.</summary>
+        private static readonly int IdleState = Animator.StringToHash("Locomotion");
+
+        /// <summary>Whether the portrait shown is still waiting for the body to stand plain.</summary>
+        public bool AwaitingPlainPose => _awaitingPlainPose;
+
+        /// <summary>
+        /// The body standing plain (PlayerLocomotion.ShowsPlainPose) with nothing in its hands, whose hold would pose the arms. A body without
+        /// locomotion counts as plain.
+        /// </summary>
+        private static bool InPlainPose(Transform body, Transform[] hands)
+        {
+            var locomotion = body.GetComponent<PlayerLocomotion>();
+            if (locomotion != null && !locomotion.ShowsPlainPose)
+            {
+                return false;
+            }
+            foreach (Renderer renderer in body.GetComponentsInChildren<Renderer>(false))
+            {
+                if (renderer.enabled && IsHeld(renderer.transform, hands))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
 
         /// <summary>A still copy of a skinned renderer in its bones' pose of this moment, on <paramref name="layer"/>, wearing what it wears.</summary>
         private static GameObject StillCopy(SkinnedMeshRenderer skinned, int layer)
@@ -596,6 +632,17 @@ namespace CityX.UI
             if (_bound == null)
             {
                 return;
+            }
+            if (_awaitingPlainPose && !_refreshPending && InPlainPose(_bound.transform, HeldItemRoots(_bound.transform)))
+            {
+                // A portrait taken at load catches the idle as it starts; started again, this one is taken at the same moment of it (part
+                // way through, the head sits a little otherwise and the framing follows it).
+                Animator animator = _bound.GetComponentInChildren<Animator>();
+                if (animator != null && animator.isActiveAndEnabled)
+                {
+                    animator.Play(IdleState, 0, 0.0f);
+                }
+                RefreshPortrait();
             }
 
             SetFill(HealthFill, Fraction(_bound.Health, _bound.MaxHealth));

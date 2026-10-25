@@ -23,12 +23,20 @@ have it on screen from the beginning."
 shoulders; it was 2.3, the chest), with a little margin for the circle, from 24 degrees round to the character's right so the face turns toward
 the bars, lit from up and to the left of the camera. Near-black behind it (`PortraitBackgroundColour`).
 
+**Its pose** is the plain one, always. The first portrait is taken as the world loads and its pose kept: every later portrait (a helmet put on,
+a redraw) is taken in it, from the same spot. Weapons taken out never retake it. The owner kept seeing the fists up in it (2026-10-24: "there
+should be no fists up pose in the portrait or any poses besides the plain one"): a punch thrown as the world loaded raised the guard for
+three seconds, the first portrait caught it, and every later one copied it. Now the first pose is kept only when the body stands plain
+(`PlayerLocomotion.ShowsPlainPose`: the walk/idle cycle, all but still, nothing posed over it, nothing in the hands). Any other shot only
+stands in. Once the body is plain, the idle is started again (so it is at the moment a load catches it) and the portrait taken again and
+kept. An ordinary load is plain from the start and is shot exactly as before (`PlayerHudPortraitCityPlayTests`).
+
 **Mana** (`PlayerVitals`): `Mana`, `MaxMana` (100), `ManaRegenPerSecond` (4, not while dead), `TrySpendMana`, refilled on respawn.
 `ManaUnlocked` shows or hides the bar; it is true for everyone for now, and is meant to turn on with the first spell unlocked (GAME_DESIGN.md:
 Mana appears with your first spell). Nothing spends mana yet: what each spell costs is to be decided by how strong it is (owner).
 
 **Tests**: `PlayerHudTests` (every piece wired, the percentages, the art painted on every piece), `PlayerHudPlayTests` (the mana bar follows mana
-and hides without it, the health percentage, the character's name), `PlayerHudPortraitPlayTests` (with -Graphics: the head fills the middle of
+and hides without it, the health percentage, the character's name), `PlayerHudPortraitPlayTests` (with -Graphics: a portrait taken with the fists up is taken again once they are down; the head fills the middle of
 the portrait, the shoulders only the bottom), `PlayerVitalsProgressionTests` (mana spent, refused, regained, not while dead, refilled on
 respawn). `PlayerHudLookCapture` (Explicit, -Graphics) renders `Logs/CityShots/hud-frame-*.png`, each with a close-up.
 

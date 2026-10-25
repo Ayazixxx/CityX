@@ -299,6 +299,20 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// Standing in the plain walk/idle cycle, all but still, with nothing posed over it: no fists up, no flinch, no sword hold, no climbing
+        /// limbs, no baked move, no gun aimed or carried, not sitting, no clip owning the body (a limp ragdoll switches the Animator off, so
+        /// it is never this). The HUD portrait keeps a pose only when the body is in it (owner, 2026-10-24: "there should be no fists up pose
+        /// in the portrait or any poses besides the plain one").
+        /// </summary>
+        public bool ShowsPlainPose =>
+            LocomotionClipsOwnTheSpine && CurrentSpeed < PlainPoseMostSpeed
+            && !FistPoseActive && !FlinchPoseActive && !SwordPoseActive && !ClimbLimbsActive && BakedPoseWeight <= 0.001f
+            && !IsAimingGun && !HoldsRifle && !IsSitting && !ClipOwnsTheBody && !TorsoFollowsClip;
+
+        /// <summary>The most a body may be moving, m/s, and still count as standing in <see cref="ShowsPlainPose"/>.</summary>
+        public const float PlainPoseMostSpeed = 0.3f;
+
         /// <summary>How fast the torso takes up (and gives up) the clip's own hips/spine motion, per second.</summary>
         public const float TorsoFollowBlendPerSecond = 10.0f;
 

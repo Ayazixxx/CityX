@@ -142,6 +142,9 @@ namespace CityX.Tests
 
         private const string PlayerHudLayerName = "PlayerPortrait";
 
+        /// <summary>The picture above its bottom quarter: the face, where raised fists show, clear of the shoulders.</summary>
+        private const float FaceBandBottom = 0.25f;
+
         private Texture2D Read()
         {
             RenderTexture previous = RenderTexture.active;
@@ -204,6 +207,37 @@ namespace CityX.Tests
                     {
                         differing++;
                     }
+                }
+            }
+            return total == 0 ? 0.0f : differing / (float)total;
+        }
+
+        /// <summary>
+        /// The share of pixels in a band of rows of <paramref name="a"/> that match no pixel of <paramref name="b"/> at or next to the same place:
+        /// a picture framed a pixel otherwise (an outline round the head) counts as the same, a different pose does not.
+        /// </summary>
+        private static float DiffersBeyondAPixel(Texture2D a, Texture2D b, float fromRow, float toRow)
+        {
+            Color[] p = a.GetPixels(), q = b.GetPixels();
+            int w = a.width, h = a.height;
+            int y0 = Mathf.RoundToInt(fromRow * (h - 1)), y1 = Mathf.RoundToInt(toRow * (h - 1));
+            int differing = 0, total = 0;
+            for (int y = y0; y <= y1; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    total++;
+                    bool matched = false;
+                    for (int dy = -1; dy <= 1 && !matched; dy++)
+                    {
+                        for (int dx = -1; dx <= 1 && !matched; dx++)
+                        {
+                            int nx = Mathf.Clamp(x + dx, 0, w - 1), ny = Mathf.Clamp(y + dy, 0, h - 1);
+                            Color c = p[y * w + x], d = q[ny * w + nx];
+                            matched = Mathf.Abs(c.r - d.r) + Mathf.Abs(c.g - d.g) + Mathf.Abs(c.b - d.b) <= 0.15f;
+                        }
+                    }
+                    differing += matched ? 0 : 1;
                 }
             }
             return total == 0 ? 0.0f : differing / (float)total;
@@ -390,6 +424,76 @@ namespace CityX.Tests
             yield return null;
             yield return null;
             Assert.AreEqual(taken + 1, _hud.PortraitsTaken, "putting on a helmet no longer retakes the portrait");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-24: "why is my portrait in the top left switching poses still", "there should be no fists up pose in the portrait or
+        /// any poses besides the plain one". A punch thrown as the world loaded put the fists up in the first portrait, and every later one was
+        /// taken in that pose. A first shot out of the plain pose now only stands in: once the arms are down it is taken again, and that pose is
+        /// the one kept; a body plain from the start is shot exactly as before.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator APortraitTakenWithTheFistsUpIsTakenAgainOnceTheyAreDown()
+        {
+#if UNITY_EDITOR
+            Time.captureFramerate = 60;
+            try
+            {
+                // Standing plain from the start: the portrait the HUD takes by itself, kept at once.
+                Build("hair1");
+                for (int i = 0; i < 60; i++)
+                {
+                    yield return null;
+                }
+                Assert.IsFalse(_hud.AwaitingPlainPose, "a body standing plain was not kept as the portrait");
+                Texture2D plain = Read();
+                Save("plain", plain);
+                TearDown();
+                yield return null;
+
+                // A jab thrown as the world loads: the fists are up when the HUD takes its first portrait.
+                Build("hair1");
+                var fists = _player.GetComponent<FistPoseDriver>() ?? _player.AddComponent<FistPoseDriver>();
+                fists.Begin(FistKind.Jab);
+                for (int i = 0; i < 30; i++)
+                {
+                    yield return null;   // the jab thrown and the guard fully up
+                }
+                _hud.CaptureNow();
+                Assert.IsTrue(_player.GetComponent<PlayerLocomotion>().FistPoseActive, "the fists were not up for the first portrait");
+                Assert.IsTrue(_hud.AwaitingPlainPose, "the portrait taken with the fists up was kept");
+                Texture2D fistsUp = Read();
+                Save("fists-up", fistsUp);
+                float fistsShow = Differs(plain, fistsUp, 0.0f, 1.0f);
+                Debug.Log($"CityX portrait: {fistsShow * 100:0.0}% of the picture differs with the fists up");
+                Assert.Greater(fistsShow, 0.02f, "the fists made no difference to the picture: nothing was tested");
+
+                // The guard drops after FistPoseDriver.GuardLingerSeconds: the portrait is taken again, plain, and kept.
+                for (int i = 0; i < 300; i++)
+                {
+                    yield return null;
+                }
+                Assert.IsFalse(_hud.AwaitingPlainPose, "the portrait was never taken again once the fists were down");
+                Texture2D after = Read();
+                Save("fists-down", after);
+                // Above the shoulders (the fists rose across the face): as plain as the plain one, give or take the pixel or two the framing moves
+                // (a body settled on the ground for seconds against one still dropping the 10 cm it was put above it).
+                float face = DiffersBeyondAPixel(plain, after, FaceBandBottom, 1.0f);
+                float left = DiffersBeyondAPixel(plain, after, 0.0f, 1.0f);
+                Debug.Log($"CityX portrait: once the fists were down {face * 100:0.0}% of the face band and {left * 100:0.0}% of the picture differ");
+                Assert.Less(face, 0.03f, $"the portrait once the fists were down still has them up ({face * 100:0.0}% of the face band differs)");
+                Assert.Less(left, fistsShow * 0.2f, $"the portrait once the fists were down is not the plain one ({left * 100:0.0}% differs)");
+                Object.Destroy(plain);
+                Object.Destroy(fistsUp);
+                Object.Destroy(after);
+            }
+            finally
+            {
+                Time.captureFramerate = 0;
+            }
 #else
             yield break;
 #endif
