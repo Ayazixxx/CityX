@@ -1,7 +1,7 @@
 # MODEL QA: a model checked before it goes into the game (owner, 2026-10-19: "write your own QA check for imported models").
 #   "C:/Program Files/Blender Foundation/Blender 4.2/blender.exe" --background --factory-startup --python tools/model_qa.py -- <model> [options]
 #     <model>          .glb/.gltf/.fbx/.obj, or a Meshy .zip (the model and its maps inside are found)
-#     --kind K         the item's kind, for its triangle budget: helmet, hat, top, coat, weapon, prop, character (none: no budget)
+#     --kind K         the item's kind, for its triangle budget: helmet, hat, top, trousers, coat, weapon, prop, character (none: no budget)
 #     --height H       the size it should be, in metres, along its longest side (checked within 15%)
 #     --render P.png   four views of the model with every problem ringed in red and labelled (H1, S2 ...); kept ones in green
 #     --json P.json    the report as data
@@ -26,7 +26,8 @@ from mathutils import Vector
 from mathutils.kdtree import KDTree
 
 # Triangle budgets per kind: (good up to, at most). Owner's equippable budgets (2026-10-18) and this project's items.
-BUDGETS = {"helmet": (5000, 8000), "hat": (4000, 6000), "top": (10000, 12000), "coat": (12000, 15000), "weapon": (6000, 10000),
+BUDGETS = {"helmet": (5000, 8000), "hat": (4000, 6000), "top": (10000, 12000), "trousers": (8000, 12000), "coat": (12000, 15000),
+           "weapon": (6000, 10000),
            "prop": (5000, 10000), "character": (40000, 60000)}
 MAP_GOOD, MAP_MOST = 1024, 2048           # a map's side: fine up to, too big past
 SMALL_HOLE = 0.04                         # a hole whose rim is under this share of the model's size is a defect; bigger is an opening

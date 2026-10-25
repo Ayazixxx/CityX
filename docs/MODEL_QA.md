@@ -14,7 +14,7 @@ bake): it catches the faults this project has met before the owner has to spot t
 
 | Check | Catches | Met in |
 |---|---|---|
-| triangles | over the budget for its kind (`--kind helmet/hat/top/coat/weapon/prop/character`) | Meshy's 50k-triangle sword |
+| triangles | over the budget for its kind (`--kind helmet/hat/top/trousers/coat/weapon/prop/character`) | Meshy's 50k-triangle sword |
 | textures | maps over 1024 (WARN) or 2048 (FAIL), with the video memory they take in the game | Meshy's four 2048 maps, about 22 MB |
 | size | the size and where it stands; against `--height` if given | |
 | holes (H) | small holes in the surface; big openings (sleeves, a collar) are only counted | the shearling coat's fur |
@@ -53,5 +53,6 @@ Run it after changing the script.
 |---|---|
 | Midnight Coat | 14,876 triangles (over the 12k "fine" line for a coat, under 15k); 1 spike S1 at the back of the skirt's slit; no holes |
 | Knight Helmet | 7,390 triangles; 3 small holes (H1 and H2 on the visor's side, H3 low at the back) and 1 z-fight, for the owner to judge |
+| Black Jeans (2026-10-24) | 11,335 triangles (over the 8k "fine" line for trousers, under 12k; the owner's count, lower wiped the stitching); a 2048 map in the Blender file (1024 in the game); 2 z-fights from the fit, fixed in black_jeans_fit.py |
 | Combat sword | within budget; 14 spike points along the blade's thin edge |
 | Meshy White Sword zip | 50,698 triangles and 8 maps of 2048 (about 45 MB of video memory): why it was baked down |

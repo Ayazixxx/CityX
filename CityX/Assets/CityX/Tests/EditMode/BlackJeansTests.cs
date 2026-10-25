@@ -1,0 +1,96 @@
+using CityX.Character;
+using CityX.Items;
+using CityX.Wearables;
+using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
+
+namespace CityX.Tests
+{
+    /// <summary>
+    /// The Black Jeans (owner, 2026-10-24: "add them as "Black Jeans" and try to fit it to the player the best you can"): worn on the legs,
+    /// within the trousers' budget with one small map, bending at the knees (the shins keep their own share), following nothing above the
+    /// waist, and worn on this body from above the hips down to the ankles.
+    /// </summary>
+    public sealed class BlackJeansTests
+    {
+        private const int TriangleBudget = 12000;
+        private const int MapSizeLimit = 1024;
+
+        private static SkinnedGarment Jeans()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/BlackJeans.prefab");
+            Assert.IsNotNull(prefab, "no BlackJeans.prefab: rebuild the scene (CityMassingSceneBuilder)");
+            var jeans = prefab.GetComponent<BlackJeans>();
+            Assert.IsNotNull(jeans.GarmentMesh, "the jeans have no mesh");
+            return jeans;
+        }
+
+        private static int Index(HumanBodyBones bone) => System.Array.IndexOf(SkinnedGarment.Bones, bone);
+
+        [Test]
+        public void TheBlackJeansAreWornOnTheLegs()
+        {
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.BlackJeans, out ItemDefinition jeans));
+            Assert.AreEqual("Black Jeans", jeans.DisplayName);
+            Assert.AreEqual(EquipSlots.Legs, jeans.EquipSlot);
+            Assert.AreEqual(ItemDefinition.WearableCategory, jeans.Category);
+            Assert.AreEqual(ItemRegistry.BlackJeans, Jeans().ItemId);
+        }
+
+        [Test]
+        public void TheJeansAreWithinTheirBudgetAndWearOneSmallMap()
+        {
+            SkinnedGarment jeans = Jeans();
+            Assert.LessOrEqual(jeans.GarmentMesh.triangles.Length / 3, TriangleBudget);
+            Assert.AreEqual(jeans.GarmentMesh.vertexCount, jeans.GarmentMesh.uv.Length, "the jeans have no texture coordinates");
+            Texture map = jeans.GarmentMaterial.GetTexture("_BaseMap");
+            Assert.IsNotNull(map, "the jeans have no texture");
+            Assert.LessOrEqual(map.width, MapSizeLimit, "the jeans' texture is too big for many players at once");
+        }
+
+        [Test]
+        public void TheJeansBendAtTheKneesAndFollowNothingAboveTheWaist()
+        {
+            Mesh mesh = Jeans().GarmentMesh;
+            int[] never =
+            {
+                Index(HumanBodyBones.Neck), Index(HumanBodyBones.Head),
+                Index(HumanBodyBones.LeftUpperArm), Index(HumanBodyBones.LeftLowerArm), Index(HumanBodyBones.LeftHand),
+                Index(HumanBodyBones.RightUpperArm), Index(HumanBodyBones.RightLowerArm), Index(HumanBodyBones.RightHand),
+            };
+            int leftShin = Index(HumanBodyBones.LeftLowerLeg), rightShin = Index(HumanBodyBones.RightLowerLeg);
+            int onLeftShin = 0, onRightShin = 0;
+            foreach (BoneWeight w in mesh.boneWeights)
+            {
+                Assert.AreEqual(1.0f, w.weight0 + w.weight1 + w.weight2 + w.weight3, 0.01f);
+                foreach ((int bone, float weight) in new[] { (w.boneIndex0, w.weight0), (w.boneIndex1, w.weight1), (w.boneIndex2, w.weight2), (w.boneIndex3, w.weight3) })
+                {
+                    if (weight > 0.001f)
+                    {
+                        CollectionAssert.DoesNotContain(never, bone, "part of the jeans follows an arm, a hand, the neck or the head");
+                    }
+                }
+                onLeftShin += w.boneIndex0 == leftShin ? 1 : 0;
+                onRightShin += w.boneIndex0 == rightShin ? 1 : 0;
+            }
+            Assert.Greater(onLeftShin, mesh.vertexCount / 10, "the left leg below the knee does not follow the shin");
+            Assert.Greater(onRightShin, mesh.vertexCount / 10, "the right leg below the knee does not follow the shin");
+        }
+
+        [Test]
+        public void TheJeansGoFromAboveTheHipsToTheAnklesAndHideTheLegsUnderThem()
+        {
+            SkinnedGarment jeans = Jeans();
+            Bounds bounds = jeans.GarmentMesh.bounds;
+            float knee = Mathf.Lerp(BodyRig.HipY, BodyRig.FootY, BodyRig.KneeT);
+            Assert.Greater(bounds.max.y, BodyRig.HipY, "the waistband is below the hips");
+            Assert.Less(bounds.max.y, BodyRig.HipY + 0.3f, "the jeans come up the chest");
+            Assert.Less(bounds.min.y, knee - 0.25f, "the legs stop at the knees");
+            Assert.Greater(bounds.min.y, 0.03f, "the hems drag on the ground");
+            Assert.Less(bounds.max.x, BodyRig.HipX + BodyRig.LegRadius + 0.1f, "the jeans stand far out from the hips");
+            Assert.IsNotNull(jeans.HiddenBodyTriangles, "the jeans hide none of the body under them");
+            Assert.AreEqual((jeans.HiddenFromBodyTriangles + 7) / 8, jeans.HiddenBodyTriangles.Length);
+        }
+    }
+}

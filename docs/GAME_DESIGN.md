@@ -250,7 +250,7 @@ The owner's list, as given. ✅ = in the game now.
 - **Legendary:** RPG Minigun, Rocket Pack.
 - **Godly:** (not filled in yet).
 
-In the game but not on the list yet: the spike sword, the parachute, the spray can, the hooded cloak (to be worked on), the Midnight Coat, and the Blood Raven, red camo and black T-shirts. The Skelli jeans and the top hat were taken out on 2026-10-24, to be replaced with better models.
+In the game but not on the list yet: the spike sword, the parachute, the spray can, the hooded cloak (to be worked on), the Midnight Coat, the Blood Raven, red camo and black T-shirts, and the Black Jeans (2026-10-24, from the owner's cut). The Skelli jeans and the top hat were taken out on 2026-10-24, to be replaced with better models.
 
 ## Items and art
 

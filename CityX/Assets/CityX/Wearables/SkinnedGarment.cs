@@ -72,7 +72,6 @@ namespace CityX.Wearables
         private Transform _nearbyPlayer;
         private bool _equipped;
         private SkinnedMeshRenderer _bodySkin;
-        private Mesh _wholeBody;
 
         private void Update()
         {
@@ -198,16 +197,12 @@ namespace CityX.Wearables
             OnEquipped(player);
         }
 
-        /// <summary>The body given back whole and the worn skin unregistered.</summary>
+        /// <summary>What this garment hid of the body drawn again (WornBodyCover) and the worn skin unregistered.</summary>
         private void TakeOff()
         {
             OnUnequipped();
-            if (_bodySkin != null && _wholeBody != null)
-            {
-                _bodySkin.sharedMesh = _wholeBody;
-            }
+            WornBodyCover.Show(_bodySkin, this);
             _bodySkin = null;
-            _wholeBody = null;
             if (Combiner != null)
             {
                 Combiner.Unregister(ItemId);
@@ -215,7 +210,7 @@ namespace CityX.Wearables
             Combiner = null;
         }
 
-        /// <summary>Draws the body without what this garment hides, keeping the whole body to put back on unequip.</summary>
+        /// <summary>Draws the body without what this garment hides, along with what the others worn on it hide (WornBodyCover).</summary>
         private void CoverBody(GameObject player)
         {
             if (HiddenBodyTriangles == null || HiddenBodyTriangles.Length == 0)
@@ -226,8 +221,7 @@ namespace CityX.Wearables
             _bodySkin = skin != null ? skin.GetComponent<SkinnedMeshRenderer>() : null;
             if (_bodySkin != null)
             {
-                _wholeBody = _bodySkin.sharedMesh;
-                _bodySkin.sharedMesh = BodyCover.Cut(_wholeBody, HiddenBodyTriangles, HiddenFromBodyTriangles);
+                WornBodyCover.Hide(_bodySkin, this, HiddenBodyTriangles, HiddenFromBodyTriangles);
             }
         }
 

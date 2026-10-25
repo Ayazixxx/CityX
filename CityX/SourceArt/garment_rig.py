@@ -1,6 +1,9 @@
-# SKINNING A GARMENT ONTO THIS GAME'S BODY, shared by the garments' Blender scripts (MidnightCoat/coat_build.py, TShirt/tshirt_build.py).
+# SKINNING A GARMENT ONTO THIS GAME'S BODY, shared by the garments' Blender scripts (MidnightCoat/coat_build.py, TShirt/tshirt_build.py,
+# BlackJeans/black_jeans_build.py).
 # Load it into a script's globals with exec(), after Octaslash/octaslash_rig.py has built the body ("Body") and skeleton ("CityXRig").
-#   body_weights:   each point takes the weights of the nearest skin; hands go to the forearms, the head to the neck, shins and feet to the thighs;
+#   body_weights:   each point takes the weights of the nearest skin; hands go to the forearms, the head to the neck, shins and feet to the thighs
+#                   (trousers: the feet to the shins);
+#   smooth_weights: every point's weights averaged with its neighbours' (trousers: no jump across the buttocks' crease);
 #   share_armpits:  round each armpit the weights are smoothed and what torso and arm share goes to the half-turning shoulder bone (the
 #                   coat; the T-Shirt cuts its sleeves loose instead);
 #   lift_collar:    up a collar the collar bone (the neck's turn, the head's place) takes over;
@@ -20,6 +23,9 @@ BONE = {b: i for i, b in enumerate(TARGET_BONES)}
 # The skeleton's other bones and the garment bone each one's share goes to (a garment never follows a hand, the head or a shin).
 FOLDED = {"hand_l": "forearm_l", "fingertip_l": "forearm_l", "hand_r": "forearm_r", "fingertip_r": "forearm_r", "head": "neck",
           "shin_l": "thigh_l", "foot_l": "thigh_l", "shin_r": "thigh_r", "foot_r": "thigh_r"}
+# Trousers bend at the knee: the shins keep their own share, the feet go to the shins (the hems).
+TROUSERS_FOLDED = {"hand_l": "forearm_l", "fingertip_l": "forearm_l", "hand_r": "forearm_r", "fingertip_r": "forearm_r", "head": "neck",
+                   "foot_l": "shin_l", "foot_r": "shin_r"}
 
 
 def mesh_coords(me):
@@ -40,8 +46,9 @@ def group_values(obj, name):
     return values
 
 
-def body_weights(garment, body, rig):
-    """One row per point of garment, one column per TARGET_BONES: the weights of the body's skin nearest it."""
+def body_weights(garment, body, rig, folded=FOLDED):
+    """One row per point of garment, one column per TARGET_BONES: the weights of the body's skin nearest it, the bones in folded given to
+    the bone they name (trousers keep their shins: TROUSERS_FOLDED)."""
     bpy.ops.object.select_all(action="DESELECT")
     garment.select_set(True)
     bpy.context.view_layer.objects.active = garment
@@ -56,7 +63,7 @@ def body_weights(garment, body, rig):
     bpy.ops.object.modifier_apply(modifier=transfer.name)
     weights = np.zeros((len(garment.data.vertices), len(TARGET_BONES)))
     for bone in rig.data.bones:
-        target = FOLDED.get(bone.name, bone.name)
+        target = folded.get(bone.name, bone.name)
         if target in BONE:
             weights[:, BONE[target]] += group_values(garment, bone.name)
     unweighted = weights.sum(1) <= 1e-6
@@ -65,10 +72,10 @@ def body_weights(garment, body, rig):
     return weights
 
 
-def share_armpits(weights, co, mesh, reach, above, passes):
-    """Within reach of each shoulder joint and no more than above it: weights smoothed over passes, the torso and arm's shared part moved to the
-    shoulder bone (the point turns about the shoulder instead of being pulled along the line between torso and arm: a pinched armpit)."""
-    group = np.unique(np.round(co, 5), axis=0, return_inverse=True)[1].ravel()   # points split along UV seams: one group per place
+def places(weights, co, mesh):
+    """The garment's points merged where they are split along UV seams (one place each): which place each point is, the places' edges, their
+    weights and positions (averaged), and how many edges meet at each."""
+    group = np.unique(np.round(co, 5), axis=0, return_inverse=True)[1].ravel()
     edges = np.empty(len(mesh.edges) * 2, dtype=np.int64)
     mesh.edges.foreach_get("vertices", edges)
     edges = group[edges.reshape(-1, 2)]
@@ -81,14 +88,34 @@ def share_armpits(weights, co, mesh, reach, above, passes):
     np.add.at(gco, group, co)
     gco /= np.bincount(group, minlength=groups)[:, None]
     degree = np.bincount(edges.ravel(), minlength=groups).astype(float)
+    return group, edges, gw, gco, degree
+
+
+def smooth_places(gw, edges, degree, which, passes):
+    """The weights of the places in which averaged with their neighbours', passes times."""
+    for _ in range(passes):
+        total = np.zeros_like(gw)
+        np.add.at(total, edges[:, 0], gw[edges[:, 1]])
+        np.add.at(total, edges[:, 1], gw[edges[:, 0]])
+        mean = total / np.maximum(degree, 1.0)[:, None]
+        gw[which] = 0.5 * gw[which] + 0.5 * mean[which]
+
+
+def smooth_weights(weights, co, mesh, passes):
+    """Every point's weights averaged with its neighbours' over passes: no jump where the nearest skin changes from one side of a crease to the
+    other (trousers at the buttocks: hips on one point, thigh and shin on the next, torn apart by a bent knee)."""
+    group, edges, gw, _, degree = places(weights, co, mesh)
+    smooth_places(gw, edges, degree, np.ones(len(gw), dtype=bool), passes)
+    return gw[group]
+
+
+def share_armpits(weights, co, mesh, reach, above, passes):
+    """Within reach of each shoulder joint and no more than above it: weights smoothed over passes, the torso and arm's shared part moved to the
+    shoulder bone (the point turns about the shoulder instead of being pulled along the line between torso and arm: a pinched armpit)."""
+    group, edges, gw, gco, degree = places(weights, co, mesh)
     for side, joint in SHOULDER_JOINTS.items():
         near = (np.linalg.norm(gco - joint, axis=1) < reach) & (gco[:, 2] < joint[2] + above)
-        for _ in range(passes):
-            total = np.zeros_like(gw)
-            np.add.at(total, edges[:, 0], gw[edges[:, 1]])
-            np.add.at(total, edges[:, 1], gw[edges[:, 0]])
-            mean = total / np.maximum(degree, 1.0)[:, None]
-            gw[near] = 0.5 * gw[near] + 0.5 * mean[near]
+        smooth_places(gw, edges, degree, near, passes)
         shared = np.where(near, np.minimum(gw[:, BONE["spine"]], gw[:, BONE["arm_" + side]]), 0.0)
         gw[:, BONE["spine"]] -= shared
         gw[:, BONE["arm_" + side]] -= shared
