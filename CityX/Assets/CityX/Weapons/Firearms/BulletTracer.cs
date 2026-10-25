@@ -54,6 +54,21 @@ namespace CityX.Weapons
         public const float MaxWorldWidth = 0.4f;
 
         /// <summary>
+        /// The streak is drawn this many times as wide as its core (<see cref="PixelWidth"/>): the rest is the soft gold glow round it, fading to
+        /// nothing at its edges (owner, 2026-10-25: a flat colour "feel kind of roblox like"; Counter-Strike's tracers are a hot core in a glow).
+        /// </summary>
+        public const float GlowWidthRatio = 5.0f;
+
+        /// <summary>How much each frame's brightness may waver, as a share: a live flame, not a lit tube.</summary>
+        public const float Flicker = 0.18f;
+
+        private static readonly Color CoreColour = new Color(1.0f, 0.97f, 0.86f);
+
+        private static readonly Color GlowColour = new Color(1.0f, 0.68f, 0.22f);
+
+        private static Texture2D _texture;
+
+        /// <summary>
         /// How long the streak stays visible -- short enough to read as an
         /// instantaneous flash rather than a lingering laser beam, long
         /// enough that the eye actually catches it (about seven frames at 60fps;
@@ -62,13 +77,6 @@ namespace CityX.Weapons
         public const float LifetimeSeconds = 0.12f;
 
         public const float Width = 0.008f;   // world-space FLOOR only (was 0.015, which at close range was wider than PixelWidth asks for); see PixelWidth
-
-        /// <summary>
-        /// A pale, warm white: between pure white and the brass-yellow of a real tracer round. It was
-        /// (1.0, 0.85, 0.35), which read as plainly yellow; a follow-up asked for it whiter but "not totally
-        /// white". Roughly two thirds of the way from that yellow to white.
-        /// </summary>
-        private static readonly Color TracerColour = new Color(1.0f, 0.96f, 0.72f);
 
         private static Material _material;
 
@@ -130,10 +138,10 @@ namespace CityX.Weapons
             _line.numCapVertices = 0;
             _line.numCornerVertices = 0;
             _line.useWorldSpace = true;
-            _line.startWidth = WorldWidthAt(start);
-            _line.endWidth = WorldWidthAt(end);
-            _line.startColor = TracerColour;
-            _line.endColor = TracerColour;
+            _line.startWidth = WorldWidthAt(start) * GlowWidthRatio;
+            _line.endWidth = WorldWidthAt(end) * GlowWidthRatio;
+            _line.startColor = Color.white;   // the texture carries the colours
+            _line.endColor = Color.white;
             _line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _line.receiveShadows = false;
             _line.positionCount = 2;
@@ -151,7 +159,8 @@ namespace CityX.Weapons
             Camera camera = Camera.main;
             if (camera == null)
             {
-                return Mathf.Max(Width, 0.05f);
+                // No game camera (a capture's own): as thin as the floor, not 5 cm, which drew a bar as thick as the gun (owner, 2026-10-25).
+                return Width;
             }
             return WorldWidthFor(Vector3.Distance(camera.transform.position, point),
                 camera.fieldOfView, camera.pixelHeight);
@@ -191,7 +200,54 @@ namespace CityX.Weapons
             _material.color = Color.white;
             // Truly additive: given only _Surface and _Blend it drew as a solid, and the cel look's black lines traced it into a black streak.
             CityX.Character.SeeThroughMaterial.Apply(_material, additive: true);
+            _material.SetTexture("_BaseMap", StreakTexture());
+            _material.mainTexture = StreakTexture();
             return _material;
+        }
+
+        /// <summary>
+        /// The streak's look, made once in code (no image file): across it a near-white core in a gold glow fading to nothing at the edges, with
+        /// three faint wisps winding through the glow; along it (muzzle to hit) brightening toward the front, the bullet's end. Additive, so its
+        /// dark is see-through.
+        /// </summary>
+        public static Texture2D StreakTexture()
+        {
+            if (_texture != null)
+            {
+                return _texture;
+            }
+            const int along = 128, across = 32;
+            _texture = new Texture2D(along, across, TextureFormat.RGBA32, false)
+            {
+                name = "BulletTracerStreak", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.DontSave,
+            };
+            var pixels = new Color32[along * across];
+            for (int x = 0; x < along; x++)
+            {
+                float u = (x + 0.5f) / along;
+                float front = 0.7f + 0.3f * u;                                                          // brighter toward the bullet's end
+                float ends = Mathf.Clamp01(u / 0.03f) * Mathf.Clamp01((1.0f - u) / 0.02f);              // soft tips, no square cut
+                for (int y = 0; y < across; y++)
+                {
+                    float v = ((y + 0.5f) / across) * 2.0f - 1.0f;                                       // -1 .. 1 across
+                    float core = Mathf.Exp(-(v * v) / (0.13f * 0.13f));                                  // a fifth of the width: the old streak
+                    float glow = 0.55f * Mathf.Exp(-(v * v) / (0.45f * 0.45f));
+                    float wisps = 0.0f;
+                    for (int k = 0; k < 3; k++)
+                    {
+                        float path = 0.45f * Mathf.Sin(u * (5.0f + 3.0f * k) + k * 2.1f);
+                        float d = (v - path) / 0.06f;
+                        wisps += 0.35f * Mathf.Exp(-d * d) * u;
+                    }
+                    float glowShare = glow + wisps;
+                    float strength = Mathf.Clamp01((core + glowShare) * front * ends);
+                    Color colour = Color.Lerp(GlowColour, CoreColour, core / Mathf.Max(core + glowShare, 1e-4f));
+                    pixels[y * along + x] = new Color(colour.r, colour.g, colour.b, strength);
+                }
+            }
+            _texture.SetPixels32(pixels);
+            _texture.Apply(false, true);
+            return _texture;
         }
 
         private void Update()
@@ -206,8 +262,8 @@ namespace CityX.Weapons
             // Fades out rather than popping off after a flat lifetime --
             // an instant cut at LifetimeSeconds is visible as a blink even
             // at this short a duration.
-            float alpha = 1.0f - (_elapsed / LifetimeSeconds);
-            Color faded = TracerColour;
+            float alpha = (1.0f - (_elapsed / LifetimeSeconds)) * (1.0f - Flicker * Random.value);
+            Color faded = Color.white;
             faded.a = alpha;
             _line.startColor = faded;
             _line.endColor = faded;

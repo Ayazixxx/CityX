@@ -86,7 +86,7 @@ namespace CityX.Tests
             _gun.OnEquip(_player, CityX.Items.ItemInstanceData.None);
             _feel = _player.GetComponent<GunFeel>();
 
-            var cameraObject = new GameObject("FollowCamera");
+            var cameraObject = new GameObject("FollowCamera") { tag = "MainCamera" };   // the game's camera: a tracer sizes itself to it
             _followCamera = cameraObject.AddComponent<Camera>();
             _followCamera.fieldOfView = 75.0f;   // the scene's (CityMassingSceneBuilder: player.gd's camera.fov)
             _followCamera.nearClipPlane = 0.05f;
