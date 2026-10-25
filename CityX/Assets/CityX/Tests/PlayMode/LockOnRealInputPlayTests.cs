@@ -399,5 +399,39 @@ namespace CityX.Tests
             yield break;
 #endif
         }
+
+        /// <summary>
+        /// Owner, 2026-10-24: "turn off tab lock on for ranged weapons". With the pistol in hand Tab locks onto nothing (the gun is aimed with
+        /// the crosshair), and drawing it while locked on lets the lock go; put away, Tab locks on again.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WithAGunInHandTabDoesNotLockOnAndDrawingOneLetsALockGo()
+        {
+#if UNITY_EDITOR
+            yield return LoadScene();
+            PlaceDummy(6.0f, 10.0f);
+            yield return TapTab();
+            Assert.IsTrue(_camera.IsLockedOn, "Tab did not lock on bare-handed");
+
+            Inventory inventory = _vitals.GetComponent<Inventory>();
+            inventory.AddItem(ItemRegistry.Pistol, 1);
+            Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.Pistol, 1, out ItemInstanceData data));
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Pistol, _vitals.gameObject, data), "the pistol could not be drawn");
+            yield return null;
+            yield return null;
+            Assert.IsTrue(_vitals.GetComponent<PlayerInputReader>().HoldsRangedWeapon, "the pistol does not count as a ranged weapon");
+            Assert.IsFalse(_camera.IsLockedOn, "drawing the pistol did not let the lock go");
+
+            yield return TapTab();
+            Assert.IsFalse(_camera.IsLockedOn, "Tab locked on with a gun in hand");
+
+            Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Primary, _vitals.gameObject), "the pistol could not be put away");
+            yield return null;
+            yield return TapTab();
+            Assert.IsTrue(_camera.IsLockedOn, "with the gun put away, Tab no longer locks on");
+#else
+            yield break;
+#endif
+        }
     }
 }

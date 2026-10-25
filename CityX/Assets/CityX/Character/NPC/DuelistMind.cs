@@ -14,7 +14,7 @@ namespace CityX.Character
         /// <summary>At fighting distance, circling with the guard down, watching.</summary>
         Circle,
 
-        /// <summary>Guard up against a blow he saw coming.</summary>
+        /// <summary>Circling behind his raised guard: up before any blow comes, never thrown up against one.</summary>
         Guard,
 
         /// <summary>Dashed out of the way (a dodge, or getting out after being hit).</summary>
@@ -41,14 +41,17 @@ namespace CityX.Character
     ///  1. PUNISH: the target is OPEN -- it swung into his guard and its blade rebounded (SoulsSwordCombat.GuardReboundSeconds), he parried
     ///     it, or its guard broke -- so he goes straight in with cuts while it is open (dashing in if it is too far to walk in time). A mere
     ///     flinch from his own last cut is not an opening: pressing every one was a stun-lock, not a punish.
-    ///  2. ANSWER A BLOW: the target starts a swing in reach; after a human-like reaction (0.14-0.28 s) he raises his guard (usually), dashes
-    ///     out of it (sometimes, or always when his stamina could not pay for the block), or now and then ignores it and swings first.
+    ///  2. DASH OUT OF A SLOW BLOW: the target starts a swing in reach; after a person's reaction (0.3-0.45 s, longer than a light cut takes to
+    ///     land) he sometimes dashes out of it if it is still winding up -- only a heavy is that slow. He NEVER throws his guard up against a
+    ///     blow already on its way (owner, 2026-10-24: "the enemies get a lot of really bullshit blocks where the second you swing they just
+    ///     throw up guard and you get punished ... find another way"): his guard is a STANCE, chosen for each spell of circling and up before
+    ///     any swing comes, so it can be seen (Dark Souls' shield-bearers: break it with a heavy, wait it out, or go round it).
     ///  3. RECOVER: short of stamina, he backs off and circles until it is back (no attacking or blocking on fumes).
     ///  4. ATTACK: in reach, the target not swinging and not dashing: a chain of one or two cuts, or now and then the heavy; then he gets
     ///     back out, often with a dash. A raised guard he mostly does not swing into (he would rebound off it, as the player does) -- he waits
     ///     it out, and only sometimes drives a heavy into it to drain it.
     ///  5. APPROACH -- closing the last stretch with a dash now and then -- then CIRCLE at fighting distance, changing direction every second
-    ///     or three, keeping his distance.
+    ///     or three, keeping his distance; some spells of circling behind his raised guard (the stance above).
     /// IN A PACK (EnemyPack) he punishes and attacks only on his turn (<see cref="Senses.Waiting"/>); waiting, he circles out at
     /// <see cref="WaitMetres"/>, the other way from his nearest packmate, still guarding and dashing as ever.
     /// After being hit he sometimes dashes away. Every dash is the player's own (double-tap Shift with a sword out), with its stamina, so he
@@ -84,13 +87,13 @@ namespace CityX.Character
 
         // ---- timing (seconds) ----
 
-        /// <summary>How long he takes to answer a swing he sees start: a person's reaction, not a machine's.</summary>
-        public const float ReactionMin = 0.14f;
+        /// <summary>
+        /// How long he takes to answer a swing he sees start: a person's reaction (seeing it, deciding, moving), and longer than a light cut takes
+        /// to land (0.26-0.34 s), so a quick cut already on its way lands; only a slow swing (a heavy) leaves him time to dash out of it.
+        /// </summary>
+        public const float DodgeReactionMin = 0.3f;
 
-        public const float ReactionMax = 0.28f;
-
-        /// <summary>The guard stays up this long after the blow it was raised for has passed.</summary>
-        public const float GuardLingerSeconds = 0.25f;
+        public const float DodgeReactionMax = 0.45f;
 
         /// <summary>How long he circles one way before switching.</summary>
         public const float CircleMin = 1.2f;
@@ -113,11 +116,14 @@ namespace CityX.Character
 
         // ---- choices (chances, 0 to 1) ----
 
-        /// <summary>Against a swing he sees coming: the guard this often...</summary>
-        public const float GuardChance = 0.57f;
+        /// <summary>A spell of circling is spent behind his raised guard this often, decided as it begins.</summary>
+        public const float GuardStanceChance = 0.45f;
 
-        /// <summary>...a dash out of it this often (the rest he swings first, or takes it).</summary>
-        public const float DashChance = 0.33f;
+        /// <summary>A slow swing still winding up once he has reacted, he dashes out of this often (never from behind his guard: he trusts it).</summary>
+        public const float DodgeChance = 0.35f;
+
+        /// <summary>He raises his guard only within this much of his ring: further off he comes in with it down.</summary>
+        public const float GuardWithinMetres = 1.5f;
 
         /// <summary>An attack is the heavy this often.</summary>
         public const float HeavyChance = 0.15f;
@@ -151,7 +157,7 @@ namespace CityX.Character
         /// <summary>He starts an attack only with this much.</summary>
         public const float AttackStamina = 0.3f;
 
-        /// <summary>A guard that would cost more than this leaves him dashing instead.</summary>
+        /// <summary>He takes his guard stance only with this much (a guard costs stamina for every blow it soaks).</summary>
         public const float GuardStamina = 0.2f;
 
         /// <summary>What his body can tell him this frame.</summary>
@@ -165,6 +171,9 @@ namespace CityX.Character
 
             /// <summary>The target's swing is winding up or live (it can still hurt).</summary>
             public bool TargetAttacking;
+
+            /// <summary>The target's swing is still winding up (the blade not yet live).</summary>
+            public bool TargetWindingUp;
 
             /// <summary>The target holds a guard.</summary>
             public bool TargetBlocking;
@@ -224,21 +233,13 @@ namespace CityX.Character
             public Vector2 DashDirection;
         }
 
-        private enum Answer
-        {
-            Guard,
-            Dash,
-            Strike,
-            Take,
-        }
-
         private readonly System.Random _random;
         private float _stateTime;
         private bool _threatSeen;
-        private bool _answered;
         private float _reaction;
-        private Answer _answer;
-        private float _guardLinger;
+        private bool _dodge;
+        private bool _guardStance;
+        private bool _guardUp;
         private float _circleSign = 1.0f;
         private float _circleLeft;
         private float _attackCooldown;
@@ -252,9 +253,13 @@ namespace CityX.Character
         {
             _random = new System.Random(seed);
             _circleLeft = Range(CircleMin, CircleMax);
+            _guardStance = Chance() < GuardStanceChance;
         }
 
         public DuelistState State { get; private set; } = DuelistState.Idle;
+
+        /// <summary>His guard is up (the stance).</summary>
+        public bool GuardUp => _guardUp;
 
         private float Chance() => (float)_random.NextDouble();
 
@@ -276,7 +281,6 @@ namespace CityX.Character
             _stateTime += deltaTime;
             _attackCooldown -= deltaTime;
             _pressTimer -= deltaTime;
-            _guardLinger -= deltaTime;
             _backOff -= deltaTime;
             _dashBusy -= deltaTime;
             _circleLeft -= deltaTime;
@@ -284,19 +288,21 @@ namespace CityX.Character
             {
                 _circleSign = -_circleSign;
                 _circleLeft = Range(CircleMin, CircleMax);
+                _guardStance = Chance() < GuardStanceChance;   // the next spell: behind his guard or not, decided now, not when a blow comes
             }
 
             if (s.Dead || !s.HasTarget)
             {
                 Become(DuelistState.Idle);
                 _chainLeft = 0;
+                _guardUp = false;
                 return intent;
             }
             if (s.Stunned)
             {
                 // His own blade rebounded, or he was hit hard: the body is locked; whatever he was about is over.
                 _chainLeft = 0;
-                _guardLinger = 0.0f;
+                _guardUp = false;
                 return intent;
             }
             if (_dashBusy > 0.0f)
@@ -304,22 +310,19 @@ namespace CityX.Character
                 return intent;   // mid-dash: the dash carries him
             }
 
-            // A swing the target starts in reach: noticed once, answered after his reaction.
+            // A swing the target starts in reach: noticed once. Never answered with the guard; with a dash out, sometimes, once he has had
+            // time to react (section 2).
             bool threat = s.TargetAttacking && s.Distance <= ThreatMetres;
             if (threat && !_threatSeen)
             {
                 _threatSeen = true;
-                _answered = false;
-                _reaction = Range(ReactionMin, ReactionMax);
-                _answer = ChooseAnswer(s);
+                _reaction = Range(DodgeReactionMin, DodgeReactionMax);
+                _dodge = Chance() < DodgeChance;
             }
             if (!s.TargetAttacking)
             {
-                if (_threatSeen && _answered && _answer == Answer.Guard)
-                {
-                    _guardLinger = GuardLingerSeconds;
-                }
                 _threatSeen = false;
+                _dodge = false;
             }
 
             // 1. PUNISH: the target is open. No reaction delay: the stagger already gave him the time.
@@ -328,7 +331,7 @@ namespace CityX.Character
                 bool opening = State != DuelistState.Punish;
                 Become(DuelistState.Punish);
                 _recovering = false;
-                _guardLinger = 0.0f;
+                _guardUp = false;
                 if (s.Distance > StrikeMetres)
                 {
                     intent.Move = new Vector2(0.0f, 1.0f);
@@ -349,57 +352,20 @@ namespace CityX.Character
                 return intent;
             }
 
-            // 2. ANSWER A BLOW he saw coming.
-            if (_threatSeen && !s.Committed)
+            // 2. DASH OUT of a slow blow he saw coming, once he has had time to react: a swing still winding up then (a heavy). Not from behind
+            // his guard (he trusts it), and never the guard itself.
+            if (_threatSeen && _dodge && !s.Committed)
             {
                 _reaction -= deltaTime;
                 if (_reaction <= 0.0f)
                 {
-                    _answered = true;
-                    switch (_answer)
+                    _dodge = false;
+                    if (s.TargetWindingUp && !_guardUp && s.CanDash && s.Stamina >= DashStamina)
                     {
-                        case Answer.Guard:
-                            if (s.Stamina >= GuardStamina)
-                            {
-                                Become(DuelistState.Guard);
-                                intent.Guard = true;
-                                intent.Move = new Vector2(_circleSign * 0.3f, -0.3f);
-                                return intent;
-                            }
-                            if (s.CanDash)
-                            {
-                                Dash(ref intent, AwayDirection());
-                                return intent;
-                            }
-                            break;
-                        case Answer.Dash:
-                            if (s.CanDash)
-                            {
-                                Dash(ref intent, AwayDirection());
-                                return intent;
-                            }
-                            intent.Guard = s.Stamina >= GuardStamina;
-                            if (intent.Guard)
-                            {
-                                Become(DuelistState.Guard);
-                                return intent;
-                            }
-                            break;
-                        case Answer.Strike:
-                            if (s.Distance <= StrikeMetres && s.Stamina >= AttackStamina && _attackCooldown <= 0.0f && !s.Waiting)
-                            {
-                                StartAttack(ref intent, s);
-                                return intent;
-                            }
-                            break;
+                        Dash(ref intent, AwayDirection());
+                        return intent;
                     }
                 }
-            }
-            if (_guardLinger > 0.0f && !s.Committed)
-            {
-                Become(DuelistState.Guard);
-                intent.Guard = true;
-                return intent;
             }
 
             // Hit (and not already swinging): sometimes he dashes away from it.
@@ -422,6 +388,7 @@ namespace CityX.Character
             {
                 Become(DuelistState.Recover);
                 _chainLeft = 0;
+                _guardUp = false;
                 intent.Move = new Vector2(_circleSign * 0.6f, s.Distance < RecoverMetres ? -0.8f : 0.0f);
                 return intent;
             }
@@ -479,6 +446,22 @@ namespace CityX.Character
             {
                 _circleSign = -Mathf.Sign(s.CrowdSide);
             }
+            // His guard: up for this spell of circling if he chose it, once near his ring -- raised only while no blow of the target's is on
+            // its way, so it is there before a swing starts or not at all, and never lowered under one, so the guard a swing started against
+            // is the guard it meets; down when he attacks, dashes, runs short of stamina, or the spell ends.
+            bool guardWanted = _guardStance && s.Stamina >= GuardStamina && s.Distance <= ring + GuardWithinMetres;
+            if (!guardWanted)
+            {
+                if (!threat)
+                {
+                    _guardUp = false;
+                }
+            }
+            else if (!_guardUp && !threat)
+            {
+                _guardUp = true;
+            }
+            intent.Guard = _guardUp;
             if (s.Distance > ring + 0.4f && _backOff <= 0.0f)
             {
                 Become(DuelistState.Approach);
@@ -491,7 +474,7 @@ namespace CityX.Character
                 }
                 return intent;
             }
-            Become(DuelistState.Circle);
+            Become(_guardUp ? DuelistState.Guard : DuelistState.Circle);
             float inOut = 0.0f;
             if (_backOff > 0.0f || s.Distance < ring - 0.7f)
             {
@@ -505,23 +488,11 @@ namespace CityX.Character
             return intent;
         }
 
-        private Answer ChooseAnswer(in Senses s)
-        {
-            float dash = Chance();
-            if (dash < GuardChance)
-            {
-                return Answer.Guard;
-            }
-            if (dash < GuardChance + DashChance)
-            {
-                return Answer.Dash;
-            }
-            return s.Distance <= StrikeMetres ? Answer.Strike : Answer.Take;
-        }
-
         private void StartAttack(ref Intent intent, in Senses s, bool heavy = false)
         {
             Become(DuelistState.Attack);
+            _guardUp = false;   // the guard comes down to swing (the sword combat drops it)
+            _guardStance = false;
             if (heavy || Chance() < HeavyChance)
             {
                 intent.Heavy = true;
@@ -538,6 +509,7 @@ namespace CityX.Character
         private void Dash(ref Intent intent, Vector2 direction)
         {
             Become(DuelistState.Evade);
+            _guardUp = false;   // a dash drops the guard
             intent.Dash = true;
             intent.DashDirection = direction.normalized;
             _dashBusy = DashSeconds;

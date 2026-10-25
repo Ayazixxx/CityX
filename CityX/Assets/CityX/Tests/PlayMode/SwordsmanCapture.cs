@@ -13,11 +13,12 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The swordsman duel, rendered (owner, 2026-10-17: "make a swordsman npc ... so i can duel with him"): the same fight SwordsmanPlayTests
-    /// runs, filmed from the side as it happens. Three strips: the player's blade bouncing off his guard and his punish (from the moment the
-    /// player's swing rebounds), one of his dashes, and him circling at fighting distance on the sword's walk.
+    /// runs, filmed from the side as it happens. Four strips: the player's blade bouncing off his guard and his punish (from the moment the
+    /// player's swing rebounds), one of his dashes, him circling at fighting distance on the sword's walk, and the tell of one of his cuts
+    /// (held at the top of its wind-up, glinting).
     ///
     /// Run with a graphics device: tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.SwordsmanCapture
-    /// Output: CityX/Logs/CityShots/duel-rebound.png, duel-dash.png, duel-circle.png
+    /// Output: CityX/Logs/CityShots/duel-rebound.png, duel-dash.png, duel-circle.png, duel-tell.png
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class SwordsmanCapture
@@ -85,6 +86,7 @@ namespace CityX.Tests
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.55f, 0.68f, 0.85f);
             camera.fieldOfView = 40.0f;
+            camera.gameObject.tag = "MainCamera";   // the glint of his tell faces the main camera, as it faces the game's
 
             GameObject player = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                 new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
@@ -105,10 +107,10 @@ namespace CityX.Tests
             vitals.InfiniteStamina = true;
             swordsman.GetComponent<PlayerVitals>().InfiniteHealth = true;
 
-            Texture2D rebound = null, dash = null, circle = null;
-            int reboundColumn = 0, dashColumn = 0, circleColumn = 0;
-            float clock = 0.0f, nextSwing = 1.5f, nextReboundShot = 0.0f, nextDashShot = 0.0f, nextCircleShot = 0.0f;
-            bool filmingRebound = false, filmingDash = false, filmingCircle = false;
+            Texture2D rebound = null, dash = null, circle = null, tell = null;
+            int reboundColumn = 0, dashColumn = 0, circleColumn = 0, tellColumn = 0;
+            float clock = 0.0f, nextSwing = 1.5f, nextReboundShot = 0.0f, nextDashShot = 0.0f, nextCircleShot = 0.0f, nextTellShot = 0.0f;
+            bool filmingRebound = false, filmingDash = false, filmingCircle = false, filmingTell = false;
             int dashesSeen = 0;
             combat.Rebounded += () =>
             {
@@ -120,7 +122,8 @@ namespace CityX.Tests
                 }
             };
 
-            for (; clock < 40.0f && (rebound == null || dash == null || circle == null || filmingRebound || filmingDash || filmingCircle); clock += Dt)
+            for (; clock < 40.0f && (rebound == null || dash == null || circle == null || tell == null
+                                     || filmingRebound || filmingDash || filmingCircle || filmingTell); clock += Dt)
             {
                 combat.Tick(Dt);
                 vitals.TickHitstun(Dt);
@@ -174,12 +177,26 @@ namespace CityX.Tests
                     nextCircleShot += 0.15f;
                     filmingCircle = circleColumn < Columns;
                 }
+                // His tell (2026-10-24): from the moment his cut holds at the top of its wind-up, glinting, into the strike.
+                if (tell == null && brain.Combat != null && brain.Combat.IsTelegraphing)
+                {
+                    tell = new Texture2D(Cell * Columns, Cell, TextureFormat.RGB24, false);
+                    filmingTell = true;
+                    nextTellShot = clock;
+                }
+                if (filmingTell && clock >= nextTellShot)
+                {
+                    Shoot(camera, tell, tellColumn++, player.transform.position, swordsman.transform.position);
+                    nextTellShot += 0.06f;
+                    filmingTell = tellColumn < Columns;
+                }
             }
 
             Assert.IsNotNull(rebound, "no swing of the player's bounced off his guard in 40 s");
             Save(rebound, Path.Combine(directory, "duel-rebound.png"));
             if (dash != null) Save(dash, Path.Combine(directory, "duel-dash.png"));
             if (circle != null) Save(circle, Path.Combine(directory, "duel-circle.png"));
+            if (tell != null) Save(tell, Path.Combine(directory, "duel-tell.png"));
 
             Object.Destroy(playerSword.gameObject);
             Object.Destroy(player);

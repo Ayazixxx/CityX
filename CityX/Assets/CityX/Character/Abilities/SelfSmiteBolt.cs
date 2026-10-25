@@ -623,16 +623,7 @@ namespace CityX.Character
                 }
                 material = new Material(shader) { name = name, hideFlags = HideFlags.DontSave };
             }
-            material.SetFloat("_Surface", 1.0f);
-            material.SetFloat("_Blend", additive ? 2.0f : 0.0f);
-            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-            material.SetFloat("_DstBlend", additive ? (float)BlendMode.One : (float)BlendMode.OneMinusSrcAlpha);
-            material.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
-            material.SetFloat("_DstBlendAlpha", additive ? (float)BlendMode.One : (float)BlendMode.OneMinusSrcAlpha);
-            material.SetFloat("_ZWrite", 0.0f);
-            material.SetFloat("_Cull", (float)CullMode.Off);
-            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            material.renderQueue = (int)RenderQueue.Transparent;
+            SeeThroughMaterial.Apply(material, additive);
             material.SetColor("_BaseColor", colour);
             material.color = colour;
             material.SetTexture("_BaseMap", Spot());

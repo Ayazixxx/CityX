@@ -42,6 +42,9 @@ namespace CityX.Character
         /// </summary>
         public IEquippableFlamethrower EquippedFlamethrower;
 
+        /// <summary>A ranged weapon is in hand (a gun or the flamethrower): aimed with the crosshair, never locked on.</summary>
+        public bool HoldsRangedWeapon => EquippedGun != null || EquippedFlamethrower != null;
+
         /// <summary>
         /// Set by the spray can's own OnEquip/OnUnequip (2026-10-15), same pattern as EquippedGun. While non-null, a right-click asks for the
         /// graffiti canvas (<see cref="SprayRequested"/>) and the fists stand down.
@@ -774,7 +777,16 @@ namespace CityX.Character
             // the camera, behind every menu/console/stun early-return above:
             // the last lock-on read its key inside the camera and raced the
             // player menu's own binding (see LockOn's doc comment).
-            if (keyboard.tabKey.wasPressedThisFrame && _orbitCamera != null)
+            // NOT WITH A RANGED WEAPON (owner, 2026-10-24: "turn off tab lock on for ranged weapons"): a gun or the flamethrower is aimed with
+            // the crosshair, so Tab does nothing with one in hand, and drawing one lets a lock go.
+            if (HoldsRangedWeapon)
+            {
+                if (_orbitCamera != null && _orbitCamera.IsLockedOn)
+                {
+                    _orbitCamera.ReleaseLock();
+                }
+            }
+            else if (keyboard.tabKey.wasPressedThisFrame && _orbitCamera != null)
             {
                 _orbitCamera.PressLockOn();
             }

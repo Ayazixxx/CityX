@@ -203,8 +203,7 @@ namespace CityX.Character
             _material = new Material(shader != null ? shader : Shader.Find("Sprites/Default")) { color = Color.white };
             if (_material.HasProperty("_Surface"))
             {
-                _material.SetFloat("_Surface", 1.0f);
-                _material.SetFloat("_Blend", 2.0f);   // additive, as the bullet tracers are
+                SeeThroughMaterial.Apply(_material, additive: true);   // additive, as the bullet tracers are
             }
             return _material;
         }

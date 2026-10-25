@@ -50,6 +50,11 @@ already makes them):
 - 2 pixels to each side of the edge on a picture 1080 tall, scaled to the screen; fading out between 70 and 220 m so the far city is not a
   black mesh; under the haze, so far lines melt into the air like everything else.
 
+**Effects stay out of the lines.** A spark, a glint or a streak must be truly see-through: blend factors, no depth written, drawn after
+the opaque world (`Character/Combat/SeeThroughMaterial`, as URP's inspector sets a transparent particle material). Given only the
+surface-type number, a material still draws as a solid, writes depth and normals, and the lines trace it: the clash sparks and the
+enemies' attack glint came out black until 2026-10-24.
+
 ## Where it shows
 
 Everywhere a camera draws through the game's renderer: the city, the HUD portrait, the title screen, the character creator and select

@@ -6,11 +6,15 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The swordsman's mind on its own (owner, 2026-10-17: "make a swordsman npc that wields the one handed sword so i can duel with him. make him
-    /// utilize dashes as well as blocking and make him take advantage of the stagger if i attack their block").
+    /// utilize dashes as well as blocking and make him take advantage of the stagger if i attack their block"; 2026-10-24: no guard thrown up
+    /// against a blow already coming).
     /// </summary>
     public sealed class DuelistMindTests
     {
         private const float Dt = 1.0f / 60.0f;
+
+        /// <summary>Inside a swing's reach (DuelistMind.ThreatMetres) but out of his own (StrikeMetres): he circles and never attacks first.</summary>
+        private const float OutOfHisReach = 3.0f;
 
         private static DuelistMind.Senses Facing(float distance)
         {
@@ -55,30 +59,111 @@ namespace CityX.Tests
                 if (intent.Move.x > 0.5f) right += Dt;
                 if (intent.Move.x < -0.5f) left += Dt;
             }
-            Assert.AreEqual(DuelistState.Circle, mind.State);
+            Assert.That(mind.State, Is.EqualTo(DuelistState.Circle).Or.EqualTo(DuelistState.Guard), "he is not circling (behind his guard or not)");
             Assert.Greater(right, 1.0f, "he never circles one way");
             Assert.Greater(left, 1.0f, "he never circles the other way");
         }
 
+        /// <summary>
+        /// Owner, 2026-10-24: "the enemies get a lot of really bullshit blocks where the second you swing they just throw up guard and you get
+        /// punished, i dont think they should be able to just throw up guard mid swing". Whatever the dice, a guard that was down when a blow
+        /// started stays down through it; one that was up (his stance) stays up.
+        /// </summary>
         [Test]
-        public void HeAnswersABlowAfterAReactionWithTheGuardMostlyAndSometimesADash()
+        public void HeNeverRaisesHisGuardAgainstABlowAlreadyComing()
         {
-            int guards = 0, dashes = 0;
-            const int Fights = 300;
-            for (int seed = 1; seed <= Fights; seed++)
+            int startedUp = 0, startedDown = 0;
+            for (int seed = 1; seed <= 300; seed++)
             {
                 var mind = new DuelistMind(seed);
-                DuelistMind.Senses senses = Facing(2.4f);
-                Run(mind, senses, 1.0f);   // settled, circling
+                DuelistMind.Senses senses = Facing(OutOfHisReach);
+                Run(mind, senses, 1.0f + (seed % 7) * 0.4f);   // settled, circling, at a different moment of his rhythm each time
+                bool wasUp = mind.GuardUp;
+                if (wasUp) startedUp++; else startedDown++;
                 senses.TargetAttacking = true;
-                DuelistMind.Intent first = mind.Tick(senses, Dt);
-                Assert.IsFalse(first.Guard || first.Dash, "he answered a blow the instant it started: no reaction time");
-                DuelistMind.Intent answer = Run(mind, senses, 0.5f, i => i.Guard || i.Dash || i.Light || i.Heavy);
-                if (answer.Guard) guards++;
-                if (answer.Dash) dashes++;
+                senses.TargetWindingUp = true;
+                for (float t = 0.0f; t < 0.9f; t += Dt)
+                {
+                    senses.TargetWindingUp = t < 0.7f;   // the slowest swing there is: a heavy
+                    DuelistMind.Intent intent = mind.Tick(senses, Dt);
+                    if (!wasUp)
+                    {
+                        Assert.IsFalse(intent.Guard, $"seed {seed}: he threw his guard up {t:0.00} s into a blow already coming");
+                    }
+                }
             }
-            Assert.That(guards / (float)Fights, Is.InRange(DuelistMind.GuardChance - 0.1f, DuelistMind.GuardChance + 0.1f), "he blocks too rarely or too often");
-            Assert.That(dashes / (float)Fights, Is.InRange(DuelistMind.DashChance - 0.1f, DuelistMind.DashChance + 0.1f), "he dashes out of a blow too rarely or too often");
+            Assert.Greater(startedUp, 30, "he never stands behind his guard");
+            Assert.Greater(startedDown, 30, "his guard is always up");
+        }
+
+        /// <summary>His guard is a stance: up for whole spells of circling, decided before any blow, about as often as he chooses to.</summary>
+        [Test]
+        public void HisGuardIsAStanceHeldThroughWholeSpellsOfCircling()
+        {
+            float up = 0.0f, total = 0.0f;
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                var mind = new DuelistMind(seed);
+                DuelistMind.Senses senses = Facing(DuelistMind.EngageMetres);
+                float spell = 0.0f;
+                for (float t = 0.0f; t < 12.0f; t += Dt)
+                {
+                    DuelistMind.Intent intent = mind.Tick(senses, Dt);
+                    total += Dt;
+                    if (intent.Guard)
+                    {
+                        up += Dt;
+                        spell += Dt;
+                    }
+                    else if (spell > 0.0f)
+                    {
+                        Assert.GreaterOrEqual(spell, DuelistMind.CircleMin - 0.05f, $"seed {seed}: his guard flickered up for {spell:0.00} s, not a stance");
+                        spell = 0.0f;
+                    }
+                }
+            }
+            Assert.That(up / total, Is.InRange(DuelistMind.GuardStanceChance - 0.15f, DuelistMind.GuardStanceChance + 0.15f),
+                "he stands behind his guard too rarely or too often");
+        }
+
+        /// <summary>
+        /// A quick cut lands before he could react, so he never dashes out of one; a slow swing (a heavy) still winding up once he has reacted he
+        /// sometimes dashes out of, never sooner than a person could, and never from behind his guard.
+        /// </summary>
+        [Test]
+        public void HeDashesOutOfASlowBlowAfterReactingAndNeverOutOfAQuickOne()
+        {
+            int slowFights = 0, slowDashes = 0;
+            for (int seed = 1; seed <= 400; seed++)
+            {
+                bool slow = seed % 2 == 0;
+                var mind = new DuelistMind(seed);
+                DuelistMind.Senses senses = Facing(OutOfHisReach);
+                Run(mind, senses, 1.0f);
+                bool guarded = mind.GuardUp;
+                senses.TargetAttacking = true;
+                float windUp = slow ? 0.8f : 0.28f;
+                bool dashed = false;
+                for (float t = 0.0f; t < 1.0f && !dashed; t += Dt)
+                {
+                    senses.TargetWindingUp = t < windUp;
+                    senses.TargetAttacking = t < windUp + 0.1f;
+                    if (mind.Tick(senses, Dt).Dash)
+                    {
+                        dashed = true;
+                        Assert.GreaterOrEqual(t, DuelistMind.DodgeReactionMin - Dt, $"seed {seed}: he dashed {t:0.00} s in, quicker than a person reacts");
+                        Assert.IsTrue(slow, $"seed {seed}: he dashed out of a quick cut he could not have seen coming");
+                        Assert.IsFalse(guarded, $"seed {seed}: he dashed out from behind his guard");
+                    }
+                }
+                if (slow && !guarded)
+                {
+                    slowFights++;
+                    if (dashed) slowDashes++;
+                }
+            }
+            Assert.That(slowDashes / (float)slowFights, Is.InRange(DuelistMind.DodgeChance - 0.12f, DuelistMind.DodgeChance + 0.12f),
+                "he dashes out of a slow blow too rarely or too often");
         }
 
         [Test]
@@ -246,7 +331,7 @@ namespace CityX.Tests
             DuelistMind.Senses between = Facing((DuelistMind.EngageMetres + DuelistMind.WaitMetres) * 0.5f);
             between.Waiting = true;
             intent = Run(mind, between, 0.5f);
-            Assert.AreEqual(DuelistState.Circle, mind.State, "waiting at his own ring he is not circling");
+            Assert.That(mind.State, Is.EqualTo(DuelistState.Circle).Or.EqualTo(DuelistState.Guard), "waiting at his own ring he is not circling");
             between.Waiting = false;
             intent = Run(mind, between, 0.2f);
             Assert.Greater(intent.Move.y, 0.0f, "given the turn, he does not step in");

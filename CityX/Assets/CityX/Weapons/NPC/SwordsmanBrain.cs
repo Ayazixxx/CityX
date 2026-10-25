@@ -35,6 +35,31 @@ namespace CityX.Weapons
         /// <summary>How long his body lies there once beaten, seconds.</summary>
         public const float CorpseSeconds = 25.0f;
 
+        /// <summary>
+        /// HIS TELL (owner, 2026-10-24: "the telegraph of the enemies attack is either very short or non existent"): seconds an opening cut holds
+        /// at the top of its wind-up, the blade drawn back and glinting, before it strikes (SoulsSwordCombat.TelegraphLightSeconds). A player's
+        /// own swings have none: in a duel between players nothing changes.
+        /// </summary>
+        public const float TelegraphLightSeconds = 0.4f;
+
+        /// <summary>The tell of a cut chained on from another: shorter, a follow-up comes quicker.</summary>
+        public const float TelegraphChainedSeconds = 0.2f;
+
+        /// <summary>The heavy's tell, on top of its own pause at the top.</summary>
+        public const float TelegraphHeavySeconds = 0.3f;
+
+        /// <summary>
+        /// HIS SWINGS COMMIT (owner, 2026-10-24: "the dash feels pretty useless ... because the enemies just auto lock onto you anyways"). Out of
+        /// a swing he turns to whoever he fights at this rate, degrees per second...
+        /// </summary>
+        public const float TurnDegreesPerSecond = 540.0f;
+
+        /// <summary>
+        /// ...while winding up (and through his tell) only this fast, so a dash at the last moment leaves the cut behind; and from the strike to
+        /// the end of his recovery not at all: the blade goes where it was aimed, and a dash round him leaves him open.
+        /// </summary>
+        public const float WindUpTurnDegreesPerSecond = 90.0f;
+
         /// <summary>How often he looks round for who to fight, seconds.</summary>
         public const float TargetSearchSeconds = 1.0f;
 
@@ -88,6 +113,8 @@ namespace CityX.Weapons
         private bool _hurt;
         private bool _wasBlocking;
         private float _deadFor;
+        private float _facingYaw;
+        private bool _facingSet;
 
         private void Awake()
         {
@@ -121,7 +148,17 @@ namespace CityX.Weapons
                 _vitals.Damaged -= OnDamaged;
                 _vitals.Died -= OnDied;
             }
+            if (_combat != null)
+            {
+                _combat.Telegraphed -= OnTelegraphed;
+            }
             WatchTarget(null, null);
+        }
+
+        /// <summary>His swing holds its tell: the blade glints, and the ting.</summary>
+        private void OnTelegraphed(SoulsAttack attack, float seconds)
+        {
+            AttackGlint.Show(_sword != null ? _sword.BladeTipWorld : transform.position + Vector3.up * 2.0f);
         }
 
         /// <summary>
@@ -203,6 +240,13 @@ namespace CityX.Weapons
             }
             _sword.OnEquip(gameObject, ItemInstanceData.None);
             _combat = GetComponent<SoulsSwordCombat>();
+            if (_combat != null)
+            {
+                _combat.TelegraphLightSeconds = TelegraphLightSeconds;
+                _combat.TelegraphChainedSeconds = TelegraphChainedSeconds;
+                _combat.TelegraphHeavySeconds = TelegraphHeavySeconds;
+                _combat.Telegraphed += OnTelegraphed;
+            }
         }
 
         private void Update()
@@ -234,6 +278,7 @@ namespace CityX.Weapons
                 {
                     _ragdoll.BeginStandingUp();
                 }
+                _facingSet = false;   // he gets up facing wherever he fell
                 return;
             }
 
@@ -335,6 +380,7 @@ namespace CityX.Weapons
             senses.TargetAttacking = (_targetCombat != null && _targetCombat.IsEquipped
                                          && (_targetCombat.Phase == SoulsPhase.Startup || _targetCombat.Phase == SoulsPhase.Active))
                                      || (_targetMelee != null && _targetMelee.IsSwinging);
+            senses.TargetWindingUp = _targetCombat != null && _targetCombat.IsEquipped && _targetCombat.Phase == SoulsPhase.Startup;
             senses.TargetBlocking = _target.IsBlocking || (_targetCombat != null && _targetCombat.IsBlocking);
             senses.TargetStaggered = _target.IsStunned && Time.time < _targetOpenUntil;
             senses.TargetDashing = (_targetBody != null && _targetBody.IsDashing) || _target.IsInvulnerable;
@@ -344,7 +390,7 @@ namespace CityX.Weapons
         /// <summary>What a player would press, handed to the same combat, dash and locomotion the player's keys reach.</summary>
         private void Act(DuelistMind.Intent intent, float deltaTime)
         {
-            float yaw = _target != null ? YawTo(_target.transform.position) : transform.eulerAngles.y;
+            float yaw = Facing(_target != null ? YawTo(_target.transform.position) : transform.eulerAngles.y, deltaTime);
             bool stunned = _vitals.IsStunned;
 
             if (_combat != null && _combat.IsEquipped)
@@ -367,6 +413,7 @@ namespace CityX.Weapons
                         _combat.RequestLight(yaw);
                     }
                 }
+                _combat.AimSwing(yaw);   // a wind-up follows where he turns; the blade goes where he faces when it goes live
             }
             if (intent.Dash && !stunned)
             {
@@ -419,6 +466,26 @@ namespace CityX.Weapons
             _vitals.GrantInvulnerability(_combat.RollInvulnerabilitySeconds);
             _audio?.PlayDash();
             Dashes++;
+        }
+
+        /// <summary>
+        /// Where he faces this frame, turned toward <paramref name="targetYaw"/> at his rate for what he is doing: quick out of a swing, slow
+        /// through a wind-up, not at all from the strike to the end of the recovery (<see cref="WindUpTurnDegreesPerSecond"/>).
+        /// </summary>
+        private float Facing(float targetYaw, float deltaTime)
+        {
+            if (!_facingSet)
+            {
+                _facingYaw = transform.eulerAngles.y;
+                _facingSet = true;
+            }
+            float rate = TurnDegreesPerSecond;
+            if (_combat != null && _combat.IsCommitted)
+            {
+                rate = _combat.Phase == SoulsPhase.Startup ? WindUpTurnDegreesPerSecond : 0.0f;
+            }
+            _facingYaw = Mathf.MoveTowardsAngle(_facingYaw, targetYaw, rate * deltaTime);
+            return _facingYaw;
         }
 
         private float YawTo(Vector3 point)

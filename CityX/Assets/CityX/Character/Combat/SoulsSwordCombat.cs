@@ -50,6 +50,9 @@ namespace CityX.Character
         [Tooltip("The blow breaks a held guard open (only a parry stops it): the heavies, since 2026-10-24.")]
         public bool BreaksGuard;
 
+        [Tooltip("Seconds into the wind-up where the pose rests at its top: where an enemy's tell holds the swing (SoulsSwordCombat.TelegraphLightSeconds).")]
+        public float HoldAt;
+
         [Tooltip("Length in seconds of the Mixamo clip at its own pace (measured -- see SoulsSwordCapture.MeasureClips).")]
         public float ClipSeconds;
 
@@ -93,6 +96,8 @@ namespace CityX.Character
             attack.PoiseDamage = poiseDamage;
             attack.HyperArmour = hyperArmour;
             attack.BreaksGuard = hyperArmour;   // the heavies
+            SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(kind);
+            attack.HoldAt = timing.WindUp + timing.Hold * 0.5f;   // in the pause at the top, where the pose rests
             return attack;
         }
 
@@ -115,7 +120,11 @@ namespace CityX.Character
             ClipSeconds = clipSeconds;
             ClipStart = clipStart;
             ClipEnd = clipEnd;
+            HoldAt = startup * ClipHoldShare;
         }
+
+        /// <summary>A clip's wind-up is taken to rest at its top this far in (a posed strike knows its own: <see cref="FromStrike"/>).</summary>
+        public const float ClipHoldShare = 0.6f;
     }
 
     /// <summary>
@@ -330,6 +339,38 @@ namespace CityX.Character
 
         /// <summary>The lunge starts this far into the wind-up (a share of it) and runs, eased, to the end of the live window: the body surges into the cut.</summary>
         public const float LungeStartShare = 0.5f;
+
+        [Tooltip(
+            "AN ENEMY'S TELL (0 for a player): seconds the light that opens an attack holds at the top of its wind-up, the blade drawn back, " +
+            "before it strikes, so it can be seen coming and dashed (owner, 2026-10-24: 'the telegraph of the enemies attack is either very " +
+            "short or non existent'). Set by the enemy's brain.")]
+        public float TelegraphLightSeconds;
+
+        [Tooltip("The tell of a light chained on from another (a follow-up comes quicker than an opener).")]
+        public float TelegraphChainedSeconds;
+
+        [Tooltip("The tell of the heavy, on top of its own pause at the top.")]
+        public float TelegraphHeavySeconds;
+
+        /// <summary>A swing began its tell: the attack and how long it holds (an enemy's: the glint at the blade).</summary>
+        public event System.Action<SoulsAttack, float> Telegraphed;
+
+        /// <summary>The swing is held at the top of its wind-up, telling what is coming.</summary>
+        public bool IsTelegraphing => _telegraphRemaining > 0.0f;
+
+        private float _telegraphRemaining;
+        private bool _telegraphDone;
+        private bool _currentChained;
+
+        /// <summary>The tell the swing under way gets, seconds (0 for a player's).</summary>
+        private float TelegraphFor()
+        {
+            if (!_currentIsLight)
+            {
+                return TelegraphHeavySeconds;
+            }
+            return _currentChained ? TelegraphChainedSeconds : TelegraphLightSeconds;
+        }
 
         private float _swingYaw;
         private bool _turningIntoSwing;
@@ -568,10 +609,12 @@ namespace CityX.Character
                 return 0.0f;
             }
             float window = _current.Recovery * _current.ChainAt;
-            float until = _hitStopRemaining;
+            float until = _hitStopRemaining + _telegraphRemaining;
             switch (_phase)
             {
-                case SoulsPhase.Startup: until += _current.Startup - _phaseTime + _current.Active + window; break;
+                case SoulsPhase.Startup:
+                    until += _current.Startup - _phaseTime + _current.Active + window + (_telegraphDone ? 0.0f : TelegraphFor());
+                    break;
                 case SoulsPhase.Active: until += _current.Active - _phaseTime + window; break;
                 default: until += window - _phaseTime; break;
             }
@@ -731,6 +774,19 @@ namespace CityX.Character
                 return;
             }
 
+            // AN ENEMY'S TELL: the swing held at the top of its wind-up (TelegraphLightSeconds and the rest), the clock and the pose together,
+            // as a hit-stop holds them.
+            if (_telegraphRemaining > 0.0f)
+            {
+                _telegraphRemaining -= deltaTime;
+                if (_telegraphRemaining > 0.0f)
+                {
+                    return;
+                }
+                ReleaseHitStop();
+                return;
+            }
+
             _phaseTime += deltaTime * _swingSpeed;
 
             // A loop, not an if: a long frame can carry the swing across more
@@ -742,6 +798,18 @@ namespace CityX.Character
                 {
                     TurnIntoSwing(deltaTime * _swingSpeed);
                     ApplyLunge();
+                    if (!_telegraphDone && _phaseTime >= _current.HoldAt)
+                    {
+                        _telegraphDone = true;
+                        float tell = TelegraphFor();
+                        if (tell > 0.0f)
+                        {
+                            _telegraphRemaining = tell;
+                            HoldClip();
+                            Telegraphed?.Invoke(_current, tell);
+                            return;
+                        }
+                    }
                     if (_phaseTime < _current.Startup)
                     {
                         return;
@@ -812,7 +880,7 @@ namespace CityX.Character
                 return false;
             }
 
-            StartSwing(next, light, yaw);
+            StartSwing(next, light, yaw, chained);
             return true;
         }
 
@@ -821,11 +889,14 @@ namespace CityX.Character
         /// <summary>How fast the swing under way runs: Melee Speed's, taken when it started.</summary>
         private float _swingSpeed = 1.0f;
 
-        private void StartSwing(SoulsAttack attack, bool light, float yawDegrees)
+        private void StartSwing(SoulsAttack attack, bool light, float yawDegrees, bool chained = false)
         {
             // A held block is dropped the moment you swing.
             SetBlockHeld(false);
             ReleaseHitStop();
+            _telegraphRemaining = 0.0f;
+            _telegraphDone = false;
+            _currentChained = chained;
 
             // Melee Speed (2026-10-14): the whole swing -- wind-up, cut, recovery, the lunge and the pose -- runs this much faster.
             _swingSpeed = PlayerVitals.SpeedOf(_vitals, StatId.MeleeSpeed);
@@ -884,6 +955,8 @@ namespace CityX.Character
         private void EndSwing()
         {
             ReleaseHitStop();
+            _telegraphRemaining = 0.0f;
+            _telegraphDone = false;
             _phase = SoulsPhase.Idle;
             _phaseTime = 0.0f;
             _turningIntoSwing = false;
@@ -1169,7 +1242,13 @@ namespace CityX.Character
                 return;   // several targets in one frame: the longest stop wins, they do not add up
             }
             _hitStopRemaining = seconds;
-            if (_driver != null && !_clipHeld)
+            HoldClip();
+        }
+
+        /// <summary>Stops the swing's clip (or posed strike) where it is, for a hit-stop or a tell; ReleaseHitStop lets it go on.</summary>
+        private void HoldClip()
+        {
+            if (_driver != null && !_clipHeld && _current != null)
             {
                 _driver.SetStateSpeed(_current.Animation, 0.0f);
                 _clipHeld = true;
@@ -1200,6 +1279,18 @@ namespace CityX.Character
             {
                 _controller.Move(transform.forward * step);
                 _lungeDone = wanted;
+            }
+        }
+
+        /// <summary>
+        /// Moves the aim of a swing still winding up to <paramref name="yawDegrees"/>: an enemy's brain, which turns its body itself, keeps the swing
+        /// aimed where the body faces (its wind-up follows the target slowly; the blade goes where the body faces when it goes live).
+        /// </summary>
+        public void AimSwing(float yawDegrees)
+        {
+            if (_phase == SoulsPhase.Startup)
+            {
+                _swingYaw = yawDegrees;
             }
         }
 

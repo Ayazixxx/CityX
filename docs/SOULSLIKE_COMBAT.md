@@ -22,7 +22,7 @@ better"), and the spike sword keeps its frame and hold.
 | Right-click (hold) | Guard. Its **first 0.2 s parries** (tap to parry, hold to block). Slows you to half speed (legs keep walking). Costs stamina per hit absorbed. |
 | Double-tap Shift | Roll (dodge). Legal out of idle or the tail of a swing, never out of a wind-up. 0.42 s of i-frames. |
 | 2 | The old spin attack (unchanged). |
-| **Tab** | Lock on (works with or without a sword). Keep pressing to rotate through the surrounding enemies; the press after the last one releases. |
+| **Tab** | Lock on (works with or without a sword; not with a gun or the flamethrower in hand). Keep pressing to rotate through the surrounding enemies; the press after the last one releases. |
 
 Every swing turns to face where the camera looks during its wind-up (1080 degrees a
 second, `SwingTurnDegreesPerSecond`) and faces it exactly by the time the blade is
@@ -235,6 +235,9 @@ attack's name (`SwordStancePlayTests.TheSwordIsCarriedLow...`).
   sight for more than 0.75s, or you die.
 * **Pedestrians and story NPCs are not lockable** -- the ask was enemies. Anything
   else you can hit (crimson claws, dummies, other players) is.
+* **Not with a ranged weapon** (owner, 2026-10-24: "turn off tab lock on for ranged
+  weapons"): with a gun or the flamethrower in hand Tab does nothing, and drawing one
+  lets a lock go; the mouse aims (`PlayerInputReader.HoldsRangedWeapon`).
 * Code: `LockOn.cs` (pure rules), `ThirdPersonCamera.PressLockOn/TrackLock`,
   `LocomotionInput.LockedOn`; Tab is read in `PlayerInputReader`.
 
@@ -625,3 +628,23 @@ Owner, on hearing the heavy was on the wheel's click: "i dont like that make it 
 - Tests: `SoulsSwordCombatPlayTests` (a guard-breaking blow breaks a held guard but not a parry; a held click turns the light into the
   heavy; a held press mid-swing asks for the heavy next), `SoulsSwordRealInputPlayTests.HoldingTheClickSwingsTheHeavyATapTheLight`,
   `NetworkedPlayerStateSyncPlayTests.AGuardBreakingHitOnACopyBreaksThatPlayersRealGuard`.
+
+## Update 2026-10-24: an enemy's tell and committed swing
+
+Owner, on fighting the swordsman: the dash is useless "because the enemies just auto lock onto you anyways", "the telegraph of the enemies
+attack is either very short or non existent", and their guards go up "the second you swing" (docs/SWORDSMAN.md has the research and what
+he does now). What the sword combat gained for it, all off for a player:
+
+- **The tell** (`TelegraphLightSeconds`, `TelegraphChainedSeconds`, `TelegraphHeavySeconds`; 0 unless an enemy's brain sets them): once
+  the wind-up reaches the top of its pose (`SoulsAttack.HoldAt`: the middle of the hold for a posed strike, 60% of the startup for a clip),
+  the swing's clock and pose stop there, as a hit-stop stops them (`HoldClip`), for the tell's seconds, then go on. `Telegraphed` is
+  raised as it begins (the swordsman shows `AttackGlint` at the blade's tip), `IsTelegraphing` while it lasts, and
+  `SecondsUntilChainWindow` counts it in. A player's own swings answer the click as before.
+- **A committed aim** (`AimSwing`): a brain that turns its body itself keeps a swing's aim where the body faces, so a wind-up follows the
+  target only as fast as the brain turns (the swordsman: 90 degrees a second) and the blade goes where the body faces when it goes live.
+- **No lock-on with a ranged weapon** (see "Lock-on" above).
+- `AttackGlint`: four tapered rays round a bright core, flaring out and fading over 0.32 s, facing the camera, with a quiet ting. Its
+  material and the clash sparks' (`BlockDeflectEffect.SparkMaterial`) are truly additive now (`SeeThroughMaterial`): they used to draw as
+  solids, which the cel look's black lines traced until a thin spark was all line (docs/CEL_SHADING.md).
+- Tests: `SwordsmanPlayTests.HisCutHoldsItsTellAndDoesNotFollowADashRoundHim`,
+  `LockOnRealInputPlayTests.WithAGunInHandTabDoesNotLockOnAndDrawingOneLetsALockGo`, `DuelistMindTests`, `CrimsonClawTests`.

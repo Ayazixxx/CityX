@@ -189,7 +189,7 @@ namespace CityX.Tests
             // Well within AttackRange from the very first tick, so it attacks in place.
             PlayerVitals player = CreatePlayer(new Vector3(0.0f, 0.0f, 1.0f));
 
-            TickSeconds(claw, CrimsonClaw.WindupSeconds + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds + 0.1f);
+            TickSeconds(claw, CrimsonClaw.AttackSeconds + 0.1f);
 
             Assert.AreEqual(PlayerVitals.BaseMaxHealth - CrimsonClaw.AttackDamage, player.Health, 0.001f,
                 "the swing should have landed exactly one hit for AttackDamage");
@@ -201,7 +201,7 @@ namespace CityX.Tests
             CrimsonClaw claw = CreateCrimsonClaw(out _, out _);
             PlayerVitals player = CreatePlayer(new Vector3(0.0f, 0.0f, 1.0f));
 
-            float oneFullCycle = CrimsonClaw.WindupSeconds + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds;
+            float oneFullCycle = CrimsonClaw.AttackSeconds;
             TickSeconds(claw, oneFullCycle + 0.05f);
             float healthAfterFirstAttack = player.Health;
             Assert.AreEqual(PlayerVitals.BaseMaxHealth - CrimsonClaw.AttackDamage, healthAfterFirstAttack, 0.001f);
@@ -227,10 +227,51 @@ namespace CityX.Tests
             // boundaries (TickAttack resets the timer to exactly 0 on
             // transition rather than carrying the overshoot forward) --
             // worst case ~3 * TickSeconds' own step, comfortably covered here.
-            float oneFullCycle = CrimsonClaw.WindupSeconds + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds;
+            float oneFullCycle = CrimsonClaw.AttackSeconds;
             TickSeconds(claw, oneFullCycle + 0.15f);
 
             Assert.AreNotEqual(startedLeft, claw.NextAttackHandIsLeft, "the next attack should swing the OTHER hand");
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-24: "the telegraph of the enemies attack is either very short or non existent". After the wind-up the claw holds drawn
+        /// back for its tell, glinting, and only then swipes.
+        /// </summary>
+        [Test]
+        public void ItsClawHoldsDrawnBackAndGlintsBeforeItSwipes()
+        {
+            CrimsonClaw claw = CreateCrimsonClaw(out Transform leftPivot, out Transform rightPivot);
+            PlayerVitals player = CreatePlayer(new Vector3(0.0f, 0.0f, 1.5f));
+            Transform pivot = claw.NextAttackHandIsLeft ? leftPivot : rightPivot;
+            int glints = AttackGlint.Shown;
+
+            TickSeconds(claw, CrimsonClaw.WindupSeconds + 0.05f, 0.01f);
+            Assert.AreEqual(glints + 1, AttackGlint.Shown, "no glint when the claw was drawn back");
+            Quaternion drawnBack = pivot.localRotation;
+            Assert.Greater(Quaternion.Angle(Quaternion.identity, drawnBack), CrimsonClaw.WindupAngleDegrees * 0.9f, "the claw is not drawn back");
+
+            TickSeconds(claw, CrimsonClaw.TellSeconds - 0.1f, 0.01f);
+            Assert.Less(Quaternion.Angle(drawnBack, pivot.localRotation), 1.0f, "the claw did not hold drawn back through its tell");
+            Assert.AreEqual(PlayerVitals.BaseMaxHealth, player.Health, 0.001f, "it struck during its tell");
+
+            TickSeconds(claw, 0.1f + CrimsonClaw.SwingSeconds + 0.05f, 0.01f);
+            Assert.Less(player.Health, PlayerVitals.BaseMaxHealth, "after its tell it never swiped");
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-24: "the dash feels pretty useless ... because the enemies just auto lock onto you anyways". Dashed round it at the end
+        /// of the tell, the target is not followed (it turns only slowly winding up, not at all swiping) and the swipe, which reaches only what is
+        /// in front of it, misses; standing there, it is hit.
+        /// </summary>
+        [Test]
+        public void ItsSwipeMissesWhatDashedRoundItAtTheEndOfTheTell()
+        {
+            CrimsonClaw claw = CreateCrimsonClaw(out _, out _);
+            PlayerVitals player = CreatePlayer(new Vector3(0.0f, 0.0f, 1.5f));
+            TickSeconds(claw, CrimsonClaw.WindupSeconds + CrimsonClaw.TellSeconds - 0.06f, 0.01f);
+            player.transform.position = new Vector3(1.5f, 0.0f, 0.0f);   // round to its side, still well within its reach
+            TickSeconds(claw, 0.06f + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds, 0.01f);
+            Assert.AreEqual(PlayerVitals.BaseMaxHealth, player.Health, 0.001f, "the swipe followed a target that dashed round it");
         }
     }
 }

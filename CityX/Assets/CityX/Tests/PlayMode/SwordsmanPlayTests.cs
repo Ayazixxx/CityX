@@ -153,6 +153,75 @@ namespace CityX.Tests
             Assert.Greater(swordWalkFrames, movingFrames * 0.8f, "he does not move on the one-handed sword's own walk");   // (the blend back out of a dash is the rest)
         }
 
+        /// <summary>
+        /// Owner, 2026-10-24: "the dash feels pretty useless ... because the enemies just auto lock onto you anyways ... the telegraph of the
+        /// enemies attack is either very short or non existent". Against a player standing in his reach, his cut holds at the top of its wind-up
+        /// for its tell, glinting, before it strikes; and a player who dashes round behind him as the tell starts is not followed: the cut goes
+        /// where he faced and misses.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator HisCutHoldsItsTellAndDoesNotFollowADashRoundHim()
+        {
+            SwordsmanBrain brain = Build(seed: 424242);
+            var vitals = _player.GetComponent<PlayerVitals>();
+            vitals.InfiniteHealth = true;
+            _swordsman.transform.position = new Vector3(0.0f, 0.05f, 2.2f);   // the player in his reach
+            Physics.SyncTransforms();
+            SoulsSwordCombat his = brain.Combat;   // equipped as he woke: listened to before he can start a cut
+            Assert.IsNotNull(his, "the swordsman's sword did not equip");
+
+            SoulsAttack attack = null;
+            float started = -1.0f, told = -1.0f, tellSeconds = 0.0f, live = -1.0f;
+            int hits = 0, glints = AttackGlint.Shown;
+            float clock = 0.0f;
+            his.AttackStarted += a => { if (attack == null) { attack = a; started = clock; } };
+            his.Telegraphed += (a, seconds) =>
+            {
+                if (told >= 0.0f) return;
+                told = clock;
+                tellSeconds = seconds;
+                // The dash: round behind him on the same circle as the tell starts -- to his back-left, away from where a forehand slash starts
+                // behind his right shoulder (the blade itself passes there).
+                Vector3 centre = _swordsman.transform.position;
+                Vector3 toPlayer = _player.transform.position - centre;
+                toPlayer.y = 0.0f;
+                _player.transform.position = centre + Quaternion.Euler(0.0f, -150.0f, 0.0f) * toPlayer;
+                Physics.SyncTransforms();
+            };
+            vitals.Hit += from => hits++;
+
+            float awayAtLive = 0.0f, yawAtLive = 0.0f, turnedWhileLive = 0.0f;
+            for (; clock < 6.0f && (live < 0.0f || his.Phase == SoulsPhase.Active); clock += Dt)
+            {
+                yield return null;
+                if (attack == null || his.Phase != SoulsPhase.Active)
+                {
+                    continue;
+                }
+                if (live < 0.0f)
+                {
+                    live = clock;
+                    Vector3 toPlayer = _player.transform.position - _swordsman.transform.position;
+                    toPlayer.y = 0.0f;
+                    awayAtLive = Vector3.Angle(_swordsman.transform.forward, toPlayer);
+                    yawAtLive = _swordsman.transform.eulerAngles.y;
+                }
+                turnedWhileLive = Mathf.Max(turnedWhileLive, Mathf.Abs(Mathf.DeltaAngle(yawAtLive, _swordsman.transform.eulerAngles.y)));
+            }
+            Assert.IsNotNull(attack, "he never attacked a player standing in his reach");
+            Assert.GreaterOrEqual(told, 0.0f, "his cut had no tell");
+            Assert.Greater(tellSeconds, 0.0f);
+            Assert.AreEqual(glints + 1, AttackGlint.Shown, "his blade did not glint as it held");
+            Assert.GreaterOrEqual(live - started, attack.Startup + tellSeconds - 2.0f * Dt,
+                $"his cut went live {live - started:0.00} s after it started: the tell was not held ({attack.Startup:0.00} s of wind-up + {tellSeconds:0.00} s)");
+            Debug.Log($"CityX swordsman tell: {attack.Animation} live {live - started:0.00} s after it started ({tellSeconds:0.00} s held); " +
+                      $"the player {awayAtLive:0} degrees off his facing as it went live, turned {turnedWhileLive:0.0} degrees while live; hits {hits}");
+            float mostTurn = SwordsmanBrain.WindUpTurnDegreesPerSecond * (tellSeconds + attack.Startup) + 5.0f;
+            Assert.Greater(awayAtLive, 150.0f - mostTurn, $"his wind-up followed the player round ({awayAtLive:0} degrees off as it went live)");
+            Assert.Less(turnedWhileLive, 1.0f, $"he turned {turnedWhileLive:0.0} degrees with his blade live: the cut is not committed");
+            Assert.AreEqual(0, hits, "his cut followed a player who dashed round behind him");
+        }
+
         [UnityTest]
         public IEnumerator HeCanBeBeatenAndPaysXp()
         {

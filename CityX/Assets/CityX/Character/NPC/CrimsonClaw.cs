@@ -15,7 +15,10 @@ namespace CityX.Character
     /// phase, not a guaranteed hit on trigger -- same "distance-to-body, not
     /// per-claw swept tip" reasoning the source file's own class comment
     /// gives (the claws have no skeleton to derive an exact swept position
-    /// from).
+    /// from). Since 2026-10-24 the attack can be read and dashed: the claw
+    /// holds drawn back, glinting (TellSeconds), before it swipes; it turns
+    /// only slowly while winding up and not at all once it swipes; and the
+    /// swipe reaches only what is in front of it (ClawHitHalfAngleDegrees).
     ///
     /// HOVER HEIGHT IS GROUND-RELATIVE, NOT AN ABSOLUTE WORLD Y -- the one
     /// deliberate deviation from the source. Godot's own HOVER_HEIGHT (1.5)
@@ -57,8 +60,19 @@ namespace CityX.Character
 
         // --- attack phases: see Tick's own attack-state handling. ---
         public const float WindupSeconds = 0.18f;
+
+        /// <summary>
+        /// ITS TELL (owner, 2026-10-24: "the telegraph of the enemies attack is either very short or non existent"): after the wind-up the claw
+        /// holds drawn back this long, glinting, before it swipes, seconds -- long enough to see and dash.
+        /// </summary>
+        public const float TellSeconds = 0.35f;
+
         public const float SwingSeconds = 0.22f;
         public const float RecoverSeconds = 0.28f;
+
+        /// <summary>One whole attack, wind-up to recovered, seconds.</summary>
+        public const float AttackSeconds = WindupSeconds + TellSeconds + SwingSeconds + RecoverSeconds;
+
         public const float WindupAngleDegrees = 35.0f;
         public const float SwingAngleDegrees = 75.0f;
 
@@ -68,6 +82,18 @@ namespace CityX.Character
         /// that is a distance-to-body check, not a per-claw swept-tip check.
         /// </summary>
         public const float ClawHitRadius = 2.5f;
+
+        /// <summary>
+        /// ...and in front of it: within this many degrees either side of where it faces. It used to reach all round, so a dash past it was hit
+        /// anyway (owner, 2026-10-24: "the dash feels pretty useless ... because the enemies just auto lock onto you anyways").
+        /// </summary>
+        public const float ClawHitHalfAngleDegrees = 70.0f;
+
+        /// <summary>Winding up and through its tell it turns toward its target only this fast, degrees per second; swiping and recovering not at all.</summary>
+        public const float WindUpTurnDegreesPerSecond = 120.0f;
+
+        /// <summary>The tell's glint shows this far in front of the claw's root, metres: at the claw.</summary>
+        public const float ClawGlintReach = 0.7f;
 
         public const float HoverHeightAboveGround = 1.5f;
         public const float HoverCorrectionSpeed = 6.0f;
@@ -99,6 +125,7 @@ namespace CityX.Character
         {
             Idle,
             Windup,
+            Tell,
             Swing,
             Recover,
         }
@@ -185,9 +212,9 @@ namespace CityX.Character
                     EnemyPack.Turns.Ask(transform, _target, TurnKind.Melee, Time.time);   // keeps the turn through the swing
                 }
                 TickAttack(deltaTime);
-                if (_target != null)
+                if (_target != null && (_attackState == AttackState.Windup || _attackState == AttackState.Tell))
                 {
-                    FaceTowards(_target.transform.position);
+                    TurnTowards(_target.transform.position, WindUpTurnDegreesPerSecond * deltaTime);   // slowly; swiping, not at all
                 }
                 return;
             }
@@ -344,6 +371,18 @@ namespace CityX.Character
             FaceAlong(worldPoint - transform.position);
         }
 
+        /// <summary>Turns toward <paramref name="worldPoint"/> by at most <paramref name="maxDegrees"/>.</summary>
+        private void TurnTowards(Vector3 worldPoint, float maxDegrees)
+        {
+            Vector3 direction = worldPoint - transform.position;
+            direction.y = 0.0f;
+            if (direction.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(direction.normalized, Vector3.up), maxDegrees);
+        }
+
         /// <summary>Instant snap, matching the source's own look_at -- no turn-rate smoothing exists there to port.</summary>
         private void FaceAlong(Vector3 direction)
         {
@@ -394,6 +433,18 @@ namespace CityX.Character
             switch (_attackState)
             {
                 case AttackState.Windup:
+                    // Drawn back: it holds there, glinting, before it swipes.
+                    _attackState = AttackState.Tell;
+                    _attackPhaseTimer = 0.0f;
+                    _attackPhaseDuration = TellSeconds;
+                    _attackFromAngleDegrees = _attackToAngleDegrees;
+                    if (_activeClawPivot != null)
+                    {
+                        AttackGlint.Show(_activeClawPivot.position + transform.forward * ClawGlintReach);
+                    }
+                    break;
+
+                case AttackState.Tell:
                     _attackState = AttackState.Swing;
                     _attackPhaseTimer = 0.0f;
                     _attackPhaseDuration = SwingSeconds;
@@ -453,7 +504,9 @@ namespace CityX.Character
             }
             Vector3 toTarget = _target.transform.position - transform.position;
             toTarget.y = 0.0f;
-            if (toTarget.magnitude <= ClawHitRadius)
+            Vector3 facing = transform.forward;
+            facing.y = 0.0f;
+            if (toTarget.magnitude <= ClawHitRadius && Vector3.Angle(facing, toTarget) <= ClawHitHalfAngleDegrees)
             {
                 _attackHitLanded = true;
                 ((IDamageable)_target).ApplyHit(AttackDamage, transform.position, CombatTuning.HitstunSeconds);
