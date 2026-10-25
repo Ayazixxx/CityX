@@ -16,7 +16,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BalconyDoorPlayTests
     {
-        private const int Seed = 80469103;
+        private const int Seed = 23481876;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [SetUp]
@@ -94,7 +94,9 @@ namespace CityX.Tests
             controller.radius = FusedBodyShape.TorsoRadius;
             controller.skinWidth = 0.03f;
             controller.center = new Vector3(0.0f, BodyRig.StandingHeight * 0.5f, 0.0f);
-            controller.stepOffset = 0.3f;
+            // Small: a 0.3 m step lifts the head into a doorway head bar under 0.3 m over it and holds the body (seed 23481876); the player cuts
+            // its step to the room over its head each move (PlayerLocomotion.FitStepUnderCeiling), and a balcony door has no step to take.
+            controller.stepOffset = 0.1f;
             controller.minMoveDistance = 0.0f;
             controller.slopeLimit = 50.0f;
             Physics.SyncTransforms();

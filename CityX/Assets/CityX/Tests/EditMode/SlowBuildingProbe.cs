@@ -18,7 +18,7 @@ namespace CityX.Tests
             CityScale.Active = CityScale.Default;
             try
             {
-                var world = new CityWorld(80469103);
+                var world = new CityWorld(23481876);
                 var report = new StringBuilder();
                 // The four street-level buildings with the biggest footprints: the kind whose stairs once took seconds to plan.
                 var biggest = new System.Collections.Generic.List<BuildingSite>();

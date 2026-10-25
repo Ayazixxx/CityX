@@ -34,7 +34,7 @@ namespace CityX.Tests
             _made.Add(go);
             go.SetActive(false);   // set the fields before Awake runs
             var streamer = go.AddComponent<CityStreamer>();
-            streamer.WorldSeed = 80469103;
+            streamer.WorldSeed = 23481876;
             streamer.RadiusChunks = radius;
             streamer.FullDetailRadiusChunks = fullRadius;
             streamer.DetailHysteresisChunks = 1;
@@ -151,12 +151,14 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator ABrokenWindowInAFarChunkKeepsItFar()
         {
-            CityStreamer streamer = Streamer("Detail", radius: 5, fullRadius: 1, Viewer(CentreOfChunk(0, 0)));
+            // Round the spawn, which is built up, not the origin (open ground on seed 23481876; the east side alone on 58203917).
+            var world = new CityWorld(23481876);
+            Assert.IsTrue(world.Plan.TryFindSpawn(out double sx, out double sz), "the world has no spawn point");
+            int cx = CityX.World.Plan.PlanWorld.ChunkOf(sx), cy = CityX.World.Plan.PlanWorld.ChunkOf(sz);
+            CityStreamer streamer = Streamer("Detail", radius: 5, fullRadius: 1, Viewer(CentreOfChunk(cx, cy)));
             yield return WaitUntil(() => streamer.LoadedChunkCount >= 11 * 11, 30.0f);
 
-            // A building built by one of the far chunks: anywhere in the ring three to five chunks out (the origin's east side alone was open
-            // ground on seed 58203917).
-            var world = new CityWorld(80469103);
+            // A building built by one of the far chunks: anywhere in the ring three to five chunks out.
             BuildingSite site = BuildingSite.None;
             for (int dx = -5; dx <= 5 && !site.Exists; dx++)
             {
@@ -166,7 +168,7 @@ namespace CityX.Tests
                     {
                         continue;
                     }
-                    site = TestSites.FirstOwnedBy(world, dx, dy);
+                    site = TestSites.FirstOwnedBy(world, cx + dx, cy + dy);
                 }
             }
             Assert.IsTrue(site.Exists, "no building in the far ring to break a window of");

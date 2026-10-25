@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class SkylineTests
     {
-        private const int Seed = 80469103;
+        private const int Seed = 23481876;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
 
@@ -127,7 +127,7 @@ namespace CityX.Tests
             Assert.AreEqual(0, structures.Vertices.Count);
 
             // The 5 x 5 chunks round a viewer well inside the group, on a chunk that owns a tall building (the group's middle need not: seed
-            // 80469103's does not), so there is something for them to leave out.
+            // 23481876's does not), so there is something for them to leave out.
             Vector2Int inside = around;
             foreach (BuildingSite site in TallBuildingsOf(g))
             {

@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class HillTests
     {
-        private const int Seed = 80469103;
+        private const int Seed = 23481876;
 
         [Test]
         public void TheGamesCityHasSteepHills()

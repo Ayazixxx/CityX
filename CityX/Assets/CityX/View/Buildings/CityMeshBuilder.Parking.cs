@@ -267,8 +267,16 @@ namespace CityX.View
                 {
                     PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ0, rowZ1, roofY + 0.02f);
                 }
-                // A few things left on the ground deck: a barrier knocked over at the entrance, rubble.
-                CityProps.AddRubble(structures, x0 + 4.0f, z0 + 10.0f, floorY, 1.6f, site.Seed + 55);
+                // A few things left on the ground deck: rubble, in a back corner out of the lanes in (a narrow garage's left corner is in one:
+                // seed 23481876), or none.
+                const float rubbleRadius = 1.6f;
+                const float rubbleReach = 2.1f;   // its farthest chunk from the middle (CityProps.AddRubble: 0.9 of the radius and half a chunk)
+                foreach (float rubbleX in new[] { x0 + 4.0f, x1 - 4.0f })
+                {
+                    if (InEntranceLane(rubbleX - rubbleReach) || InEntranceLane(rubbleX) || InEntranceLane(rubbleX + rubbleReach)) continue;
+                    CityProps.AddRubble(structures, rubbleX, z0 + 10.0f, floorY, rubbleRadius, site.Seed + 55);
+                    break;
+                }
             }
             structures.Look = SurfaceLook.Default;
             concrete.Look = SurfaceLook.Default;

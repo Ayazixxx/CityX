@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ChunkMeshDataTests
     {
-        private const int Seed = 80469103;
+        private const int Seed = 23481876;
 
         private CityScale _scaleBefore;
         private readonly List<Mesh> _meshes = new List<Mesh>();
@@ -72,9 +72,10 @@ namespace CityX.Tests
             towers = new Vector2Int(cx0, cy0);
             street = new Vector2Int(int.MinValue, int.MinValue);
             float tallest = -1.0f;
-            for (int dy = -6; dy <= 6; dy++)
+            // Wide: a seed whose spawn sits among low buildings (23481876) has its towers half a kilometre off.
+            for (int dy = -20; dy <= 20; dy++)
             {
-                for (int dx = -6; dx <= 6; dx++)
+                for (int dx = -20; dx <= 20; dx++)
                 {
                     List<int> owned = world.BuildingsOwnedBy(cx0 + dx, cy0 + dy);
                     if (owned.Count == 0 && street.x == int.MinValue)
