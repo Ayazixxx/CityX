@@ -1,7 +1,9 @@
 {
     "name": "CityX.MapImport.Editor",
     "rootNamespace": "CityX.MapImport",
-    "references": [],
+    "references": [
+        "CityX.Core"
+    ],
     "includePlatforms": [
         "Editor"
     ],

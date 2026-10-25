@@ -324,7 +324,7 @@ namespace CityX.Tests
         public void TheCharacterAndItsHairHaveNoShine()
         {
             // Owner, 2026-10-09: "get rid of the shinyness that is appearing on the character and the hair".
-            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var material = new Material(CityX.Core.LitShader.Find());
             try
             {
                 material.SetFloat("_Smoothness", 0.5f);

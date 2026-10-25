@@ -104,9 +104,6 @@ namespace CityX.UI
         public const float SwordsmanSpawnDistance = 8.0f;
 
         private readonly List<string> _lines = new List<string>();
-        private Shader _litShader;
-        private Shader _toonShader;
-        private bool _celShadeOn;
         private PlayerLocomotion _playerLocomotion;
         private NetworkBootstrap _bootstrap;
         private bool _pausedGameOnOpen;
@@ -425,7 +422,11 @@ namespace CityX.UI
                     return;
 
                 case "celshade":
-                    ToggleCelShade();
+                    CelShadeCommand(line.Argument(0));
+                    return;
+
+                case "outlines":
+                    OutlinesCommand(line.Argument(0));
                     return;
 
                 case "equip":

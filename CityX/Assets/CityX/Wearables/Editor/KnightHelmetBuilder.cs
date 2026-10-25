@@ -44,7 +44,7 @@ namespace CityX.WearablesEditor
             var material = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                material = new Material(CityX.Core.LitShader.Find());
                 AssetDatabase.CreateAsset(material, MaterialPath);
             }
             material.SetTexture("_BaseMap", texture);

@@ -265,88 +265,24 @@ namespace CityX.UI
             Log($"PassengerSeat local pos {FormatVector3(nearest.PassengerSeat.localPosition)}");
         }
 
-        /// <summary>
-        /// Swaps every eligible renderer's shader between the normal URP
-        /// Lit and CityX/ToonLit -- EVERY ONE OF THEM, not just characters.
-        /// Character skins and the whole city (ground, pavement, concrete,
-        /// doors, guard rails) are built on the exact same "Universal
-        /// Render Pipeline/Lit" shader asset (confirmed directly: every one
-        /// of those .mat files points at the identical shader GUID), so
-        /// asking "is this material currently Lit" is what "all the
-        /// graphics" actually means here -- a name-based allowlist
-        /// (formerly PlayerSkin/CivilianSkin only) would need updating by
-        /// hand for every new material the city ever adds, and would have
-        /// silently stayed character-only forever if nobody remembered to.
-        ///
-        /// OPAQUE SURFACES ONLY. Glass (CityGlassDark/Lit/Cracked) is built
-        /// on this SAME shader with its Surface Type property set to
-        /// Transparent rather than a different shader asset -- ToonLit has
-        /// no Blend state at all (Tags declare it Opaque, "Queue" =
-        /// "Geometry"), so toon-shading a window would not restyle it, it
-        /// would make it suddenly solid, undoing the real work that went
-        /// into making a building's glass see-through. _Surface (0 =
-        /// Opaque, 1 = Transparent) is the same URP Lit property that
-        /// decision is already stored in, so checking it is enough to skip
-        /// every window without needing a name check for them either.
-        ///
-        /// WALKS LIVE RENDERERS, NOT A WIRED Material[] -- a material
-        /// asset like PlayerSkin.mat is only what a renderer STARTS on.
-        /// CharacterIdentity.Recolour/ApplyPaint read `renderer.material`
-        /// (deliberately, to tint one body without recolouring everyone
-        /// sharing the asset), and that auto-instances a private copy the
-        /// first time it's touched -- which for any character who has ever
-        /// been painted or recoloured is well before this ever runs. Toggling
-        /// the shared asset's own .shader missed that copy entirely, which is
-        /// why this used to look like it did nothing on a painted player
-        /// while still working on an untouched civilian.
-        /// </summary>
-        private void ToggleCelShade()
+        /// <summary>/celshade [on|off]: the cel look (CelShading: the toon light and the black lines) on or off; with no word, the other way.</summary>
+        private void CelShadeCommand(string which)
         {
-            if (_litShader == null) _litShader = Shader.Find("Universal Render Pipeline/Lit");
-            if (_toonShader == null) _toonShader = Shader.Find("CityX/ToonLit");
-            if (_litShader == null || _toonShader == null)
-            {
-                Log("cel shade shader missing");
-                return;
-            }
-
-            _celShadeOn = !_celShadeOn;
-            Shader target = _celShadeOn ? _toonShader : _litShader;
-
-            int changed = 0;
-            foreach (Renderer renderer in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
-            {
-                // Read sharedMaterial to test it -- it returns whatever is
-                // actually bound (instance or asset) without instancing
-                // anything just to look. Only a match then goes through
-                // .material, so an untouched civilian population (or an
-                // untouched building) still gets one shared swap instead of
-                // a thousand new per-renderer clones.
-                Material current = renderer.sharedMaterial;
-                if (current == null || !IsToonableMaterial(current))
-                {
-                    continue;
-                }
-                renderer.material.shader = target;
-                changed++;
-            }
-
-            Log("cel shading " + (_celShadeOn ? "on" : "off") + $" ({changed} renderer(s))");
+            bool on = which == "on" || (which != "off" && !CelShading.Enabled);
+            CelShading.Set(on);
+            Log("cel shading " + (on ? "on" : "off"));
         }
 
-        /// <summary>Public, not private, so a test can drive this exact rule directly.</summary>
-        public static bool IsToonableMaterial(Material material)
+        /// <summary>/outlines &lt;pixels&gt;: the black lines' width on a screen 1080 tall (scaled to this one); 0 draws none.</summary>
+        private void OutlinesCommand(string pixels)
         {
-            if (material.shader == null || material.shader.name != "Universal Render Pipeline/Lit")
+            if (pixels == null || !float.TryParse(pixels, NumberStyles.Float, CultureInfo.InvariantCulture, out float width) || width < 0.0f)
             {
-                return false;
+                Log(DevCommands.UsageFor("outlines"));
+                return;
             }
-            // Missing the property at all means it was never given a
-            // surface-type choice, which URP Lit only omits for a material
-            // stuck on its own default (Opaque) -- treated as opaque rather
-            // than excluded, so a plain fresh material is never silently
-            // skipped just for not being touched yet.
-            return !material.HasProperty("_Surface") || material.GetFloat("_Surface") == 0.0f;
+            CelShading.SetOutlineWidth(width);
+            Log($"outlines {width.ToString("0.##", CultureInfo.InvariantCulture)} px");
         }
     }
 }

@@ -229,7 +229,7 @@ namespace CityX.Tests
             cube.transform.SetParent(body.transform, false);
             Object.DestroyImmediate(cube.GetComponent<Collider>());
             renderer = cube.GetComponent<Renderer>();
-            _shared = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            _shared = new Material(CityX.Core.LitShader.Find());
             _shared.SetColor("_BaseColor", new Color(0.8f, 0.6f, 0.4f, 1.0f));
             _shared.SetFloat("_Smoothness", 0.2f);
             renderer.sharedMaterial = _shared;
@@ -291,7 +291,7 @@ namespace CityX.Tests
             cube.transform.SetParent(_player.transform, false);
             Object.DestroyImmediate(cube.GetComponent<Collider>());
 
-            _shared = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            _shared = new Material(CityX.Core.LitShader.Find());
             _shared.SetColor("_BaseColor", CityX.Core.CharacterSave.DefaultHairColour);   // the default gold
             _shared.SetFloat("_Smoothness", 0.4f);
 

@@ -117,7 +117,7 @@ namespace CityX.ViewEditor
                 AssetDatabase.DeleteAsset(MaterialPath);
             }
 
-            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var material = new Material(CityX.Core.LitShader.Find());
             material.SetColor("_BaseColor", Glass);
             material.SetFloat("_Smoothness", 0.85f);
             material.SetFloat("_Metallic", 0.05f);

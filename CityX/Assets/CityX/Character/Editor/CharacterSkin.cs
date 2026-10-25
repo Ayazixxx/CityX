@@ -50,31 +50,13 @@ namespace CityX.CharacterEditor
             string path = $"{Directory}/{name}.mat";
 
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = CityX.Core.LitShader.Find();
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-                if (shader == null)
-                {
-                    Debug.LogError("CityX: URP Lit shader not found -- characters will be magenta.");
-                    shader = Shader.Find("Standard");
-                }
                 material = new Material(shader);
                 AssetDatabase.CreateAsset(material, path);
             }
-
-            // RESET UNCONDITIONALLY, NOT ONLY ON CREATE. /celshade swaps this
-            // same shared asset to CityX/ToonLit at runtime, and a Material
-            // asset's shader -- unlike scene object state -- does not revert
-            // when Play mode exits, so a session that ends mid-toggle leaves
-            // the toon shader baked onto disk. Rebuilding the skin has to be
-            // able to put it back on Lit, or the very first /celshade after
-            // that looks like it does nothing (it's toggling ON a material
-            // that was already stuck ON).
-            Shader litShader = Shader.Find("Universal Render Pipeline/Lit");
-            if (litShader != null)
-            {
-                material.shader = litShader;
-            }
+            material.shader = shader;   // a skin made before the cel look was on URP's own Lit
 
             material.SetColor("_BaseColor", colour);
             MakeMatte(material);
@@ -117,23 +99,13 @@ namespace CityX.CharacterEditor
 
             string materialPath = $"{Directory}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            Shader shader = CityX.Core.LitShader.Find();
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-                if (shader == null)
-                {
-                    Debug.LogError("CityX: URP Lit shader not found -- characters will be magenta.");
-                    shader = Shader.Find("Standard");
-                }
                 material = new Material(shader);
                 AssetDatabase.CreateAsset(material, materialPath);
             }
-
-            Shader litShader = Shader.Find("Universal Render Pipeline/Lit");
-            if (litShader != null)
-            {
-                material.shader = litShader;
-            }
+            material.shader = shader;   // a skin made before the cel look was on URP's own Lit
 
             // White underneath, or the paint comes out tinted -- same
             // reasoning as CharacterIdentity.ApplyPaint's own copy of this.

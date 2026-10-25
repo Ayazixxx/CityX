@@ -113,7 +113,7 @@ namespace CityX.ViewEditor
             Material material = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                Shader shader = CityX.Core.LitShader.Find();
                 if (shader == null)
                 {
                     Debug.LogError("CityX: URP Lit missing -- the radio will render magenta.");

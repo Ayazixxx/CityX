@@ -123,7 +123,7 @@ namespace CityX.Character
             }
             else
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                Shader shader = CityX.Core.LitShader.Find();
                 material = new Material(shader != null ? shader : Shader.Find("Standard"));
                 material.SetFloat("_Surface", 1.0f);
                 material.SetFloat("_Blend", 0.0f);

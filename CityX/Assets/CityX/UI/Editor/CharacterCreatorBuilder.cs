@@ -280,7 +280,7 @@ namespace CityX.UIEditor
                 return existing;
             }
 
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit")
+            Shader shader = CityX.Core.LitShader.Find()
                             ?? Shader.Find("Standard");
             var material = new Material(shader);
             // character.gd's own HAIR_COLOR.

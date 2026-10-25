@@ -192,9 +192,9 @@ namespace CityX.Tests
             skin.transform.localPosition = Vector3.up * 1.3f;
             Object.DestroyImmediate(skin.GetComponent<Collider>());
             var renderer = skin.GetComponent<MeshRenderer>();
-            // A known skin colour, as CharacterIdentity gives a body (URP Lit, its own material instance).
+            // A known skin colour, as CharacterIdentity gives a body (CityX/Lit, its own material instance).
             var skinColour = new Color(0.6f, 0.5f, 0.45f, 1.0f);
-            Shader lit = Shader.Find("Universal Render Pipeline/Lit");
+            Shader lit = CityX.Core.LitShader.Find();
             renderer.material = new Material(lit != null ? lit : Shader.Find("Standard"));
             renderer.material.SetColor("_BaseColor", skinColour);
             renderer.material.SetColor("_Color", skinColour);

@@ -178,7 +178,7 @@ namespace CityX.CharacterEditor
                 var meshObject = new GameObject("GodotBody");
                 meshObject.transform.SetParent(root.transform, false);
                 meshObject.AddComponent<MeshFilter>().sharedMesh = mesh;
-                var material = new Material(Shader.Find("Universal Render Pipeline/Lit"))
+                var material = new Material(CityX.Core.LitShader.Find())
                 {
                     color = new Color(0.85f, 0.55f, 0.35f),
                 };

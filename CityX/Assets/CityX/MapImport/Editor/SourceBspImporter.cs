@@ -327,7 +327,7 @@ namespace CityX.MapImport
                 }
                 Texture2D loaded = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
 
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                Shader shader = CityX.Core.LitShader.Find() ?? Shader.Find("Standard");
                 Material material = new Material(shader);
                 material.name = safe;
                 material.mainTexture = loaded;

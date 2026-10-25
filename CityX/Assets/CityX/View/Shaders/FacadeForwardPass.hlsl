@@ -11,6 +11,7 @@
 // on every other material in the city; only InitializeFacadeSurface is new.
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+#include "CityXToonLighting.hlsl"
 
 #if defined(LOD_FADE_CROSSFADE)
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
@@ -231,13 +232,16 @@ void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out ha
     // there. The sun and the moon still come in through the windows, and the room's own lights are what lights it at night.
     surfaceData.occlusion = indoors ? 1.0 - _CityXIndoorShade : 1.0;
     surfaceData.emission = half3(0.0, 0.0, 0.0);
+#if defined(CITYX_TOON)
+    n = half3(0.0, 0.0, 1.0);   // cel shaded: lit flat, as the wall is, not by its bricks (CityXToonLighting.hlsl)
+#endif
     surfaceData.normalTS = n;
     normalTS = n;
 }
 
 // URP's UniversalFragmentPBR (ShaderLibrary/Lighting.hlsl, URP 17.3) with one change: the city's lights know which side of a wall they are on
 // (CITYX_INTERIOR_LIGHT_LAYER / CITYX_EXTERIOR_LIGHT_LAYER). Without it a lit room's lamps, which cast no shadows, would shine straight through
-// the building's walls onto the pavement and the building next door.
+// the building's walls onto the pavement and the building next door. Each light goes through CityXSurfaceLight, cel shaded with CITYX_TOON.
 half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoors)
 {
     #if defined(_SPECULARHIGHLIGHTS_OFF)
@@ -260,9 +264,14 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
     half4 shadowMask = CalculateShadowMask(inputData);
     // URP's CreateAmbientOcclusionFactor, keeping the screen's occlusion alone for a lit room's bounced light: the indoor shade in
     // surfaceData.occlusion is the sky's, not the room's.
+#if defined(CITYX_TOON)
+    AmbientOcclusionFactor aoFactor = CityXOcclusion(inputData, surfaceData);   // the indoor shade alone, none of the screen's
+    half screenOcclusion = 1.0;
+#else
     AmbientOcclusionFactor aoFactor = GetScreenSpaceAmbientOcclusion(inputData.normalizedScreenSpaceUV);
     half screenOcclusion = aoFactor.indirectAmbientOcclusion;
     aoFactor.indirectAmbientOcclusion = min(screenOcclusion, surfaceData.occlusion);
+#endif
     uint meshRenderingLayers = GetMeshRenderingLayer();
     Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
 
@@ -280,10 +289,8 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
     if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
 #endif
     {
-        lightingData.mainLightColor = LightingPhysicallyBased(brdfData, brdfDataClearCoat,
-                                                              mainLight,
-                                                              inputData.normalWS, inputData.viewDirectionWS,
-                                                              surfaceData.clearCoatMask, specularHighlightsOff);
+        lightingData.mainLightColor = CityXSurfaceLight(brdfData, brdfDataClearCoat, mainLight, inputData.normalWS,
+                                                        inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff, true);
     }
 
     // The lights that belong on the other side of this surface's wall.
@@ -306,9 +313,8 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
         if ((light.layerMask & wrongSide) == 0)
 #endif
         {
-            lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
-                                                                          inputData.normalWS, inputData.viewDirectionWS,
-                                                                          surfaceData.clearCoatMask, specularHighlightsOff);
+            lightingData.additionalLightsColor += CityXSurfaceLight(brdfData, brdfDataClearCoat, light, inputData.normalWS,
+                                                                    inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff, true);
         }
     }
     #endif
@@ -323,9 +329,8 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
         if ((light.layerMask & wrongSide) == 0)
 #endif
         {
-            lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
-                                                                          inputData.normalWS, inputData.viewDirectionWS,
-                                                                          surfaceData.clearCoatMask, specularHighlightsOff);
+            lightingData.additionalLightsColor += CityXSurfaceLight(brdfData, brdfDataClearCoat, light, inputData.normalWS,
+                                                                    inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff, false);
         }
     LIGHT_LOOP_END
     #endif

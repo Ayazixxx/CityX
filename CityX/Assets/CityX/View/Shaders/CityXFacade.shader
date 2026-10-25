@@ -51,6 +51,9 @@ Shader "CityX/Facade"
             #pragma vertex FacadePassVertex
             #pragma fragment FacadePassFragment
 
+            // Cel shading (CelShading.cs, CityXToonLighting.hlsl).
+            #pragma multi_compile_fragment _ CITYX_TOON
+
             // Universal Pipeline keywords (Lit's own)
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS

@@ -62,6 +62,7 @@ namespace CityX.ViewEditor
 
             CityFacadeTextures.Build();
             HazeSetup.EnsureFeature();   // the city's air: a full-screen height-fog pass (Shaders/CityXHaze.shader), driven by DayNightCycle
+            OutlineSetup.EnsureFeature();   // the cel look's black lines: a full-screen edge pass (Shaders/CityXOutline.shader, CelShading)
 
             // The mesh builder writes UVs in METRES, so tiling is simply the
             // reciprocal of how many metres of world each texture covers. That
@@ -1605,7 +1606,7 @@ namespace CityX.ViewEditor
         {
             string path = $"{MaterialDirectory}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            Shader shader = CityX.Core.LitShader.Find();
             if (material == null)
             {
                 material = new Material(shader);
@@ -1630,7 +1631,7 @@ namespace CityX.ViewEditor
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                Shader shader = CityX.Core.LitShader.Find();
                 if (shader == null)
                 {
                     Debug.LogError("CityX: URP Lit shader not found -- is the Universal Render " +
@@ -1687,7 +1688,7 @@ namespace CityX.ViewEditor
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                Shader shader = CityX.Core.LitShader.Find();
                 if (shader == null)
                 {
                     Debug.LogError("CityX: URP Lit shader not found -- is the Universal Render " +
@@ -1975,7 +1976,7 @@ namespace CityX.ViewEditor
                 importer.SaveAndReimport();
             }
 
-            Shader lit = Shader.Find("Universal Render Pipeline/Lit");
+            Shader lit = CityX.Core.LitShader.Find();
             if (lit == null)
             {
                 Debug.LogError("CityX: URP Lit shader not found -- is the Universal Render " +
@@ -2049,7 +2050,7 @@ namespace CityX.ViewEditor
 
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                Shader shader = CityX.Core.LitShader.Find();
                 if (shader == null)
                 {
                     // Naming the cause matters here: a missing URP shader means

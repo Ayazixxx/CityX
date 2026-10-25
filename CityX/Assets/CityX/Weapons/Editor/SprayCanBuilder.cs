@@ -91,7 +91,7 @@ namespace CityX.WeaponsEditor
             Material material = AssetDatabase.LoadAssetAtPath<Material>(GraffitiMaterialPath);
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                material = new Material(CityX.Core.LitShader.Find());
                 AssetDatabase.CreateAsset(material, GraffitiMaterialPath);
             }
             material.SetFloat("_Surface", 1.0f);
@@ -182,7 +182,7 @@ namespace CityX.WeaponsEditor
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                material = new Material(CityX.Core.LitShader.Find());
                 AssetDatabase.CreateAsset(material, path);
             }
             material.SetColor("_BaseColor", colour);

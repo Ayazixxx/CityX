@@ -135,6 +135,7 @@ namespace CityX.UI
             "spawn",
             "car",
             "celshade",
+            "outlines",
             "equip",
             "unequip",
             "goto",
@@ -167,9 +168,10 @@ namespace CityX.UI
                 case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|shoota|swordsman|radio|mustang|book|" +
                     "any item /equip takes> [how many, up to 30]";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
-                case "celshade": return "/celshade -- toggles toon shading on every character skin";
+                case "celshade": return "/celshade [on|off] -- the cel look (cel-shaded light and thick black lines) on or off";
+                case "outlines": return "/outlines <pixels> -- the black lines' width on a screen 1080 tall (2 by default; 0 draws none)";
                 case "equip": return "/equip <bottle|cloak|coat|tshirt|bloodraven|redcamo|grapple|pistol|flamethrower|jetpack|parachute|" +
-                    "knight_helmet|spikesword|combatsword|ak47|crowbar|bat|spraycan>";
+                    "knight_helmet|jeans|spikesword|combatsword|ak47|crowbar|bat|spraycan>";
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|legs|top|back|helmet>";
                 case "goto": return "/goto <slope|highway> -- teleports to the nearest one (onto an expressway's deck for highway)";
                 case "pistol": return "/pistol <pos|rot> <x> <y> <z>, /pistol scale <value>, or /pistol pose -- " +

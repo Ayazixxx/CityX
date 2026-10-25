@@ -216,7 +216,7 @@ namespace CityX.UIEditor
             {
                 return existing;
             }
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            Shader shader = CityX.Core.LitShader.Find() ?? Shader.Find("Standard");
             var material = new Material(shader);
             var dark = new Color(0.10f, 0.11f, 0.14f);
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", dark);
@@ -241,7 +241,7 @@ namespace CityX.UIEditor
             var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                Shader shader = CityX.Core.LitShader.Find() ?? Shader.Find("Standard");
                 material = new Material(shader);
                 if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", CharacterHair.HairColour);
                 if (material.HasProperty("_Color")) material.SetColor("_Color", CharacterHair.HairColour);

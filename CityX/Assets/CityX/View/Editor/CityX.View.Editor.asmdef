@@ -2,6 +2,7 @@
     "name": "CityX.View.Editor",
     "rootNamespace": "CityX.ViewEditor",
     "references": [
+        "CityX.Core",
         "CityX.View",
         "CityX.World",
         "CityX.Character",

@@ -8,10 +8,7 @@ using CityX.World;
 namespace CityX.Tests
 {
     /// <summary>
-    /// IsToonableMaterial's own rule for /celshade -- see that method's own
-    /// doc comment for why shader identity replaced a name allowlist, and
-    /// why Transparent is excluded specifically to keep glass see-through.
-    /// Also the console's own Open/Close handling of the player's Animator
+    /// /celshade and /outlines drive the cel look (CelShading). Also the console's own Open/Close handling of the player's Animator
     /// -- Requested, after seven rounds of the console/grapple
     /// distortion saga: "remove the console function and rebuild it
     /// entirely if you have to, just get rid of it." Open() used to
@@ -186,41 +183,31 @@ namespace CityX.Tests
                 "closing the console forced time back to 1.0 even though something else had already paused it");
         }
 
-        private static Material LitMaterial(float surface)
-        {
-            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            material.SetFloat("_Surface", surface);
-            return material;
-        }
-
+        /// <summary>/celshade turns the cel look off and on (with no word, the other way), and /outlines sets the lines' width.</summary>
         [Test]
-        public void AnOpaqueLitMaterialIsToonable()
+        public void CelShadeAndOutlinesDriveTheCelLook()
         {
-            Material material = LitMaterial(0.0f);
-            Assert.IsTrue(DevConsoleView.IsToonableMaterial(material));
-            Object.DestroyImmediate(material);
-        }
-
-        /// <summary>
-        /// Glass is built on this exact same shader with Surface Type set
-        /// to Transparent rather than a different shader asset -- ToonLit
-        /// has no Blend state at all, so toon-shading a window would not
-        /// restyle it, it would make it suddenly solid.
-        /// </summary>
-        [Test]
-        public void ATransparentLitMaterialIsNotToonable()
-        {
-            Material material = LitMaterial(1.0f);
-            Assert.IsFalse(DevConsoleView.IsToonableMaterial(material));
-            Object.DestroyImmediate(material);
-        }
-
-        [Test]
-        public void ANonLitShaderIsNeverToonable()
-        {
-            var material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            Assert.IsFalse(DevConsoleView.IsToonableMaterial(material));
-            Object.DestroyImmediate(material);
+            _consoleObject = new GameObject("DevConsole");
+            var view = _consoleObject.AddComponent<DevConsoleView>();
+            view.Bind();
+            bool wasOn = CelShading.Enabled;
+            try
+            {
+                view.Submit("/celshade off");
+                Assert.IsFalse(CelShading.Enabled, "/celshade off left the cel look on");
+                view.Submit("/celshade");
+                Assert.IsTrue(CelShading.Enabled, "/celshade did not turn the cel look back on");
+                view.Submit("/outlines 3.5");
+                Assert.AreEqual(3.5f, CelShading.OutlineWidth, 1e-4f, "/outlines");
+                Assert.AreEqual(3.5f, Shader.GetGlobalVector("_CityXOutline").x, 1e-4f, "the lines' width never reached the shader");
+                view.Submit("/outlines -1");
+                Assert.AreEqual(3.5f, CelShading.OutlineWidth, 1e-4f, "a width under 0 was taken");
+            }
+            finally
+            {
+                CelShading.SetOutlineWidth(CelShading.DefaultOutlineWidth);
+                CelShading.Set(wasOn);
+            }
         }
 
         /// <summary>

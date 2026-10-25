@@ -386,7 +386,7 @@ namespace CityX.Weapons
             {
                 return _brass;
             }
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            Shader shader = CityX.Core.LitShader.Find() ?? Shader.Find("Standard");
             _brass = new Material(shader) { name = "CasingBrass" };
             var colour = new Color(0.78f, 0.58f, 0.24f);
             _brass.color = colour;

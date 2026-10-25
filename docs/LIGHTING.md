@@ -35,6 +35,9 @@ paler, the far skyline melts into the sky. Ours had a flat linear fog wall at 15
 - Capture gotcha: the capture tests load the city scene additively, so the *test* scene's render settings apply. `BuildingShapeCapture.UseTheScenesAir`
   sets the city's fog distances first, or the haze edge lands at Unity's default 0-300 m and everything looks fogged.
 
+**Cel shading** (2026-10-24): every light goes through a cel-shaded version of itself and black lines are drawn round everything; see
+`docs/CEL_SHADING.md`.
+
 Next candidates: tune SSAO radius/intensity against the new ambient, a screen-space reflection renderer feature for wet streets, volumetric light shafts
 (a custom renderer feature), light-layer split for the sun vs window lights, emissive window glow with bloom thresholds. `LightingCapture` (Explicit, -Graphics)
 renders four times of day to Logs/CityShots/light-*.png.

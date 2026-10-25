@@ -132,7 +132,7 @@ namespace CityX.Tests
             var hair = _host.AddComponent<CharacterHair>();
             hair.Head = head.transform;
             hair.StyleMeshes = new[] { cube.GetComponent<MeshFilter>().sharedMesh };
-            hair.HairMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            hair.HairMaterial = new Material(CityX.Core.LitShader.Find());
             return hair;
         }
 

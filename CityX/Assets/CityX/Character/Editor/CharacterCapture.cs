@@ -166,7 +166,7 @@ namespace CityX.CharacterEditor
             }
             texture.Apply();
 
-            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var material = new Material(CityX.Core.LitShader.Find());
             if (material.HasProperty("_BaseMap"))
             {
                 material.SetTexture("_BaseMap", texture);

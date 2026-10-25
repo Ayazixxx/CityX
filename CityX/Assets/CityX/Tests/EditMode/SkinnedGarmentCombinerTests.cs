@@ -42,8 +42,8 @@ namespace CityX.Tests
             try
             {
                 var combiner = holder.AddComponent<SkinnedGarmentCombiner>();
-                var topMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-                var legsMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                var topMaterial = new Material(CityX.Core.LitShader.Find() ?? Shader.Find("Standard"));
+                var legsMaterial = new Material(CityX.Core.LitShader.Find() ?? Shader.Find("Standard"));
 
                 combiner.Register("top", TwoTriangleMesh(0), topMaterial);
                 combiner.Register("legs", TwoTriangleMesh(1), legsMaterial);
@@ -66,7 +66,7 @@ namespace CityX.Tests
             try
             {
                 var combiner = holder.AddComponent<SkinnedGarmentCombiner>();
-                var material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                var material = new Material(CityX.Core.LitShader.Find() ?? Shader.Find("Standard"));
 
                 combiner.Register("top", TwoTriangleMesh(0), material);
                 combiner.Register("legs", TwoTriangleMesh(1), material);
@@ -88,7 +88,7 @@ namespace CityX.Tests
             try
             {
                 var combiner = holder.AddComponent<SkinnedGarmentCombiner>();
-                var material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                var material = new Material(CityX.Core.LitShader.Find() ?? Shader.Find("Standard"));
 
                 combiner.Register("top", TwoTriangleMesh(0), material);
                 combiner.Unregister("top");
@@ -108,7 +108,7 @@ namespace CityX.Tests
             try
             {
                 var combiner = holder.AddComponent<SkinnedGarmentCombiner>();
-                var material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                var material = new Material(CityX.Core.LitShader.Find() ?? Shader.Find("Standard"));
 
                 combiner.Register("top", TwoTriangleMesh(0), material);
                 combiner.Register("cloak", TwoTriangleMesh(0), material);
@@ -135,7 +135,7 @@ namespace CityX.Tests
             try
             {
                 var combiner = holder.AddComponent<SkinnedGarmentCombiner>();
-                var material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                var material = new Material(CityX.Core.LitShader.Find() ?? Shader.Find("Standard"));
 
                 Assert.DoesNotThrow(() => combiner.Register("top", TwoTriangleMesh(0), material));
                 Assert.IsNotNull(combiner.CombinedMesh, "the mesh should still combine even with no bones to bind to");
@@ -154,7 +154,7 @@ namespace CityX.Tests
             {
                 holder.AddComponent<Animator>();
                 var combiner = holder.AddComponent<SkinnedGarmentCombiner>();
-                var material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                var material = new Material(CityX.Core.LitShader.Find() ?? Shader.Find("Standard"));
 
                 // Animator.GetBoneTransform THROWS rather than returning null
                 // when the Animator has no avatar at all -- the same gap

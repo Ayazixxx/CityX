@@ -145,6 +145,9 @@ namespace CityX.Tests
         /// <summary>The picture above its bottom quarter: the face, where raised fists show, clear of the shoulders.</summary>
         private const float FaceBandBottom = 0.25f;
 
+        /// <summary>How many pixels the framing may move between two portraits of the same pose and still count as the same picture.</summary>
+        private const int FramingShift = 2;
+
         private Texture2D Read()
         {
             RenderTexture previous = RenderTexture.active;
@@ -213,10 +216,11 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The share of pixels in a band of rows of <paramref name="a"/> that match no pixel of <paramref name="b"/> at or next to the same place:
-        /// a picture framed a pixel otherwise (an outline round the head) counts as the same, a different pose does not.
+        /// The share of pixels in a band of rows of <paramref name="a"/> that match no pixel of <paramref name="b"/> within <paramref name="shift"/>
+        /// pixels of the same place: a picture framed a pixel or two otherwise counts as the same (the cel look's outline and flat bands turn
+        /// such a shift into hard-edged slivers), a different pose does not.
         /// </summary>
-        private static float DiffersBeyondAPixel(Texture2D a, Texture2D b, float fromRow, float toRow)
+        private static float DiffersBeyondAShift(Texture2D a, Texture2D b, float fromRow, float toRow, int shift)
         {
             Color[] p = a.GetPixels(), q = b.GetPixels();
             int w = a.width, h = a.height;
@@ -228,9 +232,9 @@ namespace CityX.Tests
                 {
                     total++;
                     bool matched = false;
-                    for (int dy = -1; dy <= 1 && !matched; dy++)
+                    for (int dy = -shift; dy <= shift && !matched; dy++)
                     {
-                        for (int dx = -1; dx <= 1 && !matched; dx++)
+                        for (int dx = -shift; dx <= shift && !matched; dx++)
                         {
                             int nx = Mathf.Clamp(x + dx, 0, w - 1), ny = Mathf.Clamp(y + dy, 0, h - 1);
                             Color c = p[y * w + x], d = q[ny * w + nx];
@@ -481,9 +485,12 @@ namespace CityX.Tests
                 Save("fists-down", after);
                 // Above the shoulders (the fists rose across the face): as plain as the plain one, give or take the pixel or two the framing moves
                 // (a body settled on the ground for seconds against one still dropping the 10 cm it was put above it).
-                float face = DiffersBeyondAPixel(plain, after, FaceBandBottom, 1.0f);
-                float left = DiffersBeyondAPixel(plain, after, 0.0f, 1.0f);
-                Debug.Log($"CityX portrait: once the fists were down {face * 100:0.0}% of the face band and {left * 100:0.0}% of the picture differ");
+                float face = DiffersBeyondAShift(plain, after, FaceBandBottom, 1.0f, FramingShift);
+                float left = DiffersBeyondAShift(plain, after, 0.0f, 1.0f, FramingShift);
+                float fistsFace = DiffersBeyondAShift(plain, fistsUp, FaceBandBottom, 1.0f, FramingShift);
+                Debug.Log($"CityX portrait: once the fists were down {face * 100:0.0}% of the face band and {left * 100:0.0}% of the picture differ " +
+                    $"(with them up {fistsFace * 100:0.0}% of the face band)");
+                Assert.Greater(fistsFace, 0.1f, "the raised fists hardly showed in the face band: the measure cannot tell them");
                 Assert.Less(face, 0.03f, $"the portrait once the fists were down still has them up ({face * 100:0.0}% of the face band differs)");
                 Assert.Less(left, fistsShow * 0.2f, $"the portrait once the fists were down is not the plain one ({left * 100:0.0}% differs)");
                 Object.Destroy(plain);

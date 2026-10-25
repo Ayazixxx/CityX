@@ -33,8 +33,8 @@ namespace CityX.Tests
             skyline.WorldSeed = Seed;
             skyline.Viewer = viewer;
             skyline.BuildAllAtStart = allAtStart;
-            skyline.GroundMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            skyline.StructureMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            skyline.GroundMaterial = new Material(CityX.Core.LitShader.Find());
+            skyline.StructureMaterial = new Material(CityX.Core.LitShader.Find());
             go.SetActive(true);
             return skyline;
         }

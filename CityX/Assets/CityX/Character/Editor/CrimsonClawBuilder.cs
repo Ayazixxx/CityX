@@ -169,7 +169,7 @@ namespace CityX.CharacterEditor
 
         private static Material BuildBodyMaterial()
         {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            Shader shader = CityX.Core.LitShader.Find();
             var material = new Material(shader) { name = "CrimsonClawBody" };
             material.SetColor("_BaseColor", BodyColor);
             material.SetFloat("_Smoothness", 0.35f);

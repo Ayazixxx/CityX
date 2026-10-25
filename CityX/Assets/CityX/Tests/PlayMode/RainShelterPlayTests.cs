@@ -83,7 +83,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator ASoakedAssetLeftOnDiskIsPutRightWhenTheGameLoads()
         {
-            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var material = new Material(CityX.Core.LitShader.Find());
             material.SetColor("_BaseColor", new Color(0.65f, 0.65f, 0.65f, 1.0f));   // as saved wet
             material.SetFloat("_Smoothness", 0.6f);
 
@@ -117,7 +117,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator DestroyingTheRainLeavesTheSharedGroundMaterialsDry()
         {
-            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var material = new Material(CityX.Core.LitShader.Find());
             Color dryColour = new Color(0.8f, 0.7f, 0.6f, 1.0f);
             material.SetColor("_BaseColor", dryColour);
             material.SetFloat("_Smoothness", 0.1f);

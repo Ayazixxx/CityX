@@ -135,7 +135,7 @@ namespace CityX.Tests
         [Test]
         public void EveryRendererDrawsTheHazeBeforePostProcessing()
         {
-            foreach (string path in HazeSetup.RendererPaths)
+            foreach (string path in FullScreenPassSetup.RendererPaths)
             {
                 var data = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(path);
                 Assert.IsNotNull(data, path);
