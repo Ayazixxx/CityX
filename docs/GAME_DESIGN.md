@@ -171,6 +171,39 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 - **One bar per weapon** (Elder Scrolls Online; my suggestion, not decided): switching weapons switches the bar. Weapon abilities need their weapon in hand; spells do not.
 - **Movement stays off the bar** (owner, 2026-10-14): Dash, Climb and Super Jump keep their own controls (double-tap Shift, hold Space). Whether later movement spells are meaningful enough for a slot is decided later.
 
+### Fighting styles and loadouts (2026-10-25)
+
+**The owner's decisions:**
+- Every player has **two loadouts: a primary and a secondary weapon**.
+- Your **specialization is your class**; a **hybrid** is a class mixing two fighting types (magic + swords, guns + swords).
+- You can **specialize in any fighting style**. Each weapon type climbs the rarity ladder (a grey baseball bat, then a green metal or wire bat, and so on), the same kind of progression for every type. Some types stop low (no legendary slingshot): you move up to another weapon that shares the skills and stats you built.
+- Skill tree **paths to specialize** in one weapon type (swords or scythes), and **skills that upgrade a whole group** (all two-handed melee, all two-handed ranged).
+- Late game: **so strong you dual wield weapons that were two-handed only** (two greatswords).
+- The owner's list of styles: one-handed guns (pistols, small SMGs), dual wield guns, two-handed guns (ARs, snipers, minigun), explosives, laser guns, bow and arrow, crossbow, slingshot, boomerang, one-handed melee (1H swords, knives, 1H axes, crowbar, metal pipe, baton), two-handed melee (2H swords, scythe, golf club, bo staff, 2H axes, baseball bat), dual wield melee, magic staffs, punching.
+- Unsure: whether dual wield is a skill unlocked on the tree.
+
+**My suggestions, not decided:**
+- **Three layers.** A **style** is a skill tree (what you specialize in; your top one or two make your class). A **moveset** is how a weapon is held and swung (its animations), shared by many items. An **item** is one model with a rarity and stats. Already how the game works: the crowbar uses the combat sword's moves, the bat the greatsword's.
+- **Each style has a full rarity ladder, not each item type**: the slingshot is the grey rung of Archery, and upgrading to a bow keeps every Archery skill. A style is decided by its skills (the crossbow fires bolts: Archery), a moveset by how it is held (the crossbow like a rifle). **Laser is not a style**: it is a high-rarity version inside other styles (laser pistol, laser sword, laser minigun). **Dual wield** is a branch of its one-handed style using the same items (two crowbars, two pistols).
+
+| Style | Branches | Example ladder |
+|---|---|---|
+| Brawler (punching) | Boxer, Grappler | fists, brass knuckles, gauntlets |
+| One-Handed Melee | Blades, Blunt, Knives, Dual Wield | butter knife or crowbar, combat knife or combat sword, laser sword |
+| Two-Handed Melee | Greatswords and Axes, Blunt, Reaper (scythe), Staff Fighting (bo staff) | bat, nail or wire bat, tactical greatsword, combat scythe, demon scythe |
+| Handguns | Gunslinger, Dual Pistols | Glock, Deagle, laser gun |
+| Long Guns | Assault (AR, SMG, shotgun), Marksman (snipers), Heavy (minigun) | AK-47, Dragunov, Barrett, minigun, laser minigun |
+| Explosives | Launchers, Grenades and Mines | grenade, RPG, RPG minigun |
+| Archery and Throwing | Bows, Crossbows, Throwing (boomerang, knives) | slingshot, longbow, compound bow or crossbow; plastic, wooden, steel boomerang |
+| Magic Weapons | Wands (1H), Staffs (2H) | magic wand, magic staff, flame, frost or arcane staff |
+
+  The element trees (Pyromancer and the rest) stay separate and work with any loadout; a staff makes them stronger. These styles replace the weapon trees in the "Trees" draft above.
+- **Three levels of upgrade**: a **stat** helps every weapon of its kind (Reload Speed for the crossbow and the AK alike); a **trunk skill** helps every weapon in one style ("Heavy Hands": two-handed melee hits harder and staggers longer, greatsword and scythe alike); a **branch skill** helps one weapon type ("Reaper's Pull": scythe sweeps drag enemies in). **Bridge skills** sit in the gap between two neighbouring trees and help both ("Steady Hands" between Long Guns and Archery: faster reloads, less sway with any two-handed ranged weapon). Trunk skills should change how you play where they can (new effects, modifiers), with plain percentages as the steps between.
+- **Damage stats by kind**: melee styles use Melee Damage; guns, explosives and archery Firearm Damage (perhaps renamed Ranged Damage); wands and staffs Spell Power. Switching weapons within a kind loses nothing.
+- **Dual wield is unlocked**: the first node of the Dual Wield branch (and Dual Pistols on Handguns). Before it, one weapon and a free off hand. A pair is one loadout (two crowbars are your primary).
+- **Titan's Grip** (World of Warcraft's Fury warriors dual wielded two-handed weapons): deep in the Two-Handed tree, needing many points there and the Dual Wield node; two greatswords at once. Its own moveset, so it is built late; balanced by more stamina per swing or no block.
+- **One moveset at a time**, finished properly: about 12 movesets cover every item on the rarity list, and a finished one makes each new item mostly a model and numbers. Order for the December goal (fists, sword, fire): one-handed melee (the combat sword), fists, fire magic, then the pistol, then two-handed. Skill tree branches come after a moveset feels good.
+
 ## God-tier spells
 
 One holder per world: a flood, meteors, an Almighty Push, a zombie horde, a giant transformation or summon. Modelled on Lineage 2's Cursed Swords (one per server; the world goes red when one appears; the holder is hunted).
