@@ -86,11 +86,11 @@ namespace CityX.Tests
         public IEnumerator TheJeansHideTheLegsUnderThemAndGiveThemBackWhenTakenOff()
         {
             Mesh whole = _skin.sharedMesh;
-            _jeans.GetComponent<BlackJeans>().OnEquip(_player, ItemInstanceData.None);
+            _jeans.GetComponent<CityX.Wearables.Jeans>().OnEquip(_player, ItemInstanceData.None);
             yield return null;
             Assert.AreNotSame(whole, _skin.sharedMesh, "the legs under the jeans are still drawn");
             Assert.Greater(DrawnTriangles, whole.triangles.Length / 3 / 2, "the jeans hide more of the body than they cover");
-            _jeans.GetComponent<BlackJeans>().OnUnequip(_player);
+            _jeans.GetComponent<CityX.Wearables.Jeans>().OnUnequip(_player);
             _jeans = null;
             yield return null;
             Assert.AreSame(whole, _skin.sharedMesh, "taking the jeans off did not give the whole body back");
@@ -100,7 +100,7 @@ namespace CityX.Tests
         public IEnumerator WornWithAShirtBothHideTheirPartAndEitherComesOffFirst([Values(true, false)] bool shirtOffFirst)
         {
             Mesh whole = _skin.sharedMesh;
-            var jeans = _jeans.GetComponent<BlackJeans>();
+            var jeans = _jeans.GetComponent<CityX.Wearables.Jeans>();
             var shirt = _shirt.GetComponent<TShirt>();
             jeans.OnEquip(_player, ItemInstanceData.None);
             int jeansOnly = DrawnTriangles;
@@ -130,7 +130,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator ThroughASprintTheJeansStayOnTheLegs()
         {
-            _jeans.GetComponent<BlackJeans>().OnEquip(_player, ItemInstanceData.None);
+            _jeans.GetComponent<CityX.Wearables.Jeans>().OnEquip(_player, ItemInstanceData.None);
             var locomotion = _player.GetComponent<PlayerLocomotion>();
             Animator animator = _player.GetComponentInChildren<Animator>();
             Transform[] ankles = { animator.GetBoneTransform(HumanBodyBones.LeftFoot), animator.GetBoneTransform(HumanBodyBones.RightFoot) };

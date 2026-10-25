@@ -18,6 +18,9 @@ namespace CityX.Items
         public const string LongSleeveTShirt = "long_sleeve_t_shirt";
         public const string BlackLongSleeveTShirt = "black_long_sleeve_t_shirt";
         public const string BlackJeans = "black_jeans";
+        public const string BlueJeans = "blue_jeans";
+        public const string BredJeans = "bred_jeans";
+        public const string MaroonJeans = "maroon_jeans";
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
@@ -47,8 +50,11 @@ namespace CityX.Items
             [LongSleeveTShirt] = new ItemDefinition(LongSleeveTShirt, "Long Sleeve T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [BlackLongSleeveTShirt] = new ItemDefinition(BlackLongSleeveTShirt, "Black Long Sleeve T-Shirt", ItemDefinition.WearableCategory,
                 EquipSlots.Torso, 1),
-            // Black denim jeans: the owner's cut of a Meshy model, fitted to this body (Wearables/BlackJeans).
+            // Denim jeans: the owner's cut of a Meshy model, fitted to this body (Wearables/Jeans), in black, blue, black-and-red and maroon.
             [BlackJeans] = new ItemDefinition(BlackJeans, "Black Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
+            [BlueJeans] = new ItemDefinition(BlueJeans, "Blue Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
+            [BredJeans] = new ItemDefinition(BredJeans, "Bred Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
+            [MaroonJeans] = new ItemDefinition(MaroonJeans, "Maroon Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", EquipSlots.Primary, 1),
             [Pistol] = new ItemDefinition(Pistol, "Pistol", "weapon", EquipSlots.Primary, 1),
             // The jetpack and the parachute share the back slot: worn with a coat, never with each other (which would Space work?).

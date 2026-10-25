@@ -21,9 +21,31 @@ namespace CityX.Tests
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/BlackJeans.prefab");
             Assert.IsNotNull(prefab, "no BlackJeans.prefab: rebuild the scene (CityMassingSceneBuilder)");
-            var jeans = prefab.GetComponent<BlackJeans>();
+            var jeans = prefab.GetComponent<CityX.Wearables.Jeans>();
             Assert.IsNotNull(jeans.GarmentMesh, "the jeans have no mesh");
             return jeans;
+        }
+
+        /// <summary>The other colours (owner, 2026-10-25): the same pair, each its own item, name and texture.</summary>
+        [TestCase("BlueJeans", ItemRegistry.BlueJeans, "Blue Jeans")]
+        [TestCase("BredJeans", ItemRegistry.BredJeans, "Bred Jeans")]
+        [TestCase("MaroonJeans", ItemRegistry.MaroonJeans, "Maroon Jeans")]
+        public void EveryColourIsTheSamePairWithItsOwnItemAndTexture(string prefabName, string itemId, string displayName)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefabName}.prefab");
+            Assert.IsNotNull(prefab, $"no {prefabName}.prefab: rebuild the scene (CityMassingSceneBuilder)");
+            var pair = prefab.GetComponent<CityX.Wearables.Jeans>();
+            Assert.AreEqual(itemId, pair.ItemId);
+            Assert.IsTrue(ItemRegistry.TryGet(itemId, out ItemDefinition item));
+            Assert.AreEqual(displayName, item.DisplayName);
+            Assert.AreEqual(EquipSlots.Legs, item.EquipSlot);
+            SkinnedGarment black = Jeans();
+            Assert.AreSame(black.GarmentMesh, pair.GarmentMesh, "each colour should share the one mesh");
+            Texture map = pair.GarmentMaterial.GetTexture("_BaseMap");
+            Assert.IsNotNull(map);
+            Assert.AreNotSame(black.GarmentMaterial.GetTexture("_BaseMap"), map, "the colour wears the black pair's texture");
+            Assert.LessOrEqual(map.width, MapSizeLimit);
+            Assert.AreEqual(black.HiddenBodyTriangles, pair.HiddenBodyTriangles, "each colour should hide the same body");
         }
 
         private static int Index(HumanBodyBones bone) => System.Array.IndexOf(SkinnedGarment.Bones, bone);

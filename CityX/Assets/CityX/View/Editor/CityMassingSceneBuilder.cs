@@ -239,7 +239,10 @@ namespace CityX.ViewEditor
             GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
             GameObject midnightCoatPrefab = CityX.WearablesEditor.MidnightCoatBuilder.Build();
             GameObject tShirtPrefab = CityX.WearablesEditor.TShirtBuilder.Build();
-            GameObject blackJeansPrefab = CityX.WearablesEditor.BlackJeansBuilder.Build();
+            GameObject blackJeansPrefab = CityX.WearablesEditor.JeansBuilder.Build();
+            GameObject blueJeansPrefab = CityX.WearablesEditor.JeansBuilder.BuildBlue();
+            GameObject bredJeansPrefab = CityX.WearablesEditor.JeansBuilder.BuildBred();
+            GameObject maroonJeansPrefab = CityX.WearablesEditor.JeansBuilder.BuildMaroon();
             GameObject bloodRavenTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildBloodRaven();
             GameObject redCamoTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildRedCamo();
             GameObject blackTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildBlack();
@@ -441,6 +444,12 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.TShirt, Prefab = tShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.BlackJeans, Prefab = blackJeansPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.BlueJeans, Prefab = blueJeansPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.BredJeans, Prefab = bredJeansPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.MaroonJeans, Prefab = maroonJeansPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.BloodRavenTShirt, Prefab = bloodRavenTShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

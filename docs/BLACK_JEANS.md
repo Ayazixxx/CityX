@@ -12,6 +12,25 @@ make adjustments if needed". Spawn them with `/spawn jeans` (or `black_jeans`), 
   under the jeans, the waistband's inside and the hems' edges, repainted denim): `black_jeans_color.jpg`, 2048, 232 KB. The game takes it at
   1024 (77 KB): `tools/model_qa.py` warns past 1024, and the stitching still reads.
 
+## Other colours (2026-10-25)
+
+Owner: "get the textures from these two and add them as wearable jeans options ingame. item names "Blue Jeans" and "Bred Jeans"", then "do
+the same process with this one too call it maroon jeans", and "keep them at a reasonable file size while trying to maintain the design".
+
+- Meshy's retextures of the same "Blank Avatar in Jeans" (same figure, same place, each with its own UV layout).
+  `SourceArt/BlackJeans/jeans_colour_bake.py` bakes each one's colour onto the owner's cut (Cycles, selected to active, 3 cm reach). Faces
+  that caught the mannequin's grey skin (60% of their texels pale and colourless: the waistband's inside, the hems' edges) are painted the
+  denim's median colour, and white stitching inside a face is kept. The pieces are grown 12 texels into the empty map, and the rest is filled
+  flat (seams stay clean in the 1024 copy, and flat costs the file nothing).
+- `blue_jeans_color.jpg`, `bred_jeans_color.jpg`, `maroon_jeans_color.jpg` (2048), then `black_jeans_build.py` for the game's 1024 copy
+  (its JSON comes out byte for byte the Black Jeans' mesh, so only the picture is kept): BlueJeans.jpg 297 KB (the fine twill weave),
+  BredJeans.jpg 140 KB, MaroonJeans.jpg 55 KB. In video memory each is the same compressed 1024 map as the Black Jeans'.
+- One garment, `Jeans` (was `BlackJeans`, renamed with its GUID), with its item id serialized like the T-shirt's. `JeansBuilder` (was
+  `BlackJeansBuilder`, menu CityX > Rebuild Jeans) builds the four prefabs on the one mesh: items `black_jeans`, `blue_jeans`, `bred_jeans`,
+  `maroon_jeans`. `/spawn bluejeans`, `bredjeans`, `maroonjeans`. Other players see them (`NetworkedPlayerWiring`).
+- Tests: `BlackJeansTests.EveryColourIsTheSamePairWithItsOwnItemAndTexture`. `BlackJeansCapture.RenderEveryColour` writes
+  `jeans-<blue|bred|maroon>-<front|behind|threequarter>.png`.
+
 ## How they are built
 
 | Step | Where | What |

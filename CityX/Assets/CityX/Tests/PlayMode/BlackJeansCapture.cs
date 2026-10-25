@@ -116,5 +116,56 @@ namespace CityX.Tests
             yield break;
 #endif
         }
+
+        /// <summary>The other colours (2026-10-25), each worn alone, standing: jeans-&lt;colour&gt;-front / -behind / -threequarter.</summary>
+        [UnityTest]
+        public IEnumerator RenderEveryColour()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            LogAssert.ignoreFailingMessages = true;
+            Time.captureFramerate = 60;
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            ground.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
+            var sunObject = new GameObject("Sun");
+            Light sun = sunObject.AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.intensity = 1.3f;
+            sun.transform.rotation = Quaternion.Euler(40.0f, -30.0f, 0.0f);
+            var camera = new GameObject("Cam").AddComponent<Camera>();
+            camera.fieldOfView = 30.0f;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
+            foreach (string colour in new[] { "Blue", "Bred", "Maroon" })
+            {
+                GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
+                    new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+                player.GetComponent<PlayerInputReader>().enabled = false;
+                var locomotion = player.GetComponent<PlayerLocomotion>();
+                GameObject worn = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{colour}Jeans.prefab"),
+                    new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
+                worn.GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);
+                for (int i = 0; i < 90; i++)
+                {
+                    locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+                    yield return null;
+                }
+                Vector3 hips = player.transform.position + Vector3.up * 0.75f;
+                string name = "jeans-" + colour.ToLowerInvariant();
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, name + "-front", hips + new Vector3(0.0f, 0.3f, 7.0f), hips);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, name + "-behind", hips + new Vector3(0.0f, 0.5f, -7.0f), hips);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, name + "-threequarter", hips + new Vector3(5.0f, 1.5f, 5.0f), hips);
+                Object.Destroy(player);
+                Object.Destroy(worn);
+                yield return null;
+            }
+            Object.Destroy(camera.gameObject);
+            Object.Destroy(ground);
+            Object.Destroy(sunObject);
+#else
+            yield break;
+#endif
+        }
     }
 }
