@@ -644,8 +644,8 @@ namespace CityX.Character
                 }
 
                 // A target with vitals of its own (a player, a swordsman) shows its own wound (HitImpactEffects, on every machine); anything
-                // else bleeds here, out of the wound away from the fist. Nothing bleeds off a blocked hit.
-                if (!(contact.Target is PlayerVitals))
+                // else bleeds here, out of the wound away from the fist. Nothing bleeds off a blocked hit, or out of a ghost.
+                if (!(contact.Target is PlayerVitals) && !(contact.Target is IBloodless))
                 {
                     BloodBurst.Spawn(contact.Point, contact.Point - origin, 1.0f);
                 }
@@ -718,7 +718,7 @@ namespace CityX.Character
                 _vitals?.AddXp(xpSource.XpReward);
             }
 
-            if (response != HitResponse.Blocked && response != HitResponse.Guarded && !(target is PlayerVitals))
+            if (response != HitResponse.Blocked && response != HitResponse.Guarded && !(target is PlayerVitals) && !(target is IBloodless))
             {
                 BloodBurst.Spawn(contactPoint, contactPoint - SwingOrigin(), 1.0f);
             }
@@ -787,7 +787,7 @@ namespace CityX.Character
                 {
                     _vitals?.AddXp(xpSource.XpReward);
                 }
-                if (response != HitResponse.Blocked && !(contact.Target is PlayerVitals))
+                if (response != HitResponse.Blocked && !(contact.Target is PlayerVitals) && !(contact.Target is IBloodless))
                 {
                     BloodBurst.Spawn(contact.Point, contact.Point - origin, 1.0f);
                 }

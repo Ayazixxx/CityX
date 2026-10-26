@@ -191,6 +191,24 @@ namespace CityX.CharacterEditor
                 BodyRig.ShapePositionOf, FusedBodyShape.ReferenceHeight);
         }
 
+        /// <summary>
+        /// The skin's bones in the order the fused body is bound to them (FusedBodyBuilder, and so its mesh's bone weights and bind poses):
+        /// each bone the first time <see cref="Segments"/> names it. Anything that reads the body mesh's weights (what a garment hides, a
+        /// ghost made from the body) counts bones in this order.
+        /// </summary>
+        public static List<HumanBodyBones> SkinBoneOrder()
+        {
+            var order = new List<HumanBodyBones>();
+            foreach (FusedBodyShape.Segment segment in Segments())
+            {
+                if (!order.Contains(segment.Bone))
+                {
+                    order.Add(segment.Bone);
+                }
+            }
+            return order;
+        }
+
         /// <summary>The body's SHAPE, one capsule per limb -- see FusedBodyShape.LimbCapsules' own comment for why this is not Segments().</summary>
         public static List<FusedBodyShape.Segment> LimbCapsules()
         {

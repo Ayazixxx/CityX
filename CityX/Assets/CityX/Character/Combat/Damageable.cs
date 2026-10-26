@@ -75,6 +75,14 @@ namespace CityX.Character
         void TakePoison(float amount);
     }
 
+    /// <summary>
+    /// Optional marker for something IDamageable that does not bleed: no blood bursts from a blow on it. A ghost (the Wraith) is smoke, and
+    /// red blood spraying from it would break its look. Anything else bleeds, as it always has.
+    /// </summary>
+    public interface IBloodless
+    {
+    }
+
     /// <summary>What a target did with a hit.</summary>
     public enum HitResponse
     {

@@ -1044,7 +1044,7 @@ namespace CityX.Weapons
                         {
                             shooter.AddXp(reward.XpReward);
                         }
-                        if (!(damageable is PlayerVitals))
+                        if (!(damageable is PlayerVitals) && !(damageable is IBloodless))
                         {
                             BloodBurst.Spawn(hit.point, hit.point - origin, 0.6f);   // a body with vitals shows its own wound (HitImpactEffects)
                         }

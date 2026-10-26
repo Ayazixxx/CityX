@@ -46,15 +46,7 @@ namespace CityX.WearablesEditor
                 Debug.LogError($"CityX: no body at {BodyMeshPath} -- rebuild the scene first; the body under {garment.name} stays whole.");
                 return null;
             }
-            // The body's bone order is FusedBodyBuilder's: each bone the first time BodyRigBuilder.Segments names it.
-            var order = new List<HumanBodyBones>();
-            foreach (FusedBodyShape.Segment segment in BodyRigBuilder.Segments())
-            {
-                if (!order.Contains(segment.Bone))
-                {
-                    order.Add(segment.Bone);
-                }
-            }
+            List<HumanBodyBones> order = BodyRigBuilder.SkinBoneOrder();
             HashSet<int> alwaysIndex = Indices(order, always);
             HashSet<int> withinIndex = Indices(order, alwaysWithin);
             HashSet<int> hideableIndex = Indices(order, hideable);

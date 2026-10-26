@@ -291,6 +291,10 @@ namespace CityX.ViewEditor
             // --- the swordsman (2026-10-17): the player's own body, slate blue, with the combat sword and a duelist's mind. After the player rig
             // --- and the combat sword; spawned only by /spawn swordsman.
             CityX.WeaponsEditor.SwordsmanBuilder.Build();
+
+            // --- the Wraith (2026-10-26): a ghost made of the player's body from the hips up, trailing off into smoke. After the player rig,
+            // --- whose body and skull it is cut from; spawned only by /spawn wraith.
+            CityX.CharacterEditor.WraithBuilder.Build();
             if (playerPrefab != null)
             {
                 GameObject player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);

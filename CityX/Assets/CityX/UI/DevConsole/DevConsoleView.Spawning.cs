@@ -114,6 +114,17 @@ namespace CityX.UI
                     SpawnLog("spawned a crimson claw -- it will chase and attack you");
                     return true;
 
+                case "wraith":
+                    if (WraithPrefab == null)
+                    {
+                        Log("no wraith prefab wired");
+                        return false;
+                    }
+                    // At its hover height already: it eases onto it over the real ground from there.
+                    Instantiate(WraithPrefab, where + Vector3.up * WraithDrift.HoverHeight, facing);
+                    SpawnLog("spawned a Wraith -- it floats about; its sneaking up and its bite come later");
+                    return true;
+
                 case "shoota":
                     if (ShootaPrefab == null)
                     {

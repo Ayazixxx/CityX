@@ -256,6 +256,9 @@ Minecraft Factions, in the city.
 - **Most are humanoid**, built on the player body (civilians already are). An enemy = **look** (paint, outfit, size) + **loadout** (the same abilities players unlock) + **stats** + **brain**. A new enemy is a settings file, not new code, and enemies hint at what a zone teaches.
 - **About six reusable brains:** brawler, duelist, caster, gunner, summoner, ambusher.
 - **Non-humanoid monsters** (like the Crimson Claw) are reserved for bosses and each zone's signature creature.
+- **The first real enemy: the Wraith** (2026-10-26, `docs/WRAITH.md`): a low-level ghost, the player's upper body turning to smoke, that
+  floats about, dies in two punches, and will sneak up and bite for heavy damage (the bite is not built yet). The swordsman, the Shoota and
+  the Crimson Claw remain testers.
 - Needs: enemy syncing across players (not built), animation LOD for crowds.
 
 ## Loot, refills and repairs (owner, 2026-10-22)
