@@ -21,6 +21,7 @@ namespace CityX.Items
         public const string BlueJeans = "blue_jeans";
         public const string BredJeans = "bred_jeans";
         public const string MaroonJeans = "maroon_jeans";
+        public const string Khakis = "khakis";
         public const string WhiteSneaker = "white_sneaker";
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
@@ -51,11 +52,12 @@ namespace CityX.Items
             [LongSleeveTShirt] = new ItemDefinition(LongSleeveTShirt, "Long Sleeve T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [BlackLongSleeveTShirt] = new ItemDefinition(BlackLongSleeveTShirt, "Black Long Sleeve T-Shirt", ItemDefinition.WearableCategory,
                 EquipSlots.Torso, 1),
-            // Denim jeans: the owner's cut of a Meshy model, fitted to this body (Wearables/Jeans), in black, blue, black-and-red and maroon.
+            // Denim jeans: the owner's cut of a Meshy model, fitted to this body (Wearables/Jeans), in black, blue, black-and-red, maroon and khaki.
             [BlackJeans] = new ItemDefinition(BlackJeans, "Black Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
             [BlueJeans] = new ItemDefinition(BlueJeans, "Blue Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
             [BredJeans] = new ItemDefinition(BredJeans, "Bred Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
             [MaroonJeans] = new ItemDefinition(MaroonJeans, "Maroon Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
+            [Khakis] = new ItemDefinition(Khakis, "Khakis", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
             // A pair of chunky white sneakers: the owner's trim of a Meshy model, each shoe on its foot (Wearables/Shoes).
             [WhiteSneaker] = new ItemDefinition(WhiteSneaker, "White Sneaker", ItemDefinition.WearableCategory, EquipSlots.Shoes, 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", EquipSlots.Primary, 1),

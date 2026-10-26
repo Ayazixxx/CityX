@@ -29,7 +29,9 @@ the same process with this one too call it maroon jeans", and "keep them at a re
   `BlackJeansBuilder`, menu CityX > Rebuild Jeans) builds the four prefabs on the one mesh: items `black_jeans`, `blue_jeans`, `bred_jeans`,
   `maroon_jeans`. `/spawn bluejeans`, `bredjeans`, `maroonjeans`. Other players see them (`NetworkedPlayerWiring`).
 - Tests: `BlackJeansTests.EveryColourIsTheSamePairWithItsOwnItemAndTexture`. `BlackJeansCapture.RenderEveryColour` writes
-  `jeans-<blue|bred|maroon>-<front|behind|threequarter>.png`.
+  `jeans-<blue|bred|maroon|khakis>-<front|behind|threequarter>.png`.
+- **Khakis** (2026-10-26). Owner: "add these as a colorway for the jeans and call the items "Khakis"". Meshy's tan cotton retexture of the
+  same figure, through the same two steps: `khakis_color.jpg` (2048), then `Khakis.jpg` (1024, 74 KB). Item `khakis`, `/spawn khakis`.
 
 ## How they are built
 

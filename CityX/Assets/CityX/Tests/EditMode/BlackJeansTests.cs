@@ -30,6 +30,7 @@ namespace CityX.Tests
         [TestCase("BlueJeans", ItemRegistry.BlueJeans, "Blue Jeans")]
         [TestCase("BredJeans", ItemRegistry.BredJeans, "Bred Jeans")]
         [TestCase("MaroonJeans", ItemRegistry.MaroonJeans, "Maroon Jeans")]
+        [TestCase("Khakis", ItemRegistry.Khakis, "Khakis")]
         public void EveryColourIsTheSamePairWithItsOwnItemAndTexture(string prefabName, string itemId, string displayName)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefabName}.prefab");

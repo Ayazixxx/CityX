@@ -117,7 +117,8 @@ namespace CityX.Tests
 #endif
         }
 
-        /// <summary>The other colours (2026-10-25), each worn alone, standing: jeans-&lt;colour&gt;-front / -behind / -threequarter.</summary>
+        /// <summary>The other colours (2026-10-25, the khakis 2026-10-26), each worn alone, standing: jeans-&lt;colour&gt;-front / -behind /
+        /// -threequarter.</summary>
         [UnityTest]
         public IEnumerator RenderEveryColour()
         {
@@ -137,13 +138,13 @@ namespace CityX.Tests
             camera.fieldOfView = 30.0f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
-            foreach (string colour in new[] { "Blue", "Bred", "Maroon" })
+            foreach (string prefab in new[] { "BlueJeans", "BredJeans", "MaroonJeans", "Khakis" })
             {
                 GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                     new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
                 player.GetComponent<PlayerInputReader>().enabled = false;
                 var locomotion = player.GetComponent<PlayerLocomotion>();
-                GameObject worn = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{colour}Jeans.prefab"),
+                GameObject worn = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefab}.prefab"),
                     new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
                 worn.GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);
                 for (int i = 0; i < 90; i++)
@@ -152,7 +153,7 @@ namespace CityX.Tests
                     yield return null;
                 }
                 Vector3 hips = player.transform.position + Vector3.up * 0.75f;
-                string name = "jeans-" + colour.ToLowerInvariant();
+                string name = "jeans-" + prefab.Replace("Jeans", "").ToLowerInvariant();
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, name + "-front", hips + new Vector3(0.0f, 0.3f, 7.0f), hips);
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, name + "-behind", hips + new Vector3(0.0f, 0.5f, -7.0f), hips);
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, name + "-threequarter", hips + new Vector3(5.0f, 1.5f, 5.0f), hips);

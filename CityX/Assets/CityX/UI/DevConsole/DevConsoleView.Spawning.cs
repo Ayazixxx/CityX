@@ -257,6 +257,8 @@ namespace CityX.UI
                 case "bredjeans": return ItemRegistry.BredJeans;
                 case "maroon_jeans":
                 case "maroonjeans": return ItemRegistry.MaroonJeans;
+                case "khakis":
+                case "khaki": return ItemRegistry.Khakis;
                 case "sneaker":
                 case "sneakers":
                 case "white_sneaker":

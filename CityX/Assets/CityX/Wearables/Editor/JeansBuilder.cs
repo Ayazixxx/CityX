@@ -7,9 +7,10 @@ namespace CityX.WearablesEditor
 {
     /// <summary>
     /// Builds the jeans: the owner's cut of Meshy's jeans, fitted to this body (SourceArt/BlackJeans/BlackJeans.glb, black_jeans_fit.py) and
-    /// skinned in Blender by black_jeans_build.py into Models/BlackJeans.json, one pair in three colours, each its own 1024 map: the Black Jeans
-    /// (BlackJeans.jpg), the Blue, Bred and Maroon Jeans (owner, 2026-10-25; Meshy's retextures of the same figure baked onto the cut by
-    /// SourceArt/BlackJeans/jeans_colour_bake.py). To refit them, move them in Blender, export over BlackJeans.glb and run the build again.
+    /// skinned in Blender by black_jeans_build.py into Models/BlackJeans.json, one pair in several colours, each its own 1024 map: the Black
+    /// Jeans (BlackJeans.jpg), then the Blue, Bred and Maroon Jeans (owner, 2026-10-25) and the Khakis (2026-10-26), Meshy's retextures of the
+    /// same figure baked onto the cut by SourceArt/BlackJeans/jeans_colour_bake.py. To refit them, move them in Blender, export over
+    /// BlackJeans.glb and run the build again.
     /// </summary>
     public static class JeansBuilder
     {
@@ -17,6 +18,7 @@ namespace CityX.WearablesEditor
         public const string BluePrefabPath = "Assets/CityX/Wearables/BlueJeans.prefab";
         public const string BredPrefabPath = "Assets/CityX/Wearables/BredJeans.prefab";
         public const string MaroonPrefabPath = "Assets/CityX/Wearables/MaroonJeans.prefab";
+        public const string KhakisPrefabPath = "Assets/CityX/Wearables/Khakis.prefab";
         private const string SourcePath = "Assets/CityX/Wearables/Models/BlackJeans.json";
         private const string MeshPath = "Assets/CityX/Wearables/BlackJeansMesh.asset";
 
@@ -60,6 +62,7 @@ namespace CityX.WearablesEditor
             BuildBlue();
             BuildBred();
             BuildMaroon();
+            BuildKhakis();
         }
 
         /// <summary>The Black Jeans (the pair's own mesh is made here; the other colours reuse it).</summary>
@@ -70,6 +73,8 @@ namespace CityX.WearablesEditor
         public static GameObject BuildBred() => Save("BredJeans", BredPrefabPath, ItemRegistry.BredJeans, bakeMesh: false);
 
         public static GameObject BuildMaroon() => Save("MaroonJeans", MaroonPrefabPath, ItemRegistry.MaroonJeans, bakeMesh: false);
+
+        public static GameObject BuildKhakis() => Save("Khakis", KhakisPrefabPath, ItemRegistry.Khakis, bakeMesh: false);
 
         private static GameObject Save(string name, string prefabPath, string itemId, bool bakeMesh)
         {
