@@ -138,7 +138,7 @@ namespace CityX.Tests
             camera.fieldOfView = 30.0f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
-            foreach (string prefab in new[] { "BlueJeans", "BredJeans", "MaroonJeans", "Khakis" })
+            foreach (string prefab in new[] { "BlueJeans", "BredJeans", "MaroonJeans", "Khakis", "GreyJeans" })
             {
                 GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                     new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);

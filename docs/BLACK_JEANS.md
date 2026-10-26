@@ -32,6 +32,8 @@ the same process with this one too call it maroon jeans", and "keep them at a re
   `jeans-<blue|bred|maroon|khakis>-<front|behind|threequarter>.png`.
 - **Khakis** (2026-10-26). Owner: "add these as a colorway for the jeans and call the items "Khakis"". Meshy's tan cotton retexture of the
   same figure, through the same two steps: `khakis_color.jpg` (2048), then `Khakis.jpg` (1024, 74 KB). Item `khakis`, `/spawn khakis`.
+- **Grey Jeans** (2026-10-26). Owner: "Make a grey Jeans Item with this texture". The same two steps: `grey_jeans_color.jpg`, then
+  `GreyJeans.jpg` (1024, 302 KB: the weave, like the blue). Item `grey_jeans`, `/spawn greyjeans`.
 
 ## How they are built
 
