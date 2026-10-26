@@ -96,7 +96,7 @@ namespace CityX.Wearables
             _bodySkin = skin != null ? skin.GetComponent<SkinnedMeshRenderer>() : null;
             if (_bodySkin != null)
             {
-                WornBodyCover.Hide(_bodySkin, this, HiddenBodyTriangles, HiddenFromBodyTriangles);
+                WornBodyCover.HideUnderShoes(_bodySkin, this, HiddenBodyTriangles, HiddenFromBodyTriangles);
             }
         }
 

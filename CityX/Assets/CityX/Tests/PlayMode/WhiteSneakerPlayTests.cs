@@ -117,6 +117,37 @@ namespace CityX.Tests
             yield return null;
         }
 
+        /// <summary>
+        /// Owner, 2026-10-26: "when pants and shoes are being worn you can make the feet underneath invisible, when i jump a bit of the skin
+        /// pokes through the shoes model". In jeans and shoes, put on in either order, no skin is drawn below the knees: all of it is in the
+        /// jeans' legs or in the shoes (bare-footed, the jeans leave the ankles under their hems drawn).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator InJeansAndShoesNoSkinIsDrawnBelowTheKnees([Values(true, false)] bool shoesFirst)
+        {
+            GameObject jeansObject = Spawn("BlackJeans", new Vector3(-30.0f, 0.5f, 30.0f));
+            var jeans = jeansObject.GetComponent<Jeans>();
+            var shoes = _sneakers.GetComponent<Shoes>();
+            foreach (IEquippableItem item in shoesFirst ? new IEquippableItem[] { shoes, jeans } : new IEquippableItem[] { jeans, shoes })
+            {
+                item.OnEquip(_player, ItemInstanceData.None);
+            }
+            yield return null;
+            Mesh drawn = _skin.sharedMesh;
+            Vector3[] rest = drawn.vertices;
+            int[] triangles = drawn.triangles;
+            float knee = Mathf.Lerp(BodyRig.HipY, BodyRig.FootY, BodyRig.KneeT);
+            int below = 0;
+            for (int t = 0; t < triangles.Length; t += 3)
+            {
+                float centre = (rest[triangles[t]].y + rest[triangles[t + 1]].y + rest[triangles[t + 2]].y) / 3.0f;
+                below += centre < knee ? 1 : 0;
+            }
+            Assert.AreEqual(0, below, "in jeans and shoes, skin is still drawn below the knees");
+            jeans.OnUnequip(_player);
+            yield return null;
+        }
+
         [UnityTest]
         public IEnumerator StandingTheSolesRestOnTheGround()
         {

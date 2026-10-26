@@ -89,12 +89,17 @@ namespace CityX.WearablesEditor
             float ankle = mesh.bounds.min.y + AnkleShownOverHem;
             byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
                 new Bounds(), out int bodyTriangles, centre => centre.y > waistband || centre.y < ankle);
+            // In shoes the ankles under the hems go too: the shoes cover them, and a jump pointing the feet brought their skin out through the
+            // shoes (owner, 2026-10-26: "when pants and shoes are being worn you can make the feet underneath invisible").
+            byte[] withShoes = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
+                new Bounds(), out _, centre => centre.y > waistband);
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<Jeans>(
                 mesh, material, prefabPath, name, GroundScale, GroundPitchDegrees, GroundLift,
                 jeans =>
                 {
                     jeans.SetItemId(itemId);
                     jeans.HiddenBodyTriangles = hidden;
+                    jeans.HiddenBodyTrianglesWithShoes = withShoes;
                     jeans.HiddenFromBodyTriangles = bodyTriangles;
                 });
             if (saved != null)

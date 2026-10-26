@@ -92,6 +92,27 @@ namespace CityX.Tests
                 BuildingShapeCapture.Shoot(camera, folder, $"sneaker-{name}-front", feet + ahead * 3.2f + Vector3.up * 0.5f, feet);
             }
 
+            // A jump from standing, on the way up and near the top: the feet point down (owner, 2026-10-26: skin poked through the shoes).
+            for (int i = 0; i < 60; i++)
+            {
+                locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+                yield return null;
+            }
+            locomotion.Tick(new LocomotionInput { Jump = true }, 1.0f / 60.0f);
+            yield return null;
+            foreach ((string name, int frames) in new[] { ("jump1", 8), ("jump2", 10) })
+            {
+                for (int i = 0; i < frames; i++)
+                {
+                    locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+                    yield return null;
+                }
+                feet = player.transform.position + Vector3.up * 0.3f;
+                BuildingShapeCapture.Shoot(camera, folder, $"sneaker-{name}-side", feet + player.transform.right * 3.2f + Vector3.up * 0.3f, feet);
+                BuildingShapeCapture.Shoot(camera, folder, $"sneaker-{name}-front", feet + player.transform.forward * 3.2f + Vector3.up * 0.5f,
+                    feet);
+            }
+
             Object.Destroy(player);
             Object.Destroy(camera.gameObject);
             Object.Destroy(ground);

@@ -33,7 +33,7 @@ skinned like the jeans.
 | Item | `ItemRegistry.WhiteSneaker` (`white_sneaker`, shoes slot) | a wearable, kept on the character and shown on the select screen |
 | Prefab | `Wearables/Editor/WhiteSneakerBuilder.cs` (menu CityX > Rebuild Sneakers, and with the scene) | splits the glb by side (left foot on -x), bakes each shoe into its foot bone's frame as the body's skin is bound to it (`BodyRig.RestBindMatrix`) |
 | Wearing | `Wearables/Shoes.cs` | hangs each shoe on its foot bone with no offset, the pair's root on the body |
-| Body under them | `BodyUnderGarment.HiddenTriangles`, `WornBodyCover` | the feet always hidden, the ankles where the collars cover them; unioned with what other clothes hide |
+| Body under them | `BodyUnderGarment.HiddenTriangles`, `WornBodyCover` | the feet always hidden, the ankles where the collars cover them; unioned with what other clothes hide; in shoes the jeans hide the ankles under their hems too (docs/BLACK_JEANS.md) |
 | Pickup | `Wearables/GroundWearable.cs` | the E pickup, shared with the hats and helmets (`HeadWearable` derives from it too) |
 | Other players | `ICosmeticMountable`, `NetworkedPlayerWiring` | a copy of the wearer puts them on its own feet the same way |
 

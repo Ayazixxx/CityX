@@ -8,16 +8,36 @@ namespace CityX.Wearables
     /// hidden triangles (BodyCover), so a shirt and jeans worn together both cut theirs, and taking them off in any order gives back exactly
     /// what the rest still cover. With none worn the whole body is back, and the next garment put on takes the body as it then is. A garment
     /// here is anything worn that hides skin: the skinned clothes, and the shoes (rigid, on the feet: Shoes).
+    ///
+    /// With shoes on, a garment hides what it hides then instead (the jeans: the ankles under their hems as well, which they leave drawn for
+    /// bare feet; in shoes that skin poked through the shoes when a jump pointed the feet, owner 2026-10-26).
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class WornBodyCover : MonoBehaviour
     {
         private SkinnedMeshRenderer _skin;
         private Mesh _whole;
-        private readonly Dictionary<Object, (byte[] mask, int madeForTriangles)> _worn = new Dictionary<Object, (byte[], int)>();
+        private readonly Dictionary<Object, (byte[] mask, byte[] withShoes, int madeForTriangles, bool shoes)> _worn =
+            new Dictionary<Object, (byte[], byte[], int, bool)>();
 
-        /// <summary><paramref name="garment"/>'s hidden triangles no longer drawn on <paramref name="skin"/>.</summary>
-        public static void Hide(SkinnedMeshRenderer skin, Object garment, byte[] mask, int madeForTriangles)
+        /// <summary>
+        /// <paramref name="garment"/>'s hidden triangles no longer drawn on <paramref name="skin"/>; <paramref name="withShoes"/> instead while
+        /// shoes are worn too (none: the same).
+        /// </summary>
+        public static void Hide(SkinnedMeshRenderer skin, Object garment, byte[] mask, int madeForTriangles, byte[] withShoes = null)
+        {
+            Wear(skin, garment, (mask, withShoes, madeForTriangles, false));
+        }
+
+        /// <summary>
+        /// Shoes' hidden triangles (the feet) no longer drawn on <paramref name="skin"/>, and the garments' with-shoes ones instead of theirs.
+        /// </summary>
+        public static void HideUnderShoes(SkinnedMeshRenderer skin, Object shoes, byte[] mask, int madeForTriangles)
+        {
+            Wear(skin, shoes, (mask, null, madeForTriangles, true));
+        }
+
+        private static void Wear(SkinnedMeshRenderer skin, Object garment, (byte[], byte[], int, bool) worn)
         {
             WornBodyCover cover = skin.GetComponent<WornBodyCover>();
             if (cover == null)
@@ -29,7 +49,7 @@ namespace CityX.Wearables
             {
                 cover._whole = skin.sharedMesh;
             }
-            cover._worn[garment] = (mask, madeForTriangles);
+            cover._worn[garment] = worn;
             cover.Draw();
         }
 
@@ -46,7 +66,17 @@ namespace CityX.Wearables
 
         private void Draw()
         {
-            _skin.sharedMesh = BodyCover.Cut(_whole, new List<(byte[], int)>(_worn.Values));
+            bool shod = false;
+            foreach (var (_, _, _, shoes) in _worn.Values)
+            {
+                shod |= shoes;
+            }
+            var masks = new List<(byte[], int)>(_worn.Count);
+            foreach (var (mask, withShoes, madeForTriangles, _) in _worn.Values)
+            {
+                masks.Add((shod && withShoes != null && withShoes.Length > 0 ? withShoes : mask, madeForTriangles));
+            }
+            _skin.sharedMesh = BodyCover.Cut(_whole, masks);
         }
     }
 }

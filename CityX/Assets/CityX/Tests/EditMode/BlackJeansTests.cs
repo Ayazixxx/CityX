@@ -115,5 +115,25 @@ namespace CityX.Tests
             Assert.IsNotNull(jeans.HiddenBodyTriangles, "the jeans hide none of the body under them");
             Assert.AreEqual((jeans.HiddenFromBodyTriangles + 7) / 8, jeans.HiddenBodyTriangles.Length);
         }
+
+        /// <summary>
+        /// Owner, 2026-10-26: "when pants and shoes are being worn you can make the feet underneath invisible". In shoes the jeans hide all
+        /// they do bare-footed and the ankles under their hems too, which they leave drawn for bare feet.
+        /// </summary>
+        [Test]
+        public void InShoesTheJeansAlsoHideTheAnklesUnderTheirHems()
+        {
+            SkinnedGarment jeans = Jeans();
+            byte[] bare = jeans.HiddenBodyTriangles, shod = jeans.HiddenBodyTrianglesWithShoes;
+            Assert.IsNotNull(shod, "the jeans hide nothing more in shoes");
+            Assert.AreEqual(bare.Length, shod.Length);
+            int more = 0;
+            for (int t = 0; t < jeans.HiddenFromBodyTriangles; t++)
+            {
+                Assert.IsFalse(BodyCover.IsHidden(bare, t) && !BodyCover.IsHidden(shod, t), "in shoes the jeans show skin they hide bare-footed");
+                more += !BodyCover.IsHidden(bare, t) && BodyCover.IsHidden(shod, t) ? 1 : 0;
+            }
+            Assert.Greater(more, 0, "in shoes the jeans still leave the ankles under their hems drawn");
+        }
     }
 }

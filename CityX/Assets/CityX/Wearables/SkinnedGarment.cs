@@ -65,6 +65,9 @@ namespace CityX.Wearables
         [Tooltip("The body's triangle count HiddenBodyTriangles was made for: another body is drawn whole.")]
         public int HiddenFromBodyTriangles;
 
+        [Tooltip("What this garment hides while shoes are worn too (trousers: the ankles under the hems as well). Empty: HiddenBodyTriangles.")]
+        [HideInInspector] public byte[] HiddenBodyTrianglesWithShoes;
+
         public abstract string ItemId { get; }
 
         private SkinnedGarmentCombiner Combiner { get; set; }
@@ -221,7 +224,7 @@ namespace CityX.Wearables
             _bodySkin = skin != null ? skin.GetComponent<SkinnedMeshRenderer>() : null;
             if (_bodySkin != null)
             {
-                WornBodyCover.Hide(_bodySkin, this, HiddenBodyTriangles, HiddenFromBodyTriangles);
+                WornBodyCover.Hide(_bodySkin, this, HiddenBodyTriangles, HiddenFromBodyTriangles, HiddenBodyTrianglesWithShoes);
             }
         }
 

@@ -90,6 +90,9 @@ the thighs (`TROUSERS_FOLDED`); the feet go to the shins. Then:
   below 4.5 cm over the hems' lowest point, 0.106 m (hidden, a stride lifting a hem showed a gap down to the foot's jagged cut edge). Until
   2026-10-25 it was everything below 0.15 m, which poked out past the hems in some strides (owner: "some ankle still poking through"); 2 cm
   over the hem was "a tad too low", a gap and the jagged edge showed.
+- **In shoes** (2026-10-26): the ankles under the hems are hidden too (`SkinnedGarment.HiddenBodyTrianglesWithShoes`, used by `WornBodyCover`
+  while shoes are worn). Owner: "when pants and shoes are being worn you can make the feet underneath invisible, when i jump a bit of the
+  skin pokes through the shoes model". With both on, no skin is drawn below the knees (`WhiteSneakerPlayTests`).
 
 ## Wearing two garments at once
 
