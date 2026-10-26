@@ -85,7 +85,9 @@ the thighs (`TROUSERS_FOLDED`); the feet go to the shins. Then:
 - **Always hidden:** the thighs and the shins. Hidden only where covered, a calf behind a bent knee came through.
 - **Hidden where covered:** the hips, up to the waistband.
 - **Always drawn:** the top 4 cm under the waistband (hidden, its cut edge showed above the band as a row of dark teeth) and everything
-  below 0.15 m (the ankles; hidden, a stride lifting a hem showed a gap down to the foot's jagged cut edge).
+  below 4.5 cm over the hems' lowest point, 0.106 m (hidden, a stride lifting a hem showed a gap down to the foot's jagged cut edge). Until
+  2026-10-25 it was everything below 0.15 m, which poked out past the hems in some strides (owner: "some ankle still poking through"); 2 cm
+  over the hem was "a tad too low", a gap and the jagged edge showed.
 
 ## Wearing two garments at once
 

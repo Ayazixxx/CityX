@@ -47,10 +47,11 @@ namespace CityX.WearablesEditor
         private const float WaistbandShown = 0.04f;
 
         /// <summary>
-        /// The skin below this height is always drawn: the ankles, which the hems hang over standing. Hidden, a stride lifting a hem showed a
-        /// gap down to the foot's jagged cut edge.
+        /// The skin is always drawn below this much over the hems' lowest point, and hidden above it: the ankle skin left drawn higher (to 0.15 m)
+        /// poked out past the hems in some strides (owner, 2026-10-25: "make it a tiny bit higher than the jeans lowest point so you cant see
+        /// the under"). Hidden all the way down, a stride lifting a hem showed a gap down to the foot's jagged cut edge.
         /// </summary>
-        private const float AnkleShown = 0.15f;
+        private const float AnkleShownOverHem = 0.045f;   // 2 cm left a gap with the skin's jagged cut edge under a lifted hem
 
         [MenuItem("CityX/Rebuild Jeans")]
         public static void BuildAll()
@@ -80,8 +81,9 @@ namespace CityX.WearablesEditor
             Material material = BlenderGarmentMesh.TexturedMaterial($"Assets/CityX/Wearables/{name}.mat", $"Assets/CityX/Wearables/{name}.jpg",
                 FabricSmoothness);
             float waistband = mesh.bounds.max.y - WaistbandShown;
+            float ankle = mesh.bounds.min.y + AnkleShownOverHem;
             byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
-                new Bounds(), out int bodyTriangles, centre => centre.y > waistband || centre.y < AnkleShown);
+                new Bounds(), out int bodyTriangles, centre => centre.y > waistband || centre.y < ankle);
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<Jeans>(
                 mesh, material, prefabPath, name, GroundScale, GroundPitchDegrees, GroundLift,
                 jeans =>
@@ -92,7 +94,8 @@ namespace CityX.WearablesEditor
                 });
             if (saved != null)
             {
-                Debug.Log($"CityX: {name} written to {prefabPath} -- {mesh.vertexCount} vertices, {mesh.triangles.Length / 3} triangles");
+                Debug.Log($"CityX: {name} written to {prefabPath} -- {mesh.vertexCount} vertices, {mesh.triangles.Length / 3} triangles, " +
+                    $"skin drawn below {ankle:F3} m");
             }
             return saved;
         }
