@@ -55,5 +55,6 @@ Run it after changing the script.
 | Knight Helmet | 7,390 triangles; 3 small holes (H1 and H2 on the visor's side, H3 low at the back) and 1 z-fight, for the owner to judge |
 | Black Jeans (2026-10-24) | 11,335 triangles (over the 8k "fine" line for trousers, under 12k; the owner's count, lower wiped the stitching); a 2048 map in the Blender file (1024 in the game); 2 z-fights from the fit, fixed in black_jeans_fit.py |
 | White Sneaker (2026-10-25) | 10,674 triangles for the pair (budget `--kind shoes`: 8k fine, 12k most); 28 small holes, mostly on or inside the flat sole; 6 spikes along the sole's bottom edge; 32 floating bits, mostly inside; z-fights near the tongues' tips; for the owner to judge |
+| Farmer Hat (2026-10-26) | 5,000 triangles (over the 4k "fine" line for a hat, under 6k: the frayed straw); 2 z-fights; one piece, no holes, no spikes |
 | Combat sword | within budget; 14 spike points along the blade's thin edge |
 | Meshy White Sword zip | 50,698 triangles and 8 maps of 2048 (about 45 MB of video memory): why it was baked down |

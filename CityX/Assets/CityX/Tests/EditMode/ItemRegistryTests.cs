@@ -25,8 +25,9 @@ namespace CityX.Tests
         [Test]
         public void TheRemovedItemsAreGone()
         {
-            // The skelli jeans and the top hat (owner, 2026-10-24) are to be replaced with better models.
-            foreach (string id in new[] { "sword", "farmer_hat", "midnight_patchwork_coat", "black_puffer_jacket", "skelli_jeans", "top_hat" })
+            // The skelli jeans and the top hat (owner, 2026-10-24) are to be replaced with better models. farmer_hat is back since 2026-10-26,
+            // the owner's straw hat (FarmerHatTests).
+            foreach (string id in new[] { "sword", "midnight_patchwork_coat", "black_puffer_jacket", "skelli_jeans", "top_hat" })
             {
                 Assert.IsFalse(ItemRegistry.Has(id), $"{id} is still an item");
             }

@@ -263,6 +263,7 @@ namespace CityX.ViewEditor
             GameObject ak47Prefab = CityX.WeaponsEditor.AK47Builder.Build();
             GameObject sprayCanPrefab = CityX.WeaponsEditor.SprayCanBuilder.Build();
             GameObject knightHelmetPrefab = CityX.WearablesEditor.KnightHelmetBuilder.Build();
+            GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
@@ -487,6 +488,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.BaseballBat, Prefab = baseballBatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.KnightHelmet, Prefab = knightHelmetPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.FarmerHat, Prefab = farmerHatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Flamethrower, Prefab = flamethrowerPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

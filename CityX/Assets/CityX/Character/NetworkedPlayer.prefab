@@ -119,7 +119,7 @@ PrefabInstance:
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 3559849729427793754}
+      addedObject: {fileID: 1709428829967323297}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -385,6 +385,8 @@ MonoBehaviour:
     Prefab: {fileID: 1457213973204992229, guid: c6f1f93176398104d9f27215ee7a94dd, type: 3}
   - ItemId: knight_helmet
     Prefab: {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
+  - ItemId: farmer_hat
+    Prefab: {fileID: 2038061724502903381, guid: d61b2f70f156baf4da7b54cbc160166c, type: 3}
   - ItemId: hooded_cloak
     Prefab: {fileID: 4861952590144521463, guid: 5751df4e3d53cf64dbabc5b9d9ae42ca, type: 3}
   - ItemId: midnight_coat
@@ -663,7 +665,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17deb901f9bbd384ea0ad42e0b8123af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodySizeAbility
---- !u!114 &3559849729427793754
+--- !u!114 &1709428829967323297
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

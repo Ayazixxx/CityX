@@ -36,6 +36,7 @@ namespace CityX.Items
         public const string AK47 = "ak47";
         public const string SprayCan = "spray_can";
         public const string KnightHelmet = "knight_helmet";
+        public const string FarmerHat = "farmer_hat";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -80,6 +81,8 @@ namespace CityX.Items
             [SprayCan] = new ItemDefinition(SprayCan, "Spray Can", "tool", EquipSlots.Primary, 1),
             // One headwear slot for now: Godot's separate hat and mask slots are not ported.
             [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
+            // A wide straw hat: Meshy's, cut off its figure (Wearables/FarmerHat).
+            [FarmerHat] = new ItemDefinition(FarmerHat, "Farmer Hat", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

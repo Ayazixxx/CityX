@@ -320,6 +320,9 @@ namespace CityX.UI
                 case "knight_helmet":
                 case "knighthelmet":
                 case "helmet": return ItemRegistry.KnightHelmet;
+                case "farmer_hat":
+                case "farmerhat":
+                case "strawhat": return ItemRegistry.FarmerHat;
                 default: return null;
             }
         }
