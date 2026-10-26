@@ -130,23 +130,100 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void EverySurfaceIsTheGhostsSeeThroughGlowThrowingNoShadowAndItGlows()
+        public void TheGhostIsSeeThroughItsFaceSolidAndNothingThrowsAShadow()
         {
             GameObject prefab = Prefab();
+            var wraith = prefab.GetComponent<Wraith>();
             Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
-            Assert.AreEqual(3, renderers.Length, "the Wraith is not a body, a skull and wisps");
+            Assert.AreEqual(7, renderers.Length, "the Wraith is not a body, a skull, wisps, two eyes, a mouth and teeth");
             foreach (Renderer renderer in renderers)
             {
-                Assert.AreEqual(WraithBuilder.ShaderName, renderer.sharedMaterial.shader.name, $"{renderer.name} is not on the ghost shader");
-                Assert.GreaterOrEqual(renderer.sharedMaterial.renderQueue, (int)UnityEngine.Rendering.RenderQueue.Transparent,
-                    $"{renderer.name} draws with the opaque world: the cel lines would outline it");
+                bool face = renderer.transform.IsChildOf(wraith.Face);
+                Assert.AreEqual(!face, renderer.sharedMaterial.shader.name == WraithBuilder.ShaderName,
+                    face ? $"{renderer.name} is smoke, not solid" : $"{renderer.name} is not on the ghost shader");
+                Assert.AreEqual(!face, renderer.sharedMaterial.renderQueue >= (int)UnityEngine.Rendering.RenderQueue.Transparent,
+                    face ? $"{renderer.name} is see-through" : $"{renderer.name} draws with the opaque world: the cel lines would outline it");
                 Assert.AreEqual(UnityEngine.Rendering.ShadowCastingMode.Off, renderer.shadowCastingMode, $"{renderer.name} throws a shadow");
             }
-            var wraith = prefab.GetComponent<Wraith>();
             Assert.IsNotNull(wraith.Glow, "it has no glow");
             Assert.AreEqual(LightType.Point, wraith.Glow.type);
             Assert.IsNotNull(wraith.MainCollision, "nothing can hit it");
             Assert.AreEqual(3, wraith.Renderers.Length, "its fade and flash do not reach every surface");
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-26: "glowing red eyes and 1 row of solid white sharp teeth ... in the exact or similar placement to the image",
+        /// then "eyes dont need to glow just make them solid red". Measured off the picture: the eyes high and wide on the skull, the row of
+        /// nine teeth hanging from a lip just below its centre, the middle ones to its chin, under a jaw pivot at the lip's middle.
+        /// </summary>
+        [Test]
+        public void ItHasSolidRedEyesAndARowOfSharpTeethPlacedLikeTheOwnersPicture()
+        {
+            var wraith = Prefab().GetComponent<Wraith>();
+            Transform skull = wraith.Head.Find(BodySurface.HeadName);
+            Assert.IsNotNull(wraith.Face, "it has no face");
+            Assert.IsTrue(wraith.Face.IsChildOf(skull), "the face is not on the skull");
+            float radius = FusedBodyShape.HeadRadius;
+            foreach ((string name, float side) in new[] { (WraithBuilder.EyeLeftName, -1.0f), (WraithBuilder.EyeRightName, 1.0f) })
+            {
+                Transform eye = wraith.Face.Find(name);
+                Assert.IsNotNull(eye, $"no {name}");
+                Vector3 at = eye.localPosition;
+                Assert.AreEqual(side * WraithBuilder.EyeOffsetX, at.x, 0.015f, $"{name} is not out to its side like the picture");
+                Assert.AreEqual(WraithBuilder.EyeY, at.y, 0.01f, $"{name} is not high on the skull like the picture");
+                Assert.Greater(at.z, 0.2f, $"{name} is not on the skull's front");
+                Assert.AreEqual(radius - WraithBuilder.EyeSink, at.magnitude, 1e-3f, $"{name} is not sunk into the skull's surface");
+                Material material = eye.GetComponent<MeshRenderer>().sharedMaterial;
+                Color colour = material.GetColor("_BaseColor");
+                Assert.Greater(colour.r, 0.6f, $"{name} is not red");
+                Assert.Less(Mathf.Max(colour.g, colour.b), 0.15f, $"{name} is not red");
+                Assert.IsFalse(material.IsKeywordEnabled("_EMISSION"), $"{name} glows: the owner wants it solid red");
+                Assert.AreEqual(WraithBuilder.EyeRadius, eye.GetComponent<MeshFilter>().sharedMesh.bounds.extents.x, 1e-3f, $"{name} is the wrong size");
+            }
+
+            Transform lip = wraith.Face.Find(WraithBuilder.LipName);
+            Assert.IsNotNull(lip, "it has no mouth");
+            Mesh mouth = lip.GetComponent<MeshFilter>().sharedMesh;
+            Assert.Greater(mouth.bounds.max.y, WraithBuilder.LipY + WraithBuilder.ToothBaseRadius, "the mouth's line is hidden behind the teeth's roots");
+            AssertFacesOut(mouth, "the mouth");
+            AssertFacesOut(wraith.Face.Find(WraithBuilder.EyeLeftName).GetComponent<MeshFilter>().sharedMesh, "an eye");
+            Assert.IsNotNull(wraith.Jaw, "it has no jaw for the bite to come");
+            Assert.AreEqual(new Vector3(0.0f, WraithBuilder.LipY, WraithBuilder.LipRadius(radius)), wraith.Jaw.localPosition,
+                "the jaw does not pivot at the middle of the lip");
+            Transform teeth = wraith.Jaw.Find(WraithBuilder.TeethName);
+            Assert.IsNotNull(teeth, "the teeth are not on the jaw");
+            Mesh mesh = teeth.GetComponent<MeshFilter>().sharedMesh;
+            Assert.AreEqual(WraithBuilder.TeethCount * (WraithBuilder.ToothSides * 2 + 1), mesh.vertexCount, "not one row of nine teeth");
+            Bounds row = mesh.bounds;   // in the skull's frame: the teeth are made there and the mesh offset back by the jaw's place
+            Assert.AreEqual(WraithBuilder.LipY, row.max.y, WraithBuilder.ToothBaseRadius + 0.01f, "the teeth do not root at the lip");
+            Assert.Less(row.min.y, WraithBuilder.LipY - WraithBuilder.ToothLengthMiddle * 0.9f, "the middle teeth do not reach the chin");
+            Assert.Greater(row.min.y, -radius - 0.08f, "the teeth hang far below the chin");
+            float reach = WraithBuilder.LipRadius(radius) * Mathf.Sin(WraithBuilder.TeethHalfAngleDegrees * Mathf.Deg2Rad);
+            Assert.AreEqual(reach, row.max.x, 0.06f, "the row does not reach as far round as the picture's");
+            Assert.AreEqual(-reach, row.min.x, 0.06f, "the row does not reach as far round as the picture's");
+            Assert.Greater(row.min.z, 0.1f, "a tooth is inside or behind the skull");
+            Color white = teeth.GetComponent<MeshRenderer>().sharedMaterial.GetColor("_BaseColor");
+            Assert.Greater(Mathf.Min(white.r, white.g, white.b), 0.85f, "the teeth are not white");
+            Assert.Greater(WraithBuilder.ToothLength(0.0f), WraithBuilder.ToothLength(1.0f) * 1.5f, "the middle teeth are not the long ones");
+        }
+
+        /// <summary>
+        /// Every triangle winds the way its normals point (Unity's front face: clockwise seen from outside), so a solid part is drawn, not
+        /// culled as its own back: the mouth was wound inward and never showed.
+        /// </summary>
+        private static void AssertFacesOut(Mesh mesh, string what)
+        {
+            Vector3[] vertices = mesh.vertices;
+            Vector3[] normals = mesh.normals;
+            int[] triangles = mesh.triangles;
+            for (int t = 0; t < triangles.Length; t += 3)
+            {
+                Vector3 a = vertices[triangles[t]], b = vertices[triangles[t + 1]], c = vertices[triangles[t + 2]];
+                Vector3 wound = Vector3.Cross(b - a, c - a);
+                Assert.Greater(wound.magnitude, 1e-9f, $"{what} has a triangle with no area");
+                Vector3 outward = normals[triangles[t]] + normals[triangles[t + 1]] + normals[triangles[t + 2]];
+                Assert.Greater(Vector3.Dot(wound, outward), 0.0f, $"{what} has a face wound inward: it is culled and never drawn");
+            }
         }
 
         [Test]
@@ -175,8 +252,10 @@ namespace CityX.Tests
             wraith.Tick(Wraith.FadeSeconds * 0.5f);
             Assert.AreEqual(0.5f, wraith.FadeProgress, 1e-3f, "it does not fade");
             Assert.Greater(wraith.transform.position.y, y, "dead, it does not rise");
+            Assert.Less(wraith.Face.localScale.x, 0.6f, "its face does not shrink away with it");
             wraith.Tick(Wraith.FadeSeconds);
             Assert.AreEqual(1.0f, wraith.FadeProgress, 1e-4f, "it never fades away");
+            Assert.Less(wraith.Face.localScale.x, 0.01f, "faded away, its face is still there");
         }
 
         [Test]

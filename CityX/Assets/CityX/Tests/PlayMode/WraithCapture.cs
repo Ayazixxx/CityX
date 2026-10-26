@@ -54,6 +54,11 @@ namespace CityX.Tests
             BuildingShapeCapture.Shoot(camera, folder, "wraith-day-threequarter",
                 chest + (wraithObject.transform.forward + wraithObject.transform.right).normalized * 6.0f + Vector3.up * 1.2f, chest);
             BuildingShapeCapture.Shoot(camera, folder, "wraith-day-side", chest + wraithObject.transform.right * 6.0f + Vector3.up * 0.3f, chest);
+            // The face, close, straight on and from a little aside, as the owner's picture shows it.
+            Vector3 skull = wraith.Head.position;
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-face-front", skull + wraith.Head.forward * 2.0f, skull);
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-face-threequarter",
+                skull + (wraith.Head.forward * 1.7f + wraith.Head.right * 1.0f) + Vector3.up * 0.3f, skull);
 
             // Floating: eight moments over four seconds, the camera following it.
             for (int shot = 0; shot < 8; shot++)

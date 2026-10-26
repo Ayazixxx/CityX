@@ -14,7 +14,8 @@ meshy and send you the head later just do plain no facial details head", and "ma
 | Piece | Where | What |
 |---|---|---|
 | Body | `Character/Editor/WraithBuilder.cs` (menu CityX > Rebuild Wraith, and with the scene) | the player's own fused body mesh cut off at the hips (`CutY` 0.75 m) with a vertex alpha (`BodyAlphaAt`): the torso solid from the chest (1.55 m) down to where it turns to smoke, nothing at the cut; the arms solid to just over the hands (1.05 m), hanging beside the smoke. The body's own bone weights, skinned to the player's skeleton put into its arms-down rest |
-| Head | the player's plain skull (`Head.asset`) under its own object "Head" on the head bone | swap the mesh on that object for the owner's Meshy head when it comes |
+| Head | the player's plain skull (`Head.asset`) under its own object "Head" on the head bone, with a "Face" on it | the face built in code from the owner's picture (below) |
+| Face | `WraithBuilder.BuildFace`: "Face" under the skull, holding "EyeLeft", "EyeRight", "Lip" and "Jaw" > "Teeth" | two solid red eyes (radius 5.5 cm) sunk 2 cm into the skull, 21 cm out either side and 8.75 cm up from its centre; the dark line of the mouth 2 to 5 cm below the centre, 48 degrees round either side (a thin dark line showing above the teeth as the mouth's opening; a taller band read as a black bar); one row of nine sharp white teeth rooted on a lip 6.25 cm below the centre, 44 degrees round either side, hanging down and leaning a little outward with their tips curled back in, the middle ones 32 cm long (to the chin), the end ones 18. Opaque and lit (CityX/Lit), so cel shaded and outlined like everything solid; no shadows. The teeth's roots and the mouth line stand just clear of the skull: inside it, the see-through skull drew over them and greyed them as if behind glass. Dead, the face shrinks away into the skull as the body fades |
 | Wisps | eight veils made in the builder, hung on the hips | from just off the torso's surface, each starting where the torso is already turning to smoke, 70% as solid as it is there (the highest at 1.4 m, every third one lower), billowing out a little, then twisting a third of a turn down and inward to a point just over the street; 38 cm wide at the top (overlapping), thin at the tip, fading out along their length and feathered to nothing at their sides (the shader, by uv.x; cut flat they showed as paper); the shader sways them |
 | Surface | `View/Shaders/CityXGhost.shader`, two materials (`WraithGhost`, `WraithWisps`) | see-through, brighter and more solid at the edges (Fresnel), smoke drifting up inside (value noise); where the vertex alpha is under 1 the surface is **eroded into streaks** (tall noise against a threshold that rises as the alpha falls, scrolling upward), so the torso and the veils fray into tendrils of smoke rather than fading evenly; white with the faintest cold cast; unlit, drawn after the cel look's black lines so nothing outlines it, no shadow; `_Fade` and `_Flash` set live |
 | Glow | a point light at its chest | a pool of pale blue on the street at night |
@@ -78,6 +79,20 @@ axes.
   is gone; `/spawn wraith` through the real console puts one in the city.
 - `WraithCapture` (Explicit, `-Graphics`): by day beside the player, a strip of eight moments floating, by night, and hit.
   `Logs/CityShots/wraith-*.png`.
+
+## The bite to come (owner: "they sink their teeth into the player ... plan for that")
+
+What is in place for it:
+
+- **The jaw pivot** (`Wraith.Jaw`): at the middle of the lip, on the skull's surface; the teeth hang under it in the skull's frame. A bite
+  swings the jaw (a turn about the skull's right axis: up to open, snapping down to close) and the pose can add a `Jaw` turn next to the
+  head's in `WraithPose.Result`.
+- **The head** is its own bone, already posed by `WraithPose` (it looks at the player): the lunge is a pitch and a push of the head and
+  spine toward the player over a few frames, the way the Crimson Claw's swing is phased (wind-up, a tell, the snap, recovery), with the
+  teeth's reach checked against the player's head during the snap.
+- **The face shrinks** with the fade, so a Wraith killed mid-bite leaves nothing behind.
+- Still to decide: a second (lower) row of teeth that appears for the bite, the sneak (quiet drift up behind the player, out of their
+  view), the damage ("a lot") and whether it latches on.
 
 ## Known
 

@@ -5,8 +5,9 @@ namespace CityX.Character
     /// <summary>
     /// The Wraith (owner, 2026-10-26): a low-level ghost that floats about the streets. "the top half of him is the same dimensions as the
     /// playermodel ... his legs wisp away into nothing like a ghost. he is also somewhat transparent and glowing": the player's own body
-    /// from the hips up, fading out where the legs would start, with ribbons of smoke trailing from the hips to a point, all on the ghost
-    /// surface (Shaders/CityXGhost); the head is a plain sphere for now (the owner models its toothy grin). It "dies very quickly":
+    /// from the hips up, eroding into smoke where the legs would start, with veils of smoke trailing from it to a point, all on the ghost
+    /// surface (Shaders/CityXGhost); on its skull two solid red eyes and one row of sharp white teeth under a jaw pivot, placed from the
+    /// owner's picture (WraithBuilder). It "dies very quickly":
     /// <see cref="MaxHealth"/> is one pistol round or two punches, and dead it fades away and rises. Its sneaking up and its bite come later.
     ///
     /// No CharacterController and no Animator: it hovers (WraithDrift: drift, linger, bob, a ground-relative hover height), steered round
@@ -60,6 +61,12 @@ namespace CityX.Character
         public Renderer[] Renderers = System.Array.Empty<Renderer>();
         public Collider MainCollision;
         public Light Glow;
+
+        [Tooltip("The eyes, the mouth and the teeth on the skull (solid, so they shrink away as the body fades).")]
+        public Transform Face;
+
+        [Tooltip("The pivot the teeth hang from, at the middle of the lip: the bite to come swings it.")]
+        public Transform Jaw;
 
         [Tooltip("Seeds its drifting. 0: from where it is spawned, so several spawned together do not all go the same way.")]
         public int Seed;
@@ -150,6 +157,11 @@ namespace CityX.Character
             {
                 _fade = Mathf.Min(1.0f, _fade + deltaTime / FadeSeconds);
                 transform.position += Vector3.up * (RiseSpeed * deltaTime);
+                if (Face != null)
+                {
+                    // The face is solid, so it cannot fade with the body: it shrinks away into the skull instead.
+                    Face.localScale = Vector3.one * Mathf.Max(1.0f - _fade, 0.001f);
+                }
                 ShowLook();
                 return;
             }
@@ -162,14 +174,14 @@ namespace CityX.Character
                 Vector3 direction = _steering.Steer(transform, velocity / speed, deltaTime);
                 transform.position += direction * (speed * deltaTime);
             }
-            Face(_drift.Heading, deltaTime);
+            TurnToward(_drift.Heading, deltaTime);
             Hover(deltaTime);
             FindPlayer(deltaTime);
             ShowLook();
         }
 
         /// <summary>Comes round to face <paramref name="heading"/>, no faster than FacingDegreesPerSecond; remembers how fast it turned.</summary>
-        private void Face(Vector3 heading, float deltaTime)
+        private void TurnToward(Vector3 heading, float deltaTime)
         {
             heading.y = 0.0f;
             if (heading.sqrMagnitude < 1e-6f || deltaTime <= 0.0f)
