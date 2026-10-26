@@ -22,42 +22,16 @@ import numpy as np
 
 args = sys.argv[sys.argv.index("--") + 1:]
 FBX, COLOUR, OUT_GLB, OUT_JPG = (os.path.abspath(a) for a in args[:4])
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 SHOE_TRIANGLES = 7000            # one shoe (the pair is twice this)
-TEXTURE_SIZE = 1024
-SCALE = 0.30                     # Meshy's units to metres on our body
-HIP_X = 0.17                     # BodyRig.HipX: the feet stand under the hips
-LEG_SEED_Z = -0.15               # over this is leg alone (Meshy's units); traced down from there
-COLLAR_RIM = -0.34               # the collars' rim (Meshy's units): a loose piece centred over it is left of the leg...
-CRUMB = 40                       # ...as is one of fewer faces than this
-TREAD_CUT = 0.036                # the tread is sliced off this far over the bottom (Meshy's units): over the lugs' grooves (0.025-0.035),
-                                 # under the insole (0.04)
-GREY = 0.6                       # the leg is grey under this; the shoe white
-REACH = 0.045                    # how far the reduced surface may lie from Meshy's when the colour is baked across (past the lugs
-                                 # under the flat sole)
 
 
-def only(objects):
-    bpy.ops.object.select_all(action="DESELECT")
-    for o in objects:
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = objects[-1]
+def run(path):
+    exec(compile(open(path).read(), path, "exec"), globals())
 
 
-def face_colours(me, pixels):
-    h, w = pixels.shape[:2]
-    n = len(me.polygons)
-    uv = np.zeros(len(me.loops) * 2)
-    me.uv_layers.active.data.foreach_get("uv", uv)
-    uv = uv.reshape(-1, 2)
-    starts = np.zeros(n, dtype=int)
-    me.polygons.foreach_get("loop_start", starts)
-    totals = np.zeros(n, dtype=int)
-    me.polygons.foreach_get("loop_total", totals)
-    mean = np.add.reduceat(uv, starts) / totals[:, None]
-    return pixels[np.clip((mean[:, 1] * h).astype(int), 0, h - 1), np.clip((mean[:, 0] * w).astype(int), 0, w - 1), :3]
-
-
+run(os.path.join(HERE, "sneaker_meshy.py"))
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=FBX)
 high = [o for o in bpy.data.objects if o.type == "MESH"][0]
@@ -67,66 +41,7 @@ image = bpy.data.images.load(COLOUR)
 pixels = np.array(image.pixels[:], dtype=np.float32).reshape(image.size[1], image.size[0], 4)
 
 # ---- 1. the legs off ----
-me = high.data
-n = len(me.polygons)
-centres = np.zeros(n * 3)
-me.polygons.foreach_get("center", centres)
-centres = centres.reshape(n, 3)
-value = face_colours(me, pixels).max(1)
-legs = {}
-grey = value < GREY
-for side, mask in (("right", centres[:, 0] < 0.0), ("left", centres[:, 0] >= 0.0)):
-    legs[side] = centres[mask & (centres[:, 2] > LEG_SEED_Z), :2].mean(0)
-    print("%s shoe: the collar's middle at %s" % (side, legs[side].round(3)))
-# The leg traced from its top down through grey faces only: it stops where the shoe's white begins, so the cut follows the collar's own edge
-# (the grey eyelets, ringed by white, are never reached).
-bm = bmesh.new()
-bm.from_mesh(me)
-bm.faces.ensure_lookup_table()
-cut = np.zeros(n, dtype=bool)
-stack = list(np.nonzero(centres[:, 2] > LEG_SEED_Z)[0])
-cut[stack] = True
-while stack:
-    f = bm.faces[stack.pop()]
-    for e in f.edges:
-        for g in e.link_faces:
-            if not cut[g.index] and grey[g.index]:
-                cut[g.index] = True
-                stack.append(g.index)
-for lo in np.arange(-0.81, -0.1, 0.1):
-    band = (centres[:, 2] >= lo) & (centres[:, 2] < lo + 0.1)
-    print("  leg traced %.2f..%.2f: %d of %d faces" % (lo, lo + 0.1, (cut & band).sum(), band.sum()))
-bmesh.ops.delete(bm, geom=[bm.faces[i] for i in np.nonzero(cut)[0]], context="FACES")
-bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-# The shoe has its own lining under the collar, so the opening needs no lid. What the trace left of the leg (paler specks in its grey, a
-# scrap of tube) is now loose from the shoe: only each shoe's own body is kept.
-bm.faces.ensure_lookup_table()
-seen = set()
-pieces = []
-for f in bm.faces:
-    if f.index in seen:
-        continue
-    piece, stack = [], [f]
-    seen.add(f.index)
-    while stack:
-        g = stack.pop()
-        piece.append(g)
-        for e in g.edges:
-            for h in e.link_faces:
-                if h.index not in seen:
-                    seen.add(h.index)
-                    stack.append(h)
-    pieces.append(piece)
-# A scrap stands where the leg was (over the collar's rim) or is a crumb; the lining and the laces, loose now too, sit in the shoe.
-scraps = [f for piece in pieces if len(piece) < CRUMB or np.mean([g.calc_center_median().z for g in piece]) > COLLAR_RIM for f in piece]
-print("kept %d pieces (the largest %s), dropped %d faces of scraps" % (
-    sum(1 for p in pieces if len(p) >= CRUMB and np.mean([g.calc_center_median().z for g in p]) <= COLLAR_RIM),
-    sorted([len(p) for p in pieces], reverse=True)[:6], len(scraps)))
-bmesh.ops.delete(bm, geom=scraps, context="FACES")
-bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-bm.to_mesh(me)
-bm.free()
-print("legs off: %d of %d faces cut, %d triangles left" % (cut.sum(), n, sum(len(p.vertices) - 2 for p in me.polygons)))
+legs = take_legs_off(high, face_colours(high.data, pixels).max(1) < GREY)
 
 # ---- 2. one shoe, its tread sliced off flat, reduced ----
 # One shoe is made and the other is its mirror image: reduced one by one, the pair came out different. Meshy's right shoe (on -x) is it.
@@ -203,13 +118,8 @@ target.save_render(OUT_JPG, scene=scene)
 print("WROTE %s: %d bytes" % (OUT_JPG, os.path.getsize(OUT_JPG)))
 
 # ---- 4. on our feet ----
-# The game's (X, Y, Z) is Blender's (-x, z, -y): the right foot's ankle at X = +HIP_X is Blender x = -HIP_X, the toe (Meshy's -y) forward.
 # The left shoe is the right one mirrored across the body's middle (its faces turned back round), the same UVs.
-axis = legs["right"]
-verts = np.array([v.co[:] for v in low.data.vertices])
-verts[:, 0] = (verts[:, 0] - axis[0]) * SCALE - HIP_X
-verts[:, 1] = (verts[:, 1] - axis[1]) * SCALE
-verts[:, 2] = (verts[:, 2] - sole) * SCALE
+verts = on_our_feet(np.array([v.co[:] for v in low.data.vertices]), legs["right"], sole)
 low.data.vertices.foreach_set("co", verts.ravel())
 low.data.update()
 print("each shoe on its foot: %.3f long, %.3f wide, %.3f to the collar's top; heel %.3f behind the ankle, toe %.3f ahead" % (

@@ -14,13 +14,15 @@ namespace CityX.WearablesEditor
     /// cut off, reduced, the tread sliced flat, one shoe mirrored for the other, then the owner's trim inside and the smoothing of the collar
     /// and the toe), standing on our body's feet in the game's frame. It is split by side and each shoe baked into its foot bone's space at
     /// rest, so worn it hangs on the bone with no offset (Shoes). To refit it, move a shoe in Blender and export over the same file.
+    ///
+    /// The BW Sneakers (owner, 2026-10-26) are the same pair in Meshy's black-and-white recolour, baked onto its layout by
+    /// SourceArt/WhiteSneaker/sneaker_colour_bake.py: each colour its own map on the one pair of meshes.
     /// </summary>
     public static class WhiteSneakerBuilder
     {
         public const string PrefabPath = "Assets/CityX/Wearables/WhiteSneaker.prefab";
+        public const string BWPrefabPath = "Assets/CityX/Wearables/BWSneakers.prefab";
         public const string SourcePath = "Assets/CityX/Wearables/Models/WhiteSneaker.glb";
-        private const string TexturePath = "Assets/CityX/Wearables/WhiteSneaker.jpg";
-        private const string MaterialPath = "Assets/CityX/Wearables/WhiteSneaker.mat";
         public const string LeftMeshPath = "Assets/CityX/Wearables/WhiteSneakerLeftMesh.asset";
         public const string RightMeshPath = "Assets/CityX/Wearables/WhiteSneakerRightMesh.asset";
 
@@ -43,19 +45,33 @@ namespace CityX.WearablesEditor
         /// <summary>The ankles, hidden where the collars cover them (above them the jeans' hems or bare shins show).</summary>
         private static readonly HumanBodyBones[] HiddenWhereCovered = { HumanBodyBones.LeftLowerLeg, HumanBodyBones.RightLowerLeg };
 
-        [MenuItem("CityX/Rebuild White Sneaker")]
-        public static GameObject Build()
+        [MenuItem("CityX/Rebuild Sneakers")]
+        public static void BuildAll()
+        {
+            Build();
+            BuildBW();
+        }
+
+        public static GameObject Build() => Save("WhiteSneaker", PrefabPath, ItemRegistry.WhiteSneaker);
+
+        public static GameObject BuildBW() => Save("BWSneakers", BWPrefabPath, ItemRegistry.BWSneakers);
+
+        /// <summary>
+        /// The pair as the item <paramref name="itemId"/>, wearing Wearables/<paramref name="name"/>.jpg (the meshes are the same for each).
+        /// </summary>
+        private static GameObject Save(string name, string prefabPath, string itemId)
         {
             HeldModelBaker.Load(SourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uv);
             for (int i = 0; i < vertices.Length; i++)
             {
                 vertices[i] = Grown(vertices[i]);
             }
-            var root = new GameObject("WhiteSneaker");
+            var root = new GameObject(name);
             var pair = new Mesh { name = "WhiteSneakerPair", vertices = vertices, normals = normals, triangles = triangles };
             try
             {
-                Material material = BlenderGarmentMesh.TexturedMaterial(MaterialPath, TexturePath, Smoothness);
+                Material material = BlenderGarmentMesh.TexturedMaterial($"Assets/CityX/Wearables/{name}.mat", $"Assets/CityX/Wearables/{name}.jpg",
+                    Smoothness);
                 // The left foot is on -x: each shoe the triangles wholly on its side.
                 Transform left = Shoe(root.transform, "Left", LeftMeshPath, HumanBodyBones.LeftFoot, vertices, normals, triangles, uv,
                     p => p.x < 0.0f, material);
@@ -66,14 +82,14 @@ namespace CityX.WearablesEditor
                 pickupTrigger.isTrigger = true;
                 pickupTrigger.radius = GroundWearable.InteractRange;
                 var shoes = root.AddComponent<Shoes>();
-                shoes.Setup(ItemRegistry.WhiteSneaker, left, right);
+                shoes.Setup(itemId, left, right);
                 pair.RecalculateBounds();
                 shoes.HiddenBodyTriangles = BodyUnderGarment.HiddenTriangles(pair, AlwaysHidden, new HumanBodyBones[0], new Bounds(),
                     HiddenWhereCovered, new Bounds(), out shoes.HiddenFromBodyTriangles);
 
-                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 AssetDatabase.SaveAssets();
-                Debug.Log($"CityX: WhiteSneaker written to {PrefabPath} -- {triangles.Length / 3} triangles for the pair");
+                Debug.Log($"CityX: {name} written to {prefabPath} -- {triangles.Length / 3} triangles for the pair");
                 return saved;
             }
             finally

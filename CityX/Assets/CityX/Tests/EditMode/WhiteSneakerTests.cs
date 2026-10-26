@@ -127,6 +127,27 @@ namespace CityX.Tests
             Assert.Less(hidden, shoes.HiddenFromBodyTriangles / 4, "the pair hides far more of the body than two feet");
         }
 
+        /// <summary>The BW Sneakers (owner, 2026-10-26): the same pair, its own item, name and map, and other players shown it too.</summary>
+        [Test]
+        public void TheBWSneakersAreThePairInBlackAndWhite()
+        {
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.BWSneakers, out ItemDefinition item));
+            Assert.AreEqual("BW Sneakers", item.DisplayName);
+            Assert.AreEqual(EquipSlots.Shoes, item.EquipSlot);
+            GameObject networked = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab");
+            GameObject prefab = networked.GetComponent<Inventory>().PrefabForItem(ItemRegistry.BWSneakers);
+            Assert.IsNotNull(prefab, "a copy of another player cannot build the BW Sneakers (NetworkedPlayerWiring.ItemPrefabPaths)");
+            var bw = prefab.GetComponent<Shoes>();
+            Shoes white = Pair();
+            Assert.AreSame(MeshOf(white.Left), MeshOf(bw.Left), "each colour should share the one pair of meshes");
+            Assert.AreSame(MeshOf(white.Right), MeshOf(bw.Right), "each colour should share the one pair of meshes");
+            Texture map = bw.Left.GetComponent<MeshRenderer>().sharedMaterial.GetTexture("_BaseMap");
+            Assert.IsNotNull(map, "the BW Sneakers have no colour map");
+            Assert.AreNotSame(white.Left.GetComponent<MeshRenderer>().sharedMaterial.GetTexture("_BaseMap"), map, "the BW Sneakers wear the white map");
+            Assert.LessOrEqual(map.width, 1024);
+            Assert.AreEqual(white.HiddenBodyTriangles, bw.HiddenBodyTriangles, "the same pair should hide the same feet");
+        }
+
         [Test]
         public void OtherPlayersCanBeShownTheSneakers()
         {

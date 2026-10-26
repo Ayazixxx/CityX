@@ -31,7 +31,7 @@ skinned like the jeans.
 | Step | Where | What |
 |---|---|---|
 | Item | `ItemRegistry.WhiteSneaker` (`white_sneaker`, shoes slot) | a wearable, kept on the character and shown on the select screen |
-| Prefab | `Wearables/Editor/WhiteSneakerBuilder.cs` (menu CityX > Rebuild White Sneaker, and with the scene) | splits the glb by side (left foot on -x), bakes each shoe into its foot bone's frame as the body's skin is bound to it (`BodyRig.RestBindMatrix`) |
+| Prefab | `Wearables/Editor/WhiteSneakerBuilder.cs` (menu CityX > Rebuild Sneakers, and with the scene) | splits the glb by side (left foot on -x), bakes each shoe into its foot bone's frame as the body's skin is bound to it (`BodyRig.RestBindMatrix`) |
 | Wearing | `Wearables/Shoes.cs` | hangs each shoe on its foot bone with no offset, the pair's root on the body |
 | Body under them | `BodyUnderGarment.HiddenTriangles`, `WornBodyCover` | the feet always hidden, the ankles where the collars cover them; unioned with what other clothes hide |
 | Pickup | `Wearables/GroundWearable.cs` | the E pickup, shared with the hats and helmets (`HeadWearable` derives from it too) |
@@ -52,6 +52,22 @@ To refit them: open the approved `.blend`, move a shoe (the file is in the game'
 -y; the body faces the game's +z, Blender's -y), export over `Wearables/Models/WhiteSneaker.glb` (selected only, glTF binary, no materials)
 and rebuild the scene.
 
+## BW Sneakers (2026-10-26)
+
+Owner: "add these as a colorway for the shoes called "BW Sneakers"". Item `bw_sneakers`, `/spawn bwsneakers`.
+
+- Meshy's black-and-white recolour of "Urban Soles": the same pair face for face, with its own UV layout.
+- `SourceArt/WhiteSneaker/sneaker_colour_bake.py` (Blender, headless) bakes its colour onto the game's pair (`WhiteSneaker.glb`), keeping
+  the owner's trim and the smoothing. Output: `bw_sneakers_color.jpg`, copied in as `Wearables/BWSneakers.jpg` (1024, 161 KB).
+  - The legs come off by the white pair's grey. The recolour's own grey and black parts would read as leg.
+  - The right shoe goes on our foot as the white one did and is mirrored for the left. These steps are shared with
+    `white_sneaker_build.py` in `sneaker_meshy.py`; moving them there changed nothing in its output.
+  - The smoothed collar band (3,057 faces, from 4 cm up to the collar) shares one texel of the layout. It takes the median of the
+    recolour's faces nearest it, which is black.
+- One pair of meshes for both colours. `WhiteSneakerBuilder.BuildBW` builds `BWSneakers.prefab` on them with its own map. Other players see
+  them (`NetworkedPlayerWiring`).
+- Known: where black meets white (the sole's top edge at the toe, the laces' edges) the line is a little ragged.
+
 ## Tests
 
 - `WhiteSneakerTests` (EditMode):
@@ -59,7 +75,8 @@ and rebuild the scene.
   - the budget and the map;
   - each shoe reaches past its foot's toes and heel, with the sole on the ground and the left on the left;
   - the feet hidden;
-  - the copy's prefab.
+  - the copy's prefab;
+  - the BW Sneakers: the same meshes, their own item and map.
 - `WhiteSneakerPlayTests`:
   - each shoe on its own foot bone, the feet given back when taken off;
   - worn with jeans, taking the shoes off leaves the legs under the jeans hidden;
@@ -70,7 +87,8 @@ and rebuild the scene.
 - `WhiteSneakerCapture` (Explicit, `-Graphics`) writes `Logs/CityShots/sneaker-*.png`:
   - on the ground;
   - with bare legs (four sides, close);
-  - in the Black Jeans, standing, walking and at three moments of a sprint.
+  - in the Black Jeans, standing, walking and at three moments of a sprint;
+  - `RenderTheBWSneakers`: the BW pair on the ground, then worn with the Khakis (`bwsneaker-*.png`).
 
 ## Known
 

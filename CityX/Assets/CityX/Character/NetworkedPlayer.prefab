@@ -119,7 +119,7 @@ PrefabInstance:
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 5062075632171524890}
+      addedObject: {fileID: 3559849729427793754}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -413,6 +413,8 @@ MonoBehaviour:
     Prefab: {fileID: 8328207368096501180, guid: 3af84873ef8f7ea4cbcd4d065c496fa6, type: 3}
   - ItemId: white_sneaker
     Prefab: {fileID: 1134740773219589210, guid: 720df01482731bf4f83bc1be31a9f863, type: 3}
+  - ItemId: bw_sneakers
+    Prefab: {fileID: 5600285032884238694, guid: a090140601ba787478135495df78d2d6, type: 3}
 --- !u!114 &752554928827252169
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -661,7 +663,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17deb901f9bbd384ea0ad42e0b8123af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodySizeAbility
---- !u!114 &5062075632171524890
+--- !u!114 &3559849729427793754
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

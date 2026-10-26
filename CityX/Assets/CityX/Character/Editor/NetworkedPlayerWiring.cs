@@ -47,6 +47,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.MaroonJeans, "Assets/CityX/Wearables/MaroonJeans.prefab"),
             (ItemRegistry.Khakis, "Assets/CityX/Wearables/Khakis.prefab"),
             (ItemRegistry.WhiteSneaker, "Assets/CityX/Wearables/WhiteSneaker.prefab"),
+            (ItemRegistry.BWSneakers, "Assets/CityX/Wearables/BWSneakers.prefab"),
         };
 
         /// <summary>
