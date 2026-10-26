@@ -45,8 +45,8 @@ namespace CityX.UI
         /// <summary>
         /// The equipment slots, head to foot, then the back and the two weapons: the order the row of equipped slots is drawn in. The keys are
         /// the ones items are registered under (EquipSlots). They used to be Godot's own (hat, hands, feet), which nothing registers against, so
-        /// a hat or a jetpack worn never showed here; the owner asked for shoes, gloves and back slots (2026-10-15). Shoes and gloves have no
-        /// item yet, the mask neither; they sit empty and ready.
+        /// a hat or a jetpack worn never showed here; the owner asked for shoes, gloves and back slots (2026-10-15). Gloves have no item yet,
+        /// the mask neither; they sit empty and ready (the shoes' first, the White Sneaker, came 2026-10-25).
         /// </summary>
         public static readonly string[] EquipSlotKeys =
         {

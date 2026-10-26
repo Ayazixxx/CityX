@@ -29,6 +29,8 @@ conventions down and apply them every time.
    - `Items/InertModel`: an item's model with nothing of the item acting (another player's copy holds one; a dead body drops one).
    - `Character/Interaction/InteractionReach.LookSource`, `CanReach`, `LocalPlayerBody` and `IsLeaving`: where a player looks from, whether a
      pickup is in reach, and which body entering or leaving its trigger is this machine's player.
+   - `Wearables/GroundWearable`: a rigid wearable lying on the ground, picked up with E (headwear and shoes derive from it).
+   - `Wearables/WornBodyCover.Hide`/`Show`: hide the body under whatever is worn (garments, shoes), several at once.
    - `Tests/PlayMode/BuildingShapeCapture.Shoot` and `ShotsFolder`: render a camera to `Logs/CityShots/<name>.png` (20 captures use it).
    - `Tests/PlayMode/OpenRun.Face`: turn the player to look along an open, level run of street (the tests of moves that travel).
    - `Character/Editor/ClipAsset.Store`: save a generated animation clip into the one already at its path. Never delete and re-create an

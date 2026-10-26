@@ -440,6 +440,27 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// The select screen dresses each character in what it was saved wearing, from its own list of the clothes; one built before a garment
+        /// came shows a character in it without (the jeans and the sneakers, 2026-10-25).
+        /// </summary>
+        [Test]
+        public void TheSelectScreenCanDressACharacterInEveryGarment()
+        {
+            var select = Find<CharacterSelect>();
+            Assert.IsNotNull(select, "there is no CharacterSelect in the title scene");
+            var networked = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab").GetComponent<Inventory>();
+            foreach (Inventory.ItemPrefabEntry entry in networked.ItemPrefabs)
+            {
+                if (!CityX.Items.ItemRegistry.TryGet(entry.ItemId, out CityX.Items.ItemDefinition item) || !item.IsWearable)
+                {
+                    continue;
+                }
+                Assert.IsTrue(select.ClothingPrefabs.Any(worn => worn.ItemId == entry.ItemId && worn.Prefab != null),
+                    $"the select screen cannot show a character wearing {item.DisplayName} -- rebuild the title screen");
+            }
+        }
+
         private static string Path(GameObject go)
         {
             string path = go.name;

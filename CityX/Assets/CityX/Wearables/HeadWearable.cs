@@ -14,18 +14,9 @@ namespace CityX.Wearables
     ///
     /// Other players see it on their copy of the wearer (ICosmeticMountable; the Knight Helmet first, every hat since 2026-10-22).
     /// </summary>
-    [RequireComponent(typeof(SphereCollider))]
-    public abstract class HeadWearable : MonoBehaviour, IEquippableItem, ICosmeticMountable
+    public abstract class HeadWearable : GroundWearable, IEquippableItem, ICosmeticMountable
     {
-        public const float InteractRange = 2.5f;
-
-        private SphereCollider _pickupTrigger;
-        private Transform _nearbyPlayer;
-        private bool _equipped;
         private CharacterHair _coveredHair;
-
-        /// <summary>The registry id the pickup adds to the inventory.</summary>
-        protected abstract string ItemId { get; }
 
         /// <summary>Where the item's root sits in the Head bone's space.</summary>
         protected abstract Vector3 HeadPosition { get; }
@@ -34,58 +25,6 @@ namespace CityX.Wearables
 
         /// <summary>A closed helmet the hair would poke through: the wearer goes bald while it is on (CharacterHair.Cover).</summary>
         protected virtual bool HidesHair => false;
-
-        protected virtual void Awake()
-        {
-            _pickupTrigger = GetComponent<SphereCollider>();
-        }
-
-        private void Update()
-        {
-            if (!_equipped)
-            {
-                TickPickup();
-            }
-        }
-
-        private void OnTriggerEnter(Collider other)
-        {
-            Transform body = InteractionReach.LocalPlayerBody(other);
-            if (body != null)
-            {
-                _nearbyPlayer = body;
-            }
-        }
-
-        private void OnTriggerExit(Collider other)
-        {
-            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
-            {
-                _nearbyPlayer = null;
-            }
-        }
-
-        private void TickPickup()
-        {
-            if (_nearbyPlayer == null)
-            {
-                return;
-            }
-            if (!InteractKey.Tapped)
-            {
-                return;
-            }
-            if (Vector3.Distance(transform.position, _nearbyPlayer.position) > InteractRange)
-            {
-                return;
-            }
-
-            var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
-            if (inventory != null && inventory.PickUp(ItemId))
-            {
-                Destroy(gameObject);
-            }
-        }
 
         /// <summary>
         /// No Animator, or an Animator with no avatar, are both tolerated: GetBoneTransform THROWS when the Animator has no avatar at all
@@ -101,11 +40,7 @@ namespace CityX.Wearables
                 transform.localEulerAngles = HeadRotationEuler;
             }
 
-            _equipped = true;
-            if (_pickupTrigger != null)
-            {
-                _pickupTrigger.enabled = false;
-            }
+            MarkEquipped();
             CoverHairOf(player);
         }
 

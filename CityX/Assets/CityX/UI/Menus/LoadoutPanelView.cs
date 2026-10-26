@@ -29,7 +29,7 @@ namespace CityX.UI
     /// -> hand_r) show up here unchanged, just under the friendlier label
     /// "Torso"/"Primary Weapon". The keys are EquipSlots', the same ones the
     /// inventory's own equipped row uses since 2026-10-15; of them only
-    /// Shoes and Gloves have nothing registered against them yet.
+    /// Gloves have nothing registered against them yet.
     ///
     /// NO DEDICATED HOTKEY -- reached only through PlayerSubmenuView's
     /// Loadout button, which has already closed the C-menu by the time

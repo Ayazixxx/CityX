@@ -4,7 +4,7 @@ Owner, 2026-10-20: "make it so items you equipped stay equipped when you close t
 sure they have the items equipped on the character select screen (not weapons yet just wearables)".
 
 - **What counts as clothing:** items registered with `ItemDefinition.WearableCategory` (`IsWearable`). These are the T-shirts, coats,
-  cloak, Knight Helmet and Black Jeans (the Skelli jeans and the top hat until 2026-10-24, taken out to be replaced with better models).
+  cloak, Knight Helmet, the jeans and the White Sneaker (the Skelli jeans and the top hat until 2026-10-24, taken out to be replaced with better models).
   Weapons and back gear (jetpack, parachute) are not kept. Several worn at once each hide their part of the body (`WornBodyCover`,
   docs/BLACK_JEANS.md).
 - **Saved:** `CharacterSave.Wearing` lists the worn item ids. An older save loads wearing nothing.
@@ -15,7 +15,9 @@ sure they have the items equipped on the character select screen (not weapons ye
 - **Select screen:** `CharacterSelect.PutOnClothes` puts the saved pieces on each pedestal body with the item's own `OnEquip`, which only
   dresses the body. It runs after the paint and before the bodies are moved onto the stage's layer. The prefabs come from
   `CharacterSelect.ClothingPrefabs`, filled by `CharacterSelectBuilder` from `NetworkedPlayerWiring.ItemPrefabEntries(IsWearable)`.
-  That is the one item list shared with `NetworkedPlayer.prefab`, which now lists the clothes too, so a joining player can wear them.
+  That is the one item list shared with `NetworkedPlayer.prefab`, which now lists the clothes too, so a joining player can wear them. The
+  list is baked into Title.unity, so a new garment needs the title screen rebuilt (`TitleScreenBuilder.Build`):
+  `TitleScreenWiringTests.TheSelectScreenCanDressACharacterInEveryGarment` fails until it is (the jeans were missing from it until 2026-10-25).
 - **Tests:** `CharacterSaveTests` (round trip, old saves), `WornClothesPlayTests` (put back on, change saved) and
   `CharacterSelectCarouselPlayTests.ACharactersClothesAreOnTheirPedestalBody`.
 
