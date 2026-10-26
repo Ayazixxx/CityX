@@ -39,6 +39,15 @@ skinned like the jeans.
 
 Lying on the ground, the pair stands side by side as worn.
 
+**Size and place on the foot** (`WhiteSneakerBuilder.Size`, `Forward`, applied to the approved model when the prefab is built):
+- 1.1 times the approved model (owner, 2026-10-26: "make both shoes 1.1x bigger"). Each shoe grows from the ground under its ankle, so the
+  sole stays on the floor.
+- Slid 2.7 cm forward. Owner: "slide it forward so the back of the heel it touching the inner wall of the shoe"; the tongue also clipped
+  into the front of the ankle.
+  - Standing, the shin leans forward over the foot, so the heel stood 3 cm behind the ankle.
+  - At 3 cm the right ankle came out through its heel. The two legs stand a little differently.
+  - The heel is a single surface, with no separate lining behind the ankle.
+
 To refit them: open the approved `.blend`, move a shoe (the file is in the game's frame through glTF: Blender x, y, z is the game's -x, z,
 -y; the body faces the game's +z, Blender's -y), export over `Wearables/Models/WhiteSneaker.glb` (selected only, glTF binary, no materials)
 and rebuild the scene.
@@ -55,6 +64,7 @@ and rebuild the scene.
   - each shoe on its own foot bone, the feet given back when taken off;
   - worn with jeans, taking the shoes off leaves the legs under the jeans hidden;
   - standing, the soles on the ground;
+  - standing, the back of each ankle against its heel (no gap down its middle, nowhere out through the heel);
   - a copy wears them on its feet.
 - `TitleScreenWiringTests.TheSelectScreenCanDressACharacterInEveryGarment` (the select screen needs rebuilding for each new garment).
 - `WhiteSneakerCapture` (Explicit, `-Graphics`) writes `Logs/CityShots/sneaker-*.png`:

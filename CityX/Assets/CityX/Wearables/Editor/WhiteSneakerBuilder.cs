@@ -27,6 +27,16 @@ namespace CityX.WearablesEditor
         /// <summary>Canvas and rubber: matte.</summary>
         private const float Smoothness = 0.2f;
 
+        /// <summary>How much bigger than the approved model the shoes are worn (owner, 2026-10-26: "make both shoes 1.1x bigger").</summary>
+        public const float Size = 1.1f;
+
+        /// <summary>
+        /// How far forward of the approved model each shoe sits on its foot (owner, 2026-10-26: "slide it forward so the back of the heel it
+        /// touching the inner wall of the shoe"; the tongue clipped into the front of the ankle): standing, the shin leans forward over the
+        /// foot, so the heel stood 3 cm off the back of the ankle (the right ankle came out through its heel at 3).
+        /// </summary>
+        public const float Forward = 0.027f;
+
         /// <summary>The feet themselves, inside the shoes: never drawn.</summary>
         private static readonly HumanBodyBones[] AlwaysHidden = { HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot };
 
@@ -37,6 +47,10 @@ namespace CityX.WearablesEditor
         public static GameObject Build()
         {
             HeldModelBaker.Load(SourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uv);
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                vertices[i] = Grown(vertices[i]);
+            }
             var root = new GameObject("WhiteSneaker");
             var pair = new Mesh { name = "WhiteSneakerPair", vertices = vertices, normals = normals, triangles = triangles };
             try
@@ -67,6 +81,17 @@ namespace CityX.WearablesEditor
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(pair);
             }
+        }
+
+        /// <summary>
+        /// A point of the approved pair at <see cref="Size"/>, grown from the ground under its own ankle so the sole stays on the floor, then
+        /// moved <see cref="Forward"/>.
+        /// </summary>
+        public static Vector3 Grown(Vector3 point)
+        {
+            Vector3 ankle = BodyRig.RestBindMatrix(point.x < 0.0f ? HumanBodyBones.LeftFoot : HumanBodyBones.RightFoot).GetColumn(3);
+            var ground = new Vector3(ankle.x, 0.0f, ankle.z);
+            return ground + (point - ground) * Size + Vector3.forward * Forward;
         }
 
         /// <summary>

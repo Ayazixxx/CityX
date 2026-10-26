@@ -21,6 +21,16 @@ namespace CityX.Tests
         /// <summary>How far above or into the ground a sole may be with the player standing still.</summary>
         private const float SoleSlack = 0.04f;
 
+        /// <summary>
+        /// The back of the ankle down its middle: this far either side of the foot bone, from this high up (over the foot, under the collar).
+        /// </summary>
+        private const float AnkleMiddle = 0.02f;
+        private const float CollarLow = -0.04f;
+
+        /// <summary>How far back a ray looks for the heel, and the most of a gap that does not show.</summary>
+        private const float HeelReach = 0.1f;
+        private const float HeelGap = 0.005f;
+
         private GameObject _player;
         private GameObject _sneakers;
         private SkinnedMeshRenderer _skin;
@@ -127,6 +137,68 @@ namespace CityX.Tests
                     lowest = Mathf.Min(lowest, shoe.TransformPoint(vertex).y);
                 }
                 Assert.AreEqual(ground, lowest, SoleSlack, $"standing, the {shoe.name} shoe's sole is not on the ground");
+            }
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-26: "slide it forward so the back of the heel it touching the inner wall of the shoe" (the tongue clipped into the
+        /// front of the ankle). Standing, from the back of each ankle down the middle straight back to the heel: no gap to see; and nowhere round
+        /// the back of the ankle does the skin come out through the heel. The heel is one surface, seen from inside by its back: rays hit both
+        /// sides.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator StandingTheBackOfEachAnkleRestsOnItsHeel()
+        {
+            var shoes = _sneakers.GetComponent<Shoes>();
+            shoes.OnEquip(_player, ItemInstanceData.None);
+            var locomotion = _player.GetComponent<PlayerLocomotion>();
+            for (int i = 0; i < StandFrames; i++)
+            {
+                locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+                yield return null;
+            }
+            var posed = new Mesh();
+            _skin.BakeMesh(posed);
+            Vector3[] skin = posed.vertices;
+            bool hitBackfaces = Physics.queriesHitBackfaces;
+            Physics.queriesHitBackfaces = true;
+            try
+            {
+                foreach (Transform shoe in new[] { shoes.Left, shoes.Right })
+                {
+                    var heel = shoe.gameObject.AddComponent<MeshCollider>();
+                    heel.sharedMesh = shoe.GetComponent<MeshFilter>().sharedMesh;
+                    Transform foot = shoe.parent;
+                    float collarTop = heel.sharedMesh.bounds.max.y;
+                    float gap = float.MaxValue, through = 0.0f;
+                    foreach (Vector3 vertex in skin)
+                    {
+                        Vector3 world = _skin.transform.TransformPoint(vertex);
+                        Vector3 local = foot.InverseTransformPoint(world);
+                        if (local.z > 0.0f || local.y < CollarLow || local.y > collarTop)
+                        {
+                            continue;
+                        }
+                        if (Mathf.Abs(local.x) < AnkleMiddle && heel.Raycast(new Ray(world, -foot.forward), out RaycastHit back, HeelReach))
+                        {
+                            gap = Mathf.Min(gap, back.distance);
+                        }
+                        if (heel.Raycast(new Ray(world, foot.forward), out RaycastHit ahead, HeelReach)
+                            && foot.InverseTransformPoint(ahead.point).z < -HeelReach / 2.0f)
+                        {
+                            through = Mathf.Max(through, ahead.distance);
+                        }
+                    }
+                    Object.DestroyImmediate(heel);
+                    Assert.Less(gap, HeelGap, $"standing, the back of the ankle stands {gap * 100.0f:0.0} cm off the {shoe.name} shoe's heel " +
+                        $"(and {through * 100.0f:0.0} cm out through it)");
+                    Assert.Less(through, HeelGap, $"standing, the ankle comes {through * 100.0f:0.0} cm out through the {shoe.name} shoe's heel");
+                }
+            }
+            finally
+            {
+                Physics.queriesHitBackfaces = hitBackfaces;
+                Object.Destroy(posed);
             }
         }
 

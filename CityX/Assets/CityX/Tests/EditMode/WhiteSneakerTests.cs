@@ -86,6 +86,28 @@ namespace CityX.Tests
             Assert.Greater(shoes.Right.localPosition.x, 0.0f, "the right shoe is on the left foot's side");
         }
 
+        /// <summary>Owner, 2026-10-26: "make both shoes 1.1x bigger" than the approved model (the soles still on the ground, checked above).</summary>
+        [Test]
+        public void EachShoeIsWornAtItsSize()
+        {
+            WeaponsEditor.HeldModelBaker.Load(WearablesEditor.WhiteSneakerBuilder.SourcePath, out Vector3[] approved, out _, out _);
+            Shoes shoes = Pair();
+            foreach ((Transform shoe, bool left) in new[] { (shoes.Left, true), (shoes.Right, false) })
+            {
+                float shortest = float.MaxValue, longest = float.MinValue;
+                foreach (Vector3 point in approved)
+                {
+                    if (point.x < 0.0f == left)
+                    {
+                        shortest = Mathf.Min(shortest, point.z);
+                        longest = Mathf.Max(longest, point.z);
+                    }
+                }
+                Assert.AreEqual(WearablesEditor.WhiteSneakerBuilder.Size * (longest - shortest), MeshOf(shoe).bounds.size.z, 0.002f,
+                    $"the {shoe.name} shoe is not worn at its size");
+            }
+        }
+
         [Test]
         public void ThePairHidesTheFeetUnderIt()
         {
