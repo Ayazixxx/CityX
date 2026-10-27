@@ -192,6 +192,77 @@ namespace CityX.Tests
 #endif
         }
 
+        private sealed class Dummy : MonoBehaviour, CityX.Character.IDamageable
+        {
+            public bool IsAlive => true;
+            public readonly List<float> Hits = new List<float>();
+
+            public CityX.Character.HitResponse ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
+            {
+                Hits.Add(amount);
+                return CityX.Character.HitResponse.Landed;
+            }
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-26: "make it so the bullet travels through the window but does a little less damage" (10% less, GlassPenetration): a
+        /// bullet at a real window cracks it and hurts somebody standing in the room behind it; the next one goes through the cracked window too.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ABulletGoesThroughARealWindowIntoTheRoomBehindIt()
+        {
+#if UNITY_EDITOR
+            var world = new CityWorld(Seed);
+            Assert.IsTrue(FindTarget(world, out Target target));
+
+            var go = new GameObject("Streamer");
+            _made.Add(go);
+            go.SetActive(false);
+            var streamer = go.AddComponent<CityStreamer>();
+            streamer.WorldSeed = Seed;
+            streamer.RadiusChunks = 2;
+            streamer.GeneratorThreads = 0;
+            streamer.SpawnPreStreamBudget = 0;
+            go.AddComponent<GlassBreaker>();
+            go.SetActive(true);
+            Vector3 standing = target.Centre + target.Outward * 6.0f;
+            streamer.StreamAround(standing, int.MaxValue);
+            yield return null;
+            yield return null;
+            Physics.SyncTransforms();
+            target = AimAtTheGlass(world, target);
+            standing = target.Centre + target.Outward * 6.0f;
+
+            // Somebody a metre into the room, behind the glass.
+            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _made.Add(body);
+            body.transform.position = target.Centre - target.Outward * (BuildingInterior.GlassSetBack + 1.0f);
+            body.transform.localScale = new Vector3(0.6f, 1.2f, 0.6f);
+            Dummy dummy = body.AddComponent<Dummy>();
+            Physics.SyncTransforms();
+
+            var pistolPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Pistol.prefab");
+            GameObject pistolObject = Object.Instantiate(pistolPrefab, new Vector3(0.0f, -50.0f, 0.0f), Quaternion.identity);
+            _made.Add(pistolObject);
+            var pistol = pistolObject.GetComponent<PistolWeapon>();
+            float throughOne = CityX.Character.CombatTuning.DamageFor(pistol.Profile.Damage, 0) * GlassPenetration.DamageKeptPerPane;
+
+            Assert.IsTrue(pistol.Fire(standing, (target.Centre - standing).normalized, true, null));
+            Assert.AreEqual(PaneState.Cracked, streamer.Damage.StateOf(target.Key), "the bullet did not crack the window");
+            Assert.AreEqual(1, dummy.Hits.Count, "the bullet stopped in the window");
+            Assert.AreEqual(throughOne, dummy.Hits[0], 1e-3f, "through a window a bullet does 10% less");
+
+            yield return Wait(PistolWeapon.FireCooldownSeconds + 0.05f);   // the cracked window's chunk is rebuilt
+            Physics.SyncTransforms();
+            Assert.IsTrue(pistol.Fire(standing, (target.Centre - standing).normalized, true, null));
+            Assert.AreEqual(2, streamer.Damage.HoleCount(target.Key), "the second bullet made no hole in the cracked window");
+            Assert.AreEqual(2, dummy.Hits.Count, "the second bullet stopped in the cracked window");
+            Assert.AreEqual(throughOne, dummy.Hits[1], 1e-3f);
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator ACrackedWindowIsStillSomethingABulletCanFindEvenThoughItIsWalkable()
         {

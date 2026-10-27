@@ -704,7 +704,12 @@ namespace CityX.Weapons
             if (Physics.Raycast(muzzle.position, muzzle.forward, out RaycastHit hit, Profile.Range, TargetLayers, QueryTriggerInteraction.Ignore)
                 && !IsWieldersOwnCollider(hit.collider, _cosmeticBody))
             {
-                end = hit.point;
+                // On through the windows the shooter's bullet went through (only looked for: the glass broke on the shooter's machine).
+                Vector3 forward = muzzle.forward;
+                GlassPenetration.Follow(ref hit, forward, Profile.Range - hit.distance, false,
+                    (Vector3 from, float distance, out RaycastHit next) =>
+                        Physics.Raycast(from, forward, out next, distance, TargetLayers, QueryTriggerInteraction.Ignore),
+                    out _, out end);
             }
             _remoteShotIndex = Time.time - _lastRemoteShot <= Profile.RecoilResetSeconds ? _remoteShotIndex + 1 : 0;
             _lastRemoteShot = Time.time;
@@ -1013,16 +1018,15 @@ namespace CityX.Weapons
             bool realHit = trace.Hit;
             bool hitDamageable = false;
             bool killed = false;
+            Vector3 shotEnd = origin + spreadDirection * Profile.Range;
 
             if (realHit)
             {
-                var breakable = hit.collider.GetComponentInParent<IBreakableSurface>();
-                if (breakable != null)
-                {
-                    // A BULLET, not a punch: it makes its own hole and the window stays up.
-                    breakable.TakeBlow(hit.point, spreadDirection, BlowStrength.Bullet);
-                }
-                else
+                // A BULLET, not a punch: it makes its own hole in each window and goes on through it (GlassPenetration), a little weaker for each.
+                bool onSomething = GlassPenetration.Follow(ref hit, spreadDirection, Profile.Range - Vector3.Distance(origin, hit.point), true,
+                    (Vector3 from, float distance, out RaycastHit next) => TraceIgnoringWielder(from, spreadDirection, distance, wielder, out next),
+                    out int panes, out shotEnd);
+                if (onSomething)
                 {
                     var damageable = hit.collider.GetComponentInParent<IDamageable>();
                     if (damageable != null)
@@ -1032,7 +1036,7 @@ namespace CityX.Weapons
                         PlayerVitals shooter = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
                         int firearmDamage = shooter != null ? shooter.Stats[StatId.FirearmDamage] : 0;
                         float penetration = shooter != null ? shooter.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-                        float actualDamage = CombatTuning.DamageFor(Profile.Damage, firearmDamage);
+                        float actualDamage = CombatTuning.DamageFor(Profile.Damage, firearmDamage) * GlassPenetration.DamageShare(panes);
                         // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
                         bool wasAlive = damageable.IsAlive;
                         DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration, hit.point, wielder);
@@ -1055,10 +1059,9 @@ namespace CityX.Weapons
             // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where the shot really ended, whatever the mode (the arm points the
             // gun at the same point: PlayerLocomotion.NotifyGunFired and LocomotionInput.GunAimPoint).
             Vector3 muzzlePosition = MuzzleFlashObject != null ? MuzzleFlashObject.transform.position : origin;
-            Vector3 tracerEnd = realHit ? hit.point : origin + spreadDirection * Profile.Range;
             if (ShowsTracer(shotInBurst))
             {
-                BulletTracer.Spawn(muzzlePosition, tracerEnd, MuzzleFlashObject != null ? MuzzleFlashObject.transform : null);
+                BulletTracer.Spawn(muzzlePosition, shotEnd, MuzzleFlashObject != null ? MuzzleFlashObject.transform : null);
             }
 
             // Other players' copies of this body see and hear the shot (the damage went its own way: NetworkedDamage).
@@ -1090,7 +1093,7 @@ namespace CityX.Weapons
                 HitDamageable = hitDamageable,
                 Killed = killed,
                 BarrelBlocked = trace.BarrelBlocked,
-                Point = realHit ? hit.point : origin + spreadDirection * Profile.Range,
+                Point = shotEnd,
                 Aiming = aiming,
                 RecoilPitchDegrees = recoil.y,
                 RecoilYawDegrees = recoil.x,

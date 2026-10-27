@@ -147,6 +147,17 @@ namespace CityX.View
             return true;
         }
 
+        public bool IsGlassAt(Vector3 point)
+        {
+            if (_world == null)
+            {
+                _world = new CityWorld(_streamer.WorldSeed);
+            }
+            return _world.TryBuildingAt(point, out BuildingSite site, 0.6)
+                && GlassDamage.TryPaneAt(_world, site, point, out PaneKey key)
+                && _streamer.Damage.StateOf(key) != PaneState.Shattered;
+        }
+
         /// <summary>
         /// Tells the other machines in a session (GlassDamage.Relay, Character.GlassDamageNetwork) how a pane this machine's player broke stands now,
         /// with where the blow landed and which way it went, so they see it break there too. Alone, nothing is listening.
@@ -260,11 +271,51 @@ namespace CityX.View
             if (_shardMaterial != null && GlassPaneFrame.TryFrame(_world, site, key, point, out PaneFrame frame))
             {
                 int seed = unchecked(key.GetHashCode() * 31 + Time.frameCount);
-                GlassFractureBurst.Shatter(_shardMaterial, frame, point, through, strength, seed);
+                var pieces = new PendingShatter { Frame = frame, Point = point, Through = through, Strength = strength, Seed = seed };
+                if (_shatteredFrame == Time.frameCount)
+                {
+                    _pendingShatters.Enqueue(pieces);   // one window cut into pieces a frame (see ShatterOne)
+                }
+                else
+                {
+                    ShatterOne(pieces);
+                }
             }
             else if (ShardPrefab != null)
             {
                 GlassShardBurst.Spawn(ShardPrefab, point, through);
+            }
+        }
+
+        private struct PendingShatter
+        {
+            public PaneFrame Frame;
+            public Vector3 Point;
+            public Vector3 Through;
+            public BlowStrength Strength;
+            public int Seed;
+        }
+
+        private readonly System.Collections.Generic.Queue<PendingShatter> _pendingShatters = new System.Collections.Generic.Queue<PendingShatter>();
+        private int _shatteredFrame = -1;
+
+        /// <summary>
+        /// Cuts one pane into its pieces, at most ONE a frame: the cut is the dear part of a break (about 6 ms), and since bullets go on
+        /// through windows (GlassPenetration, 2026-10-26) one bullet can bring down a front window and the back one it had already cracked in
+        /// the same frame, two cuts at once (WindowSprayFramePlayTests caught it at 8.7 ms). A second pane breaking in a frame is cut on the
+        /// next one, a sixtieth of a second later; its sound is not held back.
+        /// </summary>
+        private void ShatterOne(PendingShatter pieces)
+        {
+            _shatteredFrame = Time.frameCount;
+            GlassFractureBurst.Shatter(_shardMaterial, pieces.Frame, pieces.Point, pieces.Through, pieces.Strength, pieces.Seed);
+        }
+
+        private void Update()
+        {
+            if (_pendingShatters.Count > 0 && _shatteredFrame != Time.frameCount)
+            {
+                ShatterOne(_pendingShatters.Dequeue());
             }
         }
 

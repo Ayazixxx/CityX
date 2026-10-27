@@ -431,17 +431,15 @@ namespace CityX.Weapons
             Vector3 end = origin + direction * _profile.Range;
             if (Trace(origin, direction, _profile.Range, out RaycastHit hit))
             {
-                end = hit.point;
-                var breakable = hit.collider.GetComponentInParent<CityX.World.IBreakableSurface>();
-                if (breakable != null)
-                {
-                    breakable.TakeBlow(hit.point, direction, CityX.World.BlowStrength.Bullet);
-                }
-                else
+                // On through any windows in the way, as a player's bullet goes (GlassPenetration).
+                if (GlassPenetration.Follow(ref hit, direction, _profile.Range - hit.distance, true,
+                        (Vector3 from, float reach, out RaycastHit next) => Trace(from, direction, reach, out next),
+                        out int panes, out end))
                 {
                     IDamageable target = hit.collider.GetComponentInParent<IDamageable>();
+                    float damage = _profile.Damage * DamageScale * GlassPenetration.DamageShare(panes);
                     if (target != null && target.IsAlive && !ReferenceEquals(target, _vitals)
-                        && DamageContext.Strike(target, _profile.Damage * DamageScale, origin, 0.0f, DamageKind.Bullet, 0.0f, hit.point, gameObject)
+                        && DamageContext.Strike(target, damage, origin, 0.0f, DamageKind.Bullet, 0.0f, hit.point, gameObject)
                         != HitResponse.Ignored)
                     {
                         Hits++;

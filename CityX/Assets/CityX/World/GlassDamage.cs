@@ -48,6 +48,12 @@ namespace CityX.World
         /// Implementers that do not care keep the plain-punch behaviour.
         /// </summary>
         bool TakeBlow(Vector3 point, Vector3 direction, BlowStrength strength) => TakePunch(point);
+
+        /// <summary>
+        /// Whether a point is on glass still standing, breaking nothing: another player's copy of a shot draws its trail on through the windows
+        /// the shooter's bullet went through (the bullet itself went its own way, on the shooter's machine).
+        /// </summary>
+        bool IsGlassAt(Vector3 point) => false;
     }
 
     /// <summary>How hard a blow to glass is.</summary>

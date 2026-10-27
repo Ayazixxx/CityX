@@ -147,6 +147,8 @@ namespace CityX.View
             return breaker.TakeBlow(OnPanePlane(point, direction), direction, strength);
         }
 
+        public bool IsGlassAt(Vector3 point) => _damage != null && _damage.StateOf(_key) == PaneState.Cracked;
+
         private Vector3 OnPanePlane(Vector3 point, Vector3 direction)
         {
             Vector3 normal = _rotation * WindowGrid.OutwardNormal(_key.Wall);

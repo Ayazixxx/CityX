@@ -240,3 +240,28 @@ alpha-blended (`SeeThroughMaterial.Apply(.., additive: false)`): the gold streak
 the core, was 0.55) and evener along it; and it holds nearly whole for most of its 0.12 s (`BulletTracer.Opacity`, 1 - t squared) before
 fading. Tests: `BulletTracerLookTests`; picture: `BulletHoleCapture` (`Logs/CityShots/bullettrail-1-was-added-light.png` and
 `bullettrail-2-now-laid-over.png`).
+
+## Update 2026-10-26: bullets go on through windows
+
+Owner: "make it so the bullet travels through the window but does a little less damage. find out how much less damage bullets do when going
+through objects in counter strike", then "lets make it 10% less damage for all guns for now". Counter-Strike: glass is its own case in the
+penetration code, a 0.05 share of the damage lost plus a small flat amount by the gun's penetration power (about 10% off an AK round, 17% off a
+Glock's), against 0.16 and much more with thickness for a wall; a bullet stops at its fifth solid. Sources: Valve's CS:GO surface types
+(penetrationmodifier, damagemodifier, the fifth solid), the Counter-Strike wiki's Bullet Penetration, the CS:GO update of 2014-07-11 (glass
+had been costing more than solid surfaces), and community reverse-engineering of the penetration code (the 0.05 glass share).
+
+`Weapons/Firearms/GlassPenetration`: a bullet that meets glass breaks the pane as before (`IBreakableSurface.TakeBlow`) and its line is taken up
+again 2 cm past it, `DamageKeptPerPane` 0.9; ONE window at most (owner, the same night: "make it so a bullet that has gone through 1 window cant go through another it just stops at whatever surface it hits unless its a player/mob/npc"): a second pane takes the bullet, its hole, and stops it (`MaxPanes` 2); anything not glass ends it (a body takes the
+damage, the city's wall round a window stops it). `PistolWeapon.Fire` and the Shoota's shot both go through it, and the trail runs to where the
+bullet really ended. Another player's copy of a shot draws its trail on through the same windows without breaking them
+(`IBreakableSurface.IsGlassAt`, `GlassBreaker`): the glass broke on the shooter's machine and reaches everyone as broken glass does
+(docs/MULTIPLAYER_STATE.md). Walls are not penetrated yet (no materials or thickness on them).
+
+Tests: `GlassPenetrationPlayTests` (10% through a window, a second window takes the bullet and stops it, a wall stops it before or after a window, the trail goes through, a copy of the
+shot only looks), `BulletHolesInRealWindowsPlayTests.ABulletGoesThroughARealWindowIntoTheRoomBehindIt` (a real city window, intact and then
+cracked, and somebody in the room behind it hit for 90%).
+
+**One window cut into pieces a frame.** A bullet through a window can now bring down the front window and the back one it had already cracked
+in the same frame: two pieces-cuts at once, and `WindowSprayFramePlayTests` caught the window work at 8.7 ms against its 8 ms limit.
+`GlassBreaker` now cuts at most one pane into pieces a frame (`ShatterOne`, a queue the next frames drain); the sound is not held back. The
+spray's worst frame went to 4.9 ms (7.3 ms before bullets went through windows), the windows' own work to 2.8 ms.
