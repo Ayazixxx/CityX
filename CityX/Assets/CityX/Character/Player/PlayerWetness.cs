@@ -6,14 +6,15 @@ namespace CityX.Character
 {
     /// <summary>
     /// The player getting wet -- and dry again. Standing in the rain soaks the
-    /// body and everything worn; under cover it dries, faster than in the open.
+    /// body and everything worn; out of it the body fades back to dry in a
+    /// minute, faster standing in the sun.
     /// Skin and clothes darken and pick up a sheen as they soak (the same
     /// look wet ground gets: darker, glossier, the gloss going out first as it
     /// dries), so someone who has been out in a storm LOOKS like it.
     ///
     /// The approach is the one the "Soaking Wet" wetness mods for Skyrim and
     /// most character-wetness systems use: no new assets, just a wetness value
-    /// that rises while exposed and falls while sheltered, pushed into the
+    /// that rises while exposed and falls out of the wet, pushed into the
     /// character's materials as extra gloss and a darker base colour.
     ///
     /// NEVER TOUCHES THE SHARED MATERIALS. Every character of a kind shares one
@@ -67,8 +68,18 @@ namespace CityX.Character
         private float _appliedWetness = -1.0f;
         private bool _applied;
 
+        /// <summary>How often the body looks for the sun, and how far (past the tallest tower's shadow).</summary>
+        public const float SunlightSeconds = 0.25f;
+        public const float SunlightReach = 400.0f;
+
+        private readonly RaycastHit[] _sunHits = new RaycastHit[16];
+        private float _sunlightTimer;
+
         /// <summary>0..1: 0 dry, 1 soaked to the skin.</summary>
         public float Wetness { get; private set; }
+
+        /// <summary>Whether the sun fell on the body when it last looked (it dries 1.5x faster then).</summary>
+        public bool InSunlight { get; private set; }
 
         /// <summary>Puts the body at a wetness -- for tests and the console.</summary>
         public void SetWetness(float wetness)
@@ -81,8 +92,11 @@ namespace CityX.Character
             float deltaTime = Time.deltaTime;
             Vector3 chest = transform.position + Vector3.up * 1.2f;
             float rain = CurrentWeather.RainOn(chest);
-            float shelter = CurrentWeather.Shelter(chest);
-            Wetness = Weather.StepBodyWetness(Wetness, rain, shelter, deltaTime);
+            if (Wetness > 0.0f)
+            {
+                SenseSunlight(chest, deltaTime);
+            }
+            Wetness = Weather.StepBodyWetness(Wetness, rain, InSunlight, deltaTime);
             // Standing in water soaks the body too, and far faster (Wading.SoakedBy); it dries the rain's way.
             if (_locomotion == null)
             {
@@ -110,6 +124,35 @@ namespace CityX.Character
                 _appliedWetness = -1.0f;
             }
             Apply();
+        }
+
+        /// <summary>
+        /// Whether the sun falls on the body: the sun out (CurrentSky) and nothing between the chest and it -- a roof, a building's shadow, a
+        /// bridge overhead. Looked at a few times a second, and only while there is something to dry.
+        /// </summary>
+        private void SenseSunlight(Vector3 chest, float deltaTime)
+        {
+            _sunlightTimer -= deltaTime;
+            if (_sunlightTimer > 0.0f)
+            {
+                return;
+            }
+            _sunlightTimer = SunlightSeconds;
+            InSunlight = CurrentSky.SunIsOut && !SomethingBetween(chest, CurrentSky.TowardSun);
+        }
+
+        private bool SomethingBetween(Vector3 from, Vector3 towardSun)
+        {
+            int count = Physics.RaycastNonAlloc(from, towardSun, _sunHits, SunlightReach, Physics.DefaultRaycastLayers,
+                QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                if (!_sunHits[i].collider.transform.IsChildOf(transform))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

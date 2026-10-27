@@ -59,7 +59,7 @@ accumulates and dries on its own clock, and consequences for the player.
 | Wet walls and ladders: more stamina, and a slow slide | `Character/Movement/WallStick.cs`, `Character/Movement/PlayerClimbing.cs` |
 | Rain weakens flames (reach and damage) | `Weapons/Firearms/Flamethrower.cs` (`Weather.FlameStrength`) |
 | Pedestrians hurry, and seek a roof | `Character/NPC/CivilianBrain.cs` (`IRainSense`) |
-| The player soaks, darkens and dries | `Character/Player/PlayerWetness.cs` |
+| The player soaks, darkens and dries: back to dry in a minute out of the rain, 1.5x faster standing in the sun (the sun out, nothing between the chest and it; owner 2026-10-27) | `Character/Player/PlayerWetness.cs`, `Weather.StepBodyWetness`, `World/CurrentSky.cs` (published by `DayNightCycle`) |
 | Dev console | `/weather rain [light\|moderate\|heavy\|0.1-1]`, `clear`, `dry`, `lightning [metres]`, `status` |
 
 ### Design rules worth keeping

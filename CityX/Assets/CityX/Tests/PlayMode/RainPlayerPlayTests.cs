@@ -46,6 +46,7 @@ namespace CityX.Tests
         public void TearDown()
         {
             CurrentWeather.Clear();
+            CurrentSky.Clear();
             if (_player != null) Object.DestroyImmediate(_player);
             if (_ground != null) Object.DestroyImmediate(_ground);
             if (_shared != null) Object.DestroyImmediate(_shared);
@@ -266,10 +267,10 @@ namespace CityX.Tests
             CurrentWeather.Cover = new FakeCover { Value = 1.0f };   // nothing falling on them
             CurrentWeather.Intensity = 1.0f;
 
-            wetness.SetWetness(0.02f);
+            wetness.SetWetness(0.01f);
             yield return null;
             yield return null;
-            // Dries at 1/25 per second under cover; 0.02 is gone within a second.
+            // Dries at 1/60 per second out of the sun; 0.01 is gone within a second.
             yield return new WaitForSeconds(1.0f);
             yield return null;
 
@@ -281,6 +282,50 @@ namespace CityX.Tests
                 Assert.AreEqual(0.8f, block.GetColor("_BaseColor").r, 1e-4f, "a dry body should look exactly as it did before the rain");
                 Assert.AreEqual(0.2f, block.GetFloat("_Smoothness"), 1e-4f);
             }
+        }
+
+        /// <summary>Owner, 2026-10-27: "if you are in sunlight then it speeds up to 1.5x faster": the sun out and nothing over the body, it
+        /// dries half as fast again; a roof between it and the sun puts it back to the minute.</summary>
+        [UnityTest]
+        public IEnumerator InTheSunTheBodyDriesHalfAsFastAgainAndARoofInTheWayStopsThat()
+        {
+            MakeBody(out _);
+            PlayerWetness wetness = _player.AddComponent<PlayerWetness>();
+            CurrentSky.TowardSun = new Vector3(0.3f, 0.9f, 0.2f).normalized;
+            CurrentSky.Sunshine = 1.0f;
+
+            float sunRate = 0.0f;
+            yield return DryingRate(wetness, rate => sunRate = rate);
+            Assert.IsTrue(wetness.InSunlight, "out in the open the sun did not fall on the body");
+
+            var roof = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            roof.transform.position = new Vector3(0.0f, 6.0f, 0.0f);
+            roof.transform.localScale = new Vector3(30.0f, 0.3f, 30.0f);
+            Physics.SyncTransforms();
+            float shadeRate = 0.0f;
+            yield return DryingRate(wetness, rate => shadeRate = rate);
+            Object.Destroy(roof);
+            Assert.IsFalse(wetness.InSunlight, "under a roof the body still counted as in the sun");
+
+            Assert.AreEqual(Weather.SunDryingSpeedUp / Weather.BodyDrySeconds, sunRate, 0.002f, "in the sun it does not dry 1.5x as fast");
+            Assert.AreEqual(1.0f / Weather.BodyDrySeconds, shadeRate, 0.002f, "out of the sun it does not dry in a minute");
+        }
+
+        /// <summary>How fast a soaked body dries, wetness a second, over a second of frames once it has looked for the sun.</summary>
+        private static IEnumerator DryingRate(PlayerWetness wetness, System.Action<float> result)
+        {
+            wetness.SetWetness(1.0f);
+            for (int i = 0; i < 20; i++)
+            {
+                yield return null;
+            }
+            float from = wetness.Wetness, elapsed = 0.0f;
+            for (int i = 0; i < 60; i++)
+            {
+                yield return null;
+                elapsed += Time.deltaTime;
+            }
+            result((from - wetness.Wetness) / elapsed);
         }
 
         private CharacterHair MakeDyedHair(Color dye)
@@ -333,7 +378,7 @@ namespace CityX.Tests
             Assert.Greater(soaked.b, soaked.r * 1.5f, "soaked hair turned into the default gold instead of a darker blue");
 
             CurrentWeather.Cover = new FakeCover { Value = 1.0f };   // nothing falling on them now
-            wetness.SetWetness(0.02f);
+            wetness.SetWetness(0.01f);
             yield return null;
             yield return null;
             yield return new WaitForSeconds(1.0f);
@@ -368,7 +413,7 @@ namespace CityX.Tests
             Assert.Less(now.r, pink.r, "the freshly dyed hair on a soaked body is not darkened");
 
             CurrentWeather.Cover = new FakeCover { Value = 1.0f };
-            wetness.SetWetness(0.02f);
+            wetness.SetWetness(0.01f);
             yield return null;
             yield return null;
             yield return new WaitForSeconds(1.0f);

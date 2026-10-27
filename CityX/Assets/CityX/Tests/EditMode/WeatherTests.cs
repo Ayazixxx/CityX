@@ -158,31 +158,57 @@ namespace CityX.Tests
         // --- the player's body ---
 
         [Test]
-        public void StandingInARealDownpourSoaksABodyInSecondsAndCoverDriesItFaster()
+        public void StandingInARealDownpourSoaksABodyInSeconds()
         {
             float wet = 0.0f;
             for (int i = 0; i < 70; i++)
             {
-                wet = Weather.StepBodyWetness(wet, 1.0f, 0.0f, 0.1f);
+                wet = Weather.StepBodyWetness(wet, 1.0f, false, 0.1f);
             }
             Assert.AreEqual(1.0f, wet, 1e-4f, "seven seconds of a downpour should soak a body");
+        }
 
-            float open = 1.0f, covered = 1.0f;
-            for (int i = 0; i < 100; i++)
+        /// <summary>Owner, 2026-10-27: "slowly fade away back to dry over the course of 1 minute and resets when you get wet again. if you are in
+        /// sunlight then it speeds up to 1.5x faster".</summary>
+        [Test]
+        public void ASoakedBodyFadesBackToDryInAMinuteFortySecondsInTheSunAndStartsAgainWhenRainedOn()
+        {
+            float shade = 1.0f, sun = 1.0f;
+            for (int i = 0; i < 400; i++)
             {
-                open = Weather.StepBodyWetness(open, 0.0f, 0.0f, 0.1f);
-                covered = Weather.StepBodyWetness(covered, 0.0f, 1.0f, 0.1f);
+                shade = Weather.StepBodyWetness(shade, 0.0f, false, 0.1f);
+                sun = Weather.StepBodyWetness(sun, 0.0f, true, 0.1f);
             }
-            Assert.Less(covered, open, "a body dries faster under a roof than in the open air");
-            Assert.Greater(open, 0.8f, "and not instantly in either");
+            Assert.AreEqual(0.0f, sun, 1e-4f, "forty seconds in the sun should dry a soaked body");
+            Assert.AreEqual(1.0f / 3.0f, shade, 1e-3f, "out of the sun forty seconds is two thirds of the minute");
+            for (int i = 0; i < 200; i++)
+            {
+                shade = Weather.StepBodyWetness(shade, 0.0f, false, 0.1f);
+            }
+            Assert.AreEqual(0.0f, shade, 1e-4f, "a minute should dry a soaked body out of the sun");
+
+            float again = 0.3f;
+            for (int i = 0; i < 70; i++)
+            {
+                again = Weather.StepBodyWetness(again, 1.0f, false, 0.1f);
+            }
+            Assert.AreEqual(1.0f, again, 1e-4f, "rained on again, the body is soaked again and has the whole minute to dry");
         }
 
         [Test]
         public void ARainShowerSoaksABodySlowerThanADownpour()
         {
-            float shower = Weather.StepBodyWetness(0.0f, 0.25f, 0.0f, 1.0f);
-            float downpour = Weather.StepBodyWetness(0.0f, 1.0f, 0.0f, 1.0f);
+            float shower = Weather.StepBodyWetness(0.0f, 0.25f, false, 1.0f);
+            float downpour = Weather.StepBodyWetness(0.0f, 1.0f, false, 1.0f);
             Assert.Less(shower, downpour);
+        }
+
+        [Test]
+        public void TheSunIsOutOnlyByDayUnderAClearishSky()
+        {
+            Assert.AreEqual(1.0f, CurrentSky.SunshineOf(0.6f, 0.0f));
+            Assert.AreEqual(0.0f, CurrentSky.SunshineOf(-0.2f, 0.0f), "the sun shines on nothing by night");
+            Assert.Less(CurrentSky.SunshineOf(0.6f, 0.9f), CurrentSky.SunshineToCount, "a storm's cloud lid hides it");
         }
 
         // --- what wetness does to gameplay ---

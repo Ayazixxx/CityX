@@ -143,25 +143,24 @@ namespace CityX.World
         /// <summary>Seconds of open, heavy rain to soak a body through.</summary>
         public const float BodySoakSeconds = 6.0f;
 
-        /// <summary>Seconds for a soaked body to dry standing in the open.</summary>
-        public const float BodyDryOpenSeconds = 70.0f;
+        /// <summary>Seconds for a soaked body to fade back to dry (owner, 2026-10-27: "over the course of 1 minute").</summary>
+        public const float BodyDrySeconds = 60.0f;
 
-        /// <summary>...and under a roof, where there is no rain to add and the air is stiller.</summary>
-        public const float BodyDryCoveredSeconds = 25.0f;
+        /// <summary>How much faster it dries standing in the sun ("if you are in sunlight then it speeds up to 1.5x faster").</summary>
+        public const float SunDryingSpeedUp = 1.5f;
 
         /// <summary>
-        /// One step of how wet a person is. Rain ON them soaks them (in
-        /// proportion to how hard it is falling on that spot); otherwise they
-        /// dry, faster the more sheltered they are.
+        /// One step of how wet a person is. Rain ON them soaks them (in proportion to how hard it is falling on that spot), and the minute of
+        /// drying starts again from however wet that leaves them; otherwise they fade back to dry, faster in the sun.
         /// </summary>
-        public static float StepBodyWetness(float wetness, float rainOnBody, float shelter, float deltaTime)
+        public static float StepBodyWetness(float wetness, float rainOnBody, bool inSunlight, float deltaTime)
         {
             if (rainOnBody > 0.0f)
             {
                 return Mathf.Min(1.0f, wetness + rainOnBody * deltaTime / BodySoakSeconds);
             }
-            float drySeconds = Mathf.Lerp(BodyDryOpenSeconds, BodyDryCoveredSeconds, Mathf.Clamp01(shelter));
-            return Mathf.Max(0.0f, wetness - deltaTime / drySeconds);
+            float speed = inSunlight ? SunDryingSpeedUp : 1.0f;
+            return Mathf.Max(0.0f, wetness - speed * deltaTime / BodyDrySeconds);
         }
 
         // --- what wetness does to the player ---

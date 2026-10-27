@@ -1,3 +1,4 @@
+using CityX.World;
 using UnityEngine;
 
 namespace CityX.View
@@ -144,6 +145,7 @@ namespace CityX.View
         {
             // Shader globals outlive the scene: a scene without a sky cycle (the title screen) must not inherit this one's air.
             CityHaze.Clear();
+            CurrentSky.Clear();
         }
 
         /// <summary>
@@ -172,7 +174,9 @@ namespace CityX.View
                 Sun.color = state.SunColour;
                 Sun.intensity = state.SunIntensity;
                 Sun.shadows = state.SunCastsShadow ? LightShadows.Soft : LightShadows.None;
+                CurrentSky.TowardSun = -Sun.transform.forward;
             }
+            CurrentSky.Sunshine = CurrentSky.SunshineOf(state.SunElevationSine, Overcast);
 
             if (Moon != null)
             {
