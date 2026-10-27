@@ -35,7 +35,7 @@ namespace CityX.Tests
         [UnityTearDown]
         public IEnumerator UnityTearDown()
         {
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             foreach (GameObject go in _made)
             {
                 if (go != null) Object.Destroy(go);

@@ -58,7 +58,7 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(_player);
             if (_coat != null)
             {

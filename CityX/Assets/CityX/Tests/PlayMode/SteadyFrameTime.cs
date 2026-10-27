@@ -46,5 +46,26 @@ namespace CityX.Tests
             Assert.AreEqual(SteadyFrameTime.FramesPerSecond, Time.captureFramerate, "the steady frame time is not set for coroutine tests");
             Assert.AreEqual(1.0f / SteadyFrameTime.FramesPerSecond, Time.deltaTime, 1e-4f, "a frame is not 1/60 s");
         }
+
+        /// <summary>
+        /// No test leaves the clock running in real time behind it: twelve did (their tear-downs set 0), and every test after one ran on a
+        /// clock of a fraction of a millisecond a frame (WindowSprayFramePlayTests, run after WhiteSneakerPlayTests, fired 7 to 16 shots
+        /// instead of 29 and failed every full run).
+        /// </summary>
+        [Test]
+        public void NoTestLeavesTheClockRunningInRealTime()
+        {
+            string folder = System.IO.Path.Combine(Application.dataPath, "CityX", "Tests", "PlayMode");
+            var offenders = new System.Collections.Generic.List<string>();
+            foreach (string file in System.IO.Directory.GetFiles(folder, "*.cs"))
+            {
+                string name = System.IO.Path.GetFileName(file);
+                if (name != "SteadyFrameTime.cs" && System.IO.File.ReadAllText(file).Contains("captureFramerate = 0"))
+                {
+                    offenders.Add(name);
+                }
+            }
+            Assert.IsEmpty(offenders, "these set the clock back to real time instead of SteadyFrameTime.FramesPerSecond");
+        }
     }
 }

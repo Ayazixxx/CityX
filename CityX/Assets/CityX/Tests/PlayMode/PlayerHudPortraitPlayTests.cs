@@ -499,7 +499,7 @@ namespace CityX.Tests
             }
             finally
             {
-                Time.captureFramerate = 0;
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             }
 #else
             yield break;

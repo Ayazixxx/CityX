@@ -74,7 +74,7 @@ namespace CityX.Tests
             }
             finally
             {
-                Time.captureFramerate = 0;
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
                 Object.Destroy(player);
                 Object.Destroy(cameraObject);
                 Object.Destroy(ground);
@@ -160,7 +160,7 @@ namespace CityX.Tests
             }
             finally
             {
-                Time.captureFramerate = 0;
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
                 Object.Destroy(player);
                 Object.Destroy(cameraObject);
                 Object.Destroy(ground);

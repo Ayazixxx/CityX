@@ -61,7 +61,7 @@ namespace CityX.Tests
             carry.Tick(false, true, true);
             for (int i = 0; i < 12; i++) yield return null;
             BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, "carry-03", side + new Vector3(2.0f, 0.0f, 4.0f), look + new Vector3(2.0f, 0.0f, 4.0f));
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(sword);
             Object.Destroy(player);
             Object.Destroy(eye);

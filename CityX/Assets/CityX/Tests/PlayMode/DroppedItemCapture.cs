@@ -38,7 +38,7 @@ namespace CityX.Tests
             if (_swordsman != null) Object.Destroy(_swordsman);
             if (_camera != null) Object.Destroy(_camera.gameObject);
             DroppedItems.Shared.Clear();
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             if (_scene.IsValid() && _scene.isLoaded)
             {
                 LogAssert.ignoreFailingMessages = true;

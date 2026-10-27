@@ -36,7 +36,7 @@ namespace CityX.Tests
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(_ground);
             if (_wraith != null) Object.Destroy(_wraith);
             if (_player != null) Object.Destroy(_player);

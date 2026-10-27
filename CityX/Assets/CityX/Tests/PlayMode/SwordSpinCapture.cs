@@ -159,7 +159,7 @@ namespace CityX.Tests
             Release(_keyboard.digit2Key);
             yield return ShootFrames(camera, melee, body, prefix, "air", AirFrames);
             Debug.Log($"CityX: spin capture wrote to {BuildingShapeCapture.ShotsFolder}; kind {melee.CurrentSpinKind}, animation weight {locomotion.BakedPoseWeight:0.00}");
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(cameraObject);
 #else
             yield break;
