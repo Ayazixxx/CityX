@@ -51,6 +51,7 @@ accumulates and dries on its own clock, and consequences for the player.
 | Wetness rises fast, falls slowly; the gloss goes before the darkness | `Weather.StepWetness`, `SheenFactor` |
 | Intensity levels: light / moderate / heavy, eased in and out | `Weather.LightRain`..`HeavyRain`, `RainEffect.SetRain` |
 | Rain sound muffled and quieter under cover | `Weather.ShelteredCutoffHz`, `ShelteredVolume` |
+| The outdoor rain's sound: a seamless loop (2026-10-26, owner: "take the audio from this and replace our outdoor rain noise with this. make it a clean loop") | `UI/Audio/rain_outdoor.ogg` (`RainEffect.OutdoorRainSoundPath`), cut from the owner's clip by `SourceArt/Rain/rain_loop.py` (Blender's audio library): 6.55 s, stereo, crossfaded 0.75 s at its seam, levelled to the old sound's loudness (+6 dB), Ogg Vorbis (an mp3 leaves a gap at the loop; the old `rain_noises.mp3` also faded in from near silence, a dip every minute; the title screen still plays it). `OutdoorRainSoundTests`: wired, no click or dip at the seam, as loud as the old |
 | Thunder delayed by 343 m/s, duller and quieter with distance | `Weather.ThunderDelaySeconds`, `View/Weather/ThunderSynth.cs` |
 | Lightning: jagged bolt to a tall building, glow, whole sky flashes | `View/Weather/LightningBolt.cs`, `RainEffect.StrikeLightning`, `DayNightCycle.Flash` |
 | A storm greys the sky, fog and background TOGETHER | `SkyCycle.Weathered`, `DayNightCycle.Overcast` |

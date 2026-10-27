@@ -162,7 +162,15 @@ namespace CityX.View
         /// <summary>The slowest the cover-driven muffling of the sound moves, so stepping under a roof fades rather than clicks.</summary>
         public const float ShelterEaseSecondsPerUnit = 0.35f;
 
-        [Tooltip("rain_noises.mp3, looping while it rains.")]
+        /// <summary>
+        /// The outdoor rain's sound (owner, 2026-10-26: "take the audio from this and replace our outdoor rain noise with this. make it a
+        /// clean loop"): a recording cut into a seamless 6.5 s loop by SourceArt/Rain/rain_loop.py (crossfaded at its seam, levelled to the old
+        /// sound's loudness), in Ogg Vorbis, which loops without the gap an mp3 has. The old rain_noises.mp3 faded in from near silence, so it
+        /// dipped every minute; the title screen still plays it.
+        /// </summary>
+        public const string OutdoorRainSoundPath = "Assets/CityX/UI/Audio/rain_outdoor.ogg";
+
+        [Tooltip("The outdoor rain (OutdoorRainSoundPath), looping while it rains.")]
         public AudioClip RainSound;
 
         [Tooltip("Recorded thunder (owner, 2026-10-14: \"add these 3 as thunder sounds during the rain ... randomly pick between the 3 sounds, we " +

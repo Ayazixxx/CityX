@@ -321,8 +321,7 @@ namespace CityX.ViewEditor
                 var rainObject = new GameObject("Rain");
                 rainObject.transform.SetParent(player.transform, false);
                 RainEffect rain = rainObject.AddComponent<RainEffect>();
-                rain.RainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
-                    "Assets/CityX/UI/Audio/rain_noises.mp3");
+                rain.RainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(RainEffect.OutdoorRainSoundPath);
                 rain.ThunderRecordings = new[]
                 {
                     AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/UI/Audio/thunder_loud.ogg"),
