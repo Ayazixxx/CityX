@@ -45,7 +45,6 @@ namespace CityX.CharacterEditor
         public const string FaceName = "Face";
         public const string EyeLeftName = "EyeLeft";
         public const string EyeRightName = "EyeRight";
-        public const string LipName = "Lip";
         public const string JawName = "Jaw";
         public const string TeethName = "Teeth";
 
@@ -76,29 +75,15 @@ namespace CityX.CharacterEditor
         public const float ToothLean = 0.2f;
         public const float ToothCurl = 0.03f;
 
-        /// <summary>
-        /// The dark line of the mouth behind the teeth's roots: from here to here (up the skull), this far round, this far proud (enough to
-        /// stand clear of the see-through skull, which otherwise draws over it and washes it out). Its top shows above the teeth's roots as
-        /// the mouth's opening (lower, the roots hid all of it).
-        /// </summary>
-        public const float LipTopY = -0.02f;
-        public const float LipBottomY = -0.05f;
-        public const float LipHalfAngleDegrees = 48.0f;
-        public const float LipProud = 0.012f;
-        private const int LipSegments = 24;
-
         public static readonly Color EyeColour = new Color(0.78f, 0.04f, 0.05f);
         public static readonly Color ToothColour = new Color(0.96f, 0.96f, 0.94f);
-        public static readonly Color LipColour = new Color(0.12f, 0.07f, 0.08f);
         private const float EyeSmoothness = 0.7f;
         private const float ToothSmoothness = 0.55f;
 
         private const string EyeMaterialPath = "Assets/CityX/Character/Materials/WraithEye.mat";
         private const string ToothMaterialPath = "Assets/CityX/Character/Materials/WraithTeeth.mat";
-        private const string LipMaterialPath = "Assets/CityX/Character/Materials/WraithLip.mat";
         public const string EyeMeshPath = "Assets/CityX/Character/WraithEye.asset";
         public const string TeethMeshPath = "Assets/CityX/Character/WraithTeeth.asset";
-        public const string LipMeshPath = "Assets/CityX/Character/WraithLip.asset";
 
         /// <summary>Nothing of the body below here (metres up a standing body): the pelvis's underside and the tops of the thighs go.</summary>
         public const float CutY = 0.75f;
@@ -414,8 +399,8 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>
-        /// The face on the skull: two solid red eyes sunk into it high and wide, the dark line of the mouth below the centre, and one row of
-        /// sharp white teeth hanging from it under a jaw pivot. The eyes and the mouth are opaque and lit (CityX/Lit, cel shaded and outlined
+        /// The face on the skull: two solid red eyes sunk into it high and wide, and one row of
+        /// sharp white teeth hanging from it under a jaw pivot. The eyes and the teeth are opaque and lit (CityX/Lit, cel shaded and outlined
         /// like everything solid), the teeth and the eyes gone with the body when it dies (Wraith shrinks the face away).
         /// </summary>
         private static Transform BuildFace(Transform skull, out Transform jaw)
@@ -436,13 +421,6 @@ namespace CityX.CharacterEditor
                 renderer.sharedMaterial = eyeMaterial;
                 NoShadow(renderer);
             }
-
-            var lip = new GameObject(LipName);
-            lip.transform.SetParent(face.transform, false);
-            lip.AddComponent<MeshFilter>().sharedMesh = SaveMesh(LipMeshPath, Lip(radius));
-            MeshRenderer lipRenderer = lip.AddComponent<MeshRenderer>();
-            lipRenderer.sharedMaterial = SolidMaterial(LipMaterialPath, "WraithLip", LipColour, 0.2f);
-            NoShadow(lipRenderer);
 
             // The jaw pivots at the middle of the lip, on the skull's surface; the teeth are made in the skull's frame and hung under it.
             var jawObject = new GameObject(JawName);
@@ -522,38 +500,6 @@ namespace CityX.CharacterEditor
             mesh.SetVertices(vertices);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        /// <summary>The dark line of the mouth: a band round the skull's front just proud of it, the teeth's roots along its lower edge.</summary>
-        private static Mesh Lip(float radius)
-        {
-            var vertices = new List<Vector3>();
-            var normals = new List<Vector3>();
-            var triangles = new List<int>();
-            float proud = radius + LipProud;
-            for (int step = 0; step <= LipSegments; step++)
-            {
-                float angle = Mathf.Lerp(-LipHalfAngleDegrees, LipHalfAngleDegrees, (float)step / LipSegments) * Mathf.Deg2Rad;
-                foreach (float y in new[] { LipTopY, LipBottomY })
-                {
-                    float ring = Mathf.Sqrt(proud * proud - y * y);
-                    var point = new Vector3(Mathf.Sin(angle) * ring, y, Mathf.Cos(angle) * ring);
-                    vertices.Add(point);
-                    normals.Add(point.normalized);
-                }
-                if (step > 0)
-                {
-                    // Wound to face out of the skull (the lip's material culls back faces, unlike the wisps').
-                    int a = (step - 1) * 2;
-                    triangles.AddRange(new[] { a, a + 1, a + 2, a + 1, a + 3, a + 2 });
-                }
-            }
-            var mesh = new Mesh { name = "WraithLip" };
-            mesh.SetVertices(vertices);
-            mesh.SetNormals(normals);
-            mesh.SetTriangles(triangles, 0);
             mesh.RecalculateBounds();
             return mesh;
         }

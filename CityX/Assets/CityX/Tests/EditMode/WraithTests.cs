@@ -135,7 +135,7 @@ namespace CityX.Tests
             GameObject prefab = Prefab();
             var wraith = prefab.GetComponent<Wraith>();
             Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
-            Assert.AreEqual(7, renderers.Length, "the Wraith is not a body, a skull, wisps, two eyes, a mouth and teeth");
+            Assert.AreEqual(6, renderers.Length, "the Wraith is not a body, a skull, wisps, two eyes and teeth");
             foreach (Renderer renderer in renderers)
             {
                 bool face = renderer.transform.IsChildOf(wraith.Face);
@@ -181,11 +181,7 @@ namespace CityX.Tests
                 Assert.AreEqual(WraithBuilder.EyeRadius, eye.GetComponent<MeshFilter>().sharedMesh.bounds.extents.x, 1e-3f, $"{name} is the wrong size");
             }
 
-            Transform lip = wraith.Face.Find(WraithBuilder.LipName);
-            Assert.IsNotNull(lip, "it has no mouth");
-            Mesh mouth = lip.GetComponent<MeshFilter>().sharedMesh;
-            Assert.Greater(mouth.bounds.max.y, WraithBuilder.LipY + WraithBuilder.ToothBaseRadius, "the mouth's line is hidden behind the teeth's roots");
-            AssertFacesOut(mouth, "the mouth");
+            Assert.AreEqual(3, wraith.Face.childCount, "the face is not two eyes and the jaw (the owner had the dark mouth line taken off)");
             AssertFacesOut(wraith.Face.Find(WraithBuilder.EyeLeftName).GetComponent<MeshFilter>().sharedMesh, "an eye");
             Assert.IsNotNull(wraith.Jaw, "it has no jaw for the bite to come");
             Assert.AreEqual(new Vector3(0.0f, WraithBuilder.LipY, WraithBuilder.LipRadius(radius)), wraith.Jaw.localPosition,
@@ -209,7 +205,7 @@ namespace CityX.Tests
 
         /// <summary>
         /// Every triangle winds the way its normals point (Unity's front face: clockwise seen from outside), so a solid part is drawn, not
-        /// culled as its own back: the mouth was wound inward and never showed.
+        /// culled as its own back.
         /// </summary>
         private static void AssertFacesOut(Mesh mesh, string what)
         {
