@@ -106,6 +106,9 @@ namespace CityX.Tests
             var binRect = (RectTransform)bin;
             Assert.AreEqual(new Vector2(1.0f, 1.0f), binRect.anchorMin, "the bin is not in the card's top-right corner");
             Assert.LessOrEqual(binRect.sizeDelta.x, 32.0f, "the bin is not little");
+            // Owner, 2026-10-27: "instead of "new character" make the button say "CREATE NEW"".
+            Transform create = list.GetComponentsInChildren<Transform>(true).First(t => t.name == "NewButton");
+            Assert.AreEqual("CREATE NEW", create.GetComponentInChildren<Text>(true).text);
 
             var select = Find<CharacterSelect>();
             Assert.AreEqual(CharacterSelect.SlotCount, select.PedestalAnchors.Length);

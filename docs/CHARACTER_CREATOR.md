@@ -94,7 +94,7 @@ delete button to just a little trash icon that is in the top right of that littl
 - **The arrows the other way round:** the next character now stands on the right, so the right arrow brings it in from the right and the
   row slides left (it came in from the left); the count still goes up with the right arrow.
 - **Delete is a bin** in the stat card's top-right corner (`MakeTrashButton`, drawn from rectangles, red under the pointer), still asking
-  first; PLAY and NEW CHARACTER close up in the middle.
+  first; PLAY and CREATE NEW close up in the middle.
 
 Tests: `CharacterSelectCarouselPlayTests.FiveStandOnTheRowTheBackPairInShadowAndTheNextOneOnTheRight` (five filled with
 six saved, the back pair in shadow, the next one on the right and brought in by the right arrow), `TheBackPairOnlyStandsWithFiveSoNobodyIsOnTheRowTwice`,

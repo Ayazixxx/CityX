@@ -369,7 +369,7 @@ namespace CityX.UIEditor
             // Into the CREATOR, not straight to the name box. Painting comes
             // first and naming last, which is the order the Godot build used
             // and the order that makes sense: you name the thing you made.
-            MakeButton(panel.transform, "NewButton", "NEW CHARACTER", Paper,
+            MakeButton(panel.transform, "NewButton", "CREATE NEW", Paper,
                 Anchor(0.5f, 0.0f), new Vector2(90.0f, 58.0f), new Vector2(160.0f, 44.0f),
                 ButtonAction.Kind.ShowCreator, title, select);
 
