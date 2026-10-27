@@ -207,6 +207,17 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 - **Titan's Grip** (World of Warcraft's Fury warriors dual wielded two-handed weapons): deep in the Two-Handed tree, needing many points there and the Dual Wield node; two greatswords at once. Its own moveset, so it is built late; balanced by more stamina per swing or no block.
 - **One moveset at a time**, finished properly: about 12 movesets cover every item on the rarity list, and a finished one makes each new item mostly a model and numbers. Order for the December goal (fists, sword, fire): one-handed melee (the combat sword), fists, fire magic, then the pistol, then two-handed. Skill tree branches come after a moveset feels good.
 
+### Staffs, magic weapons and enchants (2026-10-27)
+
+**The owner's ideas (still being worked out, "just thinking out loud"):**
+- **A hotbar spell is one cast**: press Fireball, one fireball. **A staff's attack is the spell on click**: a "Staff of Fireballs" shoots a fireball each click, every shot draining mana. The same for ice shards and other projectiles. Not every spell has a staff version.
+- **Many staffs per element**, each with its own attack: fire has the Staff of Fireballs, the Staff of Flames (a flamethrower-like stream), the Staff of Lava, and more. Beside a flame staff, a spell that is one burst of flame.
+- **An element staff boosts that element's spells** cast while holding it (a fire staff, every fire spell). **General staffs and wands** have no element and boost every spell cast through them (for example, less mana for all of them). Owning a staff that does a spell's job frees that slot for a better spell.
+- **Magic swords and guns later**, and **enchant spells** that give your next hit, or your next bullet, an element.
+- **Charged Blade**, an electric sword: holding click charges instead of the heavy attack (like Cloud's down special in Smash Bros); held 1 second, a mini boost; held to the maximum, a large boost. The charge stays until the next slash, which deals the extra damage. You cannot move while charging; a high-level skill may unlock it ("pretty op"). Electric boosts from the skill tree, and perhaps Magic Damage among the stats, raise its damage. Other players see the charge.
+
+**My suggestions, not decided:** the charged slash is tagged both sword and Electric, so sword skills and electric boosts both raise it (by the tags rule above); a wand is one-handed with a smaller boost and leaves the off hand free, a staff two-handed with a bigger one; all staffs share one moveset, so a new staff is mostly a model and its attack. Open: what becomes of the flamethrower beside a flame staff.
+
 ## God-tier spells
 
 One holder per world: a flood, meteors, an Almighty Push, a zombie horde, a giant transformation or summon. Modelled on Lineage 2's Cursed Swords (one per server; the world goes red when one appears; the holder is hunted).
