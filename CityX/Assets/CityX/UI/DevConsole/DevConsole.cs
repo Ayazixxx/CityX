@@ -125,6 +125,7 @@ namespace CityX.UI
         {
             "help",
             "weather",
+            "water",
             "time",
             "fly",
             "infinitehealth",
@@ -155,6 +156,8 @@ namespace CityX.UI
             {
                 case "help": return "/help -- this list";
                 case "weather": return "/weather <rain [light|moderate|heavy|0.1-1]|clear|dry|lightning [metres]|status>";
+                case "water": return "/water [depth in metres] -- a pool round you (0.7 by default, knee-deep); /water flood [height] -- a flood " +
+                    "rising round you, flowing the way you face (hold Space to rise); /water off";
                 case "time":
                     return "/time <sunrise|morning|noon|afternoon|sunset|night|midnight|0.0-1.0>";
                 case "fly": return "/fly -- toggles the free camera";

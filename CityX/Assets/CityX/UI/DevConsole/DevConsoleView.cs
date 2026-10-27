@@ -376,6 +376,10 @@ namespace CityX.UI
                     Weather(line.Argument(0), line.Argument(1));
                     return;
 
+                case "water":
+                    WaterCommand(line.Argument(0), line.Argument(1));
+                    return;
+
                 case "time":
                     Time_(line.Argument(0));
                     return;

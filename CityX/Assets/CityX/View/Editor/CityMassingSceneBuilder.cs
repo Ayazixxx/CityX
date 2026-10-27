@@ -332,6 +332,14 @@ namespace CityX.ViewEditor
                 rain.SplashMaterial = EnsureSplashMaterial();
                 rain.RippleMaterial = EnsureRippleMaterial();
 
+                // The water (docs/WATER.md): the splashes round every body in it, and the materials whatever makes water at run time draws
+                // it with (/water now; the sewers and spells later). Nothing in the city is water yet.
+                var waterObject = new GameObject("Water");
+                var water = waterObject.AddComponent<WaterSplashes>();
+                water.WaterMaterial = EnsureWaterMaterial();
+                water.RingMaterial = rain.RippleMaterial;
+                water.DropMaterial = rain.SplashMaterial;
+
                 // NO AMBIENT CROWD. There was one -- a pooled dozen recycled
                 // around the viewer as they walked -- and it went at the user's
                 // request, matching the Godot build, which retired its own
@@ -1573,6 +1581,23 @@ namespace CityX.ViewEditor
             Texture2D ring = EnsureRippleTexture();
             material.SetTexture("_BaseMap", ring);
             material.mainTexture = ring;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>The water's material (CityX/Water: its colours and ripples are the shader's defaults, tuned there).</summary>
+        private static Material EnsureWaterMaterial()
+        {
+            string path = $"{MaterialDirectory}/Water.mat";
+            Shader shader = Shader.Find("CityX/Water");
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            // Back to the shader's own values every build: the tuning lives in one place, the shader.
+            material.CopyPropertiesFromMaterial(new Material(shader));
             EditorUtility.SetDirty(material);
             return material;
         }

@@ -42,6 +42,9 @@ namespace CityX.Character
         /// <summary>True on the frame jump was pressed, not while it is held.</summary>
         public bool Jump;
 
+        /// <summary>True for as long as jump is held: floating in deep water, it rises (PlayerLocomotion.Water).</summary>
+        public bool JumpHeld;
+
         /// <summary>
         /// True every frame a charge-jump hold is in progress -- drives the
         /// ChargedJump animator pose while it is true, nothing more. See

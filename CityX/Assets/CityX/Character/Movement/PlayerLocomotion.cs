@@ -1213,6 +1213,8 @@ namespace CityX.Character
             ApplyHeight();
             // A blow still throwing the body back (PlayerLocomotion.Impact.cs), under whatever the keys ask for.
             ApplyShove(deltaTime);
+            // The water at the feet (PlayerLocomotion.Water.cs): wading slows, deep water floats.
+            SenseWater();
 
             Vector3 direction = input.WorldDirection();
             bool moving = direction.sqrMagnitude > 0.0001f;
@@ -1271,6 +1273,7 @@ namespace CityX.Character
                     _statsVitals = GetComponent<PlayerVitals>();
                 }
                 speed *= PlayerVitals.SpeedOf(_statsVitals, StatId.MovementSpeed);
+                speed = WaterSpeed(speed);
             }
             // GROW AND SHRINK: a giant covers ground 3.2 times as fast, a tiny body a third as fast (SizeSpeedFactor).
             speed *= SizeSpeedFactor;
@@ -1367,9 +1370,9 @@ namespace CityX.Character
 
             // A resized body's jump is launched SizeSpeedFactor times as fast: under the same gravity it climbs BodyScale times as high,
             // the same jump in proportion (a giant's takes 3.2 times as long: heavy).
-            if (onFeet && input.Jump)
+            if (onFeet && input.Jump && !IsFloating)
             {
-                _verticalVelocity = JumpVelocity * SizeSpeedFactor;
+                _verticalVelocity = JumpVelocity * SizeSpeedFactor * WaterJumpShare;
                 FireTrigger(JumpParameter);
             }
 
@@ -1395,13 +1398,19 @@ namespace CityX.Character
             // already falling.
             if (input.JumpReleased)
             {
-                if (onFeet)
+                if (onFeet && !IsFloating)
                 {
                     float heightMultiplier = Mathf.Lerp(
                         1.0f, ChargedJumpHeightMultiplier, Mathf.Clamp01(input.JumpChargeFraction));
-                    _verticalVelocity = JumpVelocity * SizeSpeedFactor * Mathf.Sqrt(heightMultiplier);
+                    _verticalVelocity = JumpVelocity * SizeSpeedFactor * Mathf.Sqrt(heightMultiplier) * WaterJumpShare;
                 }
                 FireTrigger(JumpParameter);
+            }
+
+            // FLOATING (deep water, PlayerLocomotion.Water.cs) takes the place of gravity and the jump: sinking slowly, rising with jump held.
+            if (IsFloating)
+            {
+                _verticalVelocity = Wading.FloatingClimb(WaterDepthShare, WorldHeight, input.JumpHeld);
             }
 
             // _residualVelocity rides on top of the WASD-driven horizontal
@@ -1420,7 +1429,7 @@ namespace CityX.Character
                 _residualVelocity = Vector3.zero;
                 CurrentSpeed = horizontal.magnitude;
             }
-            Vector3 motion = horizontal + _residualVelocity;
+            Vector3 motion = horizontal + _residualVelocity + (HasForcedVelocity ? Vector3.zero : WaterCarry());
             motion.y = _verticalVelocity;
             if (HasForcedVelocity || input.Jump || input.JumpReleased)
             {
@@ -1517,7 +1526,8 @@ namespace CityX.Character
                 _animator.SetFloat(SpeedParameter, CurrentSpeed * ownPace);
                 _animator.SetFloat(MoveXParameter, LocalVelocity.x * ownPace);
                 _animator.SetFloat(MoveZParameter, LocalVelocity.y * ownPace);
-                _animator.SetBool(GroundedParameter, _controller.isGrounded || _steppingUp);
+                // A floating body treads water: the walk and idle, not the fall.
+                _animator.SetBool(GroundedParameter, _controller.isGrounded || _steppingUp || IsFloating);
                 _animator.SetBool(CrouchingParameter, IsCrouching);
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
                 _animator.SetBool(AimingParameter, input.Aiming);

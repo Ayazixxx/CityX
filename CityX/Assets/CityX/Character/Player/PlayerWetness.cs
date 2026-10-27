@@ -63,6 +63,7 @@ namespace CityX.Character
         private MaterialPropertyBlock _blockInstance;
         private MaterialPropertyBlock _block => _blockInstance ?? (_blockInstance = new MaterialPropertyBlock());
         private float _refreshTimer;
+        private PlayerLocomotion _locomotion;
         private float _appliedWetness = -1.0f;
         private bool _applied;
 
@@ -82,6 +83,19 @@ namespace CityX.Character
             float rain = CurrentWeather.RainOn(chest);
             float shelter = CurrentWeather.Shelter(chest);
             Wetness = Weather.StepBodyWetness(Wetness, rain, shelter, deltaTime);
+            // Standing in water soaks the body too, and far faster (Wading.SoakedBy); it dries the rain's way.
+            if (_locomotion == null)
+            {
+                _locomotion = GetComponent<PlayerLocomotion>();
+            }
+            if (_locomotion != null && _locomotion.WaterDepth > 0.0f)
+            {
+                float soaked = Wading.SoakedBy(_locomotion.WaterDepthShare);
+                if (soaked > Wetness)
+                {
+                    Wetness = Mathf.MoveTowards(Wetness, soaked, Wading.SoakRate * deltaTime);
+                }
+            }
 
             if (Wetness <= 0.0f && !_applied)
             {

@@ -60,7 +60,7 @@ conventions down and apply them every time.
 
    | Area | Folders |
    |---|---|
-   | `View` | `Streaming` (chunk streaming and mesh buffers), `Skyline`, `Buildings` (`CityMeshBuilder` and its partials, facades), `Streets` (`CitySurfaceBuilder`, props), `Glass`, `Interactables` (doors, switches, benches, books, the radio), `Lighting` (day and night, room lights, haze), `Weather` (rain, lightning, thunder), `Tools` (the fly camera, the frame benchmark) |
+   | `View` | `Streaming` (chunk streaming and mesh buffers), `Skyline`, `Buildings` (`CityMeshBuilder` and its partials, facades), `Streets` (`CitySurfaceBuilder`, props), `Glass`, `Interactables` (doors, switches, benches, books, the radio), `Lighting` (day and night, room lights, haze), `Weather` (rain, lightning, thunder), `Water` (water surfaces, splashes, rising water), `Tools` (the fly camera, the frame benchmark) |
    | `UI` | `Hud`, `Menus`, `Map`, `Title`, `Creator` (the character creator and ReDraw), `DevConsole`; `UiKit` and `ButtonAction` at the root |
    | `Weapons` | `Melee`, `Firearms`, `Spells`, `Gear` (jetpack, parachute, grapple, spray can), `NPC` (the Shoota's and the swordsman's minds); `GripMarker` at the root |
 

@@ -1107,6 +1107,7 @@ namespace CityX.Character
                 // Space fires a plain, un-charged jump directly instead.
                 ChargingJump = chargingJumpNow,
                 JumpReleased = jumpReleased,
+                JumpHeld = keyboard.spaceKey.isPressed && !spinHoldsTheBody,
                 JumpChargeFraction = jumpChargeFraction,
                 // Gun-aiming only now -- see isCastingFireball's own comment
                 // just above for why a cast no longer sets this too.
@@ -1240,6 +1241,11 @@ namespace CityX.Character
             // short and let a lethal drop land as a survivable one.
             if (_vitals != null)
             {
+                // Deep water breaks a fall: the fall is measured from where the body is in it (PlayerLocomotion.WaterBreaksFall).
+                if (_locomotion.WaterBreaksFall)
+                {
+                    _vitals.ResetFallTracking(transform.position.y);
+                }
                 float fallDamage =
                     _vitals.TickFallDamage(_locomotion.IsGrounded, transform.position.y);
                 if (fallDamage > 0.0f)

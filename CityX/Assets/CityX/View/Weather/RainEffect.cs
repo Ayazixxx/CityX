@@ -661,47 +661,7 @@ namespace CityX.View
         /// </summary>
         private void BuildRipples(Transform parent)
         {
-            var host = new GameObject("Ripples");
-            host.transform.SetParent(parent, false);
-
-            _ripples = host.AddComponent<ParticleSystem>();
-            ParticleSystem.MainModule main = _ripples.main;
-            main.loop = false;
-            main.playOnAwake = false;
-            main.maxParticles = 700;
-            main.startLifetime = 0.6f;
-            main.startSpeed = 0.0f;
-            main.startSize = RippleSize;
-            main.startColor = RippleColour;
-            main.gravityModifier = 0.0f;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-
-            ParticleSystem.EmissionModule emission = _ripples.emission;
-            emission.enabled = false;
-            ParticleSystem.ShapeModule shape = _ripples.shape;
-            shape.enabled = false;
-
-            // Swells from a dot to full size, fast at first then easing out.
-            ParticleSystem.SizeOverLifetimeModule size = _ripples.sizeOverLifetime;
-            size.enabled = true;
-            var swell = new AnimationCurve(
-                new Keyframe(0.0f, 0.12f, 0.0f, 2.2f),
-                new Keyframe(1.0f, 1.0f, 0.4f, 0.0f));
-            size.size = new ParticleSystem.MinMaxCurve(1.0f, swell);
-
-            ParticleSystem.ColorOverLifetimeModule colour = _ripples.colorOverLifetime;
-            colour.enabled = true;
-            var fade = new Gradient();
-            fade.SetKeys(
-                new[] { new GradientColorKey(Color.white, 0.0f), new GradientColorKey(Color.white, 1.0f) },
-                new[] { new GradientAlphaKey(0.0f, 0.0f), new GradientAlphaKey(1.0f, 0.12f), new GradientAlphaKey(0.0f, 1.0f) });
-            colour.color = fade;
-
-            var renderer = host.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.HorizontalBillboard;
-            renderer.sharedMaterial = RippleMaterial;
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
+            _ripples = RippleRings.Build(parent, "Ripples", RippleMaterial, 700, 0.6f, RippleSize, RippleColour);
         }
 
         /// <summary>Rain at full strength -- the original on/off switch, kept for every existing caller.</summary>
