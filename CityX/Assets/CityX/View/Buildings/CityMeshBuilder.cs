@@ -1611,7 +1611,8 @@ namespace CityX.View
                     AddWallPanel(wallBuffer, wall, runStart, paneU0, paneY0, paneY1, normal);
                     runStart = paneU1;
 
-                    AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
+                    AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1,
+                        Rect.MinMaxRect(cellU0, y0, cellU0 + columns.Size, y1), normal,
                         plan, which, column, row, looks, banded ? y0 + 0.02f : float.NegativeInfinity);
                 }
                 AddWallPanel(wallBuffer, wall, runStart, u1, paneY0, paneY1, normal);
@@ -1701,8 +1702,8 @@ namespace CityX.View
                 }
                 AddWallPanel(wallBuffer, wall, paneU0, paneU1, y0, paneY0, normal);
 
-                AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
-                    plan, which, column, 0, looks);
+                AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1,
+                    Rect.MinMaxRect(cellU0, y0, cellU1, y1), normal, plan, which, column, 0, looks);
             }
 
             // What marks the entrance from the street. Only the outward pass builds it.
@@ -1913,7 +1914,7 @@ namespace CityX.View
         /// sides, because each faces into the opening.
         /// </summary>
         private static void AddOpening(MeshBuffer wallBuffer, in Glazing glazing, BuildingSite site, in Wall wall,
-            float u0, float u1, float y0, float y1, Vector3 normal,
+            float u0, float u1, float y0, float y1, Rect cell, Vector3 normal,
             in WindowPlan plan, WindowGrid.Wall which, int column, int row, SiteLooks? looks, float standOn = float.NegativeInfinity)
         {
             if (glazing.HangsGlass)
@@ -1954,7 +1955,7 @@ namespace CityX.View
                     }
                 }
             }
-            AddPane(glazing, site, wall, u0, u1, y0, y1, normal, plan, which, column, row, looks);
+            AddPane(glazing, site, wall, u0, u1, y0, y1, cell, normal, plan, which, column, row, looks);
         }
 
         /// <summary>The same wall, moved <paramref name="distance"/> in from its outward face (<paramref name="outward"/> points out of it).</summary>
@@ -2134,9 +2135,12 @@ namespace CityX.View
         /// makes a window walkable. The chunk's collider is the render mesh, so
         /// the only way to have one without the other is to put it in a buffer
         /// the collider is not built from.
+        ///
+        /// <paramref name="cell"/> is the window's whole cell in the wall (the pane is inset in it): a bullet's place is recorded across the cell
+        /// (GlassDamage.FractionWithinPane), so its hole is put back across the cell, not the smaller pane.
         /// </summary>
         private static void AddPane(in Glazing glazing, BuildingSite site, in Wall outerWall,
-            float u0, float u1, float y0, float y1, Vector3 normal,
+            float u0, float u1, float y0, float y1, Rect cell, Vector3 normal,
             in WindowPlan plan, WindowGrid.Wall which, int column, int row, SiteLooks? looks = null)
         {
             if (!glazing.HangsGlass)
@@ -2175,7 +2179,7 @@ namespace CityX.View
                 var centres = new Vector2[impacts.Length];
                 for (int i = 0; i < impacts.Length; i++)
                 {
-                    centres[i] = ClampedHoleCentre(u0, u1, y0, y1, impacts[i]);
+                    centres[i] = ClampedHoleCentre(u0, u1, y0, y1, cell, impacts[i]);
                 }
                 AddPaneWithHoles(glass, wall, u0, u1, y0, y1, normal, centres);
                 if (glazing.Decals != null)
@@ -2263,14 +2267,16 @@ namespace CityX.View
         /// AddPaneWithHoles (the real geometric opening) and AddCrackDecal
         /// (the crack texture sitting on top of it), so the two always
         /// agree on centre even when an impact near a pane's edge gets
-        /// pulled inward.
+        /// pulled inward. <paramref name="measuredAcross"/> is the rectangle
+        /// <paramref name="impactUV"/> was measured across (a window's cell,
+        /// or a door's sheet itself).
         /// </summary>
-        private static Vector2 ClampedHoleCentre(float u0, float u1, float y0, float y1, Vector2 impactUV)
+        private static Vector2 ClampedHoleCentre(float u0, float u1, float y0, float y1, Rect measuredAcross, Vector2 impactUV)
         {
             float halfW = Mathf.Min(BulletHoleHalfWidth, (u1 - u0) * 0.4f);
             float halfH = Mathf.Min(BulletHoleHalfHeight, (y1 - y0) * 0.4f);
-            float centreU = Mathf.Clamp(Mathf.Lerp(u0, u1, impactUV.x), u0 + halfW, u1 - halfW);
-            float centreY = Mathf.Clamp(Mathf.Lerp(y0, y1, impactUV.y), y0 + halfH, y1 - halfH);
+            float centreU = Mathf.Clamp(Mathf.Lerp(measuredAcross.xMin, measuredAcross.xMax, impactUV.x), u0 + halfW, u1 - halfW);
+            float centreY = Mathf.Clamp(Mathf.Lerp(measuredAcross.yMin, measuredAcross.yMax, impactUV.y), y0 + halfH, y1 - halfH);
             return new Vector2(centreU, centreY);
         }
 

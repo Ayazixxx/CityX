@@ -219,7 +219,8 @@ namespace CityX.View
                 }
                 AddWallPanel(wallBuffer, wall, cellU0, paneU0, paneY0, paneY1, normal);
                 AddWallPanel(wallBuffer, wall, paneU1, cellU1, paneY0, paneY1, normal);
-                AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal, plan, which, column, row, looks, standOn);
+                AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1, Rect.MinMaxRect(cellU0, y0, cellU1, y1), normal,
+                    plan, which, column, row, looks, standOn);
             }
         }
 
@@ -353,7 +354,7 @@ namespace CityX.View
                         var centres = new Vector2[impacts.Length];
                         for (int k = 0; k < impacts.Length; k++)
                         {
-                            centres[k] = ClampedHoleCentre(pane.U0, pane.U1, y0, y1, impacts[k]);
+                            centres[k] = ClampedHoleCentre(pane.U0, pane.U1, y0, y1, Rect.MinMaxRect(pane.U0, y0, pane.U1, y1), impacts[k]);
                         }
                         AddPaneWithHoles(cracked, sheet, pane.U0, pane.U1, y0, y1, normal, centres);
                         if (glazing.Decals != null)

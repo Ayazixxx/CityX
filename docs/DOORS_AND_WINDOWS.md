@@ -318,3 +318,17 @@ and its frame; the glass drawn is where a blow finds it, a cracked sheet drawn w
 messages and the merge), `DoorGlassPlayTests` (a shot from the balcony reaches the glass, four bullets four holes, the fifth brings the sheet
 down in pieces; walking into a cracked sheet breaks it into pieces), `NetworkedGlassPlayTests` (a server and two clients: holes, the break,
 a late message that changes nothing, a late joiner), `DoorGlassCapture` (`Logs/CityShots/doorglass-*.png`).
+
+## Update 2026-10-26: a bullet hole is drawn where the bullet hit
+
+Owner: "make sure the center of the bullet hole that appears on the windows is right at the center of where the bullet hit. ive noticed it
+feels off sometimes." It was off, by 20-26 cm for a shot away from a window's middle. `GlassDamage.FractionWithinPane` records a hit across
+the window's whole CELL (the glass and the wall round it), but the mesh laid that share back across the smaller GLASS, which is inset in the
+cell (by `WindowGrid.PaneInset` across, by the plan's sill and head up), so every hole was pulled toward the pane's middle, most at its edges.
+`CityMeshBuilder.AddPane` is now given the cell (`AddOpening`'s `cell`) and `ClampedHoleCentre` lays the share across it; a door's sheet is
+measured across the sheet itself, so it passes the sheet. (A shot at an already cracked pane lands on its trigger box, half a metre deep:
+`CrackedPane` already carries that point back onto the glass along the shot.)
+
+Tests: `BulletHoleCentreTests` (a box building's and a round tower's pane shot low-left and high-right: the crack decal's centre is within
+1 cm of the hit; 20-26 cm before), `BulletHoleCapture` (`Logs/CityShots/bullethole-*.png`, each hole on a red dot at its hit, and
+`bullettrail-*.png`, the trails before and after: docs/FIREARMS.md).

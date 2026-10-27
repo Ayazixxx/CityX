@@ -182,15 +182,10 @@ namespace CityX.Weapons
         }
 
         /// <summary>
-        /// One shared, additive-blended material for every tracer -- the
-        /// same "Particles/Unlit + additive" combination FlamethrowerBuilder
-        /// already established for a bright, glowing streak in this URP
-        /// project (see its own doc comment on why an unlit particle
-        /// shader needs a texture to avoid rendering as a hard-edged block --
-        /// irrelevant here, a LineRenderer needs no texture at all to
-        /// render as a solid streak).
+        /// One shared material for every tracer, URP's Particles/Unlit, ALPHA-BLENDED: the streak covers what is behind it. It was additive until
+        /// 2026-10-26 (owner: "make the bullet trails less transparent"): added light all but vanishes against a bright sky or a pale wall.
         /// </summary>
-        private static Material EnsureMaterial()
+        public static Material EnsureMaterial()
         {
             if (_material != null)
             {
@@ -198,8 +193,8 @@ namespace CityX.Weapons
             }
             _material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
             _material.color = Color.white;
-            // Truly additive: given only _Surface and _Blend it drew as a solid, and the cel look's black lines traced it into a black streak.
-            CityX.Character.SeeThroughMaterial.Apply(_material, additive: true);
+            // Set up fully: given only _Surface and _Blend it drew as a solid, and the cel look's black lines traced it into a black streak.
+            CityX.Character.SeeThroughMaterial.Apply(_material, additive: false);
             _material.SetTexture("_BaseMap", StreakTexture());
             _material.mainTexture = StreakTexture();
             return _material;
@@ -207,8 +202,8 @@ namespace CityX.Weapons
 
         /// <summary>
         /// The streak's look, made once in code (no image file): across it a near-white core in a gold glow fading to nothing at the edges, with
-        /// three faint wisps winding through the glow; along it (muzzle to hit) brightening toward the front, the bullet's end. Additive, so its
-        /// dark is see-through.
+        /// three faint wisps winding through the glow; along it (muzzle to hit) brightening toward the front, the bullet's end. Its alpha is how
+        /// solid each part is.
         /// </summary>
         public static Texture2D StreakTexture()
         {
@@ -225,13 +220,13 @@ namespace CityX.Weapons
             for (int x = 0; x < along; x++)
             {
                 float u = (x + 0.5f) / along;
-                float front = 0.7f + 0.3f * u;                                                          // brighter toward the bullet's end
+                float front = 0.85f + 0.15f * u;                                                        // brighter toward the bullet's end
                 float ends = Mathf.Clamp01(u / 0.03f) * Mathf.Clamp01((1.0f - u) / 0.02f);              // soft tips, no square cut
                 for (int y = 0; y < across; y++)
                 {
                     float v = ((y + 0.5f) / across) * 2.0f - 1.0f;                                       // -1 .. 1 across
                     float core = Mathf.Exp(-(v * v) / (0.13f * 0.13f));                                  // a fifth of the width: the old streak
-                    float glow = 0.55f * Mathf.Exp(-(v * v) / (0.45f * 0.45f));
+                    float glow = 0.75f * Mathf.Exp(-(v * v) / (0.45f * 0.45f));
                     float wisps = 0.0f;
                     for (int k = 0; k < 3; k++)
                     {
@@ -250,6 +245,16 @@ namespace CityX.Weapons
             return _texture;
         }
 
+        /// <summary>
+        /// How solid the streak is <paramref name="lifeShare"/> (0 to 1) through its life: it holds near full for most of it and fades at the end
+        /// (owner, 2026-10-26: "make the bullet trails less transparent"; a straight fade had it half gone by mid-life).
+        /// </summary>
+        public static float Opacity(float lifeShare)
+        {
+            float t = Mathf.Clamp01(lifeShare);
+            return 1.0f - t * t;
+        }
+
         private void Update()
         {
             _elapsed += Time.deltaTime;
@@ -262,7 +267,7 @@ namespace CityX.Weapons
             // Fades out rather than popping off after a flat lifetime --
             // an instant cut at LifetimeSeconds is visible as a blink even
             // at this short a duration.
-            float alpha = (1.0f - (_elapsed / LifetimeSeconds)) * (1.0f - Flicker * Random.value);
+            float alpha = Opacity(_elapsed / LifetimeSeconds) * (1.0f - Flicker * Random.value);
             Color faded = Color.white;
             faded.a = alpha;
             _line.startColor = faded;

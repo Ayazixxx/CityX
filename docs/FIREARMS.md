@@ -231,3 +231,12 @@ reload motion's exact length, 130 and 168 frames at 60 fps, WITHOUT raising its 
 - SPREAD, CS:GO's way (`PistolWeapon.SpreadDegrees`), for the Accuracy stat: a standing or creeping first shot is still exact on the crosshair;
   running opens a cone up to 2.5 degrees, the air 4, and each shot of a held trigger after the first 0.4 more (up to 3). Aiming halves it;
   Accuracy takes its share off.
+
+## Update 2026-10-26: the bullet trails are not see-through
+
+Owner: "make the bullet trails less transparent." The trail was ADDITIVE (its light added to what is behind it), which all but vanishes against
+a bright sky or pale glass, and it faded straight from the moment it was drawn (half gone by mid-life). Now `BulletTracer`'s material is
+alpha-blended (`SeeThroughMaterial.Apply(.., additive: false)`): the gold streak is laid over what is behind it; its glow is stronger (0.75 of
+the core, was 0.55) and evener along it; and it holds nearly whole for most of its 0.12 s (`BulletTracer.Opacity`, 1 - t squared) before
+fading. Tests: `BulletTracerLookTests`; picture: `BulletHoleCapture` (`Logs/CityShots/bullettrail-1-was-added-light.png` and
+`bullettrail-2-now-laid-over.png`).
