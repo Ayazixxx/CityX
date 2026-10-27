@@ -3,7 +3,7 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// OCTASLASH (key 6, sword in hand): Sephiroth's held up special. Press 6 and the body coils for up to 2.5 s, low, the blade drawn back to the
+    /// OCTASLASH (key 6, sword in hand): Sephiroth's held up special. Press 6 and the body coils for up to 1 s, low, the blade drawn back to the
     /// hip and aimed ahead; then it dashes about 14 m wherever the camera is looking (up, down, anywhere), facing along it in a flying lunge (one
     /// knee driven forward, the other leg stretched back) while the long blade whips from side to side in front: a cut every two frames, seven
     /// light ones, then the blade swung up overhead and a heavy last one down the middle that throws what it hits on along the dash. Each cut

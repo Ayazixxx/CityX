@@ -8,15 +8,16 @@ namespace CityX.Character
     /// ones, then a final one three times as strong (2.3% x7, then 7%). Smash's percentages do not carry over (owner: "the percentage thing is
     /// just how smash bros does its damage"); the SHAPE does: seven light cuts two frames apart and a heavy last one.
     ///
-    /// Asked for (2026-10-11): a hotbar skill with the sword in hand; pressing it starts a 3 s wind-up (2.5 s since 2026-10-12, owner: "shorten charge time ... to 2.5 seconds"), then the dash goes where the player is
-    /// looking; a click goes early.
+    /// Asked for (2026-10-11): a hotbar skill with the sword in hand; pressing it starts a wind-up (3 s at first; 2.5 s since 2026-10-12,
+    /// owner: "shorten charge time ... to 2.5 seconds"; 1 s since 2026-10-26, owner: "lower the charge time for the sephiroth style sword combo
+    /// to 1 second"), then the dash goes where the player is looking; a click goes early. The coil animation (22 frames) plays whole inside it.
     /// </summary>
     public static class OctaslashMove
     {
         public const float FrameSeconds = 1.0f / 60.0f;
 
         /// <summary>The wind-up: the dash goes by itself when it runs out, or earlier on a click.</summary>
-        public const float ChargeSeconds = 2.5f;
+        public const float ChargeSeconds = 1.0f;
 
         /// <summary>Frame the dash starts on, in Smash's own count: two frames before the first cut.</summary>
         public const int DashStartFrame = 34;

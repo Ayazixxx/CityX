@@ -42,9 +42,12 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheDashCoversItsDistanceAndTheWindUpIsTwoAndAHalfSeconds()
+        public void TheDashCoversItsDistanceAndTheWindUpIsOneSecond()
         {
-            Assert.AreEqual(2.5f, OctaslashMove.ChargeSeconds);
+            Assert.AreEqual(1.0f, OctaslashMove.ChargeSeconds, "owner, 2026-10-26: \"lower the charge time ... to 1 second\"");
+            BakedMotion motion = Motion();
+            Assert.Less(motion.SegmentSeconds(OctaslashMove.CoilSegment), OctaslashMove.ChargeSeconds,
+                "the wind-up is shorter than the coil: the dash would cut it off half-crouched");
             Assert.AreEqual(OctaslashMove.DashMetres, OctaslashMove.DashSpeed * OctaslashMove.DashSeconds, 1e-3f);
         }
 

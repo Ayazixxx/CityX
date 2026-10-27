@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Octaslash (key 6, sword in hand) through the real keys in the real city: the wind-up holds the body still for 2.5 s and then dashes about
+    /// Octaslash (key 6, sword in hand) through the real keys in the real city: the wind-up holds the body still for 1 s and then dashes about
     /// 14 m where the camera looks, cutting eight times; a click goes early; without a sword nothing happens; another player's copy shows it
     /// and hurts nothing.
     /// </summary>
@@ -141,7 +141,7 @@ namespace CityX.Tests
             Transform hips = _vitals.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Hips);
             float standingHips = hips.localPosition.y;
             Press(_keyboard.wKey);   // the wind-up roots the body: walking does nothing
-            yield return Seconds(1.5f);
+            yield return Seconds(OctaslashMove.ChargeSeconds * 0.7f);   // well into it, past the coil, before it goes by itself
             Release(_keyboard.wKey);
             Assert.IsTrue(_octaslash.IsCharging, "the wind-up ended early by itself");
             Vector3 flat = _vitals.transform.position - start;

@@ -3,7 +3,7 @@
 Asked for (2026-10-11), with a GIF of Sephiroth's Octaslash from Smash Ultimate:
 
 - a hotbar skill;
-- a 3 s wind-up (shortened to 2.5 s on 2026-10-12), then an eight-slash dash in whatever direction you are looking;
+- a 3 s wind-up (shortened to 2.5 s on 2026-10-12, to 1 s on 2026-10-26: "lower the charge time ... to 1 second"), then an eight-slash dash in whatever direction you are looking;
 - a click sends it early;
 - you must be holding a sword;
 - an animation like the GIF.
@@ -30,7 +30,7 @@ All the numbers are in `Character/Abilities/OctaslashMove.cs`.
 
 | | |
 |---|---|
-| Press 6 | **Wind-up**, up to 2.5 s: the body is rooted (and hangs in the air if airborne). It turns to face where the camera looks and sinks into the coil: deep lunge, the sword hand drawn back to the hip, the blade aimed ahead, the free hand reaching out. The coil is then held, breathing, the blade trembling |
+| Press 6 | **Wind-up**, up to 1 s: the body is rooted (and hangs in the air if airborne). It turns to face where the camera looks and sinks into the coil: deep lunge, the sword hand drawn back to the hip, the blade aimed ahead, the free hand reaching out. The coil is then held, breathing, the blade trembling |
 | Left click during it | the dash goes at once (the click is not also a swing) |
 | Dash | where the camera looks (up, down, anywhere), about 14 m in 16 frames (52 m/s), keys and gravity off (`PlayerLocomotion.ForceVelocity`). The body faces along it in a flying lunge, left knee driven forward and right leg stretched back. The sword whips from side to side in front: drawn back on the right, straight ahead (a cut), swung across to the left, straight ahead again, at heights that vary cut to cut. After seven cuts it swings up overhead and the eighth comes down the middle into the follow-through |
 | Cuts | on Smash's frames (2 frames apart), all round the body to 3.2 m: seven at 0.35x a sword swing, the last at 1.05x, which throws whatever can be launched on along the dash and up |
@@ -109,7 +109,7 @@ Blender is driven from Claude through the "MCP for Blender" add-on, configured i
   - old positions forgotten;
   - the ribbon wide and bright at the blade, thin and faded at its tail.
 - `OctaslashPlayTests` (real keys, real city) covers:
-  - the wind-up holds still for 2.5 s, crouched in the animation and facing the dash;
+  - the wind-up holds still for 1 s, crouched in the animation and facing the dash;
   - the dash goes about 14 m where the camera looks, lunging along it and facing it, with all eight cuts, light trailing from the blade, and hits a body it passes through;
   - the animation lets go and the light fades after;
   - a click sends it early;
