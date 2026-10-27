@@ -31,6 +31,14 @@ namespace CityX.UIEditor
         /// <summary>How far the side pedestals sit from the centre one, in metres.</summary>
         private const float PedestalSpacing = 2.4f;
 
+        /// <summary>How far the two furthest pedestals sit from the centre, and how far back from the row, in metres.</summary>
+        private const float FarPedestalSpacing = 4.5f;
+
+        private const float FarPedestalBack = 1.4f;
+
+        /// <summary>The back row's figures: near black with a cold tinge, unlit, so no light picks out a face or a colour.</summary>
+        private static readonly Color Silhouette = new Color(0.045f, 0.05f, 0.065f, 1.0f);
+
         /// <summary>
         /// The skins a new character can be. Deliberately a short list of
         /// distinguishable colours rather than a colour wheel: the Godot build
@@ -95,23 +103,27 @@ namespace CityX.UIEditor
             LoadHair(select);
             select.ClothingPrefabs = CityX.CharacterEditor.NetworkedPlayerWiring.ItemPrefabEntries(item => item.IsWearable);
 
-            var anchors = new Transform[3];
-            string[] names = { "PedestalLeft", "PedestalCentre", "PedestalRight" };
-            float[] xPositions = { -PedestalSpacing, 0.0f, PedestalSpacing };
+            var anchors = new Transform[CharacterSelect.SlotCount];
+            string[] names = { "PedestalFarLeft", "PedestalLeft", "PedestalCentre", "PedestalRight", "PedestalFarRight" };
+            // Left to right ON SCREEN: the camera looks back down -Z, so +X is the screen's left. The furthest pair stand further out and further
+            // back, smaller, in the dark (CharacterSelect.InShadow).
+            float[] xPositions = { FarPedestalSpacing, PedestalSpacing, 0.0f, -PedestalSpacing, -FarPedestalSpacing };
+            float[] zPositions = { -FarPedestalBack, 0.0f, 0.0f, 0.0f, -FarPedestalBack };
             // The centre pedestal reads as chosen by standing a little proud
             // of its neighbours and under its own brighter light, rather
             // than by a UI frame around it -- the body IS the selection.
-            float[] platformHeights = { 0.18f, 0.30f, 0.18f };
-            float[] platformScales = { 0.78f, 1.0f, 0.78f };
+            float[] platformHeights = { 0.12f, 0.18f, 0.30f, 0.18f, 0.12f };
+            float[] platformScales = { 0.66f, 0.78f, 1.0f, 0.78f, 0.66f };
 
             Material platformMaterial = PedestalMaterial();
+            select.SilhouetteMaterial = SilhouetteMaterial();
 
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < anchors.Length; i++)
             {
                 var anchorObject = new GameObject(names[i]);
                 anchorObject.transform.SetParent(stage.transform, false);
                 anchorObject.transform.localPosition =
-                    new Vector3(xPositions[i], platformHeights[i], 0.0f);
+                    new Vector3(xPositions[i], platformHeights[i], zPositions[i]);
                 anchorObject.transform.localScale = Vector3.one * platformScales[i];
                 anchors[i] = anchorObject.transform;
 
@@ -120,7 +132,7 @@ namespace CityX.UIEditor
                 Object.DestroyImmediate(platform.GetComponent<Collider>());
                 platform.transform.SetParent(stage.transform, false);
                 platform.transform.localPosition =
-                    new Vector3(xPositions[i], platformHeights[i] * 0.5f, 0.0f);
+                    new Vector3(xPositions[i], platformHeights[i] * 0.5f, zPositions[i]);
                 platform.transform.localScale =
                     new Vector3(0.9f * platformScales[i], platformHeights[i] * 0.5f, 0.9f * platformScales[i]);
                 platform.GetComponent<MeshRenderer>().sharedMaterial = platformMaterial;
@@ -227,6 +239,21 @@ namespace CityX.UIEditor
             return material;
         }
 
+        /// <summary>The dark figure the back row is drawn in, saved like the pedestal's (an in-memory material does not survive the scene's save).</summary>
+        private static Material SilhouetteMaterial()
+        {
+            const string path = "Assets/CityX/UI/SelectSilhouette.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.SetColor("_BaseColor", Silhouette);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         /// <summary>
         /// The hair mesh/material CharacterSelect needs to show a saved
         /// character's chosen style -- loaded here, once, because runtime
@@ -319,7 +346,7 @@ namespace CityX.UIEditor
             cardRect.sizeDelta = new Vector2(380.0f, 76.0f);
 
             select.NameLabel = MakeLabel(card.transform, "Name", "Name", 22, Paper,
-                Anchor(0.0f, 1.0f), new Vector2(96.0f, -18.0f), new Vector2(270.0f, 28.0f));
+                Anchor(0.0f, 1.0f), new Vector2(96.0f, -18.0f), new Vector2(244.0f, 28.0f));   // clear of the bin
             select.NameLabel.alignment = TextAnchor.MiddleLeft;
 
             select.DetailLabel = MakeLabel(card.transform, "Detail", "Level 1   0m", 14,
@@ -332,17 +359,18 @@ namespace CityX.UIEditor
                 Anchor(0.0f, 1.0f), new Vector2(96.0f, -58.0f), new Vector2(270.0f, 20.0f));
             select.StatsLabel.alignment = TextAnchor.MiddleLeft;
 
+            // Deleting is a small bin in the card's corner, not a button beside PLAY (owner, 2026-10-26: "move the delete button to just a little
+            // trash icon that is in the top right of that little panel"). It still asks first (the confirm panel).
+            MakeTrashButton(card.transform, select);
+
             MakeButton(panel.transform, "PlayButton", "PLAY", Gold,
-                Anchor(0.5f, 0.0f), new Vector2(-160.0f, 58.0f), new Vector2(140.0f, 44.0f),
+                Anchor(0.5f, 0.0f), new Vector2(-90.0f, 58.0f), new Vector2(140.0f, 44.0f),
                 ButtonAction.Kind.SelectPlaySelected, title, select);
-            MakeButton(panel.transform, "DeleteButton", "DELETE", Danger,
-                Anchor(0.5f, 0.0f), new Vector2(0.0f, 58.0f), new Vector2(140.0f, 44.0f),
-                ButtonAction.Kind.SelectBeginDeleteSelected, title, select);
             // Into the CREATOR, not straight to the name box. Painting comes
             // first and naming last, which is the order the Godot build used
             // and the order that makes sense: you name the thing you made.
             MakeButton(panel.transform, "NewButton", "NEW CHARACTER", Paper,
-                Anchor(0.5f, 0.0f), new Vector2(160.0f, 58.0f), new Vector2(160.0f, 44.0f),
+                Anchor(0.5f, 0.0f), new Vector2(90.0f, 58.0f), new Vector2(160.0f, 44.0f),
                 ButtonAction.Kind.ShowCreator, title, select);
 
             MakeButton(panel.transform, "BackButton", "BACK", Paper,
@@ -380,6 +408,54 @@ namespace CityX.UIEditor
 
             MakeLabel(buttonObject.transform, "Glyph", glyph, 30, Gold,
                 Anchor(0.5f, 0.5f), Vector2.zero, new Vector2(60.0f, 60.0f));
+        }
+
+        /// <summary>
+        /// The bin in the stat card's top-right corner: a lid with its handle over a can with two slots, drawn from plain rectangles (no image
+        /// file, no glyph the built-in font lacks). Its square lights red under the pointer.
+        /// </summary>
+        private static void MakeTrashButton(Transform card, CharacterSelect select)
+        {
+            var buttonObject = new GameObject("TrashButton", typeof(RectTransform));
+            var rect = (RectTransform)buttonObject.transform;
+            rect.SetParent(card, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(1.0f, 1.0f);
+            rect.pivot = new Vector2(1.0f, 1.0f);
+            rect.anchoredPosition = new Vector2(-6.0f, -6.0f);
+            rect.sizeDelta = new Vector2(26.0f, 26.0f);
+
+            Image background = buttonObject.AddComponent<Image>();
+            background.color = Color.white;   // tinted by the button: clear until pointed at
+            Button button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = background;
+            ColorBlock colours = button.colors;
+            colours.normalColor = new Color(1.0f, 1.0f, 1.0f, 0.0f);
+            colours.highlightedColor = new Color(Danger.r, Danger.g, Danger.b, 0.85f);
+            colours.selectedColor = colours.normalColor;
+            colours.pressedColor = Danger;
+            button.colors = colours;
+
+            var wiring = buttonObject.AddComponent<ButtonAction>();
+            wiring.Action = ButtonAction.Kind.SelectBeginDeleteSelected;
+            wiring.Select = select;
+
+            var bin = new Color(0.62f, 0.62f, 0.66f, 1.0f);
+            TrashPart(buttonObject.transform, "Handle", bin, new Vector2(0.0f, 8.5f), new Vector2(6.0f, 2.0f));
+            TrashPart(buttonObject.transform, "Lid", bin, new Vector2(0.0f, 6.0f), new Vector2(16.0f, 2.5f));
+            TrashPart(buttonObject.transform, "Can", bin, new Vector2(0.0f, -3.0f), new Vector2(12.0f, 13.0f));
+            var slot = new Color(0.05f, 0.06f, 0.08f, 1.0f);
+            TrashPart(buttonObject.transform, "SlotLeft", slot, new Vector2(-2.5f, -3.0f), new Vector2(1.5f, 9.0f));
+            TrashPart(buttonObject.transform, "SlotRight", slot, new Vector2(2.5f, -3.0f), new Vector2(1.5f, 9.0f));
+        }
+
+        private static void TrashPart(Transform parent, string name, Color colour, Vector2 centre, Vector2 size)
+        {
+            GameObject part = MakeRect(name, parent, colour);
+            var rect = (RectTransform)part.transform;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = centre;
+            rect.sizeDelta = size;
+            part.GetComponent<Image>().raycastTarget = false;
         }
 
         // --- making one ---

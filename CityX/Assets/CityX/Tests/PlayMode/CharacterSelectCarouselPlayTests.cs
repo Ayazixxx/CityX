@@ -1,5 +1,6 @@
 using System.Collections;
 using System.IO;
+using System.Linq;
 using CityX.Core;
 using CityX.UI;
 using NUnit.Framework;
@@ -45,9 +46,9 @@ namespace CityX.Tests
             // this guards against only shows up when the two actually
             // differ.
             int stageLayer = 1;
-            _anchorObjects = new GameObject[3];
-            var anchors = new Transform[3];
-            for (int i = 0; i < 3; i++)
+            _anchorObjects = new GameObject[CharacterSelect.SlotCount];
+            var anchors = new Transform[CharacterSelect.SlotCount];
+            for (int i = 0; i < CharacterSelect.SlotCount; i++)
             {
                 _anchorObjects[i] = new GameObject($"Anchor{i}");
                 _anchorObjects[i].layer = stageLayer;
@@ -80,7 +81,7 @@ namespace CityX.Tests
             _select.Refresh();
             yield return null;
 
-            Transform centreAnchor = _select.PedestalAnchors[1];
+            Transform centreAnchor = _select.PedestalAnchors[CharacterSelect.CentreSlot];
             Assert.AreEqual(1, centreAnchor.childCount, "the centre pedestal has no body on it");
             GameObject body = centreAnchor.GetChild(0).gameObject;
 
@@ -121,7 +122,7 @@ namespace CityX.Tests
             _select.Refresh();
             yield return null;
 
-            Transform centreAnchor = _select.PedestalAnchors[1];
+            Transform centreAnchor = _select.PedestalAnchors[CharacterSelect.CentreSlot];
             Assert.AreEqual(1, centreAnchor.childCount, "the centre pedestal has no body on it");
             GameObject body = centreAnchor.GetChild(0).gameObject;
 
@@ -168,7 +169,7 @@ namespace CityX.Tests
             _select.Refresh();
             yield return null;
 
-            Transform centreAnchor = _select.PedestalAnchors[1];
+            Transform centreAnchor = _select.PedestalAnchors[CharacterSelect.CentreSlot];
             GameObject body = centreAnchor.GetChild(0).gameObject;
             var clothes = body.GetComponent<CityX.Wearables.SkinnedGarmentCombiner>();
             Assert.IsNotNull(clothes, "the pedestal body wears nothing");
@@ -182,6 +183,69 @@ namespace CityX.Tests
             {
                 Assert.AreEqual(centreAnchor.gameObject.layer, renderer.gameObject.layer, $"{renderer.name} is off the stage's layer");
             }
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-26: "make it display 5 character (assuming you have made 5) and the back 2 on the right and left are dark just dark and
+        /// shadowy figures, also make it so the direction it scrolls ... are inverted": five on the row, the furthest pair all in the silhouette
+        /// material, the next character standing on the RIGHT of the chosen one, so the right arrow brings it in from the right (it came from the
+        /// left).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator FiveStandOnTheRowTheBackPairInShadowAndTheNextOneOnTheRight()
+        {
+            var shadow = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            _select.SilhouetteMaterial = shadow;
+            for (int i = 0; i < 6; i++)
+            {
+                LocalServer.Database.For(PlayerKey.Local).Add(CharacterSave.Create($"C{i}", new Color(0.3f, 0.4f, 0.5f)));
+            }
+            _select.Refresh();
+            yield return null;
+
+            for (int slot = 0; slot < CharacterSelect.SlotCount; slot++)
+            {
+                Assert.AreEqual(1, _select.PedestalAnchors[slot].childCount, $"pedestal {slot} stands empty with six characters saved");
+                bool back = Mathf.Abs(slot - CharacterSelect.CentreSlot) == 2;
+                foreach (Renderer renderer in _select.PedestalAnchors[slot].GetComponentsInChildren<Renderer>(true))
+                {
+                    bool inShadow = renderer.sharedMaterials.All(material => material == shadow);
+                    Assert.AreEqual(back, inShadow, back ? $"pedestal {slot}'s {renderer.name} is not a dark figure" : $"pedestal {slot}'s {renderer.name} is in shadow");
+                }
+            }
+
+            int selected = _select.SelectedIndex;
+            int onTheRight = _select.ShownAt(CharacterSelect.CentreSlot + 1);
+            Assert.AreEqual((selected + 1) % 6, onTheRight, "the next character is not on the right");
+            _select.Next();
+            yield return null;
+            Assert.AreEqual(onTheRight, _select.ShownAt(CharacterSelect.CentreSlot), "the right arrow did not bring the right one into the centre");
+            Assert.AreEqual(selected, _select.ShownAt(CharacterSelect.CentreSlot - 1), "the one that was chosen did not move to the left");
+            Object.Destroy(shadow);
+        }
+
+        [Test]
+        public void TheBackPairOnlyStandsWithFiveSoNobodyIsOnTheRowTwice()
+        {
+            for (int count = 1; count <= 6; count++)
+            {
+                var shown = new System.Collections.Generic.List<int>();
+                for (int slot = 0; slot < CharacterSelect.SlotCount; slot++)
+                {
+                    int character = CharacterSelect.CharacterFor(slot, 0, count);
+                    bool back = Mathf.Abs(slot - CharacterSelect.CentreSlot) == 2;
+                    if (back)
+                    {
+                        Assert.AreEqual(count >= 5, character >= 0, $"{count} characters: back pedestal {slot}");
+                    }
+                    if (character >= 0 && Mathf.Abs(slot - CharacterSelect.CentreSlot) != 1)
+                    {
+                        shown.Add(character);
+                    }
+                }
+                CollectionAssert.AllItemsAreUnique(shown, $"{count} characters: someone stands on the row twice");
+            }
+            Assert.AreEqual(1, CharacterSelect.CharacterFor(CharacterSelect.CentreSlot - 1, 0, 2), "with two, the other one stands beside the centre");
         }
 
         /// <summary>A saved character's hair colour is on the hair of their pedestal body -- not just the default gold.</summary>
@@ -204,7 +268,7 @@ namespace CityX.Tests
             _select.Refresh();
             yield return null;
 
-            GameObject body = _select.PedestalAnchors[1].GetChild(0).gameObject;
+            GameObject body = _select.PedestalAnchors[CharacterSelect.CentreSlot].GetChild(0).gameObject;
             var hair = body.GetComponent<CityX.Character.CharacterHair>();
             Assert.IsNotNull(hair, "the pedestal body has no hair component");
             Assert.IsNotNull(hair.Worn, "the pedestal body is not wearing the character's hairstyle");

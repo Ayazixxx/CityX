@@ -88,6 +88,39 @@ namespace CityX.Tests
             return false;
         }
 
+        /// <summary>
+        /// Owner, 2026-10-26: "move the delete button to just a little trash icon that is in the top right of that little panel that says Happy
+        /// Level 1 ...": the list has no DELETE button beside PLAY; the bin in the stat card's top-right corner starts the (confirmed) delete; and
+        /// the row has five pedestals, the back pair drawn in the silhouette.
+        /// </summary>
+        [Test]
+        public void TheCharacterListDeletesFromABinInTheCardsCornerAndStandsFive()
+        {
+            GameObject list = Everything().First(go => go.name == "ListPanel");
+            Assert.IsNull(list.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "DeleteButton"),
+                "the list still has its DELETE button");
+            Transform card = list.GetComponentsInChildren<Transform>(true).First(t => t.name == "StatCard");
+            Transform bin = card.Find("TrashButton");
+            Assert.IsNotNull(bin, "no bin on the stat card");
+            Assert.AreEqual(ButtonAction.Kind.SelectBeginDeleteSelected, bin.GetComponent<ButtonAction>().Action);
+            var binRect = (RectTransform)bin;
+            Assert.AreEqual(new Vector2(1.0f, 1.0f), binRect.anchorMin, "the bin is not in the card's top-right corner");
+            Assert.LessOrEqual(binRect.sizeDelta.x, 32.0f, "the bin is not little");
+
+            var select = Find<CharacterSelect>();
+            Assert.AreEqual(CharacterSelect.SlotCount, select.PedestalAnchors.Length);
+            Assert.IsTrue(select.PedestalAnchors.All(anchor => anchor != null), "a pedestal has no anchor");
+            Assert.IsNotNull(select.SilhouetteMaterial, "the back pair have no dark material to be drawn in");
+
+            // Left to right as the camera sees them, so the next character (CharacterSelect.Next) really stands on the right.
+            Camera stage = Everything().Select(go => go.GetComponent<Camera>()).First(c => c != null && c.name == "SelectCamera");
+            for (int slot = 1; slot < CharacterSelect.SlotCount; slot++)
+            {
+                Assert.Greater(stage.WorldToViewportPoint(select.PedestalAnchors[slot].position).x,
+                    stage.WorldToViewportPoint(select.PedestalAnchors[slot - 1].position).x, $"pedestal {slot} is not right of pedestal {slot - 1} on screen");
+            }
+        }
+
         [Test]
         public void EveryButtonDoesSomething()
         {

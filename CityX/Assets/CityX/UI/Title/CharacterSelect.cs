@@ -46,9 +46,20 @@ namespace CityX.UI
         public Text ConfirmText;
         public Text EmptyNotice;
 
+        /// <summary>
+        /// How many pedestals stand in the row (owner, 2026-10-26: "make it display 5 character ... the back 2 on the right and left are dark just
+        /// dark and shadowy figures"), and which of them is the centre one.
+        /// </summary>
+        public const int SlotCount = 5;
+
+        public const int CentreSlot = 2;
+
         [Header("Carousel, wired by CharacterSelectBuilder")]
-        [Tooltip("Left/Centre/Right pedestal anchors on the 3D stage. A body is instantiated as a child of each one that has a character to show.")]
-        public Transform[] PedestalAnchors = new Transform[3];
+        [Tooltip("The pedestal anchors on the 3D stage, left to right as the camera sees them. A body is instantiated as a child of each one that has a character to show.")]
+        public Transform[] PedestalAnchors = new Transform[SlotCount];
+
+        [Tooltip("What the two furthest pedestals' bodies are drawn in: a dark, shadowy figure.")]
+        public Material SilhouetteMaterial;
 
         [Tooltip("Cloned per pedestal slot, then stripped down to a static display body -- see StripWorldComponents.")]
         public GameObject CarouselBodyPrefab;
@@ -72,7 +83,8 @@ namespace CityX.UI
         [Tooltip("The scene the world lives in.")]
         public string WorldScene = "CityMassing";
 
-        private readonly GameObject[] _pedestalBodies = new GameObject[3];
+        private readonly GameObject[] _pedestalBodies = new GameObject[SlotCount];
+        private readonly int[] _shownAt = { -1, -1, -1, -1, -1 };
         private List<CharacterSave> _characters = new List<CharacterSave>();
         private Mode _mode = Mode.List;
         private int _selectedIndex;
@@ -353,9 +365,10 @@ namespace CityX.UI
         // --- the carousel ---
 
         /// <summary>
-        /// Steps the centre pedestal one character to the right, wrapping back
-        /// to the start -- a carousel is meant to be cycled, not a list that
-        /// stops at its own ends.
+        /// Steps to the next character, wrapping back to the start -- a carousel is meant to be cycled, not a list that stops at its own ends.
+        /// The next character stands on the RIGHT, so the right arrow brings it in from the right and the row slides left (owner, 2026-10-26:
+        /// "make it so the direction it scrolls through the characters when you press the buttons on the right and left are inverted": it came
+        /// in from the left, the stage's anchors having been laid out mirrored to the camera looking back at them).
         /// </summary>
         public void Next()
         {
@@ -377,11 +390,29 @@ namespace CityX.UI
             UpdateCarousel();
         }
 
+        /// <summary>Which character a pedestal (0 to SlotCount - 1, left to right) is showing, or -1 for none. Public so a test can read it.</summary>
+        public int ShownAt(int slot) => slot >= 0 && slot < SlotCount ? _shownAt[slot] : -1;
+
         /// <summary>
-        /// Repopulates the three pedestals from the character either side of
-        /// _selectedIndex and refreshes the stat panel. Called on every
+        /// The character a pedestal shows, given how many there are, or -1 for none: the chosen one in the centre, the next ones to its right and
+        /// the previous ones to its left (see Next). The pair beside the centre need two characters (with two, both show the other one); the
+        /// furthest pair five, so nobody stands on the row twice.
+        /// </summary>
+        public static int CharacterFor(int slot, int selected, int count)
+        {
+            int offset = slot - CentreSlot;
+            int reach = Mathf.Abs(offset);
+            if (count == 0 || (reach == 1 && count < 2) || (reach == 2 && count < SlotCount))
+            {
+                return -1;
+            }
+            return ((selected + offset) % count + count) % count;
+        }
+
+        /// <summary>
+        /// Repopulates the pedestals round _selectedIndex and refreshes the stat panel. Called on every
         /// selection change rather than animated into place -- with typically
-        /// a handful of saves, instantiating up to three bodies is cheap
+        /// a handful of saves, instantiating up to five bodies is cheap
         /// enough to just redo outright, and it keeps this in step with
         /// Refresh() rebuilding the whole list the same way a delete or a
         /// new character already did before the carousel existed.
@@ -401,13 +432,13 @@ namespace CityX.UI
                 return;
             }
 
-            PopulateSlot(1, _selectedIndex);
-            if (_characters.Count > 1)
+            for (int slot = 0; slot < SlotCount; slot++)
             {
-                int leftIndex = (_selectedIndex - 1 + _characters.Count) % _characters.Count;
-                int rightIndex = (_selectedIndex + 1) % _characters.Count;
-                PopulateSlot(0, leftIndex);
-                PopulateSlot(2, rightIndex);
+                int character = CharacterFor(slot, _selectedIndex, _characters.Count);
+                if (character >= 0)
+                {
+                    PopulateSlot(slot, character);
+                }
             }
 
             SetStatPanel(_characters[_selectedIndex]);
@@ -448,10 +479,11 @@ namespace CityX.UI
                     Destroy(_pedestalBodies[i]);
                     _pedestalBodies[i] = null;
                 }
+                _shownAt[i] = -1;
             }
         }
 
-        /// <summary>Stands a static preview of _characters[characterIndex] on pedestal slot 0/1/2 (left/centre/right).</summary>
+        /// <summary>Stands a static preview of _characters[characterIndex] on a pedestal slot (0 to SlotCount - 1, left to right).</summary>
         private void PopulateSlot(int slot, int characterIndex)
         {
             if (PedestalAnchors == null || slot >= PedestalAnchors.Length
@@ -485,7 +517,36 @@ namespace CityX.UI
                 t.gameObject.layer = layer;   // the clothes' own renderers too, so after they are put on
             }
 
+            if (Mathf.Abs(slot - CentreSlot) == 2)
+            {
+                InShadow(body);
+            }
+
             _pedestalBodies[slot] = body;
+            _shownAt[slot] = characterIndex;
+        }
+
+        /// <summary>A body in the back row: every part of it (skin, hair, clothes) in the one dark silhouette material, its own colours cleared.</summary>
+        private void InShadow(GameObject body)
+        {
+            if (SilhouetteMaterial == null)
+            {
+                return;
+            }
+            foreach (Renderer renderer in body.GetComponentsInChildren<Renderer>(true))
+            {
+                var shadow = new Material[Mathf.Max(1, renderer.sharedMaterials.Length)];
+                for (int i = 0; i < shadow.Length; i++)
+                {
+                    shadow[i] = SilhouetteMaterial;
+                }
+                renderer.sharedMaterials = shadow;
+                renderer.SetPropertyBlock(null);
+                for (int i = 0; i < shadow.Length; i++)
+                {
+                    renderer.SetPropertyBlock(null, i);
+                }
+            }
         }
 
         /// <summary>
