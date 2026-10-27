@@ -82,7 +82,7 @@ namespace CityX.Character
         private bool _serverHandlers;
         private bool _clientHandlers;
         private bool _requested;
-        private readonly Dictionary<int, (float windowStart, int count)> _rate = new Dictionary<int, (float, int)>();
+        private readonly SenderRate _rate = new SenderRate(MaxChangesPerSecond);
 
         private GlassDamage Record => Target ?? GlassDamage.Current;
 
@@ -161,7 +161,7 @@ namespace CityX.Character
 
         private void OnChangeAtServer(NetworkConnection sender, GlassPaneMessage message, Channel channel)
         {
-            if (sender == null || !WithinRate(sender.ClientId, Time.unscaledTime) || !Acceptable(message))
+            if (sender == null || !_rate.Allow(sender.ClientId, Time.unscaledTime) || !Acceptable(message))
             {
                 return;
             }
@@ -211,17 +211,6 @@ namespace CityX.Character
             {
                 GlassDamage.RaiseHeard(change);
             }
-        }
-
-        private bool WithinRate(int client, float now)
-        {
-            if (!_rate.TryGetValue(client, out (float windowStart, int count) r) || now - r.windowStart >= 1.0f)
-            {
-                r = (now, 0);
-            }
-            r.count++;
-            _rate[client] = r;
-            return r.count <= MaxChangesPerSecond;
         }
 
         // --- the messages (public static so they are tested without a network) ---

@@ -498,7 +498,7 @@ namespace CityX.Character
             // Another player's copy: the hit is sent to the real body's owner, who decides what it does (block, parry, poise, stun, health).
             if (Relay != null && Relay.TryRelayHit(amount, fromPosition, hitstunSeconds, poiseDamage))
             {
-                return HitResponse.Landed;
+                return IsDead ? HitResponse.Ignored : HitResponse.Landed;   // a copy's corpse is not hit (nor its killer paid) again
             }
 
             if (IsDead || IsInvulnerable)
@@ -745,6 +745,18 @@ namespace CityX.Character
                 _networkMaxHealth = maxHealth;
             }
             _health = Mathf.Clamp(float.IsNaN(health) ? _health : health, 0.0f, MaxHealth);
+        }
+
+        /// <summary>
+        /// A networked enemy's copy dying because the body it copies died (NetworkedEnemy): health to 0, and everything that answers a death
+        /// here does so (the ragdoll falls, thrown by <paramref name="fling"/>: the real body's motion and its killing blow's fling).
+        /// </summary>
+        public void DieFromNetwork(Vector3 fling)
+        {
+            _health = 0.0f;
+            DeathImpulse = fling;
+            Died?.Invoke();
+            DeathImpulse = Vector3.zero;
         }
 
         /// <summary>Another player's copy: the owner's Max Health, as last shared (0 until then, and always on the owner's own body).</summary>

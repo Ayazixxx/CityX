@@ -317,7 +317,7 @@ namespace CityX.Character
             float handsWeight, Vector3 lip, Vector3 ledgeNormal)
         {
             // A garbled packet must not poison a copy's IK.
-            if (!Finite(wallPoint) || !Finite(wallNormal) || !Finite(lip) || !Finite(ledgeNormal)
+            if (!WireChecks.Finite(wallPoint) || !WireChecks.Finite(wallNormal) || !WireChecks.Finite(lip) || !WireChecks.Finite(ledgeNormal)
                 || float.IsNaN(wallWeight) || float.IsNaN(handsWeight) || float.IsNaN(speedScale) || float.IsNaN(travel.x) || float.IsNaN(travel.y))
             {
                 return;
@@ -353,8 +353,6 @@ namespace CityX.Character
                 _locomotion.SetLedgeHands(handsWeight, lip, ledgeNormal);
             }
         }
-
-        private static bool Finite(Vector3 v) => !(float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z) || float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z));
 
         /// <summary>A copy's per-frame work: glide the walk blend toward the owner's, and fit the mantle clip to the mantle's own length like the owner does.</summary>
         private void TickRemoteCopy(float deltaTime)

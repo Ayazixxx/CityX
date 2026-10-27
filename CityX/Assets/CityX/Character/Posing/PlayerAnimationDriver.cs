@@ -330,6 +330,9 @@ namespace CityX.Character
         /// <summary>A blow that got through to the player this body is a copy of (HitImpactEffects.NameFor, from the network): the side it came from, and whether it was heavy.</summary>
         public event System.Action<HitDirection, bool> RemoteWounded;
 
+        /// <summary>The enemy this body is a copy of showing its attack's tell (AttackGlint.StateName, from the network): the copy glints too.</summary>
+        public event System.Action RemoteGlinted;
+
         /// <summary>Tells other players' copies of this body about something that already happened here (a gun shot), without playing anything.</summary>
         public void AnnounceState(string stateName)
         {
@@ -450,6 +453,11 @@ namespace CityX.Character
             {
                 // the copy's guard throws the same sparks and makes the same sound
                 RemoteDeflected?.Invoke(stateName == BlockDeflectEffect.ClashStateName);
+                return;
+            }
+            if (stateName == AttackGlint.StateName)
+            {
+                RemoteGlinted?.Invoke();
                 return;
             }
             if (HitImpactEffects.TryParse(stateName, out HitDirection woundDirection, out bool woundHeavy))

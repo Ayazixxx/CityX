@@ -228,6 +228,7 @@ namespace CityX.ViewEditor
             GrappleSwing playerGrappleSwing = null;
             PlayerLocomotion playerLocomotion = null;
             GameObject playerObjectForWatchdog = null;
+            CityX.Character.EnemyNetwork.Kind[] networkedEnemies = System.Array.Empty<CityX.Character.EnemyNetwork.Kind>();
             cameraObject.transform.position = new Vector3(
                 (float)spawnX, groundHeight + 1.7f, (float)spawnZ);
             cameraObject.transform.rotation = Quaternion.Euler(4.0f, 35.0f, 0.0f);
@@ -755,6 +756,9 @@ namespace CityX.ViewEditor
                     PrefabUtility.UnloadPrefabContents(networkedContents);
                 }
 
+                // The enemies a session shares (2026-10-27): a networked variant of each, spawned by /spawn through the server (EnemyNetwork below).
+                networkedEnemies = CityX.CharacterEditor.NetworkedEnemyBuilder.BuildAll();
+
                 var spawnPointObject = new GameObject("NetworkSpawnPoint");
                 spawnPointObject.transform.position = playerObjectForWatchdog.transform.position;
 
@@ -800,6 +804,8 @@ namespace CityX.ViewEditor
             streamerObject.AddComponent<CityX.Character.GlassDamageNetwork>();
             // Dropped items (2026-10-17): the weapon a player let go of when they died lies on every machine, and only one player gets it.
             streamerObject.AddComponent<CityX.Character.DroppedItemsNetwork>();
+            // Enemies (2026-10-27): /spawn in a session asks the server, and every player sees and fights what it spawns.
+            streamerObject.AddComponent<CityX.Character.EnemyNetwork>().Kinds = networkedEnemies;
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
             streamerObject.AddComponent<CityX.Character.GraffitiNetwork>().PaintMaterial = CityX.WeaponsEditor.SprayCanBuilder.EnsureGraffitiMaterial();
             streamer.RoadLineMaterial = roadLine;

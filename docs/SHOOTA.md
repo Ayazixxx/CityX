@@ -50,8 +50,9 @@ is rechecked every half second against where you are now.
 
 ## Multiplayer
 
-**Local for now**, as the Crimson Claw is: NPCs are not networked yet. A Shoota exists only on the machine that spawned it and only ever
-targets that machine's own player, never another player's copy (who could not see who was shooting them).
+**Shared in a session** (2026-10-27, docs/MULTIPLAYER_STATE.md "Enemies"): the machine that spawned him runs him; every other player sees a
+copy whose rifle flashes, cracks and throws brass at each shot and plays his reloads (`gun_fire` and the reload names, announced as a
+player's are). He shoots whichever player is nearest, another player's copy too; his rounds reach that player's own body through it.
 
 ## 2026-10-17: he had no animation
 

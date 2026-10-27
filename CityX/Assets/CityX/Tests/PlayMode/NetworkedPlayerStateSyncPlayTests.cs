@@ -23,7 +23,7 @@ namespace CityX.Tests
     /// Covered: the climbing pose and the hands on a ledge, the mantle's pull-up, held items and back items (and their removal), hairstyle and colour,
     /// and damage dealt to a COPY landing on the real body's owner (hits, poison, health shown back).
     /// </summary>
-    public sealed class NetworkedPlayerStateSyncPlayTests
+    public sealed partial class NetworkedPlayerStateSyncPlayTests
     {
         private const string NetworkedPlayerPrefabPath = "Assets/CityX/Character/NetworkedPlayer.prefab";
         private static ushort _nextPort = 44700;
@@ -64,6 +64,9 @@ namespace CityX.Tests
                 _server.ServerManager.StopConnection(true);
             }
             yield return null;
+#if UNITY_EDITOR
+            TearDownEnemies();
+#endif
             foreach (NetworkedPlayerIdentity identity in Object.FindObjectsByType<NetworkedPlayerIdentity>(FindObjectsSortMode.None))
             {
                 if (identity != null)

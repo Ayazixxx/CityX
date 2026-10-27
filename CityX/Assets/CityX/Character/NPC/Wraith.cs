@@ -11,7 +11,11 @@ namespace CityX.Character
     /// <see cref="MaxHealth"/> is one pistol round or two punches, and dead it fades away and rises. Its sneaking up and its bite come later.
     ///
     /// No CharacterController and no Animator: it hovers (WraithDrift: drift, linger, bob, a ground-relative hover height), steered round
-    /// walls by NpcSteering, and poses its own bones every frame (WraithPose) over the body's rest. Local for now, as every NPC is.
+    /// walls by NpcSteering, and poses its own bones every frame (WraithPose) over the body's rest.
+    ///
+    /// IN A SESSION (NetworkedWraith, 2026-10-27) the machine that spawned it drifts it; on every other machine it is a COPY
+    /// (<see cref="IsCopy"/>): moved by the owner, posed from how it moves, its hits sent to the owner (<see cref="Relay"/>) and its health
+    /// taken from the owner's (<see cref="SetHealthFromNetwork"/>), so it flinches and fades on every screen alike.
     ///
     /// Tick is public and separate from Update, so a test drives it with its own time step.
     /// </summary>
@@ -94,6 +98,18 @@ namespace CityX.Character
         private PlayerVitals _player;
         private float _playerSearch;
 
+        /// <summary>Another machine's Wraith shown here: it does not drift by itself, and is told its health.</summary>
+        public bool IsCopy { get; set; }
+
+        /// <summary>Where a hit on a copy is sent instead (NetworkedWraith); null outside a session.</summary>
+        public IRemoteDamageRelay Relay;
+
+        private Vector3 _lastPosition;
+        private float _lastYaw;
+        private bool _followed;
+        private float _copySpeed;
+        private bool _removed;
+
         public bool IsAlive => !_dead;
         public float Health => _health;
         float IHealthBar.MaxHealth => MaxHealth;
@@ -105,7 +121,7 @@ namespace CityX.Character
         /// <summary>How hurt it still shows, 1 the moment it is hit, 0 settled.</summary>
         public float Hurt => _hurt;
 
-        public float Speed => _drift != null ? _drift.Speed : 0.0f;
+        public float Speed => IsCopy ? _copySpeed : _drift != null ? _drift.Speed : 0.0f;
         public bool IsLingering => _drift != null && _drift.IsLingering;
 
         private void Awake()
@@ -139,9 +155,10 @@ namespace CityX.Character
         private void Update()
         {
             Tick(Time.deltaTime);
-            if (_dead && _fade >= 1.0f)
+            if (_dead && _fade >= 1.0f && !_removed)
             {
-                Destroy(gameObject);
+                _removed = true;
+                EnemySession.Remove(gameObject);   // in a session the owner has the server take it out everywhere; a copy waits for that
             }
         }
 
@@ -156,7 +173,10 @@ namespace CityX.Character
             if (_dead)
             {
                 _fade = Mathf.Min(1.0f, _fade + deltaTime / FadeSeconds);
-                transform.position += Vector3.up * (RiseSpeed * deltaTime);
+                if (!IsCopy)
+                {
+                    transform.position += Vector3.up * (RiseSpeed * deltaTime);   // a copy rises with its owner's
+                }
                 if (Face != null)
                 {
                     // The face is solid, so it cannot fade with the body: it shrinks away into the skull instead.
@@ -166,6 +186,14 @@ namespace CityX.Character
                 return;
             }
             _hurt = Mathf.Max(0.0f, _hurt - deltaTime / HurtSeconds);
+
+            if (IsCopy)
+            {
+                FollowOwner(deltaTime);
+                FindPlayer(deltaTime);
+                ShowLook();
+                return;
+            }
 
             Vector3 velocity = _drift.Tick(transform.position, deltaTime);
             float speed = velocity.magnitude;
@@ -178,6 +206,44 @@ namespace CityX.Character
             Hover(deltaTime);
             FindPlayer(deltaTime);
             ShowLook();
+        }
+
+        /// <summary>
+        /// A copy is moved by its owner: how fast it went and turned since the last frame is what its pose leans and sways by. The first frame
+        /// of a copy only notes where it is.
+        /// </summary>
+        private void FollowOwner(float deltaTime)
+        {
+            float yaw = transform.eulerAngles.y;
+            if (deltaTime > 0.0f && _followed)
+            {
+                Vector3 moved = transform.position - _lastPosition;
+                moved.y = 0.0f;
+                _copySpeed = moved.magnitude / deltaTime;
+                _turnRate = Mathf.DeltaAngle(_lastYaw, yaw) / deltaTime;
+            }
+            _lastPosition = transform.position;
+            _lastYaw = yaw;
+            _followed = true;
+        }
+
+        /// <summary>A copy told its owner's health: a drop is a flinch and a flash, none left is its death.</summary>
+        public void SetHealthFromNetwork(float health)
+        {
+            if (_dead || float.IsNaN(health))
+            {
+                return;
+            }
+            health = Mathf.Clamp(health, 0.0f, MaxHealth);
+            if (health < _health)
+            {
+                _hurt = 1.0f;
+            }
+            _health = health;
+            if (_health <= 0.0f)
+            {
+                Die();
+            }
         }
 
         /// <summary>Comes round to face <paramref name="heading"/>, no faster than FacingDegreesPerSecond; remembers how fast it turned.</summary>
@@ -301,6 +367,11 @@ namespace CityX.Character
             if (_dead || amount <= 0.0f)
             {
                 return HitResponse.Ignored;
+            }
+            if (Relay != null && Relay.TryRelayHit(amount, fromPosition, hitstunSeconds, -1.0f))
+            {
+                _hurt = 1.0f;   // it flinches here at once; its health comes back from the owner
+                return HitResponse.Landed;
             }
             _health = Mathf.Max(0.0f, _health - amount);
             _hurt = 1.0f;

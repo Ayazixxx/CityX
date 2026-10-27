@@ -79,9 +79,12 @@ namespace CityX.Tests
             (ShootaBrain shoota, PlayerVitals player) = Stage(15.0f, sturdy: false);
             int hurt = 0;
             player.Damaged += amount => hurt++;
+            int shotsAnnounced = 0;   // told to other players' copies of him, which flash, crack and throw brass (PlayerAnimationDriver.AnnounceState)
+            shoota.GetComponent<PlayerAnimationDriver>().TimedStatePlayed += (state, speed, start) => { if (state == GunReload.FireName) shotsAnnounced++; };
             Assert.IsNotNull(shoota.GetComponentInChildren<PistolWeapon>(), "no AK in his hands");
             yield return Seconds(3.0f);
             Assert.Greater(shoota.RoundsFired, 5, $"he hardly fired ({shoota.State})");
+            Assert.AreEqual(shoota.RoundsFired, shotsAnnounced, "not every shot was announced: other players would see him fire fewer");
             Assert.Greater(hurt, 2, $"{shoota.RoundsFired} rounds at 15 m and only {hurt} hit");
             Assert.Less(player.Health, player.MaxHealth, "the hits did no harm");
         }
@@ -117,6 +120,8 @@ namespace CityX.Tests
             Assert.Less(shoota.transform.position.z, 2.6f, "the spot is not behind the crate");
 
             // Fight on until the magazine runs dry: he goes back to cover (or stays) and changes it.
+            int reloadsAnnounced = 0;
+            shoota.GetComponent<PlayerAnimationDriver>().TimedStatePlayed += (state, speed, start) => { if (GunReload.Has(state)) reloadsAnnounced++; };
             bool reloaded = false;
             bool wasDry = false;
             for (int i = 0; i < 60 * 20 && !reloaded; i++)
@@ -127,6 +132,7 @@ namespace CityX.Tests
             }
             Assert.IsTrue(wasDry, $"he never ran low ({shoota.Magazine} left, {shoota.RoundsFired} fired)");
             Assert.IsTrue(reloaded, $"he never finished changing the magazine ({shoota.State}, {shoota.Magazine})");
+            Assert.Greater(reloadsAnnounced, 0, "his reload was not announced: other players would see the magazine fill by itself");
         }
 
         private static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0.0f, v.z);

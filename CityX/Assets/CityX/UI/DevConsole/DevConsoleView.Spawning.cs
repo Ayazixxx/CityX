@@ -61,6 +61,19 @@ namespace CityX.UI
             }
         }
 
+        /// <summary>
+        /// An enemy put down: in a session the server is asked to spawn it for everyone, run by this machine (EnemyNetwork); otherwise the plain
+        /// one, here alone.
+        /// </summary>
+        private void PutDown(string kind, GameObject localPrefab, Vector3 where, Quaternion facing)
+        {
+            EnemyNetwork network = EnemyNetwork.Current;
+            if (network == null || !network.TrySpawn(kind, where, facing))
+            {
+                Instantiate(localPrefab, where, facing);
+            }
+        }
+
         private void SpawnLog(string message)
         {
             if (!_spawnQuiet)
@@ -121,7 +134,7 @@ namespace CityX.UI
                         return false;
                     }
                     // At its hover height already: it eases onto it over the real ground from there.
-                    Instantiate(WraithPrefab, where + Vector3.up * WraithDrift.HoverHeight, facing);
+                    PutDown("wraith", WraithPrefab, where + Vector3.up * WraithDrift.HoverHeight, facing);
                     SpawnLog("spawned a Wraith -- it floats about; its sneaking up and its bite come later");
                     return true;
 
@@ -132,7 +145,7 @@ namespace CityX.UI
                         return false;
                     }
                     // Further off than the rest: he opens fire the moment he sees you, so you get a moment to react.
-                    Instantiate(ShootaPrefab, origin.position + origin.forward * ShootaSpawnDistance + offset, facing);
+                    PutDown("shoota", ShootaPrefab, origin.position + origin.forward * ShootaSpawnDistance + offset, facing);
                     SpawnLog("spawned a Shoota -- he shoots on sight, takes cover when hurt or reloading");
                     return true;
 
@@ -142,7 +155,7 @@ namespace CityX.UI
                         Log("no swordsman prefab wired");
                         return false;
                     }
-                    Instantiate(SwordsmanPrefab, origin.position + origin.forward * SwordsmanSpawnDistance + offset, facing);
+                    PutDown("swordsman", SwordsmanPrefab, origin.position + origin.forward * SwordsmanSpawnDistance + offset, facing);
                     SpawnLog("spawned a swordsman -- draw your sword: he blocks, rolls and punishes a blade that bounces off his guard");
                     return true;
 

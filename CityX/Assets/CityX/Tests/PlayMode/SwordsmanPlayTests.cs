@@ -189,6 +189,8 @@ namespace CityX.Tests
                 Physics.SyncTransforms();
             };
             vitals.Hit += from => hits++;
+            int glintsAnnounced = 0;   // told to other players' copies of him (PlayerAnimationDriver.AnnounceState)
+            _swordsman.GetComponent<PlayerAnimationDriver>().TimedStatePlayed += (state, speed, start) => { if (state == AttackGlint.StateName) glintsAnnounced++; };
 
             float awayAtLive = 0.0f, yawAtLive = 0.0f, turnedWhileLive = 0.0f;
             for (; clock < 6.0f && (live < 0.0f || his.Phase == SoulsPhase.Active); clock += Dt)
@@ -212,6 +214,7 @@ namespace CityX.Tests
             Assert.GreaterOrEqual(told, 0.0f, "his cut had no tell");
             Assert.Greater(tellSeconds, 0.0f);
             Assert.AreEqual(glints + 1, AttackGlint.Shown, "his blade did not glint as it held");
+            Assert.AreEqual(1, glintsAnnounced, "his glint was not announced: other players would not see his tell");
             Assert.GreaterOrEqual(live - started, attack.Startup + tellSeconds - 2.0f * Dt,
                 $"his cut went live {live - started:0.00} s after it started: the tell was not held ({attack.Startup:0.00} s of wind-up + {tellSeconds:0.00} s)");
             Debug.Log($"CityX swordsman tell: {attack.Animation} live {live - started:0.00} s after it started ({tellSeconds:0.00} s held); " +

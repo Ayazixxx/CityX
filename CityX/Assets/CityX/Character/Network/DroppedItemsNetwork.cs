@@ -98,7 +98,7 @@ namespace CityX.Character
         private int _counter;
         private readonly Dictionary<long, ItemDropMessage> _lying = new Dictionary<long, ItemDropMessage>();
         private readonly List<long> _order = new List<long>();
-        private readonly Dictionary<int, (float windowStart, int count)> _rate = new Dictionary<int, (float, int)>();
+        private readonly SenderRate _rate = new SenderRate(MaxDropsPerSecond);
 
         private void Update()
         {
@@ -201,7 +201,7 @@ namespace CityX.Character
         private void OnDropAtServer(NetworkConnection sender, ItemDropMessage message, Channel channel)
         {
             if (sender == null || !Acceptable(message) || IdOwner(message.Id) != sender.ClientId || _lying.ContainsKey(message.Id)
-                || !Near(sender, message.Position, DropReachMetres) || !WithinRate(sender.ClientId, Time.unscaledTime))
+                || !Near(sender, message.Position, DropReachMetres) || !_rate.Allow(sender.ClientId, Time.unscaledTime))
             {
                 return;
             }
@@ -307,7 +307,7 @@ namespace CityX.Character
             {
                 return false;
             }
-            if (!Finite(message.Position) || !Finite(message.Velocity) || !Finite(message.Spin)
+            if (!WireChecks.Finite(message.Position) || !WireChecks.Finite(message.Velocity) || !WireChecks.Finite(message.Spin)
                 || float.IsNaN(message.Rotation.x) || float.IsNaN(message.Rotation.y) || float.IsNaN(message.Rotation.z) || float.IsNaN(message.Rotation.w))
             {
                 return false;
@@ -331,9 +331,6 @@ namespace CityX.Character
             Position = message.Position, Rotation = message.Rotation, Velocity = message.Velocity, Spin = message.Spin,
         };
 
-        private static bool Finite(Vector3 v) => !float.IsNaN(v.x) && !float.IsNaN(v.y) && !float.IsNaN(v.z)
-                                                 && !float.IsInfinity(v.x) && !float.IsInfinity(v.y) && !float.IsInfinity(v.z);
-
         private static bool Near(NetworkConnection sender, Vector3 point, float metres)
         {
             foreach (NetworkObject owned in sender.Objects)
@@ -344,18 +341,6 @@ namespace CityX.Character
                 }
             }
             return false;
-        }
-
-        private bool WithinRate(int clientId, float now)
-        {
-            _rate.TryGetValue(clientId, out (float windowStart, int count) entry);
-            if (now - entry.windowStart >= 1.0f)
-            {
-                entry = (now, 0);
-            }
-            entry.count++;
-            _rate[clientId] = entry;
-            return entry.count <= MaxDropsPerSecond;
         }
     }
 }

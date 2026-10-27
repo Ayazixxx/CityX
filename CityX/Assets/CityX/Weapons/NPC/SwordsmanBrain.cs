@@ -14,9 +14,10 @@ namespace CityX.Weapons
     /// on to whoever he fights (LocomotionInput.LockedOn: he faces you and steps round you, the way Tab makes the player). What to press is
     /// DuelistMind's; this hands it to the body each frame, as PlayerInputReader does for the player.
     ///
-    /// LOCAL FOR NOW, as the Shoota and the Crimson Claw are: NPCs are not networked yet (docs/GAME_DESIGN.md, "Enemy/NPC sync"), so he exists only
-    /// on the machine that spawned him and only fights that machine's own player. What happens to the PLAYER in the fight -- a rebound off his
-    /// guard, a hit reaction, a parry -- is the player's own and reaches other players as always.
+    /// IN A SESSION (2026-10-27, NetworkedSwordsman.prefab): the machine that spawned him runs this; every other player's machine shows a copy
+    /// with this switched off (NetworkedEnemy), which plays his swings, guard and tell as he does (by name, PlayerAnimationDriver). He fights
+    /// whichever player is nearest, another player's copy too (PlayerBodies): his blows on a copy go to that player's own body. Offline he is
+    /// the plain Swordsman.prefab, as before.
     /// </summary>
     public sealed class SwordsmanBrain : MonoBehaviour
     {
@@ -97,6 +98,7 @@ namespace CityX.Weapons
         private PlayerVitals _vitals;
         private Ragdoll _ragdoll;
         private PlayerAudio _audio;
+        private PlayerAnimationDriver _driver;
         private SoulsSwordCombat _combat;
         private SwordWeapon _sword;
         private PlayerVitals _target;
@@ -113,6 +115,7 @@ namespace CityX.Weapons
         private bool _hurt;
         private bool _wasBlocking;
         private float _deadFor;
+        private bool _removed;
         private float _facingYaw;
         private bool _facingSet;
 
@@ -122,11 +125,16 @@ namespace CityX.Weapons
             _vitals = GetComponent<PlayerVitals>();
             _ragdoll = GetComponent<Ragdoll>();
             _audio = GetComponent<PlayerAudio>();
+            _driver = GetComponent<PlayerAnimationDriver>();
             if (_vitals != null)
             {
                 _vitals.Damaged += OnDamaged;
                 _vitals.Died += OnDied;
                 _vitals.XpRewardOnDeath = XpReward;
+            }
+            if (_driver != null)
+            {
+                _driver.RemoteGlinted += ShowGlint;   // on another player's copy of him: his tell, as the owner's machine shows it
             }
             // The clash of a blow on his guard (sparks and the ting), as on the player's body (PlayerInputReader adds it there).
             if (GetComponent<BlockDeflectEffect>() == null)
@@ -152,11 +160,21 @@ namespace CityX.Weapons
             {
                 _combat.Telegraphed -= OnTelegraphed;
             }
+            if (_driver != null)
+            {
+                _driver.RemoteGlinted -= ShowGlint;
+            }
             WatchTarget(null, null);
         }
 
-        /// <summary>His swing holds its tell: the blade glints, and the ting.</summary>
+        /// <summary>His swing holds its tell: the blade glints, and the ting -- here, and on every other player's copy of him.</summary>
         private void OnTelegraphed(SoulsAttack attack, float seconds)
+        {
+            ShowGlint();
+            _driver?.AnnounceState(AttackGlint.StateName);
+        }
+
+        private void ShowGlint()
         {
             AttackGlint.Show(_sword != null ? _sword.BladeTipWorld : transform.position + Vector3.up * 2.0f);
         }
@@ -193,8 +211,8 @@ namespace CityX.Weapons
         }
 
         /// <summary>
-        /// Beaten: his sword falls from his hand for the player to pick up (owner, 2026-10-17). His drop stays on this machine, as he does
-        /// (an NPC exists only on the machine that spawned it).
+        /// Beaten: his sword falls from his hand for the player to pick up (owner, 2026-10-17). In a session the machine that runs him drops it
+        /// for everyone (one sword, the first to ask gets it: DroppedItemsNetwork); another player's copy of him only lets go of its own.
         /// </summary>
         private void OnDied()
         {
@@ -203,10 +221,13 @@ namespace CityX.Weapons
             {
                 return;
             }
-            var pose = new Pose(_sword.transform.position, _sword.transform.rotation);
-            Vector3 bodyVelocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
-            DroppedItems.Shared.Drop(DroppedItem.LetGo(_sword.ItemId, ItemInstanceData.None, pose, transform, bodyVelocity, _vitals.DeathImpulse),
-                shared: false, gameObject, SwordPrefab);
+            if (!EnemySession.IsCopy(gameObject))
+            {
+                var pose = new Pose(_sword.transform.position, _sword.transform.rotation);
+                Vector3 bodyVelocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
+                DroppedItems.Shared.Drop(DroppedItem.LetGo(_sword.ItemId, ItemInstanceData.None, pose, transform, bodyVelocity, _vitals.DeathImpulse),
+                    shared: EnemySession.IsShared(gameObject), gameObject, SwordPrefab);
+            }
             _sword.OnUnequip(gameObject);
             _sword = null;
         }
@@ -263,9 +284,10 @@ namespace CityX.Weapons
                 Mind.Tick(new DuelistMind.Senses { Dead = true }, deltaTime);
                 _combat?.SetBlockHeld(false);
                 _deadFor += deltaTime;
-                if (_deadFor >= CorpseSeconds)
+                if (_deadFor >= CorpseSeconds && !_removed)
                 {
-                    Destroy(gameObject);
+                    _removed = true;
+                    EnemySession.Remove(gameObject);   // in a session the server takes him out on every machine
                 }
                 return;
             }
@@ -503,7 +525,7 @@ namespace CityX.Weapons
             _targetBody = target != null ? target.GetComponent<PlayerLocomotion>() : null;
         }
 
-        /// <summary>This machine's own player, the nearest alive within <see cref="NoticeMetres"/> (never another player's copy: see the class comment).</summary>
+        /// <summary>The nearest living player within <see cref="NoticeMetres"/>: this machine's own, or in a session another player's copy (PlayerBodies).</summary>
         private void FindTarget()
         {
             if (_pinned)
@@ -527,26 +549,7 @@ namespace CityX.Weapons
                 return;
             }
             _nextSearch = Time.time + TargetSearchSeconds;
-            PlayerVitals best = null;
-            float nearest = NoticeMetres;
-            foreach (PlayerInputReader reader in Object.FindObjectsByType<PlayerInputReader>(FindObjectsSortMode.None))
-            {
-                if (!reader.isActiveAndEnabled)
-                {
-                    continue;
-                }
-                var vitals = reader.GetComponent<PlayerVitals>();
-                if (vitals == null || !vitals.IsAlive)
-                {
-                    continue;
-                }
-                float distance = Vector3.Distance(transform.position, vitals.transform.position);
-                if (distance < nearest)
-                {
-                    nearest = distance;
-                    best = vitals;
-                }
-            }
+            PlayerVitals best = PlayerBodies.NearestAlive(transform.position, NoticeMetres);
             if (best != _target)
             {
                 SetTarget(best);

@@ -18,6 +18,9 @@ namespace CityX.Character
     /// the victim's own vitals decide otherwise -- parried, soaked by a held guard, rolled through -- that answer is sent back to the attacker's
     /// machine (<see cref="Verdict"/>), where the attacker's combat takes it: a parried swing leaves the attacker staggered just as it does offline.
     /// The DEFENDER decides what happened to them (the research's rule: favour the defender's view of a dodge or a parry).
+    ///
+    /// ENEMIES TOO (2026-10-27): a networked enemy's body (NetworkedEnemy) is relayed the same way, to the machine that runs it; when a relayed
+    /// hit kills one, the player whose hit it was is paid its XP on their own machine (EnemyNetwork.CreditKill).
     /// </summary>
     [RequireComponent(typeof(NetworkObject))]
     public sealed class NetworkedDamage : NetworkBehaviour, IRemoteDamageRelay
@@ -44,8 +47,7 @@ namespace CityX.Character
         private int _nextHitId;
 
         // Server-side rate limit, per sender.
-        private readonly System.Collections.Generic.Dictionary<int, (float windowStart, int count)> _rate =
-            new System.Collections.Generic.Dictionary<int, (float, int)>();
+        private readonly SenderRate _rate = new SenderRate(MaxHitsPerSecond);
 
         /// <summary>Raised on the ATTACKER's machine (on this, the victim's copy) with a hit's id and what the victim's own body did with it, when that was not simply "landed".</summary>
         public event System.Action<int, HitResponse> Verdict;
@@ -119,13 +121,13 @@ namespace CityX.Character
         /// <summary>A knockdown's throw as the owner takes it: finite, and no faster than <see cref="MaxKnockdownSpeed"/>.</summary>
         public static Vector3 SaneKnockdown(Vector3 velocity)
         {
-            return Finite(velocity) ? Vector3.ClampMagnitude(velocity, MaxKnockdownSpeed) : Vector3.zero;
+            return WireChecks.Finite(velocity) ? Vector3.ClampMagnitude(velocity, MaxKnockdownSpeed) : Vector3.zero;
         }
 
         [ServerRpc(RequireOwnership = false)]
         private void SendKnockdownToServer(Vector3 velocity, NetworkConnection sender = null)
         {
-            if (!Allowed(sender, 1.0f) || !Finite(velocity))
+            if (!Allowed(sender, 1.0f) || !WireChecks.Finite(velocity))
             {
                 return;
             }
@@ -148,7 +150,7 @@ namespace CityX.Character
         private void SendHitToServer(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int kind, float penetration,
             bool breaksGuard, NetworkConnection sender = null)
         {
-            if (!Allowed(sender, amount) || !Finite(fromPosition) || float.IsNaN(hitstunSeconds) || float.IsNaN(poiseDamage) || float.IsNaN(penetration))
+            if (!Allowed(sender, amount) || !WireChecks.Finite(fromPosition) || float.IsNaN(hitstunSeconds) || float.IsNaN(poiseDamage) || float.IsNaN(penetration))
             {
                 return;
             }
@@ -176,7 +178,12 @@ namespace CityX.Character
         private void ApplyHitOnOwner(NetworkConnection target, float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int attackerClientId,
             int kind, float penetration, bool breaksGuard)
         {
+            bool wasAlive = _vitals != null && _vitals.IsAlive;
             HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration, breaksGuard);
+            if (wasAlive && _vitals.IsDead && _vitals.XpRewardOnDeath > 0)
+            {
+                EnemyNetwork.CreditKill(NetworkManager, attackerClientId, _vitals.XpRewardOnDeath);   // an enemy this machine runs, killed by another player
+            }
             if (response != HitResponse.Landed)
             {
                 SendVerdictToServer(attackerClientId, hitId, (int)response);   // the attacker assumed "landed"; only a different answer needs carrying back
@@ -251,14 +258,19 @@ namespace CityX.Character
             {
                 return false;
             }
-            if (!WithinRate(sender.ClientId, Time.unscaledTime))
+            if (!_rate.Allow(sender.ClientId, Time.unscaledTime))
             {
                 return false;
             }
-            // The attacker's own body (any body they own) must be within range of the victim's.
+            return AttackerNear(sender, transform.position);
+        }
+
+        /// <summary>Whether a body the attacker owns (theirs, or an enemy they run) is within <see cref="MaxRelayMetres"/> of the victim.</summary>
+        public static bool AttackerNear(NetworkConnection sender, Vector3 victim)
+        {
             foreach (NetworkObject owned in sender.Objects)
             {
-                if (owned != null && Vector3.Distance(owned.transform.position, transform.position) <= MaxRelayMetres)
+                if (owned != null && Vector3.Distance(owned.transform.position, victim) <= MaxRelayMetres)
                 {
                     return true;
                 }
@@ -271,21 +283,6 @@ namespace CityX.Character
         {
             return !float.IsNaN(amount) && !float.IsInfinity(amount) && amount > 0.0f && amount <= MaxHitDamage * 4.0f;
         }
-
-        private bool WithinRate(int clientId, float now)
-        {
-            _rate.TryGetValue(clientId, out (float windowStart, int count) entry);
-            if (now - entry.windowStart >= 1.0f)
-            {
-                entry = (now, 0);
-            }
-            entry.count++;
-            _rate[clientId] = entry;
-            return entry.count <= MaxHitsPerSecond;
-        }
-
-        private static bool Finite(Vector3 v) =>
-            !(float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z) || float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z));
 
         // ---- the owner shares their health ---------------------------------------------------------------------------------------------------
 

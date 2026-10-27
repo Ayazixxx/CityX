@@ -61,7 +61,7 @@ namespace CityX.Character
         private bool _serverHandlers;
         private bool _clientHandlers;
         private bool _requested;
-        private readonly Dictionary<int, (float windowStart, int count)> _rate = new Dictionary<int, (float, int)>();
+        private readonly SenderRate _rate = new SenderRate(MaxFlipsPerSecond);
 
         private void Update()
         {
@@ -138,7 +138,7 @@ namespace CityX.Character
 
         private void OnFlipAtServer(NetworkConnection sender, LightSwitchMessage message, Channel channel)
         {
-            if (!Acceptable(message) || sender == null || !WithinRate(sender.ClientId, Time.unscaledTime))
+            if (!Acceptable(message) || sender == null || !_rate.Allow(sender.ClientId, Time.unscaledTime))
             {
                 return;
             }
@@ -195,18 +195,6 @@ namespace CityX.Character
             return message.Building >= 0 && message.Building < buildings
                 && message.Floor >= -1 && message.Floor <= MaxFloor
                 && message.Room >= 0 && message.Room <= RoomLighting.StairwellRoom;   // hall, corner room, stairwell
-        }
-
-        private bool WithinRate(int clientId, float now)
-        {
-            _rate.TryGetValue(clientId, out (float windowStart, int count) entry);
-            if (now - entry.windowStart >= 1.0f)
-            {
-                entry = (now, 0);
-            }
-            entry.count++;
-            _rate[clientId] = entry;
-            return entry.count <= MaxFlipsPerSecond;
         }
     }
 }

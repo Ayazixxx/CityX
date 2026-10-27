@@ -259,7 +259,7 @@ Minecraft Factions, in the city.
 - **The first real enemy: the Wraith** (2026-10-26, `docs/WRAITH.md`): a low-level ghost, the player's upper body turning to smoke, that
   floats about, dies in two punches, and will sneak up and bite for heavy damage (the bite is not built yet). The swordsman, the Shoota and
   the Crimson Claw remain testers.
-- Needs: enemy syncing across players (not built), animation LOD for crowds.
+- Enemy syncing across players: built 2026-10-27 for the swordsman, the Shoota and the Wraith (the machine that spawns one runs it, everyone sees and fights it; docs/MULTIPLAYER_STATE.md "Enemies"). Needs: animation LOD for crowds.
 
 ## Loot, refills and repairs (owner, 2026-10-22)
 
@@ -302,7 +302,7 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
 
 1. **Server authority:** today each player's own computer controls their character. Level, XP, stats, skills, items and karma must be decided and saved by the server.
 2. **A shared character database** any server can read (see Servers).
-3. **Enemy/NPC sync** between players.
+3. **Enemy/NPC sync** between players: enemies done 2026-10-27, run by the machine that spawned them (owner-authoritative like the players, so it moves to the server with item 1); civilians and the Crimson Claw still local.
 4. **Hosting, crash reports, the report button, privacy policy.**
 5. **Crowds (owner, 2026-10-22):** other players' bodies get fewer triangles the further away they are, until far enough that they are not drawn at all, and **that range shrinks when more people are around**. Every character is the 86k-triangle body today, with no lighter versions. My suggestions: a crowd budget (always show the N nearest players in full; past it, lighter versions, then nothing), distant players animated and updated less often, and anyone fighting you, your party and your faction always shown. Before the hub is built: **a crowd test** that walks 100, 300, then 500 fake players around a test scene and measures frame rate, data sent and server load, so the hub's size and cap come from measurements.
 

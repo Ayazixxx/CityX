@@ -10,6 +10,9 @@ namespace CityX.Character
     /// </summary>
     public sealed class AttackGlint : MonoBehaviour
     {
+        /// <summary>The name a networked enemy's tell is announced by, so every other player's copy of it glints too (PlayerAnimationDriver.RemoteGlinted).</summary>
+        public const string StateName = "attack_glint";
+
         /// <summary>How long the glint shows, seconds: flaring out, then fading.</summary>
         public const float Seconds = 0.32f;
 

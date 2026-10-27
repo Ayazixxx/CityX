@@ -18,8 +18,10 @@ namespace CityX.Weapons
     /// your speed and the length of the burst; a hit hurts through DamageContext as a bullet (Armor counts), cracks a window it meets, and
     /// draws its tracer along the true path. They hurt a good deal less than the player's own AK (<see cref="DamageScale"/>).
     ///
-    /// LOCAL FOR NOW, as the Crimson Claw is: NPCs are not networked yet (docs/MULTIPLAYER_STATE.md), so a Shoota exists only on the machine that
-    /// spawned it and only ever targets that machine's own player -- never another player's copy, who could not see who was shooting them.
+    /// IN A SESSION (2026-10-27, NetworkedShoota.prefab): the machine that spawned him runs this; every other player's machine shows a copy with
+    /// this switched off (NetworkedEnemy), whose rifle flashes, cracks and throws brass at each of his shots and plays his reloads (both
+    /// announced by name, as a player's are). He shoots whichever player is nearest, another player's copy too (PlayerBodies). Offline he is the
+    /// plain Shoota.prefab, as before.
     /// </summary>
     public sealed class ShootaBrain : MonoBehaviour
     {
@@ -116,6 +118,7 @@ namespace CityX.Weapons
         private int _roundInBurst;
         private float _sinceShot = 999.0f;
         private float _deadFor;
+        private bool _removed;
         private Vector3 _targetLastPosition;
         private float _targetSpeed;
 
@@ -166,7 +169,10 @@ namespace CityX.Weapons
             EnemyPack.Leave(transform);
         }
 
-        /// <summary>Killed: his rifle falls from his hands for the player to pick up (owner, 2026-10-17); on this machine alone, as he is.</summary>
+        /// <summary>
+        /// Killed: his rifle falls from his hands for the player to pick up (owner, 2026-10-17). In a session the machine that runs him drops it
+        /// for everyone; another player's copy of him only lets go of its own.
+        /// </summary>
         private void OnDied()
         {
             EnemyPack.Leave(transform);
@@ -174,10 +180,13 @@ namespace CityX.Weapons
             {
                 return;
             }
-            var pose = new Pose(_gun.transform.position, _gun.transform.rotation);
-            Vector3 bodyVelocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
-            DroppedItems.Shared.Drop(DroppedItem.LetGo(_gun.ItemId, ItemInstanceData.None, pose, transform, bodyVelocity, _vitals.DeathImpulse),
-                shared: false, gameObject, GunPrefab);
+            if (!EnemySession.IsCopy(gameObject))
+            {
+                var pose = new Pose(_gun.transform.position, _gun.transform.rotation);
+                Vector3 bodyVelocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
+                DroppedItems.Shared.Drop(DroppedItem.LetGo(_gun.ItemId, ItemInstanceData.None, pose, transform, bodyVelocity, _vitals.DeathImpulse),
+                    shared: EnemySession.IsShared(gameObject), gameObject, GunPrefab);
+            }
             _gun.UnmountCosmetic(gameObject);
             if (_locomotion != null)
             {
@@ -238,9 +247,10 @@ namespace CityX.Weapons
             {
                 _mind.Tick(new ShootaMind.Senses { Dead = true }, deltaTime);
                 _deadFor += deltaTime;
-                if (_deadFor >= CorpseSeconds)
+                if (_deadFor >= CorpseSeconds && !_removed)
                 {
-                    Destroy(gameObject);
+                    _removed = true;
+                    EnemySession.Remove(gameObject);   // in a session the server takes him out on every machine
                 }
                 return;
             }
@@ -473,6 +483,7 @@ namespace CityX.Weapons
             {
                 _locomotion.NotifyGunFired();
             }
+            _driver?.AnnounceState(GunReload.FireName);   // every other player's copy of him shows the shot
         }
 
         private bool IsReloading()
@@ -504,6 +515,7 @@ namespace CityX.Weapons
                 if (_driver != null)
                 {
                     _driver.PlayRemoteState(GunReload.NameFor(empty));
+                    _driver.AnnounceState(GunReload.NameFor(empty));   // and on every other player's copy of him
                 }
                 return;
             }
@@ -556,8 +568,8 @@ namespace CityX.Weapons
         // --- what he sees ---
 
         /// <summary>
-        /// Whom to shoot: this machine's own player, if alive (the body with a working input reader; a copy of somebody else never -- see the
-        /// class comment). Searched once a second.
+        /// Whom to shoot: the nearest living player -- this machine's own, or in a session another player's copy (PlayerBodies), whose own body
+        /// his rounds then reach through it. Searched once a second.
         /// </summary>
         private void FindTarget()
         {
@@ -574,26 +586,7 @@ namespace CityX.Weapons
                 return;
             }
             _nextSearch = Time.time + TargetSearchSeconds;
-            _target = null;
-            float best = float.MaxValue;
-            foreach (PlayerInputReader reader in Object.FindObjectsByType<PlayerInputReader>(FindObjectsSortMode.None))
-            {
-                if (!reader.isActiveAndEnabled)
-                {
-                    continue;
-                }
-                var vitals = reader.GetComponent<PlayerVitals>();
-                if (vitals == null || !vitals.IsAlive)
-                {
-                    continue;
-                }
-                float distance = Vector3.Distance(transform.position, vitals.transform.position);
-                if (distance < best)
-                {
-                    best = distance;
-                    _target = vitals;
-                }
-            }
+            _target = PlayerBodies.NearestAlive(transform.position, float.MaxValue);
         }
 
         private void TrackTargetSpeed(float deltaTime)

@@ -60,7 +60,7 @@ namespace CityX.Character
         private bool _serverHandlers;
         private bool _clientHandlers;
         private bool _requested;
-        private readonly Dictionary<int, (float windowStart, int count)> _rate = new Dictionary<int, (float, int)>();
+        private readonly SenderRate _rate = new SenderRate(MaxUsesPerSecond);
         private readonly List<BalconyDoor> _doors = new List<BalconyDoor>();
 
         private void Update()
@@ -138,7 +138,7 @@ namespace CityX.Character
 
         private void OnUseAtServer(NetworkConnection sender, BalconyDoorMessage message, Channel channel)
         {
-            if (sender == null || !WithinRate(sender.ClientId, Time.unscaledTime) || !Acceptable(message, _doors))
+            if (sender == null || !_rate.Allow(sender.ClientId, Time.unscaledTime) || !Acceptable(message, _doors))
             {
                 return;
             }
@@ -209,18 +209,6 @@ namespace CityX.Character
             BalconyDoors.For(site, WindowPlan.For(site), scratch);
             int i = BalconyDoors.Find(scratch, message.Unit, message.Row);
             return i >= 0 && scratch[i].Opens;
-        }
-
-        private bool WithinRate(int clientId, float now)
-        {
-            _rate.TryGetValue(clientId, out (float windowStart, int count) entry);
-            if (now - entry.windowStart >= 1.0f)
-            {
-                entry = (now, 0);
-            }
-            entry.count++;
-            _rate[clientId] = entry;
-            return entry.count <= MaxUsesPerSecond;
         }
     }
 }

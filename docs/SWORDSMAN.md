@@ -101,8 +101,10 @@ this machine alone, as he is.
 
 ## Multiplayer
 
-**He is local for now**, as the Shoota and the Crimson Claw are: NPCs are not networked yet (docs/GAME_DESIGN.md, "Enemy/NPC sync"). He exists
-only on the machine that spawned him and only fights that machine's own player. What happens to a PLAYER in a fight -- the rebound, a hit
+**Shared in a session** (2026-10-27, docs/MULTIPLAYER_STATE.md "Enemies"): the machine that spawned him runs him; every other player sees
+a copy that plays his swings, guard and tell (his glint is announced as `attack_glint`). He fights whichever player is nearest, another
+player's copy too. Not yet: his reading of a REMOTE player's swing (a copy's sword combat is only posed, so he does not block or parry
+what another machine's player throws at him as well as he does his own machine's). What happens to a PLAYER in a fight -- the rebound, a hit
 reaction, a parry -- is the player's own and reaches other players by name as everything else does (`sword1h_rebound` through
 `NetworkedAnimatorSync`; a rebound decided on the defender's machine comes back as its verdict, `ApplyRemoteVerdict`).
 

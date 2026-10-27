@@ -64,7 +64,9 @@ axes.
 - It does not bleed: `IBloodless`, a marker `MeleeAttacker` and the firearms check before spawning blood.
 - Dead, it fades away over 1.1 s, rising, and is gone.
 - Its sneaking up and its bite are not built yet (the owner: later).
-- Local for now, as every NPC is: it exists only on the machine that spawned it.
+- Shared in a session (2026-10-27, `NetworkedWraith`): the machine that spawned it drifts it; on every other machine a copy follows it, posed
+  from how it moves; a blow on a copy is sent to the owner, and its health comes back, so it flinches and fades on every screen; the
+  player whose blow killed it gets its XP.
 
 ## Tests
 

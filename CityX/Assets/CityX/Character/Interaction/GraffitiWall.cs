@@ -269,12 +269,9 @@ namespace CityX.Character
         /// <summary>A piece fit to put up: finite, a real wall direction, a sane size, paint of a sane weight. Checked for pieces from the network.</summary>
         public static bool IsSane(GraffitiPiece piece)
         {
-            return Finite(piece.Centre) && Finite(piece.Normal) && piece.Normal.sqrMagnitude > 0.5f && piece.Normal.sqrMagnitude < 1.5f
+            return WireChecks.Finite(piece.Centre) && WireChecks.Finite(piece.Normal) && piece.Normal.sqrMagnitude > 0.5f && piece.Normal.sqrMagnitude < 1.5f
                 && piece.Size >= 0.5f && piece.Size <= 6.0f && piece.Paint != null && piece.Paint.Length > 0
                 && piece.Paint.Length <= GraffitiCanvas.MaxEncodedBytes;
         }
-
-        private static bool Finite(Vector3 v) =>
-            !(float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z) || float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z));
     }
 }
