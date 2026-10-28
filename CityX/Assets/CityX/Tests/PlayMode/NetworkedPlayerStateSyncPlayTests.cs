@@ -589,6 +589,36 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// A CROUCH SHOWS ON THE COPY (2026-10-27, docs/CROUCH.md): one player crouches; the other player's copy of them goes down too, its
+        /// controller (what a shot at it hits) as short as the owner's, and stands back up with them.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ACrouchShowsOnAnotherPlayersCopyAndShrinksItsHitbox()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            _aOnA.GetComponent<PlayerInputReader>().enabled = false;   // driven by the test, not the (empty) keyboard
+            var owner = _aOnA.GetComponent<PlayerLocomotion>();
+            var copy = _aOnB.GetComponent<PlayerLocomotion>();
+            var copyController = _aOnB.GetComponent<CharacterController>();
+            yield return WaitUntil(() =>
+            {
+                owner.Tick(new LocomotionInput { Crouch = true }, 1.0f / 60.0f);
+                return copy.IsDucked && Mathf.Abs(copyController.height - copy.CrouchedHeight) < 1e-3f;
+            }, "the copy to crouch with its owner");
+            Assert.Greater(copy.CrouchShown, 0.99f, "the copy's crouch pose is not all the way down");
+            yield return WaitUntil(() =>
+            {
+                owner.Tick(new LocomotionInput { Crouch = false }, 1.0f / 60.0f);
+                return !copy.IsDucked && Mathf.Abs(copyController.height - copy.StandingHeight) < 1e-3f;
+            }, "the copy to stand back up with its owner");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         // --- helpers ---
 
         private static IEnumerator WaitForState(Animator animator, string stateName)

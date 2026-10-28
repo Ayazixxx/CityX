@@ -52,6 +52,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: NetworkedSwordsman
       objectReference: {fileID: 0}
+    - target: {fileID: 6459693721281564042, guid: b2188db3137f58e4f8ace7cf86fc16c7, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: c0808131d916ea540becd941709dc711, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

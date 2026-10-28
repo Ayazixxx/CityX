@@ -13,9 +13,9 @@ namespace CityX.Tests
     /// Locomotion, so entering it while already moving used to freeze the
     /// legs mid-stride for as long as space stayed held, even though the
     /// CharacterController itself kept moving the whole time (same shape as
-    /// the crouch-fold bug PlayerLocomotionCrouchPlayTests already covers).
+    /// the old crouch fold had).
     /// PlayerRigBuilder.AddChargedJumpState now gates ENTRY into the pose on
-    /// Speed, the same way AddCrouchStates gates the fold pose's entry.
+    /// Speed (AddSpeedCondition).
     ///
     /// ONLY ENTRY IS GATED, DELIBERATELY -- see AddChargedJumpState's own
     /// doc comment: a matching Speed-gated exit was tried and tests below
@@ -120,8 +120,8 @@ namespace CityX.Tests
 
             // Standing still throughout -- the moving-skips-the-pose gate must
             // NOT fire here, or a standing charge would lose its own pose
-            // entirely. Sampled across the whole window, same reasoning as
-            // CrouchingWhileStandingStillStillShowsTheFoldPoseRatherThanSkippingIt.
+            // entirely. Sampled across the whole window: a pose can be seen
+            // only part of the time.
             var chargingStill = new LocomotionInput { ChargingJump = true };
             bool sawChargedPose = false;
             for (int step = 0; step < 1800; step++)

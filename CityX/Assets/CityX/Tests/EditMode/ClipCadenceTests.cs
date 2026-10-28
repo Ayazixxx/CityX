@@ -94,11 +94,7 @@ namespace CityX.Tests
                 Assert.AreEqual(ClipCadence.MaxStrideChange, gaits.StrideFor("Locomotion", new Vector2(0.0f, PlayerRigBuilder.WalkSpeed)), 1e-3f, "the walk should stride longer");
                 Assert.AreEqual(1.0f, gaits.StrideFor("Locomotion", Vector2.zero), 1e-3f, "standing still has no stride");
 
-                BlendTree crouched = Tree(controller, "Crouched");
-                if (crouched != null)
-                {
-                    Assert.Less(crouched.children[0].timeScale, 0.02f, "the held crouch pose is no longer held");   // Unity stores the held child's 0 as 0.01
-                }
+                Assert.IsTrue(gaits.Entries.Exists(e => e.Tree == PlayerLocomotion.CrouchStateName), "the crouch walk was not paced (its layer's tree has no strides)");
             }
             finally
             {

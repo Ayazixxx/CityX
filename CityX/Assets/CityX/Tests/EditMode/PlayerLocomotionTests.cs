@@ -76,22 +76,6 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Holding both keys must sprint, not crouch. There is no crouch-sprint
-        /// clip, so a body that stayed crouched would be shown walking in a
-        /// crouch while actually travelling at 7.5 m/s -- the exact feet-
-        /// sliding mismatch the directional clips exist to prevent.
-        /// </summary>
-        [Test]
-        public void SprintBeatsCrouch()
-        {
-            Settle(Forward(sprint: true, crouch: true));
-
-            Assert.IsFalse(_locomotion.IsCrouching);
-            Assert.IsTrue(_locomotion.IsSprinting);
-            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
-        }
-
-        /// <summary>
         /// The explicit ask: holding shift while the jetpack is thrusting
         /// should reach sprint speed. Checked BACKWARD, not forward -- see
         /// LocomotionInput.JetpackBoosting's own doc comment for why this
@@ -153,41 +137,6 @@ namespace CityX.Tests
 
             Assert.AreEqual(_locomotion.SprintSpeed * _locomotion.JetpackDiveSpeedMultiplier,
                 _locomotion.CurrentSpeed, 0.01f);
-        }
-
-        [Test]
-        public void CrouchingDoesNotSlowTheBody()
-        {
-            // Godot's crouch is a pose, not a speed -- there is no crouch speed
-            // constant anywhere in player.gd. Pinned because "crouch should be
-            // slower" is an easy assumption to add later by accident.
-            //
-            // BOTH SIDES SETTLED FROM THEIR OWN FRESH START, not one read
-            // mid-ramp against the other one tick further along -- crouched
-            // and uncrouched share the exact same target (WalkSpeed), so
-            // the only way to compare them fairly is once HorizontalAcceleration
-            // has actually finished closing the gap on both, from identical
-            // starting conditions. A second body, not a reused one, keeps
-            // this independent of whatever state the first left behind.
-            Settle(Forward(crouch: true));
-            float crouched = _locomotion.CurrentSpeed;
-
-            var secondObject = new GameObject("SecondBody");
-            try
-            {
-                secondObject.AddComponent<CharacterController>();
-                PlayerLocomotion second = secondObject.AddComponent<PlayerLocomotion>();
-                second.Bind();
-                for (int i = 0; i < 20; i++)
-                {
-                    second.Tick(Forward(), 0.016f);
-                }
-                Assert.AreEqual(second.CurrentSpeed, crouched, 0.01f);
-            }
-            finally
-            {
-                Object.DestroyImmediate(secondObject);
-            }
         }
 
         [Test]

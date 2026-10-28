@@ -7,184 +7,186 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// "CROUCH WALKING ISN'T WORKING RIGHT" -- confirmed directly: crouching
-    /// (or un-crouching) while already moving used to sit through the WHOLE
-    /// StandingToCrouch/CrouchToIdle fold animation before the body's pose
-    /// caught up with Crouched/Locomotion, even though the CharacterController
-    /// itself keeps moving the entire time (PlayerLocomotion.Tick's own
-    /// movement code is unconditional) -- the body visibly slides across the
-    /// ground under a fold pose that was never meant to carry any travel.
-    ///
-    /// Ported from character.gd's own start_crouch()/end_crouch(), whose own
-    /// class comments say plainly: "Firing this while the player is ALREADY
-    /// moving is fine: set_walking's own 'crouching' branch plays crouch_walk
-    /// instead the very same/next frame, so this transition only actually
-    /// gets seen through to completion while standing still." PlayerRigBuilder
-    /// .AddCrouchStates now has its own explicit moving-skips-the-pose
-    /// transitions for exactly this.
-    ///
-    /// NEEDS THE REAL Player.prefab, NOT A BARE GameObject -- see
-    /// PlayerLocomotionHipsPlayTests's own comment on why; there is no
-    /// Crouched/StandingToCrouch/CrouchToIdle state without the genuine
-    /// AnimatorController PlayerRigBuilder actually built.
+    /// Crouching as Source does it (owner, 2026-10-27: "the crouch animation looks bad and i dont think it even shortens the hitbox. I kind of
+    /// want the crouching to work like it does in source games with the crouch jump as well"; docs/CROUCH.md), on the real player body on
+    /// flat ground: the controller really is shorter once ducked, and the crouched pose fits inside it with its feet on the ground; a third
+    /// of the speed; no standing up under a low ceiling; a duck in the air lifts the feet and not the head, which clears a ledge a plain jump
+    /// cannot; and the camera's eyes come down with the duck.
     /// </summary>
     public sealed class PlayerLocomotionCrouchPlayTests
     {
+        private const float StepSeconds = 1.0f / 60.0f;
         private GameObject _ground;
         private GameObject _player;
         private PlayerLocomotion _locomotion;
-        private Animator _animator;
-
-        private const float StepSeconds = 1.0f / 60.0f;
+        private CharacterController _controller;
+        private readonly System.Collections.Generic.List<GameObject> _made = new System.Collections.Generic.List<GameObject>();
 
         [SetUp]
         public void SetUp()
         {
-            _ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            _ground.name = "Ground";
-            _ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
-            _ground.transform.localScale = new Vector3(200.0f, 1.0f, 200.0f);
+            _ground = Box(new Vector3(0.0f, -0.5f, 0.0f), new Vector3(200.0f, 1.0f, 200.0f));
         }
 
         [TearDown]
         public void TearDown()
         {
             if (_player != null) Object.Destroy(_player);
-            if (_ground != null) Object.Destroy(_ground);
+            foreach (GameObject made in _made)
+            {
+                if (made != null) Object.Destroy(made);
+            }
+            _made.Clear();
         }
 
-        [UnityTest]
-        public IEnumerator CrouchingWhileAlreadyWalkingReachesTheCrouchedStateQuicklyRatherThanSlidingThroughTheFold()
+        private GameObject Box(Vector3 centre, Vector3 size)
+        {
+            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.transform.position = centre;
+            box.transform.localScale = size;
+            _made.Add(box);
+            Physics.SyncTransforms();
+            return box;
+        }
+
+        private IEnumerator Spawn(Vector3 at)
         {
 #if UNITY_EDITOR
-            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/CityX/Character/Player.prefab");
-            Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
-
-            _player = Object.Instantiate(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity);
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            Assert.IsNotNull(prefab, "Player.prefab is missing");
+            _player = Object.Instantiate(prefab, at, Quaternion.identity);
+            var reader = _player.GetComponent<PlayerInputReader>();
+            if (reader != null) reader.enabled = false;
             _locomotion = _player.GetComponent<PlayerLocomotion>();
-            _animator = _player.GetComponentInChildren<Animator>();
-            Assert.IsNotNull(_animator, "Player.prefab has no Animator");
-
-            // Get moving and let facing settle first.
-            var forward = new LocomotionInput { Move = new Vector2(0.0f, 1.0f) };
-            for (int step = 0; step < 3000; step++)
-            {
-                _locomotion.Tick(forward, StepSeconds);
-                yield return null;
-            }
-
-            // NOW start crouching, still holding forward -- the reported bug.
-            // 1800 real frames is comfortably short of the OLD, exit-time-
-            // gated path's own settling point (confirmed taking close to
-            // 3000 real frames from a cold start in manual measurement), so
-            // reaching Crouched by here is real evidence of the moving-
-            // interrupt transition firing rather than the old path just
-            // having had enough time to finish on its own.
-            var crouchMoving = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Crouch = true };
-            for (int step = 0; step < 1800; step++)
-            {
-                _locomotion.Tick(crouchMoving, StepSeconds);
-                yield return null;
-            }
-
-            Assert.IsTrue(_animator.GetCurrentAnimatorStateInfo(0).IsName("Crouched"),
-                "still not in the Crouched state after 1800 real frames of holding both " +
-                "forward and crouch -- the body is sliding through the fold pose instead " +
-                "of skipping straight to crouch_walk the way it does while standing still");
+            _controller = _player.GetComponent<CharacterController>();
+            yield return Hold(default, 0.5f);
 #else
             Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
             yield break;
 #endif
         }
 
-        [UnityTest]
-        public IEnumerator ReleasingCrouchWhileStillWalkingReturnsToLocomotionQuicklyRatherThanSlidingThroughTheUnfold()
+        private IEnumerator Hold(LocomotionInput input, float seconds)
         {
-#if UNITY_EDITOR
-            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/CityX/Character/Player.prefab");
-            Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
-
-            _player = Object.Instantiate(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity);
-            _locomotion = _player.GetComponent<PlayerLocomotion>();
-            _animator = _player.GetComponentInChildren<Animator>();
-            Assert.IsNotNull(_animator, "Player.prefab has no Animator");
-
-            var forward = new LocomotionInput { Move = new Vector2(0.0f, 1.0f) };
-            for (int step = 0; step < 3000; step++)
+            for (float t = 0.0f; t < seconds; t += StepSeconds)
             {
-                _locomotion.Tick(forward, StepSeconds);
+                _locomotion.Tick(input, StepSeconds);
                 yield return null;
             }
+        }
 
-            var crouchMoving = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Crouch = true };
-            for (int step = 0; step < 3000; step++)
-            {
-                _locomotion.Tick(crouchMoving, StepSeconds);
-                yield return null;
-            }
-            Assert.IsTrue(_animator.GetCurrentAnimatorStateInfo(0).IsName("Crouched"),
-                "setup failed -- never actually reached Crouched before testing the release");
+        private static LocomotionInput Crouch(bool held, Vector2 move = default) => new LocomotionInput { Crouch = held, Move = move };
 
-            var uncrouchMoving = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Crouch = false };
-            for (int step = 0; step < 1800; step++)
-            {
-                _locomotion.Tick(uncrouchMoving, StepSeconds);
-                yield return null;
-            }
+        [UnityTest]
+        public IEnumerator DuckedTheControllerIsShorterAndTheCrouchedBodyFitsInsideItWithItsFeetOnTheGround()
+        {
+            yield return Spawn(new Vector3(0.0f, 0.1f, 0.0f));
+            Assert.AreEqual(_locomotion.StandingHeight, _controller.height, 1e-3f);
+            yield return Hold(Crouch(true), 1.0f);
+            Assert.IsTrue(_locomotion.IsDucked);
+            Assert.AreEqual(_locomotion.CrouchedHeight, _controller.height, 1e-3f, "the hitbox did not shrink");
 
-            Assert.IsTrue(_animator.GetCurrentAnimatorStateInfo(0).IsName("Locomotion"),
-                "still not back in Locomotion after 1800 real frames of releasing crouch " +
-                "while still walking -- the body is sliding through crouch_to_idle instead " +
-                "of skipping straight back to the walk cycle");
-#else
-            Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
-            yield break;
-#endif
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+            Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+            Transform rightFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            float scale = _locomotion.StandingHeight / BodyRig.StandingHeight;
+            float feet = _player.transform.position.y;
+            float crown = head.position.y + FusedBodyShape.HeadRadius * scale - feet;
+            TestContext.WriteLine($"crouched crown {crown:0.00} m, controller {_controller.height:0.00} m, feet {leftFoot.position.y - feet:0.000} / {rightFoot.position.y - feet:0.000} m");
+            Assert.LessOrEqual(crown, _controller.height + 0.03f, "the crouched head sticks out of the crouched hitbox");
+            Assert.Greater(crown, _controller.height - 0.25f, "the crouched hitbox is far taller than the crouched body");
+            Assert.AreEqual(BodyRig.FootY * scale, leftFoot.position.y - feet, 0.06f, "the left foot is off the ground");
+            Assert.AreEqual(BodyRig.FootY * scale, rightFoot.position.y - feet, 0.06f, "the right foot is off the ground");
+
+            yield return Hold(Crouch(false), 0.5f);
+            Assert.IsFalse(_locomotion.IsDucked);
+            Assert.AreEqual(_locomotion.StandingHeight, _controller.height, 1e-3f, "it did not stand back up");
         }
 
         [UnityTest]
-        public IEnumerator CrouchingWhileStandingStillStillShowsTheFoldPoseRatherThanSkippingIt()
+        public IEnumerator CrouchedTheBodyWalksAtAThirdOfItsSpeedAndCannotSprint()
         {
-#if UNITY_EDITOR
-            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/CityX/Character/Player.prefab");
-            Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
+            yield return Spawn(new Vector3(0.0f, 0.1f, 0.0f));
+            var walk = new LocomotionInput { Move = Vector2.up, Crouch = true, Sprint = true };
+            yield return Hold(walk, 1.5f);
+            Assert.IsFalse(_locomotion.IsSprinting, "a crouched body sprinted");
+            Assert.AreEqual(_locomotion.WalkSpeed * CrouchHull.SpeedShare, _locomotion.CurrentSpeed, 0.05f, "not Source's third of the speed");
+        }
 
-            _player = Object.Instantiate(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity);
-            _locomotion = _player.GetComponent<PlayerLocomotion>();
-            _animator = _player.GetComponentInChildren<Animator>();
-            Assert.IsNotNull(_animator, "Player.prefab has no Animator");
+        [UnityTest]
+        public IEnumerator UnderALowCeilingTheBodyStaysCrouchedUntilItIsOut()
+        {
+            yield return Spawn(new Vector3(0.0f, 0.1f, -4.0f));
+            // A slab whose underside is between the crouched and the standing height, from z = -1 to z = 3.
+            float under = (_locomotion.CrouchedHeight + _locomotion.StandingHeight) * 0.5f;
+            Box(new Vector3(0.0f, under + 0.25f, 1.0f), new Vector3(6.0f, 0.5f, 4.0f));
+            yield return Hold(Crouch(true), 0.6f);
+            yield return Hold(Crouch(true, Vector2.up), 3.5f);
+            Assert.Greater(_player.transform.position.z, -0.5f, "setup: the body never got under the slab");
+            Assert.Less(_player.transform.position.z, 2.5f, "setup: the body walked right through");
+            yield return Hold(Crouch(false), 0.5f);
+            Assert.IsTrue(_locomotion.IsDucked, "it stood up under the slab");
+            Assert.AreEqual(_locomotion.CrouchedHeight, _controller.height, 1e-3f);
+            yield return Hold(Crouch(false, Vector2.up), 4.0f);
+            Assert.Greater(_player.transform.position.z, 3.5f, "it could not walk out crouched");
+            yield return Hold(Crouch(false), 0.5f);
+            Assert.IsFalse(_locomotion.IsDucked, "out from under the slab it did not stand up");
+        }
 
-            // Standing still throughout -- the moving-skips-the-pose
-            // transitions must NOT fire here, or a standing crouch would
-            // lose its own fold animation entirely. Sampled across the whole
-            // window rather than checked once at a fixed frame count: batch
-            // mode's real fps is not perfectly constant run to run (confirmed
-            // flaky at a single fixed sample when run alongside the rest of
-            // the suite rather than in isolation), so this only needs to have
-            // been in StandingToCrouch at SOME point, not at one exact frame.
-            var crouchStill = new LocomotionInput { Move = Vector2.zero, Crouch = true };
-            bool sawFoldPose = false;
-            for (int step = 0; step < 3000; step++)
+        [UnityTest]
+        public IEnumerator DuckingInTheAirLiftsTheFeetAndKeepsTheHeadAndTheEyes()
+        {
+            yield return Spawn(new Vector3(0.0f, 0.1f, 0.0f));
+            yield return Hold(new LocomotionInput { Jump = true }, StepSeconds);
+            yield return Hold(default, 0.15f);
+            float feetBefore = _player.transform.position.y;
+            float topBefore = feetBefore + _controller.height;
+            float eyesBefore = feetBefore - _locomotion.CrouchDrop;
+            _locomotion.Tick(Crouch(true), StepSeconds);
+            float feetAfter = _player.transform.position.y;
+            float topAfter = feetAfter + _controller.height;
+            float rise = feetAfter - feetBefore;
+            Assert.AreEqual(_locomotion.StandingHeight - _locomotion.CrouchedHeight, rise, 0.12f, "the feet did not come up by the hull difference");
+            Assert.AreEqual(topBefore, topAfter, 0.12f, "the head moved");
+            Assert.AreEqual(eyesBefore, feetAfter - _locomotion.CrouchDrop, 0.12f, "the camera's eyes jumped with the tuck");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator TheCrouchJumpClearsALedgeAPlainJumpCannot()
+        {
+            // A wall in front whose top is above a plain jump's reach and under a crouch jump's.
+            yield return Spawn(new Vector3(0.0f, 0.1f, 0.0f));
+            float plainReach = _locomotion.JumpVelocity * _locomotion.JumpVelocity / (2.0f * _locomotion.Gravity * Mathf.Max(0.01f, _locomotion.GravityScale));
+            // The controller climbs any edge within its step height even in the air: a plain jump reaches that much higher than its feet do.
+            float ledge = plainReach + _controller.stepOffset + 0.2f;
+            TestContext.WriteLine($"plain jump reach {plainReach:0.00} m + step {_controller.stepOffset:0.00} m, ledge {ledge:0.00} m, tuck {_locomotion.StandingHeight - _locomotion.CrouchedHeight:0.00} m");
+            Box(new Vector3(0.0f, ledge * 0.5f, 22.0f), new Vector3(6.0f, ledge, 40.0f));   // deep, so a body that gets up there stays up there
+
+            float plainTop = 0.0f;
+            yield return JumpAt(false, top => plainTop = top);
+            Assert.Less(plainTop, ledge - 0.05f, "a plain jump got on the ledge: the test proves nothing");
+
+            _player.transform.position = new Vector3(0.0f, 0.1f, 0.0f);
+            Physics.SyncTransforms();
+            yield return Hold(default, 0.5f);
+            float crouchTop = 0.0f;
+            yield return JumpAt(true, top => crouchTop = top);
+            Assert.GreaterOrEqual(crouchTop, ledge - 0.05f, "the crouch jump did not get the body onto the ledge");
+        }
+
+        /// <summary>Jumps forward at the wall (ducking at the top if <paramref name="crouch"/>) and reports where the feet stand after.</summary>
+        private IEnumerator JumpAt(bool crouch, System.Action<float> landed)
+        {
+            yield return Hold(new LocomotionInput { Move = Vector2.up, Jump = true }, StepSeconds);
+            for (float t = 0.0f; t < 2.0f; t += StepSeconds)
             {
-                _locomotion.Tick(crouchStill, StepSeconds);
+                _locomotion.Tick(new LocomotionInput { Move = Vector2.up, Crouch = crouch && t > 0.2f }, StepSeconds);
                 yield return null;
-                if (_animator.GetCurrentAnimatorStateInfo(0).IsName("StandingToCrouch"))
-                {
-                    sawFoldPose = true;
-                }
             }
-
-            Assert.IsTrue(sawFoldPose,
-                "never once saw the StandingToCrouch fold pose across 3000 real frames of " +
-                "standing still and holding crouch -- it should only ever be skipped while " +
-                "actually moving");
-#else
-            Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
-            yield break;
-#endif
+            yield return Hold(new LocomotionInput { Move = Vector2.up }, 1.0f);
+            landed(_player.transform.position.y);
         }
     }
 }

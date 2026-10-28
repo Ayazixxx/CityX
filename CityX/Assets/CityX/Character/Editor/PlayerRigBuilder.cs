@@ -46,6 +46,8 @@ namespace CityX.CharacterEditor
             GodotMotionBaker.BakeAll();
             // The one-handed sword's carry, baked from those same clips with a sword arm (AddSword1HLocomotion).
             SwordCarryBaker.BakeAll();
+            // The crouch, baked from those same clips crouched (AddCrouchLayer).
+            CrouchBaker.BakeAll();
             AnimationClip idle = GodotOrMixamo("idle", "idle");
             AnimationClip walk = GodotOrMixamo("walk", "walking");
             AnimationClip sprint = GodotOrMixamo("run", "sprint");
@@ -270,7 +272,6 @@ namespace CityX.CharacterEditor
                 }
             }
 
-            AddCrouchStates(controller, root);
             AddDashState(controller, root);
             AddChargedJumpState(controller, root);
             AddAimingState(controller, root);
@@ -295,6 +296,8 @@ namespace CityX.CharacterEditor
             // whatever the legs are doing.
             // The scream's torso+head layer and its arms layer go BELOW the sword's upper-body layer (added after them), so a sword swing or guard
             // wins the arms (and torso) while one is playing, and the scream carries on underneath.
+            // The crouch (legs, hips, head) over the base, under the upper-body layers that take the torso for a swing or a scream.
+            AddCrouchLayer(controller);
             AddScreamLayers(controller);
             AddSwordUpperBodyLayer(controller);
             AddCutsceneStates(root);
@@ -323,7 +326,7 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>The walking states whose cycles Grow and Shrink slow down or speed up (BodySizeAbility.StrideRateName).</summary>
-        public static readonly string[] StridingStates = { "Locomotion", "Crouched", "SwordLocomotion", "Sword1HLocomotion", "GunLocomotion" };
+        public static readonly string[] StridingStates = { "Locomotion", "SwordLocomotion", "Sword1HLocomotion", "GunLocomotion" };
 
         /// <summary>
         /// GROW AND SHRINK'S STRIDE (BodySizeAbility): a float, 1 at the body's own size, that every walking state plays at. A giant's legs are
@@ -404,122 +407,94 @@ namespace CityX.CharacterEditor
             state.motion = clip;
         }
 
-        /// <summary>How long a crouch takes to fold or unfold. character.gd's own.</summary>
-        private const float CrouchBlendSeconds = 0.2f;
-
         /// <summary>
         /// Below this the body counts as standing still, for any Animator
-        /// state that only makes sense while stationary -- the crouch
-        /// fold/unfold pose (see AddCrouchStates' own doc comment) and the
+        /// state that only makes sense while stationary -- the
         /// charged-jump pose (see AddChargedJumpState's own doc comment)
-        /// both gate on it. Small rather than zero so residual float noise
+        /// gates on it. Small rather than zero so residual float noise
         /// from a stopped body can never read as "still moving."
         /// </summary>
         private const float MovingSpeedThreshold = 0.1f;
 
+        /// <summary>The crouch layer's mask: the hips and spine (its lean), the head (turned back up) and the legs. The arms stay whatever plays below.</summary>
+        private const string CrouchMaskPath = "Assets/CityX/Character/CrouchMask.mask";
+
         /// <summary>
-        /// Going down, being down, and coming back up.
-        ///
-        /// THREE STATES RATHER THAN A BLEND, because Godot has three clips and
-        /// two of them are transitions -- standing_to_crouch and crouch_to_idle
-        /// exist precisely so the fold reads as a movement rather than as the
-        /// body sliding between two poses.
-        ///
-        /// THE HELD CROUCH IS crouch_walk FROZEN AT ITS FIRST FRAME. There is
-        /// no crouch-idle clip in the set; Godot holds the last pose of
-        /// standing_to_crouch instead, which cannot be expressed as a blend
-        /// tree child without replaying the fold every loop. Freezing the walk
-        /// gives the same thing -- a crouched body, not moving -- and comes
-        /// from the clip the body will actually blend INTO the moment it walks,
-        /// so there is nothing to pop between.
-        ///
-        /// THE FOLD/UNFOLD POSE ONLY EVER PLAYS WHILE STANDING STILL -- ported
-        /// from character.gd's own start_crouch()/end_crouch(), whose class
-        /// comments say this in as many words: "Firing this while the player
-        /// is ALREADY moving is fine: set_walking's own 'crouching' branch
-        /// plays crouch_walk instead the very same/next frame, so this
-        /// transition only actually gets seen through to completion while
-        /// standing still." Godot re-evaluates which clip to play from
-        /// scratch every physics frame, so that fallthrough is implicit
-        /// there. Unity's graph has no equivalent per-frame re-decision, so
-        /// it needs its own explicit transitions: without them, crouching (or
-        /// un-crouching) while already walking sat through the WHOLE
-        /// standing_to_crouch/crouch_to_idle clip -- a real reported bug
-        /// ("crouch walking isn't working right") -- with the body sliding
-        /// across the ground under a fold animation that was never meant to
-        /// carry any actual travel. Gated on Speed rather than a separate
-        /// "Moving" bool because Speed is already fed every Tick and reads
-        /// zero at rest to well within MovingSpeedThreshold.
+        /// THE CROUCH (docs/CROUCH.md): its own layer over everything below it, not states beside the walk. Its one state is a directional
+        /// blend of the baked crouch clips (CrouchBaker: the idle and the walk four ways, crouched) at Source's crouching speed, a third of the
+        /// walk's; the layer's weight is the duck's own eased share, set every frame by PlayerLocomotion.ShowCrouch, so going down and coming up
+        /// are the 0.4 s and 0.2 s of Source's duck with nothing to transition between. Masked to the hips, spine, head and legs: the arms keep
+        /// what the base and the upper layers give them, so a crouch works with fists, a sword, a gun, a spell. Added before the upper-body
+        /// layers, so a swing still takes the torso over it. The Crouching parameter is what other players' copies of the body follow.
         /// </summary>
-        private static void AddCrouchStates(AnimatorController controller,
-            AnimatorStateMachine root)
+        private static void AddCrouchLayer(AnimatorController controller)
         {
-            AnimationClip down = FindClip("standing_to_crouch");
-            AnimationClip walk = FindClip("crouch_walk");
-            AnimationClip up = FindClip("crouch_to_idle");
-            AnimatorState locomotion = FindState(root, "Locomotion");
-            if (down == null || walk == null || up == null || locomotion == null)
+            controller.AddParameter("Crouching", AnimatorControllerParameterType.Bool);
+            AnimationClip idle = CrouchBaker.Load("idle");
+            AnimationClip walk = CrouchBaker.Load("walk");
+            if (idle == null || walk == null)
             {
-                Debug.LogWarning("CityX: crouch clips missing -- crouching will not be shown.");
+                Debug.LogWarning("CityX: no crouch clips (CrouchBaker) -- crouching will not be shown.");
                 return;
             }
 
-            controller.AddParameter("Crouching", AnimatorControllerParameterType.Bool);
+            AvatarMask mask = Mask(CrouchMaskPath, AvatarMaskBodyPart.Root, AvatarMaskBodyPart.Body, AvatarMaskBodyPart.Head, AvatarMaskBodyPart.LeftLeg,
+                AvatarMaskBodyPart.RightLeg, AvatarMaskBodyPart.LeftFootIK, AvatarMaskBodyPart.RightFootIK);
+            controller.AddLayer(PlayerLocomotion.CrouchLayerName);
+            AnimatorControllerLayer[] layers = controller.layers;
+            int index = layers.Length - 1;
+            AnimatorControllerLayer layer = layers[index];
+            layer.avatarMask = mask;
+            layer.blendingMode = AnimatorLayerBlendingMode.Override;
+            layer.defaultWeight = 0.0f;
+            layer.iKPass = false;
+            controller.layers = layers;
 
-            controller.CreateBlendTreeInController("Crouched", out BlendTree crouched, 0);
-            crouched.blendType = BlendTreeType.Simple1D;
-            crouched.blendParameter = "Speed";
-            crouched.AddChild(walk, 0.0f);
-            crouched.AddChild(walk, WalkSpeed);
-            ChildMotion[] children = crouched.children;
-            children[0].timeScale = 0.0f;   // held, not walking on the spot
-            crouched.children = children;
-            AnimatorState crouchedState = FindState(root, "Crouched");
+            controller.CreateBlendTreeInController(PlayerLocomotion.CrouchStateName, out BlendTree crouched, index);
+            crouched.blendType = BlendTreeType.FreeformDirectional2D;
+            crouched.blendParameter = "MoveX";
+            crouched.blendParameterY = "MoveZ";
+            AnimationClip back = CrouchBaker.Load(CrouchBaker.Backward);
+            AnimationClip left = CrouchBaker.Load("walk_left");
+            AnimationClip right = CrouchBaker.Load("walk_right");
+            crouched.AddChild(idle, Vector2.zero);
+            crouched.AddChild(walk, new Vector2(0.0f, CrouchSpeed));
+            if (back != null) crouched.AddChild(back, new Vector2(0.0f, -CrouchSpeed));
+            if (left != null) crouched.AddChild(left, new Vector2(-CrouchSpeed, 0.0f));
+            if (right != null) crouched.AddChild(right, new Vector2(CrouchSpeed, 0.0f));
+            AddDiagonals(crouched, walk, back, left, right, CrouchSpeed);
 
-            AnimatorState downState = root.AddState("StandingToCrouch");
-            downState.motion = down;
+            // Grow and Shrink pace its steps as they pace every walk (AddStrideRate).
+            AnimatorState state = FindState(controller.layers[index].stateMachine, PlayerLocomotion.CrouchStateName);
+            if (state != null)
+            {
+                state.speedParameterActive = true;
+                state.speedParameter = BodySizeAbility.StrideRateName;
+            }
+        }
 
-            AnimatorState upState = root.AddState("CrouchToIdle");
-            upState.motion = up;
+        /// <summary>Source's crouched speed: a third of the walk (CrouchHull.SpeedShare).</summary>
+        public const float CrouchSpeed = WalkSpeed * CrouchHull.SpeedShare;
 
-            // EACH OF THESE FOUR IS GATED TO STANDING STILL (Speed below the
-            // threshold), made explicit rather than left to transition
-            // ordering -- Mecanim does not prefer the more specific of two
-            // simultaneously-satisfied transitions from the same state, it
-            // takes whichever was added first, so without this the moving
-            // versions added below would never be reached at all while
-            // Crouching was also true. See this method's own doc comment.
-            AddSpeedCondition(
-                Link(locomotion, downState, CrouchBlendSeconds, "Crouching", true),
-                AnimatorConditionMode.Less);
-            Link(downState, crouchedState, 0.1f, null, false, exitTime: 0.9f);
-
-            // A crouch abandoned before it finishes still has to come back up,
-            // or holding and releasing quickly leaves the body folded.
-            Link(downState, upState, CrouchBlendSeconds, "Crouching", false);
-            AddSpeedCondition(
-                Link(crouchedState, upState, CrouchBlendSeconds, "Crouching", false),
-                AnimatorConditionMode.Less);
-            Link(upState, locomotion, 0.1f, null, false, exitTime: 0.9f);
-
-            // And crouching again mid-stand goes straight back down rather than
-            // waiting out the rest of the stand.
-            Link(upState, downState, CrouchBlendSeconds, "Crouching", true);
-
-            // --- moving skips the fold/unfold pose entirely, see this
-            // --- method's own doc comment for why.
-            AddSpeedCondition(
-                Link(locomotion, crouchedState, CrouchBlendSeconds, "Crouching", true),
-                AnimatorConditionMode.Greater);
-            AddSpeedCondition(
-                Link(downState, crouchedState, CrouchBlendSeconds, "Crouching", true),
-                AnimatorConditionMode.Greater);
-            AddSpeedCondition(
-                Link(crouchedState, locomotion, CrouchBlendSeconds, "Crouching", false),
-                AnimatorConditionMode.Greater);
-            AddSpeedCondition(
-                Link(upState, locomotion, CrouchBlendSeconds, null, false),
-                AnimatorConditionMode.Greater);
+        /// <summary>A humanoid avatar mask at <paramref name="maskPath"/> with exactly <paramref name="parts"/> on.</summary>
+        private static AvatarMask Mask(string maskPath, params AvatarMaskBodyPart[] parts)
+        {
+            var mask = AssetDatabase.LoadAssetAtPath<AvatarMask>(maskPath);
+            if (mask == null)
+            {
+                mask = new AvatarMask();
+                AssetDatabase.CreateAsset(mask, maskPath);
+            }
+            foreach (AvatarMaskBodyPart part in System.Enum.GetValues(typeof(AvatarMaskBodyPart)))
+            {
+                if (part == AvatarMaskBodyPart.LastBodyPart)
+                {
+                    continue;
+                }
+                mask.SetHumanoidBodyPartActive(part, System.Array.IndexOf(parts, part) >= 0);
+            }
+            EditorUtility.SetDirty(mask);
+            return mask;
         }
 
         private static AnimatorStateTransition AddSpeedCondition(AnimatorStateTransition transition, AnimatorConditionMode mode)
@@ -586,8 +561,7 @@ namespace CityX.CharacterEditor
         /// BOOL-GATED BOTH WAYS, unlike ChargedJump's one-way trigger reuse
         /// -- there is no other any-state transition this can piggyback on
         /// to get back out, so it needs its own explicit "Aiming went
-        /// false" exit, matching AddCrouchStates' own bidirectional Link
-        /// pattern instead.
+        /// false" exit: a bidirectional pair of Links.
         ///
         /// ENTRY IS ALSO GATED ON STANDING STILL (Speed below
         /// MovingSpeedThreshold), added after this was found to be the
@@ -1013,7 +987,7 @@ namespace CityX.CharacterEditor
         /// this feeds into.
         ///
         /// ENTRY GATED TO STANDING STILL, same reasoning and same threshold
-        /// as AddCrouchStates' own fold/unfold pose -- a real reported bug
+        /// as the crouch's old fold/unfold pose had -- a real reported bug
         /// ("legs still move while holding space if you are moving while
         /// charging your jump"): this is a single fixed held pose, not a
         /// blend over Speed/MoveX/MoveZ like Locomotion, so entering it
@@ -1162,7 +1136,7 @@ namespace CityX.CharacterEditor
         /// <summary>
         /// One transition, with the boilerplate that is the same every time.
         /// Returns the transition it built, so a caller that needs one more
-        /// condition than this covers (see AddCrouchStates' own
+        /// condition than this covers (see AddGunLocomotion's own
         /// AddSpeedCondition calls) can add it without a second, near-
         /// identical helper.
         /// </summary>
@@ -1429,8 +1403,7 @@ namespace CityX.CharacterEditor
         /// that, matching character.gd's own final "else: idle" fallback),
         /// so GunLocomotion has to hand back to Locomotion the moment Speed
         /// drops, not just when the gun itself comes out of the holster.
-        /// Same AddSpeedCondition helper AddCrouchStates already uses for
-        /// the identical "bool alone isn't the whole story" reason.
+        /// Hence AddSpeedCondition: a bool alone is not the whole story.
         /// </summary>
         private static void AddGunLocomotion(AnimatorController controller, AnimatorStateMachine root)
         {
@@ -1499,8 +1472,8 @@ namespace CityX.CharacterEditor
             // first-satisfied-transition-wins rule picks it ahead of these
             // two) straight to Locomotion for one blend, which Locomotion's
             // own GunEquipped-and-moving entry above then immediately
-            // re-fires into GunLocomotion -- a same-cause-as-AddCrouchStates'
-            // own doc comment double-hop, smoothed over by the short
+            // re-fires into GunLocomotion -- a
+            // double-hop, smoothed over by the short
             // crossfade durations rather than eliminated outright.
             AnimatorState aiming = FindState(root, "Aiming");
             if (aiming != null)
@@ -1643,21 +1616,7 @@ namespace CityX.CharacterEditor
         private static void AddScreamLayer(AnimatorController controller, string layerName, string stateName, AnimationClip clip, string maskPath,
             params AvatarMaskBodyPart[] parts)
         {
-            var mask = AssetDatabase.LoadAssetAtPath<AvatarMask>(maskPath);
-            if (mask == null)
-            {
-                mask = new AvatarMask();
-                AssetDatabase.CreateAsset(mask, maskPath);
-            }
-            foreach (AvatarMaskBodyPart part in System.Enum.GetValues(typeof(AvatarMaskBodyPart)))
-            {
-                if (part == AvatarMaskBodyPart.LastBodyPart)
-                {
-                    continue;
-                }
-                mask.SetHumanoidBodyPartActive(part, System.Array.IndexOf(parts, part) >= 0);
-            }
-            EditorUtility.SetDirty(mask);
+            AvatarMask mask = Mask(maskPath, parts);
 
             controller.AddLayer(layerName);
             AnimatorControllerLayer[] layers = controller.layers;
@@ -1869,16 +1828,16 @@ namespace CityX.CharacterEditor
         /// lands on a walking mix with no idle in it. The walk and strafe clips both cycle in 1.03 s, so the diagonal steps at that pace too
         /// (DiagonalWalkCadencePlayTests).
         /// </summary>
-        private static void AddDiagonals(BlendTree tree, Motion forward, Motion back, Motion left, Motion right)
+        private static void AddDiagonals(BlendTree tree, Motion forward, Motion back, Motion left, Motion right, float speed = WalkSpeed)
         {
-            float d = WalkSpeed * Mathf.Sqrt(0.5f);
-            AddDiagonal(tree, "ForwardLeft", forward, left, -1.0f, new Vector2(-d, d));
-            AddDiagonal(tree, "ForwardRight", forward, right, 1.0f, new Vector2(d, d));
-            AddDiagonal(tree, "BackLeft", back, left, -1.0f, new Vector2(-d, -d));
-            AddDiagonal(tree, "BackRight", back, right, 1.0f, new Vector2(d, -d));
+            float d = speed * Mathf.Sqrt(0.5f);
+            AddDiagonal(tree, "ForwardLeft", forward, left, -1.0f, new Vector2(-d, d), speed);
+            AddDiagonal(tree, "ForwardRight", forward, right, 1.0f, new Vector2(d, d), speed);
+            AddDiagonal(tree, "BackLeft", back, left, -1.0f, new Vector2(-d, -d), speed);
+            AddDiagonal(tree, "BackRight", back, right, 1.0f, new Vector2(d, -d), speed);
         }
 
-        private static void AddDiagonal(BlendTree tree, string name, Motion straight, Motion side, float sideSign, Vector2 position)
+        private static void AddDiagonal(BlendTree tree, string name, Motion straight, Motion side, float sideSign, Vector2 position, float speed)
         {
             if (straight == null || side == null)
             {
@@ -1892,13 +1851,13 @@ namespace CityX.CharacterEditor
             // A 1-D blend's thresholds go up: the side-step first when it is to the left.
             if (sideSign < 0.0f)
             {
-                mix.AddChild(side, -WalkSpeed);
+                mix.AddChild(side, -speed);
                 mix.AddChild(straight, 0.0f);
             }
             else
             {
                 mix.AddChild(straight, 0.0f);
-                mix.AddChild(side, WalkSpeed);
+                mix.AddChild(side, speed);
             }
         }
 

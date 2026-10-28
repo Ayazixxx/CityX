@@ -31,7 +31,7 @@ namespace CityX.Character
         private Vector3 _groundNormal = Vector3.up;
         private float _strideScale = 1.0f;
         private static readonly RaycastHit[] FootHits = new RaycastHit[8];
-        private static readonly string[] GaitTrees = { "Locomotion", "SwordLocomotion", "Sword1HLocomotion", "GunLocomotion", "Crouched" };
+        private static readonly string[] GaitTrees = { "Locomotion", "SwordLocomotion", "Sword1HLocomotion", "GunLocomotion" };
 
         /// <summary>The planting bookkeeping (locks, hip drop), for tests and captures.</summary>
         public FootPlanting FootPlanting => _feet;
@@ -129,7 +129,12 @@ namespace CityX.Character
 
             // The stride for this gait (GaitStrides), from the Animator's own blend position: a copy of another player's body has the same.
             float strideTarget = 1.0f;
-            if (_animator.runtimeAnimatorController != null)
+            if (_animator.runtimeAnimatorController != null && _crouch.Shown >= 0.5f)
+            {
+                // Crouched, the legs are the crouch layer's (PlayerLocomotion.Crouch.cs), whatever the base layer walks.
+                strideTarget = GaitStrides.Current.StrideFor(CrouchStateName, new Vector2(_animator.GetFloat(MoveXParameter), _animator.GetFloat(MoveZParameter)));
+            }
+            else if (_animator.runtimeAnimatorController != null)
             {
                 AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
                 foreach (string tree in GaitTrees)

@@ -790,6 +790,12 @@ namespace CityX.Character
             {
                 TickImpactFreeze(Time.deltaTime);
             }
+            // ...and its crouch follows the owner's (PlayerLocomotion.Crouch.cs).
+            if (_crouchTickedFrame != Time.frameCount)
+            {
+                FollowRemoteCrouch(Time.deltaTime);
+                ShowCrouch();
+            }
 
             // Only a live Animator has a torso pose worth following; a frozen or ragdolled one is held flat.
             bool animatorLive = _animator != null && _animator.enabled;
@@ -805,7 +811,9 @@ namespace CityX.Character
             {
                 if (_hips != null)
                 {
-                    _hips.localRotation = Quaternion.Slerp(Quaternion.identity, _hips.localRotation, _torsoFollowBlend);
+                    // Crouched, the hips take the crouch's lean (the whole upper body with them, as one piece): its weight is the duck's.
+                    float hipsFollow = Mathf.Max(_torsoFollowBlend, animatorLive ? _crouch.Shown : 0.0f);
+                    _hips.localRotation = Quaternion.Slerp(Quaternion.identity, _hips.localRotation, hipsFollow);
                 }
                 if (_spine != null)
                 {
@@ -1219,6 +1227,9 @@ namespace CityX.Character
             Vector3 direction = input.WorldDirection();
             bool moving = direction.sqrMagnitude > 0.0001f;
 
+            // CROUCHING, Source's way (PlayerLocomotion.Crouch.cs): on the ground the body goes down over 0.4 s, in the air its feet come up.
+            TickCrouch(input.Crouch, _controller.isGrounded || _steppingUp, deltaTime);
+
             // SPRINT ONLY APPLIES GOING FORWARD, which is player.gd's own rule
             // and not a simplification. There is no running-backward or
             // running-sideways clip, so a 7.5 m/s strafe would be shown by a
@@ -1227,13 +1238,9 @@ namespace CityX.Character
             // prevent. Godot ties the speed to the direction for the same
             // reason it ties the clip to it.
             bool forward = input.Move.y > 0.0f && input.Move.y >= Mathf.Abs(input.Move.x);
-            bool sprinting = input.Sprint && moving && forward;
+            // CROUCH WINS OVER SPRINT, as in Source: a crouched body cannot run (and under a low ceiling it is crouched whatever is held).
+            bool sprinting = input.Sprint && moving && forward && !IsCrouching;
             IsSprinting = sprinting;
-
-            // SPRINT WINS OVER CROUCH, from player.gd. Not a tie-break for its
-            // own sake: there is no crouch-sprint clip, so holding both would
-            // play a crouch walk over a body already travelling at 7.5 m/s.
-            IsCrouching = input.Crouch && !input.Sprint;
 
             // JETPACK BOOSTING REACHES THE SAME SPEED AS SPRINT, but through
             // its own flag rather than folding into `sprinting` above -- see
@@ -1274,6 +1281,7 @@ namespace CityX.Character
                 }
                 speed *= PlayerVitals.SpeedOf(_statsVitals, StatId.MovementSpeed);
                 speed = WaterSpeed(speed);
+                speed *= CrouchSpeedFactor(_controller.isGrounded || _steppingUp);
             }
             // GROW AND SHRINK: a giant covers ground 3.2 times as fast, a tiny body a third as fast (SizeSpeedFactor).
             speed *= SizeSpeedFactor;
@@ -1529,6 +1537,7 @@ namespace CityX.Character
                 // A floating body treads water: the walk and idle, not the fall.
                 _animator.SetBool(GroundedParameter, _controller.isGrounded || _steppingUp || IsFloating);
                 _animator.SetBool(CrouchingParameter, IsCrouching);
+                ShowCrouch();
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
                 _animator.SetBool(AimingParameter, input.Aiming);
                 _animator.SetBool(SwordEquippedParameter, input.SwordEquipped);

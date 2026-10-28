@@ -40,75 +40,96 @@ MonoBehaviour:
   - Tree: Locomotion
     Move: {x: 2.828427, y: -2.828427}
     Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: 0, y: 4}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: 0, y: 7.5}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: 0, y: -4}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: -4, y: 0}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: 4, y: 0}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 0, y: 4}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 0, y: 7.5}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 0, y: -4}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: -4, y: 0}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 4, y: 0}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: -2.828427, y: 2.828427}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 2.828427, y: 2.828427}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: -2.828427, y: -2.828427}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 2.828427, y: -2.828427}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 0, y: 4}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 0, y: 7.5}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 0, y: -4}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: -4, y: 0}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 4, y: 0}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: -2.828427, y: 2.828427}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 2.828427, y: 2.828427}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: -2.828427, y: -2.828427}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 2.828427, y: -2.828427}
+    Stride: 1.12
   - Tree: Crouched
-    Move: {x: 0, y: 1}
-    Stride: 1.12
-  - Tree: GunLocomotion
-    Move: {x: 0, y: 4}
-    Stride: 1.12
-  - Tree: GunLocomotion
-    Move: {x: 0, y: 7.5}
-    Stride: 1.12
-  - Tree: GunLocomotion
-    Move: {x: 0, y: -4}
-    Stride: 1.12
-  - Tree: GunLocomotion
-    Move: {x: -4, y: 0}
-    Stride: 1.12
-  - Tree: GunLocomotion
-    Move: {x: 4, y: 0}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: 0, y: 4}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: 0, y: 7.5}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: 0, y: -4}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: -4, y: 0}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: 4, y: 0}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: -2.828427, y: 2.828427}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: 2.828427, y: 2.828427}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: -2.828427, y: -2.828427}
-    Stride: 1.12
-  - Tree: SwordLocomotion
-    Move: {x: 2.828427, y: -2.828427}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: 0, y: 4}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: 0, y: 7.5}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: 0, y: -4}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: -4, y: 0}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: 4, y: 0}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: -2.828427, y: 2.828427}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: 2.828427, y: 2.828427}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: -2.828427, y: -2.828427}
-    Stride: 1.12
-  - Tree: Sword1HLocomotion
-    Move: {x: 2.828427, y: -2.828427}
-    Stride: 1.12
+    Move: {x: 0, y: 1.3333334}
+    Stride: 1
+  - Tree: Crouched
+    Move: {x: 0, y: -1.3333334}
+    Stride: 1
+  - Tree: Crouched
+    Move: {x: -1.3333334, y: 0}
+    Stride: 1
+  - Tree: Crouched
+    Move: {x: 1.3333334, y: 0}
+    Stride: 1
+  - Tree: Crouched
+    Move: {x: -0.94280905, y: 0.94280905}
+    Stride: 1
+  - Tree: Crouched
+    Move: {x: 0.94280905, y: 0.94280905}
+    Stride: 1
+  - Tree: Crouched
+    Move: {x: -0.94280905, y: -0.94280905}
+    Stride: 1
+  - Tree: Crouched
+    Move: {x: 0.94280905, y: -0.94280905}
+    Stride: 1
