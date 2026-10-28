@@ -23,7 +23,7 @@ namespace CityX.Weapons
     /// announced by name, as a player's are). He shoots whichever player is nearest, another player's copy too (PlayerBodies). Offline he is the
     /// plain Shoota.prefab, as before.
     /// </summary>
-    public sealed class ShootaBrain : MonoBehaviour
+    public sealed class ShootaBrain : MonoBehaviour, IHostile
     {
         [Tooltip("The gun he carries: the AK-47 prefab, mounted in his hands at spawn.")]
         public GameObject GunPrefab;

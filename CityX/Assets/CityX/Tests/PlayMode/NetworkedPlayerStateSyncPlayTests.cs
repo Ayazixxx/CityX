@@ -619,6 +619,31 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// A TURNED-ASIDE BULLET'S STREAK SHOWS ON THE COPY (2026-10-27, docs/BULLET_DEFLECTION.md): one player's guard turns a bullet aside
+        /// and it flies off; the other player sees it fly off from that player's copy.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ABulletAPlayersGuardTurnsAsideIsSeenFlyingOffOnTheirCopy()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            var vitals = _aOnA.GetComponent<PlayerVitals>();
+            var copy = _aOnB.GetComponent<CityX.Weapons.BulletRicochet>();
+            Assert.IsNotNull(copy, "the joining player's body cannot send a bullet flying (PlayerAbilityWiring)");
+            vitals.Roll = () => 0.0f;
+            yield return WaitUntil(() =>
+            {
+                vitals.StartBlock();
+                DamageContext.Strike(vitals, 10.0f, _aOnA.transform.position + new Vector3(0.0f, 2.2f, 12.0f), 0.0f, DamageKind.Bullet, 0.0f);
+                return copy.RemoteShown > 0;
+            }, "the turned-aside bullet's streak to show on the other player's copy");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         // --- helpers ---
 
         private static IEnumerator WaitForState(Animator animator, string stateName)

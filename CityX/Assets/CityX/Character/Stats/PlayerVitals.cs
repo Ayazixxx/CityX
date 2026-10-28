@@ -260,6 +260,12 @@ namespace CityX.Character
         public event Action<Vector3, DamageKind> Deflected;
 
         /// <summary>
+        /// A BULLET turned aside by the guard (the Block Chance roll, or a parry's instant): where it came from and the damage it carried. It
+        /// flies off somewhere else (BulletRicochet).
+        /// </summary>
+        public event Action<Vector3, float> BulletTurnedAside;
+
+        /// <summary>
         /// Raised when a blow staggers this body (puts it in hitstun). What was under way and should be cut short by being hit -- a spell's
         /// wind-up, a charging spin -- listens here. A blow Stability shrugs off raises nothing.
         /// </summary>
@@ -517,6 +523,13 @@ namespace CityX.Character
             {
                 PerfectGuardRemaining = 0.0f;
                 Parried?.Invoke(fromPosition);
+                if (kind == DamageKind.Bullet)
+                {
+                    // A bullet caught in the parry's instant is turned aside for certain: the timing is the skill (docs/BULLET_DEFLECTION.md).
+                    Deflected?.Invoke(fromPosition, kind);
+                    BulletTurnedAside?.Invoke(fromPosition, amount);
+                    return HitResponse.Blocked;
+                }
                 GuardStruck?.Invoke(fromPosition);
                 return HitResponse.Blocked;
             }
@@ -528,6 +541,10 @@ namespace CityX.Character
             {
                 _healthRegenDelay = HealthRegenDelaySeconds;   // still a fight
                 Deflected?.Invoke(fromPosition, kind);
+                if (kind == DamageKind.Bullet)
+                {
+                    BulletTurnedAside?.Invoke(fromPosition, amount);   // and off it flies (BulletRicochet)
+                }
                 Hit?.Invoke(fromPosition);
                 return BlockDrainsStamina ? HitResponse.Guarded : HitResponse.Blocked;
             }
@@ -556,7 +573,9 @@ namespace CityX.Character
             // damage anyway and are staggered wide open. Only when the sword
             // combat has switched this on; the classic timed block is untouched.
             // Stability makes the guard cheaper to hold (harder to break).
-            if (blocked && BlockDrainsStamina && !InfiniteStamina)
+            // NOT FOR A BULLET (owner, 2026-10-27): a bullet the roll did not turn aside comes through the guard at a quarter of its damage and
+            // costs no stamina -- a burst of fire must not leave a sword user unable to swing back.
+            if (blocked && BlockDrainsStamina && !InfiniteStamina && kind != DamageKind.Bullet)
             {
                 float drain = amount * BlockStaminaPerDamage * (1.0f - 0.5f * Stats.Effect(StatId.Stability));
                 if (drain >= _stamina)
@@ -568,7 +587,7 @@ namespace CityX.Character
                 _stamina -= drain;
                 DelayStaminaRegen(0.5f);
             }
-            if (blocked && BlockDrainsStamina)
+            if (blocked && BlockDrainsStamina && kind != DamageKind.Bullet)
             {
                 GuardStruck?.Invoke(fromPosition);   // the guard held: the blades clash
             }

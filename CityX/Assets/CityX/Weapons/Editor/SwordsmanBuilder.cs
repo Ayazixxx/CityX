@@ -93,6 +93,8 @@ namespace CityX.WeaponsEditor
                     animator.runtimeAnimatorController = controller;
                 }
 
+                // A bullet his guard turns aside flies off at the players, as a player's does at the enemies (BulletRicochet).
+                root.AddComponent<BulletRicochet>();
                 var brain = root.AddComponent<SwordsmanBrain>();
                 brain.SwordPrefab = sword;
                 brain.HelmetPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(HelmetPrefabPath);

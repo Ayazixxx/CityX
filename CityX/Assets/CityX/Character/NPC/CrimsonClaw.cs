@@ -49,7 +49,7 @@ namespace CityX.Character
     /// directly with an explicit deltaTime, without needing a real Unity
     /// Update loop pumping.
     /// </summary>
-    public sealed class CrimsonClaw : MonoBehaviour, IDamageable, IHealthBar
+    public sealed class CrimsonClaw : MonoBehaviour, IDamageable, IHealthBar, IHostile
     {
         public const float MaxHealth = 150.0f;
         public const float DetectionRange = 16.0f;

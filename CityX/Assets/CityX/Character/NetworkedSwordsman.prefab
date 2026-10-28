@@ -52,10 +52,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: NetworkedSwordsman
       objectReference: {fileID: 0}
-    - target: {fileID: 6459693721281564042, guid: b2188db3137f58e4f8ace7cf86fc16c7, type: 3}
-      propertyPath: m_Controller
-      value: 
-      objectReference: {fileID: 9100000, guid: c0808131d916ea540becd941709dc711, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -72,6 +68,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5160707381929654145, guid: b2188db3137f58e4f8ace7cf86fc16c7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8163266550666202871}
+    - targetCorrespondingSourceObject: {fileID: 5160707381929654145, guid: b2188db3137f58e4f8ace7cf86fc16c7, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8813834887119553780}
     - targetCorrespondingSourceObject: {fileID: 5160707381929654145, guid: b2188db3137f58e4f8ace7cf86fc16c7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8499978960098914475}
@@ -215,6 +214,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d13dbd993248aff45b9e5a4f06c0307a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedDamage
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 8996300060341373669}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &8813834887119553780
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4042369080563870909}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b49f346341d53fb49a9e963a6f7f34b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedAbilitySync
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 8996300060341373669}
   _networkObjectCache: {fileID: 0}

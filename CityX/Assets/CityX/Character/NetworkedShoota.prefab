@@ -74,6 +74,9 @@ PrefabInstance:
       addedObject: {fileID: 34500350052682092}
     - targetCorrespondingSourceObject: {fileID: 982096521476428653, guid: 48b39a0dc46d08f4dbe97ab56234c75a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 7578372184768294155}
+    - targetCorrespondingSourceObject: {fileID: 982096521476428653, guid: 48b39a0dc46d08f4dbe97ab56234c75a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 6879405646874879619}
     - targetCorrespondingSourceObject: {fileID: 982096521476428653, guid: 48b39a0dc46d08f4dbe97ab56234c75a, type: 3}
       insertIndex: -1
@@ -226,6 +229,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d13dbd993248aff45b9e5a4f06c0307a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedDamage
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 8894164601322433176}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &7578372184768294155
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5988140700145932867}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b49f346341d53fb49a9e963a6f7f34b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedAbilitySync
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 8894164601322433176}
   _networkObjectCache: {fileID: 0}

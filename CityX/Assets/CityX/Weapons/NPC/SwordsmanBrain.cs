@@ -19,7 +19,7 @@ namespace CityX.Weapons
     /// whichever player is nearest, another player's copy too (PlayerBodies): his blows on a copy go to that player's own body. Offline he is
     /// the plain Swordsman.prefab, as before.
     /// </summary>
-    public sealed class SwordsmanBrain : MonoBehaviour
+    public sealed class SwordsmanBrain : MonoBehaviour, IHostile
     {
         [Tooltip("The sword he fights with: the combat sword, equipped at spawn as the player equips it.")]
         public GameObject SwordPrefab;

@@ -79,6 +79,9 @@ namespace CityX.CharacterEditor
             // --- Grow and Shrink (Wizard; Grow on key 0 of the default bar): drawn and voiced in code, nothing to load.
             GetOrAdd<BodySizeAbility>(player);
 
+            // --- a bullet the guard turns aside flies off (the Block Chance roll or a parry): drawn in code, nothing to load.
+            GetOrAdd<BulletRicochet>(player);
+
             // Bloodrage (key 8) and the sword spin (key 2) are components of Player.prefab itself (PlayerRigBuilder), so every body has them.
         }
 

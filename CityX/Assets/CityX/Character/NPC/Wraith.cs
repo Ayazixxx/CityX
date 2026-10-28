@@ -19,7 +19,7 @@ namespace CityX.Character
     ///
     /// Tick is public and separate from Update, so a test drives it with its own time step.
     /// </summary>
-    public sealed class Wraith : MonoBehaviour, IDamageable, IHealthBar, IXpReward, IBloodless
+    public sealed class Wraith : MonoBehaviour, IDamageable, IHealthBar, IXpReward, IBloodless, IHostile
     {
         /// <summary>Owner: "dies very quickly". One pistol round (20), two punches (10 each).</summary>
         public const float MaxHealth = 18.0f;

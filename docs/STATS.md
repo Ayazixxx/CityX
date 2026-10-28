@@ -36,7 +36,7 @@ and every cap are mine, first values to tune (`Character/Stats/StatCatalog.cs`).
 | Armor | +5 armour | - | **new**: stops rating/(rating + 100) of melee blows and bullets (100 armour: half), never all |
 | Magic Resistance | +5 resistance | - | **new**: the same against spells, poison included |
 | Stability | +3% | 75% | **new**: that chance to shrug off a blow that would stagger (no hitstun, nothing cut short); a deeper poise pool in a hyper-armoured swing; a cheaper guard to hold (harder to break) |
-| Block Chance | +2% | 70% (80% in all) | **new**: while blocking, a chance to stop a blow outright -- no damage, no stamina, a bullet glances off with sparks and a ting. Everyone starts at 10% (the owner: "it starts at a lower chance and lets you upgrade it") |
+| Block Chance | +2% | 70% (80% in all) | **new**: while blocking, a chance to stop a blow outright -- no damage, no stamina, a bullet glances off with sparks and a ting and flies off somewhere safe (docs/BULLET_DEFLECTION.md). Everyone starts at 10% (the owner: "it starts at a lower chance and lets you upgrade it") |
 
 ## What was added for them
 

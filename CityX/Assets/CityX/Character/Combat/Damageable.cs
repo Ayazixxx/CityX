@@ -83,6 +83,14 @@ namespace CityX.Character
     {
     }
 
+    /// <summary>
+    /// Marker for an ENEMY (the Wraith, the Crimson Claw, the swordsman, the Shoota): what fights the players. A bullet turned aside by a
+    /// player's guard may fly into one; never into a civilian or anyone else who is not one (BulletRicochet).
+    /// </summary>
+    public interface IHostile
+    {
+    }
+
     /// <summary>What a target did with a hit.</summary>
     public enum HitResponse
     {
