@@ -26,7 +26,7 @@ One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromanc
 | Cryomancer | Ice Shards | |
 | Plaguebringer | Poison Breath -> Acid Rain | |
 | Electromancer | Self Smite | the owner's tree (2026-10-15); Self Smite is Pikachu's Thunder, see docs/SELF_SMITE.md |
-| Arcanist | Arcane Orb | the owner's arcane spells (2026-10-27) in a tree I named; Arcane Orb is Sephiroth's Shadow Flare, the first skill with ranks; see docs/ARCANE_ORB.md |
+| Arcanist | Arcane Orb, Arcane Barrier (side by side at the root) | the owner's arcane spells (2026-10-27) in a tree I named; Arcane Orb is Sephiroth's Shadow Flare, the first skill with ranks (docs/ARCANE_ORB.md); Arcane Barrier (2026-10-28) is Bartolomeo's barrier, a wall of aura with health that fades when broken (docs/ARCANE_BARRIER.md) |
 | Wizard | Grow, Shrink (side by side at the root) | the owner's tree (2026-10-15: "i was going to make one just called Wizard"); ten times as big or a tenth, 30 s each, see docs/SIZE_SPELLS.md |
 
 Every tree also has **empty stars** ("Not designed yet") where later skills go; they are never learnable. Every tree shape except Freerunner's is

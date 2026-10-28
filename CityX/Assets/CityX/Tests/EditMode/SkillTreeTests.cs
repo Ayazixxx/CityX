@@ -20,7 +20,7 @@ namespace CityX.Tests
             SkillCatalog.Vault, SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump, SkillCatalog.WallStick,
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
             SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.StabDash, SkillCatalog.Bloodrage,
-            SkillCatalog.SelfSmite, SkillCatalog.Grow, SkillCatalog.Shrink, SkillCatalog.ArcaneOrb,
+            SkillCatalog.SelfSmite, SkillCatalog.Grow, SkillCatalog.Shrink, SkillCatalog.ArcaneOrb, SkillCatalog.ArcaneBarrier,
         };
 
         [Test]
@@ -88,6 +88,7 @@ namespace CityX.Tests
             Assert.AreEqual(MeleeAttacker.SpinAbilityId, SkillCatalog.SwordSpin);
             Assert.AreEqual(SelfSmiteAbility.Id, SkillCatalog.SelfSmite);
             Assert.AreEqual(ArcaneOrbCaster.Id, SkillCatalog.ArcaneOrb);
+            Assert.AreEqual(ArcaneBarrierCaster.Id, SkillCatalog.ArcaneBarrier);
         }
 
         [Test]

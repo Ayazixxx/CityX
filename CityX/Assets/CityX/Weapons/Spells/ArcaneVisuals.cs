@@ -24,6 +24,9 @@ namespace CityX.Weapons
         private static Material _glow;
         private static Material _hot;
         private static Material _core;
+        private static Material _wall;
+        private static Material _shimmer;
+        private static Material _ring;
         private static Mesh _quad;
         private static Mesh _sphere;
 
@@ -37,11 +40,32 @@ namespace CityX.Weapons
             _template = template;
             _glow = null;
             _hot = null;
+            _wall = null;
+            _shimmer = null;
+            _ring = null;
         }
 
         public static Material Glow => _glow != null ? _glow : (_glow = SoftGlow.Make("ArcaneGlow", Magenta, true, _template));
 
         public static Material HotGlow => _hot != null ? _hot : (_hot = SoftGlow.Make("ArcaneHot", Hot, true, _template));
+
+        /// <summary>Arcane Barrier's face: a square of aura, see-through in the middle, its rim bright (<see cref="WallAlpha"/>).</summary>
+        public static Material WallGlow => _wall != null ? _wall : (_wall = Painted("ArcaneBarrierWall", WallTexture()));
+
+        /// <summary>The slow ripples drifting up the barrier's face (<see cref="ShimmerTexture"/>, tiled and scrolled).</summary>
+        public static Material ShimmerGlow => _shimmer != null ? _shimmer : (_shimmer = Painted("ArcaneBarrierShimmer", ShimmerTexture()));
+
+        /// <summary>A ring spreading where something strikes the barrier.</summary>
+        public static Material RingGlow => _ring != null ? _ring : (_ring = Painted("ArcaneBarrierRing", RingTexture()));
+
+        /// <summary>A glow material painted with <paramref name="texture"/> instead of the soft spot.</summary>
+        private static Material Painted(string name, Texture2D texture)
+        {
+            Material material = SoftGlow.Make(name, Magenta, true, _template);
+            material.SetTexture("_BaseMap", texture);
+            material.mainTexture = texture;
+            return material;
+        }
 
         /// <summary>A cursed orb's body: dark plum with a faint magenta glow of its own.</summary>
         public static Material CoreMaterial
@@ -86,6 +110,19 @@ namespace CityX.Weapons
             MeshRenderer renderer = go.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
+            return renderer;
+        }
+
+        /// <summary>A flat panel <paramref name="width"/> by <paramref name="height"/> metres facing along its parent's +Z (seen from both sides), lit by nothing.</summary>
+        public static MeshRenderer Panel(Transform parent, Material material, float width, float height, string name)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localScale = new Vector3(width, height, 1.0f);
+            go.AddComponent<MeshFilter>().sharedMesh = Quad;
+            MeshRenderer renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            Unlit(renderer);
             return renderer;
         }
 
@@ -175,6 +212,71 @@ namespace CityX.Weapons
             renderer.GetPropertyBlock(block);
             block.SetColor("_BaseColor", colour * Mathf.Clamp01(strength));
             renderer.SetPropertyBlock(block);
+        }
+
+        /// <summary>
+        /// The barrier's face, white for the material to tint: a faint fill (<see cref="WallFill"/>: you see through it), brightening into a glow
+        /// toward the rounded edge and a thin bright rim on it, falling off just outside.
+        /// </summary>
+        private static Texture2D WallTexture() => Paint("ArcaneBarrierWall", 128, TextureWrapMode.Clamp, WallAlpha);
+
+        /// <summary>How strongly the barrier's middle is drawn, 0..1 (additive: the street shows through it, tinted).</summary>
+        public const float WallFill = 0.2f;
+
+        /// <summary>The barrier face's strength at (<paramref name="u"/>, <paramref name="v"/>) across it, 0..1.</summary>
+        public static float WallAlpha(float u, float v)
+        {
+            const float inset = 0.04f, corner = 0.08f;
+            // How far inside the rounded square's edge (negative outside it): a rounded box's signed distance.
+            float qx = Mathf.Abs(u - 0.5f) - (0.5f - inset - corner);
+            float qy = Mathf.Abs(v - 0.5f) - (0.5f - inset - corner);
+            float outside = new Vector2(Mathf.Max(qx, 0.0f), Mathf.Max(qy, 0.0f)).magnitude + Mathf.Min(Mathf.Max(qx, qy), 0.0f) - corner;
+            float inside = -outside;
+            if (inside < 0.0f)
+            {
+                return Mathf.Exp(inside / 0.012f);
+            }
+            return Mathf.Clamp01(WallFill + Mathf.Exp(-inside / 0.012f) + 0.45f * Mathf.Exp(-inside / 0.07f));
+        }
+
+        /// <summary>Soft bands winding across each other, repeating at the edges so the face can tile and scroll them.</summary>
+        private static Texture2D ShimmerTexture()
+        {
+            return Paint("ArcaneBarrierShimmer", 64, TextureWrapMode.Repeat, (u, v) =>
+            {
+                float a = Mathf.Sin(2.0f * Mathf.PI * (2.0f * u + 0.35f * Mathf.Sin(2.0f * Mathf.PI * v)));
+                float b = Mathf.Sin(2.0f * Mathf.PI * (3.0f * v + 0.5f * Mathf.Sin(2.0f * Mathf.PI * u)));
+                return Mathf.Clamp01(0.5f + 0.3f * a + 0.2f * b) * 0.6f;
+            });
+        }
+
+        /// <summary>A thin soft ring at four fifths of the radius.</summary>
+        private static Texture2D RingTexture()
+        {
+            return Paint("ArcaneBarrierRing", 64, TextureWrapMode.Clamp, (u, v) =>
+            {
+                float r = Mathf.Sqrt((u - 0.5f) * (u - 0.5f) + (v - 0.5f) * (v - 0.5f)) * 2.0f;
+                float off = (r - 0.8f) / 0.1f;
+                return Mathf.Exp(-off * off);
+            });
+        }
+
+        /// <summary>A white texture whose alpha is <paramref name="alpha"/> across it, made once.</summary>
+        private static Texture2D Paint(string name, int size, TextureWrapMode wrap, System.Func<float, float, float> alpha)
+        {
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = name, hideFlags = HideFlags.DontSave, wrapMode = wrap };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float a = Mathf.Clamp01(alpha((x + 0.5f) / size, (y + 0.5f) / size));
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255.0f));
+                }
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
         }
 
         private static void Unlit(Renderer renderer)

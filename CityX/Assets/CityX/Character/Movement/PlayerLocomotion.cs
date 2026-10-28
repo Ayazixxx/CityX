@@ -873,6 +873,8 @@ namespace CityX.Character
             ApplyClimbWallLimbs();
             ApplyLedgeHands();
             ApplyStraightWrists();
+            // Both hands pushed out flat against a raised Arcane Barrier (PlayerLocomotion.Barrier.cs): after the straight wrists, which it bends.
+            ApplyBarrierPose();
             // The fingers close round whatever each hand holds (HandGrip), last: they hang off the posed hands.
             ApplyFingerGrips();
             if (IsSitting)

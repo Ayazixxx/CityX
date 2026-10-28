@@ -239,6 +239,7 @@ namespace CityX.Character
             _fireballCaster = GetComponent<IFireballCaster>();
             _iceShards = GetComponent<IIceShardCaster>();
             _arcaneOrb = GetComponent<IArcaneOrbCaster>();
+            _arcaneBarrier = GetComponent<IArcaneBarrierCaster>();
             _poisonBreath = GetComponent<IPoisonBreathCaster>();
             _swordWave = GetComponent<ISwordWaveCaster>();
             _acidRain = GetComponent<IAcidRainCaster>();
@@ -368,6 +369,7 @@ namespace CityX.Character
             _fireballCaster?.Tick(deltaTime);
             _iceShards?.Tick(deltaTime);
             _arcaneOrb?.Tick(deltaTime);
+            _arcaneBarrier?.Tick(deltaTime);
             _poisonBreath?.Tick(deltaTime);
             _swordWave?.Tick(deltaTime);
 
@@ -514,6 +516,17 @@ namespace CityX.Character
             // read, and the body is ticked with no movement (it is rooted), so gravity and the Animator carry on. Mouse look still turns the camera.
             if (_selfSmite != null && _selfSmite.HoldsTheBody)
             {
+                _locomotion.Tick(new LocomotionInput { YawDegrees = transform.eulerAngles.y }, deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
+            // ARCANE BARRIER HOLDS THE BODY while its key is held (ArcaneBarrierCaster, docs/ARCANE_BARRIER.md): the caster stands still behind
+            // the wall doing nothing else, as the owner asked to start with; let go, the wall fades and the body is free. Mouse look still turns
+            // the camera.
+            if (_arcaneBarrier != null && _arcaneBarrier.IsUp)
+            {
+                _arcaneBarrier.Hold(_skills.Held(SkillCatalog.ArcaneBarrier, keyboard));
                 _locomotion.Tick(new LocomotionInput { YawDegrees = transform.eulerAngles.y }, deltaTime);
                 _audio?.SilenceFootsteps();
                 return;
@@ -862,6 +875,12 @@ namespace CityX.Character
             if (_skills.Pressed(SkillCatalog.ArcaneOrb, keyboard))
             {
                 CastArcaneOrb(yawSource);
+            }
+            // ARCANE BARRIER (Arcanist): a wall of magenta aura raised before the body, turned to where the camera looks, and held up for as long
+            // as its key is (read above, where the wall takes the body).
+            if (_skills.Pressed(SkillCatalog.ArcaneBarrier, keyboard))
+            {
+                RaiseArcaneBarrier(yawSource);
             }
             // 4: POISON GAS, innate like the fireball: a cloud of purple gas blown out down the crosshair; whatever breathes it is poisoned
             // (never the one who blew it).

@@ -102,7 +102,10 @@ namespace CityX.Weapons
             {
                 DamageContext.Strike(target, _ballDamage, transform.position, CombatTuning.HitstunSeconds * 0.5f, DamageKind.Magic, _penetration,
                     point, _caster);
-                CursedOrbs curse = CursedOrbs.Hit(target, _caster, _orbs, _orbDamage, _penetration, point);
+                // On an Arcane Barrier the blow went to the wall (docs/ARCANE_BARRIER.md): whoever stands behind it is cursed by nothing.
+                CursedOrbs curse = collision.collider.GetComponent<ArcaneBarrierWall>() != null
+                    ? null
+                    : CursedOrbs.Hit(target, _caster, _orbs, _orbDamage, _penetration, point);
                 if (curse != null)
                 {
                     _placed?.Invoke(curse);

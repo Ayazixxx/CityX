@@ -21,6 +21,8 @@ namespace CityX.Character
 
         private IArcaneOrbCaster _arcaneOrb;
 
+        private IArcaneBarrierCaster _arcaneBarrier;
+
         private IPoisonBreathCaster _poisonBreath;
 
         private ISwordWaveCaster _swordWave;
@@ -66,6 +68,16 @@ namespace CityX.Character
             float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
             Vector3 origin = transform.position + Vector3.up * height;
             _arcaneOrb.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
+        }
+
+        /// <summary>Arcane Barrier from the bar: the wall rises before the body, turned to where the camera looks (docs/ARCANE_BARRIER.md).</summary>
+        private void RaiseArcaneBarrier(Transform aimSource)
+        {
+            if (_arcaneBarrier == null || aimSource == null)
+            {
+                return;
+            }
+            _arcaneBarrier.TryRaise(aimSource.forward);
         }
 
         /// <summary>While the scream winds up, the breath follows the crosshair: the point it is on in the world, handed in every frame.</summary>

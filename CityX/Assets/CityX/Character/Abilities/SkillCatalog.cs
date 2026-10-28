@@ -126,6 +126,7 @@ namespace CityX.Character
         public const string Grow = "grow";
         public const string Shrink = "shrink";
         public const string ArcaneOrb = "arcane-orb";
+        public const string ArcaneBarrier = "arcane-barrier";
 
         /// <summary>Skill points a star costs. One each for now; what deeper stars cost is open.</summary>
         public const int LearnCost = 1;
@@ -299,14 +300,19 @@ namespace CityX.Character
                 Empty("electromancer", 2, At(0.8f, 1), SelfSmite),
                 Empty("electromancer", 3, At(0, 2), "electromancer-1", "electromancer-2"),
 
-                // --- Arcanist (owner, 2026-10-27: "lets make some arcane spells"): Arcane Orb, Sephiroth's Shadow Flare, at the root; it ranks up for
-                // ever (an orb a rank up to three, then damage).
-                new SkillNode(ArcaneOrb, "Arcane Orb", "arcanist", SkillKind.Spell, At(0, 0),
+                // --- Arcanist (owner, 2026-10-27: "lets make some arcane spells"): Arcane Orb, Sephiroth's Shadow Flare, and Arcane Barrier,
+                // Bartolomeo's barrier (2026-10-28), side by side at the root; both rank up for ever (an orb a rank up to three, then damage; a
+                // tenth more health a rank).
+                new SkillNode(ArcaneOrb, "Arcane Orb", "arcanist", SkillKind.Spell, At(-0.5f, 0),
                     "A ball of magenta aura down the crosshair. Whoever it hits is circled by a cursed orb that strikes four seconds later. " +
                     "Each rank adds an orb, up to three, and more damage.",
                     maxRank: SkillNode.EndlessRanks),
+                new SkillNode(ArcaneBarrier, "Arcane Barrier", "arcanist", SkillKind.Spell, At(0.5f, 0),
+                    "Raise a wall of magenta aura before you and hold the key to keep it up. You stand still behind it while it stops whatever " +
+                    "comes at its face, until its health runs out and it fades away. Each rank gives it a tenth more health.",
+                    maxRank: SkillNode.EndlessRanks),
                 Empty("arcanist", 1, At(-0.8f, 1), ArcaneOrb),
-                Empty("arcanist", 2, At(0.8f, 1), ArcaneOrb),
+                Empty("arcanist", 2, At(0.8f, 1), ArcaneBarrier),
                 Empty("arcanist", 3, At(0, 2), "arcanist-1", "arcanist-2"),
 
                 // --- Wizard (owner, 2026-10-15: "idek what skilltree that would fall under i was going to make one just called Wizard"): Grow

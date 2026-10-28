@@ -81,6 +81,10 @@ namespace CityX.CharacterEditor
             var arcaneOrb = GetOrAdd<ArcaneOrbCaster>(player);
             arcaneOrb.LightMaterial = EnsureSelfSmiteLightMaterial() ?? arcaneOrb.LightMaterial;
 
+            // --- Arcane Barrier (Arcanist, 2026-10-28): the wall of aura, drawn and voiced in code, its glows from the same light.
+            var arcaneBarrier = GetOrAdd<ArcaneBarrierCaster>(player);
+            arcaneBarrier.LightMaterial = EnsureSelfSmiteLightMaterial() ?? arcaneBarrier.LightMaterial;
+
             // --- the Water Staff's jet (2026-10-28): drawn and voiced in code, nothing to load.
             GetOrAdd<WaterJetCaster>(player);
 

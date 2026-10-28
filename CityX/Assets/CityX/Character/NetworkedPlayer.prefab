@@ -119,6 +119,9 @@ PrefabInstance:
       addedObject: {fileID: 459927450642048806}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 1442844107420286717}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 8965555455454973}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -128,7 +131,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 8165989642550605057}
+      addedObject: {fileID: 2446628573212267985}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -691,6 +694,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.ArcaneOrbCaster
   CastPoseSeconds: 0.4
   LightMaterial: {fileID: 2100000, guid: 1d309feaf5d69004cbc4800b421ca350, type: 2}
+--- !u!114 &1442844107420286717
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c72ce2f822888bc48a0b681686a727f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.ArcaneBarrierCaster
+  LightMaterial: {fileID: 2100000, guid: 1d309feaf5d69004cbc4800b421ca350, type: 2}
 --- !u!114 &8965555455454973
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -727,7 +743,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &8165989642550605057
+--- !u!114 &2446628573212267985
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -385,6 +385,12 @@ namespace CityX.Character
         /// <summary>The shield is held up (right-click held: PlayerInputReader). Only means anything with a <see cref="Shield"/>.</summary>
         public bool ShieldRaised { get; set; }
 
+        /// <summary>
+        /// A wall standing before this body that takes what comes at its face (Arcane Barrier, docs/ARCANE_BARRIER.md): asked before anything
+        /// else when a blow comes. Set by the barrier's caster while it stands, on this body and on other players' copies of it alike.
+        /// </summary>
+        public IBarrier Barrier { get; set; }
+
         /// <summary>How far either side of straight ahead a raised shield covers, degrees.</summary>
         public const float ShieldCoverDegrees = 75.0f;
 
@@ -521,6 +527,23 @@ namespace CityX.Character
         {
             float poiseDamage = _pendingPoise;
             _pendingPoise = -1.0f;
+
+            // ARCANE BARRIER (docs/ARCANE_BARRIER.md): a wall of aura before the body takes what comes at its face, whole, and the blow bounces
+            // off it as off a held guard. On another player's copy the blow still goes to its owner, whose wall takes it off its health; here the
+            // attacker's blade bounces off the copy's wall.
+            if (Barrier != null && Barrier.Covers(fromPosition))
+            {
+                if (Relay != null && Relay.TryRelayHit(amount, fromPosition, hitstunSeconds, poiseDamage))
+                {
+                    return HitResponse.Guarded;
+                }
+                if (IsDead || IsInvulnerable)
+                {
+                    return HitResponse.Ignored;
+                }
+                Barrier.Absorb(amount, fromPosition);
+                return HitResponse.Guarded;
+            }
 
             // Another player's copy: the hit is sent to the real body's owner, who decides what it does (block, parry, poise, stun, health).
             if (Relay != null && Relay.TryRelayHit(amount, fromPosition, hitstunSeconds, poiseDamage))
