@@ -27,6 +27,18 @@ namespace CityX.Weapons
         /// <summary>The shaft (the model's +Y) along the hand's +Z, out past the thumb.</summary>
         public static Quaternion GripRotation => Quaternion.FromToRotation(Vector3.up, Vector3.forward);
 
+        /// <summary>The head of the staff in <paramref name="locomotion"/>'s hand (its tip, or the staff itself), or null with none held.</summary>
+        public static Transform TipOf(PlayerLocomotion locomotion)
+        {
+            Transform staff = locomotion != null ? locomotion.Staff : null;
+            if (staff == null)
+            {
+                return null;
+            }
+            var item = staff.GetComponent<StaffItem>();
+            return item != null && item.Tip != null ? item.Tip : staff;
+        }
+
         /// <summary>The spell on <paramref name="body"/> this staff shoots.</summary>
         protected abstract IStaffCaster CasterOn(GameObject body);
 

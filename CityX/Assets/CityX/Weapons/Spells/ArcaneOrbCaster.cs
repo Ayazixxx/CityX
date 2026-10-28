@@ -227,7 +227,7 @@ namespace CityX.Weapons
             }
             if (charging)
             {
-                Transform tip = TipOfHeldStaff();
+                Transform tip = StaffItem.TipOf(_locomotion);
                 StaffChargeGlow glow = StaffChargeGlow.On(tip, ArcaneVisuals.Glow, ArcaneVisuals.HotGlow, ArcaneVisuals.Magenta, ArcaneOrbRules.MaxOrbsPerShot);
                 if (glow != null)
                 {
@@ -303,17 +303,6 @@ namespace CityX.Weapons
                 }
             }
             return best;
-        }
-
-        private Transform TipOfHeldStaff()
-        {
-            Transform staff = _locomotion != null ? _locomotion.Staff : null;
-            if (staff == null)
-            {
-                return null;
-            }
-            var item = staff.GetComponent<StaffItem>();
-            return item != null && item.Tip != null ? item.Tip : staff;
         }
 
         private void PlayCast(Vector3 at)

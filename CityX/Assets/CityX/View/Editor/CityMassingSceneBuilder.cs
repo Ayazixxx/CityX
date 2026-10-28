@@ -274,6 +274,7 @@ namespace CityX.ViewEditor
             GameObject arcaneStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildArcane();
             GameObject fireballStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildFireball();
             GameObject iceShardStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildIceShard();
+            GameObject waterStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildWater();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
@@ -529,6 +530,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.FireballStaff, Prefab = fireballStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.IceShardStaff, Prefab = iceShardStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.WaterStaff, Prefab = waterStaffPrefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling

@@ -41,6 +41,7 @@ namespace CityX.Items
         public const string FarmerHat = "farmer_hat";
         public const string RoundShield = "round_shield";
         public const string ArcaneStaff = "arcane_staff";
+        public const string WaterStaff = "water_staff";
         public const string FireballStaff = "fireball_staff";
         public const string IceShardStaff = "ice_shard_staff";
 
@@ -96,6 +97,8 @@ namespace CityX.Items
             [RoundShield] = new ItemDefinition(RoundShield, "Round Shield", "shield", EquipSlots.Shield, 1),
             // Magic staffs (docs/STAFFS.md): the spell on the click, every shot paying mana. Drawn in code until the owner's models.
             [ArcaneStaff] = new ItemDefinition(ArcaneStaff, "Arcane Staff", "weapon", EquipSlots.Primary, 1),
+            // The water staff (2026-10-28): a fire hose of a staff, held to spray (docs/STAFFS.md).
+            [WaterStaff] = new ItemDefinition(WaterStaff, "Water Staff", "weapon", EquipSlots.Primary, 1),
             [FireballStaff] = new ItemDefinition(FireballStaff, "Fireball Staff", "weapon", EquipSlots.Primary, 1),
             [IceShardStaff] = new ItemDefinition(IceShardStaff, "Ice Shard Staff", "weapon", EquipSlots.Primary, 1),
         };

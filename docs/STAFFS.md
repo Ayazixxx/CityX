@@ -20,7 +20,7 @@ every shot paying mana. Built 2026-10-27, three of them, as the owner asked one 
 | The click | left-click is the staff's (right-click stays the shield's). What a click and a hold do is the spell's, on the body (`IStaffCaster`: `ArcaneOrbCaster`, `FireballCaster`, `IceShardCaster`), so every shot reaches other players as that spell's does. A charge (`StaffCharge`) starts on the press, grows while held, and the shot leaves 8 frames (0.13 s) after the release, as Shadow Flare's does, the staff up by then |
 | The charge's look | a glow at the staff's head swelling with the charge, and a light (`StaffChargeGlow`), on every player's screen |
 | Mana | every shot pays; a charge stops growing at what the mana pays for, and one cannot start without enough for the smallest shot. Tab lock-on is off with a staff, as with a gun |
-| The models | `StaffBuilder`, drawn in code (turned shapes): a 2.4 m shaft with a ferrule, a leather wrap at the grip, a cup at the head holding the crystal, glowing in the spell's colour. Arcane: dark purple wood, brass, a magenta orb. Fireball: dark red wood, an iron brazier, an orange ember. Ice Shard: pale wood, silver, a faceted shard of ice |
+| The models | `StaffBuilder`, drawn in code (turned shapes): a 2.4 m shaft with a ferrule, a leather wrap at the grip, a cup at the head holding the crystal, glowing in the spell's colour. Arcane: dark purple wood, brass, a magenta orb. Fireball: dark red wood, an iron brazier, an orange ember. Ice Shard: pale wood, silver, a faceted shard of ice. Water: sea-green wood, steel, a pale blue orb |
 
 ## Each staff
 
@@ -29,6 +29,7 @@ every shot paying mana. Built 2026-10-27, three of them, as the owner asked one 
 | Arcane | a ball that leaves 1 cursed orb | 2 orbs from 0.28 s, 3 from 0.43 s (Shadow Flare's frames) | 8 an orb | 0.63 s between shots |
 | Fireball | a plain fireball (25) | grows for up to 1.5 s (about a Mega Man charged shot): up to 2.5 times the ball and its damage (62), its burst burning everyone within up to 4 m (all of the hit's damage at the middle, 30% at the edge) | 10, up to 30 full | 0.5 s (the bar's fireball waits 1.5 s) |
 | Ice Shard | one shard | one every 0.25 s for as long as it is held, wandering up to 1.5 degrees | 4 a shard | about 32 damage a second, eight seconds from a full bar: well under a gun's |
+| Water | the jet, while held | a jet of water (16 m, GTA V's fire truck hose): whoever it is held on is thrown limp along it, pushed on along the ground while down, and hurt 3 every 0.3 s | 6 a second | about 10 damage a second; the push is the point |
 
 All the numbers but Shadow Flare's frames are mine. The staffs ignore the hotbar spells' ranks (the spell need not be learnt).
 
@@ -49,3 +50,27 @@ N 1, `StaffChargeStarted`, `StaffChargeStopped`), `IceShardCaster` (`StaffShardF
 `StaffTests` (EditMode: the charge's timing; the fireball's charge, mana and size), `StaffPlayTests` (each staff equipped in the right hand and seen
 on a copy; the arcane click 1 orb and the hold 2 and 3; the fireball's charge grows the ball and its blast; the ice staff's hold keeps shooting at its
 pace; mana paid and refused), the `EquipmentReplicationGuardTests`. `StaffCapture` (Explicit, -Graphics) renders `Logs/CityShots/staff-*.png`.
+
+## The water staff (2026-10-28)
+
+Owner: "make an item just called "water staff" for now. Have it function like the hose at the top of firetrucks in gta 5 do. it just shoots
+water and pushes and ragdolls whoever is the target of it. our will also do a bit of damage not much though just like 3 damage consecutively as
+you are spraying". `water_staff`, `/equip waterstaff` (or `hose`).
+
+- **The jet** (`WaterJetCaster`, `WaterJetRules`): held, a jet from the staff's head along the crosshair, 16 m, half a metre wide (a hose, not a
+  cone). It drinks 6 mana a second and stops when the mana is gone, or the click is let go.
+- **Whoever is in it** is thrown limp along it (8 m/s, lifted 3 m/s: a knockdown, up again after a moment as a finisher's is), pushed on along
+  the ground at 25 m/s² while down, shoved at 6 m/s if they cannot be thrown (just back up, unhurtable for the moment), and hurt 3 every 0.3 s
+  (10 a second, a spell: Spell Power and Armor Penetration apply, magic resistance too), with no blood (`DamageContext.WithoutBlood`: water
+  does not cut). Civilians are only hurt: their ragdoll has no getting
+  up. A knocked-down player is thrown on their own machine too (the knockdown relay, as every knockdown).
+- **The look** (`WaterJet`, `WaterSounds`), drawn in code after GTA V's cannon (owner: "try to make it look like the water from the hose on
+  the firetruck in gta"; then "less of a beam and more of a wider splash ... there will be other beam attacks i make later"): a short solid
+  white core at the nozzle, a tube rebuilt every frame along a sagging arc (30% of gravity) with foam streaks scrolling down it, gone by 40% of
+  the reach; from there the water is a widening cone of white drops shed with the flow (900 a second, fanning out the further they have
+  flown) and a mist of soft puffs off the arc's second half; and where it lands, drops thrown out and up and a cloud of mist rolling off the
+  ground. Then a burst of
+  spray wherever it lands, the hiss of it. The staff is thrust out as with every
+  staff.
+- **Other players** see the jet on the wearer's copy of the staff, pointed where they point it (told ten times a second), stopping with theirs.
+- Tests: `WaterJetTests`, `WaterStaffPlayTests`; `WaterStaffCapture` renders `Logs/CityShots/water-staff-*.png`.

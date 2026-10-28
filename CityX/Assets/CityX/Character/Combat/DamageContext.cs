@@ -43,6 +43,31 @@ namespace CityX.Character
         /// <summary>Opens a scope in which blows break guards (or not, when <paramref name="breaks"/> is false).</summary>
         public static GuardBreakScope GuardBreaking(bool breaks) => new GuardBreakScope(breaks);
 
+        /// <summary>
+        /// The blow draws no blood (a jet of water, 2026-10-28): the wound shows its flash and its stagger but no burst and no splat. Separate
+        /// from <see cref="Scope"/> as <see cref="BreaksGuard"/> is.
+        /// </summary>
+        public static bool Bloodless { get; private set; }
+
+        /// <summary>Opens a scope in which blows draw no blood.</summary>
+        public static BloodlessScope WithoutBlood() => new BloodlessScope(true);
+
+        public readonly struct BloodlessScope : IDisposable
+        {
+            private readonly bool _before;
+
+            public BloodlessScope(bool bloodless)
+            {
+                _before = Bloodless;
+                Bloodless = bloodless;
+            }
+
+            public void Dispose()
+            {
+                Bloodless = _before;
+            }
+        }
+
         public readonly struct GuardBreakScope : IDisposable
         {
             private readonly bool _before;

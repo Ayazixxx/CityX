@@ -189,8 +189,11 @@ namespace CityX.Character
             }
             BeginFlash();
             float strength = heavy ? 1.6f : (hitstunSeconds > 0.0f ? 1.0f : 0.6f);
-            BloodBurst.Spawn(point, away, strength);
-            BloodSplats.Mark(point, away, strength, transform);
+            if (!DamageContext.Bloodless)
+            {
+                BloodBurst.Spawn(point, away, strength);
+                BloodSplats.Mark(point, away, strength, transform);
+            }
             AudioSource.PlayClipAtPoint(Thud(), point, ThudVolume * (heavy ? 1.25f : 1.0f));
             if (local && IsTheLocalPlayer)
             {

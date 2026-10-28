@@ -18,6 +18,7 @@ namespace CityX.WeaponsEditor
         public const string ArcanePrefabPath = "Assets/CityX/Weapons/ArcaneStaff.prefab";
         public const string FireballPrefabPath = "Assets/CityX/Weapons/FireballStaff.prefab";
         public const string IceShardPrefabPath = "Assets/CityX/Weapons/IceShardStaff.prefab";
+        public const string WaterPrefabPath = "Assets/CityX/Weapons/WaterStaff.prefab";
 
         private const int Sides = 14;
 
@@ -77,7 +78,15 @@ namespace CityX.WeaponsEditor
             BuildArcane();
             BuildFireball();
             BuildIceShard();
+            BuildWater();
         }
+
+        /// <summary>The water staff (2026-10-28): sea-green wood, steel, a pale blue orb of water.</summary>
+        public static GameObject BuildWater() => Build<WaterStaff>(WaterPrefabPath, new Look
+        {
+            Name = "WaterStaff", Wood = new Color(0.16f, 0.3f, 0.34f), Metal = new Color(0.6f, 0.68f, 0.74f),
+            Crystal = new Color(0.45f, 0.78f, 1.0f), CrystalGlow = 0.6f, Cup = CupProfile,
+        });
 
         public static GameObject BuildArcane() => Build<ArcaneStaff>(ArcanePrefabPath, new Look
         {

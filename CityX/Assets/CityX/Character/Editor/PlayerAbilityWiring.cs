@@ -81,6 +81,9 @@ namespace CityX.CharacterEditor
             var arcaneOrb = GetOrAdd<ArcaneOrbCaster>(player);
             arcaneOrb.LightMaterial = EnsureSelfSmiteLightMaterial() ?? arcaneOrb.LightMaterial;
 
+            // --- the Water Staff's jet (2026-10-28): drawn and voiced in code, nothing to load.
+            GetOrAdd<WaterJetCaster>(player);
+
             // --- Grow and Shrink (Wizard; Grow on key 0 of the default bar): drawn and voiced in code, nothing to load.
             GetOrAdd<BodySizeAbility>(player);
 
