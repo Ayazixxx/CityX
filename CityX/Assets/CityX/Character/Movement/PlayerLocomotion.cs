@@ -880,6 +880,8 @@ namespace CityX.Character
             ApplyFistPose();
             // A raised shield has the left arm (PlayerLocomotion.Shield.cs); lowered, the shield rides the forearm wherever it is.
             ApplyShieldPose();
+            // A staff in the right hand: carried upright, thrust out to cast (PlayerLocomotion.Staff.cs).
+            ApplyStaffPose();
             ApplyClimbLimbs();
             ApplyClimbWallLimbs();
             ApplyLedgeHands();
@@ -1498,7 +1500,7 @@ namespace CityX.Character
             // has to track the camera THE INSTANT it starts, moving or not --
             // a lagging catch-up reads as "at a weird angle" the whole time
             // it is catching up.
-            if (input.Aiming || _gunFireHold > 0.0f)
+            if (input.Aiming || _gunFireHold > 0.0f || (StaffCasting && Staff != null))
             {
                 transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees + AimYawOffsetDegrees, 0.0f);
             }

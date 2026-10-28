@@ -27,6 +27,19 @@ namespace CityX.Weapons
         private float _penetration;
         private bool _consumed;
 
+        /// <summary>A charged ball's size and damage, as a multiple of a plain one's (the Fireball Staff's charge, FireballCaster).</summary>
+        private float _size = 1.0f;
+
+        /// <summary>How far round its landing a charged ball's burst also burns, metres (0: only what it hits).</summary>
+        private float _blastRadius;
+
+        /// <summary>At the blast's edge, the share of the hit's damage still dealt (all of it at the middle).</summary>
+        public const float BlastEdgeShare = 0.3f;
+
+        public float Size => _size;
+
+        public float BlastRadius => _blastRadius;
+
         /// <summary>
         /// True for the copy another player's machine shows of a fireball they cast: it flies, bursts and sounds exactly as the real one
         /// does, but hurts nothing (the caster's own machine decides what the real fireball hits).
@@ -34,7 +47,8 @@ namespace CityX.Weapons
         public bool Cosmetic { get; private set; }
 
         public static FireballProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity,
-            int casterStrength, Collider[] ignoreColliders, bool cosmetic = false, float penetration = 0.0f, GameObject striker = null)
+            int casterStrength, Collider[] ignoreColliders, bool cosmetic = false, float penetration = 0.0f, GameObject striker = null,
+            float size = 1.0f, float blastRadius = 0.0f)
         {
             if (prefab == null)
             {
@@ -52,6 +66,12 @@ namespace CityX.Weapons
             fireball._striker = striker;
             fireball._penetration = Mathf.Clamp01(penetration);
             fireball.Cosmetic = cosmetic;
+            fireball._size = Mathf.Max(0.1f, size);
+            fireball._blastRadius = Mathf.Max(0.0f, blastRadius);
+            if (!Mathf.Approximately(fireball._size, 1.0f))
+            {
+                Grow(instance, fireball._size);
+            }
             // GetComponent RATHER THAN THE CACHED FIELD -- see ThrownBottle.
             // Spawn's own comment: Awake has not necessarily run yet on a
             // clone made from an inactive prefab template.
@@ -150,17 +170,59 @@ namespace CityX.Weapons
             var target = Cosmetic ? null : collision.collider.GetComponentInParent<IDamageable>();
             if (target != null && target.IsAlive)
             {
-                float damage = CombatTuning.DamageFor(BaseDamage, _casterStrength);
+                float damage = CombatTuning.DamageFor(BaseDamage * _size, _casterStrength);
                 DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Magic, _penetration, null, _striker);
             }
 
-            FireBurst.Spawn(BurstPrefab, point, normal);
+            if (!Cosmetic && _blastRadius > 0.0f)
+            {
+                Blast(point, target);
+            }
+            FireBurst.Spawn(BurstPrefab, point, normal, _size);
             if (ImpactSound != null)
             {
                 AudioSource.PlayClipAtPoint(ImpactSound, point);
             }
 
             Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// A charged ball's burst burns everyone within <see cref="_blastRadius"/> of where it landed but the one it hit (who took the whole hit)
+        /// and its caster: the full hit's damage at the middle, <see cref="BlastEdgeShare"/> of it at the edge.
+        /// </summary>
+        private void Blast(Vector3 point, IDamageable alreadyHit)
+        {
+            float damage = CombatTuning.DamageFor(BaseDamage * _size, _casterStrength);
+            IDamageable caster = _striker != null ? _striker.GetComponent<IDamageable>() : null;
+            var burnt = new System.Collections.Generic.List<IDamageable>();
+            foreach (Collider collider in Physics.OverlapSphere(point, _blastRadius, ~0, QueryTriggerInteraction.Ignore))
+            {
+                IDamageable target = collider.GetComponentInParent<IDamageable>();
+                if (target == null || !target.IsAlive || ReferenceEquals(target, alreadyHit) || ReferenceEquals(target, caster) || burnt.Contains(target))
+                {
+                    continue;
+                }
+                burnt.Add(target);
+                float distance = Vector3.Distance(point, collider.ClosestPoint(point));
+                float share = Mathf.Lerp(1.0f, BlastEdgeShare, Mathf.Clamp01(distance / _blastRadius));
+                DamageContext.Strike(target, damage * share, point, CombatTuning.HitstunSeconds, DamageKind.Magic, _penetration, null, _striker);
+            }
+        }
+
+        /// <summary>A charged ball, <paramref name="size"/> times a plain one: its look, its trail, its reach and its light grow with it.</summary>
+        private static void Grow(GameObject ball, float size)
+        {
+            ball.transform.localScale = Vector3.one * size;
+            foreach (ParticleSystem particles in ball.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                ParticleSystem.MainModule main = particles.main;
+                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            }
+            foreach (Light light in ball.GetComponentsInChildren<Light>(true))
+            {
+                light.range *= size;
+            }
         }
     }
 }

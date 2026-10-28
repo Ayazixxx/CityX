@@ -57,7 +57,6 @@ namespace CityX.Character
         private static Material _glowMaterial;
         private static Material _haloMaterial;
         private static Material _cloudMaterial;
-        private static Texture2D _spot;
 
         private Transform _caster;
         private float _casterHeight;
@@ -594,72 +593,13 @@ namespace CityX.Character
             _haloMaterial = null;
         }
 
-        private static Material CoreMaterial() => _coreMaterial != null ? _coreMaterial : (_coreMaterial = MakeMaterial("SelfSmiteCore", CoreColour, true, _template));
+        private static Material CoreMaterial() => _coreMaterial != null ? _coreMaterial : (_coreMaterial = SoftGlow.Make("SelfSmiteCore", CoreColour, true, _template));
 
-        private static Material GlowMaterial() => _glowMaterial != null ? _glowMaterial : (_glowMaterial = MakeMaterial("SelfSmiteGlow", GlowColour, true, _template));
+        private static Material GlowMaterial() => _glowMaterial != null ? _glowMaterial : (_glowMaterial = SoftGlow.Make("SelfSmiteGlow", GlowColour, true, _template));
 
-        private static Material HaloMaterial() => _haloMaterial != null ? _haloMaterial : (_haloMaterial = MakeMaterial("SelfSmiteHalo", HaloColour, false, _template));
+        private static Material HaloMaterial() => _haloMaterial != null ? _haloMaterial : (_haloMaterial = SoftGlow.Make("SelfSmiteHalo", HaloColour, false, _template));
 
         private static Material CloudMaterial() =>
-            _cloudMaterial != null ? _cloudMaterial : (_cloudMaterial = MakeMaterial("SelfSmiteCloud", CloudColour, false));
-
-        /// <summary>
-        /// URP's particle shader, unlit and see-through: additive for the light (the bolt, the burst), ordinary blending for the cloud. The blend
-        /// states are set outright (the editor's material inspector would, but this is made at runtime), as the storm's own bolt material is.
-        /// </summary>
-        private static Material MakeMaterial(string name, Color colour, bool additive, Material template = null)
-        {
-            Material material;
-            if (template != null)
-            {
-                material = new Material(template) { name = name, hideFlags = HideFlags.DontSave };
-            }
-            else
-            {
-                Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-                if (shader == null)
-                {
-                    shader = Shader.Find("Sprites/Default");
-                }
-                material = new Material(shader) { name = name, hideFlags = HideFlags.DontSave };
-            }
-            SeeThroughMaterial.Apply(material, additive);
-            material.SetColor("_BaseColor", colour);
-            material.color = colour;
-            material.SetTexture("_BaseMap", Spot());
-            material.mainTexture = Spot();
-            return material;
-        }
-
-        /// <summary>
-        /// A soft white spot, opaque in the middle and gone at the edge: across a ribbon it is the soft edge, on a quad a puff. (1 - d^2)^3 falls
-        /// to nothing with no slope left at the rim, so a big glow shows no ring where its quad ends (rendered at night, 2026-10-15).
-        /// </summary>
-        private static Texture2D Spot()
-        {
-            if (_spot != null)
-            {
-                return _spot;
-            }
-            const int size = 64;
-            _spot = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = "SelfSmiteSpot", hideFlags = HideFlags.DontSave };
-            _spot.wrapMode = TextureWrapMode.Clamp;
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    float dx = (x + 0.5f) / size * 2.0f - 1.0f;
-                    float dy = (y + 0.5f) / size * 2.0f - 1.0f;
-                    float d2 = Mathf.Clamp01(dx * dx + dy * dy);
-                    float fall = 1.0f - d2;
-                    float a = fall * fall * fall;
-                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255.0f));
-                }
-            }
-            _spot.SetPixels32(pixels);
-            _spot.Apply(false, true);
-            return _spot;
-        }
+            _cloudMaterial != null ? _cloudMaterial : (_cloudMaterial = SoftGlow.Make("SelfSmiteCloud", CloudColour, false));
     }
 }

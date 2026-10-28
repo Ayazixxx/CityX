@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -131,6 +132,54 @@ namespace CityX.WeaponsEditor
                 return existing;
             }
             AssetDatabase.CreateAsset(mesh, meshPath);
+            return mesh;
+        }
+
+        /// <summary>A profile (radius, height) turned round the y axis in <paramref name="sides"/> steps: smooth round, a band per profile step.</summary>
+        public static Mesh Lathe(Vector2[] profile, string name, int sides)
+        {
+            var positions = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var triangles = new List<int>();
+            for (int segment = 0; segment + 1 < profile.Length; segment++)
+            {
+                Vector2 a = profile[segment];
+                Vector2 b = profile[segment + 1];
+                Vector2 along = b - a;
+                // The outward normal of this band in the profile's plane (radius out, height up).
+                Vector2 n2 = new Vector2(along.y, -along.x).normalized;
+                if (n2.x < 0.0f || (Mathf.Approximately(n2.x, 0.0f) && along.x < 0.0f))
+                {
+                    n2 = -n2;
+                }
+                int first = positions.Count;
+                for (int s = 0; s <= sides; s++)
+                {
+                    float angle = s / (float)sides * Mathf.PI * 2.0f;
+                    var spoke = new Vector3(Mathf.Cos(angle), 0.0f, Mathf.Sin(angle));
+                    Vector3 normal = (spoke * n2.x + Vector3.up * n2.y).normalized;
+                    positions.Add(spoke * a.x + Vector3.up * a.y);
+                    normals.Add(normal);
+                    positions.Add(spoke * b.x + Vector3.up * b.y);
+                    normals.Add(normal);
+                }
+                for (int s = 0; s < sides; s++)
+                {
+                    int v = first + s * 2;
+                    // Outward-facing, clockwise seen from outside.
+                    triangles.Add(v);
+                    triangles.Add(v + 1);
+                    triangles.Add(v + 3);
+                    triangles.Add(v);
+                    triangles.Add(v + 3);
+                    triangles.Add(v + 2);
+                }
+            }
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(positions);
+            mesh.SetNormals(normals);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
             return mesh;
         }
 

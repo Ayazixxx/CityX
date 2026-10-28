@@ -65,8 +65,16 @@ namespace CityX.Character
         /// <summary>Only with a sword in hand (the sword's spin, wave, Octaslash and stab dash).</summary>
         public readonly bool NeedsSword;
 
+        /// <summary>
+        /// The highest rank skill points can raise it to once learnt (learning it is rank 1): 1 for a skill with no ranks,
+        /// <see cref="EndlessRanks"/> for one that grows for ever (GAME_DESIGN.md: Infinite upgrades).
+        /// </summary>
+        public readonly int MaxRank;
+
+        public const int EndlessRanks = int.MaxValue;
+
         public SkillNode(string id, string name, string treeId, SkillKind kind, Vector2 position, string description,
-            string[] requires = null, bool knownFromStart = false, bool needsSword = false)
+            string[] requires = null, bool knownFromStart = false, bool needsSword = false, int maxRank = 1)
         {
             Id = id;
             Name = name;
@@ -77,12 +85,16 @@ namespace CityX.Character
             Requires = requires ?? new string[0];
             KnownFromStart = knownFromStart;
             NeedsSword = needsSword;
+            MaxRank = Mathf.Max(1, maxRank);
         }
 
         public bool IsPlaceholder => Kind == SkillKind.Placeholder;
 
         /// <summary>Spells and weapon techniques go on the bar; movement keeps its own controls (owner, 2026-10-14).</summary>
         public bool GoesOnBar => Kind == SkillKind.Spell || Kind == SkillKind.Ability;
+
+        /// <summary>Skill points can raise it past rank 1.</summary>
+        public bool HasRanks => MaxRank > 1;
     }
 
     /// <summary>
@@ -113,6 +125,7 @@ namespace CityX.Character
         public const string SelfSmite = "self-smite";
         public const string Grow = "grow";
         public const string Shrink = "shrink";
+        public const string ArcaneOrb = "arcane-orb";
 
         /// <summary>Skill points a star costs. One each for now; what deeper stars cost is open.</summary>
         public const int LearnCost = 1;
@@ -144,6 +157,7 @@ namespace CityX.Character
             new SkillTree("cryomancer", "Cryomancer", true, TreeWidth),
             new SkillTree("plaguebringer", "Plaguebringer", true, TreeWidth),
             new SkillTree("electromancer", "Electromancer", true, TreeWidth),
+            new SkillTree("arcanist", "Arcanist", true, TreeWidth),
             new SkillTree("wizard", "Wizard", true, TreeWidth),
         };
 
@@ -284,6 +298,16 @@ namespace CityX.Character
                 Empty("electromancer", 1, At(-0.8f, 1), SelfSmite),
                 Empty("electromancer", 2, At(0.8f, 1), SelfSmite),
                 Empty("electromancer", 3, At(0, 2), "electromancer-1", "electromancer-2"),
+
+                // --- Arcanist (owner, 2026-10-27: "lets make some arcane spells"): Arcane Orb, Sephiroth's Shadow Flare, at the root; it ranks up for
+                // ever (an orb a rank up to three, then damage).
+                new SkillNode(ArcaneOrb, "Arcane Orb", "arcanist", SkillKind.Spell, At(0, 0),
+                    "A ball of magenta aura down the crosshair. Whoever it hits is circled by a cursed orb that strikes four seconds later. " +
+                    "Each rank adds an orb, up to three, and more damage.",
+                    maxRank: SkillNode.EndlessRanks),
+                Empty("arcanist", 1, At(-0.8f, 1), ArcaneOrb),
+                Empty("arcanist", 2, At(0.8f, 1), ArcaneOrb),
+                Empty("arcanist", 3, At(0, 2), "arcanist-1", "arcanist-2"),
 
                 // --- Wizard (owner, 2026-10-15: "idek what skilltree that would fall under i was going to make one just called Wizard"): Grow
                 // and Shrink, side by side at the root. 30 s each.

@@ -29,7 +29,7 @@ namespace CityX.Weapons
     /// _sword_swing_in_progress flag repeatedly did (see ComboChain.Sword's
     /// own doc comment).
     /// </summary>
-    public sealed class FireballCaster : MonoBehaviour, IFireballCaster, IReplicatedAbility
+    public sealed partial class FireballCaster : MonoBehaviour, IFireballCaster, IReplicatedAbility
     {
         public const string Id = "fireball";
 
@@ -88,6 +88,7 @@ namespace CityX.Weapons
         public void Bind()
         {
             _vitals = GetComponent<PlayerVitals>();
+            _locomotion = GetComponent<PlayerLocomotion>();
         }
 
         public void Tick(float deltaTime)
@@ -136,19 +137,33 @@ namespace CityX.Weapons
         }
 
         /// <summary>
-        /// Another player's fireball, shown on this copy of their body: the raised hand, the cast sound at the hand and the fireball itself
-        /// flying (bursting where it lands, like the real one), but hurting nothing and starting no cooldown.
+        /// Another player's fireball, shown on this copy of their body: the raised hand (or, from the Fireball Staff, the staff thrust out), the
+        /// cast sound at the hand and the fireball itself flying, as big as theirs (bursting where it lands, like the real one), but hurting
+        /// nothing and starting no cooldown; and the staff's charge glowing while they hold it.
         /// </summary>
         public void PlayRemote(AbilityEvent evt)
         {
+            if (evt.Kind == StaffChargeStarted || evt.Kind == StaffChargeStopped)
+            {
+                PlayRemoteCharge(evt.Kind == StaffChargeStarted);
+                return;
+            }
             if (evt.Direction.sqrMagnitude < 0.0001f)
             {
                 return;
             }
             Vector3 forward = evt.Direction.normalized;
             float speed = evt.A > 0.0f ? evt.A : FireballSpeed;
-            FireballProjectile.Spawn(FireballPrefab, evt.Origin, forward * speed, 0, GetComponentsInChildren<Collider>(), cosmetic: true);
-            RemoteAbilityPose.Show(gameObject, 0.0f, CastPoseSeconds);
+            float size = evt.B > 0.0f ? Mathf.Clamp(evt.B, 1.0f, StaffMostSize) : 1.0f;
+            FireballProjectile.Spawn(FireballPrefab, evt.Origin, forward * speed, 0, GetComponentsInChildren<Collider>(), cosmetic: true, size: size);
+            if (evt.N == FromStaff)
+            {
+                PlayRemoteStaffShot();
+            }
+            else
+            {
+                RemoteAbilityPose.Show(gameObject, 0.0f, CastPoseSeconds);
+            }
             if (Application.isPlaying && CastAudio != null && CastAudio.clip != null)
             {
                 AudioSource.PlayClipAtPoint(CastAudio.clip, evt.Origin);

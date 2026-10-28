@@ -179,6 +179,20 @@ namespace CityX.Character
                 return;
             }
 
+            // A STAFF TAKES OVER LEFT-CLICK (docs/STAFFS.md): held it charges (or, the ice staff, keeps shooting), let go it shoots, toward the
+            // crosshair. Right-click stays the shield's, when there is one.
+            if (EquippedStaff != null)
+            {
+                Transform staffYawSource = YawSource != null
+                    ? YawSource
+                    : (Camera.main != null ? Camera.main.transform : null);
+                if (staffYawSource != null)
+                {
+                    EquippedStaff.Tick(Mouse.current.leftButton.isPressed, staffYawSource.position, staffYawSource.forward, gameObject, deltaTime);
+                }
+                return;
+            }
+
             // THE GRAPPLING HOOK TAKES OVER LEFT-CLICK ENTIRELY WHILE
             // EQUIPPED, matching player.gd's own separate
             // `elif _equipped_grapple != null` branch. FIRING ONLY: once a

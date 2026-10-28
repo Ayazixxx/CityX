@@ -268,6 +268,10 @@ namespace CityX.ViewEditor
             GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
             // The round shield (2026-10-27): drawn in code, a stand-in to test shields with (docs/SHIELD.md).
             GameObject roundShieldPrefab = CityX.WearablesEditor.RoundShieldBuilder.Build();
+            // The magic staffs (2026-10-27): drawn in code, stand-ins until the owner's models (docs/STAFFS.md).
+            GameObject arcaneStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildArcane();
+            GameObject fireballStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildFireball();
+            GameObject iceShardStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildIceShard();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
@@ -515,6 +519,12 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.AK47, Prefab = ak47Prefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.SprayCan, Prefab = sprayCanPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.ArcaneStaff, Prefab = arcaneStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.FireballStaff, Prefab = fireballStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.IceShardStaff, Prefab = iceShardStaffPrefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling

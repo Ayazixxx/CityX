@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace CityX.Character
 {
@@ -20,9 +21,19 @@ namespace CityX.Character
             /// <summary>Something below it is not learnt yet.</summary>
             NeedsPrerequisite,
             NoPoints,
+            /// <summary>A rank asked of a skill not learnt yet.</summary>
+            NotLearnt,
+            /// <summary>At its highest rank already, or a skill with no ranks.</summary>
+            HighestRank,
         }
 
+        /// <summary>Skill points a rank past the first costs. One each for now, like learning; GAME_DESIGN.md's Infinite upgrades is the open curve.</summary>
+        public const int RankCost = SkillCatalog.LearnCost;
+
         private readonly HashSet<string> _learnt = new HashSet<string>();
+
+        /// <summary>The ranks bought past the first, by skill (a learnt skill missing here is at rank 1).</summary>
+        private readonly Dictionary<string, int> _ranks = new Dictionary<string, int>();
 
         /// <summary>A brand new character's: only what everyone knows from the start (vaulting).</summary>
         public SkillBook()
@@ -58,6 +69,79 @@ namespace CityX.Character
         public IEnumerable<string> Learnt => _learnt;
 
         public int Count => _learnt.Count;
+
+        /// <summary>A skill's rank: 0 not learnt, 1 once learnt, one more for each rank bought.</summary>
+        public int RankOf(string id) => !Knows(id) ? 0 : _ranks.TryGetValue(id, out int rank) ? rank : 1;
+
+        /// <summary>The skills ranked past 1, with their ranks.</summary>
+        public IEnumerable<KeyValuePair<string, int>> Ranks => _ranks;
+
+        /// <summary>The skill points spent on ranks past the first.</summary>
+        public int PointsInRanks
+        {
+            get
+            {
+                int points = 0;
+                foreach (KeyValuePair<string, int> rank in _ranks)
+                {
+                    points += (rank.Value - 1) * RankCost;
+                }
+                return points;
+            }
+        }
+
+        /// <summary>Why a learnt skill cannot go up a rank now (None: it can).</summary>
+        public Refusal WhyNotRankUp(string id, int points)
+        {
+            SkillNode node = SkillCatalog.Find(id);
+            if (node == null)
+            {
+                return Refusal.Unknown;
+            }
+            if (!Knows(id))
+            {
+                return Refusal.NotLearnt;
+            }
+            if (RankOf(id) >= node.MaxRank)
+            {
+                return Refusal.HighestRank;
+            }
+            return points >= RankCost ? Refusal.None : Refusal.NoPoints;
+        }
+
+        /// <summary>Raises a learnt skill a rank if <see cref="WhyNotRankUp"/> allows, taking the cost from <paramref name="points"/>.</summary>
+        public Refusal TryRankUp(string id, ref int points)
+        {
+            Refusal refusal = WhyNotRankUp(id, points);
+            if (refusal != Refusal.None)
+            {
+                return refusal;
+            }
+            _ranks[id] = RankOf(id) + 1;
+            points -= RankCost;
+            return Refusal.None;
+        }
+
+        /// <summary>
+        /// Replaces the ranks with <paramref name="ranks"/> (from a save): each kept for a skill that is learnt and has ranks, no higher than its
+        /// highest. Call after <see cref="SetLearnt"/>.
+        /// </summary>
+        public void SetRanks(IEnumerable<KeyValuePair<string, int>> ranks)
+        {
+            _ranks.Clear();
+            if (ranks == null)
+            {
+                return;
+            }
+            foreach (KeyValuePair<string, int> rank in ranks)
+            {
+                SkillNode node = SkillCatalog.Find(rank.Key);
+                if (node != null && Knows(rank.Key) && rank.Value > 1)
+                {
+                    _ranks[rank.Key] = Mathf.Min(rank.Value, node.MaxRank);
+                }
+            }
+        }
 
         public Refusal WhyNot(string id, int points)
         {
@@ -107,10 +191,10 @@ namespace CityX.Character
             return Refusal.None;
         }
 
-        /// <summary>Forgets everything but what everyone knows from the start, and says how many points that gives back.</summary>
+        /// <summary>Forgets everything but what everyone knows from the start, ranks too, and says how many points that gives back.</summary>
         public int ResetAll()
         {
-            int refunded = 0;
+            int refunded = PointsInRanks;
             foreach (string id in _learnt)
             {
                 SkillNode node = SkillCatalog.Find(id);
@@ -120,29 +204,42 @@ namespace CityX.Character
                 }
             }
             _learnt.Clear();
+            _ranks.Clear();
             AddKnownFromStart();
             return refunded;
         }
 
         /// <summary>
         /// Replaces what is learnt with <paramref name="ids"/> (from a save). Anything the game no longer has, or that is an empty star, is dropped;
-        /// what everyone knows from the start is always there. A skill whose prerequisites are missing is kept: it was paid for.
+        /// what everyone knows from the start is always there. A skill whose prerequisites are missing is kept: it was paid for. A skill no longer
+        /// learnt loses its rank.
         /// </summary>
         public void SetLearnt(IEnumerable<string> ids)
         {
             _learnt.Clear();
             AddKnownFromStart();
-            if (ids == null)
+            if (ids != null)
             {
-                return;
-            }
-            foreach (string id in ids)
-            {
-                SkillNode node = SkillCatalog.Find(id);
-                if (node != null && !node.IsPlaceholder && SkillCatalog.FindTree(node.TreeId).InGame)
+                foreach (string id in ids)
                 {
-                    _learnt.Add(id);
+                    SkillNode node = SkillCatalog.Find(id);
+                    if (node != null && !node.IsPlaceholder && SkillCatalog.FindTree(node.TreeId).InGame)
+                    {
+                        _learnt.Add(id);
+                    }
                 }
+            }
+            var forgotten = new List<string>();
+            foreach (string id in _ranks.Keys)
+            {
+                if (!_learnt.Contains(id))
+                {
+                    forgotten.Add(id);
+                }
+            }
+            foreach (string id in forgotten)
+            {
+                _ranks.Remove(id);
             }
         }
 

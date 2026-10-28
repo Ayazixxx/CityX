@@ -19,6 +19,8 @@ namespace CityX.Character
 
         private IIceShardCaster _iceShards;
 
+        private IArcaneOrbCaster _arcaneOrb;
+
         private IPoisonBreathCaster _poisonBreath;
 
         private ISwordWaveCaster _swordWave;
@@ -43,15 +45,28 @@ namespace CityX.Character
             _acidRain.TryCast(aimSource.position, aimSource.forward, GetComponentsInChildren<Collider>());
         }
 
-        /// <summary>The raised-hand pose strength of whichever spell is being cast (fireball, ice shards or poison gas).</summary>
+        /// <summary>The raised-hand pose strength of whichever spell is being cast (fireball, ice shards, arcane orb or poison gas).</summary>
         private float SpellCastFraction =>
             Mathf.Max(
                 Mathf.Max(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, _iceShards != null ? _iceShards.CastFraction : 0.0f),
-                Mathf.Max(_poisonBreath != null ? _poisonBreath.CastFraction : 0.0f, _bodySize != null ? _bodySize.CastFraction : 0.0f));
+                Mathf.Max(Mathf.Max(_poisonBreath != null ? _poisonBreath.CastFraction : 0.0f, _bodySize != null ? _bodySize.CastFraction : 0.0f),
+                    _arcaneOrb != null ? _arcaneOrb.CastFraction : 0.0f));
 
         private bool IsCastingSpell =>
             (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting)
-            || (_poisonBreath != null && _poisonBreath.IsCasting);
+            || (_poisonBreath != null && _poisonBreath.IsCasting) || (_arcaneOrb != null && _arcaneOrb.IsCasting);
+
+        /// <summary>Arcane Orb from the bar: from the chest down the crosshair, from wherever the camera is looking.</summary>
+        private void CastArcaneOrb(Transform aimSource)
+        {
+            if (_arcaneOrb == null || aimSource == null)
+            {
+                return;
+            }
+            float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
+            Vector3 origin = transform.position + Vector3.up * height;
+            _arcaneOrb.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
+        }
 
         /// <summary>While the scream winds up, the breath follows the crosshair: the point it is on in the world, handed in every frame.</summary>
         private void AimPoisonBreath(Transform aimSource)

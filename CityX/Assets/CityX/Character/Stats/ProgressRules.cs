@@ -116,7 +116,7 @@ namespace CityX.Character
             return spent + save.StatPoints;
         }
 
-        /// <summary>Skill points spent (each skill learnt that nobody knows from the start) and unspent.</summary>
+        /// <summary>Skill points spent (each skill learnt that nobody knows from the start, each rank past the first) and unspent.</summary>
         public static int SkillBudget(CharacterSave save)
         {
             int spent = 0;
@@ -129,6 +129,13 @@ namespace CityX.Character
                     {
                         spent += SkillCatalog.LearnCost;
                     }
+                }
+            }
+            if (save.SkillRanks != null)
+            {
+                foreach (SkillRankEntry rank in save.SkillRanks)
+                {
+                    spent += Mathf.Max(0, rank.Rank - 1) * SkillBook.RankCost;
                 }
             }
             return spent + save.SkillPoints;

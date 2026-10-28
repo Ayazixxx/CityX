@@ -133,6 +133,7 @@ namespace CityX.UI
         private Text _cardSubtitle;
         private Text _cardBody;
         private Button _learn;
+        private Text _learnLabel;
         private Text _resetLabel;
         private float _resetArmedUntil = -1.0f;
         private HotbarView.SlotGraphics[] _barSlots;
@@ -261,18 +262,21 @@ namespace CityX.UI
             Refresh();
         }
 
-        /// <summary>Learns the chosen star if it can be.</summary>
+        /// <summary>Learns the chosen star if it can be, or, learnt already, raises it a rank.</summary>
         public SkillBook.Refusal LearnSelected()
         {
             if (Skills == null || Selected == null)
             {
                 return SkillBook.Refusal.Unknown;
             }
-            SkillBook.Refusal refusal = Skills.TryLearn(Selected);
+            SkillBook.Refusal refusal = Skills.Knows(Selected) ? Skills.TryRankUp(Selected) : Skills.TryLearn(Selected);
             _dirty = true;
             Refresh();
             return refusal;
         }
+
+        private bool CanLearnOrRankUp(string id) =>
+            Skills.Knows(id) ? Skills.WhyNotRankUp(id) == SkillBook.Refusal.None : Skills.WhyNot(id) == SkillBook.Refusal.None;
 
         /// <summary>The chosen star can go on the bar: a learnt spell or technique.</summary>
         public bool SelectedGoesOnBar => CanCarry(Selected);
@@ -567,7 +571,7 @@ namespace CityX.UI
             if (pad.buttonSouth.wasPressedThisFrame)
             {
                 string near = StarNear(Vector2.zero, StickPickRadius);
-                if (near != null && near == Selected && Skills != null && Skills.WhyNot(near) == SkillBook.Refusal.None)
+                if (near != null && near == Selected && Skills != null && CanLearnOrRankUp(near))
                 {
                     LearnSelected();
                 }
@@ -776,6 +780,10 @@ namespace CityX.UI
 
             _cardTitle.text = node.Name;
             _cardSubtitle.text = tree.Name + "  ·  " + KindName(node);
+            if (node.HasRanks && Skills != null && Skills.Knows(node.Id))
+            {
+                _cardSubtitle.text += $"  ·  Rank {Skills.RankOf(node.Id)}";
+            }
             var body = new StringBuilder(node.Description);
             body.Append("\n\n");
             SkillBook.Refusal refusal = Skills != null ? Skills.WhyNot(node.Id) : SkillBook.Refusal.Unknown;
@@ -797,9 +805,15 @@ namespace CityX.UI
                             ? $"Learnt. On key {Hotbar.KeyLabel(slot)}."
                             : "Learnt. Drag it onto the bar, or press a key from 1 to 0.");
                     }
+                    if (node.HasRanks && Skills.WhyNotRankUp(node.Id) == SkillBook.Refusal.None)
+                    {
+                        _learnLabel.text = "Rank up (1 point)";
+                        _learn.gameObject.SetActive(true);
+                    }
                     break;
                 case SkillBook.Refusal.None:
                     body.Append("Ready to learn for 1 skill point.");
+                    _learnLabel.text = "Learn (1 point)";
                     _learn.gameObject.SetActive(true);
                     break;
                 case SkillBook.Refusal.NoPoints:
@@ -1133,6 +1147,7 @@ namespace CityX.UI
             learn.anchoredPosition = new Vector2(-12.0f, 10.0f);
             learn.sizeDelta = new Vector2(150.0f, 30.0f);
             _learn = MakeButton(learn, "Learn (1 point)", () => LearnSelected());
+            _learnLabel = _learn.GetComponentInChildren<Text>();
             ((Image)_learn.targetGraphic).color = new Color(0.55f, 0.42f, 0.14f, 1.0f);
             _card.SetActive(false);
         }

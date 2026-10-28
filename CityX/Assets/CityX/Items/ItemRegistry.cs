@@ -39,6 +39,9 @@ namespace CityX.Items
         public const string KnightHelmet = "knight_helmet";
         public const string FarmerHat = "farmer_hat";
         public const string RoundShield = "round_shield";
+        public const string ArcaneStaff = "arcane_staff";
+        public const string FireballStaff = "fireball_staff";
+        public const string IceShardStaff = "ice_shard_staff";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -88,6 +91,10 @@ namespace CityX.Items
             [FarmerHat] = new ItemDefinition(FarmerHat, "Farmer Hat", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // A plain wooden round shield on the left forearm, to test shields with until the owner's model (Wearables/RoundShield, docs/SHIELD.md).
             [RoundShield] = new ItemDefinition(RoundShield, "Round Shield", "shield", EquipSlots.Shield, 1),
+            // Magic staffs (docs/STAFFS.md): the spell on the click, every shot paying mana. Drawn in code until the owner's models.
+            [ArcaneStaff] = new ItemDefinition(ArcaneStaff, "Arcane Staff", "weapon", EquipSlots.Primary, 1),
+            [FireballStaff] = new ItemDefinition(FireballStaff, "Fireball Staff", "weapon", EquipSlots.Primary, 1),
+            [IceShardStaff] = new ItemDefinition(IceShardStaff, "Ice Shard Staff", "weapon", EquipSlots.Primary, 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

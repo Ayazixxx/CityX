@@ -33,7 +33,7 @@ kept. An ordinary load is plain from the start and is shot exactly as before (`P
 
 **Mana** (`PlayerVitals`): `Mana`, `MaxMana` (100), `ManaRegenPerSecond` (4, not while dead), `TrySpendMana`, refilled on respawn.
 `ManaUnlocked` shows or hides the bar; it is true for everyone for now, and is meant to turn on with the first spell unlocked (GAME_DESIGN.md:
-Mana appears with your first spell). Nothing spends mana yet: what each spell costs is to be decided by how strong it is (owner).
+Mana appears with your first spell). Arcane Orb and the staffs spend it (2026-10-27, docs/ARCANE_ORB.md, docs/STAFFS.md: my numbers); the older spells do not yet: what each spell costs is to be decided by how strong it is (owner).
 
 **Tests**: `PlayerHudTests` (every piece wired, the percentages, the art painted on every piece), `PlayerHudPlayTests` (the mana bar follows mana
 and hides without it, the health percentage, the character's name), `PlayerHudPortraitPlayTests` (with -Graphics: a portrait taken with the fists up is taken again once they are down; the head fills the middle of

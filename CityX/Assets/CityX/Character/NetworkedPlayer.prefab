@@ -116,13 +116,16 @@ PrefabInstance:
       addedObject: {fileID: 8243129109476981106}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 459927450642048806}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 6274856749431340030}
+      addedObject: {fileID: 743780555126619273}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -386,6 +389,12 @@ MonoBehaviour:
     Prefab: {fileID: 3368552267168502446, guid: 39f322b1d45be904aac97d5896056930, type: 3}
   - ItemId: spray_can
     Prefab: {fileID: 1457213973204992229, guid: c6f1f93176398104d9f27215ee7a94dd, type: 3}
+  - ItemId: arcane_staff
+    Prefab: {fileID: 3468880142499063071, guid: 54afee851d426e540a538ff4e5800caf, type: 3}
+  - ItemId: fireball_staff
+    Prefab: {fileID: 582336585148043822, guid: 1a4bd01362abd3a4c8d958a325b648ec, type: 3}
+  - ItemId: ice_shard_staff
+    Prefab: {fileID: 2743264199323493505, guid: bb9fa502648ce524f9bc8e6b8a2a4aad, type: 3}
   - ItemId: knight_helmet
     Prefab: {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
   - ItemId: farmer_hat
@@ -452,6 +461,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7c7b532583efde408975033ef87f57c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.FireballCaster
+  LightMaterial: {fileID: 2100000, guid: 1d309feaf5d69004cbc4800b421ca350, type: 2}
   CooldownSeconds: 1.5
   CastPoseSeconds: 0.4
   FireballPrefab: {fileID: 6403064486318267181, guid: c304ea8a97999f14c9cfc456c33418d9, type: 3}
@@ -660,6 +670,20 @@ MonoBehaviour:
   StrikeSound: {fileID: 8300000, guid: f739da78e91ef5e48a93a3a2014bbb1a, type: 3}
   LightMaterial: {fileID: 2100000, guid: 1d309feaf5d69004cbc4800b421ca350, type: 2}
   CooldownSeconds: 5
+--- !u!114 &459927450642048806
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3488aa6f0cfe4dd46a8cca6607aef420, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.ArcaneOrbCaster
+  CastPoseSeconds: 0.4
+  LightMaterial: {fileID: 2100000, guid: 1d309feaf5d69004cbc4800b421ca350, type: 2}
 --- !u!114 &4178808262995625697
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -684,7 +708,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &6274856749431340030
+--- !u!114 &743780555126619273
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

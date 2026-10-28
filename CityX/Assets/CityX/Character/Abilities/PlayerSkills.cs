@@ -116,6 +116,29 @@ namespace CityX.Character
             return refusal;
         }
 
+        /// <summary>A skill's rank: 0 not learnt, 1 once learnt, more for each rank bought.</summary>
+        public int RankOf(string id) => Book.RankOf(id);
+
+        /// <summary>Why a learnt skill cannot go up a rank now (None: it can).</summary>
+        public SkillBook.Refusal WhyNotRankUp(string id) => Book.WhyNotRankUp(id, Points);
+
+        /// <summary>Raises a learnt skill a rank, paying its point.</summary>
+        public SkillBook.Refusal TryRankUp(string id)
+        {
+            int points = Points;
+            SkillBook.Refusal refusal = Book.TryRankUp(id, ref points);
+            if (refusal != SkillBook.Refusal.None)
+            {
+                return refusal;
+            }
+            if (Vitals != null)
+            {
+                Vitals.SkillPoints = points;
+            }
+            RaiseChanged();
+            return refusal;
+        }
+
         /// <summary>Forgets every skill but vaulting and gives the points back (a respec: free for now, GAME_DESIGN.md).</summary>
         public int ResetAll()
         {
@@ -227,6 +250,15 @@ namespace CityX.Character
             {
                 var book = new SkillBook();
                 book.SetLearnt(save.LearnedSkills);
+                var ranks = new List<KeyValuePair<string, int>>();
+                if (save.SkillRanks != null)
+                {
+                    foreach (SkillRankEntry entry in save.SkillRanks)
+                    {
+                        ranks.Add(new KeyValuePair<string, int>(entry.Id, entry.Rank));
+                    }
+                }
+                book.SetRanks(ranks);
                 Book = book;
                 Bar.Load(save.Hotbar);
                 for (int slot = 0; slot < Hotbar.SlotCount; slot++)
@@ -250,6 +282,12 @@ namespace CityX.Character
             save.SkillsVersion = CharacterSave.CurrentSkillsVersion;
             save.LearnedSkills = new List<string>(Book.Learnt);
             save.LearnedSkills.Sort(System.StringComparer.Ordinal);
+            save.SkillRanks = new List<SkillRankEntry>();
+            foreach (KeyValuePair<string, int> rank in Book.Ranks)
+            {
+                save.SkillRanks.Add(new SkillRankEntry(rank.Key, rank.Value));
+            }
+            save.SkillRanks.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
             save.Hotbar = Bar.ToList();
         }
 

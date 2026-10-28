@@ -126,6 +126,9 @@ namespace CityX.Core
         /// <summary>The ids of the skills learnt (SkillCatalog in Character).</summary>
         public List<string> LearnedSkills = new List<string>();
 
+        /// <summary>The ranks bought past the first, by skill id (a learnt skill missing here is at rank 1).</summary>
+        public List<SkillRankEntry> SkillRanks = new List<SkillRankEntry>();
+
         /// <summary>The bar, keys 1 to 0: a skill id per slot, an empty string for an empty slot.</summary>
         public List<string> Hotbar = new List<string>();
 
@@ -262,6 +265,12 @@ namespace CityX.Core
                 changed = true;
             }
 
+            if (SkillRanks == null)
+            {
+                SkillRanks = new List<SkillRankEntry>();
+                changed = true;
+            }
+
             if (Hotbar == null)
             {
                 Hotbar = new List<string>();
@@ -330,6 +339,20 @@ namespace CityX.Core
         {
             Key = key;
             Points = points;
+        }
+    }
+
+    /// <summary>One skill's rank in a save, by the skill's id (only ranks past the first are written).</summary>
+    [Serializable]
+    public struct SkillRankEntry
+    {
+        public string Id;
+        public int Rank;
+
+        public SkillRankEntry(string id, int rank)
+        {
+            Id = id;
+            Rank = rank;
         }
     }
 }

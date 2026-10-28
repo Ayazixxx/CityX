@@ -39,8 +39,8 @@ namespace CityX.WeaponsEditor
         [MenuItem("CityX/Rebuild Spray Can")]
         public static GameObject Build()
         {
-            Mesh body = SaveMesh(Lathe(BodyProfile, "SprayCanBody"), BodyMeshPath);
-            Mesh cap = SaveMesh(Lathe(CapProfile, "SprayCanCap"), CapMeshPath);
+            Mesh body = SaveMesh(HeldModelBaker.Lathe(BodyProfile, "SprayCanBody", Sides), BodyMeshPath);
+            Mesh cap = SaveMesh(HeldModelBaker.Lathe(CapProfile, "SprayCanCap", Sides), CapMeshPath);
             Material metal = HeldModelBaker.LitMaterial(MetalMaterialPath, new Color(0.74f, 0.76f, 0.79f), 0.85f, 0.62f);
             Material capMaterial = HeldModelBaker.LitMaterial(CapMaterialPath, Color.white, 0.0f, 0.5f);
 
@@ -112,54 +112,6 @@ namespace CityX.WeaponsEditor
             material.SetColor("_BaseColor", Color.white);
             EditorUtility.SetDirty(material);
             return material;
-        }
-
-        /// <summary>A profile turned round the y axis: smooth sides, flat ends.</summary>
-        private static Mesh Lathe(Vector2[] profile, string name)
-        {
-            var positions = new List<Vector3>();
-            var normals = new List<Vector3>();
-            var triangles = new List<int>();
-            for (int segment = 0; segment + 1 < profile.Length; segment++)
-            {
-                Vector2 a = profile[segment];
-                Vector2 b = profile[segment + 1];
-                Vector2 along = b - a;
-                // The outward normal of this band in the profile's plane (radius out, height up).
-                Vector2 n2 = new Vector2(along.y, -along.x).normalized;
-                if (n2.x < 0.0f || (Mathf.Approximately(n2.x, 0.0f) && along.x < 0.0f))
-                {
-                    n2 = -n2;
-                }
-                int first = positions.Count;
-                for (int s = 0; s <= Sides; s++)
-                {
-                    float angle = s / (float)Sides * Mathf.PI * 2.0f;
-                    var spoke = new Vector3(Mathf.Cos(angle), 0.0f, Mathf.Sin(angle));
-                    Vector3 normal = (spoke * n2.x + Vector3.up * n2.y).normalized;
-                    positions.Add(spoke * a.x + Vector3.up * a.y);
-                    normals.Add(normal);
-                    positions.Add(spoke * b.x + Vector3.up * b.y);
-                    normals.Add(normal);
-                }
-                for (int s = 0; s < Sides; s++)
-                {
-                    int v = first + s * 2;
-                    // Outward-facing, clockwise seen from outside.
-                    triangles.Add(v);
-                    triangles.Add(v + 1);
-                    triangles.Add(v + 3);
-                    triangles.Add(v);
-                    triangles.Add(v + 3);
-                    triangles.Add(v + 2);
-                }
-            }
-            var mesh = new Mesh { name = name };
-            mesh.SetVertices(positions);
-            mesh.SetNormals(normals);
-            mesh.SetTriangles(triangles, 0);
-            mesh.RecalculateBounds();
-            return mesh;
         }
 
         private static Mesh SaveMesh(Mesh mesh, string path)

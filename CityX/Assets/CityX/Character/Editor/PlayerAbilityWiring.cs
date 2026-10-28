@@ -47,6 +47,7 @@ namespace CityX.CharacterEditor
                 fireball.CastAudio = castAudio;
             }
             fireball.CastAudio.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(FireballCastClipPath);
+            fireball.LightMaterial = EnsureSelfSmiteLightMaterial() ?? fireball.LightMaterial;   // the Fireball Staff's charge glow
 
             // --- the ice shards (key 3).
             var iceShards = GetOrAdd<IceShardCaster>(player);
@@ -75,6 +76,10 @@ namespace CityX.CharacterEditor
             var selfSmite = GetOrAdd<SelfSmiteAbility>(player);
             selfSmite.StrikeSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ThunderStrikeClipPath) ?? selfSmite.StrikeSound;
             selfSmite.LightMaterial = EnsureSelfSmiteLightMaterial() ?? selfSmite.LightMaterial;
+
+            // --- Arcane Orb (Arcanist) and the Arcane Staff's shots: drawn and voiced in code, its glows from Self Smite's light.
+            var arcaneOrb = GetOrAdd<ArcaneOrbCaster>(player);
+            arcaneOrb.LightMaterial = EnsureSelfSmiteLightMaterial() ?? arcaneOrb.LightMaterial;
 
             // --- Grow and Shrink (Wizard; Grow on key 0 of the default bar): drawn and voiced in code, nothing to load.
             GetOrAdd<BodySizeAbility>(player);

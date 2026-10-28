@@ -131,7 +131,7 @@ namespace CityX.Character
                 _ragdoll = GetComponent<Ragdoll>();
                 _grapple = GetComponent<GrappleSwing>();
             }
-            if (_reader != null && (_reader.EquippedGun != null || _reader.EquippedFlamethrower != null))
+            if (_reader != null && (_reader.EquippedGun != null || _reader.EquippedFlamethrower != null || _reader.EquippedStaff != null))
             {
                 return true;
             }

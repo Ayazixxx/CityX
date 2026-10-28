@@ -14,7 +14,7 @@ namespace CityX.Weapons
     ///
     /// Everything is a function of a delta (Tick), like the other casters.
     /// </summary>
-    public sealed class IceShardCaster : MonoBehaviour, IIceShardCaster, IReplicatedAbility
+    public sealed partial class IceShardCaster : MonoBehaviour, IIceShardCaster, IReplicatedAbility
     {
         public const string Id = "ice-shards";
 
@@ -96,6 +96,7 @@ namespace CityX.Weapons
         public void Bind()
         {
             _vitals = GetComponent<PlayerVitals>();
+            _locomotion = GetComponent<PlayerLocomotion>();
         }
 
         public void Tick(float deltaTime)
@@ -168,17 +169,23 @@ namespace CityX.Weapons
             }
         }
 
-        private void FireOne()
+        /// <summary><paramref name="direction"/> nudged off by the <paramref name="index"/>th step of the pattern, <paramref name="spreadDegrees"/> at most.</summary>
+        private static Vector3 Nudged(Vector3 direction, int index, float spreadDegrees)
         {
-            Vector2 nudge = Pattern[_shotsFired % Pattern.Length] * (SpreadDegrees * Mathf.Deg2Rad);
-            Vector3 right = Vector3.Cross(Vector3.up, _direction);
+            Vector2 nudge = Pattern[index % Pattern.Length] * (spreadDegrees * Mathf.Deg2Rad);
+            Vector3 right = Vector3.Cross(Vector3.up, direction);
             if (right.sqrMagnitude < 1e-6f)
             {
                 right = Vector3.right;   // aiming straight up or down
             }
             right.Normalize();
-            Vector3 up = Vector3.Cross(_direction, right);
-            Vector3 aimed = (_direction + right * Mathf.Tan(nudge.x) + up * Mathf.Tan(nudge.y)).normalized;
+            Vector3 up = Vector3.Cross(direction, right);
+            return (direction + right * Mathf.Tan(nudge.x) + up * Mathf.Tan(nudge.y)).normalized;
+        }
+
+        private void FireOne()
+        {
+            Vector3 aimed = Nudged(_direction, _shotsFired, SpreadDegrees);
 
             // A spell: Spell Power makes it hurt more, and the caster's Armor Penetration goes with it (2026-10-14).
             int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
@@ -202,6 +209,11 @@ namespace CityX.Weapons
         {
             if (evt.Direction.sqrMagnitude < 0.0001f)
             {
+                return;
+            }
+            if (evt.Kind == StaffShardFired)
+            {
+                PlayRemoteStaffShard(evt);
                 return;
             }
             float speed = evt.A > 0.0f ? evt.A : ShardSpeed;

@@ -132,6 +132,7 @@ namespace CityX.Core
                 stored.SkillsVersion = reported.SkillsVersion;
                 stored.SkillPoints = reported.SkillPoints;
                 stored.LearnedSkills = reported.LearnedSkills;
+                stored.SkillRanks = reported.SkillRanks;
                 stored.PlaytimeSeconds = reported.PlaytimeSeconds;
                 _lastAccepted[stored.Id] = now;
             }

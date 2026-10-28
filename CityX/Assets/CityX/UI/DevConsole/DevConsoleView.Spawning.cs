@@ -336,6 +336,18 @@ namespace CityX.UI
                 case "baseballbat":
                 case "baseball_bat": return ItemRegistry.BaseballBat;
                 case "flamethrower": return ItemRegistry.Flamethrower;
+                case "staff":
+                case "arcane":
+                case "arcanestaff":
+                case "arcane_staff": return ItemRegistry.ArcaneStaff;
+                case "firestaff":
+                case "fire_staff":
+                case "fireballstaff":
+                case "fireball_staff": return ItemRegistry.FireballStaff;
+                case "icestaff":
+                case "ice_staff":
+                case "iceshardstaff":
+                case "ice_shard_staff": return ItemRegistry.IceShardStaff;
                 case "spray":
                 case "spraycan":
                 case "spray_can":

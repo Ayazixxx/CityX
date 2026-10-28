@@ -24,7 +24,8 @@ namespace CityX.Weapons
         private float _flashStartIntensity;
         private float _flashElapsed;
 
-        public static FireBurst Spawn(GameObject prefab, Vector3 position, Vector3 normal)
+        /// <summary>A burst at <paramref name="position"/>; a charged fireball's is <paramref name="scale"/> times as big, flash and all.</summary>
+        public static FireBurst Spawn(GameObject prefab, Vector3 position, Vector3 normal, float scale = 1.0f)
         {
             if (prefab == null)
             {
@@ -33,6 +34,19 @@ namespace CityX.Weapons
 
             Vector3 away = normal.sqrMagnitude > 0.0001f ? normal.normalized : Vector3.up;
             GameObject instance = Instantiate(prefab, position, Quaternion.LookRotation(away));
+            if (!Mathf.Approximately(scale, 1.0f))
+            {
+                instance.transform.localScale = Vector3.one * scale;
+                foreach (ParticleSystem particles in instance.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    ParticleSystem.MainModule main = particles.main;
+                    main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                }
+                foreach (Light light in instance.GetComponentsInChildren<Light>(true))
+                {
+                    light.range *= scale;
+                }
+            }
             return instance.GetComponent<FireBurst>();
         }
 

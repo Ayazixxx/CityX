@@ -13,7 +13,7 @@ apart of climb"; movement does not go on the bar ("not the ones we included so f
 
 ### The trees (`Character/Abilities/SkillCatalog.cs`)
 
-One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromancer, Steam, Hydromancer, Cryomancer, Plaguebringer, Electromancer, Wizard**.
+One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromancer, Steam, Hydromancer, Cryomancer, Plaguebringer, Electromancer, Arcanist, Wizard**.
 
 | Tree | Stars | Notes |
 |---|---|---|
@@ -26,6 +26,7 @@ One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromanc
 | Cryomancer | Ice Shards | |
 | Plaguebringer | Poison Breath -> Acid Rain | |
 | Electromancer | Self Smite | the owner's tree (2026-10-15); Self Smite is Pikachu's Thunder, see docs/SELF_SMITE.md |
+| Arcanist | Arcane Orb | the owner's arcane spells (2026-10-27) in a tree I named; Arcane Orb is Sephiroth's Shadow Flare, the first skill with ranks; see docs/ARCANE_ORB.md |
 | Wizard | Grow, Shrink (side by side at the root) | the owner's tree (2026-10-15: "i was going to make one just called Wizard"); ten times as big or a tenth, 30 s each, see docs/SIZE_SPELLS.md |
 
 Every tree also has **empty stars** ("Not designed yet") where later skills go; they are never learnable. Every tree shape except Freerunner's is
@@ -43,6 +44,15 @@ my layout, as are the trees' order and the two not in the game.
   turns that into points to spend. That is every skill **but Super Jump** (`SkillBook.AsBeforeTheTree`): the charged jump was not in the game, and
   knowing it moves a jump from the press of Space to its release, which every test (and anyone used to the instant jump) would trip over.
 - Saved with the character (`LearnedSkills`, `Hotbar`, `SkillPoints`, `SkillsVersion` in `CharacterSave`; `CharacterIdentity` reads and writes).
+
+### Ranks (2026-10-27, with Arcane Orb)
+
+The owner, of Arcane Orb: "you can upgrade it and level it up to get stronger and eventually go up to 3". A skill may have ranks
+(`SkillNode.MaxRank`; Arcane Orb's are endless, GAME_DESIGN.md's Infinite upgrades): learning it is rank 1, and each rank after costs **1 skill
+point** (`SkillBook.RankCost`; how the cost should grow is open). The star's card shows the rank beside the tree's name and, with a point to spend,
+a **Rank up** button where Learn was (a controller's second A press, likewise). A reset gives the ranks' points back too. Saved with the character
+(`CharacterSave.SkillRanks`, only ranks past the first); the server counts them in the skill points a save has spent (`ProgressRules.SkillBudget`).
+What a rank does is the skill's own: Arcane Orb adds an orb a rank up to three, and a tenth more damage every rank.
 
 ### What a skill gates (`PlayerInputReader`)
 
@@ -92,14 +102,14 @@ body's, `NetworkedPlayerIdentity.OnStartClient`).
 
 ### Tests
 
-`SkillTreeTests` (the map's data, the rules, the bar, the save, skill points, the forgiven landing), `SkillMapLayoutTests` (the row, the two copies,
+`SkillTreeTests` (the map's data, the rules, the bar, the save, skill points, the forgiven landing), `SkillRankTests` (ranks: their cost, a reset, the save, the server's count), `SkillMapLayoutTests` (the row, the two copies,
 wrapping, stepping tree to tree, show all), `SkillMenuPlayTests` (learning, the bar, dragging a star onto a slot, wrapping, zoom, reset, closing,
 the HUD's bar), `SkillLocksRealInputPlayTests` (real keys in the real city: a new character's keys, a spell moved to 0, Dash, Climb and Super Jump
 only once learnt, a super jump's landing). `SkillMenuCapture` (Explicit, -Graphics) renders `Logs/CityShots/skills-*.png`.
 
 ### Not done
 
-- Costs beyond 1 point, deeper stars, real skills for the empty stars, upgrade ranks (GAME_DESIGN.md: Infinite upgrades).
+- Costs beyond 1 point, deeper stars, real skills for the empty stars, ranks for the skills before Arcane Orb (GAME_DESIGN.md: Infinite upgrades).
 - One bar per weapon (my suggestion, undecided). Cooldown sweeps on the slots (each ability reports readiness differently).
 - The tutorial that teaches vaulting (vaulting is simply known from the start).
 - A joining player's HUD and C menu are still built for the scene's body; the skill menu and the bar follow their own body.

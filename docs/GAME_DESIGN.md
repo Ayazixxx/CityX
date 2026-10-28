@@ -218,6 +218,8 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 
 **My suggestions, not decided:** the charged slash is tagged both sword and Electric, so sword skills and electric boosts both raise it (by the tags rule above); a wand is one-handed with a smaller boost and leaves the off hand free, a staff two-handed with a bigger one; all staffs share one moveset, so a new staff is mostly a model and its attack. Open: what becomes of the flamethrower beside a flame staff.
 
+**Built 2026-10-27** (docs/STAFFS.md): the Arcane Staff (Arcane Orb on the click, charged to 2 and 3 orbs), the Fireball Staff (held, a bigger fireball with a blast, up to 1.5 s) and the Ice Shard Staff (held, an automatic stream of shards), every shot paying mana, with stand-in models drawn in code. The element boosts, general staffs and wands are not built yet.
+
 ## God-tier spells
 
 One holder per world: a flood, meteors, an Almighty Push, a zombie horde, a giant transformation or summon. Modelled on Lineage 2's Cursed Swords (one per server; the world goes red when one appears; the holder is hunted).

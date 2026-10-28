@@ -42,8 +42,14 @@ namespace CityX.Character
         /// </summary>
         public IEquippableFlamethrower EquippedFlamethrower;
 
-        /// <summary>A ranged weapon is in hand (a gun or the flamethrower): aimed with the crosshair, never locked on.</summary>
-        public bool HoldsRangedWeapon => EquippedGun != null || EquippedFlamethrower != null;
+        /// <summary>
+        /// Set by a staff's OnEquip/OnUnequip (docs/STAFFS.md), as EquippedFlamethrower is. While non-null, left-click is the staff's: held it
+        /// charges or keeps shooting, let go it shoots; see TickCombat's staff branch.
+        /// </summary>
+        public IEquippableStaff EquippedStaff;
+
+        /// <summary>A ranged weapon is in hand (a gun, the flamethrower or a staff): aimed with the crosshair, never locked on.</summary>
+        public bool HoldsRangedWeapon => EquippedGun != null || EquippedFlamethrower != null || EquippedStaff != null;
 
         /// <summary>
         /// Set by the spray can's own OnEquip/OnUnequip (2026-10-15), same pattern as EquippedGun. While non-null, a right-click asks for the
@@ -155,12 +161,15 @@ namespace CityX.Character
         /// so every "aim at the crosshair from somewhere else on the body"
         /// case in this project agrees on what "the crosshair" even means.
         /// </summary>
-        private static Vector3 ConvergedDirection(Vector3 origin, Transform aimSource)
+        private static Vector3 ConvergedDirection(Vector3 origin, Transform aimSource) =>
+            ConvergedDirection(origin, aimSource.position, aimSource.forward);
+
+        /// <summary>From <paramref name="origin"/> toward where the crosshair is, the camera at <paramref name="eye"/> looking along <paramref name="look"/>.</summary>
+        public static Vector3 ConvergedDirection(Vector3 origin, Vector3 eye, Vector3 look)
         {
-            Vector3 aimPoint = aimSource.position +
-                aimSource.forward * PlayerLocomotion.GunAimConvergenceDistance;
+            Vector3 aimPoint = eye + look * PlayerLocomotion.GunAimConvergenceDistance;
             Vector3 toAimPoint = aimPoint - origin;
-            return toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : aimSource.forward;
+            return toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : look;
         }
 
         /// <summary>
@@ -229,6 +238,7 @@ namespace CityX.Character
             _skills = PlayerSkills.On(gameObject);
             _fireballCaster = GetComponent<IFireballCaster>();
             _iceShards = GetComponent<IIceShardCaster>();
+            _arcaneOrb = GetComponent<IArcaneOrbCaster>();
             _poisonBreath = GetComponent<IPoisonBreathCaster>();
             _swordWave = GetComponent<ISwordWaveCaster>();
             _acidRain = GetComponent<IAcidRainCaster>();
@@ -357,6 +367,7 @@ namespace CityX.Character
             SoulsSword?.Tick(deltaTime);
             _fireballCaster?.Tick(deltaTime);
             _iceShards?.Tick(deltaTime);
+            _arcaneOrb?.Tick(deltaTime);
             _poisonBreath?.Tick(deltaTime);
             _swordWave?.Tick(deltaTime);
 
@@ -604,6 +615,10 @@ namespace CityX.Character
                 {
                     CastIceShards(swingYawSource);
                 }
+                if (_skills.Pressed(SkillCatalog.ArcaneOrb, keyboard))
+                {
+                    CastArcaneOrb(swingYawSource);
+                }
                 if (_skills.Pressed(SkillCatalog.PoisonBreath, keyboard))
                 {
                     CastPoisonBreath(swingYawSource);
@@ -842,6 +857,11 @@ namespace CityX.Character
             if (_skills.Pressed(SkillCatalog.IceShards, keyboard))
             {
                 CastIceShards(yawSource);
+            }
+            // ARCANE ORB (Arcanist): a ball of magenta aura down the crosshair that leaves cursed orbs on whoever it hits (docs/ARCANE_ORB.md).
+            if (_skills.Pressed(SkillCatalog.ArcaneOrb, keyboard))
+            {
+                CastArcaneOrb(yawSource);
             }
             // 4: POISON GAS, innate like the fireball: a cloud of purple gas blown out down the crosshair; whatever breathes it is poisoned
             // (never the one who blew it).
