@@ -99,37 +99,28 @@ namespace CityX.Weapons
 
         // ---- THE HOLD ----
         //
-        // DERIVED FROM THE MOCAP by default. The Godot mount (position (-0.055,-0.197,-0.343), rotation
-        // (103,95,120)) was tuned against Godot's own clips; against the Mixamo idle this project uses now it
-        // held the sword across the chest with neither hand on the hilt (measured: hands 43cm and 46cm from
-        // the grip; the blade axis 87 degrees off the line between the hands). So the default is rebuilt
-        // from what the animation says: in 2hsw_idle the right hand is the upper hand and the left the lower,
-        // 39cm apart on one line, and that line in the right hand's frame is the blade's axis. The handle
-        // passes through the palm, and the left hand is reached onto it (PlayerLocomotion.SetSupportHand).
+        // FROM THE HAND'S OWN SHAPE, as the one-handed hold below is (owner, 2026-10-28: "he doesnt even grip the sword properly, use spikesword
+        // as guide"). The old default was derived from the 2hsw mocap's hands, which ran the handle ALONG the fingers (+X of the hand bone), so
+        // the fist closed on nothing and both hands sat up on the guard. Now the handle lies ACROSS the palm with the blade out past the thumb
+        // and the edge along the knuckles, the right fist just under the guard and the left fist a hand's breadth and more below it, reached onto
+        // the handle by IK and turned onto it (PlayerLocomotion.SetSupportHand): the two-handed hammer grip.
         //
         // TUNED BY HAND in the Unity editor when it needs to be: see WeaponGripSettings and the Inspector on
         // this component. A saved hold replaces the derived one below.
 
-        /// <summary>The blade's direction (hilt to tip) in the right-hand bone's own frame: from the lower hand to the upper.</summary>
-        public static readonly Vector3 DefaultBladeAxisInHand = new Vector3(0.84f, -0.25f, 0.48f).normalized;
+        /// <summary>The blade's direction (hilt to tip) in the right-hand bone's own frame: out past the thumb.</summary>
+        public static Vector3 DefaultBladeAxisInHand => OneHandBladeAxisInHand;
 
-        /// <summary>Spin of the blade about its own axis in the hand (which way the edge faces), in degrees: 270 has it forward.</summary>
-        public const float DefaultRollDegrees = 270.0f;
+        /// <summary>How far down the handle from the guard the right (upper) fist's middle sits, in the sword's own space.</summary>
+        public const float DefaultPrimaryGripDown = 0.10f;
 
-        /// <summary>The palm's centre in the right-hand bone's frame: along the forearm (measured (0.949,0.141,-0.283)), 8cm out.</summary>
-        public static Vector3 PalmInHand => new Vector3(0.949f, 0.141f, -0.283f).normalized * PlayerLocomotion.PalmOffsetMetres;
+        /// <summary>How far down the handle from the guard the left (lower) fist's middle sits: 20 cm below the right.</summary>
+        public const float DefaultSupportGripDown = 0.30f;
 
-        /// <summary>How far down the handle from the guard the right (upper) hand holds, in the sword's own space.</summary>
-        public const float DefaultPrimaryGripDown = 0.12f;
+        public static Quaternion DefaultGripRotation => DefaultOneHandGripRotation;
 
-        /// <summary>How far down the handle from the guard the left (lower) hand holds: 20cm below the right.</summary>
-        public const float DefaultSupportGripDown = 0.32f;
-
-        public static Quaternion DefaultGripRotation =>
-            Quaternion.FromToRotation(Vector3.up, DefaultBladeAxisInHand) * Quaternion.AngleAxis(DefaultRollDegrees, Vector3.up);
-
-        /// <summary>The sword root's position in the right-hand bone's frame: the handle at the primary grip under the palm.</summary>
-        public static Vector3 DefaultGripPosition => PalmInHand + DefaultBladeAxisInHand * DefaultPrimaryGripDown;
+        /// <summary>The sword root's position in the right-hand bone's frame: the handle through the fist, the guard the primary grip above it.</summary>
+        public static Vector3 DefaultGripPosition => FistPoint + DefaultBladeAxisInHand * DefaultPrimaryGripDown;
 
         /// <summary>Where the left palm goes, in the sword's own space (the blade runs along +Y from the guard).</summary>
         public static Vector3 DefaultSupportPoint => new Vector3(0.0f, -DefaultSupportGripDown, 0.0f);
@@ -245,6 +236,29 @@ namespace CityX.Weapons
         {
             transform.localPosition = Vector3.Lerp(HoldPosition, FistPoint + ThrustBladeAxisInHand * ThrustGripReach, weight);
             transform.localRotation = Quaternion.Slerp(HoldRotation, ThrustGripRotation, weight);
+        }
+
+        // ---- THE MOCAP GRIP (the Octaslash) ----
+        //
+        // The two-handed hold the 2hsw mocap gave, which was the default until 2026-10-28: the blade axis the line from the lower hand to the
+        // upper in the right hand's frame, the handle along the fingers. The Octaslash was posed in Blender against it (SourceArt/Octaslash), so
+        // it keeps it while it holds the body; nothing else uses it.
+
+        public static readonly Vector3 MocapBladeAxisInHand = new Vector3(0.84f, -0.25f, 0.48f).normalized;
+
+        public const float MocapRollDegrees = 270.0f;
+
+        public static Quaternion BakedTwoHandGripRotation =>
+            Quaternion.FromToRotation(Vector3.up, MocapBladeAxisInHand) * Quaternion.AngleAxis(MocapRollDegrees, Vector3.up);
+
+        public static Vector3 BakedTwoHandGripPosition =>
+            new Vector3(0.949f, 0.141f, -0.283f).normalized * PlayerLocomotion.PalmOffsetMetres + MocapBladeAxisInHand * 0.12f;
+
+        /// <summary>Holds the sword in the mocap grip a Blender move was posed with, <paramref name="weight"/> of the way from its own hold.</summary>
+        public void HoldForMocap(float weight)
+        {
+            transform.localPosition = Vector3.Lerp(HoldPosition, BakedTwoHandGripPosition, weight);
+            transform.localRotation = Quaternion.Slerp(HoldRotation, BakedTwoHandGripRotation, weight);
         }
 
         /// <summary>Puts the sword and the left-hand marker where the current hold (saved or derived) says.</summary>

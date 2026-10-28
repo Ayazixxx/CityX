@@ -157,6 +157,11 @@ namespace CityX.Character
         {
         }
 
+        /// <summary>Holds the sword in the mocap's two-handed grip at <paramref name="weight"/>: the Octaslash was posed with it (BakedPose.MocapGrip).</summary>
+        void HoldForMocap(float weight)
+        {
+        }
+
         float GetMeleeDamage();
     }
 

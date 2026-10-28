@@ -331,9 +331,10 @@ namespace CityX.Tests
                 }
             }
 
-            Assert.Less(worstLeft, 0.10f,
+            // The hammer grip (2026-10-28) puts the handle under the palm's thickness: 6 cm off the palm point before any bend of the wrist.
+            Assert.Less(worstLeft, 0.14f,
                 $"the left hand strays {worstLeft * 100:0}cm from the sword's grip during the swing");
-            Assert.Less(worstRight, 0.10f,
+            Assert.Less(worstRight, 0.14f,
                 $"the right hand strays {worstRight * 100:0}cm from the sword's grip during the swing");
 #else
             yield break;
@@ -367,7 +368,9 @@ namespace CityX.Tests
             Assert.Less(sword.EdgeDirectionWorld.y, -0.5f, "the cutting edge should face down");
             Assert.Greater(shoulder.y - right.y, 0.4f, "the hands should be low at the side, not up at the shoulders");
             Assert.Less(Vector3.Angle(blade, handLine), 40.0f, "the blade should run on from the lower hand through the upper");
-            Assert.Less(DistanceFromGrip(sword, right), 0.08f, "the right hand is off the hilt");
+            // In the hammer grip (2026-10-28) the handle lies under the palm's thickness (SwordWeapon.OneHandHandleBelowPalm), so the palm point
+            // sits 6 cm off it before any bend of the wrist.
+            Assert.Less(DistanceFromGrip(sword, right), 0.12f, "the right hand is off the hilt");
             Assert.Less(_locomotion.SupportHandError, 0.05f, $"the left palm is {_locomotion.SupportHandError * 100:0} cm from its grip point");
 #else
             yield break;

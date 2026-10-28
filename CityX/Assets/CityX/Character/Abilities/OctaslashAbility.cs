@@ -94,6 +94,10 @@ namespace CityX.Character
             _vitals = GetComponent<PlayerVitals>();
             _motion = BakedMotion.Load(OctaslashMove.MotionResource);
             _pose = _motion != null ? new BakedPose(_motion.Bones) : null;
+            if (_pose != null)
+            {
+                _pose.MocapGrip = true;   // posed in Blender against the mocap's two-handed hold (octaslash_build_all.py)
+            }
         }
 
         public bool CanStart => Current == Phase.Idle && _cooldown <= 0.0f && _melee != null && _melee.HoldsSword && !_melee.IsSwinging

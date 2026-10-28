@@ -52,7 +52,8 @@ namespace CityX.Character
         /// The sword in the right hand held in the thrust grip, <paramref name="weight"/> of the way (BakedPose.ThrustGrip), and handed back to its own
         /// hold at 0. A sword that has left the hand meanwhile (put away mid-move) is left alone.
         /// </summary>
-        private void HoldSwordForThrust(float weight)
+        /// <summary>The sword in the right hand held the way the baked move was posed: the thrust grip, or the mocap grip (the Octaslash), <paramref name="weight"/> of the way.</summary>
+        private void HoldSwordForBakedMove(float weight, bool mocap)
         {
             if (weight > 0.0f && _swordHeldForThrust == null && _handR != null)
             {
@@ -67,7 +68,14 @@ namespace CityX.Character
                 _swordHeldForThrust = null;
                 return;
             }
-            _swordHeldForThrust.HoldForThrust(weight);
+            if (mocap)
+            {
+                _swordHeldForThrust.HoldForMocap(weight);
+            }
+            else
+            {
+                _swordHeldForThrust.HoldForThrust(weight);
+            }
             if (weight <= 0.0f)
             {
                 _swordHeldForThrust = null;
@@ -113,7 +121,7 @@ namespace CityX.Character
             _bakedFingerWeight = 0.0f;
             if (_bakedPose == null || _bakedPoseWeight <= 0.0f || _animator == null)
             {
-                HoldSwordForThrust(0.0f);   // a move in the thrust grip, once it has let go, hands the sword back to its own hold
+                HoldSwordForBakedMove(0.0f, false);   // a move in its own grip, once it has let go, hands the sword back to its own hold
                 return;
             }
             if (!ReferenceEquals(_bakedBonesFor, _bakedPose.Bones))
@@ -150,7 +158,7 @@ namespace CityX.Character
                 bone.localRotation = weight >= 1.0f ? rotation : Quaternion.Slerp(bone.localRotation, rotation, weight);
             }
             _bakedFingerWeight = _bakedHasFingers ? weight : 0.0f;
-            HoldSwordForThrust(_bakedPose.ThrustGrip ? weight : 0.0f);
+            HoldSwordForBakedMove(_bakedPose.ThrustGrip || _bakedPose.MocapGrip ? weight : 0.0f, _bakedPose.MocapGrip);
 
             // The held thing's parts, in its own frame: the gun's slide, its magazine (which vanishes once it has dropped, and reappears in
             // the free hand). Visibility switches once the pose has mostly taken hold, so a part never blinks during the blend in.

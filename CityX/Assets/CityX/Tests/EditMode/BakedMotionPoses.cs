@@ -47,10 +47,10 @@ namespace CityX.Tests
             return at;
         }
 
-        /// <summary>The blade's direction on a frame: the hand's turn applied to the sword's default hold (the moves were posed with it).</summary>
+        /// <summary>The blade's direction on a frame: the hand's turn applied to the mocap's two-handed hold (the Octaslash was posed with it: BakedPose.MocapGrip).</summary>
         public static Vector3 Blade(Dictionary<string, Quaternion> world)
         {
-            return world["hand_r"] * CityX.Weapons.SwordWeapon.DefaultGripRotation * Vector3.up;
+            return world["hand_r"] * CityX.Weapons.SwordWeapon.BakedTwoHandGripRotation * Vector3.up;
         }
 
         /// <summary>The blade's direction on a frame for a move posed with another grip: the blade along <paramref name="bladeInHand"/> in the right hand's frame.</summary>

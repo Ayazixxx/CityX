@@ -182,6 +182,21 @@ sword (it is mounted at the weapon's tuned grip); the left reaches for the weapo
   turn (a backhand's edge coming over) no longer flips the forearm 200 degrees in a
   frame.
 
+## The two-handed hold is a hammer grip (2026-10-28)
+
+Owner: "work on two handed sword combat he doesnt even grip the sword properly, use spikesword as guide". Rendered up close
+(`SwordGripCapture`), the old default two-handed hold -- derived from the 2hsw mocap's hands -- ran the handle ALONG the fingers of the
+right hand, so the fist closed on nothing and both hands sat up on the guard. Now (`SwordWeapon.DefaultGripRotation`, the one-handed
+hold's own derivation from the hand's shape) the handle lies across the palm with the blade out past the thumb and the edge along the
+knuckles, the right fist 10 cm under the guard and the left fist 30 cm under it, reached onto the handle by IK and turned onto it: the
+hammer grip both hands take on a bat. Since the forearm runs into the hand along the knuckles, a two-handed key's EDGE is also where its
+forearm comes from: the carry now holds the sword low before the belly (blade forward and down, spikes down, the elbows bent above the fists), the sprint trail
+spikes-up, and the guard holds the blade near upright before the chest with the forearms coming in from the sides (the old guard's
+"edge forward" would have bent the wrist double). The swings read the hold from the mounted sword every frame, so they took it as they were
+(`strike-spike-*.png`). The bat shares the hold (its knob 8 cm under the bottom hand, `BluntWeaponTests`); the spike sword's handle is
+0.45 m, room for both fists. Pictures: `SwordGripCapture` (Explicit, `-Graphics`) renders `Logs/CityShots/grip2h-{carry,guard}-*.png` from
+the thumb's side, the back of the hand, above, the front and the whole body.
+
 ## The feet step under the sword (SwordFootwork, 2026-10-16)
 
 The attacks used to be posed over the base layer's walk cycle slowed to

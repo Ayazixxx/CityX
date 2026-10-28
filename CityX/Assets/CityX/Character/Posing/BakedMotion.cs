@@ -367,6 +367,13 @@ namespace CityX.Character
         /// </summary>
         public bool ThrustGrip;
 
+        /// <summary>
+        /// The Octaslash: posed in Blender against the two-handed hold the mocap gave (the handle along the fingers), before the hold became a
+        /// hammer grip (2026-10-28), so while it holds the body the sword is held that old way and its cuts point where the move means them
+        /// (ISwordBlade.HoldForMocap).
+        /// </summary>
+        public bool MocapGrip;
+
         /// <summary>The held thing's parts (BakedMotion.Props), each in the held thing's own frame.</summary>
         public readonly IReadOnlyList<string> Props;
 
