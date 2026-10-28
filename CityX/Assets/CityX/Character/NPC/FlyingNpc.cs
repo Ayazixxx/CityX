@@ -38,7 +38,7 @@ namespace CityX.Character
 
         private FlyingNpcBrain _brain;
         private readonly FlyingNpcSteering _steering = new FlyingNpcSteering();
-        private IJetpack _jetpack;
+        private IFlightGear _jetpack;
 
         public bool IsAvoiding => _steering.IsAvoiding;
         public float HeightAboveSurface => _steering.HeightAboveSurface;
@@ -54,7 +54,7 @@ namespace CityX.Character
             // either way, the same reasoning every bone/Animator lookup in
             // this codebase already uses GetComponentInChildren for instead
             // of a wired field.
-            _jetpack = GetComponentInChildren<IJetpack>();
+            _jetpack = GetComponentInChildren<IFlightGear>();
         }
 
         private void Update()
@@ -75,18 +75,23 @@ namespace CityX.Character
 
             if (_jetpack != null)
             {
-                // thrustHeld true and moveInput (0,1) always -- this body is
+                // Airborne, Space held and W held always -- this body is
                 // always "flying forward" under thrust, unlike a player who
-                // can let go. See IJetpack.Tick's own doc comment for why
-                // OnEquip/Tick both tolerate having no PlayerLocomotion,
-                // PlayerVitals or PlayerInputReader at all: only the
-                // cosmetic flame/audio/lean actually run here, since
-                // SetVerticalVelocity's real caller (Jetpack.Tick's own
-                // `_locomotion?.SetVerticalVelocity`) is a safe no-op with
-                // no PlayerLocomotion on this body -- real movement is
+                // can let go. OnEquip/Tick both tolerate having no
+                // PlayerLocomotion, PlayerVitals or PlayerInputReader at
+                // all: only the cosmetic flame/audio/lean actually run here,
+                // since SetVerticalVelocity's real caller (FlightGear.Tick's
+                // own `_locomotion?.SetVerticalVelocity`) is a safe no-op
+                // with no PlayerLocomotion on this body -- real movement is
                 // entirely FlyingNpcSteering's own velocity above.
                 float syntheticPitch = -velocity.y * VisualPitchDegreesPerVerticalSpeed;
-                _jetpack.Tick(true, new Vector2(0.0f, 1.0f), false, deltaTime, syntheticPitch);
+                _jetpack.Tick(new FlightInput
+                {
+                    ThrustHeld = true,
+                    Move = new Vector2(0.0f, 1.0f),
+                    CameraPitchDegrees = syntheticPitch,
+                    Airborne = true,
+                }, deltaTime);
             }
         }
     }

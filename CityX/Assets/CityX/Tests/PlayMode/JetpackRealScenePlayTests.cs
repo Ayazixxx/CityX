@@ -36,6 +36,19 @@ namespace CityX.Tests
             LogAssert.ignoreFailingMessages = false;
         }
 
+        /// <summary>One frame of the jetpack's flight in the air (a hover, a climb, a dive), as PlayerInputReader would ask for it.</summary>
+        private static void Fly(Jetpack jetpack, bool thrustHeld, Vector2 moveInput, bool boostHeld, float deltaTime, float cameraPitchDegrees = 0.0f)
+        {
+            jetpack.Tick(new FlightInput
+            {
+                ThrustHeld = thrustHeld,
+                BoostHeld = boostHeld,
+                Move = moveInput,
+                CameraPitchDegrees = cameraPitchDegrees,
+                Airborne = true,
+            }, deltaTime);
+        }
+
         [UnityTest]
         public IEnumerator EquippingTheRealJetpackHasTheFlamethrowersTwoLayerFlameAndWidensCameraPitch()
         {
@@ -65,7 +78,7 @@ namespace CityX.Tests
             console.Submit("/equip jetpack");
             yield return null;
 
-            Assert.IsNotNull(input.EquippedJetpack, "/equip jetpack did not actually equip one");
+            Assert.IsNotNull(input.EquippedFlightGear, "/equip jetpack did not actually equip one");
 
             // Requested: "make it so you can go all the vertical upward
             // and downward" -- widened the instant it is equipped, not only
@@ -144,7 +157,7 @@ namespace CityX.Tests
             // no /spawn-and-walk-over-and-press-E is needed first.
             console.Submit("/equip jetpack");
             yield return null;
-            Assert.IsNotNull(input.EquippedJetpack, "setup failed -- jetpack never equipped");
+            Assert.IsNotNull(input.EquippedFlightGear, "setup failed -- jetpack never equipped");
 
             var jetpack = Object.FindFirstObjectByType<Jetpack>();
             Assert.IsNotNull(jetpack);
@@ -156,7 +169,7 @@ namespace CityX.Tests
 
             for (int i = 0; i < 60; i++)
             {
-                jetpack.Tick(true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f, input.OrbitCamera.Pitch);
+                Fly(jetpack, true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f, input.OrbitCamera.Pitch);
             }
 
             Assert.Greater(jetpack.CurrentTilt.x, 40.0f,
@@ -192,7 +205,7 @@ namespace CityX.Tests
 
             console.Submit("/equip jetpack");
             yield return null;
-            Assert.IsNotNull(input.EquippedJetpack, "setup failed -- jetpack never equipped");
+            Assert.IsNotNull(input.EquippedFlightGear, "setup failed -- jetpack never equipped");
 
             var jetpack = Object.FindFirstObjectByType<Jetpack>();
             Assert.IsNotNull(jetpack);
@@ -203,7 +216,7 @@ namespace CityX.Tests
 
             for (int i = 0; i < 60; i++)
             {
-                jetpack.Tick(thrustHeld: true, moveInput: new Vector2(0.0f, 1.0f), boostHeld: true,
+                Fly(jetpack, thrustHeld: true, moveInput: new Vector2(0.0f, 1.0f), boostHeld: true,
                     deltaTime: 1.0f / 60.0f, cameraPitchDegrees: input.OrbitCamera.Pitch);
             }
 
@@ -256,7 +269,7 @@ namespace CityX.Tests
 
                 console.Submit("/equip jetpack");
                 yield return null;
-                Assert.IsNotNull(input.EquippedJetpack, "setup failed -- jetpack never equipped");
+                Assert.IsNotNull(input.EquippedFlightGear, "setup failed -- jetpack never equipped");
 
                 var jetpack = Object.FindFirstObjectByType<Jetpack>();
                 Assert.IsNotNull(jetpack);
@@ -264,7 +277,7 @@ namespace CityX.Tests
                 // Started directly through Jetpack.Tick, same as this file's
                 // other tests -- gets the flame/audio genuinely playing without
                 // needing a real simulated key press.
-                jetpack.Tick(true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f);
+                Fly(jetpack, true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f);
                 Assert.IsTrue(jetpack.FlameEffect.isEmitting, "setup failed -- the flame never started");
                 Assert.IsTrue(jetpack.ThrustAudio.isPlaying, "setup failed -- the thrust audio never started");
 
@@ -277,7 +290,7 @@ namespace CityX.Tests
 
                 // ONE real frame of PlayerInputReader's own Update() -- its
                 // ragdoll branch is what actually calls
-                // EquippedJetpack.StopThrustEffects() now.
+                // EquippedFlightGear.StopThrustEffects() now.
                 yield return null;
 
                 Assert.IsFalse(jetpack.FlameEffect.isEmitting,
@@ -332,20 +345,20 @@ namespace CityX.Tests
 
             // Thrusting WITHOUT boost -- the wind loop must stay silent;
             // only the ordinary engine loop is for plain thrust.
-            jetpack.Tick(true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f);
+            Fly(jetpack, true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f);
             Assert.IsFalse(jetpack.WindAudio.isPlaying,
                 "the wind loop started on plain thrust -- it should only play while boosting");
             Assert.IsTrue(jetpack.ThrustAudio.isPlaying, "setup failed -- plain thrust never started the engine loop");
 
             // NOW add boost -- "at shift speed."
-            jetpack.Tick(true, new Vector2(0.0f, 1.0f), true, 1.0f / 60.0f);
+            Fly(jetpack, true, new Vector2(0.0f, 1.0f), true, 1.0f / 60.0f);
             Assert.IsTrue(jetpack.WindAudio.isPlaying, "boosting while thrusting never started the wind loop");
 
             // Let real playback advance a little so timeSamples is
             // meaningfully away from zero before stopping.
             for (int i = 0; i < 10; i++)
             {
-                jetpack.Tick(true, new Vector2(0.0f, 1.0f), true, 1.0f / 60.0f);
+                Fly(jetpack, true, new Vector2(0.0f, 1.0f), true, 1.0f / 60.0f);
                 yield return null;
             }
             int samplesBeforeStop = jetpack.WindAudio.timeSamples;
@@ -359,14 +372,14 @@ namespace CityX.Tests
             int fadeSteps = Mathf.CeilToInt(Jetpack.WindFadeSeconds / (1.0f / 60.0f)) + 5;
             for (int i = 0; i < fadeSteps; i++)
             {
-                jetpack.Tick(true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f);
+                Fly(jetpack, true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f);
             }
             Assert.IsFalse(jetpack.WindAudio.isPlaying,
                 "releasing boost should end the wind loop entirely once it finishes fading out, not leave it hanging");
 
             // Boosting again should start it fresh from the top, not resume
             // from wherever it left off.
-            jetpack.Tick(true, new Vector2(0.0f, 1.0f), true, 1.0f / 60.0f);
+            Fly(jetpack, true, new Vector2(0.0f, 1.0f), true, 1.0f / 60.0f);
             Assert.IsTrue(jetpack.WindAudio.isPlaying);
             Assert.Less(jetpack.WindAudio.timeSamples, samplesBeforeStop,
                 "resuming boost should restart the wind loop from the top, not resume mid-clip");
@@ -411,7 +424,7 @@ namespace CityX.Tests
             int halfFadeSteps = Mathf.RoundToInt((Jetpack.WindFadeSeconds * 0.5f) / step);
             for (int i = 0; i < halfFadeSteps; i++)
             {
-                jetpack.Tick(true, new Vector2(0.0f, 1.0f), true, step);
+                Fly(jetpack, true, new Vector2(0.0f, 1.0f), true, step);
             }
             Assert.IsTrue(jetpack.WindAudio.isPlaying, "should already be playing partway through the fade-in");
             Assert.AreEqual(0.5f, jetpack.WindAudio.volume, 0.1f,
@@ -422,12 +435,12 @@ namespace CityX.Tests
             int remainingFadeSteps = Mathf.CeilToInt(Jetpack.WindFadeSeconds / step) + 5;
             for (int i = 0; i < remainingFadeSteps; i++)
             {
-                jetpack.Tick(true, new Vector2(0.0f, 1.0f), true, step);
+                Fly(jetpack, true, new Vector2(0.0f, 1.0f), true, step);
             }
             Assert.AreEqual(1.0f, jetpack.WindAudio.volume, 0.01f, "should have reached full volume by now");
 
             // Release boost -- should start fading OUT, not cut instantly.
-            jetpack.Tick(true, new Vector2(0.0f, 1.0f), false, step);
+            Fly(jetpack, true, new Vector2(0.0f, 1.0f), false, step);
             Assert.IsTrue(jetpack.WindAudio.isPlaying,
                 "should still be playing (mid fade-out) on the very next frame after releasing boost");
             Assert.Less(jetpack.WindAudio.volume, 1.0f, "volume should already have started dropping");
@@ -436,7 +449,7 @@ namespace CityX.Tests
             // Let the fade-out finish.
             for (int i = 0; i < remainingFadeSteps; i++)
             {
-                jetpack.Tick(true, new Vector2(0.0f, 1.0f), false, step);
+                Fly(jetpack, true, new Vector2(0.0f, 1.0f), false, step);
             }
             Assert.IsFalse(jetpack.WindAudio.isPlaying, "should have fully stopped once the fade-out completed");
 #else

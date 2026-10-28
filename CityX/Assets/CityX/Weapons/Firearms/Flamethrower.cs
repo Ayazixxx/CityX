@@ -17,7 +17,7 @@ namespace CityX.Weapons
     /// contract, one step further: this has no magazine/reload either, and
     /// fires continuously for as long as the trigger is held rather than
     /// once per click. IEquippableFlamethrower's own doc comment covers why
-    /// this is closer in shape to IJetpack.
+    /// this is closer in shape to IFlightGear.
     ///
     /// NO FIRE SPREAD, NO BUILDING/ENVIRONMENT DAMAGE -- an explicit scope
     /// limit from the ask ("no fire spread yet or building damage, just try

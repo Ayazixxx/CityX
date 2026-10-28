@@ -5,14 +5,14 @@ namespace CityX.Character
     /// <summary>
     /// What PlayerInputReader needs from an equipped flamethrower, without
     /// depending on the Weapons assembly -- same layering reason
-    /// IEquippableGun/IJetpack exist: Character depends on nothing, Weapons
+    /// IEquippableGun/IFlightGear exist: Character depends on nothing, Weapons
     /// depends on Character, never the other way round. Flamethrower (in
     /// CityX.Weapons) implements this.
     ///
     /// NOT IEquippableGun -- a flamethrower has no magazine, no reload, and
     /// fires continuously for as long as the trigger is held rather than
     /// once per click, so PistolWeapon's own single Fire() call per press
-    /// does not fit. Closer in shape to IJetpack's own "Tick every frame
+    /// does not fit. Closer in shape to IFlightGear's own "Tick every frame
     /// with the held-key state" contract than to a gun's.
     /// </summary>
     public interface IEquippableFlamethrower

@@ -49,19 +49,6 @@ namespace CityX.Character
         [Tooltip("player.gd SPRINT_SPEED")]
         public float SprintSpeed = 7.5f;
 
-        /// <summary>
-        /// How much faster than SprintSpeed a full W+shift jetpack dive
-        /// travels -- Requested: "the jetpack goes twice as fast" for
-        /// that specific hold. Applied on top of the jetpack's own already-
-        /// boosted SprintSpeed rather than WalkSpeed, since JetpackDiving
-        /// only ever fires alongside JetpackBoosting (see LocomotionInput.
-        /// JetpackDiving's own doc comment) -- "twice as fast" reads as
-        /// twice however fast the jetpack was already making you go, not a
-        /// number pulled from the ordinary on-foot walk speed.
-        /// </summary>
-        [Tooltip("Multiplier on SprintSpeed while diving (W+shift on the jetpack).")]
-        public float JetpackDiveSpeedMultiplier = 2.0f;
-
         [Tooltip("player.gd JUMP_VELOCITY")]
         public float JumpVelocity = 4.5f;
 
@@ -1246,28 +1233,20 @@ namespace CityX.Character
             bool sprinting = input.Sprint && moving && forward && !IsCrouching;
             IsSprinting = sprinting;
 
-            // JETPACK BOOSTING REACHES THE SAME SPEED AS SPRINT, but through
-            // its own flag rather than folding into `sprinting` above -- see
-            // LocomotionInput.JetpackBoosting's own doc comment for why: no
-            // stamina cost, and no forward-only restriction either.
-            //
-            // DIVING WINS OVER PLAIN BOOSTING -- checked first, since
-            // JetpackDiving only ever fires alongside JetpackBoosting (see
-            // its own doc comment) and needs the bigger number to actually
-            // win rather than the two conditions racing in an OR.
-            float speed = input.JetpackDiving ? SprintSpeed * JetpackDiveSpeedMultiplier
-                : (sprinting || input.JetpackBoosting) ? SprintSpeed
-                : WalkSpeed;
+            // FLYING, THE GEAR'S SPEED IS THE SPEED (LocomotionInput.FlightSpeed: a jetpack's or wings', in every direction, no stamina): none
+            // of the walking rules below apply to it.
+            bool flying = input.FlightSpeed > 0.0f;
+            float speed = flying ? input.FlightSpeed : sprinting ? SprintSpeed : WalkSpeed;
 
             // AIMING DOWN SIGHTS SLOWS YOU (Fortnite, Gears, The Division all
-            // do): you trade speed for a steady, zoomed aim. Not while the
-            // jetpack is flying you -- that is not walking.
-            if (input.Aiming && !input.JetpackBoosting && !input.JetpackDiving)
+            // do): you trade speed for a steady, zoomed aim. Not while
+            // flying -- that is not walking.
+            if (input.Aiming && !flying)
             {
                 speed *= AimMoveSpeedMultiplier;
             }
-            // BLOODRAGE: +25% movement speed on foot (a jetpack's own speed is its own business).
-            if (!input.JetpackBoosting && !input.JetpackDiving)
+            // BLOODRAGE: +25% movement speed on foot (a flight's own speed is its own business).
+            if (!flying)
             {
                 if (!_bloodrageLooked)
                 {
@@ -1341,8 +1320,11 @@ namespace CityX.Character
             }
             else
             {
-                _horizontalVelocity = Vector3.MoveTowards(
-                    _horizontalVelocity, targetHorizontal, HorizontalAcceleration * WetTraction() * deltaTime);
+                // A flight has its own inertia (LocomotionInput.FlightAcceleration): the body carries, and the keys lean it round.
+                float acceleration = flying && input.FlightAcceleration > 0.0f && !_controller.isGrounded
+                    ? input.FlightAcceleration
+                    : HorizontalAcceleration * WetTraction();
+                _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, targetHorizontal, acceleration * deltaTime);
                 horizontal = _horizontalVelocity;
             }
 

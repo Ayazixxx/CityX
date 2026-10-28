@@ -31,7 +31,7 @@ and every cap are mine, first values to tune (`Character/Stats/StatCatalog.cs`).
 | Accuracy | -3% spread | 90% | narrows the gun's cone (below) |
 | Recoil Control | -2% recoil | 80% | less camera climb, shake and gun kick, and the kick settles faster |
 | Movement Speed | +1% | +40% | walking and running (capped: the city has to stream in ahead of you) |
-| Flight Speed | +1% | +50% | **not in the game yet** (wings later; the jetpack keeps its own speeds for now) |
+| Flight Speed | +1% | +50% | flying with the wings or the jetpack: every speed (climb, sink, cruise, Shift) scaled (`FlightGear.SpeedScale`; 2026-10-28) |
 | Vehicle Handling | +2% | +100% | **not in the game yet** (the cars are to be redone) |
 | Armor | +5 armour | - | **new**: stops rating/(rating + 100) of melee blows and bullets (100 armour: half), never all |
 | Magic Resistance | +5 resistance | - | **new**: the same against spells, poison included |
@@ -88,6 +88,6 @@ since 2026-10-17 have the same guard (`MenuFirstOpenPlayTests` shows each once, 
 
 ## Not done
 
-- Flight Speed and Vehicle Handling do nothing until wings and the new cars exist.
+- Vehicle Handling does nothing until the new cars exist (Flight Speed works since 2026-10-28, with the wings).
 - Enemies have no armour, resistance or block chance of their own yet (Armor Penetration only matters against players).
 - A stat respec; healing spells (Spell Power is ready for them).

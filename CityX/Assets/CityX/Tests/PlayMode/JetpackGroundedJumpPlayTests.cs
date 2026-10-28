@@ -150,7 +150,7 @@ namespace CityX.Tests
         /// <summary>
         /// Bug report: "after i crash and recover sometimes i am
         /// stuck at an angle." Root cause was right here in the real
-        /// dispatch, not in Jetpack.Tick itself: EquippedJetpack.Tick used
+        /// dispatch, not in Jetpack.Tick itself: EquippedFlightGear.Tick used
         /// to be called ONLY while `!_locomotion.IsGrounded`, and
         /// Tick/TickTilt is the ONLY thing that ever eases the body's own
         /// lean back toward level (see TickTilt's own doc comment).
@@ -241,7 +241,6 @@ namespace CityX.Tests
             Release(_keyboard.spaceKey);
             yield return null;
             Assert.IsFalse(_keyboard.spaceKey.isPressed, "diagnostic -- Space did not actually register as released");
-            Assert.IsFalse(jetpack.FlameEffect.isEmitting, "diagnostic -- thrust is still active after releasing Space");
 
             // TELEPORT BACK ABOVE THE ALREADY-CONFIRMED-SOLID SPAWN GROUND,
             // NOT A NATURAL FALL -- the real city is a real procedurally
@@ -267,10 +266,14 @@ namespace CityX.Tests
             // SECONDS, NOT FRAMES. The body keeps the upward speed it had while flying, and falling back down
             // takes simulated time; a batch run's frames are only a few milliseconds each (cheaper the lighter
             // the city is to stream), so a fixed count of frames covered too little time to come back down.
+            // Ctrl held: a flight hovers until it is brought down (docs/FLIGHT.md, 2026-10-28), so the way down is the descend key.
+            Press(_keyboard.leftCtrlKey);
             for (float waited = 0.0f; waited < 20.0f && !locomotion.IsGrounded; waited += Time.deltaTime)
             {
                 yield return null;
             }
+            Release(_keyboard.leftCtrlKey);
+            yield return null;
             Assert.IsTrue(locomotion.IsGrounded,
                 $"setup failed -- never actually landed. Started the drop at Y={homePosition.y + 3.0f:0.00} " +
                 $"(home Y was {homePosition.y:0.00}), now sitting at Y={locomotion.transform.position.y:0.00}");

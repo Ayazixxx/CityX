@@ -164,47 +164,22 @@ namespace CityX.Character
         public bool LockedOn;
 
         /// <summary>
-        /// True whenever a jetpack is equipped and the thrust key is
-        /// physically held -- see PlayerInputReader's own dispatch to
-        /// IJetpack.Tick. Drives the Animator's "JetpackThrusting" bool,
-        /// which forces Idle over whatever Locomotion would otherwise show
-        /// (see PlayerRigBuilder.AddJetpackIdleState): a walk/run/sprint
-        /// cycle reads as wrong the instant the body actually leaves the
-        /// ground under power, which thrusting does almost immediately.
+        /// True while the flight gear on the back (a jetpack, wings) has the body in the air under power -- see PlayerInputReader's own
+        /// dispatch to IFlightGear.Tick. Drives the Animator's "JetpackThrusting" bool, which forces Idle over whatever Locomotion would
+        /// otherwise show (see PlayerRigBuilder.AddJetpackIdleState): a walk/run/sprint cycle reads as wrong the instant the body actually
+        /// leaves the ground under power.
         /// </summary>
         public bool JetpackThrusting;
 
         /// <summary>
-        /// True whenever a jetpack is thrusting AND shift is held -- the
-        /// same "boostHeld" flag IJetpack.Tick already gets for its own
-        /// lean/climb amplification, reused here to also raise horizontal
-        /// speed to SprintSpeed. NOT routed through Sprint/wantsSprint --
-        /// that path costs stamina, and the jetpack is explicitly "infinite
-        /// fuel, on purpose" (see Jetpack's own class comment), so boosting
-        /// with it must not drain a resource that would otherwise gate an
-        /// unrelated, on-foot mechanic. Also, unlike ground Sprint, this
-        /// applies in every direction, not just forward: JetpackThrusting
-        /// above already forces a fixed jetpack pose regardless of travel
-        /// direction (see that field's own doc comment), so there is no
-        /// missing walk/run clip for a sideways or backward burst of speed
-        /// to expose the way there would be on the ground.
+        /// The horizontal speed the flight gear is flying the body at, metres a second (IFlightGear.HorizontalSpeed), 0 on foot. Above 0 it
+        /// replaces the walk and sprint speeds and everything that scales them (aiming, Bloodrage, the Movement Speed stat, the shield): a
+        /// flight's speed is the gear's own business, in every direction, and costs no stamina (NOT routed through Sprint, which does).
         /// </summary>
-        public bool JetpackBoosting;
+        public float FlightSpeed;
 
-        /// <summary>
-        /// True whenever a jetpack is thrusting, shift is held, AND there is
-        /// a forward (W) component to the held movement -- Requested:
-        /// "when you hold w + shift while using jetpack your character
-        /// tilts all the way horizontally and the jetpack goes twice as
-        /// fast." A strict superset condition of JetpackBoosting (every
-        /// dive is also boosting), checked separately in PlayerLocomotion
-        /// so a dive's own even-higher speed wins over the plain boost
-        /// speed rather than the two competing. IJetpack.Tick reads the
-        /// same forward-component test directly off its own moveInput
-        /// rather than this flag, for the pose -- see TickTilt's own doc
-        /// comment.
-        /// </summary>
-        public bool JetpackDiving;
+        /// <summary>How quickly the body reaches and sheds that speed, metres a second each second (IFlightGear.HorizontalAcceleration): the flight's inertia.</summary>
+        public float FlightAcceleration;
 
         /// <summary>
         /// True for as long as the /dance chat emote is playing -- see

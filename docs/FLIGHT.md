@@ -111,3 +111,26 @@ Owner: other games' lines look "way better when they are mostly invisible instea
 - `SpeedLinesCapture` now also renders `speed-lines-full-dark.png` (against a dark backdrop, where they should read). The old pictures are in
   `Logs/CityShots/before/`. Test: `FlightFeelTests.TheSpeedLinesAreFewFaintSoftAndKeptToTheEdges` (the sprite's profile, the strength, the visible
   width, the length).
+
+## Update 2026-10-28: one flight for the jetpack and the wings
+
+Owner, with the angel wings (docs/WINGS.md): "the jetpack movement could use some work as well i havent worked on it in awhile so dont use
+that as an exact guide, lets try to improve both". The flight is now one model both wear (`Character/Movement/FlightModel.cs`, driven by
+`Weapons/Gear/FlightGear.cs`, the base of `Jetpack` and `AngelWings`), after the Lego games' fliers:
+
+- **Space in the air takes off**, and the flight lasts until the body touches the ground (or goes limp). Letting go of Space no longer drops
+  the body: it **hovers**, holding its height.
+- **Space climbs** (jetpack 11 m/s, 22 on Shift with nothing else held; wings 7 and 10), **Ctrl sinks** (12; 9), held to the ground it lands.
+  Crouch is not read while flying.
+- **WASD flies with inertia** (jetpack 30 m/s², wings 12): the body carries and the keys lean it round. The jetpack cruises at the body's
+  sprint and doubles it on Shift (its old boost and dive speeds); the wings cruise at 10 m/s, 17 on Shift. **The Flight Speed stat scales
+  every speed** (it did nothing before).
+- **Flying forward follows the camera up and down** (the jetpack's own rule, kept), on top of whatever Space and Ctrl add; a hover ignores
+  where the camera looks.
+- The lean is each gear's own: the jetpack's unchanged (upright hovering; Superman along the camera flying forward; the banks), the wings'
+  gentler. The flight feel (the view widening, the pull-back, the streaks, the wind) is shared; the camera may look straight up and down
+  with either on.
+- The jetpack's flame burns low in a hover and full climbing or boosting; its engine loops while flying.
+
+`FlightModelTests`, `JetpackTests` (letting go hovers, Ctrl sinks, landing straightens the lean), `PlayerLocomotionTests` (a flight's speed
+in any direction, not a sprint), the real-scene jetpack tests as before.

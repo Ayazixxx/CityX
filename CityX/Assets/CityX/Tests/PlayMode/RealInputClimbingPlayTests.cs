@@ -257,7 +257,7 @@ namespace CityX.Tests
                                       $"main camera {(Camera.main != null ? Camera.main.name + " in " + Camera.main.gameObject.scene.name + " yaw " + Camera.main.transform.eulerAngles.y.ToString("0") : "none")}, " +
                                       $"run yaw {Quaternion.LookRotation(_wall.transform.forward).eulerAngles.y:0}, cameras {Camera.allCamerasCount}, " +
                                       $"stairs {rig.Climbing.RecentlyOnStairs}, stamina {(rig.Locomotion.GetComponent<PlayerVitals>() != null ? rig.Locomotion.GetComponent<PlayerVitals>().Stamina.ToString("0") : "-")}, " +
-                                      $"jetpack {rig.Input.EquippedJetpack != null}, parachute {rig.Input.EquippedParachute != null}, " +
+                                      $"jetpack {rig.Input.EquippedFlightGear != null}, parachute {rig.Input.EquippedParachute != null}, " +
                                       $"wall probe {WallProbe.TryFind(rig.Locomotion.transform.position, _wall.transform.forward, rig.Locomotion.StandingHeight, out _)}, " +
                                       $"rays: {ProbeRays(rig.Locomotion.transform.position, _wall.transform.forward, rig.Locomotion.StandingHeight)}, " +
                                       $"backfaces {Physics.queriesHitBackfaces}, triggers {Physics.queriesHitTriggers}");

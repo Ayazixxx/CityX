@@ -257,6 +257,8 @@ namespace CityX.ViewEditor
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
             GameObject parachutePrefab = CityX.WeaponsEditor.ParachuteBuilder.Build();
+            // Angel wings (2026-10-28): drawn in code, a stand-in until the owner's model (docs/WINGS.md).
+            GameObject angelWingsPrefab = CityX.WeaponsEditor.AngelWingsBuilder.Build();
             GameObject spikeSwordPrefab = CityX.WeaponsEditor.SpikeSwordBuilder.Build();
             GameObject combatSwordPrefab = CityX.WeaponsEditor.CombatSwordBuilder.Build();
             GameObject metalCrowbarPrefab = CityX.WeaponsEditor.MetalCrowbarBuilder.Build();
@@ -499,6 +501,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Jetpack, Prefab = jetpackPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Parachute, Prefab = parachutePrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.AngelWings, Prefab = angelWingsPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.SpikeSword, Prefab = spikeSwordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

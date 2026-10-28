@@ -78,19 +78,19 @@ namespace CityX.Tests
         /// <summary>
         /// The explicit ask: holding shift while the jetpack is thrusting
         /// should reach sprint speed. Checked BACKWARD, not forward -- see
-        /// LocomotionInput.JetpackBoosting's own doc comment for why this
+        /// LocomotionInput.FlightSpeed's own doc comment for why this
         /// path is deliberately not restricted to forward the way ground
         /// Sprint is: JetpackThrusting already forces a fixed pose
         /// regardless of travel direction, so there is no missing clip for
         /// a backward or sideways burst of speed to expose.
         /// </summary>
         [Test]
-        public void JetpackBoostingReachesSprintSpeedEvenGoingBackward()
+        public void AFlightSpeedIsReachedEvenGoingBackward()
         {
             var input = new LocomotionInput
             {
                 Move = new Vector2(0.0f, -1.0f),
-                JetpackBoosting = true,
+                FlightSpeed = _locomotion.SprintSpeed,
             };
             Settle(input);
 
@@ -98,19 +98,19 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// JetpackBoosting reaches the same SPEED as sprint, but is not
+        /// A flight reaches the same SPEED as a sprint, but is not
         /// itself a sprint -- IsSprinting drives the ground run animation/
         /// footstep loop, neither of which applies while airborne on a
         /// jetpack (JetpackThrusting already forces its own fixed pose, and
         /// footstep audio is separately gated on IsGrounded).
         /// </summary>
         [Test]
-        public void JetpackBoostingDoesNotCountAsSprintingForAnimationPurposes()
+        public void AFlightSpeedDoesNotCountAsSprintingForAnimationPurposes()
         {
             var input = new LocomotionInput
             {
                 Move = new Vector2(0.0f, 1.0f),
-                JetpackBoosting = true,
+                FlightSpeed = _locomotion.SprintSpeed,
             };
             Settle(input);
 
@@ -120,22 +120,21 @@ namespace CityX.Tests
 
         /// <summary>
         /// Requested: "the jetpack goes twice as fast" while diving
-        /// (w+shift). Checked against SprintSpeed * JetpackDiveSpeedMultiplier
+        /// (w+shift). Checked against twice SprintSpeed
         /// directly, the same "pin the real constant, not just greater-than"
-        /// reasoning JetpackBoostingReachesSprintSpeedEvenGoingBackward uses.
+        /// reasoning AFlightSpeedIsReachedEvenGoingBackward uses.
         /// </summary>
         [Test]
-        public void JetpackDivingReachesTwiceSprintSpeed()
+        public void AFlightSpeedAboveTheSprintIsReached()
         {
             var input = new LocomotionInput
             {
                 Move = new Vector2(0.0f, 1.0f),
-                JetpackBoosting = true,
-                JetpackDiving = true,
+                FlightSpeed = _locomotion.SprintSpeed * 2.0f,
             };
             Settle(input);
 
-            Assert.AreEqual(_locomotion.SprintSpeed * _locomotion.JetpackDiveSpeedMultiplier,
+            Assert.AreEqual(_locomotion.SprintSpeed * 2.0f,
                 _locomotion.CurrentSpeed, 0.01f);
         }
 

@@ -5,11 +5,11 @@ namespace CityX.Character
     /// <summary>
     /// What PlayerInputReader needs to cast the fireball spell, without
     /// depending on the Weapons assembly -- same layering reason
-    /// IJetpack/IEquippableGun/IGrappleLauncher exist: Character depends on
+    /// IFlightGear/IEquippableGun/IGrappleLauncher exist: Character depends on
     /// nothing, Weapons depends on Character, never the other way round.
     /// FireballCaster (in CityX.Weapons) implements this.
     ///
-    /// AN INNATE ABILITY, NOT AN EQUIPPED ONE -- unlike EquippedJetpack/
+    /// AN INNATE ABILITY, NOT AN EQUIPPED ONE -- unlike EquippedFlightGear/
     /// EquippedGun, which are set by a weapon's own OnEquip the moment it's
     /// picked up, PlayerInputReader finds its FireballCaster once in Awake
     /// via GetComponent&lt;IFireballCaster&gt;(), because the spell is

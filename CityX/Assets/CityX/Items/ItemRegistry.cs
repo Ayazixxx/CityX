@@ -29,6 +29,7 @@ namespace CityX.Items
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
         public const string Parachute = "parachute";
+        public const string AngelWings = "angel_wings";
         public const string SpikeSword = "spike_sword";
         public const string CombatSword = "combat_sword";
         public const string MetalCrowbar = "metal_crowbar";
@@ -74,6 +75,8 @@ namespace CityX.Items
             // The jetpack and the parachute share the back slot: worn with a coat, never with each other (which would Space work?).
             [Jetpack] = new ItemDefinition(Jetpack, "Jetpack", "tool", EquipSlots.Back, 1),
             [Parachute] = new ItemDefinition(Parachute, "Parachute", "tool", EquipSlots.Back, 1),
+            // Angel wings (2026-10-28): flight gear like the jetpack, on the same back slot (docs/WINGS.md).
+            [AngelWings] = new ItemDefinition(AngelWings, "Angel Wings", "tool", EquipSlots.Back, 1),
             // Two-handed: fought with the greatsword's moves.
             [SpikeSword] = new ItemDefinition(SpikeSword, "Spike Sword", "weapon", EquipSlots.Primary, 1),
             // One-handed, with its own attacks and guard; the crowbar is fought with its moves, the bat with the greatsword's.

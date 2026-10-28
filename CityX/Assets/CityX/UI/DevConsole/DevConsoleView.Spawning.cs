@@ -321,6 +321,9 @@ namespace CityX.UI
                 case "longsleeveblack":
                 case "black_long_sleeve_t_shirt": return ItemRegistry.BlackLongSleeveTShirt;
                 case "jetpack": return ItemRegistry.Jetpack;
+                case "wings":
+                case "angelwings":
+                case "angel_wings": return ItemRegistry.AngelWings;
                 case "parachute": return ItemRegistry.Parachute;
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;

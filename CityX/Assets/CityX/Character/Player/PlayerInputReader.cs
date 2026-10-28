@@ -63,18 +63,18 @@ namespace CityX.Character
         /// <summary>
         /// Set by Jetpack's own OnEquip/OnUnequip, same pattern as
         /// EquippedGun. While non-null, Space thrusts instead of charging a
-        /// jump -- see the Update() dispatch and IJetpack's own doc comment.
+        /// jump -- see the Update() dispatch and IFlightGear's own doc comment.
         /// </summary>
-        public IJetpack EquippedJetpack;
+        public IFlightGear EquippedFlightGear;
 
         /// <summary>
         /// Set by Parachute's own OnEquip/OnUnequip, same pattern as
-        /// EquippedJetpack. While non-null, a fresh press of Space while
+        /// EquippedFlightGear. While non-null, a fresh press of Space while
         /// airborne toggles it open/closed instead of doing nothing -- see
         /// the Update() dispatch and IParachute's own doc comment. Shares
         /// Jetpack's own "back" equip slot (see ItemRegistry.Parachute's
         /// own doc comment), so Inventory's own slot eviction already
-        /// guarantees this and EquippedJetpack are never both non-null at
+        /// guarantees this and EquippedFlightGear are never both non-null at
         /// once -- no extra mutual-exclusion needed here.
         /// </summary>
         public IParachute EquippedParachute;
@@ -415,13 +415,13 @@ namespace CityX.Character
                 // SAME REASONING, FOR THE JETPACK -- Bug report:
                 // "when your using jetpack and crash into a surface and
                 // ragdoll, the jetpack also turns off even if your holding
-                // space." EquippedJetpack.Tick (the only place that stops
+                // space." EquippedFlightGear.Tick (the only place that stops
                 // its own flame/thrust audio) is never reached again while
                 // this branch keeps returning early below, so holding
                 // Space through the crash would otherwise leave the flame
                 // burning and the thrust loop playing over a body that
                 // is not flying anywhere any more.
-                EquippedJetpack?.StopThrustEffects();
+                EquippedFlightGear?.StopThrustEffects();
 
                 // Bug report: "im still getting up at an angle when
                 // i ragdoll." Jetpack.Tick is the only thing that ever eases
@@ -435,7 +435,7 @@ namespace CityX.Character
                 // full reasoning; called every frame while limp (same as
                 // StopThrustEffects just above) rather than once, so it also
                 // catches a jetpack that gets equipped mid-ragdoll.
-                EquippedJetpack?.ResetTilt();
+                EquippedFlightGear?.ResetTilt();
 
                 // A DEATH RAGDOLL NEVER TICKS ANY OF THIS -- IsDead is
                 // checked here directly rather than relying on the ordinary
@@ -666,7 +666,7 @@ namespace CityX.Character
             // back: Space means thrust or canopy there.
             _grabIntent.Update(keyboard.spaceKey.isPressed, deltaTime);
             // Nor while Grow or Shrink has the body at another size: the grab and the ledge are measured for a 2.6 m body.
-            bool wallGrabsAllowed = EquippedJetpack == null && EquippedParachute == null && !_locomotion.IsResized;
+            bool wallGrabsAllowed = EquippedFlightGear == null && EquippedParachute == null && !_locomotion.IsResized;
 
             // ALREADY ATTACHED TO A WALL OWNS THE WHOLE FRAME TOO, matching
             // player.gd's own _is_climbing early-return into
@@ -919,8 +919,10 @@ namespace CityX.Character
             // !_locomotion.IsGrounded here is also what makes the dispatch
             // just below correctly fall through to a jump instead while
             // still standing on the ground.
-            bool jetpackThrusting = EquippedJetpack != null && keyboard.spaceKey.isPressed &&
-                !_locomotion.IsGrounded;
+            // (docs/FLIGHT.md, 2026-10-28: Space takes off and the flight then goes on until the body lands, hovering with nothing held --
+            // the gear's own FlightModel decides, below, once it has this frame's keys; this is where the flight stood at the end of the
+            // last frame.)
+            bool jetpackThrusting = EquippedFlightGear != null && EquippedFlightGear.IsFlying;
 
             // A PARACHUTE TAKES A FRESH PRESS OF SPACE WHILE AIRBORNE, not a
             // hold -- Requested: "press space and open and close it."
@@ -930,7 +932,7 @@ namespace CityX.Character
             // same reason jetpackThrusting is: while grounded this stays
             // false, so the dispatch below still falls through to an
             // ordinary jump instead, and there is nothing to "open" while
-            // standing on the ground anyway. EquippedJetpack and
+            // standing on the ground anyway. EquippedFlightGear and
             // EquippedParachute share Jetpack's own "back" equip slot (see
             // ItemRegistry.Parachute's own doc comment), so Inventory's own
             // slot eviction already guarantees at most one of them is ever
@@ -1064,10 +1066,18 @@ namespace CityX.Character
             // Vector2.zero and SmoothDamps the lean back to upright over
             // TiltSmoothTime, the same graceful ease-out used everywhere
             // else in this system -- not an instant snap.
-            if (EquippedJetpack != null)
+            if (EquippedFlightGear != null)
             {
-                float cameraPitch = _orbitCamera != null ? _orbitCamera.Pitch : 0.0f;
-                EquippedJetpack.Tick(jetpackThrusting, move, keyboard.leftShiftKey.isPressed, deltaTime, cameraPitch);
+                EquippedFlightGear.Tick(new FlightInput
+                {
+                    ThrustHeld = keyboard.spaceKey.isPressed,
+                    DescendHeld = keyboard.leftCtrlKey.isPressed,
+                    BoostHeld = keyboard.leftShiftKey.isPressed,
+                    Move = move,
+                    CameraPitchDegrees = _orbitCamera != null ? _orbitCamera.Pitch : 0.0f,
+                    Airborne = !_locomotion.IsGrounded,
+                }, deltaTime);
+                jetpackThrusting = EquippedFlightGear.IsFlying;
             }
 
             // Bug report: "make it so my limbs cant clip through
@@ -1086,7 +1096,7 @@ namespace CityX.Character
             }
 
             // CALLED EVERY FRAME WHILE EQUIPPED, GROUNDED OR NOT -- same
-            // reasoning EquippedJetpack.Tick just above is, per that block's
+            // reasoning EquippedFlightGear.Tick just above is, per that block's
             // own doc comment: Tick is also where a parachute notices it
             // landed and auto-closes itself (see IParachute.Tick's own doc
             // comment), which has to keep happening even after the toggle
@@ -1121,7 +1131,7 @@ namespace CityX.Character
                 Move = move,
                 YawDegrees = yawDegrees,
                 Sprint = sprinting,
-                Crouch = keyboard.leftCtrlKey.isPressed,
+                Crouch = keyboard.leftCtrlKey.isPressed && !jetpackThrusting,   // flying, Ctrl sinks the body (FlightInput.DescendHeld)
                 ShieldRaised = _vitals != null && _vitals.ShieldRaised,
                 // Charging kept in the vault for now -- see the dispatch
                 // above (and TickJumpCharge's own doc comment) for why
@@ -1159,18 +1169,18 @@ namespace CityX.Character
                 // single well-defined winner, which is exactly what reads
                 // as glitching -- the state machine has no reason to settle
                 // on one over the other. This only gates the ANIMATION bool;
-                // EquippedJetpack.Tick above still gets the real,
+                // EquippedFlightGear.Tick above still gets the real,
                 // un-suppressed jetpackThrusting, so holding right-click
                 // never weakens the actual thrust/lean it's flying on.
                 JetpackThrusting = jetpackThrusting && !isAiming,
                 // UN-SUPPRESSED BY isAiming, matching JetpackThrusting's own
-                // comment just above on why EquippedJetpack.Tick's real
+                // comment just above on why EquippedFlightGear.Tick's real
                 // thrust/lean never weakens while aiming -- this drives real
                 // movement speed, not an Animator Any-State bool, so there
                 // is no state-machine conflict here to suppress in the
                 // first place.
-                JetpackBoosting = jetpackThrusting && keyboard.leftShiftKey.isPressed,
-                JetpackDiving = jetpackThrusting && keyboard.leftShiftKey.isPressed && move.y > 0.0f,
+                FlightSpeed = jetpackThrusting ? EquippedFlightGear.HorizontalSpeed : 0.0f,
+                FlightAcceleration = jetpackThrusting ? EquippedFlightGear.HorizontalAcceleration : 0.0f,
                 Dancing = _isDancing,
                 Breakdancing = _isBreakdancing,
             };
@@ -1181,7 +1191,7 @@ namespace CityX.Character
             // Requested: "horizontal 'fall damage' when using the jetpack
             // and you crash into a wall... if the amount of damage you take
             // doesnt kill you, you still ragdoll." Gated on jetpackThrusting
-            // specifically, not just EquippedJetpack != null -- an ordinary
+            // specifically, not just EquippedFlightGear != null -- an ordinary
             // walk into a wall (no thrust) is not a crash, it is just
             // bumping into something, and ApplyCrashDamage's own
             // SafeFallDistance floor already makes a slow, harmless jetpack

@@ -82,7 +82,7 @@ namespace CityX.Tests
 
             console.Submit("/equip jetpack");
             yield return null;
-            Assert.IsNotNull(input.EquippedJetpack, "/equip jetpack did not actually equip one");
+            Assert.IsNotNull(input.EquippedFlightGear, "/equip jetpack did not actually equip one");
             var jetpack = Object.FindFirstObjectByType<Jetpack>();
             Assert.IsNotNull(jetpack, "no live Jetpack component after equipping");
 
@@ -119,15 +119,22 @@ namespace CityX.Tests
                 Vector2 move = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * magnitude;
                 float cameraPitch = (float)(rng.NextDouble() * 160.0 - 80.0);
 
-                jetpack.Tick(thrustHeld, move, boostHeld, StepSeconds, cameraPitch);
+                jetpack.Tick(new FlightInput
+                {
+                    ThrustHeld = thrustHeld,
+                    BoostHeld = boostHeld,
+                    Move = move,
+                    CameraPitchDegrees = cameraPitch,
+                    Airborne = !locomotion.IsGrounded,
+                }, StepSeconds);
 
                 var locoInput = new LocomotionInput
                 {
                     Move = move,
                     YawDegrees = (float)(rng.NextDouble() * 360.0),
-                    JetpackThrusting = thrustHeld,
-                    JetpackBoosting = thrustHeld && boostHeld,
-                    JetpackDiving = thrustHeld && boostHeld && move.y > 0.0f,
+                    JetpackThrusting = jetpack.IsFlying,
+                    FlightSpeed = jetpack.HorizontalSpeed,
+                    FlightAcceleration = jetpack.HorizontalAcceleration,
                 };
                 locomotion.Tick(locoInput, StepSeconds);
                 yield return null;

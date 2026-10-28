@@ -91,17 +91,17 @@ namespace CityX.Tests
 
             console.Submit("/equip jetpack");
             yield return null;
-            Assert.IsNotNull(input.EquippedJetpack, "setup failed -- jetpack never equipped");
+            Assert.IsNotNull(input.EquippedFlightGear, "setup failed -- jetpack never equipped");
 
             console.Submit("/equip parachute");
             yield return null;
             Assert.IsNotNull(input.EquippedParachute, "/equip parachute did not equip one");
-            Assert.IsNull(input.EquippedJetpack,
+            Assert.IsNull(input.EquippedFlightGear,
                 "equipping the parachute should have evicted the jetpack from their shared back slot");
 
             console.Submit("/equip jetpack");
             yield return null;
-            Assert.IsNotNull(input.EquippedJetpack, "/equip jetpack did not equip one back");
+            Assert.IsNotNull(input.EquippedFlightGear, "/equip jetpack did not equip one back");
             Assert.IsNull(input.EquippedParachute,
                 "equipping the jetpack again should have evicted the parachute from their shared back slot");
 #else

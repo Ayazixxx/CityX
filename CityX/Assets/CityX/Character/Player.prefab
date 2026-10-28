@@ -2477,7 +2477,6 @@ MonoBehaviour:
   IsSitting: 0
   WalkSpeed: 4
   SprintSpeed: 7.5
-  JetpackDiveSpeedMultiplier: 2
   JumpVelocity: 4.5
   ChargedJumpHeightMultiplier: 15
   Gravity: 9.8

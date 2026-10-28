@@ -51,13 +51,28 @@ namespace CityX.Tests
             Object.DestroyImmediate(_jetpackObject);
         }
 
+        /// <summary>One frame of the jetpack's flight, in the air unless said otherwise (on the ground Space is a jump, not a flight).</summary>
+        private void Fly(bool thrustHeld, Vector2 moveInput, bool boostHeld, float deltaTime, float cameraPitchDegrees = 0.0f, bool airborne = true,
+            bool descendHeld = false)
+        {
+            _jetpack.Tick(new FlightInput
+            {
+                ThrustHeld = thrustHeld,
+                DescendHeld = descendHeld,
+                BoostHeld = boostHeld,
+                Move = moveInput,
+                CameraPitchDegrees = cameraPitchDegrees,
+                Airborne = airborne,
+            }, deltaTime);
+        }
+
         [Test]
         public void ThrustingLiftsTheBody()
         {
             float yBefore = _player.transform.position.y;
             for (int i = 0; i < 10; i++)
             {
-                _jetpack.Tick(thrustHeld: true, moveInput: Vector2.zero, boostHeld: false, deltaTime: 1.0f / 60.0f);
+                Fly(thrustHeld: true, moveInput: Vector2.zero, boostHeld: false, deltaTime: 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
             }
 
@@ -65,42 +80,39 @@ namespace CityX.Tests
                 "holding thrust didn't actually raise the body");
         }
 
+        /// <summary>2026-10-28 (docs/FLIGHT.md): letting go of Space no longer drops the body; it hovers, and Ctrl is the way down.</summary>
         [Test]
-        public void LettingGoResumesOrdinaryGravity()
+        public void LettingGoHoversAndCtrlSinks()
         {
-            for (int i = 0; i < 10; i++)
+            // A second's climb: well clear of the floor the body is stood on, so the descent below has room to fall.
+            for (int i = 0; i < 60; i++)
             {
-                _jetpack.Tick(true, Vector2.zero, false, 1.0f / 60.0f);
+                Fly(true, Vector2.zero, false, 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
             }
             Assert.Greater(_locomotion.Velocity.y, 0.0f, "setup failed -- thrust didn't leave the body rising");
 
-            // NOT a position comparison -- a released body launched upward
-            // at real speed keeps climbing on its own momentum for over a
-            // second at this rig's gravity before it would fall back below
-            // where it let go (confirmed directly: still 3.8m up, off a
-            // 3.9m peak, a full 50 ticks after release), so "is it now
-            // BELOW where it was" is the wrong question on any timescale
-            // this test can afford. "Is gravity now winning" is the actual
-            // claim, and velocity says that directly: unpowered, it must
-            // go negative once thrust stops decelerating it.
-            //
-            // GENEROUS BUT BOUNDED, not a fixed 60 ticks -- a fixed budget
-            // sized for the old ThrustSpeed (7.0) left too little margin
-            // once it became 11.0 (matching the old BoostThrustSpeed, see
-            // ThrustSpeed's own doc comment): reversing a faster climb
-            // takes proportionally longer, and 60 ticks (1s) was already
-            // close to the reversal time at the old speed alone.
-            bool reversed = false;
-            for (int i = 0; i < 180 && !reversed; i++)
+            float height = 0.0f;
+            for (int i = 0; i < 60; i++)
             {
-                _jetpack.Tick(false, Vector2.zero, false, 1.0f / 60.0f);
+                Fly(false, Vector2.zero, false, 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
-                reversed = _locomotion.Velocity.y < 0.0f;
+                if (i == 20)
+                {
+                    height = _player.transform.position.y;
+                }
             }
+            Assert.IsTrue(_jetpack.IsFlying, "letting go of Space ended the flight");
+            Assert.AreEqual(height, _player.transform.position.y, 0.05f, "a hover should hold its height");
+            Assert.Less(Mathf.Abs(_locomotion.Velocity.y), 0.5f, "a hover should neither climb nor fall");
 
-            Assert.IsTrue(reversed,
-                "letting go of thrust never let gravity actually reverse the climb");
+            for (int i = 0; i < 10; i++)
+            {
+                Fly(false, Vector2.zero, false, 1.0f / 60.0f, descendHeld: true);
+                _locomotion.Tick(default, 1.0f / 60.0f);
+            }
+            Assert.Less(_locomotion.Velocity.y, -Jetpack.DescendSpeed * 0.9f, "Ctrl should sink the body");
+            Assert.Less(_player.transform.position.y, height, "Ctrl did not bring the body down");
         }
 
         /// <summary>
@@ -118,7 +130,7 @@ namespace CityX.Tests
         {
             for (int i = 0; i < 30; i++)
             {
-                _jetpack.Tick(true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f, cameraPitchDegrees: 30.0f);
+                Fly(true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f, cameraPitchDegrees: 30.0f);
             }
             Assert.Greater(_jetpack.CurrentTilt.x, 1.0f, "setup failed -- the body never actually leaned");
 
@@ -131,7 +143,7 @@ namespace CityX.Tests
             // the position -- otherwise a hover's own already-zero target
             // would still visibly overshoot away from zero for a moment on
             // the very next Tick, off nothing but leftover momentum.
-            _jetpack.Tick(true, Vector2.zero, false, 1.0f / 60.0f);
+            Fly(true, Vector2.zero, false, 1.0f / 60.0f);
             Assert.AreEqual(0.0f, _jetpack.CurrentTilt.x, 0.01f,
                 "leftover tilt velocity was not cleared -- the body drifted off zero again right after the reset");
         }
@@ -153,7 +165,7 @@ namespace CityX.Tests
             // exactly as Jetpack.Tick's own real path does every frame
             // thrust is held.
             _player.transform.position = new Vector3(0.0f, 100.5f, 0.0f);
-            _jetpack.Tick(true, Vector2.zero, false, 1.0f / 60.0f);
+            Fly(true, Vector2.zero, false, 1.0f / 60.0f);
 
             // Still thrusting, now descended under control to just above
             // the ground -- this is the LAST reset before letting go, and
@@ -161,7 +173,7 @@ namespace CityX.Tests
             // 100m climb behind it is irrelevant, only what happens from
             // here on is real unpowered fall.
             _player.transform.position = new Vector3(0.0f, 2.0f, 0.0f);
-            _jetpack.Tick(true, Vector2.zero, false, 1.0f / 60.0f);
+            Fly(true, Vector2.zero, false, 1.0f / 60.0f);
 
             // Thrust released -- a genuine 2m drop to the ground, well
             // inside any reasonable safe-fall distance.
@@ -265,8 +277,8 @@ namespace CityX.Tests
             {
                 Move = new Vector2(0.0f, 1.0f),
                 JetpackThrusting = true,
-                JetpackBoosting = true,
-                JetpackDiving = true,
+                FlightSpeed = _locomotion.SprintSpeed * Jetpack.DiveSpeedMultiplier,
+                FlightAcceleration = Jetpack.Acceleration,
             };
             for (int i = 0; i < 60; i++)
             {
@@ -274,7 +286,7 @@ namespace CityX.Tests
             }
 
             float diveSpeed = _locomotion.CurrentSpeed;
-            Assert.AreEqual(_locomotion.SprintSpeed * _locomotion.JetpackDiveSpeedMultiplier, diveSpeed, 0.01f,
+            Assert.AreEqual(_locomotion.SprintSpeed * Jetpack.DiveSpeedMultiplier, diveSpeed, 0.01f,
                 "setup failed -- a full second of holding the dive input never reached the jetpack's own top speed");
 
             float damage = _vitals.ApplyCrashDamage(diveSpeed);
@@ -838,7 +850,7 @@ namespace CityX.Tests
         {
             for (int i = 0; i < 30; i++)
             {
-                _jetpack.Tick(thrustHeld: false, moveInput: new Vector2(0.0f, 1.0f), boostHeld: false,
+                Fly(thrustHeld: false, moveInput: new Vector2(0.0f, 1.0f), boostHeld: false,
                     deltaTime: 1.0f / 60.0f);
             }
 
@@ -859,7 +871,7 @@ namespace CityX.Tests
         {
             for (int i = 0; i < 30; i++)
             {
-                _jetpack.Tick(thrustHeld: true, moveInput: new Vector2(1.0f, 0.0f), boostHeld: false,
+                Fly(thrustHeld: true, moveInput: new Vector2(1.0f, 0.0f), boostHeld: false,
                     deltaTime: 1.0f / 60.0f);
             }
 
@@ -868,38 +880,35 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Releasing thrust mid-lean must ease back to level, the same way
-        /// releasing a single WASD key already eases that axis back to zero
-        /// (see EaseTiltStraightensOutOnceTheKeyIsReleased) -- thrust ending
-        /// is just another way the target becomes zero.
+        /// Landing mid-lean must ease back to level, the same way releasing a single WASD key already eases that axis back to zero (see
+        /// EaseTiltStraightensOutOnceTheKeyIsReleased): the flight ending is just another way the target becomes zero. (Letting go of Space
+        /// alone no longer ends a flight -- it hovers -- so the strafe lean rightly stays while the key is held.)
         /// </summary>
         [Test]
-        public void ReleasingThrustStraightensOutAnExistingLean()
+        public void LandingStraightensOutAnExistingLean()
         {
             for (int i = 0; i < 30; i++)
             {
-                _jetpack.Tick(thrustHeld: true, moveInput: new Vector2(1.0f, 0.0f), boostHeld: false,
+                Fly(thrustHeld: true, moveInput: new Vector2(1.0f, 0.0f), boostHeld: false,
                     deltaTime: 1.0f / 60.0f);
             }
             Assert.Less(_jetpack.CurrentTilt.y, -1.0f, "setup failed -- the body never actually leaned");
 
-            // SmoothDamp settles more gradually than the old constant-rate
-            // ramp did (see TiltSmoothTime's own doc comment) -- 30 frames
-            // (half a second) was plenty against the old rate, but is not
-            // long enough for a curve that also eases OUT approaching zero.
+            // SmoothDamp settles gradually and eases OUT approaching zero: three seconds, not half of one.
             for (int i = 0; i < 180; i++)
             {
-                _jetpack.Tick(thrustHeld: false, moveInput: new Vector2(1.0f, 0.0f), boostHeld: false,
-                    deltaTime: 1.0f / 60.0f);
+                Fly(thrustHeld: false, moveInput: new Vector2(1.0f, 0.0f), boostHeld: false,
+                    deltaTime: 1.0f / 60.0f, airborne: false);
             }
+            Assert.IsFalse(_jetpack.IsFlying, "touching the ground should end the flight");
             Assert.AreEqual(0.0f, _jetpack.CurrentTilt.y, 0.01f,
-                "releasing thrust never straightened the body back out");
+                "landing never straightened the body back out");
         }
 
         [Test]
         public void BoostWithNoDirectionClimbsFasterThanPlainThrust()
         {
-            _jetpack.Tick(true, Vector2.zero, boostHeld: true, deltaTime: 1.0f / 60.0f);
+            Fly(true, Vector2.zero, boostHeld: true, deltaTime: 1.0f / 60.0f);
             _locomotion.Tick(default, 1.0f / 60.0f);
 
             Assert.Greater(_locomotion.Velocity.y, Jetpack.ThrustSpeed,
@@ -916,7 +925,7 @@ namespace CityX.Tests
         [Test]
         public void BoostWithADirectionHeldDoesNotAlsoClimbFaster()
         {
-            _jetpack.Tick(true, new Vector2(0.0f, 1.0f), boostHeld: true, deltaTime: 1.0f / 60.0f);
+            Fly(true, new Vector2(0.0f, 1.0f), boostHeld: true, deltaTime: 1.0f / 60.0f);
             _locomotion.Tick(default, 1.0f / 60.0f);
 
             Assert.LessOrEqual(_locomotion.Velocity.y, Jetpack.ThrustSpeed,
@@ -936,7 +945,7 @@ namespace CityX.Tests
         {
             for (int i = 0; i < 180; i++)
             {
-                _jetpack.Tick(true, new Vector2(0.0f, 1.0f), boostHeld: true, deltaTime: 1.0f / 60.0f,
+                Fly(true, new Vector2(0.0f, 1.0f), boostHeld: true, deltaTime: 1.0f / 60.0f,
                     cameraPitchDegrees: 80.0f);
             }
             Assert.AreEqual(80.0f + Jetpack.SupermanPitchOffsetDegrees, _jetpack.CurrentTilt.x, 0.5f);
@@ -949,60 +958,18 @@ namespace CityX.Tests
         {
             for (int i = 0; i < 180; i++)
             {
-                _jetpack.Tick(true, new Vector2(1.0f, 0.0f), boostHeld: true, deltaTime: 1.0f / 60.0f);
+                Fly(true, new Vector2(1.0f, 0.0f), boostHeld: true, deltaTime: 1.0f / 60.0f);
             }
             Assert.Less(_jetpack.CurrentTilt.y, -1.0f,
                 "a pure sideways boost should still bank into the strafe, not level out as if diving");
         }
 
-        // --- ClimbVelocityFor: Requested, "make it curve and turn with where your looking" ---
-
+        /// <summary>Perfectly level while boosting forward means flat, fast horizontal flight -- no silent climb or sink just from turning the boost on.</summary>
         [Test]
-        public void FlyingForwardWhileLookingUpClimbs()
+        public void BoostingForwardAtLevelPitchNeitherClimbsNorDives()
         {
-            float velocity = Jetpack.ClimbVelocityFor(new Vector2(0.0f, 1.0f), boostHeld: false, cameraPitchDegrees: -30.0f);
-            Assert.Greater(velocity, 0.0f, "looking up while flying forward should climb, not sink");
-        }
-
-        [Test]
-        public void FlyingForwardWhileLookingDownDives()
-        {
-            float velocity = Jetpack.ClimbVelocityFor(new Vector2(0.0f, 1.0f), boostHeld: false, cameraPitchDegrees: 30.0f);
-            Assert.Less(velocity, 0.0f, "looking down while flying forward should dive, not climb");
-        }
-
-        /// <summary>Hovering (no forward component) must not start climbing or sinking just because the camera looked somewhere.</summary>
-        [Test]
-        public void HoveringInPlaceIgnoresCameraPitch()
-        {
-            Assert.AreEqual(Jetpack.ThrustSpeed,
-                Jetpack.ClimbVelocityFor(Vector2.zero, boostHeld: false, cameraPitchDegrees: -30.0f), 0.001f);
-            Assert.AreEqual(Jetpack.ThrustSpeed,
-                Jetpack.ClimbVelocityFor(Vector2.zero, boostHeld: false, cameraPitchDegrees: 30.0f), 0.001f);
-        }
-
-        /// <summary>Straight up (or boosted straight up) is a flat push, not pitch-derived -- level pitch is not the same claim as "camera pitch is ignored here."</summary>
-        [Test]
-        public void HoveringWithBoostStillReachesTheFlatBoostSpeedRegardlessOfPitch()
-        {
-            Assert.AreEqual(Jetpack.BoostThrustSpeed,
-                Jetpack.ClimbVelocityFor(Vector2.zero, boostHeld: true, cameraPitchDegrees: 15.0f), 0.001f);
-        }
-
-        /// <summary>A W+shift dive climbs or dives twice as fast as the same pitch would plainly, matching the horizontal 2x from PlayerLocomotion.JetpackDiveSpeedMultiplier.</summary>
-        [Test]
-        public void DivingDoublesTheClimbRateAtTheSamePitch()
-        {
-            float plain = Jetpack.ClimbVelocityFor(new Vector2(0.0f, 1.0f), boostHeld: false, cameraPitchDegrees: -20.0f);
-            float diving = Jetpack.ClimbVelocityFor(new Vector2(0.0f, 1.0f), boostHeld: true, cameraPitchDegrees: -20.0f);
-            Assert.AreEqual(plain * Jetpack.DiveClimbMultiplier, diving, 0.01f);
-        }
-
-        /// <summary>Perfectly level while diving means flat, fast horizontal flight -- no silent climb or sink just from turning the boost on.</summary>
-        [Test]
-        public void DivingAtLevelPitchNeitherClimbsNorDives()
-        {
-            float velocity = Jetpack.ClimbVelocityFor(new Vector2(0.0f, 1.0f), boostHeld: true, cameraPitchDegrees: 0.0f);
+            var input = new FlightInput { BoostHeld = true, Move = new Vector2(0.0f, 1.0f), CameraPitchDegrees = 0.0f, Airborne = true };
+            float velocity = _jetpack.Model.VerticalFor(input, _jetpack.Model.Tuning.Fast, 1.0f);
             Assert.AreEqual(0.0f, velocity, 0.001f);
         }
 

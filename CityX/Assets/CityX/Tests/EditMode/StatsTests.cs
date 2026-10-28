@@ -48,9 +48,9 @@ namespace CityX.Tests
             Assert.AreEqual(StatGroup.Precision, StatCatalog.Get(StatId.RecoilControl).Group);
             Assert.AreEqual(StatGroup.Mobility, StatCatalog.Get(StatId.VehicleHandling).Group);
             Assert.AreEqual(StatGroup.Defense, StatCatalog.Get(StatId.BlockChance).Group);
-            Assert.IsFalse(StatCatalog.Get(StatId.FlightSpeed).InGame, "flight speed waits for the wings");
+            Assert.IsTrue(StatCatalog.Get(StatId.FlightSpeed).InGame, "flight speed works since the angel wings (2026-10-28)");
             Assert.IsFalse(StatCatalog.Get(StatId.VehicleHandling).InGame, "handling waits for the new cars");
-            Assert.AreEqual(22, StatCatalog.All.Count(s => s.InGame));
+            Assert.AreEqual(23, StatCatalog.All.Count(s => s.InGame));
         }
 
         [Test]

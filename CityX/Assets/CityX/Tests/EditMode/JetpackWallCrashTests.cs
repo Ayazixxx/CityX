@@ -108,12 +108,13 @@ namespace CityX.Tests
             {
                 Move = new Vector2(0.0f, 1.0f),
                 YawDegrees = 0.0f,
-                JetpackBoosting = true,
-                JetpackDiving = true,
+                FlightSpeed = _locomotion.SprintSpeed * Jetpack.DiveSpeedMultiplier,
+                FlightAcceleration = Jetpack.Acceleration,
             };
             for (int i = 0; i < 300; i++)
             {
-                _jetpack.Tick(true, new Vector2(0.0f, 1.0f), true, step);
+                // Space once to take off, then a level boosted flight straight at the wall (Space held would climb over it).
+                _jetpack.Tick(new FlightInput { ThrustHeld = i == 0, BoostHeld = true, Move = new Vector2(0.0f, 1.0f), Airborne = true }, step);
                 _locomotion.Tick(input, step);
                 if ((_locomotion.LastMoveCollisionFlags & CollisionFlags.Sides) != 0)
                 {
