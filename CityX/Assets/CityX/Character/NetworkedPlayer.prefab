@@ -122,7 +122,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1408519361063622754}
+      addedObject: {fileID: 6274856749431340030}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -390,6 +390,8 @@ MonoBehaviour:
     Prefab: {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
   - ItemId: farmer_hat
     Prefab: {fileID: 2038061724502903381, guid: d61b2f70f156baf4da7b54cbc160166c, type: 3}
+  - ItemId: round_shield
+    Prefab: {fileID: 3541695584487383428, guid: 98c0e07f7ac9ff447b8b7d220008bf1f, type: 3}
   - ItemId: hooded_cloak
     Prefab: {fileID: 4861952590144521463, guid: 5751df4e3d53cf64dbabc5b9d9ae42ca, type: 3}
   - ItemId: midnight_coat
@@ -682,7 +684,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &1408519361063622754
+--- !u!114 &6274856749431340030
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

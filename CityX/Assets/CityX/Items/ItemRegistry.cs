@@ -38,6 +38,7 @@ namespace CityX.Items
         public const string SprayCan = "spray_can";
         public const string KnightHelmet = "knight_helmet";
         public const string FarmerHat = "farmer_hat";
+        public const string RoundShield = "round_shield";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -85,6 +86,8 @@ namespace CityX.Items
             [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // A wide straw hat: Meshy's, cut off its figure (Wearables/FarmerHat).
             [FarmerHat] = new ItemDefinition(FarmerHat, "Farmer Hat", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
+            // A plain wooden round shield on the left forearm, to test shields with until the owner's model (Wearables/RoundShield, docs/SHIELD.md).
+            [RoundShield] = new ItemDefinition(RoundShield, "Round Shield", "shield", EquipSlots.Shield, 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

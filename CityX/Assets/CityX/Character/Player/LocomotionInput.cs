@@ -32,12 +32,11 @@ namespace CityX.Character
 
         public bool Sprint;
 
-        /// <summary>
-        /// Held, not tapped. Sprint beats it -- player.gd's own rule, and not
-        /// arbitrary: there is no crouch-sprint clip, so holding both would
-        /// show a crouch walk while the body travelled at sprint speed.
-        /// </summary>
+        /// <summary>Held, not tapped. It beats sprint, as in Source (docs/CROUCH.md): a crouched body cannot run.</summary>
         public bool Crouch;
+
+        /// <summary>The shield is held up (docs/SHIELD.md): shown on the body (and other players' copies of it), and the body walks at half speed.</summary>
+        public bool ShieldRaised;
 
         /// <summary>True on the frame jump was pressed, not while it is held.</summary>
         public bool Jump;

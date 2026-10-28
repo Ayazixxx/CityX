@@ -45,6 +45,7 @@ namespace CityX.Character
         private static readonly int MoveZParameter = Animator.StringToHash("MoveZ");
         private static readonly int GroundedParameter = Animator.StringToHash("Grounded");
         private static readonly int CrouchingParameter = Animator.StringToHash("Crouching");
+        private static readonly int ShieldRaisedParameter = Animator.StringToHash("ShieldRaised");
         private static readonly int AimingParameter = Animator.StringToHash("Aiming");
         private static readonly int SwordEquippedParameter = Animator.StringToHash("SwordEquipped");
         private static readonly int Sword1HEquippedParameter = Animator.StringToHash("Sword1HEquipped");
@@ -416,6 +417,7 @@ namespace CityX.Character
                 _animator.GetFloat(MoveZParameter),
                 _animator.GetBool(GroundedParameter),
                 _animator.GetBool(CrouchingParameter),
+                _animator.GetBool(ShieldRaisedParameter),
                 _animator.GetBool(AimingParameter),
                 _animator.GetBool(SwordEquippedParameter),
                 _animator.GetBool(Sword1HEquippedParameter),
@@ -430,10 +432,10 @@ namespace CityX.Character
 
         [ServerRpc(RequireOwnership = true)]
         private void SendStateToServer(float speed, float moveX, float moveZ, bool grounded,
-            bool crouching, bool aiming, bool swordEquipped, bool sword1HEquipped, bool gunEquipped, bool jetpackThrusting,
+            bool crouching, bool shieldRaised, bool aiming, bool swordEquipped, bool sword1HEquipped, bool gunEquipped, bool jetpackThrusting,
             bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase)
         {
-            BroadcastState(speed, moveX, moveZ, grounded, crouching, aiming,
+            BroadcastState(speed, moveX, moveZ, grounded, crouching, shieldRaised, aiming,
                 swordEquipped, sword1HEquipped, gunEquipped, jetpackThrusting, dancing, breakdancing, chargingJump, pushUpPhase);
         }
 
@@ -444,7 +446,7 @@ namespace CityX.Character
         /// </summary>
         [ObserversRpc(ExcludeOwner = true)]
         private void BroadcastState(float speed, float moveX, float moveZ, bool grounded,
-            bool crouching, bool aiming, bool swordEquipped, bool sword1HEquipped, bool gunEquipped, bool jetpackThrusting,
+            bool crouching, bool shieldRaised, bool aiming, bool swordEquipped, bool sword1HEquipped, bool gunEquipped, bool jetpackThrusting,
             bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase)
         {
             if (_animator == null)
@@ -464,6 +466,7 @@ namespace CityX.Character
             }
             _animator.SetBool(GroundedParameter, grounded);
             _animator.SetBool(CrouchingParameter, crouching);
+            _animator.SetBool(ShieldRaisedParameter, shieldRaised);
             _animator.SetBool(AimingParameter, aiming);
             _animator.SetBool(SwordEquippedParameter, swordEquipped);
             _animator.SetBool(Sword1HEquippedParameter, sword1HEquipped);

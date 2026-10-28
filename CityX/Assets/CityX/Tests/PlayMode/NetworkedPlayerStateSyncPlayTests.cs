@@ -644,6 +644,32 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// A SHIELD SHOWS ON THE COPY, AND GOES UP WITH ITS OWNER'S (2026-10-27, docs/SHIELD.md): one player straps on the round shield; the
+        /// other player's copy of them wears it on its forearm, and raises it when they do.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AShieldShowsOnAnotherPlayersCopyAndIsRaisedWithItsOwners()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            _aOnA.GetComponent<PlayerInputReader>().enabled = false;   // driven by the test, not the (empty) keyboard
+            var owner = _aOnA.GetComponent<PlayerLocomotion>();
+            var copy = _aOnB.GetComponent<PlayerLocomotion>();
+            Assert.IsTrue(_aOnA.GetComponent<Inventory>().EquipItemId(ItemRegistry.RoundShield, _aOnA.gameObject), "the shield would not go on");
+            yield return WaitUntil(() => copy.Shield != null, "the shield to show on the other player's copy");
+            yield return WaitUntil(() =>
+            {
+                owner.Tick(new LocomotionInput { ShieldRaised = true }, 1.0f / 60.0f);
+                return copy.ShieldRaise > 0.99f;
+            }, "the copy to raise its shield with its owner");
+            Assert.Less(Vector3.Angle(copy.Shield.forward, _aOnB.transform.forward), 5.0f, "the copy's raised shield does not face forward");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         // --- helpers ---
 
         private static IEnumerator WaitForState(Animator animator, string stateName)

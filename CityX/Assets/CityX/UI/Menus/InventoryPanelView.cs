@@ -43,7 +43,7 @@ namespace CityX.UI
     public sealed class InventoryPanelView : MonoBehaviour
     {
         /// <summary>
-        /// The equipment slots, head to foot, then the back and the two weapons: the order the row of equipped slots is drawn in. The keys are
+        /// The equipment slots, head to foot, then the back, the two weapons and the shield: the order the row of equipped slots is drawn in. The keys are
         /// the ones items are registered under (EquipSlots). They used to be Godot's own (hat, hands, feet), which nothing registers against, so
         /// a hat or a jetpack worn never showed here; the owner asked for shoes, gloves and back slots (2026-10-15). Gloves have no item yet,
         /// the mask neither; they sit empty and ready (the shoes' first, the White Sneaker, came 2026-10-25).
@@ -51,13 +51,13 @@ namespace CityX.UI
         public static readonly string[] EquipSlotKeys =
         {
             EquipSlots.Helmet, EquipSlots.Mask, EquipSlots.Torso, EquipSlots.Gloves, EquipSlots.Legs, EquipSlots.Shoes, EquipSlots.Back,
-            EquipSlots.Primary, EquipSlots.Secondary,
+            EquipSlots.Primary, EquipSlots.Secondary, EquipSlots.Shield,
         };
 
         /// <summary>The caption over each slot, in <see cref="EquipSlotKeys"/>' order.</summary>
         public static readonly string[] SlotLabelText =
         {
-            "HELMET", "MASK", "TORSO", "GLOVES", "LEGS", "SHOES", "BACK", "PRIMARY", "SECONDARY",
+            "HELMET", "MASK", "TORSO", "GLOVES", "LEGS", "SHOES", "BACK", "PRIMARY", "SECONDARY", "SHIELD",
         };
 
         [Tooltip("The whole overlay, hidden until I is pressed.")]

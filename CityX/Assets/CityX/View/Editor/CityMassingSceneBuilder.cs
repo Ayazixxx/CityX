@@ -266,6 +266,8 @@ namespace CityX.ViewEditor
             GameObject sprayCanPrefab = CityX.WeaponsEditor.SprayCanBuilder.Build();
             GameObject knightHelmetPrefab = CityX.WearablesEditor.KnightHelmetBuilder.Build();
             GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
+            // The round shield (2026-10-27): drawn in code, a stand-in to test shields with (docs/SHIELD.md).
+            GameObject roundShieldPrefab = CityX.WearablesEditor.RoundShieldBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
@@ -505,6 +507,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.KnightHelmet, Prefab = knightHelmetPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.FarmerHat, Prefab = farmerHatPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.RoundShield, Prefab = roundShieldPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Flamethrower, Prefab = flamethrowerPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

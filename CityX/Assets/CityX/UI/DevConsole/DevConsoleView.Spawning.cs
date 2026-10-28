@@ -270,6 +270,8 @@ namespace CityX.UI
         {
             switch (which)
             {
+                case "shield":
+                case "round_shield": return ItemRegistry.RoundShield;
                 case "bottle": return ItemRegistry.GlassBottle;
                 case "cloak": return ItemRegistry.HoodedCloak;
                 case "jeans":

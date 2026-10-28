@@ -878,6 +878,8 @@ namespace CityX.Character
             KeepArmsOutOfTorso();
             ApplyBakedPose();
             ApplyFistPose();
+            // A raised shield has the left arm (PlayerLocomotion.Shield.cs); lowered, the shield rides the forearm wherever it is.
+            ApplyShieldPose();
             ApplyClimbLimbs();
             ApplyClimbWallLimbs();
             ApplyLedgeHands();
@@ -1282,6 +1284,10 @@ namespace CityX.Character
                 speed *= PlayerVitals.SpeedOf(_statsVitals, StatId.MovementSpeed);
                 speed = WaterSpeed(speed);
                 speed *= CrouchSpeedFactor(_controller.isGrounded || _steppingUp);
+                if (input.ShieldRaised && Shield != null)
+                {
+                    speed *= ShieldMoveSpeedShare;
+                }
             }
             // GROW AND SHRINK: a giant covers ground 3.2 times as fast, a tiny body a third as fast (SizeSpeedFactor).
             speed *= SizeSpeedFactor;
@@ -1537,6 +1543,7 @@ namespace CityX.Character
                 // A floating body treads water: the walk and idle, not the fall.
                 _animator.SetBool(GroundedParameter, _controller.isGrounded || _steppingUp || IsFloating);
                 _animator.SetBool(CrouchingParameter, IsCrouching);
+                _animator.SetBool(ShieldRaisedParameter, input.ShieldRaised && Shield != null);
                 ShowCrouch();
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
                 _animator.SetBool(AimingParameter, input.Aiming);

@@ -133,5 +133,21 @@ namespace CityX.WeaponsEditor
             AssetDatabase.CreateAsset(mesh, meshPath);
             return mesh;
         }
+
+        /// <summary>A plain coloured material in the game's lit shader at <paramref name="path"/> (made once, its colour and finish kept up to date).</summary>
+        public static Material LitMaterial(string path, Color colour, float metallic, float smoothness)
+        {
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(CityX.Core.LitShader.Find());
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.SetColor("_BaseColor", colour);
+            material.SetFloat("_Metallic", metallic);
+            material.SetFloat("_Smoothness", smoothness);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
     }
 }

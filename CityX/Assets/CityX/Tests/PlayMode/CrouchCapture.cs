@@ -101,7 +101,7 @@ namespace CityX.Tests
             }
         }
 
-        private static void Views(Camera camera, GameObject player, string name)
+        internal static void Views(Camera camera, GameObject player, string name)
         {
             Vector3 middle = player.transform.position + Vector3.up * 1.2f;
             BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, name + "-side", middle + player.transform.right * 7.0f, middle);

@@ -1102,6 +1102,7 @@ namespace CityX.Character
                 YawDegrees = yawDegrees,
                 Sprint = sprinting,
                 Crouch = keyboard.leftCtrlKey.isPressed,
+                ShieldRaised = _vitals != null && _vitals.ShieldRaised,
                 // Charging kept in the vault for now -- see the dispatch
                 // above (and TickJumpCharge's own doc comment) for why
                 // Space fires a plain, un-charged jump directly instead.

@@ -209,6 +209,8 @@ namespace CityX.CharacterEditor
             controller.AddParameter("MoveZ", AnimatorControllerParameterType.Float);
             controller.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
             controller.AddParameter("Jump", AnimatorControllerParameterType.Trigger);
+            // A shield held up (PlayerLocomotion.Shield.cs): the left arm's pose, not a state of its own; here so other players' copies are told it.
+            controller.AddParameter("ShieldRaised", AnimatorControllerParameterType.Bool);
 
             // A 2-D blend over the body's own velocity IN ITS OWN FRAME, in
             // metres per second. It was a 1-D blend on speed alone, which could

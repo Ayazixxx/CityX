@@ -52,6 +52,9 @@ namespace CityX.Character
 
         private float _swordClickHeldSeconds;
 
+        /// <summary>A shield is worn on the off hand (docs/SHIELD.md).</summary>
+        private bool ShieldInHand => _vitals != null && _vitals.Shield != null;
+
         /// <summary>
         /// Punching, holding for a heavy one, and blocking.
         ///
@@ -77,6 +80,10 @@ namespace CityX.Character
                 _orbitCamera.IsAiming = false;
             }
             _isAimingGun = false;
+            if (_vitals != null)
+            {
+                _vitals.ShieldRaised = false;   // the same: down unless right-click holds it up below
+            }
 
             // Both hands are full while carrying something -- matches
             // player.gd's own "entirely while carrying something" guard on
@@ -84,6 +91,13 @@ namespace CityX.Character
             if (_grabCarry != null && _grabCarry.HandsFull)
             {
                 return;
+            }
+
+            // A SHIELD ON THE OFF HAND (docs/SHIELD.md): right-click held raises it -- bare-handed or with a one-handed weapon, instead of the
+            // fists' timed block or the sword's guard. Not with a gun (right-click aims it) or a spray can in hand.
+            if (ShieldInHand && EquippedGun == null && EquippedSprayCan == null)
+            {
+                _vitals.ShieldRaised = Mouse.current.rightButton.isPressed;
             }
 
             // SCROLL WHEEL: put the weapon in hand away and take out the other (primary <-> secondary). Not while carrying (returned above), and not
@@ -275,7 +289,7 @@ namespace CityX.Character
             // way crouch has one: a press throws the block, and the window is
             // exactly as long as the clip. Holding the button past that does
             // nothing -- you cannot hold a block, you have to time it.
-            if (Mouse.current.rightButton.wasPressedThisFrame && _vitals != null)
+            if (Mouse.current.rightButton.wasPressedThisFrame && _vitals != null && !ShieldInHand)
             {
                 _vitals.StartBlock();
                 _melee.PlayBlock();
@@ -443,7 +457,7 @@ namespace CityX.Character
                 }
             }
 
-            souls.SetBlockHeld(mouse.rightButton.isPressed && !spinning);
+            souls.SetBlockHeld(mouse.rightButton.isPressed && !spinning && !ShieldInHand);   // with a shield, right-click is the shield's
         }
     }
 }

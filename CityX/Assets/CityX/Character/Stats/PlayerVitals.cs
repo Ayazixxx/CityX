@@ -379,6 +379,27 @@ namespace CityX.Character
 
         public bool IsBlocking => BlockRemaining > 0.0f;
 
+        /// <summary>The shield in the off hand, or null (set by the shield itself as it is taken up and put away).</summary>
+        public Transform Shield { get; set; }
+
+        /// <summary>The shield is held up (right-click held: PlayerInputReader). Only means anything with a <see cref="Shield"/>.</summary>
+        public bool ShieldRaised { get; set; }
+
+        /// <summary>How far either side of straight ahead a raised shield covers, degrees.</summary>
+        public const float ShieldCoverDegrees = 75.0f;
+
+        /// <summary>Whether a raised shield is between this body and something coming from <paramref name="fromPosition"/>: from the front, within <see cref="ShieldCoverDegrees"/>.</summary>
+        public bool ShieldCovers(Vector3 fromPosition)
+        {
+            if (Shield == null || !ShieldRaised)
+            {
+                return false;
+            }
+            Vector3 toward = fromPosition - transform.position;
+            toward.y = 0.0f;
+            return toward.sqrMagnitude > 1e-4f && Vector3.Angle(transform.forward, toward) <= ShieldCoverDegrees;
+        }
+
         /// <summary>Throws a block. Re-throwing mid-block restarts the window.</summary>
         public void StartBlock()
         {
@@ -515,7 +536,17 @@ namespace CityX.Character
             // What the blow is (DamageContext, said by whoever struck it, or carried here from another player's machine by NetworkedDamage).
             DamageKind kind = DamageContext.Kind;
             float penetration = DamageContext.Penetration;
-            bool blocked = IsBlocking;
+            // A RAISED SHIELD (docs/SHIELD.md) blocks what comes at the front: a bullet stops dead on it -- no roll, nothing sent back (the
+            // sword's guard is the gamble, the shield the certainty) -- and a blow is a held guard's: a quarter through, stamina, the roll.
+            bool shielded = ShieldCovers(fromPosition);
+            bool blocked = IsBlocking || shielded;
+            bool heldGuard = BlockDrainsStamina || shielded;
+            if (shielded && kind == DamageKind.Bullet)
+            {
+                Deflected?.Invoke(fromPosition, kind);
+                Hit?.Invoke(fromPosition);
+                return HitResponse.Blocked;
+            }
 
             // THE PARRY: a soulslike guard that caught the blow in its first instant stops it dead -- no damage, no stamina -- and answers
             // Blocked, which leaves the ATTACKER staggered (SoulsSwordCombat.BlockedRecoilSeconds). The window closes on the first blow.
@@ -546,7 +577,7 @@ namespace CityX.Character
                     BulletTurnedAside?.Invoke(fromPosition, amount);   // and off it flies (BulletRicochet)
                 }
                 Hit?.Invoke(fromPosition);
-                return BlockDrainsStamina ? HitResponse.Guarded : HitResponse.Blocked;
+                return heldGuard ? HitResponse.Guarded : HitResponse.Blocked;
             }
 
             // ARMOUR AND MAGIC RESISTANCE (2026-10-14): a share of the blow is stopped -- armour stops blows and bullets, magic resistance
@@ -575,7 +606,7 @@ namespace CityX.Character
             // Stability makes the guard cheaper to hold (harder to break).
             // NOT FOR A BULLET (owner, 2026-10-27): a bullet the roll did not turn aside comes through the guard at a quarter of its damage and
             // costs no stamina -- a burst of fire must not leave a sword user unable to swing back.
-            if (blocked && BlockDrainsStamina && !InfiniteStamina && kind != DamageKind.Bullet)
+            if (blocked && heldGuard && !InfiniteStamina && kind != DamageKind.Bullet)
             {
                 float drain = amount * BlockStaminaPerDamage * (1.0f - 0.5f * Stats.Effect(StatId.Stability));
                 if (drain >= _stamina)
@@ -587,7 +618,7 @@ namespace CityX.Character
                 _stamina -= drain;
                 DelayStaminaRegen(0.5f);
             }
-            if (blocked && BlockDrainsStamina && kind != DamageKind.Bullet)
+            if (blocked && heldGuard && kind != DamageKind.Bullet)
             {
                 GuardStruck?.Invoke(fromPosition);   // the guard held: the blades clash
             }
@@ -641,7 +672,7 @@ namespace CityX.Character
             {
                 return HitResponse.Landed;
             }
-            return BlockDrainsStamina ? HitResponse.Guarded : HitResponse.Blocked;
+            return heldGuard ? HitResponse.Guarded : HitResponse.Blocked;
         }
 
         /// <summary>The guard is broken open: dropped, the body staggered for GuardBreakStunSeconds, the blow answered as one that landed.</summary>

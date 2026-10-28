@@ -16,7 +16,7 @@ and it you ... maybe make it so it can fly in a random direction but not if its 
 - Open: whether the sword's guard can be held from the start or only after an early sword skill ("im not sure because I want you to stand a
   chance against gun users if you want to just main swords no shield. but that also kind of eliminates the need for a shield"). My
   suggestion: the sword's held guard is the gamble (Block Chance, the bullet flies off), a shield is the certainty (frontal bullets stop, no
-  roll, nothing sent back). The owner asked for a basic round shield to test with.
+  roll, nothing sent back). The owner asked for a basic round shield to test with: built, docs/SHIELD.md.
 
 ## What was built
 

@@ -17,6 +17,9 @@ namespace CityX.Items
         public const string Legs = "legs";
         public const string Shoes = "shoes";
         public const string Back = "back";
+
+        /// <summary>The off hand's shield, held in the left hand beside whatever the right hand holds.</summary>
+        public const string Shield = "shield";
         public const string Primary = "hand_r";
         public const string Secondary = "hand_l";
     }

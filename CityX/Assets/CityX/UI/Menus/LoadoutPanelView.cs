@@ -41,12 +41,12 @@ namespace CityX.UI
         public static readonly string[] SlotKeys =
         {
             EquipSlots.Helmet, EquipSlots.Torso, EquipSlots.Legs, EquipSlots.Shoes, EquipSlots.Gloves, EquipSlots.Back,
-            EquipSlots.Primary, EquipSlots.Secondary,
+            EquipSlots.Primary, EquipSlots.Secondary, EquipSlots.Shield,
         };
 
         public static readonly string[] SlotLabelText =
         {
-            "HELMET", "TORSO", "LEGS", "SHOES", "GLOVES", "BACK", "PRIMARY WEAPON", "SECONDARY WEAPON",
+            "HELMET", "TORSO", "LEGS", "SHOES", "GLOVES", "BACK", "PRIMARY WEAPON", "SECONDARY WEAPON", "SHIELD",
         };
 
         [Tooltip("The whole overlay, hidden until Open() is called.")]

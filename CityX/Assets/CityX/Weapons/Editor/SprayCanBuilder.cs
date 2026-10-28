@@ -41,8 +41,8 @@ namespace CityX.WeaponsEditor
         {
             Mesh body = SaveMesh(Lathe(BodyProfile, "SprayCanBody"), BodyMeshPath);
             Mesh cap = SaveMesh(Lathe(CapProfile, "SprayCanCap"), CapMeshPath);
-            Material metal = EnsureMaterial(MetalMaterialPath, new Color(0.74f, 0.76f, 0.79f), 0.85f, 0.62f);
-            Material capMaterial = EnsureMaterial(CapMaterialPath, Color.white, 0.0f, 0.5f);
+            Material metal = HeldModelBaker.LitMaterial(MetalMaterialPath, new Color(0.74f, 0.76f, 0.79f), 0.85f, 0.62f);
+            Material capMaterial = HeldModelBaker.LitMaterial(CapMaterialPath, Color.white, 0.0f, 0.5f);
 
             var root = new GameObject("SprayCan");
             try
@@ -175,21 +175,6 @@ namespace CityX.WeaponsEditor
             }
             AssetDatabase.CreateAsset(mesh, path);
             return mesh;
-        }
-
-        private static Material EnsureMaterial(string path, Color colour, float metallic, float smoothness)
-        {
-            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material == null)
-            {
-                material = new Material(CityX.Core.LitShader.Find());
-                AssetDatabase.CreateAsset(material, path);
-            }
-            material.SetColor("_BaseColor", colour);
-            material.SetFloat("_Metallic", metallic);
-            material.SetFloat("_Smoothness", smoothness);
-            EditorUtility.SetDirty(material);
-            return material;
         }
     }
 }
