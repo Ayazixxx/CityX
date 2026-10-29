@@ -186,6 +186,7 @@ GameObject:
   - component: {fileID: 1361195570115084708}
   - component: {fileID: 7736892794210974606}
   - component: {fileID: 2726555814569877422}
+  - component: {fileID: 3470629957468762846}
   - component: {fileID: 6867019828852058954}
   m_Layer: 0
   m_Name: Shoota
@@ -442,6 +443,18 @@ MonoBehaviour:
   - {fileID: 4035343069231735280}
   Torso: {fileID: 8326043563740389131}
   Animator: {fileID: 4970044339763382852}
+--- !u!114 &3470629957468762846
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 982096521476428653}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdabdc880adbfa44b96ea1f5d93b5a03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Dismemberer
 --- !u!114 &6867019828852058954
 MonoBehaviour:
   m_ObjectHideFlags: 0

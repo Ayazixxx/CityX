@@ -1781,6 +1781,9 @@ namespace CityX.CharacterEditor
                 // collisions and it hangs bodies off the instantiated skeleton.
                 RagdollBuilder.Build(root, animator);
 
+                // After the ragdoll, so a death throws the body down before it is taken apart (docs/DISMEMBERMENT.md).
+                root.AddComponent<Dismemberer>();
+
                 // Added last: it looks for the others in Awake.
                 PlayerInputReader reader = root.AddComponent<PlayerInputReader>();
                 // The push-ups keep time with their own clips (PushUpEmote).

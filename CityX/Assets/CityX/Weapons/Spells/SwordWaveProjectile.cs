@@ -146,10 +146,14 @@ namespace CityX.Weapons
                 return;
             }
             var target = other.GetComponentInParent<IDamageable>();
-            if (target != null && target.IsAlive && _hit.Add(target))
+            if (target != null && (target.IsAlive || Dismemberer.TakesCorpseHits(target)) && _hit.Add(target))
             {
                 float damage = CombatTuning.DamageFor(BaseDamage, _casterStrength);
-                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration, null, _striker);
+                using (DamageContext.Cutting(true))   // a crescent of the blade's edge: it cuts
+                {
+                    DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration,
+                        other.bounds.ClosestPoint(transform.position), _striker);
+                }
             }
         }
     }

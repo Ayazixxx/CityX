@@ -43,5 +43,8 @@ namespace CityX.Character
         /// whichever swing was coming next.
         /// </summary>
         ComboStage? HeavyStage { get; }
+
+        /// <summary>A blade: its killing blows cut a part off rather than bursting it (docs/DISMEMBERMENT.md). False for anything blunt.</summary>
+        bool IsEdged => false;
     }
 }

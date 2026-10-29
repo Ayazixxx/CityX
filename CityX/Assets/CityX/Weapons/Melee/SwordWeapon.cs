@@ -58,6 +58,9 @@ namespace CityX.Weapons
 
         public string ItemId { get => _itemId; set => _itemId = value; }
 
+        /// <summary>IEquippableWeapon: a sword cuts; the bat and the crowbar, swung the same way, are blunt.</summary>
+        public bool IsEdged => ItemRegistry.HasEdge(_itemId);
+
         /// <summary>
         /// A ONE-HANDED sword (the owner's combat sword, 2026-10-13): held across the palm the way a hand grips a handle, the other hand free,
         /// and fought with the one-handed attacks and guard (SwordStrikes). False is the two-handed greatsword hold with the left hand on the grip.

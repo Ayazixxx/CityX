@@ -43,6 +43,7 @@ namespace CityX.Character
         private Transform _leftFoot;
         private Transform _rightFoot;
         private Ragdoll _ragdoll;
+        private Dismemberer _dismemberer;
         private CivilianBrain _brain;
 
         private float _verticalVelocity;
@@ -75,6 +76,7 @@ namespace CityX.Character
             _leftFoot = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftFoot) : null;
             _rightFoot = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightFoot) : null;
             _ragdoll = GetComponent<Ragdoll>();
+            _dismemberer = GetComponent<Dismemberer>();
             _brain = new CivilianBrain(Seed);
             _brain.SetRainSense(CurrentWeatherSense.Instance);
             _steering.ConfigureFrom(_controller);
@@ -144,6 +146,10 @@ namespace CityX.Character
             if (_ragdoll != null)
             {
                 _ragdoll.Deactivate();
+            }
+            if (_dismemberer != null)
+            {
+                _dismemberer.Restore();
             }
 
             // The controller has to be off to move it, or it fights the
@@ -220,11 +226,16 @@ namespace CityX.Character
         {
             if (IsDead)
             {
+                if (_dismemberer != null)
+                {
+                    _dismemberer.StrikeCorpse(Blow.Struck(amount, 0.0f, fromPosition), MaxHealth);   // docs/DISMEMBERMENT.md
+                }
                 return HitResponse.Ignored;
             }
 
             // A civilian never blocks. They are not a fighter, which is most of
             // the point of hitting one.
+            float before = _health;
             _health = Mathf.Max(0.0f, _health - amount);
             if (!IsDead)
             {
@@ -238,6 +249,10 @@ namespace CityX.Character
                 Vector3 away = transform.position - fromPosition;
                 away.y = 0.0f;
                 _ragdoll.Activate(away.normalized * 2.0f);
+            }
+            if (_dismemberer != null)
+            {
+                _dismemberer.TakeApart(Blow.Struck(amount, before, fromPosition), MaxHealth);
             }
 
             return HitResponse.Landed;

@@ -1092,7 +1092,7 @@ namespace CityX.Character
                     continue;
                 }
                 var target = collider.GetComponentInParent<IDamageable>();
-                if (target == null || !target.IsAlive || _hitThisSwing.Contains(target))
+                if (target == null || (!target.IsAlive && !Dismemberer.TakesCorpseHits(target)) || _hitThisSwing.Contains(target))
                 {
                     continue;
                 }
@@ -1118,7 +1118,9 @@ namespace CityX.Character
             victim?.TakePoise(_current.PoiseDamage);
 
             HitResponse response;
+            bool edged = _sword is IEquippableWeapon blade && blade.IsEdged;
             using (DamageContext.GuardBreaking(_current.BreaksGuard))
+            using (DamageContext.Cutting(edged))
             {
                 response = _melee != null
                     ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)

@@ -121,6 +121,9 @@ namespace CityX.Items
 
         public static bool Has(string itemId) => Items.ContainsKey(itemId);
 
+        /// <summary>A blade: its killing blows cut a part off rather than bursting it (docs/DISMEMBERMENT.md).</summary>
+        public static bool HasEdge(string itemId) => itemId == CombatSword || itemId == SpikeSword;
+
         public static IReadOnlyCollection<string> Ids => Items.Keys;
     }
 }

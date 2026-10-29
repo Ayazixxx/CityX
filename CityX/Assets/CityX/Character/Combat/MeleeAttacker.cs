@@ -514,7 +514,8 @@ namespace CityX.Character
             foreach (Collider collider in hits)
             {
                 var target = collider.GetComponentInParent<IDamageable>();
-                if (target == null || !target.IsAlive)
+                // A corpse is still struck while it has something left to take off (docs/DISMEMBERMENT.md); it answers Ignored, so nothing else follows.
+                if (target == null || (!target.IsAlive && !Dismemberer.TakesCorpseHits(target)))
                 {
                     continue;
                 }
@@ -615,8 +616,7 @@ namespace CityX.Character
             Vector3 origin = SwingOrigin();
             foreach (Contact contact in ContactsInReach())
             {
-                HitResponse response =
-                    DamageContext.Strike(contact.Target, damage, transform.position, hitstun, DamageKind.Physical, Penetration, contact.Point, gameObject);
+                HitResponse response = Strike(contact.Target, damage, hitstun, contact.Point);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
@@ -705,7 +705,7 @@ namespace CityX.Character
                 return HitResponse.Ignored;
             }
 
-            HitResponse response = DamageContext.Strike(target, damage, transform.position, hitstunSeconds, DamageKind.Physical, Penetration, contactPoint, gameObject);
+            HitResponse response = Strike(target, damage, hitstunSeconds, contactPoint);
             if (response == HitResponse.Ignored)
             {
                 return response;
@@ -729,6 +729,18 @@ namespace CityX.Character
 
         /// <summary>A sword is in hand: what the sword's own abilities (the spin, Octaslash) need.</summary>
         public bool HoldsSword => EquippedWeapon != null && EquippedWeapon.MovesetId == ComboChain.Sword;
+
+        /// <summary>The weapon in hand has an edge: its blows cut (docs/DISMEMBERMENT.md). The bat and the crowbar hold like a sword but do not.</summary>
+        public bool WieldsEdge => EquippedWeapon != null && EquippedWeapon.IsEdged;
+
+        /// <summary>One blow of this body's on <paramref name="target"/>: physical, with its penetration, where it landed, and its weapon's edge.</summary>
+        private HitResponse Strike(IDamageable target, float damage, float hitstunSeconds, Vector3 contactPoint)
+        {
+            using (DamageContext.Cutting(WieldsEdge))
+            {
+                return DamageContext.Strike(target, damage, transform.position, hitstunSeconds, DamageKind.Physical, Penetration, contactPoint, gameObject);
+            }
+        }
 
         /// <summary>The sword in hand, for a pose that lays the blade (null when it is not one).</summary>
         public ISwordBlade SwordBlade => EquippedWeapon as ISwordBlade;
@@ -771,7 +783,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration, contact.Point, gameObject);
+                HitResponse response = Strike(contact.Target, damage, CombatTuning.HitstunSeconds, contact.Point);
                 if (response == HitResponse.Ignored)
                 {
                     continue;

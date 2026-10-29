@@ -444,7 +444,7 @@ namespace CityX.Character
                         continue;
                     }
                     Collider self = body.GetComponent<Collider>();
-                    if (self == null)
+                    if (self == null || !self.enabled)
                     {
                         continue;
                     }
@@ -583,7 +583,7 @@ namespace CityX.Character
                     continue;
                 }
                 Collider self = body.GetComponent<Collider>();
-                if (self == null)
+                if (self == null || !self.enabled)   // a cut-off limb's collider is off (Dismemberer): it has no bounds to push out
                 {
                     continue;
                 }
@@ -664,7 +664,7 @@ namespace CityX.Character
                     continue;
                 }
                 Collider self = body.GetComponent<Collider>();
-                if (self == null)
+                if (self == null || !self.enabled)
                 {
                     continue;
                 }

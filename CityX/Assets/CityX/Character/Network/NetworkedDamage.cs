@@ -77,13 +77,15 @@ namespace CityX.Character
             {
                 return false;
             }
-            if (_vitals != null && _vitals.IsDead)
+            if (_vitals != null && _vitals.IsDead && !Dismemberer.TakesCorpseHits(_vitals))
             {
-                return true;   // a corpse is not hit again, and nothing is sent
+                return true;   // a corpse with nothing left to take off is not hit again, and nothing is sent
             }
             LastRelayedHitId = ++_nextHitId;
             LastRelayWasSent = true;
-            SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId, (int)DamageContext.Kind, DamageContext.Penetration, DamageContext.BreaksGuard);
+            Vector3? contact = DamageContext.ContactPoint;
+            SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId, (int)DamageContext.Kind, DamageContext.Penetration, DamageContext.BreaksGuard,
+                Flags(DamageContext.Edged, DamageContext.Bloodless, contact.HasValue), contact ?? Vector3.zero);
             return true;
         }
 
@@ -146,9 +148,32 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>The farthest a forwarded hit's contact point may be from the body it struck, metres; one further is dropped (the wound goes on the near side).</summary>
+        public const float MaxContactMetres = 6.0f;
+
+        private const int EdgedFlag = 1;
+        private const int BloodlessFlag = 2;
+        private const int ContactFlag = 4;
+
+        /// <summary>What a forwarded hit says about itself beyond its numbers: struck with an edge, drawing no blood, and whether it says where it landed.</summary>
+        public static int Flags(bool edged, bool bloodless, bool hasContact)
+        {
+            return (edged ? EdgedFlag : 0) | (bloodless ? BloodlessFlag : 0) | (hasContact ? ContactFlag : 0);
+        }
+
+        /// <summary>A forwarded hit's contact point as the owner takes it: only one that is finite and on (near) the body it struck.</summary>
+        public static Vector3? SaneContact(int flags, Vector3 contact, Vector3 body)
+        {
+            if ((flags & ContactFlag) == 0 || !WireChecks.Finite(contact) || Vector3.Distance(contact, body) > MaxContactMetres)
+            {
+                return null;
+            }
+            return contact;
+        }
+
         [ServerRpc(RequireOwnership = false)]
         private void SendHitToServer(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int kind, float penetration,
-            bool breaksGuard, NetworkConnection sender = null)
+            bool breaksGuard, int flags, Vector3 contact, NetworkConnection sender = null)
         {
             if (!Allowed(sender, amount) || !WireChecks.Finite(fromPosition) || float.IsNaN(hitstunSeconds) || float.IsNaN(poiseDamage) || float.IsNaN(penetration))
             {
@@ -157,7 +182,8 @@ namespace CityX.Character
             if (Owner.IsValid)
             {
                 ApplyHitOnOwner(Owner, Mathf.Min(amount, MaxHitDamage), fromPosition, Mathf.Clamp(hitstunSeconds, 0.0f, 3.0f),
-                    Mathf.Clamp(poiseDamage, -1.0f, MaxPoiseDamage), hitId, sender.ClientId, Mathf.Clamp(kind, 0, (int)DamageKind.Magic), Mathf.Clamp01(penetration), breaksGuard);
+                    Mathf.Clamp(poiseDamage, -1.0f, MaxPoiseDamage), hitId, sender.ClientId, Mathf.Clamp(kind, 0, (int)DamageKind.Magic), Mathf.Clamp01(penetration), breaksGuard,
+                    flags, WireChecks.Finite(contact) ? contact : Vector3.zero);
             }
         }
 
@@ -176,10 +202,11 @@ namespace CityX.Character
 
         [TargetRpc]
         private void ApplyHitOnOwner(NetworkConnection target, float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int attackerClientId,
-            int kind, float penetration, bool breaksGuard)
+            int kind, float penetration, bool breaksGuard, int flags, Vector3 contact)
         {
             bool wasAlive = _vitals != null && _vitals.IsAlive;
-            HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration, breaksGuard);
+            HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration, breaksGuard,
+                (flags & EdgedFlag) != 0, (flags & BloodlessFlag) != 0, SaneContact(flags, contact, transform.position));
             if (wasAlive && _vitals.IsDead && _vitals.XpRewardOnDeath > 0)
             {
                 EnemyNetwork.CreditKill(NetworkManager, attackerClientId, _vitals.XpRewardOnDeath);   // an enemy this machine runs, killed by another player
@@ -200,11 +227,14 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Applies a forwarded hit to THIS body as if it had been struck here: its kind and the attacker's armour penetration came with it, so
-        /// this body's own armour, magic resistance and block chance answer it (2026-10-14). Public so a test can drive it without a network.
+        /// Applies a forwarded hit to THIS body as if it had been struck here: its kind, the attacker's armour penetration, whether it was struck
+        /// with an edge or drew no blood, and where it landed came with it, so this body's own armour, magic resistance and block chance answer
+        /// it (2026-10-14) and a killing blow takes it apart as it would have here (docs/DISMEMBERMENT.md). Public so a test can drive it
+        /// without a network.
         /// </summary>
         public HitResponse ApplyHitHere(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage = -1.0f,
-            DamageKind kind = DamageKind.Physical, float penetration = 0.0f, bool breaksGuard = false)
+            DamageKind kind = DamageKind.Physical, float penetration = 0.0f, bool breaksGuard = false, bool edged = false, bool bloodless = false,
+            Vector3? contact = null)
         {
             if (_vitals == null)
             {
@@ -215,8 +245,10 @@ namespace CityX.Character
                 _vitals.TakePoise(poiseDamage);
             }
             using (DamageContext.GuardBreaking(breaksGuard))
+            using (DamageContext.Cutting(edged))
+            using (new DamageContext.BloodlessScope(bloodless))
             {
-                return DamageContext.Strike(_vitals, amount, fromPosition, hitstunSeconds, kind, penetration);
+                return DamageContext.Strike(_vitals, amount, fromPosition, hitstunSeconds, kind, penetration, contact);
             }
         }
 

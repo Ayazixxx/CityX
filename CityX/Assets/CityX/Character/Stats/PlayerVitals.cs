@@ -308,6 +308,23 @@ namespace CityX.Character
 
         public bool IsAlive => !IsDead;
 
+        /// <summary>
+        /// The blow that last killed this body, as its striker described it (Dismemberer reads it as Died is raised). Empty for a death that
+        /// was no blow: a fall, poison taken directly.
+        /// </summary>
+        public Blow LastKillingBlow { get; private set; }
+
+        /// <summary>
+        /// Raised with a blow that lands on this body once it is dead (it takes no damage then): what Dismemberer takes the corpse apart by. On
+        /// another player's copy the blow goes to the owner's body instead, as every blow does (NetworkedDamage).
+        /// </summary>
+        public event Action<Blow> CorpseStruck;
+
+        /// <summary>A blow is landing (inside <see cref="IDamageable.ApplyHit"/>), from here: a death now is its doing.</summary>
+        private bool _blowLanding;
+
+        private Vector3 _blowFrom;
+
         public event Action Died;
 
         /// <summary>
@@ -551,7 +568,13 @@ namespace CityX.Character
                 return IsDead ? HitResponse.Ignored : HitResponse.Landed;   // a copy's corpse is not hit (nor its killer paid) again
             }
 
-            if (IsDead || IsInvulnerable)
+            // A corpse takes no damage and pays nobody, but the blow can still take it apart (docs/DISMEMBERMENT.md).
+            if (IsDead)
+            {
+                CorpseStruck?.Invoke(Blow.Struck(amount, 0.0f, fromPosition));
+                return HitResponse.Ignored;
+            }
+            if (IsInvulnerable)
             {
                 return HitResponse.Ignored;
             }
@@ -614,7 +637,10 @@ namespace CityX.Character
                 away.y = 0.0f;
                 DeathImpulse = (away.sqrMagnitude > 1e-4f ? away.normalized : -transform.forward) * DeathFlingSpeed + Vector3.up * DeathFlingUpSpeed;
             }
+            _blowLanding = true;
+            _blowFrom = fromPosition;
             TakeDamage(amount, blocked);
+            _blowLanding = false;
             DeathImpulse = Vector3.zero;
 
             if (breaksGuard)
@@ -1123,12 +1149,14 @@ namespace CityX.Character
             }
 
             float applied = blocking ? amount * CombatTuning.BlockDamageMultiplier : amount;
+            float before = _health;
             _health = Mathf.Max(0.0f, _health - applied);
             _healthRegenDelay = HealthRegenDelaySeconds;
             Damaged?.Invoke(applied);
 
             if (_health <= 0.0f)
             {
+                LastKillingBlow = _blowLanding ? Blow.Struck(applied, before, _blowFrom) : default;
                 Died?.Invoke();
             }
         }

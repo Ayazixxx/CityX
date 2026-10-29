@@ -415,6 +415,7 @@ GameObject:
   - component: {fileID: 4122418442666765603}
   - component: {fileID: 9040428348690703732}
   - component: {fileID: 4763588430899484133}
+  - component: {fileID: 2128801577811228663}
   - component: {fileID: 4231965016837179620}
   m_Layer: 0
   m_Name: Civilian
@@ -490,6 +491,18 @@ MonoBehaviour:
   - {fileID: 6291041488473101868}
   Torso: {fileID: 5084686119662359142}
   Animator: {fileID: 5580548120085519387}
+--- !u!114 &2128801577811228663
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2157601898270702856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdabdc880adbfa44b96ea1f5d93b5a03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Dismemberer
 --- !u!114 &4231965016837179620
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -205,7 +205,7 @@ namespace CityX.Weapons
         private static void Strike(Collider what, float damage, Vector3 from, float penetration, GameObject striker, Vector3 point)
         {
             IDamageable target = what.GetComponentInParent<IDamageable>();
-            if (target == null || !target.IsAlive)
+            if (target == null || (!target.IsAlive && !Dismemberer.TakesCorpseHits(target)))   // a corpse can still be taken apart (docs/DISMEMBERMENT.md)
             {
                 return;
             }

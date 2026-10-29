@@ -2407,6 +2407,7 @@ GameObject:
   - component: {fileID: 6850277564297992118}
   - component: {fileID: 5092774740799806781}
   - component: {fileID: 1783639418050803174}
+  - component: {fileID: 4753343734241151643}
   - component: {fileID: 4230536320211725702}
   m_Layer: 0
   m_Name: Player
@@ -2688,6 +2689,18 @@ MonoBehaviour:
   - {fileID: 3242004262988159011}
   Torso: {fileID: 1338443506510413375}
   Animator: {fileID: 1527691548654838634}
+--- !u!114 &4753343734241151643
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8412405609517267180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdabdc880adbfa44b96ea1f5d93b5a03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Dismemberer
 --- !u!114 &4230536320211725702
 MonoBehaviour:
   m_ObjectHideFlags: 0

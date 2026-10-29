@@ -584,7 +584,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration, contact.Point, gameObject);
+                HitResponse response = Strike(contact.Target, damage, CombatTuning.HitstunSeconds, contact.Point);
                 if (response == HitResponse.Ignored)
                 {
                     continue;

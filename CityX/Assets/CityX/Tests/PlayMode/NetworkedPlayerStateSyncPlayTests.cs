@@ -82,6 +82,11 @@ namespace CityX.Tests
             _clients.Clear();
             if (_serverGo != null) Object.DestroyImmediate(_serverGo);
             if (_ground != null) Object.Destroy(_ground);
+            // What a test's dismemberment threw about (chunks, cut-off parts) would lie in the next test's way (docs/DISMEMBERMENT.md).
+            foreach (Debris debris in Object.FindObjectsByType<Debris>(FindObjectsSortMode.None))
+            {
+                Object.DestroyImmediate(debris.gameObject);
+            }
             LogAssert.ignoreFailingMessages = false;
         }
 

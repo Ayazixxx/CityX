@@ -28,8 +28,9 @@ namespace CityX.Character
 
         /// <summary>
         /// Where the blow met the body, in world space, when the striker knows (a blade's sweep, a bullet's hit): what shows the wound
-        /// (HitImpactEffects) bleeds from there. Null when nobody said -- a blow forwarded from another player's machine, a blow struck
-        /// outside any scope -- and the wound is placed on the body's near side instead.
+        /// (HitImpactEffects) bleeds from there, and a killing blow takes off the part there (Dismemberer). A blow forwarded from another
+        /// player's machine brings its point with it (NetworkedDamage). Null when nobody said -- a blow struck outside any scope -- and the
+        /// wound is placed on the body's near side instead.
         /// </summary>
         public static UnityEngine.Vector3? ContactPoint { get; private set; }
 
@@ -51,6 +52,31 @@ namespace CityX.Character
 
         /// <summary>Opens a scope in which blows draw no blood.</summary>
         public static BloodlessScope WithoutBlood() => new BloodlessScope(true);
+
+        /// <summary>
+        /// The blow is struck with an edge (a sword): a killing blow with plenty to spare cuts the part it hit off rather than bursting it
+        /// (docs/DISMEMBERMENT.md). Separate from <see cref="Scope"/> as <see cref="BreaksGuard"/> is.
+        /// </summary>
+        public static bool Edged { get; private set; }
+
+        /// <summary>Opens a scope in which blows are struck with an edge (or not, when <paramref name="edged"/> is false).</summary>
+        public static EdgedScope Cutting(bool edged) => new EdgedScope(edged);
+
+        public readonly struct EdgedScope : IDisposable
+        {
+            private readonly bool _before;
+
+            public EdgedScope(bool edged)
+            {
+                _before = Edged;
+                Edged = edged;
+            }
+
+            public void Dispose()
+            {
+                Edged = _before;
+            }
+        }
 
         public readonly struct BloodlessScope : IDisposable
         {

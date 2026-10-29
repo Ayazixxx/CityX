@@ -61,6 +61,7 @@ namespace CityX.CharacterEditor
 
                 RagdollBuilder.Build(root, animator);
 
+                root.AddComponent<Dismemberer>();   // docs/DISMEMBERMENT.md
                 root.AddComponent<Civilian>();
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);

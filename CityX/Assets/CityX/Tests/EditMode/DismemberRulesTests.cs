@@ -1,0 +1,167 @@
+using System.Collections.Generic;
+using CityX.Character;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace CityX.Tests
+{
+    /// <summary>When a killing blow takes a body apart, and which part (docs/DISMEMBERMENT.md), with no scene; and a skinned mesh cut by its bones.</summary>
+    public sealed class DismemberRulesTests
+    {
+        /// <summary>A body standing at the origin, arms down, as BodyRig lays it out (near enough).</summary>
+        private static readonly Dictionary<HumanBodyBones, Vector3> Standing = new Dictionary<HumanBodyBones, Vector3>
+        {
+            [HumanBodyBones.Hips] = new Vector3(0.0f, 1.2f, 0.0f),
+            [HumanBodyBones.Spine] = new Vector3(0.0f, 1.45f, 0.0f),
+            [HumanBodyBones.Chest] = new Vector3(0.0f, 1.7f, 0.0f),
+            [HumanBodyBones.Neck] = new Vector3(0.0f, 2.05f, 0.0f),
+            [HumanBodyBones.Head] = new Vector3(0.0f, 2.25f, 0.0f),
+            [HumanBodyBones.LeftUpperArm] = new Vector3(-0.35f, 1.95f, 0.0f),
+            [HumanBodyBones.LeftLowerArm] = new Vector3(-0.45f, 1.45f, 0.0f),
+            [HumanBodyBones.LeftHand] = new Vector3(-0.55f, 0.95f, 0.0f),
+            [HumanBodyBones.RightUpperArm] = new Vector3(0.35f, 1.95f, 0.0f),
+            [HumanBodyBones.RightLowerArm] = new Vector3(0.45f, 1.45f, 0.0f),
+            [HumanBodyBones.RightHand] = new Vector3(0.55f, 0.95f, 0.0f),
+            [HumanBodyBones.LeftUpperLeg] = new Vector3(-0.15f, 1.15f, 0.0f),
+            [HumanBodyBones.LeftLowerLeg] = new Vector3(-0.15f, 0.6f, 0.0f),
+            [HumanBodyBones.LeftFoot] = new Vector3(-0.15f, 0.1f, 0.0f),
+            [HumanBodyBones.RightUpperLeg] = new Vector3(0.15f, 1.15f, 0.0f),
+            [HumanBodyBones.RightLowerLeg] = new Vector3(0.15f, 0.6f, 0.0f),
+            [HumanBodyBones.RightFoot] = new Vector3(0.15f, 0.1f, 0.0f),
+        };
+
+        private static Vector3? Bone(HumanBodyBones bone) => Standing.TryGetValue(bone, out Vector3 at) ? at : (Vector3?)null;
+
+        /// <summary>A killing blow on a body with <paramref name="healthLeft"/> that does <paramref name="overkill"/> more than that.</summary>
+        private static Blow Killing(float healthLeft, float overkill, bool edged = false, bool bloodless = false)
+        {
+            return new Blow { Damage = healthLeft + overkill, HealthLeft = healthLeft, Edged = edged, Bloodless = bloodless, From = Vector3.back * 2.0f };
+        }
+
+        [Test]
+        public void OnlyAKillingBlowThatDoesWayMoreThanWasLeftTakesAnythingOff()
+        {
+            Assert.AreEqual(Dismemberment.None, DismemberRules.Decide(Killing(20.0f, 19.0f, edged: true), 100.0f), "a blow under double what was left cut");
+            Assert.AreEqual(Dismemberment.Sever, DismemberRules.Decide(Killing(20.0f, 20.0f, edged: true), 100.0f), "double what was left did not cut");
+            Assert.AreEqual(Dismemberment.Burst, DismemberRules.Decide(Killing(20.0f, 20.0f), 100.0f));
+            Assert.AreEqual(Dismemberment.None, DismemberRules.Decide(Killing(1.0f, DismemberRules.MinOverkill - 0.5f), 100.0f),
+                "a tap on a body with almost nothing left burst it");
+            Assert.AreEqual(Dismemberment.Burst, DismemberRules.Decide(Killing(1.0f, DismemberRules.MinOverkill), 100.0f));
+            Assert.Greater(DismemberRules.OverkillNeeded(0.0f, 1000.0f), DismemberRules.OverkillNeeded(0.0f, 100.0f), "a tougher body needs a bigger blow");
+        }
+
+        [Test]
+        public void AnEdgeCutsAndAnythingElseBurstsAndWaterOrFireTakesNothing()
+        {
+            Assert.AreEqual(Dismemberment.Sever, DismemberRules.Decide(Killing(10.0f, 80.0f, edged: true), 100.0f), "a sword's blow did not cut");
+            Assert.AreEqual(Dismemberment.Burst, DismemberRules.Decide(Killing(10.0f, 80.0f), 100.0f), "a club's or a bullet's blow did not burst");
+            Assert.AreEqual(Dismemberment.None, DismemberRules.Decide(Killing(10.0f, 80.0f, bloodless: true), 100.0f), "a jet of water took something off");
+        }
+
+        [Test]
+        public void ACorpsesPartsTakeSoMuchAndOneTakesWhatHangsOffIt()
+        {
+            Assert.AreEqual(20.0f, DismemberRules.Toughness(BodyPart.Head, 100.0f), 1e-4f);
+            Assert.AreEqual(15.0f, DismemberRules.Toughness(BodyPart.LeftLowerArm, 100.0f), 1e-4f);
+            Assert.AreEqual(40.0f, DismemberRules.Toughness(BodyPart.Torso, 100.0f), 1e-4f);
+            Assert.IsTrue(DismemberRules.Takes(BodyPart.LeftUpperArm, BodyPart.LeftLowerArm), "an arm off at the shoulder left its forearm");
+            Assert.IsFalse(DismemberRules.Takes(BodyPart.LeftLowerArm, BodyPart.LeftUpperArm), "a forearm took the upper arm with it");
+            Assert.IsFalse(DismemberRules.Takes(BodyPart.Head, BodyPart.LeftUpperArm));
+            Assert.IsTrue(DismemberRules.Takes(BodyPart.Torso, BodyPart.RightLowerLeg), "the torso burst left a leg");
+        }
+
+        [Test]
+        public void TheBlowIsReadFromWhatItsStrikerSaid()
+        {
+            var contact = new Vector3(1.0f, 2.0f, 3.0f);
+            Blow blow;
+            using (DamageContext.Cutting(true))
+            using (new DamageContext.Scope(DamageKind.Physical, 0.0f, contact))
+            {
+                blow = Blow.Struck(30.0f, 10.0f, Vector3.back);
+            }
+            Assert.IsTrue(blow.Edged, "a blade's blow was not edged");
+            Assert.IsFalse(blow.Bloodless);
+            Assert.AreEqual(contact, blow.Contact);
+            Assert.AreEqual(20.0f, blow.Overkill);
+
+            using (DamageContext.WithoutBlood())
+            {
+                blow = Blow.Struck(30.0f, 10.0f, Vector3.back);
+            }
+            Assert.IsFalse(blow.Edged, "the edge outlived its scope");
+            Assert.IsTrue(blow.Bloodless);
+            Assert.IsNull(blow.Contact, "the contact outlived its scope");
+        }
+
+        [Test]
+        public void ThePartHitIsTheOneNearestTheBlow()
+        {
+            Assert.AreEqual(BodyPart.Head, DismemberRules.PartAt(new Vector3(0.05f, 2.35f, 0.1f), Bone));
+            Assert.AreEqual(BodyPart.LeftLowerArm, DismemberRules.PartAt(new Vector3(-0.55f, 1.2f, 0.05f), Bone));
+            Assert.AreEqual(BodyPart.RightUpperArm, DismemberRules.PartAt(new Vector3(0.45f, 1.75f, 0.05f), Bone));
+            Assert.AreEqual(BodyPart.RightLowerLeg, DismemberRules.PartAt(new Vector3(0.2f, 0.4f, 0.1f), Bone));
+            Assert.AreEqual(BodyPart.Torso, DismemberRules.PartAt(new Vector3(0.0f, 1.6f, 0.2f), Bone));
+            Assert.AreNotEqual(BodyPart.Head, DismemberRules.PartAt(new Vector3(0.05f, 2.35f, 0.1f), Bone, part => part != BodyPart.Head),
+                "a blow where the head was landed on a head already gone");
+        }
+
+        [Test]
+        public void AnEdgeOnTheTorsoCutsAtTheNearestJoint()
+        {
+            Assert.AreEqual(BodyPart.Head, DismemberRules.CutAt(BodyPart.Torso, new Vector3(0.0f, 1.95f, 0.2f), Bone), "a slash at the neck");
+            Assert.AreEqual(BodyPart.LeftUpperArm, DismemberRules.CutAt(BodyPart.Torso, new Vector3(-0.3f, 1.85f, 0.2f), Bone), "a slash at the shoulder");
+            Assert.AreEqual(BodyPart.RightUpperLeg, DismemberRules.CutAt(BodyPart.Torso, new Vector3(0.15f, 1.2f, 0.2f), Bone), "a slash at the hip");
+            Assert.AreEqual(BodyPart.LeftLowerArm, DismemberRules.CutAt(BodyPart.LeftLowerArm, Vector3.zero, Bone), "a limb hit is cut where it was hit");
+            Assert.AreNotEqual(BodyPart.Head, DismemberRules.CutAt(BodyPart.Torso, new Vector3(0.0f, 1.95f, 0.2f), Bone, part => part != BodyPart.Head),
+                "a slash at the neck of a body without a head cut the head");
+            Assert.AreEqual(BodyPart.Torso, DismemberRules.CutAt(BodyPart.Torso, new Vector3(0.0f, 1.6f, 0.2f), Bone, part => part == BodyPart.Torso),
+                "with nothing left on the torso, an edge has nothing to cut at");
+        }
+
+        /// <summary>A strip of four quads up the y axis, the bottom two rows on bone 0 and the top two on bone 1.</summary>
+        private static Mesh Strip()
+        {
+            var vertices = new List<Vector3>();
+            var weights = new List<BoneWeight>();
+            for (int row = 0; row <= 4; row++)
+            {
+                for (int column = 0; column <= 1; column++)
+                {
+                    vertices.Add(new Vector3(column, row, 0.0f));
+                    weights.Add(new BoneWeight { boneIndex0 = row >= 3 ? 1 : 0, weight0 = 1.0f });
+                }
+            }
+            var triangles = new List<int>();
+            for (int row = 0; row < 4; row++)
+            {
+                int a = row * 2, b = a + 1, c = a + 2, d = a + 3;
+                triangles.AddRange(new[] { a, c, b, b, c, d });
+            }
+            var mesh = new Mesh();
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.boneWeights = weights.ToArray();
+            return mesh;
+        }
+
+        [Test]
+        public void ASkinnedMeshIsCutWhereItsBonesTakeOver()
+        {
+            Mesh strip = Strip();
+            bool[] going = MeshSevering.Going(strip.boneWeights, new HashSet<int> { 1 });
+            MeshSevering.Cut cut = MeshSevering.Split(strip, strip, going);
+            Assert.IsNotNull(cut);
+            Assert.AreEqual(8, strip.triangles.Length / 3, "setup");
+            Assert.AreEqual(3, cut.RemovedTriangles, "the top quad and the half of the next whose corners are mostly on the cut-off bone");
+            Assert.AreEqual(5 * 3, cut.Kept.triangles.Length, "what stays is the rest");
+            Assert.AreEqual(3 * 3, cut.Piece.triangles.Length);
+            Assert.LessOrEqual(cut.Piece.vertexCount, 6, "the piece carries only the corners it uses");
+            Assert.AreEqual(strip.vertexCount, cut.Kept.vertexCount, "what stays keeps every vertex, so it keeps its skinning");
+            Assert.AreEqual(2.5f, cut.Centre.y, 0.6f, "the cut runs where the bones take over");
+            Assert.Greater(cut.Radius, 0.0f);
+            Assert.IsNull(MeshSevering.Split(strip, strip, new bool[strip.vertexCount]), "nothing goes: no cut");
+        }
+    }
+}
