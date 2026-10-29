@@ -319,6 +319,26 @@ messages and the merge), `DoorGlassPlayTests` (a shot from the balcony reaches t
 down in pieces; walking into a cracked sheet breaks it into pieces), `NetworkedGlassPlayTests` (a server and two clients: holes, the break,
 a late message that changes nothing, a late joiner), `DoorGlassCapture` (`Logs/CityShots/doorglass-*.png`).
 
+## Update 2026-10-28: the sky bridges' glass breaks like a window
+
+Owner: "make it so the sky bridges that have windows have shatterable windows. right now the windows dont shatter on the skybridges that have
+them". An enclosed bridge's long window was one clear sheet down each stretch, drawn under the mullions and known to nothing that breaks glass.
+Now each bay between two mullions is a pane of its own in `GlassDamage` (`World/BridgeGlass`: keyed to the bridge's lower-numbered building,
+which draws it; its column past every door's, from the bridge, its side, its stretch and its bay). Shot, a bay takes a bullet hole and cracks,
+the fifth bullet or a blow brings it down into its own pieces, something walking into a cracked one breaks it, and a broken one is open between
+its mullions (a body can climb through); the bays either side stay whole. A bay on a flight is slanted, not a rectangle: cracked it has no
+holes cut in it, and broken it throws the old handful of shards. Its break is shared like any pane's.
+
+`World/BridgeOutline` is now the one shape of a bridge in plan (its walking line pushed into the walls, its two edges, the stretches a rail or a
+corridor's wall stands on, the bays), moved out of `CityMeshBuilder.Footbridges` so the mesh, the glass a blow finds (`BridgeGlass.TryPaneAt`,
+asked by `GlassBreaker` when the blow is on no building's pane: a bridge is over the street) and the pieces (`GlassPaneFrame`) agree.
+
+Tests: `BridgeGlassTests` (every bay of every enclosed bridge near the spawn its own pane; a blow on a bay finds it, and on the wall under the
+sill, a mullion or in the corridor none; where on it a blow landed; open bridges and breezeways have no glass; each bay drawn as its damage has
+it), `BridgeGlassPlayTests` (in a streamed city: a shot from over the street reaches a bay, four bullets four holes, the fifth brings it down in
+pieces and the next shot goes through, its neighbours whole; a heavy blow takes a bay out at once; walking into a cracked bay from the corridor
+breaks it), `BridgeGlassCapture` (`Logs/CityShots/bridgeglass-*.png`).
+
 ## Update 2026-10-26: a bullet hole is drawn where the bullet hit
 
 Owner: "make sure the center of the bullet hole that appears on the windows is right at the center of where the bullet hit. ive noticed it

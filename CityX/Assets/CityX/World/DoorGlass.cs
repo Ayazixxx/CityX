@@ -76,7 +76,7 @@ namespace CityX.World
         /// <summary>How far into the building an open leaf reaches, at most, metres (a blow further in is on no door's glass).</summary>
         public const float Reach = 1.6f;
 
-        public static bool IsDoorPane(in PaneKey key) => key.Column >= PaneColumnBase;
+        public static bool IsDoorPane(in PaneKey key) => key.Column >= PaneColumnBase && !BridgeGlass.IsBridgePane(key);
 
         public static PaneKey KeyOf(int building, in BalconyDoor door, int panel) =>
             new PaneKey(building, door.Wall, PaneColumnBase + door.Unit * 2 + panel, door.Row);

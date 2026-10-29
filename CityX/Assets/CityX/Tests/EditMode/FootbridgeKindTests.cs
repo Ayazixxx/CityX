@@ -168,19 +168,23 @@ namespace CityX.Tests
                     Assert.AreEqual(Footbridges.CorridorWidth * 0.5f, toWall, 0.1f, $"{what}: the wall is {toWall:F2} m from the middle");
                 }
                 // Through the window band: glass the whole way (and only the mullions solid) in the enclosed one; open air between the breezeway's piers.
-                int samples = 0, glazed = 0, solid = 0;
+                int samples = 0, glazed = 0, solid = 0, closed = 0;
                 for (float along = length * 0.3f; along <= length * 0.7f; along += 0.25f)
                 {
                     Vector2 x = path.PlanAt(along, out Vector2 d);
                     Vector3 at = new Vector3(x.x, path.HeightAt(along) + Footbridges.CorridorSill + 0.6f, x.y) - origin;
                     var across = new Vector3(-d.y, 0.0f, d.x);
                     samples++;
-                    if (MeshRays.Hits(glass, at, across, Footbridges.DeckWidth)) glazed++;
-                    if (MeshRays.Hits(structures, at, across, Footbridges.DeckWidth)) solid++;
+                    bool throughGlass = MeshRays.Hits(glass, at, across, Footbridges.DeckWidth);
+                    bool throughWall = MeshRays.Hits(structures, at, across, Footbridges.DeckWidth);
+                    if (throughGlass) glazed++;
+                    if (throughWall) solid++;
+                    if (throughGlass || throughWall) closed++;
                 }
                 if (b.Kind == BridgeKind.Enclosed)
                 {
-                    Assert.AreEqual(samples, glazed, $"{what}: the long window is not glazed all along");
+                    // Each bay is its own pane between two mullions (BridgeGlass): a sample on a mullion meets it, not glass.
+                    Assert.AreEqual(samples, closed, $"{what}: the long window is not glazed all along");
                     Assert.Less(solid, samples * 0.3f, $"{what}: the window band is mostly wall");
                     enclosedSeen = true;
                 }

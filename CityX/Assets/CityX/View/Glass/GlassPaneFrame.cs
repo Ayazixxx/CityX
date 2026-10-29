@@ -45,6 +45,10 @@ namespace CityX.View
         public static bool TryFrame(CityWorld world, BuildingSite site, PaneKey key, Vector3 onGlass, out PaneFrame frame)
         {
             frame = default;
+            if (BridgeGlass.IsBridgePane(key))
+            {
+                return TryBridgeFrame(world, key, onGlass, out frame);
+            }
             if (site.Sides >= 3)
             {
                 return false;   // a round building's facets: the old burst
@@ -128,6 +132,23 @@ namespace CityX.View
             Vector3 normal = axisX * pane.Normal.x + axisZ * pane.Normal.z;
             start += normal * Vector3.Dot(onGlass - start, normal);
             frame = new PaneFrame(start, across, Vector3.up, normal, pane.Width, pane.Height);
+            return true;
+        }
+
+        /// <summary>
+        /// A bay of a sky bridge's window (World/BridgeGlass): its sill's start, along it, up, its normal; its plane where the blow landed on it.
+        /// A bay on a flight is slanted, not a rectangle: it keeps the old burst.
+        /// </summary>
+        private static bool TryBridgeFrame(CityWorld world, PaneKey key, Vector3 onGlass, out PaneFrame frame)
+        {
+            frame = default;
+            if (!BridgeGlass.TryPane(world, key, out BridgePane pane) || !pane.Level || pane.Width < 0.05f || pane.Height < 0.05f)
+            {
+                return false;
+            }
+            Vector3 across = BridgeOutline.FlatOf(pane.End - pane.Start).normalized;
+            Vector3 start = pane.Start + pane.Normal * Vector3.Dot(onGlass - pane.Start, pane.Normal);
+            frame = new PaneFrame(start, across, Vector3.up, pane.Normal, pane.Width, pane.Height);
             return true;
         }
 

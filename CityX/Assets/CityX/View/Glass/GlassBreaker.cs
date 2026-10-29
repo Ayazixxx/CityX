@@ -110,16 +110,12 @@ namespace CityX.View
                 _world = new CityWorld(_streamer.WorldSeed);
             }
 
-            // The building the point is on or beside. A point can sit a few centimetres outside the wall it hit (a
-            // contact skin, a bullet's impact), so the building is looked up with a little margin. Height matters: a tower stands on
-            // its podium's roof, so two buildings can be over the same ground.
-            if (!_world.TryBuildingAt(point, out BuildingSite site, 0.6) ||
-                !GlassDamage.TryPaneAt(_world, site, point, out PaneKey key))
+            if (!TryPaneAt(point, out BuildingSite site, out PaneKey key))
             {
                 return false;
             }
 
-            Vector3 outward = CityMeshBuilder.WallNormal(site, key.Wall);
+            Vector3 outward = Outward(site, key);
             PaneState was = _streamer.Damage.StateOf(key);
             Vector2 impactUV = GlassDamage.FractionWithinPane(_world, site, key, point);
             if (strength == BlowStrength.Bullet)
@@ -153,9 +149,38 @@ namespace CityX.View
             {
                 _world = new CityWorld(_streamer.WorldSeed);
             }
-            return _world.TryBuildingAt(point, out BuildingSite site, 0.6)
-                && GlassDamage.TryPaneAt(_world, site, point, out PaneKey key)
-                && _streamer.Damage.StateOf(key) != PaneState.Shattered;
+            return TryPaneAt(point, out _, out PaneKey key) && _streamer.Damage.StateOf(key) != PaneState.Shattered;
+        }
+
+        /// <summary>
+        /// The pane a point is on, and the building it is keyed to: a window or a door's glass of the building the point is on or beside (a point
+        /// can sit a few centimetres outside the wall it hit -- a contact skin, a bullet's impact -- so the building is looked up with a little
+        /// margin; height matters: a tower stands on its podium's roof), or else a bay of a sky bridge's window (BridgeGlass), over the street.
+        /// </summary>
+        private bool TryPaneAt(Vector3 point, out BuildingSite site, out PaneKey key)
+        {
+            if (_world.TryBuildingAt(point, out site, 0.6) && GlassDamage.TryPaneAt(_world, site, point, out key))
+            {
+                return true;
+            }
+            if (BridgeGlass.TryPaneAt(_world, point, out BridgePane pane))
+            {
+                key = pane.Key;
+                site = _world.Building(key.Building);
+                return true;
+            }
+            key = default;
+            return false;
+        }
+
+        /// <summary>A pane's outward normal: its wall's, or a sky bridge pane's own (away from the deck).</summary>
+        private Vector3 Outward(BuildingSite site, PaneKey key)
+        {
+            if (BridgeGlass.IsBridgePane(key))
+            {
+                return BridgeGlass.TryPane(_world, key, out BridgePane pane) ? pane.Normal : Vector3.up;
+            }
+            return CityMeshBuilder.WallNormal(site, key.Wall);
         }
 
         /// <summary>
@@ -199,7 +224,7 @@ namespace CityX.View
                 return;
             }
             BuildingSite site = _world.Building(change.Key.Building);
-            Report(change.State, site, change.Key, change.Point, CityMeshBuilder.WallNormal(site, change.Key.Wall), change.Direction, change.Strength);
+            Report(change.State, site, change.Key, change.Point, Outward(site, change.Key), change.Direction, change.Strength);
         }
 
         /// <summary>
@@ -227,7 +252,7 @@ namespace CityX.View
                 return false;
             }
             BlowStrength strength = speed >= HeavyKnockSpeed ? BlowStrength.Heavy : BlowStrength.Light;
-            Report(now, site, key, point, CityMeshBuilder.WallNormal(site, key.Wall), direction, strength);
+            Report(now, site, key, point, Outward(site, key), direction, strength);
             Tell(key, point, direction, strength);
             return true;
         }

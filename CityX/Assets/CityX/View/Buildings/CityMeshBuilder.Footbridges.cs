@@ -25,9 +25,6 @@ namespace CityX.View
         private static readonly Color BridgeSteel = new Color(0.36f, 0.37f, 0.39f);
         private static readonly Color BridgeMesh = new Color(0.22f, 0.23f, 0.24f);
 
-        /// <summary>How far the deck reaches into each wall it meets, so no gap opens at the threshold.</summary>
-        private const float BridgeIntoWall = 0.06f;
-
         /// <summary>The rails: posts this far apart (pipe rails further), the bars' and posts' thickness, pickets' spacing and size.</summary>
         private const float RailPostSpacing = 1.6f;
         private const float PipePostSpacing = 2.0f;
@@ -41,8 +38,11 @@ namespace CityX.View
         private const float SteelBeamDepth = 0.32f;
         private const float SteelBeamWidth = 0.12f;
 
-        /// <summary>The bridges a building decides (its id the lower of the pair), drawn from its own frame; a corridor's glass into <paramref name="glass"/>.</summary>
-        private static void AddFootbridges(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, MeshBuffer glass, in SiteLooks looks, bool far)
+        /// <summary>
+        /// The bridges a building decides (its id the lower of the pair), drawn from its own frame; a corridor's glass bay by bay as its damage has
+        /// it, through <paramref name="glazing"/> (none far off).
+        /// </summary>
+        private static void AddFootbridges(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, in Glazing glazing, in SiteLooks looks, bool far)
         {
             Footbridge[] bridges = Footbridges.For(world, site);
             if (bridges.Length == 0)
@@ -54,7 +54,7 @@ namespace CityX.View
             {
                 if (bridges[i].SiteA == site.Id)
                 {
-                    DrawBridge(world, site, origin, buffer, glass, looks, bridges[i], far);
+                    DrawBridge(world, site, origin, buffer, glazing, looks, bridges[i], far);
                 }
             }
             buffer.Look = saved;
@@ -108,67 +108,27 @@ namespace CityX.View
             return new Vector3((float)lx, 0.0f, (float)lz).normalized;
         }
 
-        private static Vector3 FlatOf(Vector3 v) => new Vector3(v.x, 0.0f, v.z);
+        private static Vector3 BridgeLocalDirection(BuildingSite site, Vector3 world) => BridgeLocalDirection(site, new Vector2(world.x, world.z));
 
-        /// <summary>The horizontal unit to the left of a direction in plan.</summary>
-        private static Vector3 LeftOf(Vector3 d) => new Vector3(-d.z, 0.0f, d.x);
+        private static Vector3 FlatOf(Vector3 v) => BridgeOutline.FlatOf(v);
 
-        /// <summary>
-        /// A walking line's edges at <paramref name="half"/> either side: mitred at each turn (never more than twice the half width out), and at each
-        /// end cut along the wall it meets (<paramref name="tangentA"/>, <paramref name="tangentB"/>; zero for an end square to the line).
-        /// </summary>
-        private static void BridgeEdges(Vector3[] c, Vector3 tangentA, Vector3 tangentB, float half, out Vector3[] left, out Vector3[] right)
-        {
-            int n = c.Length;
-            left = new Vector3[n];
-            right = new Vector3[n];
-            for (int i = 0; i < n; i++)
-            {
-                Vector3 dIn = i > 0 ? FlatOf(c[i] - c[i - 1]).normalized : Vector3.zero;
-                Vector3 dOut = i + 1 < n ? FlatOf(c[i + 1] - c[i]).normalized : Vector3.zero;
-                Vector3 offset;
-                if (i == 0 || i == n - 1)
-                {
-                    Vector3 d = i == 0 ? dOut : dIn;
-                    Vector3 s = LeftOf(d);
-                    Vector3 t = i == 0 ? tangentA : tangentB;
-                    if (t.sqrMagnitude < 1e-6f)
-                    {
-                        offset = s * half;
-                    }
-                    else
-                    {
-                        float k = Vector3.Dot(t, s);
-                        if (Mathf.Abs(k) < 0.35f) k = k < 0.0f ? -0.35f : 0.35f;
-                        offset = t * (half / k);
-                    }
-                }
-                else
-                {
-                    Vector3 m = LeftOf(dIn) + LeftOf(dOut);
-                    if (m.sqrMagnitude < 1e-6f) m = LeftOf(dOut);
-                    m.Normalize();
-                    offset = m * (half / Mathf.Max(0.5f, Vector3.Dot(m, LeftOf(dOut))));
-                }
-                left[i] = c[i] + offset;
-                right[i] = c[i] - offset;
-            }
-        }
+        private static Vector3 LeftOf(Vector3 d) => BridgeOutline.LeftOf(d);
 
-        private static void DrawBridge(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, MeshBuffer glass, in SiteLooks building,
+        private static void DrawBridge(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, in Glazing glazing, in SiteLooks building,
             in Footbridge b, bool far)
         {
             BridgePath path = b.Path;
             var looks = new BridgeLooks(b.Deck, site, building);
             int n = path.Points.Length;
-            var c = new Vector3[n];
-            for (int i = 0; i < n; i++) c[i] = BridgeLocal(site, origin, path.Points[i]);
-            // Into each wall a little, so the threshold has no gap.
-            c[0] -= FlatOf(c[1] - c[0]).normalized * BridgeIntoWall;
-            c[n - 1] += FlatOf(c[n - 1] - c[n - 2]).normalized * BridgeIntoWall;
-            Vector3 tangentA = BridgeLocalDirection(site, path.TangentA), tangentB = BridgeLocalDirection(site, path.TangentB);
-            float half = b.Width * 0.5f;
-            BridgeEdges(c, tangentA, tangentB, half, out Vector3[] left, out Vector3[] right);
+            // The walking line (pushed a little into each wall, so the threshold has no gap) and its edges: the world's (BridgeOutline), in this frame.
+            BridgeOutline.Of(b, out Vector3[] worldCentre, out Vector3[] worldLeft, out Vector3[] worldRight);
+            var left = new Vector3[n];
+            var right = new Vector3[n];
+            for (int i = 0; i < n; i++)
+            {
+                left[i] = BridgeLocal(site, origin, worldLeft[i]);
+                right[i] = BridgeLocal(site, origin, worldRight[i]);
+            }
 
             // The deck, stretch by stretch: a slab (a steel plate on two beams; an enclosed corridor's in its rooms' floor), or a flight's steps.
             Color32 floor = b.Kind == BridgeKind.Enclosed ? looks.Floor : looks.Deck;
@@ -183,42 +143,29 @@ namespace CityX.View
             }
 
             // Along both edges, set in from them, the rails (an open deck) or the corridor's walls; where a street stair leaves the deck by A's
-            // wall, that side is open there.
-            Vector3 outA = FlatOf(c[1] - c[0]).normalized;
-            Vector3 stairSide = Vector3.zero;
-            if (b.Stair != null)
+            // wall, that side is open there (BridgeOutline.EdgeStretches).
+            var stretches = new System.Collections.Generic.List<BridgeEdgeStretch>();
+            BridgeOutline.EdgeStretches(b, worldCentre, worldLeft, worldRight, stretches);
+            foreach (BridgeEdgeStretch s in stretches)
             {
-                stairSide = BridgeLocalDirection(site, b.Stair.Along);
-            }
-            foreach (bool isLeft in new[] { true, false })
-            {
-                Vector3[] edge = isLeft ? left : right;
-                bool open = b.Stair != null && Vector3.Dot(isLeft ? LeftOf(outA) : -LeftOf(outA), stairSide) > 0.5f;
-                for (int i = 0; i + 1 < n; i++)
+                Vector3 p = BridgeLocal(site, origin, s.P), q = BridgeLocal(site, origin, s.Q);
+                Vector3 inward = BridgeLocalDirection(site, s.Inward);
+                if (b.Kind == BridgeKind.Open)
                 {
-                    Vector3 p = edge[i], q = edge[i + 1];
-                    Vector3 inward = (isLeft ? -1.0f : 1.0f) * LeftOf(FlatOf(q - p).normalized);
-                    if (open)
-                    {
-                        // Clip off the stretch within the opening of A's wall.
-                        float dp = Vector3.Dot(p - c[0], outA), dq = Vector3.Dot(q - c[0], outA);
-                        float opening = Footbridges.StreetStairOpening;
-                        if (dp < opening && dq < opening) continue;
-                        if (dp < opening) p = Vector3.Lerp(p, q, (opening - dp) / (dq - dp));
-                    }
-                    if (b.Kind == BridgeKind.Open)
-                    {
-                        AddBridgeRail(buffer, b.Rail, p, q, inward, looks, far, i + 2 == n);
-                    }
-                    else
-                    {
-                        AddCorridorWall(buffer, glass, b.Kind, p, q, inward, b.Headroom, looks, far);
-                    }
+                    AddBridgeRail(buffer, b.Rail, p, q, inward, looks, far, s.Stretch + 2 == n);
+                }
+                else
+                {
+                    AddCorridorWall(buffer, b.Kind, p, q, inward, b.Headroom, looks, far);
                 }
             }
             if (b.Kind != BridgeKind.Open)
             {
                 AddCorridorRoof(buffer, b.Headroom, left, right, looks.Roof, b.Kind == BridgeKind.Enclosed ? looks.Ceiling : looks.Under);
+            }
+            if (b.Kind == BridgeKind.Enclosed && !far)
+            {
+                AddBridgeGlass(site, origin, glazing, b, looks.Glass);
             }
 
             // The piers, from the ground up to the deck they hold.
@@ -362,10 +309,11 @@ namespace CityX.View
 
         /// <summary>
         /// A corridor's wall along one edge from <paramref name="p"/> to <paramref name="q"/> (at the walking surface; <paramref name="inward"/> toward
-        /// the deck's middle): a solid wall under the window sill and a lintel under the roof, and between them the long window in bays -- glazed
-        /// between thin mullions, or open to the air between concrete piers (the breezeway). Far off, a plain wall the whole height.
+        /// the deck's middle): a solid wall under the window sill and a lintel under the roof, and between them the long window in bays -- the
+        /// mullions of a glazed one (its glass is AddBridgeGlass's), or concrete piers open to the air between them (the breezeway). Far off, a plain
+        /// wall the whole height.
         /// </summary>
-        private static void AddCorridorWall(MeshBuffer buffer, MeshBuffer glass, BridgeKind kind, Vector3 p, Vector3 q, Vector3 inward, float headroom,
+        private static void AddCorridorWall(MeshBuffer buffer, BridgeKind kind, Vector3 p, Vector3 q, Vector3 inward, float headroom,
             BridgeLooks looks, bool far)
         {
             float t = Footbridges.CorridorWallThickness;
@@ -382,7 +330,7 @@ namespace CityX.View
 
             // The posts between the bays: half a post at each end (its other half in the next stretch's wall, or in the building's).
             float length = FlatOf(q - p).magnitude;
-            int bays = Mathf.Max(1, Mathf.RoundToInt(length / Footbridges.CorridorBay));
+            int bays = BridgeOutline.CorridorBays(length);
             float half = (glazed ? Footbridges.CorridorMullion : Footbridges.BreezewayPier) * 0.5f / length;
             Color32 post = glazed ? looks.Frame : looks.Wall;
             for (int j = 0; j <= bays; j++)
@@ -390,19 +338,83 @@ namespace CityX.View
                 float s = j / (float)bays;
                 AddWallBox(buffer, Vector3.Lerp(p, q, Mathf.Clamp01(s - half)), Vector3.Lerp(p, q, Mathf.Clamp01(s + half)), inward, sill, head, t, post, post);
             }
-            if (!glazed || glass == null)
+        }
+
+        /// <summary>
+        /// An enclosed bridge's glass, bay by bay between its mullions (World/BridgeGlass), each as its damage has it, the way a window is drawn
+        /// (AddPane): whole, clear in the wall's middle plane, both faces, the corridor showing through it like a room; cracked, in the cracked
+        /// glass with a real hole and a crack decal at every bullet that hit it, and a trigger box a knock finds (a cracked bay is walkable); gone,
+        /// nothing between the mullions. A bay on a flight is slanted: cracked, it has no holes cut in it.
+        /// </summary>
+        private static void AddBridgeGlass(BuildingSite site, Vector3 origin, in Glazing glazing, in Footbridge b, Color32 glassLook)
+        {
+            if (glazing.Dark == null)
             {
                 return;
             }
-            // One sheet the length of the stretch, in the wall's middle plane, both faces, clear: the corridor shows through it like a room.
-            Vector3 mid = inward * (t * 0.5f);
-            Vector3 a = p + mid + Vector3.up * sill, b = q + mid + Vector3.up * sill, c = q + mid + Vector3.up * head, d = p + mid + Vector3.up * head;
-            Color32 saved = glass.Look;
-            glass.Look = looks.Glass;
-            float h = head - sill;
-            glass.AddQuad(a, b, c, d, -inward, new Vector2(0, 0), new Vector2(length, 0), new Vector2(length, h), new Vector2(0, h));
-            glass.AddQuad(a, b, c, d, inward, new Vector2(0, 0), new Vector2(length, 0), new Vector2(length, h), new Vector2(0, h));
-            glass.Look = saved;
+            var panes = new System.Collections.Generic.List<BridgePane>();
+            BridgeGlass.Panes(b, panes);
+            foreach (BridgePane pane in panes)
+            {
+                PaneState state = glazing.Damage == null ? PaneState.Intact : glazing.Damage.StateOf(pane.Key);
+                if (state == PaneState.Shattered)
+                {
+                    continue;
+                }
+                Vector3 start = BridgeLocal(site, origin, pane.Start), end = BridgeLocal(site, origin, pane.End);
+                Vector3 normal = BridgeLocalDirection(site, pane.Normal);
+                Vector3 up = Vector3.up * pane.Height;
+                float w = pane.Width, h = pane.Height;
+                if (state != PaneState.Cracked)
+                {
+                    Color32 saved = glazing.Dark.Look;
+                    glazing.Dark.Look = glassLook;
+                    glazing.Dark.AddQuad(start, end, end + up, start + up, normal, new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+                    glazing.Dark.AddQuad(start, end, end + up, start + up, -normal, new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+                    glazing.Dark.Look = saved;
+                    continue;
+                }
+                MeshBuffer cracked = glazing.Cracked;
+                if (cracked == null)
+                {
+                    continue;
+                }
+                Vector3 across = FlatOf(end - start).normalized;
+                var sheet = new Wall(start, across, w);
+                float y0 = start.y, y1 = start.y + h;
+                if (pane.Level && glazing.Damage.TryGetImpacts(pane.Key, out Vector2[] impacts))
+                {
+                    var centres = new Vector2[impacts.Length];
+                    for (int k = 0; k < impacts.Length; k++)
+                    {
+                        centres[k] = ClampedHoleCentre(0.0f, w, y0, y1, Rect.MinMaxRect(0.0f, y0, w, y1), impacts[k]);
+                    }
+                    AddPaneWithHoles(cracked, sheet, 0.0f, w, y0, y1, normal, centres);
+                    if (glazing.Decals != null)
+                    {
+                        foreach (Vector2 centre in centres)
+                        {
+                            AddCrackDecal(glazing.Decals, sheet, centre, normal);
+                            AddCrackDecal(glazing.Decals, sheet, centre, -normal);
+                        }
+                    }
+                }
+                else
+                {
+                    AddDoubleSidedFace(cracked, normal, start, end, end + up, start + up);
+                }
+                if (glazing.Openings != null)
+                {
+                    // The box a knock or a bullet finds, turned from the key's wall onto the bay (CrackedPane measures a knock through the pane
+                    // along its turn of the key's wall's normal).
+                    Vector3 keyNormal = WindowGrid.OutwardNormal(pane.Key.Wall);
+                    Vector3 centre3 = (start + end + up) * 0.5f;
+                    var turn = Quaternion.Euler(0.0f, Vector3.SignedAngle(keyNormal, normal, Vector3.up), 0.0f);
+                    float tall = h + Mathf.Abs(end.y - start.y);
+                    Vector3 size = Mathf.Abs(keyNormal.z) > 0.5f ? new Vector3(w, tall, CrackedOpeningDepth) : new Vector3(CrackedOpeningDepth, tall, w);
+                    glazing.Openings.Add(new CrackedOpening(pane.Key, centre3, size, turn));
+                }
+            }
         }
 
         /// <summary>

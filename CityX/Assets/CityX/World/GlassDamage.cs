@@ -296,6 +296,11 @@ namespace CityX.World
         /// </summary>
         public static Vector2 FractionWithinPane(CityWorld world, BuildingSite site, PaneKey key, Vector3 point)
         {
+            if (BridgeGlass.IsBridgePane(key))
+            {
+                // A bay of a sky bridge's window (BridgeGlass): along it and up it, in the world.
+                return BridgeGlass.TryPane(world, key, out BridgePane bridgePane) ? BridgeGlass.Fraction(bridgePane, point) : new Vector2(0.5f, 0.5f);
+            }
             // The building is turned in the world; its windows are laid out in its own unturned frame (BuildingSite).
             site.ToBuilderFrame(point.x, point.z, out double frameX, out double frameZ);
             point = new Vector3((float)frameX, point.y, (float)frameZ);

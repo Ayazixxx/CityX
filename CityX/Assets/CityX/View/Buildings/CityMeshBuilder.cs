@@ -140,7 +140,7 @@ namespace CityX.View
                     new Glazing(litGlass, darkGlass, null, damage, null, null, litShare), looks);
                 // An apartment block's balconies and walkway, the distant version (CityMeshBuilder.Apartment.cs; never on a sealed block).
                 AddApartmentFronts(world, site, builderOrigin, structures, looks, true);
-                AddFootbridges(world, site, builderOrigin, structures, darkGlass, looks, true);
+                AddFootbridges(world, site, builderOrigin, structures, Glazing.OpeningsOnly, looks, true);
             }
             else
             {
@@ -151,8 +151,9 @@ namespace CityX.View
                 AddRibs(world, site, builderOrigin, structures, looks);
                 // An apartment block's balconies on every floor and its walkway (CityMeshBuilder.Apartment.cs).
                 AddApartmentFronts(world, site, builderOrigin, structures, looks, false);
-                // The footbridges it decides, across to the buildings facing it (CityMeshBuilder.Footbridges.cs).
-                AddFootbridges(world, site, builderOrigin, structures, darkGlass, looks, false);
+                // The footbridges it decides, across to the buildings facing it (CityMeshBuilder.Footbridges.cs); a corridor's glass breaks like a window's.
+                AddFootbridges(world, site, builderOrigin, structures,
+                    new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare), looks, false);
                 // Every room's ceiling lights and the switch by its door; a powered building's glow (CityMeshBuilder.RoomLights.cs).
                 AddRoomLighting(site, concrete, structures, offset, roomGlows, windowGlow);
             }
@@ -1454,16 +1455,40 @@ namespace CityX.View
             public readonly float U0;
             public readonly float U1;
 
+            /// <summary>A wall along any line in plan (a sky bridge's, BridgeGlass): u metres from <see cref="_origin"/> along <see cref="_across"/>.</summary>
+            private readonly bool _free;
+            private readonly Vector3 _origin;
+            private readonly Vector3 _across;
+
             public Wall(bool runsInZ, float plane, float u0, float u1)
             {
                 RunsInZ = runsInZ;
                 Plane = plane;
                 U0 = u0;
                 U1 = u1;
+                _free = false;
+                _origin = Vector3.zero;
+                _across = Vector3.zero;
+            }
+
+            /// <summary>A wall from <paramref name="origin"/> (its height ignored) along the level unit <paramref name="across"/>, <paramref name="length"/> long.</summary>
+            public Wall(Vector3 origin, Vector3 across, float length)
+            {
+                RunsInZ = false;
+                Plane = 0.0f;
+                U0 = 0.0f;
+                U1 = length;
+                _free = true;
+                _origin = origin;
+                _across = across;
             }
 
             public Vector3 At(float u, float y)
             {
+                if (_free)
+                {
+                    return new Vector3(_origin.x + _across.x * u, y, _origin.z + _across.z * u);
+                }
                 return RunsInZ ? new Vector3(Plane, y, u) : new Vector3(u, y, Plane);
             }
         }

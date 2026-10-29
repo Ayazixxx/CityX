@@ -175,8 +175,8 @@ connected should be the same color"*.
   piers; a street stair still leaves it where it would leave the deck, through a gap in its wall.
 - **The corridor** (`Footbridges.Corridor*`): the 2.8 m deck with a 0.16 m wall on each edge (2.48 m clear between them), a 0.25 m roof slab,
   headroom the lower of the two buildings' window rows less the door head (3.1 m or so, 3.6 at most; a row too low for 2.75 m gets the open
-  deck); the window from a 1 m sill up to 0.45 m under the roof, in 1.8 m bays between 8 cm mullions (glazed, one clear sheet a stretch, in
-  the dark glass buffer so it is in the collider: a body cannot walk through it) or 35 cm piers (open). An enclosed corridor's floor,
+  deck); the window from a 1 m sill up to 0.45 m under the roof, in 1.8 m bays between 8 cm mullions (glazed, each bay its own clear pane, in
+  the dark glass buffer so it is in the collider: a body cannot walk through it; it breaks like a window, docs/DOORS_AND_WINDOWS.md) or 35 cm piers (open). An enclosed corridor's floor,
   walls and ceiling inside are the pale of the rooms it joins (`InteriorLooks`), lit as the outdoors is (its windows are all round it; a room's
   indoor shade would leave it dark by day); a breezeway is concrete inside like out. Far off, plain walls and the roof.
 - **The mouth.** A corridor is part of the rooms it joins: its end in each wall is an open doorway its own clear width and headroom
