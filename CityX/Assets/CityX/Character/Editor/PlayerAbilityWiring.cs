@@ -104,6 +104,10 @@ namespace CityX.CharacterEditor
             // --- the fire as other players see it (2026-10-28, docs/FIRE.md): pours, lightings and dousings, nothing to load.
             GetOrAdd<FireSync>(player);
 
+            // --- the grapple swing (2026-10-29, docs/GRAPPLE_RAGDOLL.md): on every body, so a joining player can swing and its rope is drawn on
+            // every other player's copy. Was only on the host's baked body.
+            GetOrAdd<GrappleSwing>(player);
+
             // --- a bullet the guard turns aside flies off (the Block Chance roll or a parry): drawn in code, nothing to load.
             GetOrAdd<BulletRicochet>(player);
 

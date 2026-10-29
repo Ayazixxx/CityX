@@ -250,6 +250,7 @@ namespace CityX.Character
         /// </summary>
         public void Attach(Vector3 anchor, Vector3? initialVelocity = null)
         {
+            Fired?.Invoke(new AbilityEvent(Hooked, anchor, Vector3.zero));   // other players draw the rope (GrappleSwing.Remote.cs)
             _anchor = anchor;
             _ropeLength = Mathf.Clamp(
                 Vector3.Distance(transform.position, anchor), MinRopeLength, MaxRopeLength);
@@ -308,6 +309,7 @@ namespace CityX.Character
             _locomotion?.SetVerticalVelocity(_velocity.y);
             _locomotion?.SetResidualVelocity(_velocity);
             EquippedHook?.HideRope();
+            Fired?.Invoke(new AbilityEvent(Unhooked, transform.position, Vector3.zero));
             if (OrbitCamera != null)
             {
                 OrbitCamera.Distance = _savedCameraDistance;

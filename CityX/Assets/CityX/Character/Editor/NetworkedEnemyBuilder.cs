@@ -59,6 +59,7 @@ namespace CityX.CharacterEditor
                 root.AddComponent<NetworkedAnimatorSync>();
                 root.AddComponent<NetworkedDamage>();
                 root.AddComponent<NetworkedAbilitySync>();   // what the body does that is drawn in code (a turned-aside bullet's streak)
+                NetworkedPlayerWiring.AddRagdollSync(root);   // a fallen enemy lies the same on every screen
                 var enemy = root.AddComponent<NetworkedEnemy>();
                 var brainComponent = root.GetComponent(brain) as Behaviour;
                 enemy.OwnerOnly = brainComponent != null ? new[] { brainComponent } : System.Array.Empty<Behaviour>();

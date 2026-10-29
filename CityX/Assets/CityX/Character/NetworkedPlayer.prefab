@@ -83,6 +83,12 @@ PrefabInstance:
       addedObject: {fileID: 9000774068455604173}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 1584110438766747501}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1351842913687070967}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 6445160733858665133}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -137,10 +143,13 @@ PrefabInstance:
       addedObject: {fileID: 4723241768858619394}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 8963053554173805614}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 4627052041812373219}
+      addedObject: {fileID: 8329052885752295856}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -323,6 +332,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d13dbd993248aff45b9e5a4f06c0307a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedDamage
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 5667752943850900184}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &1584110438766747501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 376fab3faadcde040a1e4e41fc7dc59d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.RagdollMirror
+--- !u!114 &1351842913687070967
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc12801661194ac4cb324f5afd19fa96, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedRagdollSync
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 5667752943850900184}
   _networkObjectCache: {fileID: 0}
@@ -786,6 +822,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 203e371c0919fc440bce046e766e5b0b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.FireSync
+--- !u!114 &8963053554173805614
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9690b7f56147882498fc029879eff740, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.GrappleSwing
+  Gravity: 9.8
+  OrbitCamera: {fileID: 0}
 --- !u!114 &6609228567548558024
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -798,7 +848,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &4627052041812373219
+--- !u!114 &8329052885752295856
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -330,8 +330,9 @@ namespace CityX.Weapons
         private Vector3 RopeOrigin()
         {
             // Hanging limp from the rope (GrappleSwing.Rope.cs) the root stays where the body left the ground and the hand rides the ragdoll's
-            // forearm, moved by physics, not the Animator: the rope comes from the hook in that hand.
-            if (_wearerRoot == null || (_wearerRagdoll != null && _wearerRagdoll.IsLimp))
+            // forearm, moved by physics, not the Animator (or, on another player's copy, by the owner's pose: RagdollMirror): the rope comes
+            // from the hook in that hand.
+            if (_wearerRoot == null || (_wearerRagdoll != null && (_wearerRagdoll.IsLimp || _wearerRagdoll.IsMirrored)))
             {
                 return Muzzle != null ? Muzzle.position : transform.position;
             }
@@ -417,7 +418,14 @@ namespace CityX.Weapons
         public void MountCosmetic(GameObject body)
         {
             CosmeticMount.ToBone(transform, body, HumanBodyBones.RightHand, GripHandPosition, GripHandRotationEuler, GripScale);
+            // A copy draws its owner's rope (GrappleSwing.Remote.cs) from the same point the owner's comes from.
+            _wearerRoot = body.transform;
+            _wearerLocomotion = body.GetComponent<PlayerLocomotion>();
+            _wearerRagdoll = body.GetComponent<Ragdoll>();
         }
+
+        /// <summary>The rope is out (tests look at it).</summary>
+        public bool IsShowingRope => _rope != null;
 
         public void UnmountCosmetic(GameObject body)
         {

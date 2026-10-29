@@ -33,7 +33,12 @@ and the root is never moved while the body is limp (a dynamic body's parent movi
 | The camera | follows the limp body as it does a knocked-down one |
 | The switch | `/grapple classic` puts the old controller swing back (`GrappleSwing.RagdollMode`); `/grapple ragdoll` the new. A body with no ragdoll (a test rig) swings the classic way |
 
-Not yet: other players' copies do not hang (a copy keeps its animated pose while the owner swings limp); a limp swing through a car or water.
+**Other players** (2026-10-29; owner: "fix the grapple gap"): the swing is on every body now (it was only on the host's, so a joining player
+could not swing at all). The hook catching and the rope going are ability events (`GrappleSwing.Remote.cs`); a copy draws the rope from the
+hook in its own hand to the same point. The body hanging limp, flying after the release and getting up is every limp body's sync
+(`NetworkedRagdollSync`, `RagdollMirror`, docs/MULTIPLAYER_STATE.md): the copy is posed as its owner's body is.
+
+Not yet: a limp swing through a car or water.
 
 ## Tests
 

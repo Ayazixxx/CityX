@@ -137,6 +137,12 @@ namespace CityX.Character
         public bool IsLimp => _limp;
 
         /// <summary>
+        /// Another player's copy posed as its owner's limp body is (RagdollMirror, docs/MULTIPLAYER_STATE.md): only the owner's machine runs
+        /// the ragdoll, so nothing here throws this one about (<see cref="Activate"/> does nothing) while the owner's pose is laid on it.
+        /// </summary>
+        public bool IsMirrored { get; set; }
+
+        /// <summary>
         /// The torso has stopped moving significantly -- the closest thing
         /// a disabled CharacterController has to "grounded" while limp.
         /// Used both to gate CanStandUp and, from PlayerInputReader, to
@@ -309,9 +315,9 @@ namespace CityX.Character
         /// </summary>
         public void Activate(Vector3 velocity, bool allowImmediateStandUp = false)
         {
-            if (_limp)
+            if (_limp || IsMirrored)
             {
-                return;   // a second killing blow must not re-launch the corpse
+                return;   // a second killing blow must not re-launch the corpse; a copy posed as its owner's ragdoll is not thrown here
             }
 
             if (_swing != null && _swing.IsActive)

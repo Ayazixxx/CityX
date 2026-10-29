@@ -148,6 +148,11 @@ namespace CityX.Character
                 {
                     camera.Target = transform;
                     camera.Ragdoll = GetComponent<Ragdoll>();
+                    var swing = GetComponent<GrappleSwing>();
+                    if (swing != null)
+                    {
+                        swing.OrbitCamera = camera;   // the swing pulls the camera back, as it does for the host
+                    }
                 }
                 else
                 {

@@ -99,9 +99,30 @@ namespace CityX.CharacterEditor
             {
                 body.AddComponent<NetworkedDamage>();
             }
+            AddRagdollSync(body);
             if (addInventory && body.GetComponent<Inventory>() == null)
             {
                 body.AddComponent<Inventory>().ItemPrefabs = ItemPrefabEntries();
+            }
+        }
+
+        /// <summary>
+        /// A body's limp pose, sent by its owner and laid on every copy (2026-10-29, docs/MULTIPLAYER_STATE.md): a player's or an enemy's body,
+        /// whatever threw it limp.
+        /// </summary>
+        public static void AddRagdollSync(GameObject body)
+        {
+            if (body.GetComponent<Ragdoll>() == null)
+            {
+                return;
+            }
+            if (body.GetComponent<RagdollMirror>() == null)
+            {
+                body.AddComponent<RagdollMirror>();
+            }
+            if (body.GetComponent<NetworkedRagdollSync>() == null)
+            {
+                body.AddComponent<NetworkedRagdollSync>();
             }
         }
 

@@ -14,7 +14,8 @@ namespace CityX.Character
     /// body's parent teleports it). The body hangs only once it is off the ground with the rope taut: hooked from the street it runs with the
     /// rope as before (the classic swing) and goes limp the moment it swings off the ground, with the speed it had. Let go, the rope goes and
     /// the body flies limp; on the ground it stands up by itself. The classic swing (GrappleSwing's own pendulum on the controller) stays as it
-    /// was, for bodies without a ragdoll and behind <see cref="RagdollMode"/> (/grapple classic).
+    /// was, for bodies without a ragdoll and behind <see cref="RagdollMode"/> (/grapple classic). Other players see the rope
+    /// (GrappleSwing.Remote.cs) and the body hanging from it, posed as the owner's is (NetworkedRagdollSync).
     /// </summary>
     public sealed partial class GrappleSwing
     {
@@ -212,6 +213,7 @@ namespace CityX.Character
             _velocity = velocity;
             LastReleaseVelocity = velocity;
             EquippedHook?.HideRope();
+            Fired?.Invoke(new AbilityEvent(Unhooked, transform.position, Vector3.zero));
             if (OrbitCamera != null)
             {
                 OrbitCamera.Distance = _savedCameraDistance;
@@ -227,7 +229,8 @@ namespace CityX.Character
             {
                 return;
             }
-            if (_ragdoll == null || !_ragdoll.IsLimp)
+            // Dead (the rope dropped by a killing blow), the body stays down: it does not get up by itself.
+            if (_ragdoll == null || !_ragdoll.IsLimp || (_vitals != null && _vitals.IsDead))
             {
                 IsFlyingLimp = false;
                 return;
@@ -247,6 +250,7 @@ namespace CityX.Character
         private void Update()
         {
             TickFlyingLimp(Time.deltaTime);
+            DrawRemoteRope();
         }
     }
 }
