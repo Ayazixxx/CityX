@@ -32,6 +32,7 @@ namespace CityX.WeaponsEditor
     public static class FlamethrowerBuilder
     {
         private const string PrefabPath = "Assets/CityX/Weapons/Flamethrower.prefab";
+        public const string StaffFlamePrefabPath = "Assets/CityX/Weapons/StaffFlame.prefab";
         private const string FlameMaterialPath = "Assets/CityX/Weapons/FlamethrowerFlame.mat";
         private const string SmokeMaterialPath = "Assets/CityX/Weapons/FlamethrowerSmoke.mat";
         private const string ParticleTexturePath = "Assets/CityX/Weapons/Textures/FlamethrowerParticle.png";
@@ -87,6 +88,58 @@ namespace CityX.WeaponsEditor
             {
                 Object.DestroyImmediate(root);
             }
+        }
+
+        /// <summary>
+        /// The flame staff's fire (2026-10-28, docs/STAFFS.md): the same three-layer stream and flickering light as the flamethrower's, on a prefab
+        /// of its own (FlameStreamLook) that FlameStreamCaster puts at the staff's head, its +Z the way the fire goes.
+        /// </summary>
+        public static GameObject BuildStaffFlame()
+        {
+            var root = new GameObject("StaffFlame");
+            try
+            {
+                Texture2D particleTexture = BuildParticleTexture();
+                Material flameMaterial = BuildFlameMaterial(particleTexture);
+                Material smokeMaterial = BuildSmokeMaterial(particleTexture);
+                ParticleSystem outer = BuildOuterFlame(root.transform, flameMaterial);
+                BuildCoreFlame(outer.transform, flameMaterial);
+                BuildSmoke(outer.transform, smokeMaterial);
+                StretchForStaff(outer, StaffFlameSpeed, StaffFlameLifetime, StaffFlameSize);
+                StretchForStaff(outer.transform.Find("CoreFlame").GetComponent<ParticleSystem>(), StaffFlameSpeed, 1.0f, StaffFlameSize);
+                StretchForStaff(outer.transform.Find("Smoke").GetComponent<ParticleSystem>(), 2.0f, 1.0f, 1.0f);
+                var look = root.AddComponent<FlameStreamLook>();
+                look.Flame = outer;
+                look.Light = BuildFlameLight(root.transform);
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, StaffFlamePrefabPath);
+                AssetDatabase.SaveAssets();
+                Debug.Log($"CityX: the staff flame written to {StaffFlamePrefabPath}");
+                return saved;
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
+        /// The flamethrower's particles were tuned for its own short hip-fired plume (a couple of metres); the staff's fire reaches
+        /// FlameStreamRules.Range, so its particles fly this many times faster (and the flame's live a little longer and grow bigger), with
+        /// more of them so the longer stream is as full. Rendered 2026-10-28: at the flamethrower's own numbers the staff's fire was a pale puff.
+        /// </summary>
+        private const float StaffFlameSpeed = 3.5f;
+        private const float StaffFlameLifetime = 1.2f;
+        private const float StaffFlameSize = 1.6f;
+
+        private static void StretchForStaff(ParticleSystem particles, float speed, float lifetime, float size)
+        {
+            ParticleSystem.MainModule main = particles.main;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(main.startSpeed.constantMin * speed, main.startSpeed.constantMax * speed);
+            main.startLifetime = new ParticleSystem.MinMaxCurve(main.startLifetime.constantMin * lifetime, main.startLifetime.constantMax * lifetime);
+            main.startSize = new ParticleSystem.MinMaxCurve(main.startSize.constantMin * size, main.startSize.constantMax * size);
+            main.maxParticles *= 2;
+            ParticleSystem.EmissionModule emission = particles.emission;
+            emission.rateOverTime = emission.rateOverTime.constant * 2.0f;
         }
 
         /// <summary>

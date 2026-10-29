@@ -37,6 +37,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.FireballStaff, "Assets/CityX/Weapons/FireballStaff.prefab"),
             (ItemRegistry.IceShardStaff, "Assets/CityX/Weapons/IceShardStaff.prefab"),
             (ItemRegistry.WaterStaff, "Assets/CityX/Weapons/WaterStaff.prefab"),
+            (ItemRegistry.FlameStaff, "Assets/CityX/Weapons/FlameStaff.prefab"),
             (ItemRegistry.KnightHelmet, "Assets/CityX/Wearables/KnightHelmet.prefab"),
             (ItemRegistry.FarmerHat, "Assets/CityX/Wearables/FarmerHat.prefab"),
             (ItemRegistry.RoundShield, "Assets/CityX/Wearables/RoundShield.prefab"),

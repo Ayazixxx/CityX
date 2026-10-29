@@ -347,6 +347,10 @@ namespace CityX.UI
                 case "water_staff":
                 case "hose":
                 case "water": return ItemRegistry.WaterStaff;
+                case "flamestaff":
+                case "flame_staff":
+                case "flame":
+                case "torch": return ItemRegistry.FlameStaff;
                 case "firestaff":
                 case "fire_staff":
                 case "fireballstaff":

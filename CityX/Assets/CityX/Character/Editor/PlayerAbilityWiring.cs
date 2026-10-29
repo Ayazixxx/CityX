@@ -27,6 +27,7 @@ namespace CityX.CharacterEditor
         private const string PoisonGasPrefabPath = "Assets/CityX/Weapons/PoisonGasCloud.prefab";
         private const string SwordWavePrefabPath = "Assets/CityX/Weapons/SwordWave.prefab";
         private const string AcidRainPrefabPath = "Assets/CityX/Weapons/AcidRainStorm.prefab";
+        private const string StaffFlamePrefabPath = "Assets/CityX/Weapons/StaffFlame.prefab";
         private const string ThunderStrikeClipPath = "Assets/CityX/UI/Audio/thunder_strike.ogg";
         private const string SelfSmiteLightMaterialPath = "Assets/CityX/Character/SelfSmiteLight.mat";
 
@@ -87,6 +88,10 @@ namespace CityX.CharacterEditor
 
             // --- the Water Staff's jet (2026-10-28): drawn and voiced in code, nothing to load.
             GetOrAdd<WaterJetCaster>(player);
+
+            // --- the Flame Staff's stream (2026-10-28): the flamethrower's fire, on a prefab of its own at the staff's head.
+            var flameStream = GetOrAdd<FlameStreamCaster>(player);
+            flameStream.FlamePrefab = Load(StaffFlamePrefabPath) ?? flameStream.FlamePrefab;
 
             // --- Grow and Shrink (Wizard; Grow on key 0 of the default bar): drawn and voiced in code, nothing to load.
             GetOrAdd<BodySizeAbility>(player);

@@ -125,13 +125,16 @@ PrefabInstance:
       addedObject: {fileID: 8965555455454973}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 1696504587457014762}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2446628573212267985}
+      addedObject: {fileID: 7164408729499497542}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -405,6 +408,8 @@ MonoBehaviour:
     Prefab: {fileID: 2743264199323493505, guid: bb9fa502648ce524f9bc8e6b8a2a4aad, type: 3}
   - ItemId: water_staff
     Prefab: {fileID: 5361302414723898761, guid: 8ec0966d5c20e284493421fc948fac78, type: 3}
+  - ItemId: flame_staff
+    Prefab: {fileID: 4099777963986266089, guid: 95d3fc867c7dcaf46ada659e5d4ae063, type: 3}
   - ItemId: knight_helmet
     Prefab: {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
   - ItemId: farmer_hat
@@ -719,6 +724,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d78d5d7d8d3c3c04ea2dd2b1dc14256e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.WaterJetCaster
+--- !u!114 &1696504587457014762
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5c4359b2db629542853ce0a3bbf1211, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.FlameStreamCaster
+  FlamePrefab: {fileID: 2512357956428202186, guid: 2fe60ce8b06be0240b54de6451fb6ddb, type: 3}
 --- !u!114 &4178808262995625697
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -743,7 +761,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &2446628573212267985
+--- !u!114 &7164408729499497542
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

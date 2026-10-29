@@ -30,6 +30,7 @@ every shot paying mana. Built 2026-10-27, three of them, as the owner asked one 
 | Fireball | a plain fireball (25) | grows for up to 1.5 s (about a Mega Man charged shot): up to 2.5 times the ball and its damage (62), its burst burning everyone within up to 4 m (all of the hit's damage at the middle, 30% at the edge) | 10, up to 30 full | 0.5 s (the bar's fireball waits 1.5 s) |
 | Ice Shard | one shard | one every 0.25 s for as long as it is held, wandering up to 1.5 degrees | 4 a shard | about 32 damage a second, eight seconds from a full bar: well under a gun's |
 | Water | the jet, while held | a jet of water (16 m, GTA V's fire truck hose): whoever it is held on is thrown limp along it, pushed on along the ground while down, and hurt 3 every 0.3 s | 6 a second | about 10 damage a second; the push is the point |
+| Flame | the fire, while held | the flamethrower's stream of fire (9 m, a 10 degree cone): everyone in it burns 36 a second (a tick every 0.15 s), no stagger, no blood; half as fierce and a quarter shorter out in the rain | 8 a second | a flamethrower that pays mana instead of fuel |
 
 All the numbers but Shadow Flare's frames are mine. The staffs ignore the hotbar spells' ranks (the spell need not be learnt).
 
@@ -74,3 +75,19 @@ you are spraying". `water_staff`, `/equip waterstaff` (or `hose`).
   staff.
 - **Other players** see the jet on the wearer's copy of the staff, pointed where they point it (told ten times a second), stopping with theirs.
 - Tests: `WaterJetTests`, `WaterStaffPlayTests`; `WaterStaffCapture` renders `Logs/CityShots/water-staff-*.png`.
+
+## The flame staff (2026-10-28)
+
+Owner: "make a fire staff that functions like a flamethrower but costs mana". `flame_staff`, `/equip flamestaff` (or `flame`, `torch`); called
+the Flame Staff because "fire staff" was already the Fireball Staff's name in the console.
+
+- **The stream** (`FlameStreamCaster`, `FlameStreamRules`): held, the flamethrower's stream of fire from the staff's head along the crosshair, 9 m
+  (the flamethrower's 7: a staff throws it a little further) in a 10 degree cone. Everyone in it burns 36 a second, a tick every 0.15 s for as long as it is held
+  on them (a spell: Spell Power and Armor Penetration apply, magic resistance stops a share), with no stagger, as the flamethrower (a stream
+  that locked its target every frame would never let it move), and no blood (`DamageContext.WithoutBlood`: fire does not cut). It drinks 8 mana a second and goes out when the mana is gone, or the click is let go.
+  Out in the rain it is half as fierce and a quarter shorter, like the flamethrower (`Weather.FlameStrength`); under a roof it is unaffected.
+- **The look** (`FlameStreamLook`): the flamethrower's own three-layer fire (a hot core, the orange flame round it, smoke off it) and its
+  flickering light, on a prefab of its own (`FlamethrowerBuilder.BuildStaffFlame`, `StaffFlame.prefab`) that the caster puts at the staff's head
+  and points along the crosshair. The staff is thrust out as with every staff. The model: charred black wood, iron, an ember in a brazier.
+- **Other players** see the fire on the wearer's copy of the staff, pointed where they point it (told ten times a second), going out with theirs.
+- Tests: `FlameStreamTests`, `FlameStaffPlayTests`; `FlameStaffCapture` renders `Logs/CityShots/flame-staff-*.png`.
