@@ -44,6 +44,7 @@ namespace CityX.Weapons
         private float _aimSendIn;
         private float _remoteLeft;
         private float _held;
+        private float _igniteDue;
 
         /// <summary>This body's stream is on.</summary>
         public bool IsBurning { get; private set; }
@@ -133,6 +134,7 @@ namespace CityX.Weapons
             float flame = Weather.FlameStrength(CurrentWeather.RainOn(from));
             float reach = FlameStreamRules.ReachFor(flame);
             _flame?.Aim(from, direction, deltaTime);
+            FireScene.IgniteAlongStream(from, direction, reach, transform, gameObject, ref _igniteDue, deltaTime);   // the ground catches (docs/FIRE.md)
 
             // A spell: Spell Power makes it hurt more (2% a point), and the caster's Armor Penetration goes with it.
             int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;

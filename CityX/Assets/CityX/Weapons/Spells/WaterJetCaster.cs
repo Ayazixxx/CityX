@@ -128,6 +128,10 @@ namespace CityX.Weapons
         {
             bool lands = Landing(from, direction, out Vector3 landing, out _);
             _jet?.Aim(from, direction, transform, deltaTime);
+            if (lands)
+            {
+                FireScene.Douse(landing, CityX.World.FireRules.DouseRadius);   // water puts fire out (docs/FIRE.md)
+            }
             float reach = lands ? Vector3.Distance(from, landing) + WaterJetRules.StreamRadius : WaterJetRules.Range;
 
             // A spell: Spell Power makes each tick hurt more (2% a point), and the caster's Armor Penetration goes with it.
@@ -149,6 +153,7 @@ namespace CityX.Weapons
                     continue;
                 }
                 _inStream.Add(target);
+                FireScene.DouseBody(target);
                 if (!_nextTick.TryGetValue(target, out float next) || Time.time >= next)
                 {
                     _nextTick[target] = Time.time + WaterJetRules.TickSeconds;

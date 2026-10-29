@@ -43,6 +43,7 @@ namespace CityX.Items
         public const string ArcaneStaff = "arcane_staff";
         public const string WaterStaff = "water_staff";
         public const string FlameStaff = "flame_staff";
+        public const string JerryCan = "jerry_can";
         public const string Bow = "bow";
         public const string Crossbow = "crossbow";
         public const string FireballStaff = "fireball_staff";
@@ -104,6 +105,8 @@ namespace CityX.Items
             [WaterStaff] = new ItemDefinition(WaterStaff, "Water Staff", "weapon", EquipSlots.Primary, 1),
             // The flame staff (2026-10-28): a flamethrower of a staff, held to burn, paid in mana (docs/STAFFS.md).
             [FlameStaff] = new ItemDefinition(FlameStaff, "Flame Staff", "weapon", EquipSlots.Primary, 1),
+            // The jerry can (2026-10-28, docs/FIRE.md): held to pour gasoline on the ground, for any fire to light.
+            [JerryCan] = new ItemDefinition(JerryCan, "Jerry Can", "tool", EquipSlots.Primary, 1),
             // The bow and the crossbow (2026-10-28, docs/ARCHERY.md): drawn and spanned, with stand-in models drawn in code.
             [Bow] = new ItemDefinition(Bow, "Bow", "weapon", EquipSlots.Primary, 1),
             [Crossbow] = new ItemDefinition(Crossbow, "Crossbow", "weapon", EquipSlots.Primary, 1),

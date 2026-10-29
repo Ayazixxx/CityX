@@ -134,10 +134,13 @@ PrefabInstance:
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 4723241768858619394}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 7317169358286913374}
+      addedObject: {fileID: 4627052041812373219}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -413,6 +416,8 @@ MonoBehaviour:
     Prefab: {fileID: 5361302414723898761, guid: 8ec0966d5c20e284493421fc948fac78, type: 3}
   - ItemId: flame_staff
     Prefab: {fileID: 4099777963986266089, guid: 95d3fc867c7dcaf46ada659e5d4ae063, type: 3}
+  - ItemId: jerry_can
+    Prefab: {fileID: 6009600437600694734, guid: 2b819f8fa5a05e940b5aab6407ad6175, type: 3}
   - ItemId: bow
     Prefab: {fileID: 316468608459553576, guid: 49582453828391843979c7deea347ddc, type: 3}
   - ItemId: crossbow
@@ -769,6 +774,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17deb901f9bbd384ea0ad42e0b8123af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodySizeAbility
+--- !u!114 &4723241768858619394
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 203e371c0919fc440bce046e766e5b0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.FireSync
 --- !u!114 &6609228567548558024
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -781,7 +798,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &7317169358286913374
+--- !u!114 &4627052041812373219
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -1087,6 +1087,7 @@ namespace CityX.Weapons
                             BloodBurst.Spawn(hit.point, hit.point - origin, 0.6f);   // a body with vitals shows its own wound (HitImpactEffects)
                         }
                     }
+                    FireScene.Ignite(hit.point, CityX.World.FireRules.SparkIgniteRadius, true, wielder);   // a shot into gasoline lights it (docs/FIRE.md)
                 }
             }
 

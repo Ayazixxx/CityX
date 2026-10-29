@@ -179,6 +179,10 @@ namespace CityX.Weapons
                 Blast(point, target);
             }
             FireBurst.Spawn(BurstPrefab, point, normal, _size);
+            if (!Cosmetic)
+            {
+                FireScene.Ignite(point, CityX.World.FireRules.BurstIgniteRadius * _size, false, _striker);   // the burst sets the ground alight (docs/FIRE.md)
+            }
             if (ImpactSound != null)
             {
                 AudioSource.PlayClipAtPoint(ImpactSound, point);

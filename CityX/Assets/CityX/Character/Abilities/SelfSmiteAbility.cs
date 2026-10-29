@@ -270,6 +270,7 @@ namespace CityX.Character
         private void Blast()
         {
             Vector3 centre = Middle;
+            FireScene.Ignite(centre, SelfSmiteMove.BlastRadius, true, gameObject);   // lightning lights gasoline, not pavement (docs/FIRE.md)
             int count = Physics.OverlapSphereNonAlloc(centre, SelfSmiteMove.BlastRadius, Overlaps, ~0, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < count; i++)
             {

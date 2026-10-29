@@ -19,12 +19,13 @@ namespace CityX.Weapons
     /// once per click. IEquippableFlamethrower's own doc comment covers why
     /// this is closer in shape to IFlightGear.
     ///
-    /// NO FIRE SPREAD, NO BUILDING/ENVIRONMENT DAMAGE -- an explicit scope
-    /// limit from the ask ("no fire spread yet or building damage, just try
-    /// to get the flames looking good"). Only a living IDamageable actually
-    /// standing in the stream takes damage, every frame it stays there;
-    /// nothing here ignites scenery, and damage stops the instant a target
-    /// steps out -- there is no lingering burn/DoT status left behind.
+    /// NO BUILDING/ENVIRONMENT DAMAGE -- an explicit scope limit from the
+    /// ask ("no fire spread yet or building damage, just try to get the
+    /// flames looking good"). Only a living IDamageable actually standing in
+    /// the stream takes the stream's own damage, every frame it stays there.
+    /// Since 2026-10-28 the stream does set the GROUND alight (docs/FIRE.md:
+    /// bare pavement burns a few seconds, poured gasoline burns along), and
+    /// that fire burns whoever stands in it, with its own afterburn.
     ///
     /// NO FUEL OR AMMO -- not asked for, and Jetpack.cs already set this
     /// project's own precedent for "hold to activate, no resource to
@@ -78,6 +79,7 @@ namespace CityX.Weapons
         private Transform _nearbyPlayer;
         private bool _equipped;
         private float _flickerPhase;
+        private float _igniteDue;
 
         /// <summary>Reused every tick rather than allocated fresh, since this runs every frame the trigger is held (unlike a swing's own once-per-attack list).</summary>
         private readonly List<IDamageable> _hitThisTick = new List<IDamageable>();
@@ -303,6 +305,7 @@ namespace CityX.Weapons
             // is unaffected (CurrentWeather.RainOn is zero under cover).
             float flame = Weather.FlameStrength(CurrentWeather.RainOn(origin));
             float reach = Range * (0.5f + 0.5f * flame);
+            FireScene.IgniteAlongStream(origin, direction, reach, wielder != null ? wielder.transform : null, wielder, ref _igniteDue, deltaTime);
 
             Vector3 center = origin + direction * (reach * 0.5f);
             Collider[] hits = Physics.OverlapSphere(center, reach * 0.5f, TargetLayers, QueryTriggerInteraction.Ignore);

@@ -90,8 +90,11 @@ namespace CityX.Character
             Live.Clear();
         }
 
-        /// <summary>The nearest surface along the ray that is not a body (its own capsule, a ragdoll's limbs) and not something loose (a shard).</summary>
-        private static bool Surface(Vector3 origin, Vector3 direction, float reach, Transform body, out RaycastHit best)
+        /// <summary>
+        /// The nearest surface along the ray that is not a body (its own capsule, a ragdoll's limbs) and not something loose (a shard). Shared
+        /// with the fire (FireScene finds its floors and the jerry can its landing with it).
+        /// </summary>
+        public static bool Surface(Vector3 origin, Vector3 direction, float reach, Transform body, out RaycastHit best)
         {
             best = default;
             int count = Physics.RaycastNonAlloc(origin, direction, Hits, reach, ~0, QueryTriggerInteraction.Ignore);
@@ -166,8 +169,8 @@ namespace CityX.Character
             Live.Remove(splat);
         }
 
-        /// <summary>An unlit, alpha-blended material that works at runtime without a material inspector to set the blend up for it.</summary>
-        internal static Material AlphaBlended(string name)
+        /// <summary>An unlit, alpha-blended material that works at runtime without a material inspector to set the blend up for it (the fire's marks use it too).</summary>
+        public static Material AlphaBlended(string name)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
             var material = new Material(shader != null ? shader : Shader.Find("Sprites/Default")) { name = name, color = Color.white };
@@ -200,8 +203,8 @@ namespace CityX.Character
             return _material;
         }
 
-        /// <summary>A unit quad on the XZ plane, facing up, its long side along +Z.</summary>
-        private static Mesh Quad()
+        /// <summary>A unit quad on the XZ plane, facing up, its long side along +Z (every mark laid on the ground is one).</summary>
+        public static Mesh Quad()
         {
             if (_quad != null)
             {

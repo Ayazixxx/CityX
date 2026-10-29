@@ -86,6 +86,8 @@ the Flame Staff because "fire staff" was already the Fireball Staff's name in th
   on them (a spell: Spell Power and Armor Penetration apply, magic resistance stops a share), with no stagger, as the flamethrower (a stream
   that locked its target every frame would never let it move), and no blood (`DamageContext.WithoutBlood`: fire does not cut). It drinks 8 mana a second and goes out when the mana is gone, or the click is let go.
   Out in the rain it is half as fierce and a quarter shorter, like the flamethrower (`Weather.FlameStrength`); under a roof it is unaffected.
+- **It sets the ground alight** (docs/FIRE.md, since the fire mechanics): where the stream meets the world bare pavement burns a few seconds,
+  and any gasoline under its length catches and burns along (`FireScene.IgniteAlongStream`, ten times a second).
 - **The look** (`FlameStreamLook`): the flamethrower's own three-layer fire (a hot core, the orange flame round it, smoke off it) and its
   flickering light, on a prefab of its own (`FlamethrowerBuilder.BuildStaffFlame`, `StaffFlame.prefab`) that the caster puts at the staff's head
   and points along the crosshair. The staff is thrust out as with every staff. The model: charred black wood, iron, an ember in a brazier.

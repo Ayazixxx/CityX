@@ -354,6 +354,12 @@ namespace CityX.UI
                 case "flame_staff":
                 case "flame":
                 case "torch": return ItemRegistry.FlameStaff;
+                case "jerrycan":
+                case "jerry_can":
+                case "gascan":
+                case "gas_can":
+                case "gas":
+                case "petrol": return ItemRegistry.JerryCan;
                 case "firestaff":
                 case "fire_staff":
                 case "fireballstaff":

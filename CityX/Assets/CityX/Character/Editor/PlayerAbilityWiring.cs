@@ -101,6 +101,9 @@ namespace CityX.CharacterEditor
             // --- Grow and Shrink (Wizard; Grow on key 0 of the default bar): drawn and voiced in code, nothing to load.
             GetOrAdd<BodySizeAbility>(player);
 
+            // --- the fire as other players see it (2026-10-28, docs/FIRE.md): pours, lightings and dousings, nothing to load.
+            GetOrAdd<FireSync>(player);
+
             // --- a bullet the guard turns aside flies off (the Block Chance roll or a parry): drawn in code, nothing to load.
             GetOrAdd<BulletRicochet>(player);
 

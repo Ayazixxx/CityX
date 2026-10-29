@@ -282,6 +282,8 @@ namespace CityX.ViewEditor
             GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
             GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
             GameObject crossbowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildCrossbow(arrowPrefab);
+            // The jerry can (2026-10-28, docs/FIRE.md): drawn in code, a stand-in until the owner's model.
+            CityX.WeaponsEditor.JerryCanBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
