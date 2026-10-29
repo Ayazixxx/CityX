@@ -29,6 +29,7 @@ namespace CityX.Tests
                 Kind("swordsman", "Assets/CityX/Character/NetworkedSwordsman.prefab"),
                 Kind("shoota", "Assets/CityX/Character/NetworkedShoota.prefab"),
                 Kind("wraith", "Assets/CityX/Character/NetworkedWraith.prefab"),
+                Kind("giant", "Assets/CityX/Character/NetworkedGiant.prefab"),
             };
             foreach (NetworkManager manager in new[] { _server, _clients[0], _clients[1] })
             {
@@ -111,6 +112,10 @@ namespace CityX.Tests
                 }
             }
             _enemyNetworks.Clear();
+            foreach (GiantSlam slam in Object.FindObjectsByType<GiantSlam>(FindObjectsSortMode.None))
+            {
+                Object.DestroyImmediate(slam.gameObject);
+            }
         }
 #endif
 
@@ -202,6 +207,29 @@ namespace CityX.Tests
             yield return WaitUntil(() => !real.IsAlive && !copy.IsAlive, "the Wraith to die on both machines");
             yield return WaitUntil(() => _enemyNetworks[2].CreditedXp == Wraith.XpForKill, "B to be paid the Wraith");
             yield return WaitUntil(() => EnemyOn(_clients[1]) == null, "the faded Wraith to be taken out of the session");
+#else
+            Assert.Ignore("needs the editor to load the networked prefabs.");
+            yield break;
+#endif
+        }
+
+        /// <summary>The giant (docs/GIANT.md): the other player's copy is as big as the owner's, and the slam the owner's giant lands heaves the ground on their screen too.</summary>
+        [UnityTest]
+        public IEnumerator AGiantsCopyIsAGiantAndItsSlamHeavesTheGroundOnTheOtherScreen()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            yield return StartEnemyNetworks();
+            NetworkObject onA = null, onB = null;
+            yield return SpawnFromA("giant", new Vector3(0.0f, 0.0f, 20.0f), (a, b) => { onA = a; onB = b; });
+            Assert.AreEqual(GiantRules.Scale, onB.transform.lossyScale.y, 1e-3f, "the other player's copy is not a giant");
+            Assert.IsTrue(onA.GetComponent<GiantBrain>().enabled, "the owner's giant has no mind running");
+            Assert.IsFalse(onB.GetComponent<GiantBrain>().enabled, "the copy runs a giant's mind of its own");
+
+            var brain = onA.GetComponent<GiantBrain>();
+            yield return WaitUntil(() => brain.Slams > 0, "the owner's giant to leap and land");
+            // One slam is the owner's machine's own (with its blows); the other is B's copy showing it.
+            yield return WaitUntil(() => Object.FindObjectsByType<GiantSlam>(FindObjectsSortMode.None).Length >= 2, "the copy to show the slam");
 #else
             Assert.Ignore("needs the editor to load the networked prefabs.");
             yield break;

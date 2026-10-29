@@ -76,11 +76,11 @@ namespace CityX.Weapons
         private Light _light;
         private AudioSource _hum;
         private MaterialPropertyBlock _block;
-
-        private MaterialPropertyBlock Block => _block ??= new MaterialPropertyBlock();
         private float _scroll;
         private float _age;
         private static Texture2D _texture;
+
+        private MaterialPropertyBlock Block => _block ??= new MaterialPropertyBlock();
 
         public bool IsRunning { get; private set; }
 

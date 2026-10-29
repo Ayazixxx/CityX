@@ -73,6 +73,9 @@ namespace CityX.UI
         [Tooltip("What /spawn wraith puts down -- a ghost that floats about the street; its sneaking up and its bite come later.")]
         public GameObject WraithPrefab;
 
+        [Tooltip("What /spawn giant puts down -- the player's body at the Grow spell's size, a stone-grey giant that leaps and slams the ground.")]
+        public GameObject GiantPrefab;
+
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
@@ -105,6 +108,9 @@ namespace CityX.UI
 
         /// <summary>How far ahead /spawn swordsman puts him: a few strides off, so you see him come in.</summary>
         public const float SwordsmanSpawnDistance = 8.0f;
+
+        /// <summary>How far ahead /spawn giant puts it: far enough to see all 26 m of it coming, inside the 40 m a session lets a player spawn at.</summary>
+        public const float GiantSpawnDistance = 34.0f;
 
         private readonly List<string> _lines = new List<string>();
         private PlayerLocomotion _playerLocomotion;

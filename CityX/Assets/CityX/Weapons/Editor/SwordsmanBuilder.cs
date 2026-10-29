@@ -10,15 +10,13 @@ namespace CityX.WeaponsEditor
     /// <summary>
     /// Builds Swordsman.prefab (owner, 2026-10-17: "make a swordsman npc that wields the one handed sword so i can duel with him", "make the npc
     /// have all the movement animations that i do"): the player's own body (Player.prefab, so his animation, his sword combat and every change to
-    /// them are the player's), without what only the player's own body needs -- the input reader (his SwordsmanBrain drives the body instead),
-    /// the saved character's look, the voice capture -- and with the combat sword to equip at spawn. He wears the owner's character "Knight"
-    /// (2026-10-18: "make the character i made called Knight the skin for the swordsman npc"; its save copied to NpcLooks/Knight.json) and the
-    /// Knight Helmet. Run after the player rig, the combat sword and the helmet. The way ShootaBuilder makes the Shoota.
+    /// them are the player's), without what only the player's own body needs (<see cref="EnemyBody"/>: his SwordsmanBrain drives the body
+    /// instead of the input reader), and with the combat sword to equip at spawn. He wears the owner's character "Knight" (2026-10-18: "make
+    /// the character i made called Knight the skin for the swordsman npc"; its save copied to NpcLooks/Knight.json) and the Knight Helmet. Run
+    /// after the player rig, the combat sword and the helmet. The way ShootaBuilder makes the Shoota.
     /// </summary>
     public static class SwordsmanBuilder
     {
-        private const string PlayerPrefabPath = "Assets/CityX/Character/Player.prefab";
-        private const string ControllerPath = "Assets/CityX/Character/PlayerAnimator.controller";
         private const string SwordPrefabPath = "Assets/CityX/Weapons/CombatSword.prefab";
         public const string PrefabPath = "Assets/CityX/Character/Swordsman.prefab";
         private const string HelmetPrefabPath = "Assets/CityX/Wearables/KnightHelmet.prefab";
@@ -32,23 +30,19 @@ namespace CityX.WeaponsEditor
         [MenuItem("CityX/Rebuild Swordsman")]
         public static GameObject Build()
         {
-            var player = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
             var sword = AssetDatabase.LoadAssetAtPath<GameObject>(SwordPrefabPath);
-            if (player == null || sword == null)
+            if (sword == null)
             {
-                Debug.LogError("CityX: build the player rig and the combat sword before the swordsman.");
+                Debug.LogError("CityX: build the combat sword before the swordsman.");
                 return null;
             }
-
-            var root = (GameObject)Object.Instantiate(player);
-            root.name = "Swordsman";
+            GameObject root = EnemyBody.FromPlayer("Swordsman");
+            if (root == null)
+            {
+                return null;
+            }
             try
             {
-                // Only the player's own body reads the keyboard, wears the saved character and listens to the microphone.
-                Remove<PlayerInputReader>(root);
-                Remove<CharacterIdentity>(root);
-                Remove<PlayerVoiceCapture>(root);
-
                 CharacterSave look = KnightLook();
                 Material skin = look != null ? PaintedSkin(look) : null;
                 if (skin == null)
@@ -61,37 +55,7 @@ namespace CityX.WeaponsEditor
                     hair.SetStyle(look.HairStyle);
                     hair.SetColour(look.HairColour);
                 }
-                foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
-                {
-                    Material[] materials = renderer.sharedMaterials;
-                    bool changed = false;
-                    for (int i = 0; i < materials.Length; i++)
-                    {
-                        if (materials[i] != null && materials[i].name.Contains("Skin"))
-                        {
-                            materials[i] = skin;
-                            changed = true;
-                        }
-                    }
-                    if (changed)
-                    {
-                        renderer.sharedMaterials = materials;
-                    }
-                }
-
-                // THE ANIMATION CONTROLLER BY PATH, set on the copy before it is saved: the player rig is rebuilt earlier in the same run (a new
-                // controller asset), and the reference carried over from Player.prefab came out empty -- the body stood in its bind pose with
-                // nothing playing (the Shoota had been like that since; found 2026-10-17 building the swordsman).
-                var controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(ControllerPath);
-                if (controller == null)
-                {
-                    Debug.LogError("CityX: no player animator controller -- rebuild the player rig first.");
-                    return null;
-                }
-                foreach (Animator animator in root.GetComponentsInChildren<Animator>(true))
-                {
-                    animator.runtimeAnimatorController = controller;
-                }
+                EnemyBody.Reskin(root, skin);
 
                 // A bullet his guard turns aside flies off at the players, as a player's does at the enemies (BulletRicochet).
                 root.AddComponent<BulletRicochet>();
@@ -137,14 +101,6 @@ namespace CityX.WeaponsEditor
             paint.Apply();
             EditorUtility.CompressTexture(paint.Atlas, TextureFormat.DXT1, TextureCompressionQuality.Best);
             return CharacterSkin.EnsurePainted("SwordsmanSkin", paint.Atlas);
-        }
-
-        private static void Remove<T>(GameObject root) where T : Component
-        {
-            foreach (T component in root.GetComponentsInChildren<T>(true))
-            {
-                Object.DestroyImmediate(component);
-            }
         }
     }
 }

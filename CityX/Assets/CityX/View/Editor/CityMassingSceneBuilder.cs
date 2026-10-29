@@ -316,6 +316,10 @@ namespace CityX.ViewEditor
             // --- and the combat sword; spawned only by /spawn swordsman.
             CityX.WeaponsEditor.SwordsmanBuilder.Build();
 
+            // --- the giant (2026-10-29): the player's own body at the Grow spell's size, stone grey, that leaps and slams the ground. After the
+            // --- player rig; spawned only by /spawn giant.
+            CityX.WeaponsEditor.GiantBuilder.Build();
+
             // --- the Wraith (2026-10-26): a ghost made of the player's body from the hips up, trailing off into smoke. After the player rig,
             // --- whose body and skull it is cut from; spawned only by /spawn wraith.
             CityX.CharacterEditor.WraithBuilder.Build();

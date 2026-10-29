@@ -1,4 +1,3 @@
-using CityX.Character;
 using CityX.CharacterEditor;
 using CityX.Weapons;
 using UnityEditor;
@@ -8,14 +7,12 @@ namespace CityX.WeaponsEditor
 {
     /// <summary>
     /// Builds Shoota.prefab (owner, 2026-10-15: "he is just a white playermodel and he wields the ak47"): the player's own body (Player.prefab,
-    /// so a change to the body or its animation reaches him with a rebuild), in plain white, without what only the player's own body needs --
-    /// the input reader (his ShootaBrain drives the body instead), the saved character's look, the voice capture -- and with the AK-47 to mount
-    /// in his hands. Run after the player rig and the AK-47.
+    /// so a change to the body or its animation reaches him with a rebuild), in plain white, without what only the player's own body needs
+    /// (<see cref="EnemyBody"/>: his ShootaBrain drives the body instead of the input reader), and with the AK-47 to mount in his hands. Run
+    /// after the player rig and the AK-47.
     /// </summary>
     public static class ShootaBuilder
     {
-        private const string PlayerPrefabPath = "Assets/CityX/Character/Player.prefab";
-        private const string ControllerPath = "Assets/CityX/Character/PlayerAnimator.controller";
         private const string GunPrefabPath = "Assets/CityX/Weapons/AK47.prefab";
         public const string PrefabPath = "Assets/CityX/Character/Shoota.prefab";
 
@@ -25,56 +22,20 @@ namespace CityX.WeaponsEditor
         [MenuItem("CityX/Rebuild Shoota")]
         public static GameObject Build()
         {
-            var player = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
             var gun = AssetDatabase.LoadAssetAtPath<GameObject>(GunPrefabPath);
-            if (player == null || gun == null)
+            if (gun == null)
             {
-                Debug.LogError("CityX: build the player rig and the AK-47 before the Shoota.");
+                Debug.LogError("CityX: build the AK-47 before the Shoota.");
                 return null;
             }
-
-            var root = (GameObject)Object.Instantiate(player);
-            root.name = "Shoota";
+            GameObject root = EnemyBody.FromPlayer("Shoota");
+            if (root == null)
+            {
+                return null;
+            }
             try
             {
-                // Only the player's own body reads the keyboard, wears the saved character and listens to the microphone.
-                Remove<PlayerInputReader>(root);
-                Remove<CharacterIdentity>(root);
-                Remove<PlayerVoiceCapture>(root);
-
-                Material skin = CharacterSkin.Ensure("ShootaSkin", White);
-                foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
-                {
-                    Material[] materials = renderer.sharedMaterials;
-                    bool changed = false;
-                    for (int i = 0; i < materials.Length; i++)
-                    {
-                        if (materials[i] != null && materials[i].name.Contains("Skin"))
-                        {
-                            materials[i] = skin;
-                            changed = true;
-                        }
-                    }
-                    if (changed)
-                    {
-                        renderer.sharedMaterials = materials;
-                    }
-                }
-
-                // THE ANIMATION CONTROLLER BY PATH, set on the copy before it is saved: the player rig is rebuilt earlier in the same run (a new
-                // controller asset), and the reference carried over from Player.prefab came out empty -- the body stood in its bind pose with
-                // nothing playing (the Shoota had been like that since; found 2026-10-17 building the swordsman).
-                var controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(ControllerPath);
-                if (controller == null)
-                {
-                    Debug.LogError("CityX: no player animator controller -- rebuild the player rig first.");
-                    return null;
-                }
-                foreach (Animator animator in root.GetComponentsInChildren<Animator>(true))
-                {
-                    animator.runtimeAnimatorController = controller;
-                }
-
+                EnemyBody.Reskin(root, CharacterSkin.Ensure("ShootaSkin", White));
                 var brain = root.AddComponent<ShootaBrain>();
                 brain.GunPrefab = gun;
 
@@ -86,14 +47,6 @@ namespace CityX.WeaponsEditor
             finally
             {
                 Object.DestroyImmediate(root);
-            }
-        }
-
-        private static void Remove<T>(GameObject root) where T : Component
-        {
-            foreach (T component in root.GetComponentsInChildren<T>(true))
-            {
-                Object.DestroyImmediate(component);
             }
         }
     }

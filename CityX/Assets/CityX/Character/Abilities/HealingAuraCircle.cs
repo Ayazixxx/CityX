@@ -44,10 +44,10 @@ namespace CityX.Character
         private ParticleSystem _motes;
         private Light _light;
         private MaterialPropertyBlock _block;
-
-        private MaterialPropertyBlock Block => _block ??= new MaterialPropertyBlock();
         private float _strength;
         private bool _on;
+
+        private MaterialPropertyBlock Block => _block ??= new MaterialPropertyBlock();
 
         /// <summary>0 to 1, how far grown in it is (it outlasts the spell by its fade).</summary>
         public float Strength => _strength;

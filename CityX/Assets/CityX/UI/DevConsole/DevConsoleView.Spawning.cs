@@ -159,6 +159,17 @@ namespace CityX.UI
                     SpawnLog("spawned a swordsman -- draw your sword: he blocks, rolls and punishes a blade that bounces off his guard");
                     return true;
 
+                case "giant":
+                    if (GiantPrefab == null)
+                    {
+                        Log("no giant prefab wired");
+                        return false;
+                    }
+                    // Spaced by half its size: giants a man's width apart would stand in each other.
+                    PutDown("giant", GiantPrefab, origin.position + origin.forward * GiantSpawnDistance + offset * BodySize.GrowScale * 0.5f, facing);
+                    SpawnLog("spawned a giant -- it strides at you; when it crouches, run: it leaps and the ground heaves where it lands");
+                    return true;
+
                 case "radio":
                     if (RadioPrefab == null)
                     {

@@ -333,6 +333,12 @@ namespace CityX.Character
         /// <summary>The enemy this body is a copy of showing its attack's tell (AttackGlint.StateName, from the network): the copy glints too.</summary>
         public event System.Action RemoteGlinted;
 
+        /// <summary>The name a giant's landing is announced by (docs/GIANT.md), so every other player's copy of it shakes the ground too.</summary>
+        public const string GroundSlamName = "giant_slam";
+
+        /// <summary>The giant this body is a copy of came down from its leap (<see cref="GroundSlamName"/>, from the network): the copy's ground heaves.</summary>
+        public event System.Action RemoteSlammed;
+
         /// <summary>Tells other players' copies of this body about something that already happened here (a gun shot), without playing anything.</summary>
         public void AnnounceState(string stateName)
         {
@@ -458,6 +464,11 @@ namespace CityX.Character
             if (stateName == AttackGlint.StateName)
             {
                 RemoteGlinted?.Invoke();
+                return;
+            }
+            if (stateName == GroundSlamName)
+            {
+                RemoteSlammed?.Invoke();
                 return;
             }
             if (HitImpactEffects.TryParse(stateName, out HitDirection woundDirection, out bool woundHeavy))
