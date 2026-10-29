@@ -5,11 +5,13 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// HOW THE FIRE LOOKS (docs/FIRE.md; owner: "make the fire look really good"): four particle systems shared by every burning cell and
-    /// every burning body, fed by hand each frame -- flipbook flames standing upright (vertical billboards of the sheet in
-    /// <see cref="FireSprites"/>), a soft orange glow on the ground under them, embers that rise, drift and fall, and slow dark smoke above
-    /// -- and a handful of flickering point lights parked over the hottest clusters. All additive and soft but the smoke, which darkens.
-    /// Cells far from the camera emit less, and past <see cref="FarMetres"/> nothing (a flame a pixel high is not worth a particle).
+    /// HOW THE FIRE LOOKS (docs/FIRE.md; owner, 2026-10-29: "make it look like real life fire like gta or red dead"): four particle systems
+    /// shared by every burning cell and every burning body, fed by hand each frame. The flames and the smoke are quads the CityX/Fire shader
+    /// draws every pixel of -- a flame shape bent and eaten by noise rising through it, coloured by a black-body ramp, born fast and burning
+    /// away from its tips as it ages (the shader reads each particle's own random number and age through custom vertex streams); flames stand
+    /// upright (vertical billboards), smoke faces the camera. Under them an additive orange glow on the ground, and embers that rise, drift and
+    /// fall, bright enough for the game's bloom. A handful of flickering point lights park over the hottest clusters. Cells far from the camera
+    /// emit less, and past <see cref="FarMetres"/> nothing (a flame a pixel high is not worth a particle).
     /// </summary>
     public sealed class FireLook
     {
@@ -26,21 +28,26 @@ namespace CityX.Character
         public const float FarMetres = 130.0f;
 
         /// <summary>Particles a second for one cell at full heat.</summary>
-        public const float FlamesPerSecond = 13.0f;
+        public const float FlamesPerSecond = 11.0f;
 
         public const float GlowPerSecond = 6.0f;
-        public const float EmbersPerSecond = 5.0f;
-        public const float SmokePerSecond = 2.5f;
+        public const float EmbersPerSecond = 6.0f;
+        public const float SmokePerSecond = 2.0f;
+
+        /// <summary>How many flames get a hot core tongue at their base (smaller, brighter, quicker), and how much brighter.</summary>
+        public const float CoreShare = 0.5f;
+
+        public const float CoreBrightness = 1.3f;
+
+        /// <summary>The embers' material brightness: past 1 so the bloom catches them, as it does the flames' cores.</summary>
+        public const float EmberBrightness = 1.8f;
 
         public static readonly Color LightColour = new Color(1.0f, 0.55f, 0.22f);
         public static readonly Color GlowColour = new Color(1.0f, 0.42f, 0.1f);
         public static readonly Color EmberColour = new Color(1.0f, 0.78f, 0.35f);
-        public static readonly Color SmokeColour = new Color(0.07f, 0.07f, 0.07f);
 
-        /// <summary>How many flames get a hot core tongue at their base, and its colour.</summary>
-        public const float CoreShare = 0.6f;
-
-        public static readonly Color CoreColour = new Color(1.0f, 0.95f, 0.75f);
+        /// <summary>The smoke's own grey once it has risen out of the fire's light (the shader lights it orange while it is young).</summary>
+        public static readonly Color SmokeColour = new Color(0.1f, 0.1f, 0.1f, 0.6f);
 
         private sealed class Debts
         {
@@ -61,12 +68,10 @@ namespace CityX.Character
 
         public FireLook(Transform parent)
         {
-            // The flames are premultiplied, not additive: additive tongues washed out pink against the bright sky (rendered 2026-10-29); the
-            // glow and the embers add their light, the smoke darkens.
-            _flames = Make(parent, "Flames", FireSprites.Particles("FireFlames", FireSprites.Flames(), ParticleBlend.Premultiplied, 2), 2500, ParticleSystemRenderMode.VerticalBillboard);
-            _glow = Make(parent, "Glow", FireSprites.Particles("FireGlow", FireSprites.Dot(), ParticleBlend.Additive, 1), 800, ParticleSystemRenderMode.Billboard);
-            _embers = Make(parent, "Embers", FireSprites.Particles("FireEmbers", FireSprites.Dot(), ParticleBlend.Additive, 3), 1500, ParticleSystemRenderMode.Billboard);
-            _smoke = Make(parent, "Smoke", FireSprites.Particles("FireSmoke", FireSprites.Dot(), ParticleBlend.Alpha, 0), 1200, ParticleSystemRenderMode.Billboard);
+            _flames = Make(parent, "Flames", FireSprites.Flames(), 2500, ParticleSystemRenderMode.VerticalBillboard, true);
+            _glow = Make(parent, "Glow", FireSprites.Particles("FireGlow", FireSprites.Dot(), ParticleBlend.Additive, 1), 800, ParticleSystemRenderMode.Billboard, false);
+            _embers = Make(parent, "Embers", FireSprites.Particles("FireEmbers", FireSprites.Dot(), ParticleBlend.Additive, 3, EmberBrightness), 1500, ParticleSystemRenderMode.Billboard, false);
+            _smoke = Make(parent, "Smoke", FireSprites.Smoke(), 1200, ParticleSystemRenderMode.Billboard, true);
             StyleFlames(_flames);
             StyleGlow(_glow);
             StyleEmbers(_embers);
@@ -122,7 +127,7 @@ namespace CityX.Character
                 while (debts.Smoke >= 1.0f)
                 {
                     debts.Smoke -= 1.0f;
-                    EmitSmoke(cell.Centre + Vector3.up * (0.9f + 0.5f * heat), heat, 1.0f);
+                    EmitSmoke(cell.Centre + Vector3.up * (1.1f + 0.5f * heat), heat, 1.0f);
                 }
             }
             Forget(burning);
@@ -139,22 +144,25 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>A burning body's fire at its chest: flames, a few embers, smoke.</summary>
+        /// <summary>A burning body's fire: flames up and down the torso, a few embers, smoke.</summary>
         public void Burn(Vector3 chest, float strength, float deltaTime)
         {
             float debt = 0.0f;
-            // Up and down the torso, not one spot: a body on fire is wrapped in it.
-            EmitFlames(chest + Vector3.up * Random.Range(-0.9f, 0.5f), strength, 0.75f, ref debt, FlamesPerSecond * 1.8f * strength * deltaTime, 0.3f);
+            EmitFlames(chest + Vector3.up * Random.Range(-0.9f, 0.5f), strength, 0.7f, ref debt, FlamesPerSecond * 1.8f * strength * deltaTime, 0.3f);
             if (Random.value < EmbersPerSecond * strength * deltaTime)
             {
                 EmitEmber(chest + Random.insideUnitSphere * 0.35f, 0.8f);
             }
             if (Random.value < SmokePerSecond * strength * deltaTime)
             {
-                EmitSmoke(chest + Vector3.up * 0.6f, strength, 0.6f);
+                EmitSmoke(chest + Vector3.up * 0.7f, strength, 0.6f);
             }
         }
 
+        /// <summary>
+        /// Flames at <paramref name="at"/>: quads the shader draws a tongue on, each with the cell's <paramref name="heat"/> as its strength
+        /// (the vertex alpha), standing a little over the ground so the soft fade does not eat their base.
+        /// </summary>
         private void EmitFlames(Vector3 at, float heat, float size, ref float debt, float count, float spread = 0.3f)
         {
             debt += count;
@@ -163,18 +171,18 @@ namespace CityX.Character
             {
                 debt -= 1.0f;
                 Vector2 disc = Random.insideUnitCircle * spread;
-                emit.position = at + new Vector3(disc.x, 0.05f + Random.value * 0.2f * heat, disc.y);
-                emit.velocity = Vector3.up * (Random.Range(0.9f, 1.6f) * (0.6f + 0.4f * heat)) + new Vector3(Random.Range(-0.15f, 0.15f), 0.0f, Random.Range(-0.15f, 0.15f));
-                emit.startSize = Random.Range(0.75f, 1.15f) * (0.55f + 0.6f * heat) * size;
-                emit.startLifetime = Random.Range(0.55f, 0.85f);
-                emit.startColor = Color.white;
+                emit.position = at + new Vector3(disc.x, 0.08f + Random.value * 0.2f * heat, disc.y);
+                emit.velocity = Vector3.up * (Random.Range(0.7f, 1.3f) * (0.6f + 0.4f * heat)) + new Vector3(Random.Range(-0.12f, 0.12f), 0.0f, Random.Range(-0.12f, 0.12f));
+                emit.startSize = Random.Range(1.1f, 1.6f) * (0.55f + 0.6f * heat) * size;
+                emit.startLifetime = Random.Range(0.6f, 1.0f);
+                emit.startColor = new Color(1.0f, 1.0f, 1.0f, heat);
                 _flames.Emit(emit, 1);
                 if (Random.value < CoreShare)
                 {
-                    // A hot core: a smaller, brighter, shorter-lived tongue at the base, where a fire is hottest.
-                    emit.startSize *= 0.5f;
+                    // A hot core: a smaller, brighter, quicker tongue at the base, where a fire is hottest.
+                    emit.startSize *= 0.55f;
                     emit.startLifetime *= 0.6f;
-                    emit.startColor = CoreColour;
+                    emit.startColor = new Color(CoreBrightness, CoreBrightness * 0.97f, CoreBrightness * 0.9f, heat);
                     _flames.Emit(emit, 1);
                 }
             }
@@ -201,8 +209,8 @@ namespace CityX.Character
                 applyShapeToPosition = false,
                 position = at,
                 velocity = Vector3.up * Random.Range(1.2f, 2.6f) * strength + new Vector3(Random.Range(-0.5f, 0.5f), 0.0f, Random.Range(-0.5f, 0.5f)),
-                startSize = Random.Range(0.035f, 0.07f),
-                startLifetime = Random.Range(0.9f, 2.0f),
+                startSize = Random.Range(0.03f, 0.06f),
+                startLifetime = Random.Range(0.9f, 2.2f),
                 startColor = EmberColour,
             };
             _embers.Emit(emit, 1);
@@ -216,9 +224,9 @@ namespace CityX.Character
                 applyShapeToPosition = false,
                 position = at + new Vector3(disc.x, 0.0f, disc.y),
                 velocity = Vector3.up * Random.Range(0.7f, 1.2f) + new Vector3(Random.Range(-0.2f, 0.2f), 0.0f, Random.Range(-0.2f, 0.2f)),
-                startSize = Random.Range(0.55f, 0.85f) * (0.7f + 0.5f * heat) * size,
-                startLifetime = Random.Range(2.2f, 3.4f),
-                startColor = new Color(SmokeColour.r, SmokeColour.g, SmokeColour.b, 0.3f),
+                startSize = Random.Range(0.8f, 1.2f) * (0.7f + 0.5f * heat) * size,
+                startLifetime = Random.Range(2.5f, 4.0f),
+                startColor = SmokeColour,
             };
             _smoke.Emit(emit, 1);
         }
@@ -302,7 +310,11 @@ namespace CityX.Character
             }
         }
 
-        private static ParticleSystem Make(Transform parent, string name, Material material, int maxParticles, ParticleSystemRenderMode mode)
+        /// <summary>
+        /// One shared particle system, fed by hand. The fire shader's layers hand each particle its uv, its own random number and its age
+        /// (<paramref name="fireStreams"/>: the vertex streams the shader reads as TEXCOORD0 xyzw).
+        /// </summary>
+        private static ParticleSystem Make(Transform parent, string name, Material material, int maxParticles, ParticleSystemRenderMode mode, bool fireStreams)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -322,43 +334,27 @@ namespace CityX.Character
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             renderer.sortMode = ParticleSystemSortMode.Distance;
+            if (fireStreams)
+            {
+                renderer.SetActiveVertexStreams(new List<ParticleSystemVertexStream>
+                {
+                    ParticleSystemVertexStream.Position, ParticleSystemVertexStream.Color, ParticleSystemVertexStream.UV,
+                    ParticleSystemVertexStream.StableRandomX, ParticleSystemVertexStream.AgePercent,
+                });
+            }
             return particles;
         }
 
+        /// <summary>The shader draws and fades each flame; the particle only grows a little as it rises and wavers in the noise.</summary>
         private static void StyleFlames(ParticleSystem particles)
         {
-            ParticleSystem.TextureSheetAnimationModule sheet = particles.textureSheetAnimation;
-            sheet.enabled = true;
-            sheet.mode = ParticleSystemAnimationMode.Grid;
-            sheet.numTilesX = FireSprites.Tiles;
-            sheet.numTilesY = FireSprites.Tiles;
-            sheet.animation = ParticleSystemAnimationType.WholeSheet;
-            sheet.frameOverTime = new ParticleSystem.MinMaxCurve(1.0f, AnimationCurve.Linear(0.0f, 0.0f, 1.0f, 1.0f));
-            sheet.startFrame = new ParticleSystem.MinMaxCurve(0.0f, FireSprites.Frames);
-            sheet.cycleCount = 1;
-
-            ParticleSystem.ColorOverLifetimeModule colour = particles.colorOverLifetime;
-            colour.enabled = true;
-            var gradient = new Gradient();
-            gradient.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(Color.white, 0.0f), new GradientColorKey(Color.white, 0.5f),
-                    new GradientColorKey(new Color(1.0f, 0.55f, 0.3f), 0.8f), new GradientColorKey(new Color(0.45f, 0.08f, 0.02f), 1.0f),
-                },
-                new[]
-                {
-                    new GradientAlphaKey(0.0f, 0.0f), new GradientAlphaKey(1.0f, 0.12f), new GradientAlphaKey(0.9f, 0.6f), new GradientAlphaKey(0.0f, 1.0f),
-                });
-            colour.color = new ParticleSystem.MinMaxGradient(gradient);
-
             ParticleSystem.SizeOverLifetimeModule size = particles.sizeOverLifetime;
             size.enabled = true;
-            size.size = new ParticleSystem.MinMaxCurve(1.0f, new AnimationCurve(new Keyframe(0.0f, 0.55f), new Keyframe(0.3f, 1.0f), new Keyframe(0.7f, 1.15f), new Keyframe(1.0f, 0.8f)));
+            size.size = new ParticleSystem.MinMaxCurve(1.0f, new AnimationCurve(new Keyframe(0.0f, 0.7f), new Keyframe(0.3f, 1.0f), new Keyframe(0.7f, 1.15f), new Keyframe(1.0f, 1.05f)));
 
             ParticleSystem.NoiseModule noise = particles.noise;
             noise.enabled = true;
-            noise.strength = 0.3f;
+            noise.strength = 0.25f;
             noise.frequency = 0.5f;
             noise.scrollSpeed = 0.6f;
             noise.damping = true;
@@ -404,20 +400,14 @@ namespace CityX.Character
             noise.damping = true;
         }
 
+        /// <summary>The shader fades and lights each puff; the particle grows as it rises and drifts in the noise.</summary>
         private static void StyleSmoke(ParticleSystem particles)
         {
             ParticleSystem.MainModule main = particles.main;
             main.gravityModifier = -0.02f;
-            ParticleSystem.ColorOverLifetimeModule colour = particles.colorOverLifetime;
-            colour.enabled = true;
-            var gradient = new Gradient();
-            gradient.SetKeys(
-                new[] { new GradientColorKey(Color.white, 0.0f), new GradientColorKey(Color.white, 1.0f) },
-                new[] { new GradientAlphaKey(0.0f, 0.0f), new GradientAlphaKey(1.0f, 0.15f), new GradientAlphaKey(0.75f, 0.6f), new GradientAlphaKey(0.0f, 1.0f) });
-            colour.color = new ParticleSystem.MinMaxGradient(gradient);
             ParticleSystem.SizeOverLifetimeModule size = particles.sizeOverLifetime;
             size.enabled = true;
-            size.size = new ParticleSystem.MinMaxCurve(1.0f, AnimationCurve.EaseInOut(0.0f, 1.0f, 1.0f, 2.8f));
+            size.size = new ParticleSystem.MinMaxCurve(1.0f, AnimationCurve.EaseInOut(0.0f, 1.0f, 1.0f, 2.6f));
             ParticleSystem.NoiseModule noise = particles.noise;
             noise.enabled = true;
             noise.strength = 0.35f;

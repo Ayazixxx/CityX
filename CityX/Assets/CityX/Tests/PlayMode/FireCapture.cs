@@ -41,6 +41,12 @@ namespace CityX.Tests
             camera.fieldOfView = 40.0f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
+            // The game's own grade (its bloom above all: the flames' cores are past white and glow through it), so the pictures show the fire as the game does.
+            camera.allowHDR = true;
+            camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>().renderPostProcessing = true;
+            var grade = new GameObject("Grade").AddComponent<UnityEngine.Rendering.Volume>();
+            grade.isGlobal = true;
+            grade.profile = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.VolumeProfile>("Assets/CityX/View/Materials/CityGrade.asset");
             Physics.SyncTransforms();
 
             GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab");
@@ -128,6 +134,7 @@ namespace CityX.Tests
             FireScene.Clear();
             Object.Destroy(player);
             Object.Destroy(victim);
+            Object.Destroy(grade.gameObject);
             Object.Destroy(camera.gameObject);
             Object.Destroy(ground);
             Object.Destroy(sunObject);

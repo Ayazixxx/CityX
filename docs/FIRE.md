@@ -39,16 +39,25 @@ height means no spread, so a fire never jumps off a roof edge. A cell under wate
 twice as fast and bare cells do not catch in it.
 
 **Burned out.** A cell with no fuel left goes out and is marked burned: a black scorch (`FireMarks`, the blood splats' decal: a dark ragged
-blob two cells across laid a centimetre over the ground, so neighbours overlap into one burned patch, darkening with the burn and staying
-`FireRules.ScorchLifeSeconds`). Gasoline shows as a dark puddle that burns off with the fuel. Terrain takes no damage.
+blob two cells across laid a centimetre over the ground, so neighbours overlap into one burned patch, darkening with the burn, staying a
+minute (`FireRules.ScorchLifeSeconds`; owner: "make the burn marks fade after 1 minute") and fading over the next fifteen seconds).
+Gasoline shows as a dark puddle that burns off with the fuel. Terrain takes no damage.
 
-**The look** (`FireLook`, `FireSprites`): four particle systems shared by every burning cell and fed by hand each frame. Flipbook flames
-standing upright (vertical billboards of a 16-frame sheet drawn in code: a tongue that sways, wobbles, breaks into tongues at its tip and
-has licks of brighter fire through it, white-yellow at its core and red at its edge; it loops because its time runs round a circle in noise
-space), premultiplied rather than additive so they stay orange against a bright sky (rendered both ways on 2026-10-29: additive tongues washed
-out pink over the sky), with a smaller hot core tongue at most flames' base; an additive orange glow on the ground under them; embers that
-rise, drift and fall; slow dark smoke above. All soft particles (they fade where they meet the street). Six flickering point lights park
-over the hottest clusters. Cells past 60 m from the camera emit half, past 130 m nothing; at most `FireRules.MaxBurningCells` burn at once.
+**The look** (`FireLook`, `FireSprites`, `View/Shaders/CityXFire.shader`; owner, 2026-10-29, of the first flipbook version: "right now it
+just looks like a bunch of triangles.. make it look like real life fire like gta or red dead, even tf2 has pretty good fire"). Four particle
+systems shared by every burning cell and fed by hand each frame. The flames and the smoke are quads a shader of our own draws every pixel
+of, the way the realtime-VFX crowd builds fire (an Unreal campfire breakdown, Godot's fire shaders, Source's particle fires): a soft
+teardrop mask, bent and split into tongues by a coarse noise rising through it and eaten at its edges by a fine one (subtract the noise, then
+smoothstep, so the edges tear into licks instead of being cut), coloured by a black-body ramp (red falls off slowest, green faster, blue
+fastest: dark red, orange, yellow, white-hot in the core) with values past 1 so the game's bloom makes the core glow. Each particle hands
+the shader its own random number and its age through vertex streams, so no two flames burn alike and each is born fast and burns away from
+its tips. The noise is a tileable fractal made in code once a session (R fine, G coarse), so it scrolls up through the flames forever
+without a seam. Flames are premultiplied (they add their light and hide only part of what is behind them, so they glow at night and stay
+orange against a bright sky, where an additive flame washed out pink); the smoke is lit orange by the fire while young and cools to grey.
+Under them an additive orange glow on the ground and embers that rise, drift and fall, bright enough for the bloom. All fade where they meet
+the street or a wall (soft particles) and close to the camera. Six flickering point lights park over the hottest clusters. Cells past 60 m
+from the camera emit half, past 130 m nothing; at most `FireRules.MaxBurningCells` burn at once. The two materials are assets in Resources
+(`FireMaterialsBuilder`) so a build keeps the shader; FireSprites copies them and puts the noise on the copies.
 
 **Bodies.** Whoever stands in a burning cell this machine lit burns: `FireRules.DamagePerSecond` in ticks (a spell, no stagger, no blood),
 and keeps burning `FireRules.AfterburnSeconds` after leaving at `FireRules.AfterburnDamagePerSecond`, flames on the torso. Water puts a
@@ -56,8 +65,9 @@ burning body out: standing in water, the water staff's jet, rain over time. Fire
 nobody on this machine: the lighter's machine deals the damage and it reaches other players through their copies, as every hit does.
 
 **Lighting it.** `FireScene.Ignite(point, radius, onlyFuel, striker)` from: the Flame Staff's stream (where it meets the world, and any
-gasoline under its length), the flamethrower, a fireball's burst, Self Smite's bolt (gasoline only: lightning lights fuel, not pavement) and a
-bullet's impact (gasoline only). `FireScene.Douse(point, radius)` from the water staff's landing.
+gasoline under its length), the flamethrower, Self Smite's bolt (gasoline only: lightning lights fuel, not pavement) and a bullet's impact
+(gasoline only). Not the fireball (owner, 2026-10-29: "fireball doesnt need to light the ground on fire, we will work on fireball later").
+`FireScene.Douse(point, radius)` from the water staff's landing.
 
 **The jerry can** (`JerryCanItem`, `/equip jerrycan`): a red steel can with an X pressed into its sides, a top handle and a spout, drawn in
 code (`JerryCanBuilder`), carried by the handle in the right hand, hanging down the fingers; hold left-click to pour: the can tips over the
@@ -71,7 +81,8 @@ randomness drifts a little between machines; it is only the look).
 
 ## Tests
 
-`FireFieldTests` (EditMode): a lit trail burns along its length; bare pavement burns out and spreads no further; gasoline leaves scorched
+`FireSpritesTests` (EditMode): the noise tiles without a seam and fills its range; the flames and the smoke are the fire shader's with the
+noise on them; the materials are assets. `FireFieldTests` (EditMode): a lit trail burns along its length; bare pavement burns out and spreads no further; gasoline leaves scorched
 cells and a fringe; water puts it out and wet ground will not catch; rain blocks bare fire and burns fuel faster; fire does not jump off a
 roof edge; pouring on one spot makes a puddle; a cell under water never burns; another machine's fire is cosmetic until this one lights it.
 `FirePlayTests` (PlayMode): the flame staff lights a poured trail and the fire runs along it; standing in it burns and keeps burning after
@@ -84,6 +95,6 @@ night, the flames close, somebody burning, the scorch after (Logs/CityShots/fire
 ## Not yet
 
 Heat distortion over the fire (a refraction pass); fire on walls and furniture; the can blowing up when shot or burnt; buildings burning
-(waits for building destruction); the flame staff's stream drawn with the new flame sheet (owner: "use it for the fire staff too once you
-have it looking good"). The fire's particle materials are made at runtime: a player build that strips unused shader variants would need
-them as assets (the soft-particle variant exists through Self Smite's glow asset; the premultiplied one does not yet).
+(waits for building destruction); the flame staff's stream drawn with the fire shader (owner: "use it for the fire staff too once you have
+it looking good"; a first try with the old flipbook sheet looked like red tents and was dropped: a jet needs its own shape, stretched along
+the flow).

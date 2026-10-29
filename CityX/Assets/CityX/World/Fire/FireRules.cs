@@ -84,10 +84,10 @@ namespace CityX.World
 
         public const float RainDouseSeconds = 2.0f;
 
-        /// <summary>The black spot a burned cell leaves stays this long, then fades over <see cref="ScorchFadeSeconds"/>.</summary>
-        public const float ScorchLifeSeconds = 240.0f;
+        /// <summary>The black spot a burned cell leaves stays this long (owner: "make the burn marks fade after 1 minute"), then fades over <see cref="ScorchFadeSeconds"/>.</summary>
+        public const float ScorchLifeSeconds = 60.0f;
 
-        public const float ScorchFadeSeconds = 20.0f;
+        public const float ScorchFadeSeconds = 15.0f;
 
         /// <summary>The jerry can: GTA's holds 20 litres; held to pour, it lays this much a second on the ground this far ahead of its spout.</summary>
         public const float CanLitres = 20.0f;
@@ -101,9 +101,7 @@ namespace CityX.World
 
         public const float StreamIgniteRadius = 0.9f;
 
-        /// <summary>A fireball's burst lights this far round where it lands (times the ball's size); a bullet, lightning, the fuel this far round.</summary>
-        public const float BurstIgniteRadius = 1.2f;
-
+        /// <summary>A bullet, a burning body or lightning lights the fuel this far round its point.</summary>
         public const float SparkIgniteRadius = 0.5f;
 
         /// <summary>Water (the water staff's jet) puts out the fire this far round where it lands.</summary>

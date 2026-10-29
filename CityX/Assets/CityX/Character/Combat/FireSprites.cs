@@ -3,37 +3,76 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// THE FIRE'S PICTURES, drawn in code once a session (docs/FIRE.md; no texture asset, as the blood splats' are): a flipbook of
-    /// <see cref="Frames"/> flames -- a tongue of fire that sways, wobbles at its edge and breaks into tongues at the top, white-yellow at its
-    /// core and red at its edge -- that loops seamlessly because its time runs round a circle in noise space; and a soft dot for the embers,
-    /// the smoke and the glow. A real flame sheet is what makes particle fire read as fire instead of as a pile of orange blobs.
+    /// THE FIRE'S MATERIALS AND PICTURES (docs/FIRE.md). The flames and the smoke are the CityX/Fire shader (View/Shaders/CityXFire.shader):
+    /// every flame worked out per pixel from a noise texture made here once a session (tileable, so it scrolls up through the flames forever
+    /// without a seam: R a fine noise, G a coarse one). The shader's two materials come from Resources (FireMaterialsBuilder makes them, so a
+    /// player build keeps the shader) and are copied before the noise goes on, never changed in place. The glow and the embers are URP's
+    /// particle shader with a soft dot.
     /// </summary>
     public static class FireSprites
     {
-        public const int Tiles = 4;
-        public const int Frames = Tiles * Tiles;
-        public const int FrameSize = 128;
+        public const string ShaderName = "CityX/Fire";
+        public const string FlameMaterialName = "FireFlames";
+        public const string SmokeMaterialName = "FireSmoke";
+
+        public const int NoiseSize = 256;
         public const int DotSize = 64;
 
-        /// <summary>How far round the noise the loop runs: wider is more change between frames.</summary>
-        private const float LoopRadius = 0.9f;
+        /// <summary>The fine noise's lattice cells across the texture, and its octaves; the coarse one's.</summary>
+        public const int FineCells = 8;
 
-        private static readonly Color Red = new Color(1.0f, 0.12f, 0.02f);
-        private static readonly Color Orange = new Color(1.0f, 0.45f, 0.06f);
-        private static readonly Color Yellow = new Color(1.0f, 0.85f, 0.35f);
-        private static readonly Color White = new Color(1.0f, 0.97f, 0.8f);
+        public const int FineOctaves = 4;
+        public const int CoarseCells = 3;
+        public const int CoarseOctaves = 3;
 
-        private static Texture2D _flames;
+        private static Texture2D _noise;
         private static Texture2D _dot;
+        private static Material _flames;
+        private static Material _smoke;
 
-        /// <summary>The flame flipbook, <see cref="Tiles"/> by <see cref="Tiles"/> frames, the first at the top left as a particle sheet counts them.</summary>
-        public static Texture2D Flames()
+        /// <summary>The flames' material (CityX/Fire, mode 0), the noise on it.</summary>
+        public static Material Flames()
         {
             if (_flames == null)
             {
-                _flames = BuildFlames();
+                _flames = FireMaterial(FlameMaterialName, 0.0f, 2);
             }
             return _flames;
+        }
+
+        /// <summary>The smoke's material (CityX/Fire, mode 1), the noise on it.</summary>
+        public static Material Smoke()
+        {
+            if (_smoke == null)
+            {
+                _smoke = FireMaterial(SmokeMaterialName, 1.0f, 0);
+            }
+            return _smoke;
+        }
+
+        /// <summary>The flames' brightness: past 1 at the core so the bloom catches it, not so far that the whole fire goes white by day.</summary>
+        public const float FlameBrightness = 1.5f;
+
+        private static Material FireMaterial(string name, float mode, int queueOffset)
+        {
+            Material asset = Resources.Load<Material>(name);
+            Material material = asset != null ? new Material(asset) : new Material(Shader.Find(ShaderName));
+            material.name = name;
+            material.SetFloat("_Mode", mode);
+            material.SetFloat("_Brightness", FlameBrightness);
+            material.SetTexture("_NoiseTex", Noise());
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + queueOffset;
+            return material;
+        }
+
+        /// <summary>The noise the fire is made of: R fine, G coarse, both tiling seamlessly, each stretched to fill 0..1.</summary>
+        public static Texture2D Noise()
+        {
+            if (_noise == null)
+            {
+                _noise = BuildNoise();
+            }
+            return _noise;
         }
 
         /// <summary>A soft round dot, white, fading to nothing at its edge.</summary>
@@ -46,70 +85,115 @@ namespace CityX.Character
             return _dot;
         }
 
-        private static Texture2D BuildFlames()
+        private static Texture2D BuildNoise()
         {
-            int size = Tiles * FrameSize;
-            var pixels = new Color[size * size];
-            for (int frame = 0; frame < Frames; frame++)
+            int[] permutation = Permutation(20261029);
+            var fine = new float[NoiseSize * NoiseSize];
+            var coarse = new float[NoiseSize * NoiseSize];
+            for (int y = 0; y < NoiseSize; y++)
             {
-                int tileX = frame % Tiles;
-                int tileY = frame / Tiles;
-                float angle = frame / (float)Frames * Mathf.PI * 2.0f;
-                float ct = Mathf.Cos(angle) * LoopRadius;
-                float st = Mathf.Sin(angle) * LoopRadius;
-                for (int py = 0; py < FrameSize; py++)
+                for (int x = 0; x < NoiseSize; x++)
                 {
-                    for (int px = 0; px < FrameSize; px++)
-                    {
-                        float u = (px + 0.5f) / FrameSize;
-                        float v = (py + 0.5f) / FrameSize;
-                        // A sheet counts its tiles from the top left; a texture's rows start at the bottom.
-                        int x = tileX * FrameSize + px;
-                        int y = (Tiles - 1 - tileY) * FrameSize + py;
-                        pixels[y * size + x] = FlamePixel(u, v, ct, st);
-                    }
+                    float u = (x + 0.5f) / NoiseSize;
+                    float v = (y + 0.5f) / NoiseSize;
+                    fine[y * NoiseSize + x] = Fbm(u, v, FineCells, FineOctaves, permutation);
+                    coarse[y * NoiseSize + x] = Fbm(u + 0.37f, v + 0.61f, CoarseCells, CoarseOctaves, permutation);
                 }
             }
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            Stretch(fine);
+            Stretch(coarse);
+            var pixels = new Color[NoiseSize * NoiseSize];
+            for (int i = 0; i < pixels.Length; i++)
             {
-                name = "FireFlames", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear,
+                pixels[i] = new Color(fine[i], coarse[i], 0.0f, 1.0f);
+            }
+            var texture = new Texture2D(NoiseSize, NoiseSize, TextureFormat.RGBA32, true, true)
+            {
+                name = "FireNoise", wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear,
             };
             texture.SetPixels(pixels);
-            texture.Apply(false, false);
+            texture.Apply(true, false);
             return texture;
         }
 
-        /// <summary>One pixel of a flame frame: <paramref name="u"/> across, <paramref name="v"/> up the frame, the noise looked at round (<paramref name="ct"/>, <paramref name="st"/>).</summary>
-        private static Color FlamePixel(float u, float v, float ct, float st)
+        /// <summary>Fractal noise that tiles over 0..1: each octave a gradient noise whose lattice wraps at its own cell count.</summary>
+        public static float Fbm(float u, float v, int cells, int octaves, int[] permutation)
         {
-            // The flame's centre line sways, more toward the top.
-            float sway = (Mathf.PerlinNoise(v * 1.6f + 3.1f + ct * 0.5f, st * 0.5f + 0.7f) - 0.5f) * 0.28f * v;
-            float centre = 0.5f + sway;
-            float across = Mathf.Abs(u - centre);
-            // Wide at the base, a tip at the top, its edge wobbling.
-            float wobble = (Mathf.PerlinNoise(u * 3.0f + ct * 0.8f + 11.0f, v * 2.6f + st * 0.8f + 5.0f) - 0.5f) * 0.14f;
-            float width = 0.30f * Mathf.Pow(1.0f - v, 0.55f) + wobble * (0.3f + 0.7f * v);
-            if (width <= 0.004f || across >= width)
+            float sum = 0.0f;
+            float amplitude = 1.0f;
+            float total = 0.0f;
+            int period = cells;
+            for (int o = 0; o < octaves; o++)
             {
-                return Color.clear;
+                sum += amplitude * Gradient(u * period, v * period, period, permutation);
+                total += amplitude;
+                amplitude *= 0.5f;
+                period *= 2;
             }
-            float inside = (width - across) / width;   // 1 on the centre line, 0 at the edge
-            float edge = Mathf.Clamp01(inside / 0.12f);
-            // The top breaks into tongues along the noise; the base is whole.
-            float tongue = Mathf.PerlinNoise(u * 4.5f + ct + 21.0f, v * 3.5f + st + 9.0f);
-            float split = Mathf.Clamp01((tongue - 0.45f + (1.0f - v) * 0.9f) / 0.2f);
-            float alpha = edge * split * Mathf.Clamp01(v / 0.08f) * (0.7f + 0.3f * (1.0f - v));   // the tips a little see-through
-            if (alpha <= 0.002f)
+            return sum / total;
+        }
+
+        /// <summary>Perlin's gradient noise at (x, y), its lattice repeating every <paramref name="period"/> cells.</summary>
+        private static float Gradient(float x, float y, int period, int[] permutation)
+        {
+            int xi = Mathf.FloorToInt(x);
+            int yi = Mathf.FloorToInt(y);
+            float fx = x - xi;
+            float fy = y - yi;
+            int x0 = Wrap(xi, period), x1 = Wrap(xi + 1, period);
+            int y0 = Wrap(yi, period), y1 = Wrap(yi + 1, period);
+            float a = Dot(permutation, x0, y0, fx, fy);
+            float b = Dot(permutation, x1, y0, fx - 1.0f, fy);
+            float c = Dot(permutation, x0, y1, fx, fy - 1.0f);
+            float d = Dot(permutation, x1, y1, fx - 1.0f, fy - 1.0f);
+            float sx = fx * fx * fx * (fx * (fx * 6.0f - 15.0f) + 10.0f);
+            float sy = fy * fy * fy * (fy * (fy * 6.0f - 15.0f) + 10.0f);
+            return Mathf.Lerp(Mathf.Lerp(a, b, sx), Mathf.Lerp(c, d, sx), sy);
+        }
+
+        private static float Dot(int[] permutation, int x, int y, float dx, float dy)
+        {
+            int hash = permutation[(permutation[x & 255] + y) & 255];
+            float angle = hash * (Mathf.PI * 2.0f / 256.0f);
+            return Mathf.Cos(angle) * dx + Mathf.Sin(angle) * dy;
+        }
+
+        private static int Wrap(int value, int period)
+        {
+            int wrapped = value % period;
+            return wrapped < 0 ? wrapped + period : wrapped;
+        }
+
+        private static int[] Permutation(int seed)
+        {
+            var random = new System.Random(seed);
+            var table = new int[256];
+            for (int i = 0; i < 256; i++)
             {
-                return Color.clear;
+                table[i] = i;
             }
-            // Hot at the centre of the base, cooling outward and upward, with licks of brighter and darker fire through it.
-            float lick = 0.7f + 0.3f * Mathf.PerlinNoise(u * 6.0f + ct * 1.5f + 31.0f, v * 4.0f + st * 1.5f + 17.0f);
-            float core = Mathf.Clamp01(inside * 1.3f) * (1.0f - 0.5f * v) * lick;
-            Color rgb = core < 0.25f ? Color.Lerp(Red, Orange, core / 0.25f)
-                : core < 0.5f ? Color.Lerp(Orange, Yellow, (core - 0.25f) / 0.25f)
-                : Color.Lerp(Yellow, White, Mathf.Clamp01((core - 0.5f) / 0.4f));
-            return new Color(rgb.r, rgb.g, rgb.b, alpha);
+            for (int i = 255; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+                (table[i], table[j]) = (table[j], table[i]);
+            }
+            return table;
+        }
+
+        /// <summary>Stretches the values to fill 0..1, so the shader's thresholds mean the same whatever the noise's own range.</summary>
+        private static void Stretch(float[] values)
+        {
+            float low = float.MaxValue, high = float.MinValue;
+            foreach (float value in values)
+            {
+                low = Mathf.Min(low, value);
+                high = Mathf.Max(high, value);
+            }
+            float span = Mathf.Max(1e-5f, high - low);
+            for (int i = 0; i < values.Length; i++)
+            {
+                values[i] = (values[i] - low) / span;
+            }
         }
 
         private static Texture2D BuildDot()
@@ -136,15 +220,17 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// The particle shader, see-through and SOFT (it fades where it meets the street instead of cutting into it): additive for the fire's
-        /// own light, alpha-blended for the smoke's dark, premultiplied for the flames (they cover what is behind them where they are solid and
-        /// add their light at their edges, so they stay orange against a bright sky where additive ones washed out pink). The soft-particle
-        /// keyword is the one Self Smite's glow asset carries, so a build has that variant; the premultiplied one is made here only.
+        /// URP's particle shader, see-through and SOFT (it fades where it meets the street instead of cutting into it): additive for the
+        /// fire's own light (the glow, the embers), alpha-blended for the jerry can's stream. The keywords are the ones Self Smite's glow asset
+        /// carries, so a build has the variants. <paramref name="brightness"/> above 1 lets the game's bloom catch it.
         /// </summary>
-        public static Material Particles(string name, Texture2D texture, ParticleBlend blend, int queueOffset)
+        public static Material Particles(string name, Texture2D texture, ParticleBlend blend, int queueOffset, float brightness = 1.0f)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-            var material = new Material(shader != null ? shader : Shader.Find("Sprites/Default")) { name = name, color = Color.white };
+            var material = new Material(shader != null ? shader : Shader.Find("Sprites/Default"))
+            {
+                name = name, color = new Color(brightness, brightness, brightness, 1.0f),
+            };
             material.SetTexture("_BaseMap", texture);
             material.SetTexture("_MainTex", texture);
             if (!material.HasProperty("_Surface"))
@@ -152,10 +238,9 @@ namespace CityX.Character
                 return material;
             }
             bool additive = blend == ParticleBlend.Additive;
-            bool premultiplied = blend == ParticleBlend.Premultiplied;
             material.SetFloat("_Surface", 1.0f);
-            material.SetFloat("_Blend", additive ? 2.0f : premultiplied ? 1.0f : 0.0f);
-            material.SetFloat("_SrcBlend", (float)(premultiplied ? UnityEngine.Rendering.BlendMode.One : UnityEngine.Rendering.BlendMode.SrcAlpha));
+            material.SetFloat("_Blend", additive ? 2.0f : 0.0f);
+            material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
             material.SetFloat("_DstBlend", (float)(additive ? UnityEngine.Rendering.BlendMode.One : UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha));
             material.SetFloat("_SrcBlendAlpha", (float)UnityEngine.Rendering.BlendMode.One);
             material.SetFloat("_DstBlendAlpha", (float)(additive ? UnityEngine.Rendering.BlendMode.One : UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha));
@@ -163,14 +248,7 @@ namespace CityX.Character
             material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
             material.SetOverrideTag("RenderType", "Transparent");
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            if (premultiplied)
-            {
-                material.EnableKeyword("_ALPHAPREMULTIPLY_ON");
-            }
-            else
-            {
-                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-            }
+            material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             material.SetFloat("_SoftParticlesEnabled", 1.0f);
             material.SetFloat("_SoftParticlesNearFadeDistance", 0.0f);
             material.SetFloat("_SoftParticlesFarFadeDistance", SoftFadeMetres);
@@ -189,6 +267,5 @@ namespace CityX.Character
     {
         Additive,
         Alpha,
-        Premultiplied,
     }
 }
