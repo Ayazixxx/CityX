@@ -230,10 +230,13 @@ namespace CityX.Character
                 return;
             }
             // The playback keeps DelaySeconds behind the newest pose: a little faster when it has fallen behind (the first pose came late, a
-            // stall), a little slower when it has run ahead of what has arrived, never backwards.
+            // stall), a little slower when it has run ahead of what has arrived, never backwards, and never past the newest pose: with no
+            // newer one yet (a body lying still is sent twice a second, a pose lost) it waits there, so the next one is eased into rather than
+            // jumped to, and PlaybackTime says which moment is shown.
             float newest = _buffer[_buffer.Count - 1].Time;
             float behind = newest - DelaySeconds - _playback;
             _playback += Mathf.Max(0.0f, Time.deltaTime * (1.0f + Mathf.Clamp(behind * CatchUpPerSecond, -0.5f, 1.0f)));
+            _playback = Mathf.Min(_playback, newest);
             if (newest - _playback > MaxBehindSeconds)
             {
                 _playback = newest - DelaySeconds;

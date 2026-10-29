@@ -29,6 +29,12 @@ namespace CityX.Character
         /// </summary>
         public const float RestingSpeed = 0.05f;
 
+        /// <summary>
+        /// A body lying still is sent again at once (at the moving pace) when any part of it has moved this far, metres, since the pose last sent:
+        /// a limb slipping the last centimetres between two resting poses (fast, but between two checks of its speed) showed 13 cm off on copies.
+        /// </summary>
+        public const float DriftMetres = 0.02f;
+
         /// <summary>The most poses a second the server passes on for one body.</summary>
         public const int MaxPosesPerSecond = 30;
 
@@ -45,6 +51,8 @@ namespace CityX.Character
         private float _loneFall;
         private float _windowStart;
         private int _windowCount;
+        private Transform[] _bones = new Transform[0];
+        private Vector3[] _sentAt = new Vector3[0];
 
         private bool IsLiveOwner => NetworkObject != null && IsSpawned && IsOwner;
 
@@ -55,6 +63,8 @@ namespace CityX.Character
             _ragdoll = GetComponent<Ragdoll>();
             _mirror = GetComponent<RagdollMirror>();
             _vitals = GetComponent<PlayerVitals>();
+            _bones = RagdollMirror.BonesOf(GetComponentInChildren<Animator>());
+            _sentAt = new Vector3[_bones.Length];
         }
 
         private void LateUpdate()
@@ -79,12 +89,17 @@ namespace CityX.Character
             if (limp)
             {
                 _sinceSend += deltaTime;
-                if (!_wasLimp || _sinceSend >= (IsLyingStill() ? RestingSendSeconds : SendSeconds))
+                bool resting = IsLyingStill() && !HasDrifted();
+                if (!_wasLimp || _sinceSend >= (resting ? RestingSendSeconds : SendSeconds))
                 {
                     _sinceSend = 0.0f;
                     _mirror.Capture(_pose, Time.time);
                     _lastSentTime = Time.time;
                     SendPoseToServer(RagdollPoseCodec.Pack(_pose));
+                    for (int i = 0; i < _bones.Length; i++)
+                    {
+                        _sentAt[i] = _bones[i].position;
+                    }
                 }
             }
             else if (_wasLimp)
@@ -108,6 +123,19 @@ namespace CityX.Character
                 }
             }
             return true;
+        }
+
+        /// <summary>Whether any part of the body has moved <see cref="DriftMetres"/> since the pose last sent.</summary>
+        private bool HasDrifted()
+        {
+            for (int i = 0; i < _bones.Length; i++)
+            {
+                if (_bones[i] != null && (_bones[i].position - _sentAt[i]).sqrMagnitude > DriftMetres * DriftMetres)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void TickLoneFall(float deltaTime)

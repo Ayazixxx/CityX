@@ -163,7 +163,10 @@ namespace CityX.Tests
                 yield return new WaitForSeconds(0.1f);
             }
             Assert.IsFalse(real.IsAlive, "B's blows never killed A's swordsman");
-            yield return WaitUntil(() => copy.IsDead && ragdoll != null && ragdoll.IsLimp, "B's copy to fall when the owner's swordsman died");
+            // The copy falls by itself, then lies as the owner's body does once its poses come (RagdollMirror): whichever word comes first.
+            var mirror = onB.GetComponent<RagdollMirror>();
+            yield return WaitUntil(() => copy.IsDead && ragdoll != null && (ragdoll.IsLimp || (mirror != null && mirror.IsMirroring)),
+                "B's copy to fall when the owner's swordsman died");
             yield return WaitUntil(() => _enemyNetworks[2].CreditedXp > 0, "B to be paid the kill");
             Assert.AreEqual(real.XpRewardOnDeath, _enemyNetworks[2].CreditedXp, "B was not paid the swordsman's XP");
             Assert.IsTrue(killer.Level > levelBefore || killer.Experience == xpBefore + real.XpRewardOnDeath, "B's player did not get the XP");
