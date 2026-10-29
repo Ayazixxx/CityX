@@ -1172,7 +1172,8 @@ namespace CityX.Character
                 Sword1HEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                   _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&
                                   _melee.EquippedWeapon is ISwordBlade heldBlade && heldBlade.IsOneHanded,
-                GunEquipped = EquippedGun != null,
+                // A drawn weapon (the bow) poses both arms itself (PlayerLocomotion.Bow.cs): the gun's own arm pose stays off for it.
+                GunEquipped = EquippedGun != null && !(EquippedGun is IDrawnWeapon),
                 // Where the gun's shot would end -- the arm aims at it (see
                 // LocomotionInput.GunAimPoint).
                 GunAimPoint = _gunFeel != null ? _gunFeel.AimPoint : Vector3.zero,

@@ -143,6 +143,11 @@ namespace CityX.Weapons
         public float CasingLength = 0.036f;
 
         public float CasingRadius = 0.0095f;
+        [Header("A crossbow (docs/ARCHERY.md)")]
+        [Tooltip("Its shot is an arrow (PistolWeapon.ArrowPrefab) that falls on past the range at this speed, m/s. 0 for a gun.")]
+        public float ArrowFallSpeed;
+        [Tooltip("Spans itself after every shot (a crossbow holds one bolt): the reload starts the moment it fires.")]
+        public bool ReloadsAfterEveryShot;
 
         /// <summary>The gun's rotation in the hand bone's frame: its right to the back of the hand (+y), its top to the thumb's side (+z), the barrel down the fingers dipped by <see cref="HoldDipDegrees"/>.</summary>
         public Quaternion HoldRotation
@@ -231,6 +236,48 @@ namespace CityX.Weapons
                 TriggerPullDegrees = 12.0f,
                 CasingLength = 0.057f,
                 CasingRadius = 0.0082f,
+            };
+        }
+
+        /// <summary>
+        /// The crossbow (docs/ARCHERY.md): one bolt, aimed and fired as a rifle, hitting hard (nearly three AK rounds) over a long flat range and
+        /// falling on past it, then 2.5 s to span and lay the next (CrossbowSpan keys the spanning to the timer). No casing, no flash, no baked
+        /// motion. The numbers are mine.
+        /// </summary>
+        public static FirearmProfile Crossbow()
+        {
+            return new FirearmProfile
+            {
+                ItemId = ItemRegistry.Crossbow,
+                DisplayName = "Crossbow",
+                Kind = FirearmKind.Rifle,
+                MagazineSize = 1,
+                StartingReserveAmmo = 40,
+                Damage = ArcheryRules.BoltDamage,
+                Range = ArcheryRules.BoltFlatRange,
+                FireRatePerSecond = 1.0f,
+                Automatic = false,
+                RecoilPattern = new[] { new Vector2(0.0f, 0.5f) },
+                RecoilResetSeconds = 0.3f,
+                AdsRecoilMultiplier = 0.7f,
+                ShakeDegrees = 0.3f,
+                KickBackMetres = 0.02f,
+                KickUpDegrees = 2.0f,
+                KickRecoverPerSecond = 16.0f,
+                MotionResource = "",
+                ReloadSeconds = ArcheryRules.CrossbowReloadSeconds,
+                EmptyReloadSeconds = ArcheryRules.CrossbowReloadSeconds,
+                WorldPickupScale = 1.0f,
+                SupportHandLocal = new Vector3(-0.02f, -0.035f, 0.15f),
+                SupportHandOnlyWhenAiming = false,
+                MuzzleLocal = new Vector3(0.0f, 0.065f, 0.35f),
+                ButtLocal = new Vector3(0.0f, -0.01f, -0.45f),
+                ActionPartName = "",
+                MagazinePartName = "",
+                TriggerPartName = "",
+                CasingLength = 0.0f,
+                ArrowFallSpeed = ArcheryRules.BoltFallSpeed,
+                ReloadsAfterEveryShot = true,
             };
         }
     }

@@ -875,6 +875,8 @@ namespace CityX.Character
             ApplyStraightWrists();
             // Both hands pushed out flat against a raised Arcane Barrier (PlayerLocomotion.Barrier.cs): after the straight wrists, which it bends.
             ApplyBarrierPose();
+            // A bow in the left hand: the bow arm out along the aim, the string hand nocking and drawing (PlayerLocomotion.Bow.cs).
+            ApplyBowPose();
             // The fingers close round whatever each hand holds (HandGrip), last: they hang off the posed hands.
             ApplyFingerGrips();
             if (IsSitting)

@@ -133,6 +133,9 @@ namespace CityX.Weapons
         public Transform TriggerPart;
 
         public GameObject MuzzleFlashObject;
+
+        [Tooltip("A crossbow (docs/ARCHERY.md): its shot is this arrow, seen flying to where the hitscan ended and sticking there, or falling on past the range (FirearmProfile.ArrowFallSpeed), instead of a tracer.")]
+        public GameObject ArrowPrefab;
         public Light MuzzleLight;
         public ParticleSystem MuzzleSparks;
         public AudioSource ShotPlayer;
@@ -187,6 +190,9 @@ namespace CityX.Weapons
         public int MagazineAmmo { get; private set; } = MagazineSize;
         public int ReserveAmmo { get; private set; } = StartingReserveAmmo;
         public bool IsReloading { get; private set; }
+
+        /// <summary>How far through a timed reload, 0..1 (a reload a baked motion drives keeps its own clock: 0 here). The crossbow's spanning is keyed to it.</summary>
+        public float ReloadProgress => IsReloading && !_reloadByMotion && _reloadDuration > 0.0f ? Mathf.Clamp01(1.0f - _reloadTimeRemaining / _reloadDuration) : 0.0f;
 
         public bool IsAutomatic => Profile != null && Profile.Automatic;
 
@@ -676,6 +682,23 @@ namespace CityX.Weapons
         public bool ShowsTracer(int shotInBurst) => Profile.TracerEvery <= 1 || shotInBurst % Profile.TracerEvery == 0;
 
         /// <summary>
+        /// A crossbow's bolt (docs/ARCHERY.md): seen flying from the muzzle to where the shot ended and stuck in <paramref name="landedOn"/> there,
+        /// or falling on as a real projectile past the range where it met nothing; the string's clack with it. The hit itself was the hitscan's.
+        /// </summary>
+        private void ShowArrow(Vector3 from, Vector3 end, Collider landedOn, Vector3 direction, GameObject wielder, bool cosmetic)
+        {
+            PlayerVitals shooter = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
+            float damage = CombatTuning.DamageFor(Profile.Damage, shooter != null ? shooter.Stats[StatId.FirearmDamage] : 0);
+            float penetration = shooter != null ? shooter.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
+            Collider[] own = wielder != null ? wielder.GetComponentsInChildren<Collider>() : null;
+            ArrowProjectile.Show(ArrowPrefab, from, end, landedOn, direction, Profile.ArrowFallSpeed, damage, penetration, wielder, own, cosmetic);
+            if (Application.isPlaying)
+            {
+                AudioSource.PlayClipAtPoint(ArcherySounds.Clack, from, 0.9f);
+            }
+        }
+
+        /// <summary>
         /// The player this copy belongs to fired: the flash, the crack (in the world, so it is quieter far away), the tracer down the barrel
         /// to whatever it meets, the brass and the slide or bolt -- everything the shooter saw, but no damage (that went its own way).
         /// </summary>
@@ -701,24 +724,33 @@ namespace CityX.Weapons
                 AudioSource.PlayClipAtPoint(ShotPlayer.clip, muzzle.position, 1.0f);
             }
             Vector3 end = muzzle.position + muzzle.forward * Profile.Range;
+            Collider landedOn = null;
             if (Physics.Raycast(muzzle.position, muzzle.forward, out RaycastHit hit, Profile.Range, TargetLayers, QueryTriggerInteraction.Ignore)
                 && !IsWieldersOwnCollider(hit.collider, _cosmeticBody))
             {
                 // On through the windows the shooter's bullet went through (only looked for: the glass broke on the shooter's machine).
                 Vector3 forward = muzzle.forward;
-                GlassPenetration.Follow(ref hit, forward, Profile.Range - hit.distance, false,
+                bool onSomething = GlassPenetration.Follow(ref hit, forward, Profile.Range - hit.distance, false,
                     (Vector3 from, float distance, out RaycastHit next) =>
                         Physics.Raycast(from, forward, out next, distance, TargetLayers, QueryTriggerInteraction.Ignore),
                     out _, out end);
+                landedOn = onSomething ? hit.collider : null;
             }
             _remoteShotIndex = Time.time - _lastRemoteShot <= Profile.RecoilResetSeconds ? _remoteShotIndex + 1 : 0;
             _lastRemoteShot = Time.time;
-            if (ShowsTracer(_remoteShotIndex))
+            if (ArrowPrefab != null)
+            {
+                ShowArrow(muzzle.position, end, landedOn, muzzle.forward, _cosmeticBody, true);
+            }
+            else if (ShowsTracer(_remoteShotIndex))
             {
                 BulletTracer.Spawn(muzzle.position, end, muzzle);
             }
-            FirearmEffects.EjectCasing(transform.TransformPoint(Profile.EjectionPortLocal), transform.rotation,
-                transform.TransformDirection(Profile.EjectionDirectionLocal), Profile.CasingLength, Profile.CasingRadius, _cosmeticBody);
+            if (Profile.CasingLength > 0.0f)
+            {
+                FirearmEffects.EjectCasing(transform.TransformPoint(Profile.EjectionPortLocal), transform.rotation,
+                    transform.TransformDirection(Profile.EjectionDirectionLocal), Profile.CasingLength, Profile.CasingRadius, _cosmeticBody);
+            }
             RememberPartRests();
             FirearmEffects.Cycle(ActionPart, _actionRest, Profile.ActionTravel, Profile.ActionCycleSeconds);
         }
@@ -1016,6 +1048,7 @@ namespace CityX.Weapons
                 ? trace.HitInfo
                 : default;
             bool realHit = trace.Hit;
+            Collider arrowStuckIn = null;
             bool hitDamageable = false;
             bool killed = false;
             Vector3 shotEnd = origin + spreadDirection * Profile.Range;
@@ -1028,6 +1061,7 @@ namespace CityX.Weapons
                     out int panes, out shotEnd);
                 if (onSomething)
                 {
+                    arrowStuckIn = hit.collider;
                     var damageable = hit.collider.GetComponentInParent<IDamageable>();
                     if (damageable != null)
                     {
@@ -1059,7 +1093,11 @@ namespace CityX.Weapons
             // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where the shot really ended, whatever the mode (the arm points the
             // gun at the same point: PlayerLocomotion.NotifyGunFired and LocomotionInput.GunAimPoint).
             Vector3 muzzlePosition = MuzzleFlashObject != null ? MuzzleFlashObject.transform.position : origin;
-            if (ShowsTracer(shotInBurst))
+            if (ArrowPrefab != null)
+            {
+                ShowArrow(muzzlePosition, shotEnd, arrowStuckIn, spreadDirection, wielder, false);   // a crossbow's bolt, in place of a tracer
+            }
+            else if (ShowsTracer(shotInBurst))
             {
                 BulletTracer.Spawn(muzzlePosition, shotEnd, MuzzleFlashObject != null ? MuzzleFlashObject.transform : null);
             }
@@ -1070,12 +1108,16 @@ namespace CityX.Weapons
                 _animationDriver.AnnounceState(GunReload.FireName);
             }
 
-            // The spent case out of the port.
-            if (_equipped)
+            // The spent case out of the port (a crossbow has none).
+            if (_equipped && Profile.CasingLength > 0.0f)
             {
                 Vector3 port = transform.TransformPoint(Profile.EjectionPortLocal);
                 FirearmEffects.EjectCasing(port, transform.rotation, transform.TransformDirection(Profile.EjectionDirectionLocal),
                     Profile.CasingLength, Profile.CasingRadius, wielder);
+            }
+            if (Profile.ReloadsAfterEveryShot && MagazineAmmo <= 0)
+            {
+                TryReload();   // a crossbow spans itself the moment it fires (docs/ARCHERY.md)
             }
 
             // THE KICK. Camera recoil is the camera's job (whoever listens to ShotResolved applies it, from the profile's pattern); the gun's

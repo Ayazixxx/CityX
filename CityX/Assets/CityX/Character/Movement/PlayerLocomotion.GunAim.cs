@@ -215,6 +215,11 @@ namespace CityX.Character
         /// </summary>
         private void ApplyGunAimPose()
         {
+            if (_bow != null)
+            {
+                _gunAimBlend = 0.0f;   // a bow is aimed with both arms by its own pose (PlayerLocomotion.Bow.cs), never the gun arm's
+                return;
+            }
             float deltaTime = Mathf.Max(_lastTickDeltaTime, 0.0f);
             _gunAimBlend = Mathf.MoveTowards(
                 _gunAimBlend, (_isAimingGun || _gunFireHold > 0.0f) ? 1.0f : 0.0f,

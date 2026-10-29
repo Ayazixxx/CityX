@@ -278,6 +278,10 @@ namespace CityX.ViewEditor
             // The flame staff (2026-10-28) and its fire, which PlayerAbilityWiring gives the stream's caster by path.
             GameObject flameStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildFlame();
             CityX.WeaponsEditor.FlamethrowerBuilder.BuildStaffFlame();
+            // The bow, its arrow (which PlayerAbilityWiring gives the body by path) and the crossbow (2026-10-28, docs/ARCHERY.md).
+            GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
+            GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
+            GameObject crossbowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildCrossbow(arrowPrefab);
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
@@ -537,6 +541,10 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.WaterStaff, Prefab = waterStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.FlameStaff, Prefab = flameStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Bow, Prefab = bowPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Crossbow, Prefab = crossbowPrefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling

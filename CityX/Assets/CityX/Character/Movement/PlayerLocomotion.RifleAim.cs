@@ -51,6 +51,9 @@ namespace CityX.Character
         /// <summary>True while the gun in hand is held as a rifle.</summary>
         public bool HoldsRifle => _rifleGun != null;
 
+        /// <summary>The rifle (a crossbow) is being spanned: it comes off the shoulder to the low carry while it is (CrossbowSpan sets it).</summary>
+        public bool RifleSpanning { get; set; }
+
         /// <summary>0 (low ready) to 1 (shouldered), as an S-curve.</summary>
         public float RifleShoulderBlend => Mathf.SmoothStep(0.0f, 1.0f, _rifleShoulder);
 
@@ -146,7 +149,7 @@ namespace CityX.Character
 
             // Shouldered when aiming or just fired (on a network copy: when its synced Aiming parameter says so).
             bool animatorAims = _animator != null && _animator.isActiveAndEnabled && _animator.GetBool(AimingParameter);
-            bool shouldered = _isAimingGun || _gunFireHold > 0.0f || animatorAims;
+            bool shouldered = (_isAimingGun || _gunFireHold > 0.0f || animatorAims) && !RifleSpanning;
             float rate = !_isAimingGun && _gunFireHold > 0.0f ? RifleFireShoulderPerSecond : RifleShoulderPerSecond;
             _rifleShoulder = Mathf.MoveTowards(_rifleShoulder, shouldered ? 1.0f : 0.0f, rate * deltaTime);
             _rifleHold = Mathf.MoveTowards(_rifleHold, 1.0f, RifleHoldPerSecond * deltaTime);

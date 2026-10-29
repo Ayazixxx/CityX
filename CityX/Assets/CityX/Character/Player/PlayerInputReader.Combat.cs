@@ -146,11 +146,22 @@ namespace CityX.Character
                     ? YawSource
                     : (Camera.main != null ? Camera.main.transform : null);
 
-                // An automatic (the AK-47) fires for as long as the button is held, at its own rate (the gun gates it); anything else once per press.
-                bool trigger = EquippedGun.IsAutomatic ? Mouse.current.leftButton.isPressed : Mouse.current.leftButton.wasPressedThisFrame;
-                if (trigger && gunYawSource != null)
+                if (EquippedGun is IDrawnWeapon drawn)
                 {
-                    EquippedGun.Fire(gunYawSource.position, gunYawSource.forward, aiming, gameObject);
+                    // A drawn weapon (the bow, docs/ARCHERY.md) is told the trigger every frame: it draws while it is held and looses when it is let go.
+                    if (gunYawSource != null)
+                    {
+                        drawn.Draw(Mouse.current.leftButton.isPressed, gunYawSource.position, gunYawSource.forward, aiming, gameObject, deltaTime);
+                    }
+                }
+                else
+                {
+                    // An automatic (the AK-47) fires for as long as the button is held, at its own rate (the gun gates it); anything else once per press.
+                    bool trigger = EquippedGun.IsAutomatic ? Mouse.current.leftButton.isPressed : Mouse.current.leftButton.wasPressedThisFrame;
+                    if (trigger && gunYawSource != null)
+                    {
+                        EquippedGun.Fire(gunYawSource.position, gunYawSource.forward, aiming, gameObject);
+                    }
                 }
                 if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
                 {
