@@ -127,6 +127,7 @@ namespace CityX.Character
         public const string Shrink = "shrink";
         public const string ArcaneOrb = "arcane-orb";
         public const string ArcaneBarrier = "arcane-barrier";
+        public const string HealingAura = "healing-aura";
 
         /// <summary>Skill points a star costs. One each for now; what deeper stars cost is open.</summary>
         public const int LearnCost = 1;
@@ -160,6 +161,7 @@ namespace CityX.Character
             new SkillTree("electromancer", "Electromancer", true, TreeWidth),
             new SkillTree("arcanist", "Arcanist", true, TreeWidth),
             new SkillTree("wizard", "Wizard", true, TreeWidth),
+            new SkillTree("cleric", "Cleric", true, TreeWidth),
         };
 
         private static readonly List<SkillNode> NodeList = BuildNodes();
@@ -325,6 +327,15 @@ namespace CityX.Character
                 Empty("wizard", 1, At(-0.8f, 1), Grow),
                 Empty("wizard", 2, At(0.8f, 1), Shrink),
                 Empty("wizard", 3, At(0, 2), "wizard-1", "wizard-2"),
+
+                // --- Cleric (owner, 2026-10-29: "add a healing spell that makes a circle on the floor around you that moves with you and heals
+                // yourself and others that go in the circle slowly"): the Healing Aura at the root. The tree's name is mine.
+                new SkillNode(HealingAura, "Healing Aura", "cleric", SkillKind.Spell, At(0, 0),
+                    "A green circle on the ground round you, going where you go for 12 seconds: you and everyone standing in it are healed, " +
+                    "slowly. 30 seconds from one cast to the next."),
+                Empty("cleric", 1, At(-0.8f, 1), HealingAura),
+                Empty("cleric", 2, At(0.8f, 1), HealingAura),
+                Empty("cleric", 3, At(0, 2), "cleric-1", "cleric-2"),
             };
             return nodes;
         }

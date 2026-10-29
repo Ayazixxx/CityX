@@ -259,6 +259,7 @@ namespace CityX.ViewEditor
             GameObject parachutePrefab = CityX.WeaponsEditor.ParachuteBuilder.Build();
             // Angel wings (2026-10-28): drawn in code, a stand-in until the owner's model (docs/WINGS.md).
             GameObject angelWingsPrefab = CityX.WeaponsEditor.AngelWingsBuilder.Build();
+            GameObject darkAngelWingsPrefab = CityX.WeaponsEditor.AngelWingsBuilder.BuildDark();
             GameObject spikeSwordPrefab = CityX.WeaponsEditor.SpikeSwordBuilder.Build();
             GameObject combatSwordPrefab = CityX.WeaponsEditor.CombatSwordBuilder.Build();
             GameObject metalCrowbarPrefab = CityX.WeaponsEditor.MetalCrowbarBuilder.Build();
@@ -278,6 +279,9 @@ namespace CityX.ViewEditor
             // The flame staff (2026-10-28) and its fire, which PlayerAbilityWiring gives the stream's caster by path.
             GameObject flameStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildFlame();
             CityX.WeaponsEditor.FlamethrowerBuilder.BuildStaffFlame();
+            // The Arcane Beam Staff and the Staff of Healing (2026-10-29): beams drawn in code (docs/STAFFS.md, docs/HEALING.md).
+            GameObject arcaneBeamStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildArcaneBeam();
+            GameObject healingStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildHealing();
             // The bow, its arrow (which PlayerAbilityWiring gives the body by path) and the crossbow (2026-10-28, docs/ARCHERY.md).
             GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
             GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
@@ -515,6 +519,8 @@ namespace CityX.ViewEditor
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.AngelWings, Prefab = angelWingsPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.DarkAngelWings, Prefab = darkAngelWingsPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.SpikeSword, Prefab = spikeSwordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.CombatSword, Prefab = combatSwordPrefab },
@@ -544,6 +550,10 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.WaterStaff, Prefab = waterStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.FlameStaff, Prefab = flameStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.ArcaneBeamStaff, Prefab = arcaneBeamStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.HealingStaff, Prefab = healingStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Bow, Prefab = bowPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

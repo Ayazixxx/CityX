@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Items;
 using CityX.Weapons;
 using UnityEditor;
 using UnityEngine;
@@ -13,13 +14,15 @@ namespace CityX.WeaponsEditor
     /// coverts layered over their bases -- a membrane of skin under the coverts so the wing reads as one surface near the arm, and a sleeve
     /// of down along the leading edge. A feather is a tapered strip, rounded at the tip, its trailing vane the wider, drooping a little
     /// toward the tip, both faces drawn (the cel line draws each feather's edge). The left wing is the right's mirror. One skinned mesh, one
-    /// white material. Sizes on the 2.6 m body: each wing about 2.8 m to the tip, the pair over 5 m across.
+    /// white material. Sizes on the 2.6 m body: each wing about 2.8 m to the tip, the pair over 5 m across. The dark wings (<see cref="BuildDark"/>)
+    /// are the same wings, the same mesh, in glossy black.
     /// </summary>
     public static class AngelWingsBuilder
     {
         public const string PrefabPath = AngelWings.PrefabPath;
         private const string MeshPath = "Assets/CityX/Weapons/AngelWingsMesh.asset";
         private const string MaterialPath = "Assets/CityX/Weapons/AngelWingFeather.mat";
+        private const string DarkMaterialPath = "Assets/CityX/Weapons/DarkAngelWingFeather.mat";
 
         /// <summary>The two wing roots either side of the spine, metres.</summary>
         public const float RootSpacing = 0.10f;
@@ -68,11 +71,29 @@ namespace CityX.WeaponsEditor
 
         private static readonly Color FeatherColour = new Color(0.96f, 0.96f, 0.97f);
 
+        /// <summary>The dark wings' feathers: near black with a little blue in it, and glossier, a raven's (pure black loses every feather to the cel lines).</summary>
+        private static readonly Color DarkFeatherColour = new Color(0.055f, 0.055f, 0.07f);
+
+        private const float FeatherSmoothness = 0.15f;
+        private const float DarkFeatherSmoothness = 0.3f;
+
         [MenuItem("CityX/Rebuild Angel Wings")]
         public static GameObject Build()
         {
-            Material material = HeldModelBaker.LitMaterial(MaterialPath, FeatherColour, 0.0f, 0.15f);
-            var root = new GameObject("AngelWings");
+            return Build(PrefabPath, HeldModelBaker.LitMaterial(MaterialPath, FeatherColour, 0.0f, FeatherSmoothness), ItemRegistry.AngelWings, "AngelWings");
+        }
+
+        /// <summary>The dark angel wings (owner, 2026-10-29: "a dark version of the angel wings, same wings model just black").</summary>
+        [MenuItem("CityX/Rebuild Dark Angel Wings")]
+        public static GameObject BuildDark()
+        {
+            return Build(AngelWings.DarkPrefabPath, HeldModelBaker.LitMaterial(DarkMaterialPath, DarkFeatherColour, 0.0f, DarkFeatherSmoothness),
+                ItemRegistry.DarkAngelWings, "DarkAngelWings");
+        }
+
+        private static GameObject Build(string prefabPath, Material material, string itemId, string name)
+        {
+            var root = new GameObject(name);
             try
             {
                 var build = new MeshBuild();
@@ -95,10 +116,11 @@ namespace CityX.WeaponsEditor
                 var wings = root.AddComponent<AngelWings>();
                 wings.Right = right;
                 wings.Left = left;
+                wings.SetItemId(itemId);
 
-                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 AssetDatabase.SaveAssets();
-                Debug.Log($"CityX: AngelWings written to {PrefabPath} -- {mesh.triangles.Length / 3} triangles, {bones.Count} bones");
+                Debug.Log($"CityX: {name} written to {prefabPath} -- {mesh.triangles.Length / 3} triangles, {bones.Count} bones");
                 return saved;
             }
             finally

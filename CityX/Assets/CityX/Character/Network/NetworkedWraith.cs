@@ -54,6 +54,8 @@ namespace CityX.Character
 
         public bool TryRelayKnockdown(Vector3 velocity) => false;
 
+        public bool TryRelayHeal(float amount) => false;
+
         [ServerRpc(RequireOwnership = false)]
         private void SendHitToServer(float amount, Vector3 fromPosition, NetworkConnection sender = null)
         {

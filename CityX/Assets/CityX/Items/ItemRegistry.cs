@@ -30,6 +30,7 @@ namespace CityX.Items
         public const string Jetpack = "jetpack";
         public const string Parachute = "parachute";
         public const string AngelWings = "angel_wings";
+        public const string DarkAngelWings = "dark_angel_wings";
         public const string SpikeSword = "spike_sword";
         public const string CombatSword = "combat_sword";
         public const string MetalCrowbar = "metal_crowbar";
@@ -48,6 +49,8 @@ namespace CityX.Items
         public const string Crossbow = "crossbow";
         public const string FireballStaff = "fireball_staff";
         public const string IceShardStaff = "ice_shard_staff";
+        public const string ArcaneBeamStaff = "arcane_beam_staff";
+        public const string HealingStaff = "healing_staff";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -82,6 +85,8 @@ namespace CityX.Items
             [Parachute] = new ItemDefinition(Parachute, "Parachute", "tool", EquipSlots.Back, 1),
             // Angel wings (2026-10-28): flight gear like the jetpack, on the same back slot (docs/WINGS.md).
             [AngelWings] = new ItemDefinition(AngelWings, "Angel Wings", "tool", EquipSlots.Back, 1),
+            // The same wings in black (2026-10-29, docs/WINGS.md).
+            [DarkAngelWings] = new ItemDefinition(DarkAngelWings, "Dark Angel Wings", "tool", EquipSlots.Back, 1),
             // Two-handed: fought with the greatsword's moves.
             [SpikeSword] = new ItemDefinition(SpikeSword, "Spike Sword", "weapon", EquipSlots.Primary, 1),
             // One-handed, with its own attacks and guard; the crowbar is fought with its moves, the bat with the greatsword's.
@@ -112,6 +117,9 @@ namespace CityX.Items
             [Crossbow] = new ItemDefinition(Crossbow, "Crossbow", "weapon", EquipSlots.Primary, 1),
             [FireballStaff] = new ItemDefinition(FireballStaff, "Fireball Staff", "weapon", EquipSlots.Primary, 1),
             [IceShardStaff] = new ItemDefinition(IceShardStaff, "Ice Shard Staff", "weapon", EquipSlots.Primary, 1),
+            // The arcane beam and the healing beam (2026-10-29, docs/STAFFS.md, docs/HEALING.md): held, a beam; Mercy's staff without its boost.
+            [ArcaneBeamStaff] = new ItemDefinition(ArcaneBeamStaff, "Arcane Beam Staff", "weapon", EquipSlots.Primary, 1),
+            [HealingStaff] = new ItemDefinition(HealingStaff, "Staff of Healing", "weapon", EquipSlots.Primary, 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

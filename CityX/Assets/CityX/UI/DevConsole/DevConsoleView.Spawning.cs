@@ -324,6 +324,12 @@ namespace CityX.UI
                 case "wings":
                 case "angelwings":
                 case "angel_wings": return ItemRegistry.AngelWings;
+                case "darkwings":
+                case "dark_wings":
+                case "blackwings":
+                case "black_wings":
+                case "darkangelwings":
+                case "dark_angel_wings": return ItemRegistry.DarkAngelWings;
                 case "parachute": return ItemRegistry.Parachute;
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;
@@ -354,6 +360,18 @@ namespace CityX.UI
                 case "flame_staff":
                 case "flame":
                 case "torch": return ItemRegistry.FlameStaff;
+                case "beamstaff":
+                case "beam_staff":
+                case "arcanebeam":
+                case "arcane_beam":
+                case "arcane_beam_staff":
+                case "beam": return ItemRegistry.ArcaneBeamStaff;
+                case "healstaff":
+                case "heal_staff":
+                case "healingstaff":
+                case "healing_staff":
+                case "healing":
+                case "heal": return ItemRegistry.HealingStaff;
                 case "jerrycan":
                 case "jerry_can":
                 case "gascan":

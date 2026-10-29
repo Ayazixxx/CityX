@@ -215,6 +215,8 @@ namespace CityX.Tests
                 Knockdowns++;
                 return true;
             }
+
+            public bool TryRelayHeal(float amount) => true;
         }
 
         /// <summary>

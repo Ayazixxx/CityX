@@ -816,6 +816,23 @@ namespace CityX.Character
             _ragdoll = GetComponent<Ragdoll>();
         }
 
+        /// <summary>
+        /// Heals <paramref name="amount"/>, up to the whole of its health (the Staff of Healing, the Healing Aura: docs/HEALING.md); nothing when
+        /// dead. On another player's copy the heal goes to the owner's body instead, as a blow does (NetworkedDamage).
+        /// </summary>
+        public void Heal(float amount)
+        {
+            if (IsDead || amount <= 0.0f || float.IsNaN(amount))
+            {
+                return;
+            }
+            if (Relay != null && Relay.TryRelayHeal(amount))
+            {
+                return;
+            }
+            _health = Mathf.Min(MaxHealth, _health + amount);
+        }
+
         /// <summary>Restores everything, for respawn.</summary>
         public void Revive()
         {

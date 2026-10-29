@@ -103,6 +103,45 @@ namespace CityX.Character
             return true;
         }
 
+        /// <summary>The most one forwarded heal may restore (a beam's tick is a few; the server refuses more).</summary>
+        public const float MaxHeal = 40.0f;
+
+        public bool TryRelayHeal(float amount)
+        {
+            if (!IsCopy)
+            {
+                return false;
+            }
+            if (_vitals == null || _vitals.IsDead || amount <= 0.0f)
+            {
+                return true;   // nothing to heal, and nothing is sent
+            }
+            SendHealToServer(Mathf.Min(amount, MaxHeal));
+            return true;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void SendHealToServer(float amount, NetworkConnection sender = null)
+        {
+            if (!Allowed(sender, amount) || amount > MaxHeal)
+            {
+                return;
+            }
+            if (Owner.IsValid)
+            {
+                ApplyHealOnOwner(Owner, amount);
+            }
+        }
+
+        [TargetRpc]
+        private void ApplyHealOnOwner(NetworkConnection target, float amount)
+        {
+            if (_vitals != null)
+            {
+                _vitals.Heal(Mathf.Clamp(amount, 0.0f, MaxHeal));
+            }
+        }
+
         /// <summary>The fastest a forwarded knockdown may throw a body, metres per second.</summary>
         public const float MaxKnockdownSpeed = 30.0f;
 

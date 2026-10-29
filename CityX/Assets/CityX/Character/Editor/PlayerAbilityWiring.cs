@@ -94,6 +94,13 @@ namespace CityX.CharacterEditor
             var flameStream = GetOrAdd<FlameStreamCaster>(player);
             flameStream.FlamePrefab = Load(StaffFlamePrefabPath) ?? flameStream.FlamePrefab;
 
+            // --- the Arcane Beam Staff's beam and the Staff of Healing's (2026-10-29, docs/STAFFS.md, docs/HEALING.md): drawn in code.
+            GetOrAdd<ArcaneBeamCaster>(player);
+            GetOrAdd<HealingBeamCaster>(player);
+
+            // --- the Healing Aura (the Cleric, 2026-10-29, docs/HEALING.md): a green circle round the caster, drawn in code.
+            GetOrAdd<HealingAuraAbility>(player);
+
             // --- the bow's draw and arrows as other players see them (2026-10-28, docs/ARCHERY.md): a copy looses the bow's own arrow.
             var archery = GetOrAdd<Archery>(player);
             archery.ArrowPrefab = Load(ArrowPrefabPath) ?? archery.ArrowPrefab;

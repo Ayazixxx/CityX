@@ -31,6 +31,8 @@ every shot paying mana. Built 2026-10-27, three of them, as the owner asked one 
 | Ice Shard | one shard | one every 0.25 s for as long as it is held, wandering up to 1.5 degrees | 4 a shard | about 32 damage a second, eight seconds from a full bar: well under a gun's |
 | Water | the jet, while held | a jet of water (16 m, GTA V's fire truck hose): whoever it is held on is thrown limp along it, pushed on along the ground while down, and hurt 3 every 0.3 s | 6 a second | about 10 damage a second; the push is the point |
 | Flame | the fire, while held | the flamethrower's stream of fire (9 m, a 10 degree cone): everyone in it burns 36 a second (a tick every 0.15 s), no stagger, no blood; half as fierce and a quarter shorter out in the rain | 8 a second | a flamethrower that pays mana instead of fuel |
+| Arcane Beam | the beam, while held | a straight magenta beam (24 m) to the first thing on the crosshair's line: that burns 5 every 0.2 s (25 a second, magic), nothing beside it or behind it; a corpse still with parts to lose is taken apart by it | 10 a second | the long reach of the staffs, one target at a time |
+| Healing | the beam, while held | Mercy's Caduceus Staff without the damage boost: a gold beam ties itself to the other player nearest the crosshair (within 20 m and 15 degrees) and heals them 3 every 0.2 s (15 a second); it stays on them while the healer looks away, until let go, past 21 m, or out of sight for 1.3 s; never the healer, never an enemy | 5 a second while tied | docs/HEALING.md |
 
 All the numbers but Shadow Flare's frames are mine. The staffs ignore the hotbar spells' ranks (the spell need not be learnt).
 
@@ -93,3 +95,28 @@ the Flame Staff because "fire staff" was already the Fireball Staff's name in th
   and points along the crosshair. The staff is thrust out as with every staff. The model: charred black wood, iron, an ember in a brazier.
 - **Other players** see the fire on the wearer's copy of the staff, pointed where they point it (told ten times a second), going out with theirs.
 - Tests: `FlameStreamTests`, `FlameStaffPlayTests`; `FlameStaffCapture` renders `Logs/CityShots/flame-staff-*.png`.
+
+## The Arcane Beam Staff (2026-10-29)
+
+Owner: "make a staff called "arcane beam staff" that has a beam like attack similar to how the water staff looked at the beginning. its just a
+magenta arcane beam that consecutively does damage to whatever its targeting and costs mana". `arcane_beam_staff`, `/equip beamstaff` (or
+`arcanebeam`, `beam`). The water staff's first look (a solid beam, before the owner asked for the spray) was never committed, so the beam is
+built new in the same spirit: a beam of light, not a jet.
+
+- **The beam** (`ArcaneBeamCaster`, `ArcaneBeamRules`): held, a straight beam from the staff's head along the crosshair to the first thing it
+  meets (a 15 cm sphere cast, 24 m): that, if it can be hurt, takes 5 magic damage every 0.2 s (25 a second; Spell Power, Armor Penetration and
+  magic resistance apply), and nothing beside it or behind it does. No stagger. A corpse with a part still to lose is struck too
+  (docs/DISMEMBERMENT.md). It drinks 10 mana a second and stops when the mana is gone or the click is let go. The ticks count the frames' own
+  time (`SpellTicks`), so they land the same however the frames fall.
+- **The look** (`StaffBeam`, its arcane style): two line renderers (a white-hot core and a wide soft magenta glow, both painted with bands of
+  light that run down the beam and a quick pulse in their width), a flare at the staff's head, and where it lands a flare, sparks and a magenta
+  light; the arcane barrier's hum, played higher. The model: a magenta crystal shard in a silver cup on dark wood.
+- **Other players** see the beam on the wearer's copy of the staff, pointed where they point it (told ten times a second), running on their
+  screen to what it meets there, and stopping with theirs.
+- Tests: `BeamStaffRulesTests`, `ArcaneBeamStaffPlayTests`; `ArcaneBeamCapture` renders `Logs/CityShots/arcane-beam-*.png`.
+
+## The Staff of Healing (2026-10-29)
+
+Owner: "create staff of healing that functions like mercy's staff from overwatch but without the damage boost part". `healing_staff`,
+`/equip healstaff` (or `healing`, `heal`). docs/HEALING.md has the beam's rules; the look is `StaffBeam`'s healing style (gold, narrower,
+slow); the model, white wood, gold and a warm yellow orb.

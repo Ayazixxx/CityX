@@ -59,13 +59,7 @@ namespace CityX.Weapons
         public static Material RingGlow => _ring != null ? _ring : (_ring = Painted("ArcaneBarrierRing", RingTexture()));
 
         /// <summary>A glow material painted with <paramref name="texture"/> instead of the soft spot.</summary>
-        private static Material Painted(string name, Texture2D texture)
-        {
-            Material material = SoftGlow.Make(name, Magenta, true, _template);
-            material.SetTexture("_BaseMap", texture);
-            material.mainTexture = texture;
-            return material;
-        }
+        private static Material Painted(string name, Texture2D texture) => GlowShapes.Painted(name, Magenta, true, texture, _template);
 
         /// <summary>A cursed orb's body: dark plum with a faint magenta glow of its own.</summary>
         public static Material CoreMaterial
@@ -262,22 +256,7 @@ namespace CityX.Weapons
         }
 
         /// <summary>A white texture whose alpha is <paramref name="alpha"/> across it, made once.</summary>
-        private static Texture2D Paint(string name, int size, TextureWrapMode wrap, System.Func<float, float, float> alpha)
-        {
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = name, hideFlags = HideFlags.DontSave, wrapMode = wrap };
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    float a = Mathf.Clamp01(alpha((x + 0.5f) / size, (y + 0.5f) / size));
-                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255.0f));
-                }
-            }
-            texture.SetPixels32(pixels);
-            texture.Apply(false, true);
-            return texture;
-        }
+        private static Texture2D Paint(string name, int size, TextureWrapMode wrap, System.Func<float, float, float> alpha) => GlowShapes.Paint(name, size, wrap, alpha);
 
         private static void Unlit(Renderer renderer)
         {

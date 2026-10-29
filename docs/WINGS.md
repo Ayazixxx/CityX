@@ -40,6 +40,15 @@ Sources: [Flap Flap Away: animation cycle multiplexing](https://research.dreamwo
 | Sounds | Made in code (`WingSounds`): a whump of air at each downstroke (louder the deeper), a bigger one with a rush at take-off, a rustle on folding |
 | Other players | The wings on their copy of the body (`ICosmeticMountable`), opening and beating by the same rules from what they can see: the synced flight parameter (`JetpackThrusting`, true for any flight gear) and the copy's own movement (climbing above 1.5 m/s up, descending below 2.5 m/s down). `ICosmeticKeepsRunning`: the beat script runs on the copy |
 
+## The dark angel wings (2026-10-29)
+
+Owner: "make a dark version of the angel wings, same wings model just black". `dark_angel_wings` ("Dark Angel Wings"), `/equip darkwings` (or
+`blackwings`, `dark_wings`). The same prefab built a second time (`AngelWingsBuilder.BuildDark`): the same mesh asset, the same bones, beat,
+pose, flight and sounds, the item named on the `AngelWings` component (`_itemId`, set by the builder; the white wings keep theirs). The
+feathers are near black with a little blue in it (0.055, 0.055, 0.07) and a little glossier (smoothness 0.3; 0.45 looked like plastic): pure black lost every
+feather to the cel lines. Other players' copies build the same prefab (`NetworkedPlayerWiring`). Test: `AngelWingsPlayTests` (the same mesh,
+black, their own item on the back slot, folded on the ground and open in the air); pictures `AngelWingsCapture` (`wings-dark-*.png`).
+
 ## Not yet
 
 A proper take-off animation on the body (the arms, a crouch), wind on the clothes, the wings casting a visible shadow on the body (they cast

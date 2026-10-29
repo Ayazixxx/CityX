@@ -32,6 +32,7 @@ namespace CityX.Character
         private SelfSmiteAbility _selfSmite;
 
         private BodySizeAbility _bodySize;
+        private HealingAuraAbility _healingAura;
 
         private OctaslashAbility _octaslash;
 

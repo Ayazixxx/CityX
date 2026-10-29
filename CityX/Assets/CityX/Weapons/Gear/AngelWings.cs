@@ -22,9 +22,19 @@ namespace CityX.Weapons
     [RequireComponent(typeof(SphereCollider))]
     public sealed class AngelWings : FlightGear, ICosmeticKeepsRunning
     {
-        public override string ItemId => ItemRegistry.AngelWings;
+        /// <summary>Which wings these are: the white ones or the dark ones, the same wings in black (AngelWingsBuilder sets each prefab's).</summary>
+        [SerializeField] private string _itemId = ItemRegistry.AngelWings;
+
+        public override string ItemId => _itemId;
+
+        public void SetItemId(string itemId)
+        {
+            _itemId = itemId;
+        }
 
         public const string PrefabPath = "Assets/CityX/Weapons/AngelWings.prefab";
+
+        public const string DarkPrefabPath = "Assets/CityX/Weapons/DarkAngelWings.prefab";
 
         /// <summary>The longest primary, metres: the wing reaches this far past the hand (AngelWingsBuilder).</summary>
         public const float LongestPrimary = 1.15f;

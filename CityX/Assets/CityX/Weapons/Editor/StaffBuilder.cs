@@ -20,6 +20,8 @@ namespace CityX.WeaponsEditor
         public const string IceShardPrefabPath = "Assets/CityX/Weapons/IceShardStaff.prefab";
         public const string WaterPrefabPath = "Assets/CityX/Weapons/WaterStaff.prefab";
         public const string FlamePrefabPath = "Assets/CityX/Weapons/FlameStaff.prefab";
+        public const string ArcaneBeamPrefabPath = "Assets/CityX/Weapons/ArcaneBeamStaff.prefab";
+        public const string HealingPrefabPath = "Assets/CityX/Weapons/HealingStaff.prefab";
 
         private const int Sides = 14;
 
@@ -81,7 +83,23 @@ namespace CityX.WeaponsEditor
             BuildIceShard();
             BuildWater();
             BuildFlame();
+            BuildArcaneBeam();
+            BuildHealing();
         }
+
+        /// <summary>The Arcane Beam Staff (2026-10-29): near-black plum wood, silver, a magenta crystal shard (the Arcane Staff's is an orb).</summary>
+        public static GameObject BuildArcaneBeam() => Build<ArcaneBeamStaff>(ArcaneBeamPrefabPath, new Look
+        {
+            Name = "ArcaneBeamStaff", Wood = new Color(0.12f, 0.06f, 0.11f), Metal = new Color(0.78f, 0.79f, 0.84f),
+            Crystal = new Color(1.0f, 0.16f, 0.82f), CrystalGlow = 1.4f, Cup = CupProfile, Shard = true,
+        });
+
+        /// <summary>The Staff of Healing (2026-10-29): white wood, gold, a warm yellow orb (Mercy's staff is white and gold).</summary>
+        public static GameObject BuildHealing() => Build<HealingStaff>(HealingPrefabPath, new Look
+        {
+            Name = "HealingStaff", Wood = new Color(0.9f, 0.88f, 0.82f), Metal = new Color(0.86f, 0.68f, 0.26f),
+            Crystal = new Color(1.0f, 0.84f, 0.38f), CrystalGlow = 1.1f, Cup = CupProfile,
+        });
 
         /// <summary>The flame staff (2026-10-28): charred black wood, iron, a brazier holding a red-orange ember.</summary>
         public static GameObject BuildFlame() => Build<FlameStaff>(FlamePrefabPath, new Look

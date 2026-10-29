@@ -51,11 +51,12 @@ namespace CityX.Tests
 #endif
         }
 
-        private AngelWings Wings()
+        private AngelWings Wings(string prefabPath = AngelWings.PrefabPath)
         {
 #if UNITY_EDITOR
-            GameObject model = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(AngelWings.PrefabPath));
-            Assert.IsNotNull(model, "no AngelWings.prefab -- rebuild the scene");
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            Assert.IsNotNull(prefab, $"no {prefabPath} -- rebuild the scene");
+            GameObject model = Object.Instantiate(prefab);
             _made.Add(model);
             return model.GetComponent<AngelWings>();
 #else
@@ -253,6 +254,30 @@ namespace CityX.Tests
             for (int i = 0; i < 60; i++) yield return null;
             Assert.Greater(wings.Beat.Fold, 0.95f, "the copy's wings should fold when its wearer lands");
             controller.enabled = true;
+        }
+
+        [UnityTest]
+        public IEnumerator TheDarkWingsAreTheSameWingsInBlackAndOpenTheSame()
+        {
+            AngelWings white = Wings();
+            AngelWings dark = Wings(AngelWings.DarkPrefabPath);
+            Assert.AreEqual(ItemRegistry.AngelWings, white.ItemId, "the white wings are no longer their own item");
+            Assert.AreEqual(ItemRegistry.DarkAngelWings, dark.ItemId, "the dark wings are not an item of their own");
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.DarkAngelWings, out ItemDefinition definition), "the registry does not know the dark wings");
+            Assert.AreEqual(EquipSlots.Back, definition.EquipSlot, "the dark wings are not worn on the back");
+            var whiteSkin = white.GetComponent<SkinnedMeshRenderer>();
+            var darkSkin = dark.GetComponent<SkinnedMeshRenderer>();
+            Assert.AreSame(whiteSkin.sharedMesh, darkSkin.sharedMesh, "the dark wings are not the same model");
+            Assert.Less(darkSkin.sharedMaterial.GetColor("_BaseColor").grayscale, 0.1f, "the dark wings are not black");
+            Assert.Greater(whiteSkin.sharedMaterial.GetColor("_BaseColor").grayscale, 0.9f, "the white wings are no longer white");
+
+            GameObject player = Body(Vector3.zero);
+            dark.OnEquip(player, ItemInstanceData.None);
+            yield return Fly(player, dark, 1.0f);
+            Assert.AreEqual(1.0f, dark.Beat.Fold, 0.01f, "on the ground the dark wings should be folded");
+            yield return TakeOff(player, dark);
+            Assert.Less(dark.Beat.Fold, 0.01f, "in the air the dark wings should open");
+            Assert.Greater(Tip(player, dark.Right, false).x, 1.2f, "open, the dark wings should reach out as far as the white ones");
         }
 
         [UnityTest]

@@ -11,18 +11,18 @@ namespace CityX.Tests
     /// <summary>
     /// Not a test: renders the angel wings (docs/WINGS.md) to Logs/CityShots/wings-*.png -- folded on the back (from behind and the side),
     /// hovering (front quarter, at the bottom of a downstroke and at the top), climbing, gliding forward (side and front), and six moments of
-    /// one hovering beat. Explicit; run by name with -Graphics: ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.AngelWingsCapture
+    /// one hovering beat; and the dark wings to wings-dark-*.png (folded, hovering from the front and behind, gliding). Explicit; run by name
+    /// with -Graphics: ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.AngelWingsCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class AngelWingsCapture
     {
         private const float Step = 1.0f / 60.0f;
 
-        [UnityTest]
-        public IEnumerator RenderTheWings()
-        {
-            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
+        /// <summary>The ground, a sun, a camera and a body wearing the wings at <paramref name="prefabPath"/>; <paramref name="made"/> is what to destroy after.</summary>
+        private static (GameObject player, AngelWings wings, Camera camera) Stage(string prefabPath, out GameObject[] made)
+        {
             LogAssert.ignoreFailingMessages = true;
             Time.captureFramerate = 60;
             var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -41,8 +41,50 @@ namespace CityX.Tests
             GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab"),
                 new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
             player.GetComponent<PlayerInputReader>().enabled = false;
-            var wings = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(AngelWings.PrefabPath)).GetComponent<AngelWings>();
+            var wings = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)).GetComponent<AngelWings>();
             wings.OnEquip(player, ItemInstanceData.None);
+            made = new[] { player, camera.gameObject, ground, sunObject };
+            return (player, wings, camera);
+        }
+#endif
+
+        [UnityTest]
+        public IEnumerator RenderTheDarkWings()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            (GameObject player, AngelWings wings, Camera camera) = Stage(AngelWings.DarkPrefabPath, out GameObject[] made);
+            yield return Fly(player, wings, 1.0f);
+            Vector3 chest = player.transform.position + Vector3.up * 1.6f;
+            yield return Shoot(camera, "wings-dark-folded-back", chest + new Vector3(2.0f, 1.0f, -7.0f), chest);
+
+            player.GetComponent<PlayerLocomotion>().SetVerticalVelocity(6.0f);
+            yield return Fly(player, wings, 0.1f);
+            yield return Fly(player, wings, 0.6f, thrust: true);
+            yield return Fly(player, wings, 1.5f);
+            yield return Until(player, wings, b => b.Phase > WingBeat.DownstrokeShare - 0.03f && b.Phase < WingBeat.DownstrokeShare + 0.03f);
+            chest = player.transform.position + Vector3.up * 1.6f;
+            yield return Shoot(camera, "wings-dark-hover-down", chest + new Vector3(5.0f, 1.5f, 9.0f), chest);
+            yield return Shoot(camera, "wings-dark-hover-behind", chest + new Vector3(0.0f, 2.5f, -9.0f), chest);
+
+            yield return Fly(player, wings, 3.0f, move: Vector2.up);
+            chest = player.transform.position + Vector3.up * 1.6f;
+            yield return Shoot(camera, "wings-dark-glide-side", chest + new Vector3(8.0f, 0.5f, 0.0f), chest);
+            foreach (GameObject go in made)
+            {
+                Object.Destroy(go);
+            }
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator RenderTheWings()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            (GameObject player, AngelWings wings, Camera camera) = Stage(AngelWings.PrefabPath, out GameObject[] made);
             var locomotion = player.GetComponent<PlayerLocomotion>();
 
             yield return Fly(player, wings, 1.0f);
@@ -86,10 +128,10 @@ namespace CityX.Tests
             yield return Shoot(camera, "wings-glide-front", chest + new Vector3(0.0f, 1.0f, 9.0f), chest);
             yield return Shoot(camera, "wings-glide-above", chest + new Vector3(2.0f, 9.0f, -4.0f), chest);
 
-            Object.Destroy(player);
-            Object.Destroy(camera.gameObject);
-            Object.Destroy(ground);
-            Object.Destroy(sunObject);
+            foreach (GameObject go in made)
+            {
+                Object.Destroy(go);
+            }
 #else
             yield break;
 #endif

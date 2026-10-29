@@ -912,6 +912,11 @@ namespace CityX.Character
             {
                 _bodySize.TryShrink();
             }
+            // HEALING AURA (Cleric): a green circle round the body, going where it goes, healing everyone in it slowly (docs/HEALING.md).
+            if (_skills.Pressed(SkillCatalog.HealingAura, keyboard) && (_healingAura != null || (_healingAura = GetComponent<HealingAuraAbility>()) != null))
+            {
+                _healingAura.TryCast();
+            }
             AimIceShards(yawSource);
             AimPoisonBreath(yawSource);
 

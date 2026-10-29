@@ -22,5 +22,8 @@ namespace CityX.Character
         /// burst) throws the real body, on its owner's machine, at <paramref name="velocity"/>.
         /// </summary>
         bool TryRelayKnockdown(Vector3 velocity);
+
+        /// <summary>A heal on another player's copy, sent to its owner (docs/HEALING.md); false on the owner's own body.</summary>
+        bool TryRelayHeal(float amount);
     }
 }

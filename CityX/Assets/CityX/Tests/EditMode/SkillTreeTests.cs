@@ -21,6 +21,7 @@ namespace CityX.Tests
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
             SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.StabDash, SkillCatalog.Bloodrage,
             SkillCatalog.SelfSmite, SkillCatalog.Grow, SkillCatalog.Shrink, SkillCatalog.ArcaneOrb, SkillCatalog.ArcaneBarrier,
+            SkillCatalog.HealingAura,
         };
 
         [Test]
@@ -89,6 +90,7 @@ namespace CityX.Tests
             Assert.AreEqual(SelfSmiteAbility.Id, SkillCatalog.SelfSmite);
             Assert.AreEqual(ArcaneOrbCaster.Id, SkillCatalog.ArcaneOrb);
             Assert.AreEqual(ArcaneBarrierCaster.Id, SkillCatalog.ArcaneBarrier);
+            Assert.AreEqual(HealingAuraAbility.Id, SkillCatalog.HealingAura);
         }
 
         [Test]
