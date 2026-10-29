@@ -51,6 +51,7 @@ namespace CityX.Items
         public const string IceShardStaff = "ice_shard_staff";
         public const string ArcaneBeamStaff = "arcane_beam_staff";
         public const string HealingStaff = "healing_staff";
+        public const string Flashlight = "flashlight";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -120,6 +121,8 @@ namespace CityX.Items
             // The arcane beam and the healing beam (2026-10-29, docs/STAFFS.md, docs/HEALING.md): held, a beam; Mercy's staff without its boost.
             [ArcaneBeamStaff] = new ItemDefinition(ArcaneBeamStaff, "Arcane Beam Staff", "weapon", EquipSlots.Primary, 1),
             [HealingStaff] = new ItemDefinition(HealingStaff, "Staff of Healing", "weapon", EquipSlots.Primary, 1),
+            // The flashlight (2026-10-29, docs/FLASHLIGHT.md): held in the right hand, F or a click switches it, it points where you look.
+            [Flashlight] = new ItemDefinition(Flashlight, "Flashlight", "tool", EquipSlots.Primary, 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

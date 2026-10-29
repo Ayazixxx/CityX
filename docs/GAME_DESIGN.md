@@ -220,6 +220,8 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 
 **Built 2026-10-27** (docs/STAFFS.md): the Arcane Staff (Arcane Orb on the click, charged to 2 and 3 orbs), the Fireball Staff (held, a bigger fireball with a blast, up to 1.5 s) and the Ice Shard Staff (held, an automatic stream of shards), every shot paying mana, with stand-in models drawn in code. The element boosts, general staffs and wands are not built yet.
 
+**Built 2026-10-29**: the Arcane Beam Staff and the Staff of Healing (docs/STAFFS.md, docs/HEALING.md); the first enchant, the **Fire Enhancement** (docs/FIRE_ENHANCEMENT.md): the next swing, bullet or arrow burns what it hits and sets it alight, the sword ablaze while it waits; no effect on staffs (owner: "for now").
+
 ## God-tier spells
 
 One holder per world: a flood, meteors, an Almighty Push, a zombie horde, a giant transformation or summon. Modelled on Lineage 2's Cursed Swords (one per server; the world goes red when one appears; the holder is hunted).

@@ -917,6 +917,12 @@ namespace CityX.Character
             {
                 _healingAura.TryCast();
             }
+            // FIRE ENHANCEMENT (Pyromancer): the next swing, bullet or arrow burns (docs/FIRE_ENHANCEMENT.md).
+            if (_skills.Pressed(SkillCatalog.FireEnhancement, keyboard)
+                && (_fireEnhancement != null || (_fireEnhancement = GetComponent<FireEnhancementAbility>()) != null))
+            {
+                _fireEnhancement.TryCast();
+            }
             AimIceShards(yawSource);
             AimPoisonBreath(yawSource);
 

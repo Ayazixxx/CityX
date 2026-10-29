@@ -202,15 +202,16 @@ namespace CityX.Weapons
             float damage = CombatTuning.DamageFor(ArcheryRules.DamageFor(draw), firearmDamage);
             Vector3 nock = _locomotion != null ? _locomotion.BowNock : transform.position;
             Collider[] own = wielder != null ? wielder.GetComponentsInChildren<Collider>() : null;
+            bool burning = FireEnhancementAbility.TakeShot(wielder);   // the Fire Enhancement: this arrow burns
             ArrowProjectile.Loose(ArrowPrefab, origin, nock, direction, ArcheryRules.FlatRangeFor(draw), ArcheryRules.FallSpeedFor(draw), damage,
-                penetration, wielder, own, cosmetic: false, out bool hit, out Vector3 point);
+                penetration, wielder, own, cosmetic: false, out bool hit, out Vector3 point, burning);
             if (Application.isPlaying)
             {
                 AudioSource.PlayClipAtPoint(ArcherySounds.Twang, nock, 0.8f);
             }
             _locomotion?.LooseBow();
             Twang();
-            _archery?.TellLoosed(nock, direction, draw);
+            _archery?.TellLoosed(nock, direction, draw, burning);
             ShotResolved?.Invoke(new GunShot
             {
                 Fired = true,

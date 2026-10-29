@@ -158,6 +158,15 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// Flames licking up along <paramref name="from"/> to <paramref name="to"/> this frame, at a body of <paramref name="scale"/>'s size: a
+        /// weapon ablaze (the Fire Enhancement), a burning arrow. The fire's own flames, left in the world, so a swing trails fire.
+        /// </summary>
+        public static void BurnAlong(Vector3 from, Vector3 to, float strength, float scale, float deltaTime)
+        {
+            Ensure()._look.Lick(from, to, strength, scale, deltaTime);
+        }
+
         /// <summary>Water on the ground within <paramref name="radius"/> of <paramref name="point"/>: the fire there goes out and the ground will not catch for a while.</summary>
         public static int Douse(Vector3 point, float radius, bool cosmetic = false)
         {

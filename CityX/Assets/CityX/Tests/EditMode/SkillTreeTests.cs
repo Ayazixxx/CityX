@@ -21,7 +21,7 @@ namespace CityX.Tests
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
             SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.StabDash, SkillCatalog.Bloodrage,
             SkillCatalog.SelfSmite, SkillCatalog.Grow, SkillCatalog.Shrink, SkillCatalog.ArcaneOrb, SkillCatalog.ArcaneBarrier,
-            SkillCatalog.HealingAura,
+            SkillCatalog.HealingAura, SkillCatalog.FireEnhancement,
         };
 
         [Test]
@@ -91,6 +91,7 @@ namespace CityX.Tests
             Assert.AreEqual(ArcaneOrbCaster.Id, SkillCatalog.ArcaneOrb);
             Assert.AreEqual(ArcaneBarrierCaster.Id, SkillCatalog.ArcaneBarrier);
             Assert.AreEqual(HealingAuraAbility.Id, SkillCatalog.HealingAura);
+            Assert.AreEqual(FireEnhancementAbility.Id, SkillCatalog.FireEnhancement);
         }
 
         [Test]
@@ -232,11 +233,11 @@ namespace CityX.Tests
         public void ASavedListDropsWhatTheGameDoesNotHaveAndAlwaysKeepsVaulting()
         {
             var book = new SkillBook();
-            book.SetLearnt(new[] { SkillCatalog.Fireball, "teleport", "pyromancer-1", null });
+            book.SetLearnt(new[] { SkillCatalog.Fireball, "teleport", "pyromancer-2", null });
             Assert.IsTrue(book.Knows(SkillCatalog.Fireball));
             Assert.IsTrue(book.Knows(SkillCatalog.Vault));
             Assert.IsFalse(book.Knows("teleport"));
-            Assert.IsFalse(book.Knows("pyromancer-1"), "an empty star can never be learnt, even from a save");
+            Assert.IsFalse(book.Knows("pyromancer-2"), "an empty star can never be learnt, even from a save");
             Assert.AreEqual(2, book.Count);
         }
 

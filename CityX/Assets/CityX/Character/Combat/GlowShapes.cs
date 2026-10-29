@@ -5,14 +5,18 @@ namespace CityX.Character
     /// <summary>
     /// Light, frost and dust drawn in code (no image files): a white texture whose alpha is a function across it, a see-through material
     /// painted with one (<see cref="SoftGlow"/>'s, its texture swapped), and a unit quad lying flat on the ground. Shared by every effect that
-    /// paints its own shape: the arcane spells' faces and rings, the staff beams' bands, the healing aura's rings, the giant's dust ring.
+    /// paints its own shape: the arcane spells' faces and rings, the staff beams' bands, the healing aura's rings, the giant's dust ring, the
+    /// flashlight's cookie and beam.
     /// </summary>
     public static class GlowShapes
     {
         private static Mesh _flatQuad;
 
-        /// <summary>A white <paramref name="size"/>-square texture whose alpha is <paramref name="alpha"/>(u, v) (0..1 across it), made once by its caller.</summary>
-        public static Texture2D Paint(string name, int size, TextureWrapMode wrap, System.Func<float, float, float> alpha)
+        /// <summary>
+        /// A white <paramref name="size"/>-square texture whose alpha is <paramref name="alpha"/>(u, v) (0..1 across it), made once by its caller;
+        /// <paramref name="grey"/>, its colour that too (a light's cookie reads the colour).
+        /// </summary>
+        public static Texture2D Paint(string name, int size, TextureWrapMode wrap, System.Func<float, float, float> alpha, bool grey = false)
         {
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = name, hideFlags = HideFlags.DontSave, wrapMode = wrap };
             var pixels = new Color32[size * size];
@@ -20,8 +24,9 @@ namespace CityX.Character
             {
                 for (int x = 0; x < size; x++)
                 {
-                    float a = Mathf.Clamp01(alpha((x + 0.5f) / size, (y + 0.5f) / size));
-                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255.0f));
+                    byte a = (byte)Mathf.RoundToInt(Mathf.Clamp01(alpha((x + 0.5f) / size, (y + 0.5f) / size)) * 255.0f);
+                    byte c = grey ? a : (byte)255;
+                    pixels[y * size + x] = new Color32(c, c, c, a);
                 }
             }
             texture.SetPixels32(pixels);

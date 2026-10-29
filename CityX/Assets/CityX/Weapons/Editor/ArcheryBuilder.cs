@@ -294,21 +294,14 @@ namespace CityX.WeaponsEditor
 
         private static Mesh Lathe(Vector2[] profile, string name, int sides)
         {
-            Mesh scratch = HeldModelBaker.Lathe(profile, name, sides);
-            Mesh saved = HeldModelBaker.Save($"{Folder}/{name}.asset", name, scratch.vertices, scratch.normals, scratch.triangles);
-            Object.DestroyImmediate(scratch);
-            return saved;
+            return HeldModelBaker.Turned($"{Folder}/{name}.asset", profile, name, sides);
         }
 
         // --- parts ---
 
         private static void Part(Transform parent, string name, Mesh mesh, Material material, Quaternion rotation)
         {
-            var part = new GameObject(name);
-            part.transform.SetParent(parent, false);
-            part.transform.localRotation = rotation;
-            part.AddComponent<MeshFilter>().sharedMesh = mesh;
-            part.AddComponent<MeshRenderer>().sharedMaterial = material;
+            HeldModelBaker.Part(parent, name, mesh, material).localRotation = rotation;
         }
 
         private static void Box(Transform parent, string name, Vector3 centre, Vector3 size, Material material, Quaternion? rotation = null)

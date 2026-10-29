@@ -100,6 +100,8 @@ namespace CityX.CharacterEditor
 
             // --- the Healing Aura (the Cleric, 2026-10-29, docs/HEALING.md): a green circle round the caster, drawn in code.
             GetOrAdd<HealingAuraAbility>(player);
+            GetOrAdd<FireEnhancementAbility>(player);
+            GetOrAdd<FlashlightSync>(player);
 
             // --- the bow's draw and arrows as other players see them (2026-10-28, docs/ARCHERY.md): a copy looses the bow's own arrow.
             var archery = GetOrAdd<Archery>(player);

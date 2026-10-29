@@ -383,6 +383,8 @@ namespace CityX.UI
                 case "healing_staff":
                 case "healing":
                 case "heal": return ItemRegistry.HealingStaff;
+                case "flashlight":
+                case "light": return ItemRegistry.Flashlight;
                 case "jerrycan":
                 case "jerry_can":
                 case "gascan":

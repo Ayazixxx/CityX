@@ -869,6 +869,8 @@ namespace CityX.Character
             ApplyShieldPose();
             // A staff in the right hand: carried upright, thrust out to cast (PlayerLocomotion.Staff.cs).
             ApplyStaffPose();
+            // A flashlight in the right hand: carried low, held out and pointed where the player looks when lit (PlayerLocomotion.Torch.cs).
+            ApplyTorchPose();
             ApplyClimbLimbs();
             ApplyClimbWallLimbs();
             ApplyLedgeHands();

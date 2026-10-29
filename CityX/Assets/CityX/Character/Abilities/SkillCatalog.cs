@@ -128,6 +128,7 @@ namespace CityX.Character
         public const string ArcaneOrb = "arcane-orb";
         public const string ArcaneBarrier = "arcane-barrier";
         public const string HealingAura = "healing-aura";
+        public const string FireEnhancement = "fire-enhancement";
 
         /// <summary>Skill points a star costs. One each for now; what deeper stars cost is open.</summary>
         public const int LearnCost = 1;
@@ -260,12 +261,15 @@ namespace CityX.Character
                 Empty("berserker", 2, At(-0.7f, 2), "berserker-1"),
                 Empty("berserker", 3, At(0.7f, 2), "berserker-1"),
 
-                // --- Pyromancer. Its top star joins Steam.
+                // --- Pyromancer. Its top star joins Steam. The Fire Enhancement (owner, 2026-10-29: the first "enhance weapon" skill) beside
+                // Fireball's branch.
                 new SkillNode(Fireball, "Fireball", "pyromancer", SkillKind.Spell, At(0, 0),
                     "A ball of fire down the crosshair that bursts where it lands."),
-                Empty("pyromancer", 1, At(-0.8f, 1), Fireball),
+                new SkillNode(FireEnhancement, "Fire Enhancement", "pyromancer", SkillKind.Spell, At(-0.8f, 1),
+                    "Your weapon catches fire: your next swing, bullet or arrow burns what it hits and sets it alight. A sword burns along its " +
+                    "blade while the fire waits. No effect on staffs.", new[] { Fireball }),
                 Empty("pyromancer", 2, At(0.8f, 1), Fireball),
-                Empty("pyromancer", 3, At(0, 2), "pyromancer-1", "pyromancer-2"),
+                Empty("pyromancer", 3, At(0, 2), FireEnhancement, "pyromancer-2"),
                 Empty("pyromancer", 4, At(0, 3), "pyromancer-3"),
 
                 // --- Steam: a hybrid, opened by mastering Pyromancer and Hydromancer. Not in the game yet.

@@ -179,6 +179,11 @@ namespace CityX.Character
             // as long as the button stays down.
             if (EquippedFlamethrower != null)
             {
+                // A flashlight also switches on and off with F (the Godot game's key; docs/FLASHLIGHT.md).
+                if (EquippedFlamethrower is ITorch torch && Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
+                {
+                    torch.Toggle();
+                }
                 Transform flameYawSource = YawSource != null
                     ? YawSource
                     : (Camera.main != null ? Camera.main.transform : null);

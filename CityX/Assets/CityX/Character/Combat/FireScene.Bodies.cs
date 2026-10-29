@@ -8,7 +8,8 @@ namespace CityX.Character
     /// WHO THE FIRE BURNS: every <see cref="FireRules.BodyTickSeconds"/> the bodies over the burning ground this machine lit are found, and
     /// whoever has their feet in a burning cell catches fire -- <see cref="FireRules.DamagePerSecond"/> in ticks while they stand in it
     /// (a spell with no stagger and no blood, credited to whoever lit the cell), and <see cref="FireRules.AfterburnSeconds"/> of weaker
-    /// burning after they leave, flames on the torso. Water puts a burning body out: standing in it, the water staff's jet
+    /// burning after they leave, flames on the torso. A burning blow sets a body alight the same way (<see cref="SetAlight"/>: the Fire
+    /// Enhancement); another player's, only to look at. Water puts a burning body out: standing in it, the water staff's jet
     /// (<see cref="DouseBody"/>), rain over a couple of seconds. A burning body lights the gasoline it walks through.
     /// </summary>
     public sealed partial class FireScene
@@ -21,6 +22,9 @@ namespace CityX.Character
             public float SecondsLeft;
             public float NextTick;
             public bool InFire;
+
+            /// <summary>Burning only to look at: another player's blow set it alight, and their machine deals the burning.</summary>
+            public bool Cosmetic;
         }
 
         private static readonly Collider[] Overlaps = new Collider[256];
@@ -34,6 +38,31 @@ namespace CityX.Character
         public static bool IsBurning(IDamageable target)
         {
             return Instance != null && target != null && Instance._burning.ContainsKey(target);
+        }
+
+        /// <summary>
+        /// Sets a body alight for <paramref name="seconds"/> as if it had just stepped out of the fire (a burning blow: the Fire Enhancement),
+        /// its burning credited to <paramref name="lighter"/>; <paramref name="cosmetic"/>, it only burns to look at (another player's blow, whose
+        /// machine deals the burning). A body already burning burns on for whichever is longer.
+        /// </summary>
+        public static void SetAlight(IDamageable target, GameObject lighter, float seconds, bool cosmetic = false)
+        {
+            if (target == null || !target.IsAlive || !(target is Component body))
+            {
+                return;
+            }
+            FireScene scene = Ensure();
+            if (!scene._burning.TryGetValue(target, out BurningBody burning))
+            {
+                burning = new BurningBody { Target = target, Body = body, NextTick = Time.time + FireRules.BodyTickSeconds, Cosmetic = cosmetic };
+                scene._burning[target] = burning;
+            }
+            burning.Cosmetic &= cosmetic;
+            burning.SecondsLeft = Mathf.Max(burning.SecondsLeft, seconds);
+            if (!cosmetic && lighter != null)
+            {
+                burning.Lighter = lighter;
+            }
         }
 
         /// <summary>Water on a body: its fire goes out.</summary>
@@ -116,6 +145,7 @@ namespace CityX.Character
                     _burning[target] = burning;
                 }
                 burning.InFire = true;
+                burning.Cosmetic = false;   // standing in this machine's own fire: burnt here
                 burning.SecondsLeft = FireRules.AfterburnSeconds;
                 burning.Lighter = LighterOf(cell.Lighter) ?? burning.Lighter;
             }
@@ -127,7 +157,7 @@ namespace CityX.Character
             float now = Time.time;
             foreach (BurningBody burning in _burning.Values)
             {
-                if (burning.Body == null || now < burning.NextTick)
+                if (burning.Body == null || burning.Cosmetic || now < burning.NextTick)
                 {
                     continue;
                 }

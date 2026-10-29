@@ -42,6 +42,21 @@ namespace CityX.Character
         /// <summary>The embers' material brightness: past 1 so the bloom catches them, as it does the flames' cores.</summary>
         public const float EmberBrightness = 1.8f;
 
+        /// <summary>
+        /// A burning weapon's flames (<see cref="Lick"/>): so many a second for each metre of it, their size against a burning cell's, how far
+        /// off its line they start, and the least length counted (a hand burns as a short blade does).
+        /// </summary>
+        public const float LickFlamesPerMetre = 100.0f;
+
+        public const float LickSize = 0.3f;
+        public const float LickSpread = 0.03f;
+        public const float LickShortestMetres = 0.3f;
+
+        /// <summary>The longest a weapon's flame lives, seconds, and the share of its flames that also leave a glow.</summary>
+        public const float LickSeconds = 0.35f;
+
+        public const float LickGlowShare = 0.4f;
+
         public static readonly Color LightColour = new Color(1.0f, 0.55f, 0.22f);
         public static readonly Color GlowColour = new Color(1.0f, 0.42f, 0.1f);
         public static readonly Color EmberColour = new Color(1.0f, 0.78f, 0.35f);
@@ -65,6 +80,7 @@ namespace CityX.Character
         private readonly Dictionary<(int, int, int), (Vector3 sum, float heat)> _clusters = new Dictionary<(int, int, int), (Vector3, float)>();
         private float _lightsDue;
         private float _flicker;
+        private float _lickDebt;
 
         public FireLook(Transform parent)
         {
@@ -141,6 +157,47 @@ namespace CityX.Character
             for (int i = 0; i < MaxLights; i++)
             {
                 _lights[i].intensity = LightIntensity * _lightStrength[i] * flicker;
+            }
+        }
+
+        /// <summary>
+        /// A burning weapon's fire: small tongues licking up from random points along <paramref name="from"/> to <paramref name="to"/>,
+        /// <see cref="LickFlamesPerMetre"/> of it a second, and now and then an ember; at <paramref name="scale"/> a body's size. Short-lived and
+        /// slow to rise, unlike a burning cell's (a second and a metre up): they hug the weapon, and a swing leaves a brief trail of them.
+        /// </summary>
+        public void Lick(Vector3 from, Vector3 to, float strength, float scale, float deltaTime)
+        {
+            scale = Mathf.Max(0.01f, scale);
+            float metres = Mathf.Max(LickShortestMetres, Vector3.Distance(from, to) / scale);
+            _lickDebt += LickFlamesPerMetre * metres * strength * deltaTime;
+            var emit = new ParticleSystem.EmitParams { applyShapeToPosition = false };
+            while (_lickDebt >= 1.0f)
+            {
+                _lickDebt -= 1.0f;
+                emit.position = Vector3.Lerp(from, to, Random.value) + Random.insideUnitSphere * LickSpread * scale;
+                emit.velocity = (Vector3.up * Random.Range(0.25f, 0.5f) + Random.insideUnitSphere * 0.08f) * scale;
+                emit.startSize = Random.Range(0.75f, 1.25f) * LickSize * scale;
+                emit.startLifetime = Random.Range(LickSeconds * 0.6f, LickSeconds);
+                emit.startColor = new Color(1.0f, 1.0f, 1.0f, strength);
+                _flames.Emit(emit, 1);
+                if (Random.value < CoreShare)
+                {
+                    emit.startSize *= 0.55f;
+                    emit.startColor = new Color(CoreBrightness, CoreBrightness * 0.97f, CoreBrightness * 0.9f, strength);
+                    _flames.Emit(emit, 1);
+                }
+                if (Random.value < LickGlowShare)
+                {
+                    // A soft orange glow along it, so its flames read as one burning blade and not a row of little fires.
+                    emit.velocity = Vector3.zero;
+                    emit.startSize = LickSize * 1.6f * scale;
+                    emit.startColor = new Color(GlowColour.r, GlowColour.g, GlowColour.b, 0.35f * strength);
+                    _glow.Emit(emit, 1);
+                }
+            }
+            if (Random.value < EmbersPerSecond * strength * deltaTime)
+            {
+                EmitEmber(Vector3.Lerp(from, to, Random.value), 0.6f);
             }
         }
 

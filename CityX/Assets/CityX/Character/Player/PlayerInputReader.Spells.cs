@@ -33,6 +33,7 @@ namespace CityX.Character
 
         private BodySizeAbility _bodySize;
         private HealingAuraAbility _healingAura;
+        private FireEnhancementAbility _fireEnhancement;
 
         private OctaslashAbility _octaslash;
 

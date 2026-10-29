@@ -22,7 +22,6 @@ namespace CityX.View
 
         private PlayerInputReader _player;
         private float _sinceLookup = 99.0f;
-        private AudioClip _click;
 
         /// <summary>The last switch flipped (for tests and the HUD), and whether its building had power.</summary>
         public RoomKey LastFlipped { get; private set; }
@@ -142,25 +141,10 @@ namespace CityX.View
             return _player != null ? _player.transform : null;
         }
 
-        /// <summary>A switch's click: a short tick, a little lower when it goes off. Made here (no sound asset needed).</summary>
-        private void PlayClick(Vector3 at, bool on)
+        /// <summary>A switch's click (SwitchClick, the flashlight's too), a little lower when it goes off.</summary>
+        private static void PlayClick(Vector3 at, bool on)
         {
-            if (_click == null)
-            {
-                const int rate = 44100;
-                var samples = new float[rate / 25];
-                var random = new System.Random(7);
-                for (int i = 0; i < samples.Length; i++)
-                {
-                    float t = i / (float)samples.Length;
-                    float envelope = Mathf.Exp(-t * 18.0f);
-                    samples[i] = ((float)random.NextDouble() * 2.0f - 1.0f) * envelope * 0.6f
-                        + Mathf.Sin(i * 2.0f * Mathf.PI * 2400.0f / rate) * envelope * 0.25f;
-                }
-                _click = AudioClip.Create("LightSwitchClick", samples.Length, 1, rate, false);
-                _click.SetData(samples, 0);
-            }
-            PositionalSound.Play(_click, at, 0.7f, on ? 1.0f : 0.85f, 0.0f, 12.0f);
+            PositionalSound.Play(SwitchClick.Clip, at, 0.7f, on ? 1.0f : SwitchClick.OffPitch, 0.0f, 12.0f);
         }
     }
 }

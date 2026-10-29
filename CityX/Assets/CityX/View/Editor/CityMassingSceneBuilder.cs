@@ -282,6 +282,8 @@ namespace CityX.ViewEditor
             // The Arcane Beam Staff and the Staff of Healing (2026-10-29): beams drawn in code (docs/STAFFS.md, docs/HEALING.md).
             GameObject arcaneBeamStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildArcaneBeam();
             GameObject healingStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildHealing();
+            // The flashlight (2026-10-29, docs/FLASHLIGHT.md): a torch turned in code; its beam is made at run time.
+            GameObject flashlightPrefab = CityX.WeaponsEditor.FlashlightBuilder.Build();
             // The bow, its arrow (which PlayerAbilityWiring gives the body by path) and the crossbow (2026-10-28, docs/ARCHERY.md).
             GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
             GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
@@ -558,6 +560,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.ArcaneBeamStaff, Prefab = arcaneBeamStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.HealingStaff, Prefab = healingStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Flashlight, Prefab = flashlightPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Bow, Prefab = bowPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

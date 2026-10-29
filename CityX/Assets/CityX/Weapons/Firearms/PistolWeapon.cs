@@ -107,6 +107,11 @@ namespace CityX.Weapons
         /// <summary>A click on an empty gun with nothing to reload: how long before the next click registers.</summary>
         public const float DryClickCooldownSeconds = 0.25f;
 
+        /// <summary>A burning round (the Fire Enhancement) flares where it meets anything: this tall, this many seconds' worth of flames at once.</summary>
+        public const float BurningFlareMetres = 0.3f;
+
+        public const float BurningFlareSeconds = 0.25f;
+
         /// <summary>How long the trigger finger stays pulled after a shot, seconds.</summary>
         public const float TriggerPullSeconds = 0.07f;
 
@@ -685,13 +690,13 @@ namespace CityX.Weapons
         /// A crossbow's bolt (docs/ARCHERY.md): seen flying from the muzzle to where the shot ended and stuck in <paramref name="landedOn"/> there,
         /// or falling on as a real projectile past the range where it met nothing; the string's clack with it. The hit itself was the hitscan's.
         /// </summary>
-        private void ShowArrow(Vector3 from, Vector3 end, Collider landedOn, Vector3 direction, GameObject wielder, bool cosmetic)
+        private void ShowArrow(Vector3 from, Vector3 end, Collider landedOn, Vector3 direction, GameObject wielder, bool cosmetic, bool burning = false)
         {
             PlayerVitals shooter = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
             float damage = CombatTuning.DamageFor(Profile.Damage, shooter != null ? shooter.Stats[StatId.FirearmDamage] : 0);
             float penetration = shooter != null ? shooter.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             Collider[] own = wielder != null ? wielder.GetComponentsInChildren<Collider>() : null;
-            ArrowProjectile.Show(ArrowPrefab, from, end, landedOn, direction, Profile.ArrowFallSpeed, damage, penetration, wielder, own, cosmetic);
+            ArrowProjectile.Show(ArrowPrefab, from, end, landedOn, direction, Profile.ArrowFallSpeed, damage, penetration, wielder, own, cosmetic, burning);
             if (Application.isPlaying)
             {
                 AudioSource.PlayClipAtPoint(ArcherySounds.Clack, from, 0.9f);
@@ -1014,6 +1019,7 @@ namespace CityX.Weapons
             // Fire Rate shortens the gap between shots (2026-10-14).
             _fireCooldownRemaining = Profile.FireCooldownSeconds / PlayerVitals.SpeedOf(wielder != null ? wielder.GetComponent<PlayerVitals>() : null, StatId.FireRate);
             MagazineAmmo--;
+            bool burning = FireEnhancementAbility.TakeShot(wielder);   // the Fire Enhancement: this round burns what it hits
             int shotInBurst = _sinceShot <= Profile.RecoilResetSeconds ? _burstIndex : 0;
             _burstIndex = shotInBurst + 1;
             _sinceShot = 0.0f;
@@ -1074,6 +1080,10 @@ namespace CityX.Weapons
                         // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
                         bool wasAlive = damageable.IsAlive;
                         DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration, hit.point, wielder);
+                        if (burning)
+                        {
+                            FireEnhancementAbility.Burn(damageable, hit.point, wielder);
+                        }
                         hitDamageable = true;
                         killed = !damageable.IsAlive;
                         // A kill pays its XP, as a fist's or a sword's does (2026-10-15: a Shoota is worth some; a civilian always was). Once:
@@ -1088,6 +1098,10 @@ namespace CityX.Weapons
                         }
                     }
                     FireScene.Ignite(hit.point, CityX.World.FireRules.SparkIgniteRadius, true, wielder);   // a shot into gasoline lights it (docs/FIRE.md)
+                    if (burning)
+                    {
+                        FireScene.BurnAlong(hit.point, hit.point + Vector3.up * BurningFlareMetres, 1.0f, 1.0f, BurningFlareSeconds);   // it flares where it meets
+                    }
                 }
             }
 
@@ -1096,7 +1110,7 @@ namespace CityX.Weapons
             Vector3 muzzlePosition = MuzzleFlashObject != null ? MuzzleFlashObject.transform.position : origin;
             if (ArrowPrefab != null)
             {
-                ShowArrow(muzzlePosition, shotEnd, arrowStuckIn, spreadDirection, wielder, false);   // a crossbow's bolt, in place of a tracer
+                ShowArrow(muzzlePosition, shotEnd, arrowStuckIn, spreadDirection, wielder, false, burning);   // a crossbow's bolt, in place of a tracer
             }
             else if (ShowsTracer(shotInBurst))
             {

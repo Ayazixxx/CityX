@@ -135,6 +135,25 @@ namespace CityX.WeaponsEditor
             return mesh;
         }
 
+        /// <summary>A turned shape (<see cref="Lathe"/>) saved as a mesh asset at <paramref name="meshPath"/> (made once, kept up to date).</summary>
+        public static Mesh Turned(string meshPath, Vector2[] profile, string name, int sides)
+        {
+            Mesh scratch = Lathe(profile, name, sides);
+            Mesh saved = Save(meshPath, name, scratch.vertices, scratch.normals, scratch.triangles);
+            Object.DestroyImmediate(scratch);
+            return saved;
+        }
+
+        /// <summary>A child of <paramref name="parent"/> drawing <paramref name="mesh"/> in <paramref name="material"/>: one part of a model built in code.</summary>
+        public static Transform Part(Transform parent, string name, Mesh mesh, Material material)
+        {
+            var part = new GameObject(name);
+            part.transform.SetParent(parent, false);
+            part.AddComponent<MeshFilter>().sharedMesh = mesh;
+            part.AddComponent<MeshRenderer>().sharedMaterial = material;
+            return part.transform;
+        }
+
         /// <summary>A profile (radius, height) turned round the y axis in <paramref name="sides"/> steps: smooth round, a band per profile step.</summary>
         public static Mesh Lathe(Vector2[] profile, string name, int sides)
         {

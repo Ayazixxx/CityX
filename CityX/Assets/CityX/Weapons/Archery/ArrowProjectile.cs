@@ -9,10 +9,17 @@ namespace CityX.Weapons
     /// the hitscan ended, sticking there if it met something; and where it met nothing, carrying on from the end of its flat range as a real
     /// falling projectile (<see cref="ArcheryRules.Gravity"/>), swept each frame, hurting whatever it lands in and sticking in it. Stuck, it
     /// stays a while (longer in the world than in someone) and then is gone. A cosmetic one (another player's arrow, the flat part of every
-    /// arrow) hurts nothing.
+    /// arrow) hurts nothing. A BURNING one (the Fire Enhancement, docs/FIRE_ENHANCEMENT.md) flies with flames along its shaft, sets alight
+    /// what it hurts, lights gasoline where it lands, and burns on a few seconds stuck.
     /// </summary>
     public sealed class ArrowProjectile : MonoBehaviour
     {
+        /// <summary>A burning arrow's flames: how far down the shaft from its head, metres, how strong, and how long they last once it sticks.</summary>
+        public const float BurningShaftMetres = 0.35f;
+
+        public const float BurningStrength = 0.7f;
+        public const float BurningStuckSeconds = 4.0f;
+
         public enum Phase
         {
             /// <summary>Crossing the flat range to where the hitscan ended.</summary>
@@ -25,6 +32,9 @@ namespace CityX.Weapons
         public Phase CurrentPhase { get; private set; }
 
         public bool Cosmetic { get; private set; }
+
+        /// <summary>It flies burning (the Fire Enhancement).</summary>
+        public bool Burning { get; private set; }
 
         /// <summary>What it is stuck in, or null.</summary>
         public Transform StuckTo { get; private set; }
@@ -41,6 +51,7 @@ namespace CityX.Weapons
         private Collider[] _ignore;
         private Vector3 _velocity;
         private float _age;
+        private float _stuckFor;
         private TrailRenderer _trail;
         private static readonly RaycastHit[] Hits = new RaycastHit[16];
 
@@ -49,21 +60,22 @@ namespace CityX.Weapons
         /// <paramref name="direction"/> over <paramref name="flatRange"/> -- the first thing it meets that is not the archer's own takes
         /// <paramref name="damage"/>, a physical blow with a short stagger, unless <paramref name="cosmetic"/> -- then the arrow shown flying there
         /// from <paramref name="shownFrom"/> (the bow's nock), and on past the flat range falling at <paramref name="fallSpeed"/> if it met nothing.
-        /// Says whether and where it hit, for the bow's own feedback.
+        /// Says whether and where it hit, for the bow's own feedback. <paramref name="burning"/>: it burns (the Fire Enhancement).
         /// </summary>
         public static ArrowProjectile Loose(GameObject prefab, Vector3 traceFrom, Vector3 shownFrom, Vector3 direction, float flatRange, float fallSpeed,
-            float damage, float penetration, GameObject striker, Collider[] ignore, bool cosmetic, out bool hitSomething, out Vector3 hitPoint)
+            float damage, float penetration, GameObject striker, Collider[] ignore, bool cosmetic, out bool hitSomething, out Vector3 hitPoint,
+            bool burning = false)
         {
             direction = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector3.forward;
             hitSomething = Sweep(traceFrom, direction, flatRange, ignore, out RaycastHit hit);
             hitPoint = hitSomething ? hit.point : traceFrom + direction * flatRange;
             if (hitSomething && !cosmetic)
             {
-                Strike(hit.collider, damage, traceFrom, penetration, striker, hit.point);
+                Strike(hit.collider, damage, traceFrom, penetration, striker, hit.point, burning);
             }
             Vector3 shown = hitPoint - shownFrom;
             return Show(prefab, shownFrom, hitPoint, hitSomething ? hit.collider : null, shown.sqrMagnitude > 1e-4f ? shown.normalized : direction,
-                fallSpeed, damage, penetration, striker, ignore, cosmetic);
+                fallSpeed, damage, penetration, striker, ignore, cosmetic, burning);
         }
 
         /// <summary>
@@ -71,7 +83,7 @@ namespace CityX.Weapons
         /// <paramref name="flatEnd"/>, sticking in <paramref name="flatHit"/> there (null: it met nothing, and falls on from there).
         /// </summary>
         public static ArrowProjectile Show(GameObject prefab, Vector3 from, Vector3 flatEnd, Collider flatHit, Vector3 direction, float fallSpeed,
-            float damage, float penetration, GameObject striker, Collider[] ignore, bool cosmetic)
+            float damage, float penetration, GameObject striker, Collider[] ignore, bool cosmetic, bool burning = false)
         {
             if (prefab == null)
             {
@@ -93,6 +105,7 @@ namespace CityX.Weapons
             arrow._striker = striker;
             arrow._ignore = ignore;
             arrow.Cosmetic = cosmetic;
+            arrow.Burning = burning;
             arrow.CurrentPhase = Phase.Flat;
             arrow._trail = instance.GetComponentInChildren<TrailRenderer>();
             foreach (Collider c in instance.GetComponentsInChildren<Collider>())
@@ -120,6 +133,10 @@ namespace CityX.Weapons
                 default:
                     Age(deltaTime);
                     break;
+            }
+            if (Burning && (CurrentPhase != Phase.Stuck || _stuckFor < BurningStuckSeconds))
+            {
+                FireScene.BurnAlong(Head, Head - transform.forward * BurningShaftMetres, BurningStrength, 1.0f, deltaTime);
             }
         }
 
@@ -165,7 +182,7 @@ namespace CityX.Weapons
             {
                 if (!Cosmetic)
                 {
-                    Strike(hit.collider, _damage, from, _penetration, _striker, hit.point);
+                    Strike(hit.collider, _damage, from, _penetration, _striker, hit.point, Burning);
                 }
                 Stick(hit.point, direction, hit.collider);
                 return;
@@ -201,8 +218,11 @@ namespace CityX.Weapons
             return found;
         }
 
-        /// <summary>The blow: physical (armour stops a share, a guard can turn it), a short stagger, Firearm Damage already in <paramref name="damage"/>.</summary>
-        private static void Strike(Collider what, float damage, Vector3 from, float penetration, GameObject striker, Vector3 point)
+        /// <summary>
+        /// The blow: physical (armour stops a share, a guard can turn it), a short stagger, Firearm Damage already in <paramref name="damage"/>;
+        /// <paramref name="burning"/>, its fire after it.
+        /// </summary>
+        private static void Strike(Collider what, float damage, Vector3 from, float penetration, GameObject striker, Vector3 point, bool burning)
         {
             IDamageable target = what.GetComponentInParent<IDamageable>();
             if (target == null || (!target.IsAlive && !Dismemberer.TakesCorpseHits(target)))   // a corpse can still be taken apart (docs/DISMEMBERMENT.md)
@@ -211,6 +231,10 @@ namespace CityX.Weapons
             }
             bool wasAlive = target.IsAlive;
             DamageContext.Strike(target, damage, from, CombatTuning.HitstunSeconds * 0.5f, DamageKind.Physical, penetration, point, striker);
+            if (burning)
+            {
+                FireEnhancementAbility.Burn(target, point, striker);
+            }
             PlayerVitals shooter = striker != null ? striker.GetComponent<PlayerVitals>() : null;
             if (wasAlive && !target.IsAlive && shooter != null && target is IXpReward reward)
             {
@@ -233,10 +257,15 @@ namespace CityX.Weapons
                 _trail.emitting = false;
             }
             ArcherySounds.PlayImpact(point, character);
+            if (Burning && !Cosmetic)
+            {
+                FireScene.Ignite(point, CityX.World.FireRules.SparkIgniteRadius, true, _striker);   // lights gasoline where it lands
+            }
         }
 
         private void Age(float deltaTime)
         {
+            _stuckFor += deltaTime;
             StuckSecondsRemaining -= deltaTime;
             if (StuckSecondsRemaining <= 0.0f || StuckTo == null)
             {

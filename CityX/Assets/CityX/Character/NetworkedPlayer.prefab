@@ -143,6 +143,12 @@ PrefabInstance:
       addedObject: {fileID: 7682615926011429341}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 2563387561591722571}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8019551475507903044}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 696711509978025582}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -158,7 +164,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 53655822288470338}
+      addedObject: {fileID: 5193043028576312738}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -467,6 +473,8 @@ MonoBehaviour:
     Prefab: {fileID: 9062226436208654046, guid: a528b041a0c2f054ba7836b7a4364708, type: 3}
   - ItemId: healing_staff
     Prefab: {fileID: 2273278443820730224, guid: 614af98a029a05e44baac925d0c615be, type: 3}
+  - ItemId: flashlight
+    Prefab: {fileID: 1654641650622879881, guid: ac8bca465de894f40a11be31575e9829, type: 3}
   - ItemId: jerry_can
     Prefab: {fileID: 6009600437600694734, guid: 2b819f8fa5a05e940b5aab6407ad6175, type: 3}
   - ItemId: bow
@@ -836,6 +844,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ebf8c8e8d3aec1a4da787c7802336320, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.HealingAuraAbility
+--- !u!114 &2563387561591722571
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c62c7e7659128c46b7ca0d014d96725, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.FireEnhancementAbility
+--- !u!114 &8019551475507903044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d96f37b9067f83c4ab771d0cf5b0edab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.FlashlightSync
 --- !u!114 &696711509978025582
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -899,7 +931,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &53655822288470338
+--- !u!114 &5193043028576312738
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -192,18 +192,12 @@ namespace CityX.WeaponsEditor
         /// <summary>A turned shape saved as a mesh asset in the staffs' folder (shared by every staff that uses it).</summary>
         private static Mesh Turned(Vector2[] profile, string name, int sides)
         {
-            Mesh scratch = HeldModelBaker.Lathe(profile, name, sides);
-            Mesh saved = HeldModelBaker.Save($"{Folder}/{name}.asset", name, scratch.vertices, scratch.normals, scratch.triangles);
-            Object.DestroyImmediate(scratch);
-            return saved;
+            return HeldModelBaker.Turned($"{Folder}/{name}.asset", profile, name, sides);
         }
 
         private static void Part(GameObject root, string name, Mesh mesh, Material material)
         {
-            var part = new GameObject(name);
-            part.transform.SetParent(root.transform, false);
-            part.AddComponent<MeshFilter>().sharedMesh = mesh;
-            part.AddComponent<MeshRenderer>().sharedMaterial = material;
+            HeldModelBaker.Part(root.transform, name, mesh, material);
         }
     }
 }

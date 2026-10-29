@@ -16,7 +16,7 @@ namespace CityX.Weapons
 
         /// <summary>The events other players are sent (<see cref="AbilityEvent.Kind"/>).</summary>
         public const int Drawing = 0;   // Direction the aim; A the draw, 0..1
-        public const int Loosed = 1;    // Origin the nock, Direction the arrow's; A the draw
+        public const int Loosed = 1;    // Origin the nock, Direction the arrow's; A the draw; N 1 for a burning arrow (the Fire Enhancement)
         public const int Lowered = 2;
 
         /// <summary>How often a draw is told, seconds, and how long a copy keeps the bow up past the last word of it.</summary>
@@ -49,7 +49,8 @@ namespace CityX.Weapons
 
         public void TellDrawing(Vector3 aim, float draw) => Fired?.Invoke(new AbilityEvent(Drawing, transform.position, aim, draw));
 
-        public void TellLoosed(Vector3 nock, Vector3 direction, float draw) => Fired?.Invoke(new AbilityEvent(Loosed, nock, direction, draw));
+        public void TellLoosed(Vector3 nock, Vector3 direction, float draw, bool burning = false) =>
+            Fired?.Invoke(new AbilityEvent(Loosed, nock, direction, draw, 0.0f, burning ? 1 : 0));
 
         public void TellLowered() => Fired?.Invoke(new AbilityEvent(Lowered, transform.position, Vector3.zero));
 
@@ -84,7 +85,7 @@ namespace CityX.Weapons
                     }
                     float draw = ArcheryRules.Clamp(evt.A);
                     ArrowProjectile.Loose(ArrowPrefab, evt.Origin, evt.Origin, evt.Direction.normalized, ArcheryRules.FlatRangeFor(draw),
-                        ArcheryRules.FallSpeedFor(draw), 0.0f, 0.0f, gameObject, GetComponentsInChildren<Collider>(), cosmetic: true, out _, out _);
+                        ArcheryRules.FallSpeedFor(draw), 0.0f, 0.0f, gameObject, GetComponentsInChildren<Collider>(), cosmetic: true, out _, out _, evt.N == 1);
                     if (Application.isPlaying)
                     {
                         AudioSource.PlayClipAtPoint(ArcherySounds.Twang, evt.Origin, 0.7f);
