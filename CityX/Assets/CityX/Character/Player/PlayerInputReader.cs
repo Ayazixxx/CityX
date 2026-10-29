@@ -438,6 +438,10 @@ namespace CityX.Character
                 // StopThrustEffects just above) rather than once, so it also
                 // catches a jetpack that gets equipped mid-ragdoll.
                 EquippedFlightGear?.ResetTilt();
+                if (_grappleSwing != null && _grappleSwing.IsRoped)
+                {
+                    TickRopedSwing(keyboard, deltaTime);   // the rope's controls while the body hangs limp from it (GrappleSwing.Rope.cs)
+                }
 
                 // A DEATH RAGDOLL NEVER TICKS ANY OF THIS -- IsDead is
                 // checked here directly rather than relying on the ordinary

@@ -46,6 +46,7 @@ namespace CityX.Tests
         public override void Setup()
         {
             base.Setup();
+            GrappleSwing.RagdollMode = false;   // the upright swing: what this file guards (the ragdoll one has RopeSwingPlayTests)
             _keyboard = InputSystem.AddDevice<Keyboard>();
             _mouse = InputSystem.AddDevice<Mouse>();
         }
@@ -53,6 +54,7 @@ namespace CityX.Tests
         [UnityTearDown]
         public IEnumerator UnityTearDown()
         {
+            GrappleSwing.RagdollMode = true;
             if (_scene.IsValid() && _scene.isLoaded)
             {
                 // Re-set rather than trusting it to still be true from the

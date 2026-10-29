@@ -432,6 +432,10 @@ namespace CityX.UI
                     CelShadeCommand(line.Argument(0));
                     return;
 
+                case "grapple":
+                    GrappleCommand(line.Argument(0));
+                    return;
+
                 case "outlines":
                     OutlinesCommand(line.Argument(0));
                     return;

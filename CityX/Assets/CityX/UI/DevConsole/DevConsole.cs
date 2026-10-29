@@ -136,6 +136,7 @@ namespace CityX.UI
             "spawn",
             "car",
             "celshade",
+            "grapple",
             "outlines",
             "equip",
             "unequip",
@@ -172,6 +173,7 @@ namespace CityX.UI
                     "any item /equip takes> [how many, up to 30]";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade [on|off] -- the cel look (cel-shaded light and thick black lines) on or off";
+                case "grapple": return "/grapple [ragdoll|classic] -- the grapple swing hangs the body limp from the rope (ragdoll, the default) or keeps the upright swing (classic)";
                 case "outlines": return "/outlines <pixels> -- the black lines' width on a screen 1080 tall (2 by default; 0 draws none)";
                 case "equip": return "/equip <bottle|cloak|coat|tshirt|bloodraven|redcamo|grapple|pistol|flamethrower|jetpack|parachute|" +
                     "knight_helmet|jeans|spikesword|combatsword|ak47|crowbar|bat|spraycan|shield|staff|firestaff|icestaff|waterstaff|flamestaff|bow|crossbow>";

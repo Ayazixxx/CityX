@@ -102,6 +102,7 @@ namespace CityX.Weapons
         private Transform _wearerRoot;
 
         private PlayerLocomotion _wearerLocomotion;
+        private Ragdoll _wearerRagdoll;
 
         // Rope + hook head live in the WORLD, not under this item: both span
         // from the hand to an anchor tens of metres away, and a child of a
@@ -328,7 +329,9 @@ namespace CityX.Weapons
         /// </summary>
         private Vector3 RopeOrigin()
         {
-            if (_wearerRoot == null)
+            // Hanging limp from the rope (GrappleSwing.Rope.cs) the root stays where the body left the ground and the hand rides the ragdoll's
+            // forearm, moved by physics, not the Animator: the rope comes from the hook in that hand.
+            if (_wearerRoot == null || (_wearerRagdoll != null && _wearerRagdoll.IsLimp))
             {
                 return Muzzle != null ? Muzzle.position : transform.position;
             }
@@ -384,6 +387,7 @@ namespace CityX.Weapons
             // know who that is.
             _wearerRoot = player.transform;
             _wearerLocomotion = player.GetComponent<PlayerLocomotion>();
+            _wearerRagdoll = player.GetComponent<Ragdoll>();
 
             var swing = player.GetComponent<GrappleSwing>();
             if (swing != null)

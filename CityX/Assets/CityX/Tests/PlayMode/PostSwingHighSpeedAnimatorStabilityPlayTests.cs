@@ -47,9 +47,16 @@ namespace CityX.Tests
 
         private const float StepSeconds = 1.0f / 60.0f;
 
+        [SetUp]
+        public void SetUp()
+        {
+            GrappleSwing.RagdollMode = false;   // the upright swing: what this file guards (the ragdoll one has RopeSwingPlayTests)
+        }
+
         [TearDown]
         public void TearDown()
         {
+            GrappleSwing.RagdollMode = true;
             Time.captureDeltaTime = 1.0f / SteadyFrameTime.FramesPerSecond;   // back to the run's steady frame time, not off
             if (_player != null) Object.Destroy(_player);
             if (_ground != null) Object.Destroy(_ground);

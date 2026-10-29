@@ -48,6 +48,7 @@ namespace CityX.Tests
         public override void Setup()
         {
             base.Setup();
+            GrappleSwing.RagdollMode = false;   // the upright swing: what this file guards (the ragdoll one has RopeSwingPlayTests)
             _keyboard = InputSystem.AddDevice<Keyboard>();
             _mouse = InputSystem.AddDevice<Mouse>();
         }
@@ -55,6 +56,7 @@ namespace CityX.Tests
         [UnityTearDown]
         public IEnumerator UnityTearDown()
         {
+            GrappleSwing.RagdollMode = true;
             // See LocomotionAnimatorStabilityPlayTests's own TearDown
             // comment for why this is set and why it must always be
             // cleared, pass or fail. Bug, found live while

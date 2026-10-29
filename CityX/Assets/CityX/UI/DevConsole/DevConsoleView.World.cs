@@ -273,6 +273,14 @@ namespace CityX.UI
             Log("cel shading " + (on ? "on" : "off"));
         }
 
+        /// <summary>/grapple [ragdoll|classic]: the swing hangs the body limp from the rope (GrappleSwing.RagdollMode) or keeps the upright swing; with no word, the other way.</summary>
+        private void GrappleCommand(string which)
+        {
+            bool ragdoll = which == "ragdoll" || (which != "classic" && !CityX.Character.GrappleSwing.RagdollMode);
+            CityX.Character.GrappleSwing.RagdollMode = ragdoll;
+            Log("grapple swing " + (ragdoll ? "ragdoll" : "classic"));
+        }
+
         /// <summary>/outlines &lt;pixels&gt;: the black lines' width on a screen 1080 tall (scaled to this one); 0 draws none.</summary>
         private void OutlinesCommand(string pixels)
         {

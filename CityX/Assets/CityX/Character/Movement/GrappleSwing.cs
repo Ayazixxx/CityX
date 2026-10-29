@@ -75,7 +75,7 @@ namespace CityX.Character
     /// doing exactly that so a dead player is never left visibly tethered.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public sealed class GrappleSwing : MonoBehaviour
+    public sealed partial class GrappleSwing : MonoBehaviour
     {
         // --- player.gd's own GRAPPLE_* constants, unchanged. ---
 
@@ -200,6 +200,7 @@ namespace CityX.Character
         {
             _controller = GetComponent<CharacterController>();
             _locomotion = GetComponent<PlayerLocomotion>();
+            BindRope();
             if (_locomotion != null)
             {
                 Gravity = _locomotion.Gravity;
@@ -253,6 +254,13 @@ namespace CityX.Character
             _ropeLength = Mathf.Clamp(
                 Vector3.Distance(transform.position, anchor), MinRopeLength, MaxRopeLength);
             _velocity = initialVelocity ?? (_locomotion != null ? _locomotion.Velocity : Vector3.zero);
+            // The ragdoll swing (GrappleSwing.Rope.cs): off the ground with the rope taut, the body goes limp on a rope tied to its hand and physics
+            // does the rest; hooked from the ground it runs with the rope as before, and hangs once it swings off it (Tick). Before IsActive: the
+            // ragdoll's own Activate releases an active swing instead of going limp.
+            if (RopeDue(anchor))
+            {
+                TryAttachRope(anchor, _velocity);
+            }
             IsActive = true;
             _groundTime = 0.0f;
             _elapsedSeconds = 0.0f;
@@ -277,6 +285,11 @@ namespace CityX.Character
         {
             if (!IsActive)
             {
+                return;
+            }
+            if (IsRoped)
+            {
+                ReleaseRope(boosted);
                 return;
             }
             IsActive = false;
@@ -315,6 +328,11 @@ namespace CityX.Character
         {
             if (!IsActive)
             {
+                return;
+            }
+            if (IsRoped || (RopeDue(_anchor) && TryAttachRope(_anchor, _velocity)))
+            {
+                TickRoped(moveInput, yawDegrees, boostedReleasePressed, plainReleasePressed, reelHeld, payoutHeld, deltaTime);
                 return;
             }
 

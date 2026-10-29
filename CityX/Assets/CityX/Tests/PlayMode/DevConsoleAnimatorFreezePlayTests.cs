@@ -33,9 +33,20 @@ namespace CityX.Tests
 
         private const float StepSeconds = 1.0f / 60.0f;
 
+        /// <summary>
+        /// The classic, upright swing: the ragdoll swing (docs/GRAPPLE_RAGDOLL.md, the default since 2026-10-28) hangs the body limp with the
+        /// Animator off on purpose, as a knockdown does, and the console's business with it is RopeSwingPlayTests'.
+        /// </summary>
+        [SetUp]
+        public void SetUp()
+        {
+            GrappleSwing.RagdollMode = false;
+        }
+
         [TearDown]
         public void TearDown()
         {
+            GrappleSwing.RagdollMode = true;
             Time.captureDeltaTime = 1.0f / SteadyFrameTime.FramesPerSecond;   // back to the run's steady frame time, not off
             // Open() now pauses real time when no NetworkBootstrap is wired
             // (treated as Singleplayer -- see its own doc comment), and
