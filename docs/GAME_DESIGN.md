@@ -111,6 +111,14 @@ Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-sh
 - **Teleport crystals** (an item: works on controller, dropped on death, tradeable) with a hotkey or menu shortcut.
 - **10 s charge**, cancelled by taking damage or moving. **Blocked** for 15 s after any player fight, during a siege, and in enemy territory.
 - Takes you home or to waypoints you have found yourself, never anywhere deeper. **Home is your bed**: the bed in your claimed room is your sethome for teleport crystals (owner, 2026-10-18; it is not a respawn point). Without one, the faction base, else the hub (the order is not decided).
+- **Owner, 2026-10-30 (how you get to the hub, also if you skip the tutorial):**
+  - **Crystals are found, not handed out, but fairly common.** Most NPC quests give some along with their other rewards.
+  - **A crystal takes you to one of your homes, the hub, or a player you have met (if they accept).**
+  - **At medium level you get an item like Terraria's Magic Mirror:** it teleports you back to your base with no crystal needed.
+  - Flying up to the sky island (jetpack, wings) is possible but high-level.
+- My notes (not decided): a player who skips the tutorial starts with no crystals, so until they find one their ways up are dying (you respawn in the hub) or, my
+  suggestion, a few free lift points in the starting streets. Whether the mirror keeps the crystals' 10 s charge and fight block is open (Terraria's mirror
+  has neither, but an instant way home would be an escape from every fight).
 
 ## Character progression
 
