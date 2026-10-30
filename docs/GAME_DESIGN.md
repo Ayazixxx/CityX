@@ -76,6 +76,9 @@ My suggestions (not decided): the hub gives you a parachute for the drop (or a d
 The owner's plan:
 
 - **Old Guy asks you to help clear out his house.** Inside you find basic clothing and a basic weapon (a baseball bat, a kitchen knife).
+  **Update (owner, 2026-10-30):** the three starter weapons, **the Kitchen Knife, the Magic Wand and the Slingshot**, are all findable in the tutorial building, and
+  players keep using whichever they like best; **the Butter Knife and the Baseball Bat are hidden** somewhere in it. The owner wants the tutorial building
+  carefully designed by hand (reference: Garry's Mod maps), not generated like the rest of the city, whose interiors (bar the staircases) are barely started.
 - **He explains the basic mechanics** the game needs: spells, skill trees, stats.
 - **The faction.** He explains factions and suggests starting one together. If you say yes, **he has you create the faction** (you lead it, he joins), then teaches claiming a base. Claiming it ends the tutorial proper.
 - **The cutscene.** Someone bursts in the door, shoots Old Guy dead and aims the gun at you. Someone else shoots magic through the gunman's head and saves you at the last second. More lore follows and leads to them showing you **the hub**, where the tutorial ends.
