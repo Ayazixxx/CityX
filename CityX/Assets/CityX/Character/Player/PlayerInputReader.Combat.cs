@@ -309,7 +309,7 @@ namespace CityX.Character
                         : (Camera.main != null ? Camera.main.transform : null);
                     if (yawSource != null)
                     {
-                        Vector3 direction = -yawSource.forward;
+                        Vector3 direction = ThrowDirection(yawSource);
                         Vector3 origin = transform.position + Vector3.up * (_melee.OriginHeightFraction *
                             (_locomotion != null ? _locomotion.WorldHeight : 1.8f)) + direction * 0.5f;
                         weapon.Throw(gameObject, origin, direction);

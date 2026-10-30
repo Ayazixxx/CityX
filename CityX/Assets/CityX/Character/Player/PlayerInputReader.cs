@@ -172,6 +172,12 @@ namespace CityX.Character
             return toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : look;
         }
 
+        /// <summary>
+        /// Which way a thrown thing (a grenade, a bottle) leaves the hand: where the camera looks. It was the camera's back (ported from
+        /// Godot, whose forward is -Z), so a grenade flew behind the thrower (owner, 2026-10-29).
+        /// </summary>
+        public static Vector3 ThrowDirection(Transform camera) => camera.forward;
+
         /// <summary>How far the crosshair is looked along for what it rests on (past it, the line runs to this point).</summary>
         public const float CrosshairReach = 300.0f;
 
