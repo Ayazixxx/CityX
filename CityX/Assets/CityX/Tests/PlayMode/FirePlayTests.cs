@@ -112,6 +112,17 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>Made when the first fire was lit, the noise stopped the game for a tenth of a second: it is worked out as the game starts.</summary>
+        [UnityTest]
+        public IEnumerator TheFiresNoiseIsWorkedOutAsTheGameStartsNotWhenTheFirstFireIsLit()
+        {
+            for (float waited = 0.0f; waited < 3.0f && !FireSprites.NoiseWorkedOut; waited += Time.unscaledDeltaTime)
+            {
+                yield return null;
+            }
+            Assert.IsTrue(FireSprites.NoiseWorkedOut, "the fire's noise was not worked out by itself as the game started");
+        }
+
         [UnityTest]
         public IEnumerator TheFlameStaffLightsAPouredTrailAndTheFireRunsAlongIt()
         {

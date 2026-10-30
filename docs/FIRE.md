@@ -52,7 +52,9 @@ smoothstep, so the edges tear into licks instead of being cut), coloured by a bl
 fastest: dark red, orange, yellow, white-hot in the core) with values past 1 so the game's bloom makes the core glow. Each particle hands
 the shader its own random number and its age through vertex streams, so no two flames burn alike and each is born fast and burns away from
 its tips. The noise is a tileable fractal made in code once a session (R fine, G coarse), so it scrolls up through the flames forever
-without a seam. Flames are premultiplied (they add their light and hide only part of what is behind them, so they glow at night and stay
+without a seam. It is worked out on another thread as the game starts: made when the first fire was lit, it stopped the game for
+123 ms; now the first fire takes about 2 ms to make it (the gradients' sines and cosines are also looked up, no longer worked out per
+pixel). Flames are premultiplied (they add their light and hide only part of what is behind them, so they glow at night and stay
 orange against a bright sky, where an additive flame washed out pink); the smoke is lit orange by the fire while young and cools to grey.
 Under them an additive orange glow on the ground and embers that rise, drift and fall, bright enough for the bloom. All fade where they meet
 the street or a wall (soft particles) and close to the camera. Six flickering point lights park over the hottest clusters. Cells past 60 m

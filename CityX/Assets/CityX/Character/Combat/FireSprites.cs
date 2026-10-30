@@ -26,6 +26,7 @@ namespace CityX.Character
         public const int CoarseOctaves = 3;
 
         private static Texture2D _noise;
+        private static System.Threading.Tasks.Task<Color[]> _noisePixels;
         private static Texture2D _dot;
         private static Material _flames;
         private static Material _smoke;
@@ -85,7 +86,32 @@ namespace CityX.Character
             return _dot;
         }
 
+        /// <summary>
+        /// The noise worked out on another thread as the game starts (pure maths, about a tenth of a second of it), so the first fire to be
+        /// lit does not stop the game while it is made; the texture itself is made from it on first use.
+        /// </summary>
+        public static bool NoiseWorkedOut => _noisePixels != null && _noisePixels.IsCompleted;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void StartNoise()
+        {
+            _noisePixels ??= System.Threading.Tasks.Task.Run(NoisePixels);
+        }
+
         private static Texture2D BuildNoise()
+        {
+            StartNoise();
+            Color[] pixels = _noisePixels.Result;   // waits only for a fire lit before the noise is done
+            var texture = new Texture2D(NoiseSize, NoiseSize, TextureFormat.RGBA32, true, true)
+            {
+                name = "FireNoise", wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear,
+            };
+            texture.SetPixels(pixels);
+            texture.Apply(true, false);
+            return texture;
+        }
+
+        private static Color[] NoisePixels()
         {
             int[] permutation = Permutation(20261029);
             var fine = new float[NoiseSize * NoiseSize];
@@ -107,13 +133,7 @@ namespace CityX.Character
             {
                 pixels[i] = new Color(fine[i], coarse[i], 0.0f, 1.0f);
             }
-            var texture = new Texture2D(NoiseSize, NoiseSize, TextureFormat.RGBA32, true, true)
-            {
-                name = "FireNoise", wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear,
-            };
-            texture.SetPixels(pixels);
-            texture.Apply(true, false);
-            return texture;
+            return pixels;
         }
 
         /// <summary>Fractal noise that tiles over 0..1: each octave a gradient noise whose lattice wraps at its own cell count.</summary>
@@ -153,9 +173,22 @@ namespace CityX.Character
 
         private static float Dot(int[] permutation, int x, int y, float dx, float dy)
         {
-            int hash = permutation[(permutation[x & 255] + y) & 255];
-            float angle = hash * (Mathf.PI * 2.0f / 256.0f);
-            return Mathf.Cos(angle) * dx + Mathf.Sin(angle) * dy;
+            Vector2 gradient = Gradients[permutation[(permutation[x & 255] + y) & 255]];
+            return gradient.x * dx + gradient.y * dy;
+        }
+
+        /// <summary>The 256 directions a lattice point's gradient can take, worked out once (a sine and a cosine per lookup were most of the noise's cost).</summary>
+        private static readonly Vector2[] Gradients = MakeGradients();
+
+        private static Vector2[] MakeGradients()
+        {
+            var gradients = new Vector2[256];
+            for (int hash = 0; hash < 256; hash++)
+            {
+                float angle = hash * (Mathf.PI * 2.0f / 256.0f);
+                gradients[hash] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            }
+            return gradients;
         }
 
         private static int Wrap(int value, int period)
