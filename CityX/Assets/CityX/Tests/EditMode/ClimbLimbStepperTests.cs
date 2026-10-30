@@ -114,8 +114,9 @@ namespace CityX.Tests
         {
             Run run = Climb(1, 6.0f);
             Assert.GreaterOrEqual(run.DeepestIntoWall, 0.0f, $"a hold was {-run.DeepestIntoWall:F2} m inside the wall");
-            // An ankle sits a foot's height off the face (the sole is pressed flat on it), and a stepping limb lifts a little more.
-            Assert.Less(run.FarthestOffWall, ClimbLimbStepper.FootOffWall + ClimbLimbStepper.LiftMetres + 0.01f, "a hold was nowhere near the wall");
+            // A palm or a toe just off the face, and a stepping limb lifts a little more.
+            float offWall = Mathf.Max(ClimbLimbStepper.HandOffWall, ClimbLimbStepper.FootOffWall);
+            Assert.Less(run.FarthestOffWall, offWall + ClimbLimbStepper.LiftMetres + 0.01f, "a hold was nowhere near the wall");
         }
 
         // ---- the second pass: holds a climber could really use, and sideways ------------------------------------------------------------------

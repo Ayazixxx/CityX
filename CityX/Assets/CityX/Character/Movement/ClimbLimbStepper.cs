@@ -17,8 +17,11 @@ namespace CityX.Character
     /// each limb has a REST hold (a hand a little above its shoulder and out to the side, a foot below its hip and out) plus a REACH in the direction of travel, so
     /// climbing up the hands reach for holds the arm can only get to bent and the feet step up beside the hips (a frog's push), climbing down the feet lead and the
     /// hands follow at shoulder height, and shuffling sideways the leading hand and foot reach out along the wall and the trailing ones follow. A limb steps when it has
-    /// been left behind ALONG THE DIRECTION OF TRAVEL, whatever that direction is, so a change of direction re-plants the holds one pair at a time. The sole of a foot
-    /// is pressed flat on the wall (PlayerLocomotion turns it), so a foot's hold is a foot's height off the face.
+    /// been left behind ALONG THE DIRECTION OF TRAVEL, whatever that direction is, so a change of direction re-plants the holds one pair at a time.
+    ///
+    /// THE FROG (owner, 2026-10-30, with a video of a Unity climbing system: "the bottom of the feet is pressed flat on the wall instead of it being like the
+    /// tip of the toes"): a foot's hold is where its TOE touches the wall (ClimbToeHold turns the foot and finds the ankle), the feet sit higher and wider
+    /// under the hips so the knees bend out to the sides, and the hands hold higher and wider so the elbows go out rather than the fists sitting at the face.
     ///
     /// The rules, all testable: every anchor is ON the wall surface (never inside it); an anchor does not move while its limb holds; a limb steps only when it is
     /// left behind; only one diagonal pair steps at a time; both hands never step together; a step lasts a fixed short time with a small lift off the wall; the hands
@@ -57,22 +60,22 @@ namespace CityX.Character
         public const float Lead = 0.10f;
 
         /// <summary>How far outside the shoulder line the hands hold, and outside the hip line the feet, in limb lengths.</summary>
-        public const float SpreadHand = 0.26f;
+        public const float SpreadHand = 0.30f;
 
-        public const float SpreadFoot = 0.30f;
+        public const float SpreadFoot = 0.38f;
 
-        /// <summary>A hand's rest hold is this far above its shoulder, in arm lengths (about chin height: bent, not stretched).</summary>
-        public const float HandRestUp = 0.22f;
+        /// <summary>A hand's rest hold is this far above its shoulder, in arm lengths (beside the head, the elbow out and down under it: bent, not stretched).</summary>
+        public const float HandRestUp = 0.50f;
 
-        /// <summary>A foot's rest hold is this far below its hip, in leg lengths.</summary>
-        public const float FootRestDown = 0.42f;
+        /// <summary>A foot's rest hold is this far below its hip, in leg lengths: the knees bend out to the sides, a frog's, not a dangling straight leg.</summary>
+        public const float FootRestDown = 0.32f;
 
-        /// <summary>How far a hand reaches along the travel, in arm lengths: far when climbing up (the hands lead), less sideways (a starfish otherwise), a little when climbing down (the feet lead).</summary>
-        public const float HandReachUp = 0.42f;
+        /// <summary>How far a hand reaches along the travel, in arm lengths: the hands already hold high, so a little more going up; along the wall going sideways; down toward the shoulders going down (the feet lead).</summary>
+        public const float HandReachUp = 0.20f;
 
         public const float HandReachSide = 0.32f;
 
-        public const float HandReachDown = 0.18f;
+        public const float HandReachDown = 0.30f;
 
         /// <summary>How far a foot reaches along the travel, in leg lengths: a high step beside the hip going up; a shuffle sideways; a long reach going down.</summary>
         public const float FootReachUp = 0.26f;
@@ -92,11 +95,11 @@ namespace CityX.Character
             return sideways ? FootReachSide : (travel.y > 0.0f ? FootReachUp : FootReachDown);
         }
 
-        /// <summary>A hand's hold sits this far off the wall surface, metres (a palm is not flush with it).</summary>
-        public const float HandOffWall = 0.03f;
+        /// <summary>A hand's hold (the wrist) sits this far off the wall surface, metres: the palm, turned flat on the wall, is about this thick.</summary>
+        public const float HandOffWall = 0.05f;
 
-        /// <summary>A foot's hold is the ANKLE: with the sole pressed flat on the wall, the ankle is a foot's height off the face.</summary>
-        public static readonly float FootOffWall = BodyRig.FootY + 0.01f;
+        /// <summary>A foot's hold is its TOE, just off the face (the foot points into the wall on its toes, ClimbToeHold).</summary>
+        public const float FootOffWall = 0.01f;
 
         private readonly Vector3[] _anchor = new Vector3[4];
         private readonly Vector3[] _from = new Vector3[4];

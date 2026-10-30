@@ -28,7 +28,7 @@ namespace CityX.Character
             float offset = Vector3.Dot(point - _climbWallPoint, normal);
             if (LedgeProbe.SolidHit(point + normal * 0.5f, -normal, 1.0f, transform, out RaycastHit hit) && Mathf.Abs(hit.normal.y) < 0.5f)
             {
-                return hit.point + normal * Mathf.Clamp(offset, 0.0f, 0.17f);   // room for an ankle with its sole flat on the wall (ClimbLimbStepper.FootOffWall)
+                return hit.point + normal * Mathf.Clamp(offset, 0.0f, 0.17f);
             }
             return point;
         }
@@ -95,20 +95,49 @@ namespace CityX.Character
                 _head.rotation = Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.AngleAxis(-pitch, across) * _head.rotation;
             }
 
+            // The elbows go out to the sides and down, the knees out to the sides (a frog's), both a little away from the wall.
             Vector3 elbowLeft = -Vector3.up * 0.5f - across * 0.9f + n * 0.3f;
             Vector3 elbowRight = -Vector3.up * 0.5f + across * 0.9f + n * 0.3f;
-            Vector3 kneeLeft = -across * 0.8f + n * 0.8f;
-            Vector3 kneeRight = across * 0.8f + n * 0.8f;
+            Vector3 kneeLeft = -across + n * ClimbKneeOffWall + Vector3.up * ClimbKneeUp;
+            Vector3 kneeRight = across + n * ClimbKneeOffWall + Vector3.up * ClimbKneeUp;
             TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, _climbStepper.Target(ClimbLimbStepper.Limb.LeftHand, n), elbowLeft, weight);
             TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, _climbStepper.Target(ClimbLimbStepper.Limb.RightHand, n), elbowRight, weight);
-            TwoBoneIK.Solve(_leftUpperLeg, _leftLowerLeg, _leftFoot, _climbStepper.Target(ClimbLimbStepper.Limb.LeftFoot, n), kneeLeft, weight);
-            TwoBoneIK.Solve(_rightUpperLeg, _rightLowerLeg, _rightFoot, _climbStepper.Target(ClimbLimbStepper.Limb.RightFoot, n), kneeRight, weight);
+            _handL.rotation = Quaternion.Slerp(_handL.rotation, PalmOnWall(n, true), weight);
+            _handR.rotation = Quaternion.Slerp(_handR.rotation, PalmOnWall(n, false), weight);
 
-            // THE SOLES PRESS FLAT ON THE WALL, toes down, as a climber's do: the ankle is held a foot's height off the face (ClimbLimbStepper.FootOffWall), so
-            // turning the foot sole-to-wall puts the sole on it. (The foot bone's own axes are the body's: +z toes, +y the top of the foot.)
-            Quaternion soleOnWall = Quaternion.LookRotation(Vector3.down, n);
-            _leftFoot.rotation = Quaternion.Slerp(_leftFoot.rotation, soleOnWall, weight);
-            _rightFoot.rotation = Quaternion.Slerp(_rightFoot.rotation, soleOnWall, weight);
+            // ON THE TOES: the stepper's foot hold is where the toe touches the wall; the foot points into the wall, so the ankle stands off it by the
+            // length of the foot (ClimbToeHold).
+            Quaternion toesLeft = ClimbToeHold.Rotation(n, true);
+            Quaternion toesRight = ClimbToeHold.Rotation(n, false);
+            Vector3 ankleLeft = ClimbToeHold.AnkleFor(_climbStepper.Target(ClimbLimbStepper.Limb.LeftFoot, n), toesLeft, n, _leftFoot.lossyScale.y);
+            Vector3 ankleRight = ClimbToeHold.AnkleFor(_climbStepper.Target(ClimbLimbStepper.Limb.RightFoot, n), toesRight, n, _rightFoot.lossyScale.y);
+            TwoBoneIK.Solve(_leftUpperLeg, _leftLowerLeg, _leftFoot, ankleLeft, kneeLeft, weight);
+            TwoBoneIK.Solve(_rightUpperLeg, _rightLowerLeg, _rightFoot, ankleRight, kneeRight, weight);
+            _leftFoot.rotation = Quaternion.Slerp(_leftFoot.rotation, toesLeft, weight);
+            _rightFoot.rotation = Quaternion.Slerp(_rightFoot.rotation, toesRight, weight);
+        }
+
+        /// <summary>How far a climbing knee bows away from the wall and up, for each unit it bows out to its side.</summary>
+        public const float ClimbKneeOffWall = 0.45f;
+
+        public const float ClimbKneeUp = 0.25f;
+
+        /// <summary>How far a climbing hand's fingers lean out from straight up the wall, toward its own side, degrees.</summary>
+        public const float ClimbFingersOutDegrees = 15.0f;
+
+        /// <summary>
+        /// A climbing hand's rotation: the PALM FLAT ON THE WALL, the fingers up it and leaning out, a hand holding the wall rather than a fist held at it. The
+        /// hand bones are the rig's own (built in a T-pose, every rotation the identity): the fingers run +X on the right hand and -X on the left, the palm is -Y.
+        /// </summary>
+        public static Quaternion PalmOnWall(Vector3 normal, bool left)
+        {
+            Vector3 up = Vector3.up - normal * Vector3.Dot(Vector3.up, normal);
+            up = up.sqrMagnitude > 1e-6f ? up.normalized : Vector3.Cross(normal, Vector3.right).normalized;
+            Vector3 side = ClimbLimbStepper.Across(normal) * (left ? -1.0f : 1.0f);
+            float lean = ClimbFingersOutDegrees * Mathf.Deg2Rad;
+            Vector3 fingers = up * Mathf.Cos(lean) + side * Mathf.Sin(lean);
+            Vector3 x = left ? -fingers : fingers;
+            return Quaternion.LookRotation(Vector3.Cross(x, normal), normal);
         }
 
         /// <summary>How far the chest leans in toward the wall while climbing, degrees.</summary>
@@ -130,8 +159,11 @@ namespace CityX.Character
 
         private Vector3 _climbWallNormal = Vector3.forward;
 
-        /// <summary>Hands and feet keep at least this far off the wall plane while climbing, in metres.</summary>
-        public const float HandWallClearance = 0.09f;
+        /// <summary>
+        /// Hands and feet keep at least this far off the wall plane while climbing, in metres. Under the stepper's own holds (ClimbLimbStepper.HandOffWall), so
+        /// the safety net leaves a palm on the wall alone: at 0.09 it re-bent every arm toward the camera, the forearms in front of the face.
+        /// </summary>
+        public const float HandWallClearance = 0.04f;
 
         public const float FootWallClearance = 0.11f;
 

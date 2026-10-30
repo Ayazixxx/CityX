@@ -12,7 +12,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: renders the wall climb on the real rig as a contact sheet to Logs/CityShots/climb-sheet.png (side view, a frame every 0.12 s while climbing up, then a
-    /// few climbing down) and climb-sheet-front.png (from in front of the wall, three-quarter). The camera follows the body. Explicit; needs -Graphics.
+    /// few climbing down) and climb-sheet-front.png (from in front of the wall, three-quarter), climb-sheet-sideways.png, and climb-toes.png (close up on the feet).
+    /// The camera follows the body. Explicit; needs -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class ClimbCapture
@@ -131,6 +132,38 @@ namespace CityX.Tests
                 File.WriteAllBytes(Path.Combine(directory, "climb-sheet-sideways.png"), (byte[])enc.Invoke(null, new object[] { sheet }));
                 Object.Destroy(sheet);
             }
+            // CLOSE UP (docs/CLIMBING.md, on the toes): partway up a climb, the legs and feet from the side along the wall, from behind and to the side,
+            // and the whole body from behind and to the side, perspective, to Logs/CityShots/climb-toes.png.
+            {
+                for (int i = 0; i < 50; i++)
+                {
+                    climbing.Tick(false, true, false, vitals, dt);
+                    yield return null;
+                }
+                camera.orthographic = false;
+                camera.fieldOfView = 40.0f;
+                camera.nearClipPlane = 0.05f;
+                const int Big = Cell * 2;
+                var sheet = new Texture2D(Big * 3, Big, TextureFormat.RGB24, false);
+                Vector3 p = player.transform.position;
+                Vector3[,] views =
+                {
+                    { p + new Vector3(2.0f, 0.9f, -0.1f), p + new Vector3(0.0f, 0.8f, 0.3f) },
+                    { p + new Vector3(1.4f, 0.4f, -1.6f), p + new Vector3(0.0f, 0.8f, 0.3f) },
+                    { p + new Vector3(2.6f, 2.0f, -3.6f), p + new Vector3(0.0f, 1.3f, 0.3f) },
+                };
+                for (int v = 0; v < 3; v++)
+                {
+                    Texture2D cell = Render(camera, views[v, 0], views[v, 1], Big);
+                    sheet.SetPixels(v * Big, 0, Big, Big, cell.GetPixels());
+                    Object.Destroy(cell);
+                }
+                sheet.Apply();
+                var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
+                var enc = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
+                File.WriteAllBytes(Path.Combine(directory, "climb-toes.png"), (byte[])enc.Invoke(null, new object[] { sheet }));
+                Object.Destroy(sheet);
+            }
             Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(cameraObject);
 #else
@@ -138,14 +171,14 @@ namespace CityX.Tests
 #endif
         }
 
-        private static Texture2D Render(Camera camera, Vector3 position, Vector3 lookAt)
+        private static Texture2D Render(Camera camera, Vector3 position, Vector3 lookAt, int size = Cell)
         {
             camera.transform.position = position;
             camera.transform.rotation = Quaternion.LookRotation(lookAt - position, Vector3.up);
-            RenderTexture rt = RenderTexture.GetTemporary(Cell, Cell, 24, RenderTextureFormat.ARGB32);
+            RenderTexture rt = RenderTexture.GetTemporary(size, size, 24, RenderTextureFormat.ARGB32);
             camera.targetTexture = rt; camera.Render(); RenderTexture.active = rt;
-            var image = new Texture2D(Cell, Cell, TextureFormat.RGB24, false);
-            image.ReadPixels(new Rect(0, 0, Cell, Cell), 0, 0); image.Apply();
+            var image = new Texture2D(size, size, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, size, size), 0, 0); image.Apply();
             camera.targetTexture = null; RenderTexture.active = null; RenderTexture.ReleaseTemporary(rt);
             return image;
         }

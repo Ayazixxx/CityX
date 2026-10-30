@@ -337,6 +337,35 @@ like this when i should just be running right over this".
 - **Measured from what the body stands on**, not the bottom of its capsule (`StandingOnY`): perched on a stair's nosing the rounded bottom dips
   below the tread under it, and an ordinary 0.22 m riser read as a 0.3 m step (the stairs test failed in full runs only).
 
+## Update: on the toes, knees out, palms on the wall (2026-10-30)
+
+Owner: "improve upon our climbing it looks terrible, the bottom of the feet is pressed flat on the wall instead of it being like the tip of the toes", with a
+video of a Unity ledge and free-climb system (shoseini's, shown by @Botan_cr on X, 2026-10-29) as the model: "use that video ... as inspirations or just copy
+it exactly". Studied frame by frame: the feet point INTO the wall and only the toes touch it, heels out; the knees bend out to the sides (a frog); the hands
+hold high, beside or over the head, the elbows out and down under them. A render of ours (`ClimbCapture`) showed the opposite: the soles flat on the wall,
+the legs hanging nearly straight under a vertical body, and the fists held at the face with the forearms in front of it.
+
+- **On the toes** (`Character/Movement/ClimbToeHold.cs`, pure): each foot points into the wall, turned out 22 degrees toward its own side, the heel 12 degrees
+  below level; the stepper's foot hold is now where the TOE touches the wall (`ClimbLimbStepper.FootOffWall` 1 cm, was the ankle a foot's height off it),
+  and the ankle is placed so the front of the body's own round toe (`FusedBodyShape`) lands on it, no other part of the foot nearer the wall.
+- **The frog**: the feet hold higher (0.32 leg lengths under the hip, was 0.42) and wider (0.38, was 0.30), and the knees bow out to the sides, a little up
+  and away from the wall (`ClimbKneeOffWall`, `ClimbKneeUp`).
+- **The hands**: hold beside the head (0.50 arm lengths over the shoulder, was 0.22) and a little wider, reaching less further going up (0.20) and more down
+  toward the shoulders climbing down (0.30); the PALM is turned flat on the wall, the fingers up it leaning 15 degrees out, the thumb inward
+  (`PlayerLocomotion.PalmOnWall`), the wrist 5 cm off the face (the palm's thickness).
+- **The safety net no longer fights the pose.** `ApplyClimbWallLimbs` (after the stepper) kept every hand 9 cm off the wall, more than the stepper's own
+  3 cm hold, so it re-solved every arm, every frame, with its own elbow hint (toward the camera): that was the forearms in front of the face, and the
+  left elbow 19 cm through the wall at the grab (`ClimbLimbsPlayTests`, failing every run since 2026-10-16). Its hand clearance is now 4 cm, under the
+  stepper's hold: the elbow now stays 1.4 cm from the face at worst and the test passes.
+- Other players see it: the copies run the same stepper and pose from the wall plane and travel they already receive.
+
+Tests: `ClimbToeHoldTests` (the foot points into the wall and its sole does not face it; each foot turns out to its own side; the toe lands on its hold and
+nothing else of the foot is nearer the wall, at two body sizes), `ClimbPalmTests`, `ClimbLimbsPlayTests.TheFeetClimbOnTheirToesWithTheKneesOut` (real rig: the
+feet point into the wall, the toes 1 to 3 cm off it, the knees 21 cm wider than the hips at least), `ClimbLimbStepperTests` (unchanged rules, new holds).
+`ClimbCapture` also renders `climb-toes.png` (the legs from the side and from behind, the whole body three-quarter).
+Not copied from the video: its ledge hang and shimmy with the fingers curled over the lip, corner wrapping, and inclined ledges (our ledges are pulled up
+onto, `LedgeProbe`).
+
 ## Update: onto a pitched roof (2026-10-15)
 
 `LedgeProbe` has a third kind of ledge (`TryFindSlope`) for the eaves of a pitched roof (`World/RoofShape`): the top is a walkable slope (at most 33 degrees,

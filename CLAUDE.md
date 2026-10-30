@@ -35,7 +35,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 
 ## Hard rules
 - **Multiplayer-first**: anything a player does or has (ability, held item, movement) must be visible to other players in the same commit: `IReplicatedAbility` or `ICosmeticMountable`, wired in `PlayerAbilityWiring` / `NetworkedPlayerWiring`, with a test. Guard tests enforce it. Spec: `docs/MULTIPLAYER_STATE.md`.
-- Every change gets tests. Run EditMode and PlayMode before committing. **Known failure, not yours:** `ClimbLimbsPlayTests.NoHandFootElbowOrKneeGoesThroughTheWallWhileClimbing` (the left elbow 19 cm through the wall at frame 28; since 2026-10-16 it fails every run, alone too, at 13741cc as well). `FootbridgePathWalkPlayTests.AStraightStreetStairIsClimbedOntoTheBridge` reports Inconclusive (shown as FAIL) when the seed has no straight street stair in its region.
+- Every change gets tests. Run EditMode and PlayMode before committing. **Order-dependent, not yours:** `HitImpactPlayTests.AKillingCutFlingsTheCorpseAwayFromTheStriker` reads the corpse's speed after ONE physics step, so it passes or fails by which tests ran before it (fails alone at 266e7854 too). `FootbridgePathWalkPlayTests.AStraightStreetStairIsClimbedOntoTheBridge` reports Inconclusive (shown as FAIL) when the seed has no straight street stair in its region.
 - **Verify visuals by rendering** (the Explicit `*Capture` tests with `-Graphics`) and looking at the images. Green tests do not mean it looks right.
 - Keep assets small: no embedded textures, bake and trim meshes.
 - **City-generation change = reroll the world seed.** It is hardcoded in several places (currently `23481876`): grep for the old number and change them all together.
