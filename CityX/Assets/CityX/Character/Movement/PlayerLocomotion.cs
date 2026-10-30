@@ -134,6 +134,9 @@ namespace CityX.Character
         /// </summary>
         public float SizeSpeedFactor => Mathf.Sqrt(BodyScale);
 
+        /// <summary>How much of its pace the body keeps, 0 to 1: a chill slows it, a freeze stops it (Chill, docs/FROST.md). On foot and flying.</summary>
+        public float SlowFactor { get; set; } = 1.0f;
+
         /// <summary>True while Grow or Shrink has the body at another size: climbing, vaulting and foot placement, tuned in metres, rest.</summary>
         public bool IsResized => Mathf.Abs(BodyScale - 1.0f) > BodySize.NormalTolerance;
 
@@ -1276,8 +1279,8 @@ namespace CityX.Character
                     speed *= ShieldMoveSpeedShare;
                 }
             }
-            // GROW AND SHRINK: a giant covers ground 3.2 times as fast, a tiny body a third as fast (SizeSpeedFactor).
-            speed *= SizeSpeedFactor;
+            // GROW AND SHRINK: a giant covers ground 3.2 times as fast, a tiny body a third as fast (SizeSpeedFactor). A CHILL slows it.
+            speed *= SizeSpeedFactor * SlowFactor;
             Vector3 targetHorizontal = MovementRooted ? Vector3.zero : direction * speed;
             Vector3 horizontal;
 

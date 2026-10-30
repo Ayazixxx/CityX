@@ -62,6 +62,31 @@ namespace CityX.Character
         /// <summary>Opens a scope in which blows are struck with an edge (or not, when <paramref name="edged"/> is false).</summary>
         public static EdgedScope Cutting(bool edged) => new EdgedScope(edged);
 
+        /// <summary>
+        /// How much colder the blow makes its target (the Frost Staff's spray, docs/FROST.md): the body's own Chill takes it where the blow lands.
+        /// Separate from <see cref="Scope"/> as <see cref="BreaksGuard"/> is.
+        /// </summary>
+        public static float Chill { get; private set; }
+
+        /// <summary>Opens a scope in which blows chill their target by <paramref name="amount"/>.</summary>
+        public static ChillScope Chilling(float amount) => new ChillScope(amount);
+
+        public readonly struct ChillScope : IDisposable
+        {
+            private readonly float _before;
+
+            public ChillScope(float amount)
+            {
+                _before = Chill;
+                Chill = amount;
+            }
+
+            public void Dispose()
+            {
+                Chill = _before;
+            }
+        }
+
         public readonly struct EdgedScope : IDisposable
         {
             private readonly bool _before;

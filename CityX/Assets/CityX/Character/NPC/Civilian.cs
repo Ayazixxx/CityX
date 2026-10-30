@@ -239,6 +239,10 @@ namespace CityX.Character
             _health = Mathf.Max(0.0f, _health - amount);
             if (!IsDead)
             {
+                if (DamageContext.Chill > 0.0f && TryGetComponent(out Chill chill))
+                {
+                    chill.Add(DamageContext.Chill);   // a frost blow (docs/FROST.md)
+                }
                 return HitResponse.Landed;
             }
 

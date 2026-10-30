@@ -1783,6 +1783,8 @@ namespace CityX.CharacterEditor
 
                 // After the ragdoll, so a death throws the body down before it is taken apart (docs/DISMEMBERMENT.md).
                 root.AddComponent<Dismemberer>();
+                // How cold the body is: a frost blow slows it and, full, freezes it (docs/FROST.md).
+                root.AddComponent<Chill>();
 
                 // Added last: it looks for the others in Awake.
                 PlayerInputReader reader = root.AddComponent<PlayerInputReader>();

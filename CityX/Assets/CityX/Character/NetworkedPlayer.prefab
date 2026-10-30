@@ -149,7 +149,13 @@ PrefabInstance:
       addedObject: {fileID: 8019551475507903044}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 1793043998850541404}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 696711509978025582}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3353174932153861613}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4178808262995625697}
@@ -164,7 +170,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 5193043028576312738}
+      addedObject: {fileID: 5931786434106686422}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -475,6 +481,10 @@ MonoBehaviour:
     Prefab: {fileID: 2273278443820730224, guid: 614af98a029a05e44baac925d0c615be, type: 3}
   - ItemId: flashlight
     Prefab: {fileID: 1654641650622879881, guid: ac8bca465de894f40a11be31575e9829, type: 3}
+  - ItemId: frost_staff
+    Prefab: {fileID: 6199201534729255471, guid: db56b932bc91636498da12a8540d947c, type: 3}
+  - ItemId: grenade
+    Prefab: {fileID: 8138500019268029943, guid: 33f3d1d7864fb9b45999c39649ec288a, type: 3}
   - ItemId: jerry_can
     Prefab: {fileID: 6009600437600694734, guid: 2b819f8fa5a05e940b5aab6407ad6175, type: 3}
   - ItemId: bow
@@ -868,6 +878,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d96f37b9067f83c4ab771d0cf5b0edab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.FlashlightSync
+--- !u!114 &1793043998850541404
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67ce0b7da657a9944bc11907d954c008, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.FrostSprayCaster
 --- !u!114 &696711509978025582
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -881,6 +903,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.Archery
   ArrowPrefab: {fileID: 51535972593554971, guid: ddee658532cd227428efac010681840a, type: 3}
+--- !u!114 &3353174932153861613
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e3718cb36877bf41aaa8e951874e67c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GrenadeThrower
+  ThrownPrefab: {fileID: 1739624149125597005, guid: 20e5fc36ab98e8a4d9b1000dedea1075, type: 3}
 --- !u!114 &4178808262995625697
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -931,7 +966,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &5193043028576312738
+--- !u!114 &5931786434106686422
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

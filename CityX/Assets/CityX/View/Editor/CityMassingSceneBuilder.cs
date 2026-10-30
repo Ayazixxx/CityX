@@ -284,6 +284,9 @@ namespace CityX.ViewEditor
             GameObject healingStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildHealing();
             // The flashlight (2026-10-29, docs/FLASHLIGHT.md): a torch turned in code; its beam is made at run time.
             GameObject flashlightPrefab = CityX.WeaponsEditor.FlashlightBuilder.Build();
+            // The Frost Staff (2026-10-29, docs/FROST.md) and the frag grenade with its in-flight twin (docs/GRENADE.md).
+            GameObject frostStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildFrost();
+            GameObject grenadePrefab = CityX.WeaponsEditor.GrenadeBuilder.Build();
             // The bow, its arrow (which PlayerAbilityWiring gives the body by path) and the crossbow (2026-10-28, docs/ARCHERY.md).
             GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
             GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
@@ -562,6 +565,10 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.HealingStaff, Prefab = healingStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Flashlight, Prefab = flashlightPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.FrostStaff, Prefab = frostStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Grenade, Prefab = grenadePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Bow, Prefab = bowPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

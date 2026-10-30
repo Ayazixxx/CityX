@@ -22,6 +22,7 @@ namespace CityX.WeaponsEditor
         public const string FlamePrefabPath = "Assets/CityX/Weapons/FlameStaff.prefab";
         public const string ArcaneBeamPrefabPath = "Assets/CityX/Weapons/ArcaneBeamStaff.prefab";
         public const string HealingPrefabPath = "Assets/CityX/Weapons/HealingStaff.prefab";
+        public const string FrostPrefabPath = "Assets/CityX/Weapons/FrostStaff.prefab";
 
         private const int Sides = 14;
 
@@ -85,7 +86,15 @@ namespace CityX.WeaponsEditor
             BuildFlame();
             BuildArcaneBeam();
             BuildHealing();
+            BuildFrost();
         }
+
+        /// <summary>The Frost Staff (2026-10-29): pale ash wood bleached by the cold, steel, an ice-blue shard.</summary>
+        public static GameObject BuildFrost() => Build<FrostStaff>(FrostPrefabPath, new Look
+        {
+            Name = "FrostStaff", Wood = new Color(0.78f, 0.82f, 0.86f), Metal = new Color(0.62f, 0.68f, 0.74f),
+            Crystal = new Color(0.55f, 0.88f, 1.0f), CrystalGlow = 1.2f, Cup = CupProfile, Shard = true,
+        });
 
         /// <summary>The Arcane Beam Staff (2026-10-29): near-black plum wood, silver, a magenta crystal shard (the Arcane Staff's is an orb).</summary>
         public static GameObject BuildArcaneBeam() => Build<ArcaneBeamStaff>(ArcaneBeamPrefabPath, new Look

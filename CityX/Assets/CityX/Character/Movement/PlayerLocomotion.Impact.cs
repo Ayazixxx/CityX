@@ -55,6 +55,12 @@ namespace CityX.Character
             _impactFreezeRemaining = Mathf.Max(_impactFreezeRemaining, seconds);
         }
 
+        /// <summary>
+        /// Frozen solid (Chill, docs/FROST.md): its Animator stays stopped whatever blow's own instant of impact comes and goes (the frost's
+        /// ticks are blows too, and letting go of their freeze would set it running again).
+        /// </summary>
+        public bool FrozenSolid { get; set; }
+
         /// <summary>Lets the body go before its freeze ran out (the hit-stop ending, a swing dropped).</summary>
         public void ReleaseImpactFreeze()
         {
@@ -64,7 +70,7 @@ namespace CityX.Character
             }
             _impactFrozen = false;
             _impactFreezeRemaining = 0.0f;
-            if (_animator != null && _animator.speed <= 0.0f)
+            if (_animator != null && _animator.speed <= 0.0f && !FrozenSolid)
             {
                 _animator.speed = _animatorSpeedBeforeFreeze > 0.0f ? _animatorSpeedBeforeFreeze : 1.0f;
             }

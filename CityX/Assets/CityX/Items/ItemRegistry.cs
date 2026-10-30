@@ -52,6 +52,11 @@ namespace CityX.Items
         public const string ArcaneBeamStaff = "arcane_beam_staff";
         public const string HealingStaff = "healing_staff";
         public const string Flashlight = "flashlight";
+        public const string FrostStaff = "frost_staff";
+        public const string Grenade = "grenade";
+
+        /// <summary>How many grenades make a stack: they are spent as they are thrown, the next one coming into the hand.</summary>
+        public const int GrenadeStack = 10;
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -123,6 +128,10 @@ namespace CityX.Items
             [HealingStaff] = new ItemDefinition(HealingStaff, "Staff of Healing", "weapon", EquipSlots.Primary, 1),
             // The flashlight (2026-10-29, docs/FLASHLIGHT.md): held in the right hand, F or a click switches it, it points where you look.
             [Flashlight] = new ItemDefinition(Flashlight, "Flashlight", "tool", EquipSlots.Primary, 1),
+            // The Frost Staff (2026-10-29, docs/FROST.md): Mei's blaster as a staff, held to spray frost that slows and then freezes.
+            [FrostStaff] = new ItemDefinition(FrostStaff, "Frost Staff", "weapon", EquipSlots.Primary, 1),
+            // The frag grenade (2026-10-29, docs/GRENADE.md): thrown with the bottle's gesture, a stack of them, the next one into the hand.
+            [Grenade] = new ItemDefinition(Grenade, "Frag Grenade", "weapon", EquipSlots.Primary, GrenadeStack),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

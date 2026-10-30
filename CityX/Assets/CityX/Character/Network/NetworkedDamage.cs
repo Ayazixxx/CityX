@@ -85,7 +85,7 @@ namespace CityX.Character
             LastRelayWasSent = true;
             Vector3? contact = DamageContext.ContactPoint;
             SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId, (int)DamageContext.Kind, DamageContext.Penetration, DamageContext.BreaksGuard,
-                Flags(DamageContext.Edged, DamageContext.Bloodless, contact.HasValue), contact ?? Vector3.zero);
+                Flags(DamageContext.Edged, DamageContext.Bloodless, contact.HasValue, DamageContext.Chill > 0.0f), contact ?? Vector3.zero);
             return true;
         }
 
@@ -193,11 +193,15 @@ namespace CityX.Character
         private const int EdgedFlag = 1;
         private const int BloodlessFlag = 2;
         private const int ContactFlag = 4;
+        private const int ChillFlag = 8;
 
-        /// <summary>What a forwarded hit says about itself beyond its numbers: struck with an edge, drawing no blood, and whether it says where it landed.</summary>
-        public static int Flags(bool edged, bool bloodless, bool hasContact)
+        /// <summary>
+        /// What a forwarded hit says about itself beyond its numbers: struck with an edge, drawing no blood, whether it says where it landed, and
+        /// whether it chills (a frost blow: the body takes one tick's chill, docs/FROST.md).
+        /// </summary>
+        public static int Flags(bool edged, bool bloodless, bool hasContact, bool chilled = false)
         {
-            return (edged ? EdgedFlag : 0) | (bloodless ? BloodlessFlag : 0) | (hasContact ? ContactFlag : 0);
+            return (edged ? EdgedFlag : 0) | (bloodless ? BloodlessFlag : 0) | (hasContact ? ContactFlag : 0) | (chilled ? ChillFlag : 0);
         }
 
         /// <summary>A forwarded hit's contact point as the owner takes it: only one that is finite and on (near) the body it struck.</summary>
@@ -245,7 +249,7 @@ namespace CityX.Character
         {
             bool wasAlive = _vitals != null && _vitals.IsAlive;
             HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration, breaksGuard,
-                (flags & EdgedFlag) != 0, (flags & BloodlessFlag) != 0, SaneContact(flags, contact, transform.position));
+                (flags & EdgedFlag) != 0, (flags & BloodlessFlag) != 0, SaneContact(flags, contact, transform.position), (flags & ChillFlag) != 0);
             if (wasAlive && _vitals.IsDead && _vitals.XpRewardOnDeath > 0)
             {
                 EnemyNetwork.CreditKill(NetworkManager, attackerClientId, _vitals.XpRewardOnDeath);   // an enemy this machine runs, killed by another player
@@ -273,7 +277,7 @@ namespace CityX.Character
         /// </summary>
         public HitResponse ApplyHitHere(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage = -1.0f,
             DamageKind kind = DamageKind.Physical, float penetration = 0.0f, bool breaksGuard = false, bool edged = false, bool bloodless = false,
-            Vector3? contact = null)
+            Vector3? contact = null, bool chilled = false)
         {
             if (_vitals == null)
             {
@@ -286,6 +290,7 @@ namespace CityX.Character
             using (DamageContext.GuardBreaking(breaksGuard))
             using (DamageContext.Cutting(edged))
             using (new DamageContext.BloodlessScope(bloodless))
+            using (DamageContext.Chilling(chilled ? FrostRules.ChillPerTick : 0.0f))
             {
                 return DamageContext.Strike(_vitals, amount, fromPosition, hitstunSeconds, kind, penetration, contact);
             }

@@ -295,11 +295,14 @@ namespace CityX.Character
                     _orbitCamera.IsAiming = _weaponAim.IsAiming;
                 }
 
-                if (action == WeaponAimInput.Action.Melee)
+                // A throwable with no melee use (a grenade, docs/GRENADE.md) is thrown on a plain click too: it is no club.
+                bool throws = action == WeaponAimInput.Action.Throw
+                    || (action == WeaponAimInput.Action.Melee && weapon.GetMeleeDamage() <= 0.0f);
+                if (action == WeaponAimInput.Action.Melee && !throws)
                 {
                     _melee.TryAttack();
                 }
-                else if (action == WeaponAimInput.Action.Throw && weapon.CanThrow())
+                else if (throws && weapon.CanThrow())
                 {
                     Transform yawSource = YawSource != null
                         ? YawSource

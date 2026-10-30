@@ -52,6 +52,12 @@ namespace CityX.Character
         public const float LickSpread = 0.03f;
         public const float LickShortestMetres = 0.3f;
 
+        /// <summary>An explosion's fire (<see cref="Explode"/>): its tongues, embers and puffs of smoke.</summary>
+        public const int ExplosionFlames = 10;
+
+        public const int ExplosionEmbers = 40;
+        public const int ExplosionSmoke = 22;
+
         /// <summary>The longest a weapon's flame lives, seconds, and the share of its flames that also leave a glow.</summary>
         public const float LickSeconds = 0.35f;
 
@@ -198,6 +204,47 @@ namespace CityX.Character
             if (Random.value < EmbersPerSecond * strength * deltaTime)
             {
                 EmitEmber(Vector3.Lerp(from, to, Random.value), 0.6f);
+            }
+        }
+
+        /// <summary>
+        /// An explosion's fire, all at once: tongues licking up out of its middle for a moment, embers thrown out, and a column of smoke
+        /// billowing up and out from it (the smoke's shader lights it orange while it is young: lit from inside, then dark as it drifts away).
+        /// </summary>
+        public void Explode(Vector3 at, float radius)
+        {
+            var emit = new ParticleSystem.EmitParams { applyShapeToPosition = false };
+            for (int i = 0; i < ExplosionFlames; i++)
+            {
+                // Big tongues bursting up inside the fireball and gone with it: one blaze, not a ring of little fires on the ground.
+                Vector2 disc = Random.insideUnitCircle * radius * 0.18f;
+                emit.position = at + new Vector3(disc.x, Random.Range(0.3f, 1.4f), disc.y);
+                emit.velocity = Vector3.up * Random.Range(3.0f, 6.0f) + new Vector3(disc.x, 0.0f, disc.y);
+                emit.startSize = Random.Range(2.4f, 3.6f);
+                emit.startLifetime = Random.Range(0.35f, 0.6f);
+                emit.startColor = new Color(CoreBrightness, CoreBrightness, CoreBrightness, 1.0f);
+                _flames.Emit(emit, 1);
+            }
+            for (int i = 0; i < ExplosionEmbers; i++)
+            {
+                Vector3 thrown = Random.onUnitSphere;
+                thrown.y = Mathf.Abs(thrown.y);
+                emit.position = at + Vector3.up * 0.5f;
+                emit.velocity = thrown * Random.Range(3.0f, 9.0f);
+                emit.startSize = Random.Range(0.04f, 0.09f);
+                emit.startLifetime = Random.Range(1.0f, 2.5f);
+                emit.startColor = EmberColour;
+                _embers.Emit(emit, 1);
+            }
+            for (int i = 0; i < ExplosionSmoke; i++)
+            {
+                Vector3 out01 = Random.insideUnitSphere;
+                emit.position = at + Vector3.up * Random.Range(0.6f, 2.2f) + out01 * radius * 0.15f;
+                emit.velocity = Vector3.up * Random.Range(1.8f, 4.5f) + new Vector3(out01.x, 0.0f, out01.z) * Random.Range(1.0f, 3.0f);
+                emit.startSize = Random.Range(2.5f, 4.5f);
+                emit.startLifetime = Random.Range(4.0f, 7.0f);
+                emit.startColor = SmokeColour;
+                _smoke.Emit(emit, 1);
             }
         }
 

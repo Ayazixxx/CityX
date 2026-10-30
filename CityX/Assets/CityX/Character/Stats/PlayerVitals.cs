@@ -642,6 +642,11 @@ namespace CityX.Character
             TakeDamage(amount, blocked);
             _blowLanding = false;
             DeathImpulse = Vector3.zero;
+            // A FROST BLOW (docs/FROST.md) makes the body colder, through a guard too: the cold is not stopped by a blade.
+            if (DamageContext.Chill > 0.0f && !IsDead && TryGetComponent(out Chill chill))
+            {
+                chill.Add(DamageContext.Chill);
+            }
 
             if (breaksGuard)
             {

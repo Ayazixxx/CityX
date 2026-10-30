@@ -270,6 +270,23 @@ namespace CityX.Character
         public Vector3 ShakeOffset { get; private set; }
 
         /// <summary>
+        /// A blow felt through the ground (a giant's landing, an explosion): every camera whose player is within <paramref name="reach"/> of
+        /// <paramref name="at"/> shakes, by <paramref name="metres"/> at the middle falling away to nothing at the reach.
+        /// </summary>
+        public static void ShakeNear(Vector3 at, float reach, float metres, float seconds)
+        {
+            foreach (ThirdPersonCamera camera in FindObjectsByType<ThirdPersonCamera>(FindObjectsSortMode.None))
+            {
+                Vector3 from = camera.Target != null ? camera.Target.position : camera.transform.position;
+                float strength = 1.0f - Mathf.Clamp01(Vector3.Distance(from, at) / Mathf.Max(0.01f, reach));
+                if (strength > 0.0f)
+                {
+                    camera.AddShake(metres * strength, seconds);
+                }
+            }
+        }
+
+        /// <summary>
         /// Jolts the picture by up to <paramref name="metres"/> (dying away over <paramref name="seconds"/>). A bigger shake replaces a smaller
         /// one still going; a smaller one is ignored, so a flurry of hits does not add up to a blur.
         /// </summary>

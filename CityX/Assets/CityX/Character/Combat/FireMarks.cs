@@ -7,8 +7,8 @@ namespace CityX.Character
     /// <summary>
     /// WHAT FIRE LEAVES ON THE GROUND (docs/FIRE.md): a dark glossy puddle under every cell with gasoline on it (so the trail you pour is
     /// there to see), and the black burned spot under every cell that has burned, darkening as the cell burns and staying
-    /// <see cref="FireRules.ScorchLifeSeconds"/>. Drawn the blood splats' way: a flat quad a centimetre over the floor, alpha blended, unlit,
-    /// its picture made in code.
+    /// <see cref="FireRules.ScorchLifeSeconds"/>; and an explosion's scorch (<see cref="ScorchAt"/>). Drawn the blood splats' way: a flat quad a
+    /// centimetre over the floor, alpha blended, unlit, its picture made in code.
     /// </summary>
     public static class FireMarks
     {
@@ -26,8 +26,12 @@ namespace CityX.Character
         public static readonly Color ScorchColour = new Color(0.035f, 0.03f, 0.025f, 1.0f);
         public static readonly Color GasolineColour = new Color(0.26f, 0.19f, 0.07f, 1.0f);
 
+        /// <summary>A blast's scorch is laid on ground no further below it than this, metres.</summary>
+        public const float BlastScorchReach = 2.5f;
+
         private static readonly Dictionary<FireCell, GroundMark> Gasoline = new Dictionary<FireCell, GroundMark>();
         private static readonly Dictionary<FireCell, GroundMark> Scorch = new Dictionary<FireCell, GroundMark>();
+        private static readonly List<GroundMark> Blasts = new List<GroundMark>();
         private static Texture2D[] _scorches;
         private static Texture2D[] _puddles;
         private static Material _material;
@@ -130,11 +134,33 @@ namespace CityX.Character
             return Mathf.Abs(cell.Column * 7 + cell.Row * 13) % Variants;
         }
 
+        /// <summary>
+        /// A burned spot of its own, <paramref name="size"/> across on the ground under <paramref name="at"/> (an explosion's, docs/GRENADE.md):
+        /// black at once, fading after the fire's own while. None in the air, nor on a wall.
+        /// </summary>
+        public static void ScorchAt(Vector3 at, float size)
+        {
+            if (!BloodSplats.Surface(at + Vector3.up * 0.5f, Vector3.down, BlastScorchReach, null, out RaycastHit ground) || ground.normal.y < 0.5f)
+            {
+                return;
+            }
+            GroundMark mark = Place("BlastMark", ground.point, Random.Range(0.0f, 360.0f), Scorches()[Random.Range(0, Variants)], ScorchColour);
+            mark.SetSize(size);
+            mark.SetAlpha(ScorchAlpha);
+            mark.FadeAfter(FireRules.ScorchLifeSeconds, FireRules.ScorchFadeSeconds);
+            Blasts.RemoveAll(left => left == null);
+            Blasts.Add(mark);
+        }
+
         private static GroundMark Place(string name, FireCell cell, Texture2D texture, Color tint)
         {
+            return Place(name, cell.Centre, Mathf.Abs(cell.Column * 31 + cell.Row * 17) % 360, texture, tint);
+        }
+
+        private static GroundMark Place(string name, Vector3 at, float spin, Texture2D texture, Color tint)
+        {
             var go = new GameObject(name);
-            float spin = Mathf.Abs(cell.Column * 31 + cell.Row * 17) % 360;
-            go.transform.SetPositionAndRotation(cell.Centre + Vector3.up * SurfaceOffset, Quaternion.Euler(0.0f, spin, 0.0f));
+            go.transform.SetPositionAndRotation(at + Vector3.up * SurfaceOffset, Quaternion.Euler(0.0f, spin, 0.0f));
             MeshFilter filter = go.AddComponent<MeshFilter>();
             filter.sharedMesh = BloodSplats.Quad();
             MeshRenderer renderer = go.AddComponent<MeshRenderer>();
@@ -174,8 +200,16 @@ namespace CityX.Character
                     Object.Destroy(mark.gameObject);
                 }
             }
+            foreach (GroundMark mark in Blasts)
+            {
+                if (mark != null)
+                {
+                    Object.Destroy(mark.gameObject);
+                }
+            }
             Gasoline.Clear();
             Scorch.Clear();
+            Blasts.Clear();
         }
 
         /// <summary>The burned spots: a ragged black blob, sooty, no two alike.</summary>

@@ -29,6 +29,7 @@ namespace CityX.CharacterEditor
         private const string AcidRainPrefabPath = "Assets/CityX/Weapons/AcidRainStorm.prefab";
         private const string StaffFlamePrefabPath = "Assets/CityX/Weapons/StaffFlame.prefab";
         private const string ArrowPrefabPath = "Assets/CityX/Weapons/Arrow.prefab";
+        private const string ThrownGrenadePrefabPath = "Assets/CityX/Weapons/ThrownGrenade.prefab";
         private const string ThunderStrikeClipPath = "Assets/CityX/UI/Audio/thunder_strike.ogg";
         private const string SelfSmiteLightMaterialPath = "Assets/CityX/Character/SelfSmiteLight.mat";
 
@@ -100,12 +101,18 @@ namespace CityX.CharacterEditor
 
             // --- the Healing Aura (the Cleric, 2026-10-29, docs/HEALING.md): a green circle round the caster, drawn in code.
             GetOrAdd<HealingAuraAbility>(player);
+            // --- the Fire Enhancement, the flashlight's word to other players, and the Frost Staff's spray (2026-10-29): drawn in code.
             GetOrAdd<FireEnhancementAbility>(player);
             GetOrAdd<FlashlightSync>(player);
+            GetOrAdd<FrostSprayCaster>(player);
 
             // --- the bow's draw and arrows as other players see them (2026-10-28, docs/ARCHERY.md): a copy looses the bow's own arrow.
             var archery = GetOrAdd<Archery>(player);
             archery.ArrowPrefab = Load(ArrowPrefabPath) ?? archery.ArrowPrefab;
+
+            // --- grenades as other players see them (2026-10-29, docs/GRENADE.md): a copy throws the same grenade, and it goes off where it did.
+            var grenades = GetOrAdd<GrenadeThrower>(player);
+            grenades.ThrownPrefab = Load(ThrownGrenadePrefabPath) ?? grenades.ThrownPrefab;
 
             // --- Grow and Shrink (Wizard; Grow on key 0 of the default bar): drawn and voiced in code, nothing to load.
             GetOrAdd<BodySizeAbility>(player);

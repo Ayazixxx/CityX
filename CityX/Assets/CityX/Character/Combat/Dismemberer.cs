@@ -477,7 +477,7 @@ namespace CityX.Character
             go.transform.SetParent(parent, true);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = go.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = source.sharedMaterials;
+            renderer.sharedMaterials = FrozenLook.WithoutSheen(source.sharedMaterials);
             var block = new MaterialPropertyBlock();
             source.GetPropertyBlock(block);
             renderer.SetPropertyBlock(block);

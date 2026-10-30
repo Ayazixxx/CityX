@@ -167,6 +167,12 @@ namespace CityX.Character
             Ensure()._look.Lick(from, to, strength, scale, deltaTime);
         }
 
+        /// <summary>An explosion's fire (docs/GRENADE.md): the fire's tongues licking up out of it for a moment, and its column of smoke.</summary>
+        public static void Explode(Vector3 at, float radius)
+        {
+            Ensure()._look.Explode(at, radius);
+        }
+
         /// <summary>Water on the ground within <paramref name="radius"/> of <paramref name="point"/>: the fire there goes out and the ground will not catch for a while.</summary>
         public static int Douse(Vector3 point, float radius, bool cosmetic = false)
         {

@@ -399,6 +399,14 @@ namespace CityX.UI
                 case "ice_staff":
                 case "iceshardstaff":
                 case "ice_shard_staff": return ItemRegistry.IceShardStaff;
+                case "froststaff":
+                case "frost_staff":
+                case "frost":
+                case "freeze": return ItemRegistry.FrostStaff;
+                case "grenade":
+                case "grenades":
+                case "frag":
+                case "nade": return ItemRegistry.Grenade;
                 case "spray":
                 case "spraycan":
                 case "spray_can":
@@ -446,7 +454,8 @@ namespace CityX.UI
 
             if (!inventory.HasItem(itemId))
             {
-                inventory.AddItem(itemId, 1);
+                // A whole stack of what comes in stacks (grenades: spent as thrown, the next one into the hand), one of anything else.
+                inventory.AddItem(itemId, ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? Mathf.Max(1, definition.StackSize) : 1);
             }
 
             if (!inventory.RemoveFromStorage(itemId, 1, out ItemInstanceData instanceData))
