@@ -1,4 +1,4 @@
-# Fire and the jerry can
+# Fire and the gas can
 
 Owner, 2026-10-28: "lets work on fire mechanics. i want you to make a gas can as well i think that will be a good way to test them. I want you
 to make the gas can function like the gta v jerry can and look like it as well, it lets you pour gasoline then you can light it on fire, in
@@ -71,7 +71,7 @@ gasoline under its length), the flamethrower, Self Smite's bolt (gasoline only: 
 (gasoline only). Not the fireball (owner, 2026-10-29: "fireball doesnt need to light the ground on fire, we will work on fireball later").
 `FireScene.Douse(point, radius)` from the water staff's landing.
 
-**The jerry can** (`JerryCanItem`, `/equip jerrycan`): a red steel can with an X pressed into its sides, a top handle and a spout, drawn in
+**The gas can** ("Gas Can", item id `jerry_can`, `JerryCanItem`; `/equip gascan`, `can` or `jerrycan`; renamed from Jerry Can by the owner 2026-10-29): a red steel can with an X pressed into its sides, a top handle and a spout, drawn in
 code (`JerryCanBuilder`), carried by the handle in the right hand, hanging down the fingers; hold left-click to pour: the can tips over the
 fingers (`PourTiltDegrees`, about the palm's axis, so its spout corner drops) and an amber stream falls from the spout to the ground ahead
 and lays gasoline where it lands, `FireRules.PourLitresPerSecond` out of `FireRules.CanLitres`. Empty, it pours nothing. Copies of other

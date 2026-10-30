@@ -390,7 +390,8 @@ namespace CityX.UI
                 case "gascan":
                 case "gas_can":
                 case "gas":
-                case "petrol": return ItemRegistry.JerryCan;
+                case "petrol":
+                case "can": return ItemRegistry.JerryCan;
                 case "firestaff":
                 case "fire_staff":
                 case "fireballstaff":

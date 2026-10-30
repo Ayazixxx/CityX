@@ -292,7 +292,7 @@ namespace CityX.ViewEditor
             GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
             GameObject crossbowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildCrossbow(arrowPrefab);
             // The jerry can (2026-10-28, docs/FIRE.md): drawn in code, a stand-in until the owner's model; and the fire's own shader's materials.
-            CityX.WeaponsEditor.JerryCanBuilder.Build();
+            GameObject gasCanPrefab = CityX.WeaponsEditor.JerryCanBuilder.Build();
             CityX.CharacterEditor.FireMaterialsBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
@@ -569,6 +569,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.FrostStaff, Prefab = frostStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Grenade, Prefab = grenadePrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.JerryCan, Prefab = gasCanPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Bow, Prefab = bowPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

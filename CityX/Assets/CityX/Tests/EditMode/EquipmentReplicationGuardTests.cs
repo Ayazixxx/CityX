@@ -73,6 +73,34 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// The game's own player can equip everything a networked body can show: the scene's inventory list is written by its own builder
+        /// (CityMassingSceneBuilder), and the gas can was left out of it, so /equip found nothing (owner, 2026-10-29: "the jerry can wasnt
+        /// letting me equip").
+        /// </summary>
+        [Test]
+        public void TheGamesPlayerCanEquipEverythingANetworkedBodyCan()
+        {
+            var networked = AssetDatabase.LoadAssetAtPath<GameObject>(NetworkedPlayerPath).GetComponent<Inventory>();
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/CityX/Scenes/CityMassing.unity",
+                UnityEditor.SceneManagement.OpenSceneMode.Additive);
+            try
+            {
+                Inventory player = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Inventory>(true))
+                    .FirstOrDefault(i => i.GetComponent<PlayerInputReader>() != null);
+                Assert.IsNotNull(player, "the scene's player has no inventory");
+                var equippable = new HashSet<string>((player.ItemPrefabs ?? new Inventory.ItemPrefabEntry[0])
+                    .Where(e => e.Prefab != null).Select(e => e.ItemId));
+                var missing = (networked.ItemPrefabs ?? new Inventory.ItemPrefabEntry[0])
+                    .Select(e => e.ItemId).Where(id => !equippable.Contains(id)).Distinct().ToList();
+                Assert.IsEmpty(missing, "the game's player cannot equip these (add them to CityMassingSceneBuilder's list): " + string.Join(", ", missing));
+            }
+            finally
+            {
+                UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
+            }
+        }
+
         [Test]
         public void TheNetworkedBodyCarriesTheSharedState()
         {

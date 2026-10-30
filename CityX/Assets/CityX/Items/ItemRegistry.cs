@@ -116,8 +116,9 @@ namespace CityX.Items
             [WaterStaff] = new ItemDefinition(WaterStaff, "Water Staff", "weapon", EquipSlots.Primary, 1),
             // The flame staff (2026-10-28): a flamethrower of a staff, held to burn, paid in mana (docs/STAFFS.md).
             [FlameStaff] = new ItemDefinition(FlameStaff, "Flame Staff", "weapon", EquipSlots.Primary, 1),
-            // The jerry can (2026-10-28, docs/FIRE.md): held to pour gasoline on the ground, for any fire to light.
-            [JerryCan] = new ItemDefinition(JerryCan, "Jerry Can", "tool", EquipSlots.Primary, 1),
+            // The gas can (2026-10-28, docs/FIRE.md): held to pour gasoline on the ground, for any fire to light. Shown as "Gas Can"
+            // (owner, 2026-10-29: "just rename the item to Gas Can"); its id stays jerry_can so what is saved still loads.
+            [JerryCan] = new ItemDefinition(JerryCan, "Gas Can", "tool", EquipSlots.Primary, 1),
             // The bow and the crossbow (2026-10-28, docs/ARCHERY.md): drawn and spanned, with stand-in models drawn in code.
             [Bow] = new ItemDefinition(Bow, "Bow", "weapon", EquipSlots.Primary, 1),
             [Crossbow] = new ItemDefinition(Crossbow, "Crossbow", "weapon", EquipSlots.Primary, 1),
