@@ -34,6 +34,13 @@ namespace CityX.Character
 
         private MaterialPropertyBlock Tint => _tint ??= new MaterialPropertyBlock();
 
+        /// <summary>Its pictures made ahead (a few milliseconds the first burst would otherwise stop the game for).</summary>
+        public static void Prewarm()
+        {
+            RingMaterial();
+            DustMaterial();
+        }
+
         /// <summary>
         /// Dust thrown up at <paramref name="feet"/> out to <paramref name="radius"/>, <paramref name="amount"/> of a whole burst's puffs (a
         /// smaller blast throws fewer), under <paramref name="parent"/> when given.

@@ -134,6 +134,12 @@ namespace CityX.Character
             return Mathf.Abs(cell.Column * 7 + cell.Row * 13) % Variants;
         }
 
+        /// <summary>The scorches' pictures made ahead (the first scorch would otherwise stop the game for them).</summary>
+        public static void PrewarmScorches()
+        {
+            Scorches();
+        }
+
         /// <summary>
         /// A burned spot of its own, <paramref name="size"/> across on the ground under <paramref name="at"/> (an explosion's, docs/GRENADE.md):
         /// black at once, fading after the fire's own while. None in the air, nor on a wall.

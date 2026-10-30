@@ -70,6 +70,19 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>Made at the first blast, the explosion's look and sound stopped the game just as the grenade went off.</summary>
+        [UnityTest]
+        public IEnumerator ABodyComingInMakesTheExplosionsLookAndSoundAhead()
+        {
+            GameObject body = Body(new Vector3(40.0f, 0.0f, 0.0f));
+            if (body.GetComponent<GrenadeThrower>() == null)
+            {
+                body.AddComponent<GrenadeThrower>();
+            }
+            yield return null;
+            Assert.IsTrue(GrenadeThrower.ExplosionReady, "a body came in and the explosion is still to be made at the first blast");
+        }
+
         [UnityTest]
         public IEnumerator ThrownItBouncesThenGoesOffHurtingWhatIsInTheOpenAndSparingWhatAWallShields()
         {

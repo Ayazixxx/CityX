@@ -76,6 +76,24 @@ namespace CityX.Weapons
         private MaterialPropertyBlock RingTint => _ringTint ??= new MaterialPropertyBlock();
 
         /// <summary>
+        /// Everything an explosion is drawn and heard with, made ahead (GrenadeThrower, as the first body comes in): made at the first blast, it
+        /// stopped the game for about 70 ms just as the grenade went off.
+        /// </summary>
+        public static void Prewarm()
+        {
+            FireMaterial();
+            SparkMaterial();
+            CoreMaterial();
+            ChunkMaterial();
+            RingMaterial();
+            ChunkMesh();
+            _ = ExplosionSounds.Boom;
+            _ = ExplosionSounds.Pin;
+            FireMarks.PrewarmScorches();
+            DustBurst.Prewarm();
+        }
+
+        /// <summary>
         /// The grenade's machine: the blast at <paramref name="at"/> (thrown by <paramref name="source"/>, who is credited with what it does)
         /// and the look. Returns how many it hurt.
         /// </summary>

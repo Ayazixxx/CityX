@@ -26,6 +26,18 @@ namespace CityX.Weapons
 
         private ThrownGrenade _copy;
 
+        /// <summary>Whether an explosion's look and sound are made yet: the first body to come in makes them, while the game loads.</summary>
+        public static bool ExplosionReady { get; private set; }
+
+        private void Awake()
+        {
+            if (!ExplosionReady)
+            {
+                ExplosionReady = true;
+                Explosion.Prewarm();
+            }
+        }
+
         /// <summary>This body throws a grenade: it flies, and other players are told.</summary>
         public ThrownGrenade Throw(GameObject prefab, Vector3 from, Vector3 velocity)
         {

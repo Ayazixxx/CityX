@@ -42,6 +42,10 @@ fire's own research (docs/FIRE.md).
   (`FireScene.Explode`: lit orange from inside while young, gone over 4-7 s), a scorch on the ground (`FireMarks.Scorch`, faded after a
   minute as the fire's are), the camera of a player near it shaking, and a boom made in code (`ExplosionSounds`).
 
+Its pictures, materials and sounds are made ahead, by the first body to come in (`GrenadeThrower` calls `Explosion.Prewarm` while the game
+loads): made at the first blast, they stopped the game for about 50 ms just as the grenade went off (measured in the editor, where the
+first blast cost 220 ms in all before this and the fire's noise, docs/FIRE.md, were moved off it; the warm blast takes about 1 ms).
+
 ## Other players (docs/MULTIPLAYER_STATE.md)
 
 `GrenadeThrower` (an `IReplicatedAbility` on the body, "grenade"): **Thrown** (where from, which way, how fast: their copy of the grenade
@@ -50,6 +54,6 @@ if the word is late). The blast is dealt on the thrower's machine and reaches ot
 
 ## Tests
 
-`GrenadeRulesTests` (the falloff, the blink, the lob), `GrenadePlayTests` (thrown, it bounces and goes off on time, hurting the body in the
+`GrenadeRulesTests` (the falloff, the blink, the lob), `GrenadePlayTests` (a body coming in makes the explosion ahead; thrown, it bounces and goes off on time, hurting the body in the
 open and throwing it down, sparing the one behind a wall; the explosion's layers and its end; another player's copy); pictures
 `GrenadeCapture` (`grenade-*.png`: frame by frame, day and night).
