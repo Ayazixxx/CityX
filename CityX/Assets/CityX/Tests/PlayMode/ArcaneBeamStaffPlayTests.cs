@@ -103,6 +103,40 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// The beam lands on what the crosshair is on, near or far, with the camera where the game's sits (behind, above and off to the
+        /// right): aimed at a point a fixed distance ahead, it hit beside anything nearer or farther (owner, 2026-10-29: "the beam staff was
+        /// hitting slightly to the side of the crosshair"). Every staff aims through the same PlayerInputReader.CrosshairDirection.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheBeamLandsOnWhatTheCrosshairIsOnNearOrFar()
+        {
+            GameObject player = Body(Vector3.zero);
+            StaffItem staff = Staff();
+            staff.OnEquip(player, ItemInstanceData.None);
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            yield return Hold(player, staff, false, 0.3f);
+            foreach (float distance in new[] { 5.0f, ArcaneBeamRules.Range - 3.0f })
+            {
+                Vector3 eye = player.transform.position + Vector3.up * 3.2f - player.transform.forward * 5.0f + player.transform.right * 0.87f;
+                Vector3 onCrosshair = player.transform.position + Vector3.up * 2.0f + player.transform.forward * distance;
+                Vector3 look = (onCrosshair - eye).normalized;
+                Dummy post = Target(onCrosshair);
+                post.transform.localScale = new Vector3(0.2f, 1.0f, 0.2f);   // thin: a beam off to the side misses it
+                Physics.SyncTransforms();
+                for (float t = 0.0f; t < 0.6f; t += Step)
+                {
+                    staff.Tick(true, eye, look, player, Step);
+                    locomotion.Tick(new LocomotionInput { YawDegrees = player.transform.eulerAngles.y }, Step);
+                    yield return null;
+                }
+                staff.Tick(false, eye, look, player, Step);
+                Assert.Greater(post.Hits, 0, $"the beam missed what the crosshair was on {distance} m away");
+                Object.Destroy(post.gameObject);
+                yield return Hold(player, staff, false, 0.3f);
+            }
+        }
+
         [UnityTest]
         public IEnumerator HeldOnABodyItBurnsItAndNothingBesideOrBehindIt()
         {

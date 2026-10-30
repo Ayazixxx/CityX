@@ -90,14 +90,18 @@ namespace CityX.Tests
             return go.AddComponent<Dummy>();
         }
 
-        /// <summary>Holds (or not) the staff's click for <paramref name="seconds"/>, the crosshair straight ahead of the body.</summary>
+        /// <summary>
+        /// Holds (or not) the staff's click for <paramref name="seconds"/>, the crosshair straight ahead of the body at chest height 7 m out
+        /// (the staff aims at what the crosshair is on, so it is put on the bodies as a player would).
+        /// </summary>
         private static IEnumerator Hold(GameObject player, IEquippableStaff staff, bool held, float seconds, System.Action each = null)
         {
             var locomotion = player.GetComponent<PlayerLocomotion>();
             for (float t = 0.0f; t < seconds; t += Step)
             {
                 Vector3 eye = player.transform.position + Vector3.up * 2.4f - player.transform.forward * 4.0f;
-                staff.Tick(held, eye, player.transform.forward, player, Step);
+                Vector3 chestAhead = player.transform.position + Vector3.up * 1.8f + player.transform.forward * 7.0f;
+                staff.Tick(held, eye, (chestAhead - eye).normalized, player, Step);
                 locomotion.Tick(new LocomotionInput { YawDegrees = player.transform.eulerAngles.y }, Step);
                 each?.Invoke();
                 yield return null;

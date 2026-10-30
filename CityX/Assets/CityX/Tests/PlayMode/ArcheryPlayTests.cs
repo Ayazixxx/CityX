@@ -210,6 +210,43 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(bow.NockedArrow.position, rightHand.position), 0.12f, "the nocked arrow is not at the string hand");
         }
 
+        /// <summary>Where the game's camera sits: behind the body, above it and off to its right (docs, the Saints Row framing).</summary>
+        private static Vector3 Camera(GameObject player) =>
+            player.transform.position + Vector3.up * 3.2f - player.transform.forward * 5.0f + player.transform.right * 0.87f;
+
+        /// <summary>
+        /// The bolt and the arrow are shown leaving the weapon, not the camera (owner, 2026-10-29: "the crossbow trail and bolt ... come from
+        /// behind the camera instead of from the tip of the crossbow"; "check if its doing the same thing" of the bow).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheBoltLeavesTheCrossbowsTipAndTheArrowTheBowNotTheCamera()
+        {
+            GameObject player = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            var crossbow = Weapon<PistolWeapon>(ArcheryBuilderPaths.Crossbow);
+            crossbow.OnEquip(player, ItemInstanceData.None);
+            Target(new Vector3(0.0f, 1.6f, 30.0f));
+            yield return Frames(player, 0.6f);
+            Vector3 eye = Camera(player);
+            Assert.IsTrue(crossbow.Fire(eye, (new Vector3(0.0f, 1.6f, 30.0f) - eye).normalized, true, player), "the loaded crossbow did not fire");
+            ArrowProjectile bolt = Object.FindFirstObjectByType<ArrowProjectile>();
+            Assert.IsNotNull(bolt, "no bolt was shown");
+            Vector3 tip = crossbow.transform.TransformPoint(crossbow.Profile.MuzzleLocal);
+            Assert.Less(Vector3.Distance(bolt.transform.position, tip), 0.2f, "the bolt did not leave the crossbow's tip");
+            Object.Destroy(bolt.gameObject);
+            crossbow.OnUnequip(player);
+            yield return null;
+
+            BowWeapon bow = Weapon<BowWeapon>(ArcheryBuilderPaths.Bow);
+            bow.OnEquip(player, ItemInstanceData.None);
+            yield return Hold(player, bow, true, true, ArcheryRules.FullDrawSeconds + 0.2f);
+            Vector3 hand = player.GetComponent<PlayerLocomotion>().BowNock;
+            bow.Draw(false, Camera(player), player.transform.forward, true, player, Step);
+            ArrowProjectile arrow = Object.FindFirstObjectByType<ArrowProjectile>();
+            Assert.IsNotNull(arrow, "no arrow was loosed");
+            Assert.Less(Vector3.Distance(arrow.transform.position, hand), 0.3f, "the arrow did not leave the bow's string");
+            Assert.Greater(Vector3.Distance(arrow.transform.position, Camera(player)), 3.0f, "the arrow left the camera");
+        }
+
         [UnityTest]
         public IEnumerator TheCrossbowFiresItsBoltAtOnceAtFullPowerThenSpansForTwoAndAHalfSeconds()
         {

@@ -683,6 +683,9 @@ namespace CityX.Weapons
         private int _remoteShotIndex;
         private float _lastRemoteShot = -999.0f;
 
+        /// <summary>Where a shot leaves the gun: its flash, or the profile's muzzle on one with no flash (the crossbow, whose bolt started at the camera).</summary>
+        private Vector3 MuzzlePoint => MuzzleFlashObject != null ? MuzzleFlashObject.transform.position : transform.TransformPoint(Profile.MuzzleLocal);
+
         /// <summary>Whether the n-th round of a burst draws a tracer: the first always, then every TracerEvery-th (Counter-Strike's rifles: every third).</summary>
         public bool ShowsTracer(int shotInBurst) => Profile.TracerEvery <= 1 || shotInBurst % Profile.TracerEvery == 0;
 
@@ -726,11 +729,11 @@ namespace CityX.Weapons
             }
             if (ShotPlayer != null && ShotPlayer.clip != null)
             {
-                AudioSource.PlayClipAtPoint(ShotPlayer.clip, muzzle.position, 1.0f);
+                AudioSource.PlayClipAtPoint(ShotPlayer.clip, MuzzlePoint, 1.0f);
             }
-            Vector3 end = muzzle.position + muzzle.forward * Profile.Range;
+            Vector3 end = MuzzlePoint + muzzle.forward * Profile.Range;
             Collider landedOn = null;
-            if (Physics.Raycast(muzzle.position, muzzle.forward, out RaycastHit hit, Profile.Range, TargetLayers, QueryTriggerInteraction.Ignore)
+            if (Physics.Raycast(MuzzlePoint, muzzle.forward, out RaycastHit hit, Profile.Range, TargetLayers, QueryTriggerInteraction.Ignore)
                 && !IsWieldersOwnCollider(hit.collider, _cosmeticBody))
             {
                 // On through the windows the shooter's bullet went through (only looked for: the glass broke on the shooter's machine).
@@ -745,11 +748,11 @@ namespace CityX.Weapons
             _lastRemoteShot = Time.time;
             if (ArrowPrefab != null)
             {
-                ShowArrow(muzzle.position, end, landedOn, muzzle.forward, _cosmeticBody, true);
+                ShowArrow(MuzzlePoint, end, landedOn, muzzle.forward, _cosmeticBody, true);
             }
             else if (ShowsTracer(_remoteShotIndex))
             {
-                BulletTracer.Spawn(muzzle.position, end, muzzle);
+                BulletTracer.Spawn(MuzzlePoint, end, muzzle);
             }
             if (Profile.CasingLength > 0.0f)
             {
@@ -1107,10 +1110,10 @@ namespace CityX.Weapons
 
             // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where the shot really ended, whatever the mode (the arm points the
             // gun at the same point: PlayerLocomotion.NotifyGunFired and LocomotionInput.GunAimPoint).
-            Vector3 muzzlePosition = MuzzleFlashObject != null ? MuzzleFlashObject.transform.position : origin;
+            Vector3 muzzlePosition = MuzzlePoint;
             if (ArrowPrefab != null)
             {
-                ShowArrow(muzzlePosition, shotEnd, arrowStuckIn, spreadDirection, wielder, false, burning);   // a crossbow's bolt, in place of a tracer
+                ShowArrow(muzzlePosition, shotEnd, arrowStuckIn, shotEnd - muzzlePosition, wielder, false, burning);   // a crossbow's bolt, in place of a tracer
             }
             else if (ShowsTracer(shotInBurst))
             {

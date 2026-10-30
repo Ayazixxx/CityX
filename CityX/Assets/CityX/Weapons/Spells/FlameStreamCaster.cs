@@ -73,7 +73,7 @@ namespace CityX.Weapons
             bool fed = _vitals == null || _vitals.TrySpendMana(held ? FlameStreamRules.ManaPerSecond * deltaTime : 0.0f);
             bool burning = held && alive && fed;
             Vector3 from = tip != null ? tip.position : transform.position + Vector3.up * 1.8f;
-            Vector3 direction = PlayerInputReader.ConvergedDirection(from, eye, look);
+            Vector3 direction = PlayerInputReader.CrosshairDirection(from, eye, look, transform);
             if (burning && !IsBurning)
             {
                 Start(tip, from, direction);

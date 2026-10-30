@@ -171,7 +171,7 @@ namespace CityX.Weapons
                 return;
             }
             Vector3 from = _tip != null ? _tip.position : transform.position + Vector3.up * 1.8f;
-            Launch(from, PlayerInputReader.ConvergedDirection(from, _eye, _look), orbs, 1.0f, GetComponentsInChildren<Collider>(), true);
+            Launch(from, PlayerInputReader.CrosshairDirection(from, _eye, _look, transform), orbs, 1.0f, GetComponentsInChildren<Collider>(), true);
         }
 
         // --- shooting ---

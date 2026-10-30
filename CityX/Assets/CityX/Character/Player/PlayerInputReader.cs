@@ -172,6 +172,37 @@ namespace CityX.Character
             return toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : look;
         }
 
+        /// <summary>How far the crosshair is looked along for what it rests on (past it, the line runs to this point).</summary>
+        public const float CrosshairReach = 300.0f;
+
+        private static readonly RaycastHit[] CrosshairHits = new RaycastHit[32];
+
+        /// <summary>
+        /// From <paramref name="origin"/> (a staff's head) toward what the crosshair is ON: the first thing the camera's line meets past the
+        /// body, not <paramref name="self"/>'s own. Aiming at a point a fixed distance ahead instead hit beside anything nearer or farther, the
+        /// camera sitting off to the side of the hand (owner, 2026-10-29: "the beam staff was hitting slightly to the side of the crosshair").
+        /// </summary>
+        public static Vector3 CrosshairDirection(Vector3 origin, Vector3 eye, Vector3 look, Transform self)
+        {
+            look = look.sqrMagnitude > 1e-6f ? look.normalized : Vector3.forward;
+            float pastBody = Mathf.Max(0.0f, Vector3.Dot(origin - eye, look));
+            Vector3 aimPoint = eye + look * CrosshairReach;
+            float nearest = CrosshairReach;
+            int count = Physics.RaycastNonAlloc(eye, look, CrosshairHits, CrosshairReach, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit hit = CrosshairHits[i];
+                if (hit.distance < pastBody || hit.distance >= nearest || (self != null && hit.transform.IsChildOf(self)))
+                {
+                    continue;
+                }
+                nearest = hit.distance;
+                aimPoint = hit.point;
+            }
+            Vector3 toAimPoint = aimPoint - origin;
+            return toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : look;
+        }
+
         /// <summary>
         /// Set inside TickCombat's own gun branch, read back here in Update()
         /// once the LocomotionInput for this same frame is built -- TickCombat

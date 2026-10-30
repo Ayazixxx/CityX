@@ -64,7 +64,7 @@ namespace CityX.Weapons
             bool fed = _vitals == null || _vitals.TrySpendMana(held ? ArcaneBeamRules.ManaPerSecond * deltaTime : 0.0f);
             bool beaming = held && alive && fed;
             Vector3 from = tip != null ? tip.position : transform.position + Vector3.up * 1.8f;
-            Vector3 direction = PlayerInputReader.ConvergedDirection(from, eye, look);
+            Vector3 direction = PlayerInputReader.CrosshairDirection(from, eye, look, transform);
             if (beaming && !IsBeaming)
             {
                 Begin(tip, from, direction);
