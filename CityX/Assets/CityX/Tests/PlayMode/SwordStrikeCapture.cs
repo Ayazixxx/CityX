@@ -55,6 +55,7 @@ namespace CityX.Tests
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
                 ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
                 ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
+                ("knife", "Assets/CityX/Weapons/KitchenKnife.prefab"),
             })
             {
                 var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(swordPath);
@@ -143,7 +144,7 @@ namespace CityX.Tests
                     {
                         combat.RequestLight(0.0f);
                         SoulsAttack before = combat.LightAttack(earlier);
-                        float until = before.Startup + before.Active + before.Recovery * before.ChainAt + 0.02f;
+                        float until = (before.Startup + before.Active + before.Recovery * before.ChainAt) / combat.BladeSwingSpeed + 0.02f;
                         for (float t = 0.0f; t < until; t += Dt)
                         {
                             combat.Tick(Dt);
@@ -159,7 +160,7 @@ namespace CityX.Tests
 
                     // Nine evenly spaced moments, and a couple of frames after the contact itself (the blade trail at its brightest).
                     const int columns = 10;
-                    float total = attack.Total;
+                    float total = attack.Total / combat.BladeSwingSpeed;   // a knife swings quicker
                     var shots = new float[columns];
                     for (int c = 0; c < columns - 1; c++)
                     {
@@ -266,6 +267,7 @@ namespace CityX.Tests
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
                 ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
                 ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
+                ("knife", "Assets/CityX/Weapons/KitchenKnife.prefab"),
             })
             {
                 var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(swordPath);

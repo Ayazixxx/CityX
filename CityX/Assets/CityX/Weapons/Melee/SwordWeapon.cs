@@ -75,6 +75,16 @@ namespace CityX.Weapons
         /// <summary>ISwordBlade: the combat picks its moveset by this.</summary>
         public bool IsOneHanded => _oneHanded;
 
+        /// <summary>
+        /// A KNIFE (the kitchen knife, docs/KNIFE.md): one-handed, held and swung as the combat sword is, but quicker and lighter, a little
+        /// shorter in reach, its lights staggering no one, its guard thin and its backstab the biggest (KnifeRules, Backstab).
+        /// </summary>
+        [SerializeField] private bool _knife;
+
+        public bool Knife { get => _knife; set => _knife = value; }
+
+        public bool IsKnife => _knife;
+
         public float BladeLength { get => _bladeLength; set => _bladeLength = Mathf.Max(0.1f, value); }
 
         /// <summary>Where the blade meets the grip, in world space.</summary>
@@ -359,7 +369,7 @@ namespace CityX.Weapons
             return false;
         }
 
-        public float GetMeleeDamage() => BaseMeleeDamage;
+        public float GetMeleeDamage() => _knife ? KnifeRules.BaseDamage : BaseMeleeDamage;
 
         public float MeleeCooldownSeconds => MeleeCooldownSecondsConst;
 

@@ -35,6 +35,7 @@ namespace CityX.Items
         public const string CombatSword = "combat_sword";
         public const string MetalCrowbar = "metal_crowbar";
         public const string BaseballBat = "baseball_bat";
+        public const string KitchenKnife = "kitchen_knife";
         public const string Flamethrower = "flamethrower";
         public const string AK47 = "ak47";
         public const string SprayCan = "spray_can";
@@ -99,6 +100,8 @@ namespace CityX.Items
             [CombatSword] = new ItemDefinition(CombatSword, "Combat Sword", "weapon", EquipSlots.Primary, 1),
             [MetalCrowbar] = new ItemDefinition(MetalCrowbar, "Metal Crowbar", "weapon", EquipSlots.Primary, 1),
             [BaseballBat] = new ItemDefinition(BaseballBat, "Baseball Bat", "weapon", EquipSlots.Primary, 1),
+            // A knife: one-handed, quicker and lighter than the sword, with the biggest backstab (docs/KNIFE.md, KnifeRules).
+            [KitchenKnife] = new ItemDefinition(KitchenKnife, "Kitchen Knife", "weapon", EquipSlots.Primary, 1),
             [Flamethrower] = new ItemDefinition(Flamethrower, "Flamethrower", "weapon", EquipSlots.Primary, 1),
             // Automatic; its handling is Weapons/FirearmProfile.AK47.
             [AK47] = new ItemDefinition(AK47, "AK-47", "weapon", EquipSlots.Primary, 1),
@@ -143,7 +146,7 @@ namespace CityX.Items
         public static bool Has(string itemId) => Items.ContainsKey(itemId);
 
         /// <summary>A blade: its killing blows cut a part off rather than bursting it (docs/DISMEMBERMENT.md).</summary>
-        public static bool HasEdge(string itemId) => itemId == CombatSword || itemId == SpikeSword;
+        public static bool HasEdge(string itemId) => itemId == CombatSword || itemId == SpikeSword || itemId == KitchenKnife;
 
         public static IReadOnlyCollection<string> Ids => Items.Keys;
     }

@@ -71,6 +71,31 @@ namespace CityX.Character
         /// <summary>Opens a scope in which blows chill their target by <paramref name="amount"/>.</summary>
         public static ChillScope Chilling(float amount) => new ChillScope(amount);
 
+        /// <summary>
+        /// The blow is a critical hit (a backstab, Backstab): shown in gold where it lands (DamageDealt). Separate from <see cref="Scope"/>
+        /// as <see cref="BreaksGuard"/> is.
+        /// </summary>
+        public static bool Critical { get; private set; }
+
+        /// <summary>Opens a scope in which blows are critical hits (or not).</summary>
+        public static CriticalScope Critically(bool critical) => new CriticalScope(critical);
+
+        public readonly struct CriticalScope : IDisposable
+        {
+            private readonly bool _before;
+
+            public CriticalScope(bool critical)
+            {
+                _before = Critical;
+                Critical = critical;
+            }
+
+            public void Dispose()
+            {
+                Critical = _before;
+            }
+        }
+
         public readonly struct ChillScope : IDisposable
         {
             private readonly float _before;

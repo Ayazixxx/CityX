@@ -37,6 +37,7 @@ namespace CityX.UI
             public float Amount;
             public float Share;
             public bool Heavy;
+            public bool Critical;
             public float Age;
             public float SinceLastHit;
             public float Side;
@@ -123,6 +124,7 @@ namespace CityX.UI
                     shown.Amount += hit.Amount;
                     shown.Share = DamageDealt.ShareOf(hit.Target, shown.Amount);
                     shown.Heavy |= hit.Heavy;
+                    shown.Critical |= hit.Critical;
                     shown.SinceLastHit = 0.0f;
                     Style(shown);
                     return;
@@ -141,6 +143,7 @@ namespace CityX.UI
                 Amount = hit.Amount,
                 Share = hit.ShareOfBar,
                 Heavy = hit.Heavy,
+                Critical = hit.Critical,
                 Side = side,
                 Spread = new Vector2(side, Random.Range(-0.3f, 0.3f)) * DamageNumberLook.SpreadPixels,
             };
@@ -152,8 +155,8 @@ namespace CityX.UI
         private static void Style(Number number)
         {
             number.Label.text = DamageNumberLook.TextFor(number.Amount);
-            number.Label.color = DamageNumberLook.ColourFor(number.Share);
-            number.Label.fontSize = Mathf.RoundToInt(DamageNumberLook.SizeFor(number.Share, number.Heavy));
+            number.Label.color = DamageNumberLook.ColourFor(number.Share, number.Critical);
+            number.Label.fontSize = Mathf.RoundToInt(DamageNumberLook.SizeFor(number.Share, number.Heavy, number.Critical));
         }
 
         private Text TakeLabel()

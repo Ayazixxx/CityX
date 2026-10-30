@@ -32,7 +32,11 @@ namespace CityX.Character
         /// <summary>A heavy blow (its stun counts as heavy, HitImpactEffects.HeavyHitstunSeconds): shown bigger.</summary>
         public readonly bool Heavy;
 
-        public DamageDealt(GameObject striker, IDamageable target, Vector3 point, float amount, float shareOfBar, DamageKind kind, bool heavy)
+        /// <summary>A critical hit (a backstab, DamageContext.Critical): shown in gold.</summary>
+        public readonly bool Critical;
+
+        public DamageDealt(GameObject striker, IDamageable target, Vector3 point, float amount, float shareOfBar, DamageKind kind, bool heavy,
+            bool critical = false)
         {
             Striker = striker;
             Target = target;
@@ -41,6 +45,7 @@ namespace CityX.Character
             ShareOfBar = shareOfBar;
             Kind = kind;
             Heavy = heavy;
+            Critical = critical;
         }
 
         /// <summary>Every blow that lands with a striker named, on this machine.</summary>
@@ -81,7 +86,7 @@ namespace CityX.Character
                 return;
             }
             Landed(new DamageDealt(striker, target, contactPoint ?? PointOn(target), amount, ShareOf(target, amount), kind,
-                hitstunSeconds >= HitImpactEffects.HeavyHitstunSeconds));
+                hitstunSeconds >= HitImpactEffects.HeavyHitstunSeconds, DamageContext.Critical));
         }
     }
 }

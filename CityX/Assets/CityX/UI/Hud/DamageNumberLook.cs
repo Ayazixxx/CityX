@@ -70,10 +70,19 @@ namespace CityX.UI
             return Color.Lerp(Color.white, Red, Redness(shareOfBar));
         }
 
+        /// <summary>A critical hit (a backstab): gold whatever its share of the bar, and this many times bigger, so it reads as one at a glance.</summary>
+        public static readonly Color Gold = new Color(1.0f, 0.78f, 0.12f);
+
+        public const float CriticalScale = 1.35f;
+
+        public static Color ColourFor(float shareOfBar, bool critical) => critical ? Gold : ColourFor(shareOfBar);
+
         public static float SizeFor(float shareOfBar, bool heavy)
         {
             return Mathf.Lerp(SmallSize, BigSize, Redness(shareOfBar)) * (heavy ? HeavyScale : 1.0f);
         }
+
+        public static float SizeFor(float shareOfBar, bool heavy, bool critical) => SizeFor(shareOfBar, heavy) * (critical ? CriticalScale : 1.0f);
 
         /// <summary>The pop: <see cref="PopScale"/> as it appears, easing to 1.</summary>
         public static float ScaleAt(float age)

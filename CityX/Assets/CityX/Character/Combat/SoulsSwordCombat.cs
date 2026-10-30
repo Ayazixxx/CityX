@@ -149,6 +149,9 @@ namespace CityX.Character
         /// <summary>True for a sword held in one hand (the other is free): the one-handed attacks and guard are used.</summary>
         bool IsOneHanded => false;
 
+        /// <summary>True for a knife (one-handed too): the knife's quicker, lighter attacks, its reach and guard, its backstab (KnifeRules).</summary>
+        bool IsKnife => false;
+
         /// <summary>
         /// Holds the sword in the thrust grip at <paramref name="weight"/> (the handle in the fist, turned so the blade leans out toward the
         /// fingertips), and as it is otherwise held at 0. PlayerLocomotion does it while the stab dash's or the spin's pose holds the body (BakedPose.ThrustGrip).
@@ -236,6 +239,17 @@ namespace CityX.Character
 
         [Header("One-handed heavy (held left click)")]
         public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.55f, 30.0f, 1.60f, 0.90f, 0.35f, 50.0f, true);
+
+        // THE KNIFE (KnifeRules, docs/KNIFE.md): the one-handed slash and backhand, back and forth, run KnifeRules.SwingSpeed faster, cheaper
+        // in stamina and with NO STAGGER -- a knife's light does not stop what its target is doing, so it cannot trade blows with a sword
+        // (a sword's light stuns longer than it takes the next cut to arrive: SoulsCombatRhythmTests). The heavy is a lunging stab that
+        // closes the distance, guard-breaking as every heavy.
+        [Header("Knife light chain (left click)")]
+        public SoulsAttack KnifeLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.45f, 11.0f, 0.80f, 0.0f, 0.15f, 8.0f, false);
+        public SoulsAttack KnifeLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.45f, 11.0f, 0.85f, 0.0f, 0.15f, 8.0f, false);
+
+        [Header("Knife heavy (held left click): the lunging stab")]
+        public SoulsAttack KnifeHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.50f, 22.0f, 1.60f, 0.60f, 1.0f, 35.0f, true);
 
         [Header("Feel")]
         [Tooltip("How long an early attack press is remembered. Long enough that a click during a light swing still chains at its window, " +
@@ -388,6 +402,7 @@ namespace CityX.Character
         private ISwordBlade _sword;
         private bool _equipped;
         private bool _oneHanded;
+        private bool _knife;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
         private PlayerAnimationDriver _driver;
@@ -426,9 +441,16 @@ namespace CityX.Character
         /// <summary>True with a one-handed sword in hand: the one-handed attacks and guard are in use.</summary>
         public bool IsOneHanded => _oneHanded;
 
+        /// <summary>True with a knife in hand (one-handed too): the knife's attacks, reach, guard and backstab.</summary>
+        public bool IsKnife => _knife;
+
         /// <summary>The light chain for the sword in hand (0-2).</summary>
         public SoulsAttack LightAttack(int index)
         {
+            if (_knife)
+            {
+                return index == 0 ? KnifeLight1 : KnifeLight2;
+            }
             if (_oneHanded)
             {
                 return index == 0 ? OneHandLight1 : (index == 1 ? OneHandLight2 : OneHandLight3);
@@ -444,7 +466,19 @@ namespace CityX.Character
         public int LightChainLength => _oneHanded ? 2 : 3;
 
         /// <summary>The heavy for the sword in hand.</summary>
-        public SoulsAttack HeavyAttack => _oneHanded ? OneHandHeavy : Heavy;
+        public SoulsAttack HeavyAttack => _knife ? KnifeHeavy : (_oneHanded ? OneHandHeavy : Heavy);
+
+        /// <summary>How much faster than its own timings the blade in hand swings: a knife's <see cref="KnifeRules.SwingSpeed"/>, else 1.</summary>
+        public float BladeSwingSpeed => _knife ? KnifeRules.SwingSpeed : 1.0f;
+
+        /// <summary>How far ahead of the body a swing catches a target, metres: <see cref="ReachMetres"/>, a knife's a little short of it.</summary>
+        public float Reach => ReachMetres * (_knife ? KnifeRules.ReachShare : 1.0f);
+
+        /// <summary>The stamina a blow on the held guard costs, per point of damage: a knife's guard pays more for each.</summary>
+        public float GuardStaminaPerDamage => BlockStaminaPerDamage * (_knife ? KnifeRules.GuardStaminaShare : 1.0f);
+
+        /// <summary>Raised for a blow that landed as a backstab (a critical hit), with its target.</summary>
+        public event System.Action<IDamageable> Backstabbed;
 
         public SoulsPhase Phase => _phase;
 
@@ -497,13 +531,14 @@ namespace CityX.Character
         {
             Bind();
             _sword = sword;
-            _oneHanded = sword != null && sword.IsOneHanded;
+            _oneHanded = sword != null && (sword.IsOneHanded || sword.IsKnife);
+            _knife = sword != null && sword.IsKnife;
             _equipped = true;
             if (_vitals != null)
             {
                 _vitals.StaminaRegenPerSecondOverride = StaminaRegenPerSecond;
                 _vitals.GuardBreakStunSeconds = GuardBreakStunSeconds;
-                _vitals.BlockStaminaPerDamage = BlockStaminaPerDamage;
+                _vitals.BlockStaminaPerDamage = GuardStaminaPerDamage;
                 _vitals.Parried -= OnParried;
                 _vitals.Parried += OnParried;
             }
@@ -667,7 +702,7 @@ namespace CityX.Character
                     }
                     _blocking = true;
                     _vitals.BlockDrainsStamina = true;
-                    _vitals.BlockStaminaPerDamage = BlockStaminaPerDamage;
+                    _vitals.BlockStaminaPerDamage = GuardStaminaPerDamage;
                     _vitals.GuardBreakStunSeconds = GuardBreakStunSeconds;
                     // The guard's first instant parries: a blow caught now costs nothing and leaves the attacker open.
                     _vitals.BeginPerfectGuard(PerfectGuardSeconds);
@@ -904,7 +939,7 @@ namespace CityX.Character
             _currentChained = chained;
 
             // Melee Speed (2026-10-14): the whole swing -- wind-up, cut, recovery, the lunge and the pose -- runs this much faster.
-            _swingSpeed = PlayerVitals.SpeedOf(_vitals, StatId.MeleeSpeed);
+            _swingSpeed = PlayerVitals.SpeedOf(_vitals, StatId.MeleeSpeed) * BladeSwingSpeed;   // a knife swings quicker (KnifeRules)
             _current = attack;
             _currentIsLight = light;
             _chainIndex = light ? _pendingChainIndex : -1;
@@ -1035,13 +1070,14 @@ namespace CityX.Character
             _prevBase = bladeBase;
             _prevTip = bladeTip;
 
-            if (ReachMetres > 0.0f)
+            float reach = Reach;
+            if (reach > 0.0f)
             {
                 float height = _locomotion != null ? _locomotion.StandingHeight : 1.8f;
                 Vector3 center = transform.position
                     + Vector3.up * (height * 0.5f)
-                    + transform.forward * (ReachMetres * 0.5f + 0.15f);
-                var halfExtents = new Vector3(ReachHalfWidth, height * 0.5f, ReachMetres * 0.5f);
+                    + transform.forward * (reach * 0.5f + 0.15f);
+                var halfExtents = new Vector3(ReachHalfWidth, height * 0.5f, reach * 0.5f);
                 int count = Physics.OverlapBoxNonAlloc(
                     center, halfExtents, _overlap, transform.rotation, TargetLayers, QueryTriggerInteraction.Ignore);
                 LandOnOverlaps(count, transform.position + Vector3.up * (height * 0.6f));
@@ -1113,6 +1149,17 @@ namespace CityX.Character
             float baseDamage = _sword != null ? _sword.GetMeleeDamage() : CombatTuning.PunchDamage;
             float damage = CombatTuning.DamageFor(baseDamage * _current.DamageScale, strength) * (_melee != null ? _melee.BloodrageFactor : 1.0f);
 
+            // THE BACKSTAB (Backstab): a one-handed blade's blow from behind a living body is a critical hit -- far more damage (a knife's the
+            // most), and a stagger even from a knife's light.
+            float hitstun = _current.HitstunSeconds;
+            bool backstab = _oneHanded && target.IsAlive && target is Component body && body != null
+                && Backstab.IsBehind(body.transform.position, body.transform.forward, transform.position);
+            if (backstab)
+            {
+                damage *= Backstab.MultiplierFor(_knife);
+                hitstun = Mathf.Max(hitstun, Backstab.StaggerSeconds);
+            }
+
             // The blow's poise damage, told to the target just before it lands (a copy of another player forwards it with the hit).
             var victim = target as PlayerVitals;
             victim?.TakePoise(_current.PoiseDamage);
@@ -1121,10 +1168,11 @@ namespace CityX.Character
             bool edged = _sword is IEquippableWeapon blade && blade.IsEdged;
             using (DamageContext.GuardBreaking(_current.BreaksGuard))
             using (DamageContext.Cutting(edged))
+            using (DamageContext.Critically(backstab))
             {
                 response = _melee != null
-                    ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)
-                    : DamageContext.Strike(target, damage, transform.position, _current.HitstunSeconds, DamageKind.Physical,
+                    ? _melee.RegisterExternalHit(target, point, damage, hitstun)
+                    : DamageContext.Strike(target, damage, transform.position, hitstun, DamageKind.Physical,
                         _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, point, gameObject);
             }
 
@@ -1134,7 +1182,11 @@ namespace CityX.Character
             }
 
             AttackHit?.Invoke(target);
-            BeginHitStop();
+            if (backstab && response == HitResponse.Landed)
+            {
+                Backstabbed?.Invoke(target);
+            }
+            BeginHitStop(backstab ? Backstab.HitStopMultiplier : 1.0f);
 
             if (response == HitResponse.Blocked && _vitals != null)
             {
@@ -1237,13 +1289,13 @@ namespace CityX.Character
             _pendingVerdicts.Clear();
         }
 
-        private void BeginHitStop()
+        private void BeginHitStop(float multiplier = 1.0f)
         {
             if (HitStopSeconds <= 0.0f || _current == null)
             {
                 return;
             }
-            float seconds = HitStopSeconds * (_currentIsLight ? 1.0f : HeavyHitStopMultiplier);
+            float seconds = HitStopSeconds * (_currentIsLight ? 1.0f : HeavyHitStopMultiplier) * multiplier;
             if (seconds <= _hitStopRemaining)
             {
                 return;   // several targets in one frame: the longest stop wins, they do not add up
@@ -1417,7 +1469,7 @@ namespace CityX.Character
             {
                 _vitals.StaminaRegenPerSecondOverride = StaminaRegenPerSecond;
                 _vitals.GuardBreakStunSeconds = GuardBreakStunSeconds;
-                _vitals.BlockStaminaPerDamage = BlockStaminaPerDamage;
+                _vitals.BlockStaminaPerDamage = GuardStaminaPerDamage;
             }
             message = $"{path} = {value.ToString(CultureInfo.InvariantCulture)}";
             return true;
