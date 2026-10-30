@@ -135,7 +135,7 @@ namespace CityX.Weapons
             float reach = lands ? Vector3.Distance(from, landing) + WaterJetRules.StreamRadius : WaterJetRules.Range;
 
             // A spell: Spell Power makes each tick hurt more (2% a point), and the caster's Armor Penetration goes with it.
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             float tick = CombatTuning.DamageFor(WaterJetRules.DamagePerTick, spellPower);
 

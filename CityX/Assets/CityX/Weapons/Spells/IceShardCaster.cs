@@ -188,7 +188,7 @@ namespace CityX.Weapons
             Vector3 aimed = Nudged(_direction, _shotsFired, SpreadDegrees);
 
             // A spell: Spell Power makes it hurt more, and the caster's Armor Penetration goes with it (2026-10-14).
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             Vector3 spawnAt = _origin + aimed * SpawnForwardOffset;
             _volley.Add(IceShardProjectile.Spawn(ShardPrefab, spawnAt, aimed * ShardSpeed, spellPower, _ignore, penetration: penetration, striker: gameObject));

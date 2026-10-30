@@ -121,7 +121,7 @@ namespace CityX.Weapons
         /// <summary>How many burns it has dealt, for tests.</summary>
         public int Burns { get; private set; }
 
-        private int _strength;
+        private float _strength;
         private Collider[] _ignore;
 
         /// <summary>Who cast it: named with its blows, so the caster sees their damage (DamageDealt).</summary>
@@ -164,7 +164,7 @@ namespace CityX.Weapons
         private static readonly RaycastHit[] Above = new RaycastHit[16];
         private readonly HashSet<IDamageable> _seen = new HashSet<IDamageable>();
 
-        public static AcidRainStorm Spawn(GameObject prefab, Vector3 centre, int strength, Collider[] ignore, bool cosmetic = false, GameObject striker = null)
+        public static AcidRainStorm Spawn(GameObject prefab, Vector3 centre, float strength, Collider[] ignore, bool cosmetic = false, GameObject striker = null)
         {
             GameObject go = prefab != null ? Instantiate(prefab, centre, Quaternion.identity) : new GameObject("AcidRainStorm");
             go.transform.position = centre;

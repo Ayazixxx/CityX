@@ -193,7 +193,7 @@ namespace CityX.Character
         public const float StrengthDamagePerPoint = 0.02f;
 
         /// <summary>The shared strength-scaling chokepoint every damage source runs through.</summary>
-        public static float DamageFor(float baseDamage, int strength)
+        public static float DamageFor(float baseDamage, float strength)
         {
             return baseDamage * (1.0f + strength * StrengthDamagePerPoint);
         }

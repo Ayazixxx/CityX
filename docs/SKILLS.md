@@ -58,7 +58,8 @@ What a rank does is the skill's own: Arcane Orb adds an orb a rank up to three, 
 
 A spell pays mana (GAME_DESIGN.md), refused without enough, nothing spent and no cooldown started: the Fireball 10 (the Fireball Staff's plain
 shot; it paid nothing before, owner: "make fireball cost some mana that was unintended"), Arcane Orb 20, Arcane Barrier its raising and its
-upkeep, Fire Enhancement its own. The bar holds 100 and refills 4 a second (`PlayerVitals`).
+upkeep, Fire Enhancement its own. The bar holds 100 and refills 4 a second (`PlayerVitals`). With a Magic Wand in hand every spell pays a tenth
+less (docs/MAGIC_WAND.md).
 
 ### What a skill gates (`PlayerInputReader`)
 

@@ -191,6 +191,17 @@ namespace CityX.Character
         public static Vector3 CrosshairDirection(Vector3 origin, Vector3 eye, Vector3 look, Transform self)
         {
             look = look.sqrMagnitude > 1e-6f ? look.normalized : Vector3.forward;
+            Vector3 toAimPoint = CrosshairPoint(origin, eye, look, self) - origin;
+            return toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : look;
+        }
+
+        /// <summary>
+        /// What the crosshair is ON: the first point the camera's line meets past the body (as far along it as <paramref name="origin"/>), not
+        /// <paramref name="self"/>'s own; meeting nothing, the line's far end (<see cref="CrosshairReach"/>).
+        /// </summary>
+        public static Vector3 CrosshairPoint(Vector3 origin, Vector3 eye, Vector3 look, Transform self)
+        {
+            look = look.sqrMagnitude > 1e-6f ? look.normalized : Vector3.forward;
             float pastBody = Mathf.Max(0.0f, Vector3.Dot(origin - eye, look));
             Vector3 aimPoint = eye + look * CrosshairReach;
             float nearest = CrosshairReach;
@@ -205,8 +216,7 @@ namespace CityX.Character
                 nearest = hit.distance;
                 aimPoint = hit.point;
             }
-            Vector3 toAimPoint = aimPoint - origin;
-            return toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : look;
+            return aimPoint;
         }
 
         /// <summary>
@@ -661,9 +671,8 @@ namespace CityX.Character
                 // ordinary ground cast below.
                 if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, keyboard) && swingYawSource != null)
                 {
-                    float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
-                    Vector3 origin = transform.position + Vector3.up * height;
-                    _fireballCaster.TryCast(origin, ConvergedDirection(origin, swingYawSource), GetComponentsInChildren<Collider>());
+                    SpellLaunch(swingYawSource, out Vector3 origin, out Vector3 direction);
+                    _fireballCaster.TryCast(origin, direction, GetComponentsInChildren<Collider>());
                 }
                 if (_skills.Pressed(SkillCatalog.IceShards, keyboard))
                 {
@@ -897,13 +906,8 @@ namespace CityX.Character
             // EVERY SPELL NOW CASTS FROM ITS SLOT ON THE BAR (PlayerSkills.Pressed): whichever of the keys 1 to 0 holds it, once learnt.
             if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, keyboard) && yawSource != null)
             {
-                // Roughly chest height, matching the same fraction
-                // MeleeAttacker.SwingOrigin/the weapon-throw origin below
-                // already use for "a sensible point on the body to launch
-                // something from."
-                float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
-                Vector3 origin = transform.position + Vector3.up * height;
-                _fireballCaster.TryCast(origin, ConvergedDirection(origin, yawSource), GetComponentsInChildren<Collider>());
+                SpellLaunch(yawSource, out Vector3 origin, out Vector3 direction);
+                _fireballCaster.TryCast(origin, direction, GetComponentsInChildren<Collider>());
             }
 
             // 3: ICE SHARDS, innate like the fireball: four shards one after another down the crosshair, each sticking where it lands. The
@@ -962,6 +966,7 @@ namespace CityX.Character
             }
             AimIceShards(yawSource);
             AimPoisonBreath(yawSource);
+            AimWand(yawSource);
 
             // 8: BLOODRAGE, innate like the fireball (see BloodrageAbility): +25% speed and melee damage, the Bloodrage walk/run/jump, a red aura, 7.5 s.
             if (_skills.Pressed(SkillCatalog.Bloodrage, keyboard))

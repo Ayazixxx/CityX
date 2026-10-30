@@ -52,7 +52,7 @@ namespace CityX.Weapons
 
         private Vector3 _velocity;
         /// <summary>Points in the caster's Spell Power (2% a point), and how much of the target's armour and block it ignores.</summary>
-        private int _casterStrength;
+        private float _casterStrength;
 
         /// <summary>Who cast it: named with its blows, so the caster sees their damage (DamageDealt).</summary>
         private GameObject _striker;
@@ -70,7 +70,7 @@ namespace CityX.Weapons
         /// </summary>
         public bool Cosmetic { get; private set; }
 
-        public static IceShardProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, int casterStrength, Collider[] ignoreColliders,
+        public static IceShardProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, float casterStrength, Collider[] ignoreColliders,
             bool cosmetic = false, float penetration = 0.0f, GameObject striker = null)
         {
             if (prefab == null || velocity.sqrMagnitude < 1e-6f)

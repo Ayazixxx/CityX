@@ -42,7 +42,7 @@ namespace CityX.Weapons
         /// <summary>The spell on <paramref name="body"/> this staff shoots.</summary>
         protected abstract IStaffCaster CasterOn(GameObject body);
 
-        public void OnEquip(GameObject player, ItemInstanceData instanceData)
+        public virtual void OnEquip(GameObject player, ItemInstanceData instanceData)
         {
             Hold(player);
             var input = player.GetComponent<PlayerInputReader>();
@@ -52,7 +52,7 @@ namespace CityX.Weapons
             }
         }
 
-        public void OnUnequip(GameObject player)
+        public virtual void OnUnequip(GameObject player)
         {
             CancelCharge(player);
             var input = player != null ? player.GetComponent<PlayerInputReader>() : null;
@@ -117,15 +117,28 @@ namespace CityX.Weapons
             _locomotion = body != null ? body.GetComponent<PlayerLocomotion>() : null;
             if (_locomotion != null)
             {
-                _locomotion.Staff = transform;
+                PoseOn(_locomotion, true);
             }
         }
 
         private void Release()
         {
-            if (_locomotion != null && _locomotion.Staff == transform)
+            if (_locomotion != null)
             {
-                _locomotion.Staff = null;
+                PoseOn(_locomotion, false);
+            }
+        }
+
+        /// <summary>Tells the body it holds this (or no longer does), so it poses the arm: a staff stood upright (a wand pointed, MagicWand).</summary>
+        protected virtual void PoseOn(PlayerLocomotion locomotion, bool held)
+        {
+            if (held)
+            {
+                locomotion.Staff = transform;
+            }
+            else if (locomotion.Staff == transform)
+            {
+                locomotion.Staff = null;
             }
         }
     }

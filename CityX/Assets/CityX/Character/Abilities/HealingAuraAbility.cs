@@ -158,7 +158,7 @@ namespace CityX.Character
         /// <summary>One tick: the caster and every living player standing in the circle healed a little.</summary>
         private void HealInside()
         {
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float heal = CombatTuning.DamageFor(HealingAuraRules.HealPerTick, spellPower);
             float scale = transform.lossyScale.y;
             if (_vitals != null)

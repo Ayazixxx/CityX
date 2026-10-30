@@ -363,6 +363,11 @@ namespace CityX.UI
                 case "arcane":
                 case "arcanestaff":
                 case "arcane_staff": return ItemRegistry.ArcaneStaff;
+                case "wand":
+                case "magicwand":
+                case "magic_wand": return ItemRegistry.MagicWand;
+                case "magicstaff":
+                case "magic_staff": return ItemRegistry.MagicStaff;
                 case "waterstaff":
                 case "water_staff":
                 case "hose":

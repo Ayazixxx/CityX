@@ -106,6 +106,10 @@ namespace CityX.CharacterEditor
             GetOrAdd<FlashlightSync>(player);
             GetOrAdd<FrostSprayCaster>(player);
 
+            // --- the Magic Wand's and the Magic Staff's speck of dust (2026-10-30, docs/MAGIC_WAND.md): drawn in code, its glows from the same light.
+            var magicSpeck = GetOrAdd<MagicSpeckCaster>(player);
+            magicSpeck.LightMaterial = EnsureSelfSmiteLightMaterial() ?? magicSpeck.LightMaterial;
+
             // --- the bow's draw and arrows as other players see them (2026-10-28, docs/ARCHERY.md): a copy looses the bow's own arrow.
             var archery = GetOrAdd<Archery>(player);
             archery.ArrowPrefab = Load(ArrowPrefabPath) ?? archery.ArrowPrefab;

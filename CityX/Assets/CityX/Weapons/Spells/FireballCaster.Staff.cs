@@ -110,7 +110,7 @@ namespace CityX.Weapons
             float size = Mathf.Lerp(1.0f, StaffMostSize, fraction);
             Vector3 from = _tip != null ? _tip.position : transform.position + Vector3.up * 1.8f;
             Vector3 forward = PlayerInputReader.CrosshairDirection(from, _eye, _look, transform);
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             FireballProjectile.Spawn(FireballPrefab, from, forward * FireballSpeed, spellPower, GetComponentsInChildren<Collider>(),
                 penetration: penetration, striker: gameObject, size: size, blastRadius: fraction * StaffMostBlastRadius);

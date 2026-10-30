@@ -874,6 +874,8 @@ namespace CityX.Character
             ApplyStaffPose();
             // A flashlight in the right hand: carried low, held out and pointed where the player looks when lit (PlayerLocomotion.Torch.cs).
             ApplyTorchPose();
+            // A wand in the right hand: carried low, pointed at the crosshair to shoot or cast (PlayerLocomotion.Wand.cs).
+            ApplyWandPose();
             ApplyClimbLimbs();
             ApplyClimbWallLimbs();
             ApplyLedgeHands();
@@ -1491,7 +1493,7 @@ namespace CityX.Character
             // has to track the camera THE INSTANT it starts, moving or not --
             // a lagging catch-up reads as "at a weird angle" the whole time
             // it is catching up.
-            if (input.Aiming || _gunFireHold > 0.0f || (StaffCasting && Staff != null))
+            if (input.Aiming || _gunFireHold > 0.0f || (StaffCasting && Staff != null) || WandPointing)
             {
                 transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees + AimYawOffsetDegrees, 0.0f);
             }

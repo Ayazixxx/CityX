@@ -20,9 +20,10 @@ namespace CityX.Weapons
         /// <summary>A cursed orb's dark body.</summary>
         public static readonly Color CursedCore = new Color(0.07f, 0.0f, 0.09f);
 
+        /// <summary>The arcane spells' light; the sprites, trails, motes and bursts here take another palette for another spell's (GlowPalette).</summary>
+        public static readonly GlowPalette Arcane = new GlowPalette("Arcane", Magenta, Hot);
+
         private static Material _template;
-        private static Material _glow;
-        private static Material _hot;
         private static Material _core;
         private static Material _wall;
         private static Material _shimmer;
@@ -38,16 +39,15 @@ namespace CityX.Weapons
                 return;
             }
             _template = template;
-            _glow = null;
-            _hot = null;
+            Arcane.UseTemplate(template);
             _wall = null;
             _shimmer = null;
             _ring = null;
         }
 
-        public static Material Glow => _glow != null ? _glow : (_glow = SoftGlow.Make("ArcaneGlow", Magenta, true, _template));
+        public static Material Glow => Arcane.Glow;
 
-        public static Material HotGlow => _hot != null ? _hot : (_hot = SoftGlow.Make("ArcaneHot", Hot, true, _template));
+        public static Material HotGlow => Arcane.Hot;
 
         /// <summary>Arcane Barrier's face: a square of aura, see-through in the middle, its rim bright (<see cref="WallAlpha"/>).</summary>
         public static Material WallGlow => _wall != null ? _wall : (_wall = Painted("ArcaneBarrierWall", WallTexture()));
@@ -120,9 +120,13 @@ namespace CityX.Weapons
             return renderer;
         }
 
-        /// <summary>A streak left behind <paramref name="go"/>: <paramref name="width"/> across at its head, gone after <paramref name="seconds"/>.</summary>
-        public static TrailRenderer Trail(GameObject go, float seconds, float width)
+        /// <summary>
+        /// A streak left behind <paramref name="go"/>: <paramref name="width"/> across at its head, gone after <paramref name="seconds"/>, in
+        /// <paramref name="palette"/>'s light (the arcane by default).
+        /// </summary>
+        public static TrailRenderer Trail(GameObject go, float seconds, float width, GlowPalette palette = null)
         {
+            palette ??= Arcane;
             TrailRenderer trail = go.AddComponent<TrailRenderer>();
             trail.time = seconds;
             trail.minVertexDistance = 0.04f;
@@ -130,10 +134,10 @@ namespace CityX.Weapons
             trail.widthCurve = AnimationCurve.Linear(0.0f, 1.0f, 1.0f, 0.0f);
             var colours = new Gradient();
             colours.SetKeys(
-                new[] { new GradientColorKey(Hot, 0.0f), new GradientColorKey(Magenta, 0.35f), new GradientColorKey(Magenta, 1.0f) },
+                new[] { new GradientColorKey(palette.HotColour, 0.0f), new GradientColorKey(palette.Colour, 0.35f), new GradientColorKey(palette.Colour, 1.0f) },
                 new[] { new GradientAlphaKey(1.0f, 0.0f), new GradientAlphaKey(0.0f, 1.0f) });
             trail.colorGradient = colours;
-            trail.sharedMaterial = Glow;
+            trail.sharedMaterial = palette.Glow;
             trail.textureMode = LineTextureMode.Stretch;
             trail.shadowCastingMode = ShadowCastingMode.Off;
             trail.receiveShadows = false;
@@ -141,11 +145,14 @@ namespace CityX.Weapons
         }
 
         /// <summary>
-        /// Little sparks of magenta: <paramref name="perSecond"/> drifting off a sphere of <paramref name="radius"/> (0 a second for one that only
-        /// bursts, by <see cref="ParticleSystem.Emit(int)"/>), flying up to <paramref name="speed"/>, fading as they shrink.
+        /// Little sparks of magenta (or <paramref name="palette"/>'s light): <paramref name="perSecond"/> drifting off a sphere of
+        /// <paramref name="radius"/> (0 a second for one that only bursts, by <see cref="ParticleSystem.Emit(int)"/>), flying up to
+        /// <paramref name="speed"/>, fading as they shrink.
         /// </summary>
-        public static ParticleSystem Motes(Transform parent, float perSecond, float radius, float speed, float size, float lifetime)
+        public static ParticleSystem Motes(Transform parent, float perSecond, float radius, float speed, float size, float lifetime,
+            GlowPalette palette = null)
         {
+            palette ??= Arcane;
             var go = new GameObject("Motes");
             go.transform.SetParent(parent, false);
             ParticleSystem particles = go.AddComponent<ParticleSystem>();
@@ -155,7 +162,7 @@ namespace CityX.Weapons
             main.startLifetime = new ParticleSystem.MinMaxCurve(lifetime * 0.5f, lifetime);
             main.startSpeed = new ParticleSystem.MinMaxCurve(speed * 0.3f, speed);
             main.startSize = new ParticleSystem.MinMaxCurve(size * 0.5f, size);
-            main.startColor = new ParticleSystem.MinMaxGradient(Magenta, Hot);
+            main.startColor = new ParticleSystem.MinMaxGradient(palette.Colour, palette.HotColour);
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.maxParticles = 64;
             ParticleSystem.EmissionModule emission = particles.emission;
@@ -173,7 +180,7 @@ namespace CityX.Weapons
             shrink.enabled = true;
             shrink.size = new ParticleSystem.MinMaxCurve(1.0f, AnimationCurve.Linear(0.0f, 1.0f, 1.0f, 0.0f));
             var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = Glow;
+            renderer.sharedMaterial = palette.Glow;
             Unlit(renderer);
             if (perSecond > 0.0f)
             {
@@ -182,14 +189,14 @@ namespace CityX.Weapons
             return particles;
         }
 
-        /// <summary>A magenta point light (no shadow: a moving point light's shadow is six renders a frame).</summary>
-        public static Light Light(Transform parent, float intensity, float range)
+        /// <summary>A point light, magenta unless <paramref name="colour"/> says (no shadow: a moving point light's shadow is six renders a frame).</summary>
+        public static Light Light(Transform parent, float intensity, float range, Color? colour = null)
         {
             var go = new GameObject("Light");
             go.transform.SetParent(parent, false);
             Light light = go.AddComponent<Light>();
             light.type = LightType.Point;
-            light.color = Magenta;
+            light.color = colour ?? Magenta;
             light.intensity = intensity;
             light.range = range;
             light.shadows = LightShadows.None;

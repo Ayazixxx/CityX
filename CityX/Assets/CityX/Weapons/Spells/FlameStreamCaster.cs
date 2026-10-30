@@ -137,7 +137,7 @@ namespace CityX.Weapons
             FireScene.IgniteAlongStream(from, direction, reach, transform, gameObject, ref _igniteDue, deltaTime);   // the ground catches (docs/FIRE.md)
 
             // A spell: Spell Power makes it hurt more (2% a point), and the caster's Armor Penetration goes with it.
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             float tick = CombatTuning.DamageFor(FlameStreamRules.DamagePerTick, spellPower) * flame;
 

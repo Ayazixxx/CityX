@@ -46,7 +46,7 @@ N 1, `StaffChargeStarted`, `StaffChargeStopped`), `IceShardCaster` (`StaffShardF
 ## Not yet
 
 - The owner's own models (Meshy, after 2026-10-31).
-- Staffs boosting their element's spells, general staffs and wands (GAME_DESIGN.md: the owner's ideas, not built).
+- Staffs boosting their element's spells (GAME_DESIGN.md: the owner's idea, not built). The Magic Wand and the Magic Staff, with no element, are docs/MAGIC_WAND.md.
 - A staff's melee (a bonk) or right-click.
 
 ## Tests

@@ -220,6 +220,8 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 
 **Built 2026-10-27** (docs/STAFFS.md): the Arcane Staff (Arcane Orb on the click, charged to 2 and 3 orbs), the Fireball Staff (held, a bigger fireball with a blast, up to 1.5 s) and the Ice Shard Staff (held, an automatic stream of shards), every shot paying mana, with stand-in models drawn in code. The element boosts, general staffs and wands are not built yet.
 
+**Built 2026-10-30** (docs/MAGIC_WAND.md, the owner's ask): the **Magic Wand**, no element: every spell cast with it in hand leaves its tip, 5% stronger for 10% less mana, and its click a free speck of dust once a second; and the **Magic Staff**, the same speck a little harder and slower, boosting nothing. The element boosts are not built yet.
+
 **Built 2026-10-29**: the Arcane Beam Staff and the Staff of Healing (docs/STAFFS.md, docs/HEALING.md); the first enchant, the **Fire Enhancement** (docs/FIRE_ENHANCEMENT.md): the next swing, bullet or arrow burns what it hits and sets it alight, the sword ablaze while it waits; no effect on staffs (owner: "for now").
 
 ## God-tier spells
@@ -297,7 +299,7 @@ My suggestions (not decided):
 
 The owner's list, as given. ✅ = in the game now.
 
-- **Common:** Crowbar ✅, Bat ✅, Glass bottle ✅, T-Shirt ✅, Long Sleeve T-Shirt ✅, Hoodie, Machete, Slingshot, Magic Wand, Butcher Knife, Butter Knife, Kitchen Knife ✅, Plastic Boomerang, Wooden Plank, Metal pole.
+- **Common:** Crowbar ✅, Bat ✅, Glass bottle ✅, T-Shirt ✅, Long Sleeve T-Shirt ✅, Hoodie, Machete, Slingshot, Magic Wand ✅, Butcher Knife, Butter Knife, Kitchen Knife ✅, Plastic Boomerang, Wooden Plank, Metal pole.
 - **Uncommon:** Combat Knife, Nail Bat, Wire Bat, Combat Sword ✅, Glock ✅ (the pistol), Fur Hood Parka, Longbow, Tactical Greatsword, Magic Staff, Wooden Boomerang, Golf club, Baton, Combat Axe, Bo Staff, Scythe.
 - **Rare:** Knight Helmet ✅, Black Fur Coat, AK-47 ✅, Deagle, Compound Bow, Crossbow, Dragunov, Barrett, Minigun, Grappling Hook ✅, Flame Staff, Frost Staff, Arcane Staff, Flamethrower ✅, Steel Boomerang, Combat Scythe.
 - **Very Rare:** Laser Gun, Laser Minigun, Laser Sword, RPG, Jetpack ✅, Demon Scythe.

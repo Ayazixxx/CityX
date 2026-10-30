@@ -20,7 +20,7 @@ namespace CityX.Weapons
 
         private Rigidbody _rigidbody;
         /// <summary>Points in the caster's Spell Power (2% a point, CombatTuning.DamageFor), and how much of the target's armour and block it ignores.</summary>
-        private int _casterStrength;
+        private float _casterStrength;
 
         /// <summary>Who cast it: named with its blows, so the caster sees their damage (DamageDealt).</summary>
         private GameObject _striker;
@@ -47,7 +47,7 @@ namespace CityX.Weapons
         public bool Cosmetic { get; private set; }
 
         public static FireballProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity,
-            int casterStrength, Collider[] ignoreColliders, bool cosmetic = false, float penetration = 0.0f, GameObject striker = null,
+            float casterStrength, Collider[] ignoreColliders, bool cosmetic = false, float penetration = 0.0f, GameObject striker = null,
             float size = 1.0f, float blastRadius = 0.0f)
         {
             if (prefab == null)

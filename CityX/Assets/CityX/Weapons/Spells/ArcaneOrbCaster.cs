@@ -179,7 +179,7 @@ namespace CityX.Weapons
         private void Launch(Vector3 from, Vector3 forward, int orbs, float damageFactor, Collider[] ignoreColliders, bool fromStaff)
         {
             // A spell: Spell Power makes it hurt more (2% a point), and the caster's Armor Penetration goes with it.
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             float ballDamage = CombatTuning.DamageFor(ArcaneOrbRules.BallDamagePerOrb * orbs * damageFactor, spellPower);
             float orbDamage = CombatTuning.DamageFor(ArcaneOrbRules.OrbDamage * damageFactor, spellPower);

@@ -134,7 +134,7 @@ namespace CityX.Weapons
                 return;
             }
             // A spell: Spell Power makes each tick hurt more (2% a point), and the caster's Armor Penetration goes with it.
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             float tick = CombatTuning.DamageFor(ArcaneBeamRules.DamagePerTick, spellPower);
             for (int i = 0; i < due; i++)

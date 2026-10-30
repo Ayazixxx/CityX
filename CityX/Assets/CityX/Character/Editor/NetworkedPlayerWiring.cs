@@ -44,6 +44,8 @@ namespace CityX.CharacterEditor
             (ItemRegistry.HealingStaff, "Assets/CityX/Weapons/HealingStaff.prefab"),
             (ItemRegistry.Flashlight, "Assets/CityX/Weapons/Flashlight.prefab"),
             (ItemRegistry.FrostStaff, "Assets/CityX/Weapons/FrostStaff.prefab"),
+            (ItemRegistry.MagicWand, "Assets/CityX/Weapons/MagicWand.prefab"),
+            (ItemRegistry.MagicStaff, "Assets/CityX/Weapons/MagicStaff.prefab"),
             (ItemRegistry.Grenade, "Assets/CityX/Weapons/Grenade.prefab"),
             (ItemRegistry.JerryCan, "Assets/CityX/Weapons/JerryCan.prefab"),
             (ItemRegistry.Bow, "Assets/CityX/Weapons/Bow.prefab"),

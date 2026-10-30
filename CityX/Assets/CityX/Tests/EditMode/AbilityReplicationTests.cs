@@ -27,6 +27,10 @@ namespace CityX.Tests
             {
                 Object.DestroyImmediate(shard.gameObject);
             }
+            foreach (MagicSpeck speck in Object.FindObjectsByType<MagicSpeck>(FindObjectsSortMode.None))
+            {
+                Object.DestroyImmediate(speck.gameObject);
+            }
         }
 
         private GameObject Body()
@@ -52,7 +56,8 @@ namespace CityX.Tests
             Assert.AreEqual(AbilityIds.Hash("fireball"), AbilityIds.Hash("fireball"));
             Assert.AreEqual(unchecked((int)0xE40C292Cu), AbilityIds.Hash("a"), "FNV-1a 32 of \"a\"");
             var seen = new HashSet<int>();
-            foreach (string id in new[] { FireballCaster.Id, IceShardCaster.Id, PoisonBreathCaster.Id, SwordWaveCaster.Id, BloodrageAbility.Id, MeleeAttacker.SpinAbilityId })
+            foreach (string id in new[] { FireballCaster.Id, IceShardCaster.Id, PoisonBreathCaster.Id, SwordWaveCaster.Id, BloodrageAbility.Id, MeleeAttacker.SpinAbilityId,
+                MagicSpeckCaster.Id })
             {
                 Assert.IsTrue(seen.Add(AbilityIds.Hash(id)), $"ability id '{id}' collides with another");
             }
@@ -187,7 +192,7 @@ namespace CityX.Tests
             var all = new IReplicatedAbility[]
             {
                 body.AddComponent<FireballCaster>(), body.AddComponent<IceShardCaster>(), body.AddComponent<PoisonBreathCaster>(), body.AddComponent<SwordWaveCaster>(),
-                body.AddComponent<BloodrageAbility>(), body.AddComponent<MeleeAttacker>(),
+                body.AddComponent<BloodrageAbility>(), body.AddComponent<MeleeAttacker>(), body.AddComponent<MagicSpeckCaster>(),
             };
             foreach (IReplicatedAbility ability in all)
             {

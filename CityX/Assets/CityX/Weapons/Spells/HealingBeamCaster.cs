@@ -89,7 +89,7 @@ namespace CityX.Weapons
             _locomotion?.HoldStaffOut();
             Vector3 chest = ChestOf(_target);
             _beam?.Aim(from, chest, true, deltaTime);
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float heal = CombatTuning.DamageFor(HealingBeamRules.HealPerTick, spellPower);
             for (int due = SpellTicks.Due(ref _sinceTick, deltaTime, HealingBeamRules.TickSeconds); due > 0; due--)
             {

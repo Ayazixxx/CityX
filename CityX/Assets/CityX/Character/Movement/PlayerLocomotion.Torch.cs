@@ -52,33 +52,18 @@ namespace CityX.Character
             float deltaTime = Mathf.Max(0.0f, Time.deltaTime);
             _torchRaise = Mathf.MoveTowards(_torchRaise, TorchLit ? 1.0f : 0.0f, deltaTime / TorchRaiseSeconds);
             float raise = _torchRaise * _torchRaise * (3.0f - 2.0f * _torchRaise);
-            float scale = WorldHeight / BodyRig.StandingHeight;
-            Vector3 forward = transform.forward, right = transform.right, up = Vector3.up;
-            Vector3 shoulder = _rightUpperArm.position;
+            Vector3 forward = transform.forward;
 
-            Vector3 carried = Quaternion.AngleAxis(TorchCarryDipDegrees, right) * forward;
-            Vector3 aimed = TorchAimPoint - shoulder;
+            Vector3 carried = Quaternion.AngleAxis(TorchCarryDipDegrees, transform.right) * forward;
+            Vector3 aimed = TorchAimPoint - _rightUpperArm.position;
             aimed = aimed.sqrMagnitude > 0.01f ? aimed.normalized : forward;
             Vector3 wanted = Vector3.Slerp(carried, aimed, raise).normalized;
             _torchDirection = _torchDirection.sqrMagnitude < 0.5f
                 ? wanted
                 : Vector3.Slerp(_torchDirection, wanted, 1.0f - Mathf.Exp(-TorchFollowSharpness * deltaTime)).normalized;
 
-            Vector3 held = shoulder + (_torchDirection * TorchReach + right * TorchHoldOffset.x + up * TorchHoldOffset.y) * scale;
-            Vector3 hung = shoulder + (right * TorchCarryHand.x + up * TorchCarryHand.y + forward * TorchCarryHand.z) * scale;
-            Vector3 hand = Vector3.Lerp(hung, held, raise);
-            Vector3 elbowHint = Vector3.Lerp(right * 0.5f - forward * 0.4f + Vector3.down, right + Vector3.down * 0.6f, raise);
-            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, hand, elbowHint, 1.0f);
-
-            // The hand bone's +Z runs out past the thumb, where the light's head is: turn it along the beam, the wrist as near straight as that allows.
-            Vector3 alongArm = _handR.position - _rightLowerArm.position;
-            Vector3 fingers = Vector3.ProjectOnPlane(alongArm, _torchDirection);
-            if (fingers.sqrMagnitude < 1e-6f)
-            {
-                fingers = Vector3.down;
-            }
-            fingers.Normalize();
-            _handR.rotation = Quaternion.LookRotation(_torchDirection, Vector3.Cross(_torchDirection, fingers));
+            // The light's head is out past the thumb: the hand turned along the beam (PlayerLocomotion.HandHeldOut.cs).
+            HoldRightHandOut(_torchDirection, raise, TorchCarryHand, TorchReach, TorchHoldOffset);
         }
     }
 }

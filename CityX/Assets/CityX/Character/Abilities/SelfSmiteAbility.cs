@@ -335,7 +335,7 @@ namespace CityX.Character
         private HitResponse Hurt(IDamageable target, float baseDamage, Vector3 from, float hitstun)
         {
             // A spell: Spell Power makes it hurt more (2% a point), and the caster's Armor Penetration goes with it.
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             HitResponse response = DamageContext.Strike(target, CombatTuning.DamageFor(baseDamage, spellPower), from, hitstun, DamageKind.Magic,
                 penetration, null, gameObject);

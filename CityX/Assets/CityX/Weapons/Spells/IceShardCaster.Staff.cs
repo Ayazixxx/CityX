@@ -58,7 +58,7 @@ namespace CityX.Weapons
             _staffOut = StaffCharge.FollowThroughSeconds;
             Vector3 from = tip != null ? tip.position : transform.position + Vector3.up * 1.8f;
             Vector3 aimed = Nudged(PlayerInputReader.CrosshairDirection(from, eye, look, transform), _staffShots, StaffSpreadDegrees);
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             IceShardProjectile.Spawn(ShardPrefab, from, aimed * ShardSpeed, spellPower, GetComponentsInChildren<Collider>(),
                 penetration: penetration, striker: gameObject);

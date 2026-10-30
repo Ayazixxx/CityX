@@ -60,16 +60,48 @@ namespace CityX.Character
             (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting)
             || (_poisonBreath != null && _poisonBreath.IsCasting) || (_arcaneOrb != null && _arcaneOrb.IsCasting);
 
-        /// <summary>Arcane Orb from the bar: from the chest down the crosshair, from wherever the camera is looking.</summary>
+        /// <summary>Roughly chest height: where a spell leaves the body (MeleeAttacker.SwingOrigin and a thrown weapon use the same fraction).</summary>
+        private Vector3 SpellChest => transform.position + Vector3.up * ((_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f);
+
+        /// <summary>
+        /// Where a spell from the bar leaves and which way it goes: from the chest down the crosshair; with a Magic Wand in hand (docs/MAGIC_WAND.md;
+        /// owner, 2026-10-30: "when you use hotbar spells will be casted from the wand"), from its tip, the wand snapped out to point at what the
+        /// crosshair is on, and straight at that.
+        /// </summary>
+        private void SpellLaunch(Transform aimSource, out Vector3 origin, out Vector3 direction)
+        {
+            Vector3 chest = SpellChest;
+            if (_locomotion == null || _locomotion.Wand == null)
+            {
+                origin = chest;
+                direction = ConvergedDirection(chest, aimSource);
+                return;
+            }
+            Vector3 aimPoint = CrosshairPoint(chest, aimSource.position, aimSource.forward, transform);
+            origin = _locomotion.PointWandNow(aimPoint);
+            Vector3 toAim = aimPoint - origin;
+            direction = toAim.sqrMagnitude > 0.0001f ? toAim.normalized : aimSource.forward;
+        }
+
+        /// <summary>While a spell is going out through the wand, the wand follows the crosshair.</summary>
+        private void AimWand(Transform aimSource)
+        {
+            if (_locomotion == null || _locomotion.Wand == null || aimSource == null || !IsCastingSpell)
+            {
+                return;
+            }
+            _locomotion.WandAimPoint = CrosshairPoint(SpellChest, aimSource.position, aimSource.forward, transform);
+        }
+
+        /// <summary>Arcane Orb from the bar: down the crosshair, from wherever the camera is looking (<see cref="SpellLaunch"/>).</summary>
         private void CastArcaneOrb(Transform aimSource)
         {
             if (_arcaneOrb == null || aimSource == null)
             {
                 return;
             }
-            float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
-            Vector3 origin = transform.position + Vector3.up * height;
-            _arcaneOrb.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
+            SpellLaunch(aimSource, out Vector3 origin, out Vector3 direction);
+            _arcaneOrb.TryCast(origin, direction, GetComponentsInChildren<Collider>());
         }
 
         /// <summary>Arcane Barrier from the bar: the wall rises before the body, turned to where the camera looks (docs/ARCANE_BARRIER.md).</summary>
@@ -104,16 +136,15 @@ namespace CityX.Character
             _poisonBreath.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
         }
 
-        /// <summary>3: starts an ice shard volley from the chest down the crosshair, from wherever the camera is looking.</summary>
+        /// <summary>3: starts an ice shard volley down the crosshair, from wherever the camera is looking (<see cref="SpellLaunch"/>).</summary>
         private void CastIceShards(Transform aimSource)
         {
             if (_iceShards == null || aimSource == null)
             {
                 return;
             }
-            float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
-            Vector3 origin = transform.position + Vector3.up * height;
-            _iceShards.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
+            SpellLaunch(aimSource, out Vector3 origin, out Vector3 direction);
+            _iceShards.TryCast(origin, direction, GetComponentsInChildren<Collider>());
         }
 
         /// <summary>While a volley is going out its remaining shards follow the crosshair.</summary>
@@ -123,9 +154,8 @@ namespace CityX.Character
             {
                 return;
             }
-            float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
-            Vector3 origin = transform.position + Vector3.up * height;
-            _iceShards.Aim(origin, ConvergedDirection(origin, aimSource));
+            SpellLaunch(aimSource, out Vector3 origin, out Vector3 direction);
+            _iceShards.Aim(origin, direction);
         }
 
         private BloodrageAbility _bloodrageAbility;

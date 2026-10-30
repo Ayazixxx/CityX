@@ -54,6 +54,8 @@ namespace CityX.Items
         public const string HealingStaff = "healing_staff";
         public const string Flashlight = "flashlight";
         public const string FrostStaff = "frost_staff";
+        public const string MagicWand = "magic_wand";
+        public const string MagicStaff = "magic_staff";
         public const string Grenade = "grenade";
 
         /// <summary>How many grenades make a stack: they are spent as they are thrown, the next one coming into the hand.</summary>
@@ -134,6 +136,10 @@ namespace CityX.Items
             [Flashlight] = new ItemDefinition(Flashlight, "Flashlight", "tool", EquipSlots.Primary, 1),
             // The Frost Staff (2026-10-29, docs/FROST.md): Mei's blaster as a staff, held to spray frost that slows and then freezes.
             [FrostStaff] = new ItemDefinition(FrostStaff, "Frost Staff", "weapon", EquipSlots.Primary, 1),
+            // The Magic Wand and the Magic Staff (2026-10-30, docs/MAGIC_WAND.md): no element; a speck of dust on the click, and the wand sways
+            // every spell cast through it.
+            [MagicWand] = new ItemDefinition(MagicWand, "Magic Wand", "weapon", EquipSlots.Primary, 1),
+            [MagicStaff] = new ItemDefinition(MagicStaff, "Magic Staff", "weapon", EquipSlots.Primary, 1),
             // The frag grenade (2026-10-29, docs/GRENADE.md): thrown with the bottle's gesture, a stack of them, the next one into the hand.
             [Grenade] = new ItemDefinition(Grenade, "Frag Grenade", "weapon", EquipSlots.Primary, GrenadeStack),
         };

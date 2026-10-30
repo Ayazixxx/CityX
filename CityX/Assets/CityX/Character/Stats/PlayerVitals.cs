@@ -277,6 +277,15 @@ namespace CityX.Character
         /// <summary>How much faster a stat makes something go: 1 plus its share (a body with no vitals: 1). Melee Speed, Cast Speed, Fire Rate...</summary>
         public static float SpeedOf(PlayerVitals vitals, StatId stat) => vitals != null ? vitals.Stats.Increase(stat) : 1.0f;
 
+        /// <summary>What the hand holds that sways every spell cast through it (the Magic Wand, docs/MAGIC_WAND.md), or null. Set by it.</summary>
+        public ISpellFocus SpellFocus { get; set; }
+
+        /// <summary>Spell Power for a spell cast now, in points (2% of its damage, or healing, a point): the stat's, and a held focus's on top.</summary>
+        public float SpellPower => Stats[StatId.SpellPower] + (SpellFocus != null ? SpellFocus.SpellPowerBonus : 0.0f);
+
+        /// <summary><see cref="SpellPower"/> of <paramref name="vitals"/> (a body with no vitals: none).</summary>
+        public static float SpellPowerOf(PlayerVitals vitals) => vitals != null ? vitals.SpellPower : 0.0f;
+
         /// <summary>The whole chance to stop a blow outright while blocking: everyone's <see cref="StatCatalog.BaseBlockChance"/> plus Block Chance.</summary>
         public float BlockChance => StatCatalog.BaseBlockChance + Stats.Effect(StatId.BlockChance);
 
@@ -741,9 +750,13 @@ namespace CityX.Character
             return HitResponse.Landed;
         }
 
-        /// <summary>Spends mana on a spell: false, and nothing spent, when there is not enough.</summary>
+        /// <summary>Spends mana on a spell (a held focus's share of it, <see cref="SpellFocus"/>): false, and nothing spent, when there is not enough.</summary>
         public bool TrySpendMana(float amount)
         {
+            if (SpellFocus != null)
+            {
+                amount *= SpellFocus.ManaCostFactor;
+            }
             if (amount < 0.0f || _mana < amount)
             {
                 return false;

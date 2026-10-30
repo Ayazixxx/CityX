@@ -23,6 +23,7 @@ namespace CityX.WeaponsEditor
         public const string ArcaneBeamPrefabPath = "Assets/CityX/Weapons/ArcaneBeamStaff.prefab";
         public const string HealingPrefabPath = "Assets/CityX/Weapons/HealingStaff.prefab";
         public const string FrostPrefabPath = "Assets/CityX/Weapons/FrostStaff.prefab";
+        public const string MagicPrefabPath = "Assets/CityX/Weapons/MagicStaff.prefab";
 
         private const int Sides = 14;
 
@@ -87,7 +88,15 @@ namespace CityX.WeaponsEditor
             BuildArcaneBeam();
             BuildHealing();
             BuildFrost();
+            BuildMagic();
         }
+
+        /// <summary>The Magic Staff (2026-10-30, docs/MAGIC_WAND.md): no element -- light oak, bronze, a pale gold orb.</summary>
+        public static GameObject BuildMagic() => Build<MagicStaff>(MagicPrefabPath, new Look
+        {
+            Name = "MagicStaff", Wood = new Color(0.5f, 0.34f, 0.2f), Metal = new Color(0.66f, 0.48f, 0.27f),
+            Crystal = new Color(1.0f, 0.86f, 0.55f), CrystalGlow = 0.9f, Cup = CupProfile,
+        });
 
         /// <summary>The Frost Staff (2026-10-29): pale ash wood bleached by the cold, steel, an ice-blue shard.</summary>
         public static GameObject BuildFrost() => Build<FrostStaff>(FrostPrefabPath, new Look

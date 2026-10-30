@@ -287,6 +287,9 @@ namespace CityX.ViewEditor
             GameObject flashlightPrefab = CityX.WeaponsEditor.FlashlightBuilder.Build();
             // The Frost Staff (2026-10-29, docs/FROST.md) and the frag grenade with its in-flight twin (docs/GRENADE.md).
             GameObject frostStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildFrost();
+            // The Magic Wand and the Magic Staff (2026-10-30, docs/MAGIC_WAND.md): drawn in code, stand-ins until the owner's models.
+            GameObject magicWandPrefab = CityX.WeaponsEditor.MagicWandBuilder.Build();
+            GameObject magicStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildMagic();
             GameObject grenadePrefab = CityX.WeaponsEditor.GrenadeBuilder.Build();
             // The bow, its arrow (which PlayerAbilityWiring gives the body by path) and the crossbow (2026-10-28, docs/ARCHERY.md).
             GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
@@ -570,6 +573,10 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Flashlight, Prefab = flashlightPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.FrostStaff, Prefab = frostStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.MagicWand, Prefab = magicWandPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.MagicStaff, Prefab = magicStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Grenade, Prefab = grenadePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

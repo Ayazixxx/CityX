@@ -127,7 +127,7 @@ namespace CityX.Character
                 return;
             }
             PlayerVitals vitals = striker != null ? striker.GetComponent<PlayerVitals>() : null;
-            float damage = CombatTuning.DamageFor(FireEnhancementRules.FireDamage, vitals != null ? vitals.Stats[StatId.SpellPower] : 0);
+            float damage = CombatTuning.DamageFor(FireEnhancementRules.FireDamage, PlayerVitals.SpellPowerOf(vitals));
             using (DamageContext.WithoutBlood())
             {
                 DamageContext.Strike(target, damage, point, 0.0f, DamageKind.Magic, 0.0f, point, striker);

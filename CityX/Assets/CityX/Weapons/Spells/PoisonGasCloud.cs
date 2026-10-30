@@ -58,7 +58,7 @@ namespace CityX.Weapons
 
         private Vector3 _velocity;
         private Collider[] _ignore;
-        private int _strength;
+        private float _strength;
         private float _sinceCheck = 99.0f;
         private ParticleSystem[] _particles;
         private Light _light;
@@ -66,7 +66,7 @@ namespace CityX.Weapons
         private static readonly RaycastHit[] Hits = new RaycastHit[8];
         private static readonly Collider[] Overlaps = new Collider[48];
 
-        public static PoisonGasCloud Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, int casterStrength, Collider[] ignoreColliders,
+        public static PoisonGasCloud Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, float casterStrength, Collider[] ignoreColliders,
             bool cosmetic = false)
         {
             if (prefab == null)

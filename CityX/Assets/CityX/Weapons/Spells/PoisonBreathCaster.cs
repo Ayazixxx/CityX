@@ -187,7 +187,7 @@ namespace CityX.Weapons
             Vector3 direction = _hasAimPoint && (_aimPoint - mouth).sqrMagnitude > 0.01f ? (_aimPoint - mouth).normalized : _fallbackDirection;
             Vector3 spawnAt = mouth + direction * SpawnForwardOffset;
             // A spell: Spell Power makes the poison stronger (2% a point, 2026-10-14).
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             PoisonGasCloud.Spawn(CloudPrefab, spawnAt, direction * CloudSpeed, spellPower, _ignore);
             PlayHiss();
             Fired?.Invoke(new AbilityEvent(0, spawnAt, direction, CloudSpeed));

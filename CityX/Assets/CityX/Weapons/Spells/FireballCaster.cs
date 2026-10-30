@@ -132,7 +132,7 @@ namespace CityX.Weapons
             }
 
             // A spell: Spell Power makes it hurt more (2% a point), and the caster's Armor Penetration goes with it (2026-10-14).
-            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             Vector3 forward = direction.normalized;
             FireballProjectile.Spawn(
