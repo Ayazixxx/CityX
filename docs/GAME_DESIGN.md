@@ -112,9 +112,12 @@ Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-sh
 - **10 s charge**, cancelled by taking damage or moving. **Blocked** for 15 s after any player fight, during a siege, and in enemy territory.
 - Takes you home or to waypoints you have found yourself, never anywhere deeper. **Home is your bed**: the bed in your claimed room is your sethome for teleport crystals (owner, 2026-10-18; it is not a respawn point). Without one, the faction base, else the hub (the order is not decided).
 - **Owner, 2026-10-30 (how you get to the hub, also if you skip the tutorial):**
-  - **Crystals are found, not handed out, but fairly common.** Most NPC quests give some along with their other rewards.
+  - **Crystals are found, not handed out: fairly common but not super common.** Most NPC quests give some along with their other rewards.
   - **A crystal takes you to one of your homes, the hub, or a player you have met (if they accept).**
-  - **At medium level you get an item like Terraria's Magic Mirror:** it teleports you back to your base with no crystal needed.
+  - **An item like Terraria's Magic Mirror** teleports you back to your base with no crystal needed. **Super rare** (owner, later the same day; at first
+    "when you medium level you will get" one).
+  - **Finding your way back home after a long journey is part of the game** (owner: "i kind of like the idea of people having to find their way back home
+    after a long journey"): a crystal is something to save, not something to use every trip.
   - Flying up to the sky island (jetpack, wings) is possible but high-level.
 - My notes (not decided): a player who skips the tutorial starts with no crystals, so until they find one their ways up are dying (you respawn in the hub) or, my
   suggestion, a few free lift points in the starting streets. Whether the mirror keeps the crystals' 10 s charge and fight block is open (Terraria's mirror
