@@ -25,7 +25,13 @@ namespace CityX.Character
         private static readonly int BaseColourId = Shader.PropertyToID("_BaseColor");
         private static Material _sheen;
 
-        private readonly List<Renderer> _layered = new List<Renderer>();
+        private struct Layered
+        {
+            public Renderer Renderer;
+            public int Index;   // the layer's slot, kept: reading a renderer's materials makes a new array every time
+        }
+
+        private readonly List<Layered> _layered = new List<Layered>();
         private MaterialPropertyBlock _block;
         private float _strength;
         private bool _on;
@@ -122,31 +128,31 @@ namespace CityX.Character
                 System.Array.Resize(ref materials, materials.Length + 1);
                 materials[materials.Length - 1] = Sheen;
                 renderer.sharedMaterials = materials;
-                _layered.Add(renderer);
+                _layered.Add(new Layered { Renderer = renderer, Index = materials.Length - 1 });
             }
             Apply(0.0f);
         }
 
         private void Apply(float strength)
         {
-            foreach (Renderer renderer in _layered)
+            foreach (Layered layered in _layered)
             {
-                if (renderer == null)
+                if (layered.Renderer == null)
                 {
                     continue;
                 }
-                int index = renderer.sharedMaterials.Length - 1;
-                renderer.GetPropertyBlock(Block, index);
+                layered.Renderer.GetPropertyBlock(Block, layered.Index);
                 Block.SetColor(BaseColourId, new Color(Ice.r, Ice.g, Ice.b, SheenAlpha * strength));
-                renderer.SetPropertyBlock(Block, index);
+                layered.Renderer.SetPropertyBlock(Block, layered.Index);
             }
         }
 
         /// <summary>The layer taken off again; whatever else a renderer's materials became meanwhile (a garment put on) is kept.</summary>
         private void Unlayer()
         {
-            foreach (Renderer renderer in _layered)
+            foreach (Layered layered in _layered)
             {
+                Renderer renderer = layered.Renderer;
                 if (renderer == null)
                 {
                     continue;

@@ -27,6 +27,21 @@ namespace CityX.Tests
             Assert.Less(FrostRules.DamagePerSecond, 20.0f, "the spray should do only a little damage");
         }
 
+        [Test]
+        public void APieceCutOffAFrozenBodyIsNotFrozen()
+        {
+            var own = new Material(Shader.Find("Hidden/InternalErrorShader"));
+            try
+            {
+                CollectionAssert.AreEqual(new[] { own }, FrozenLook.WithoutSheen(new[] { own, FrozenLook.Sheen }));
+                CollectionAssert.AreEqual(new[] { own }, FrozenLook.WithoutSheen(new[] { own }));
+            }
+            finally
+            {
+                Object.DestroyImmediate(own);
+            }
+        }
+
         /// <summary>Each saved body is written by its own builder: one not rebuilt since Chill came in could never be frozen.</summary>
         [Test]
         public void EveryBodyCanBeChilled()
