@@ -27,7 +27,7 @@ namespace CityX.Weapons
         /// <summary>How far round its landing a full charge's burst burns, metres (nothing round an uncharged one).</summary>
         public const float StaffMostBlastRadius = 4.0f;
 
-        public const float StaffLeastMana = 10.0f;
+        public const float StaffLeastMana = SpellManaCost;
         public const float StaffMostMana = 30.0f;
 
         /// <summary>The quickest the staff shoots again (the bar's fireball waits 1.5 s).</summary>

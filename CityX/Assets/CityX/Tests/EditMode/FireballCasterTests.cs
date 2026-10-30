@@ -115,6 +115,21 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ACastPaysManaAndWithoutEnoughNoneLeaves()
+        {
+            // Owner, 2026-10-30: "make fireball cost some mana that was unintended".
+            float full = _vitals.Mana;
+            Assert.IsTrue(_fireball.TryCast(Vector3.zero, Vector3.forward, null));
+            Assert.AreEqual(full - FireballCaster.SpellManaCost, _vitals.Mana, 1e-3f);
+
+            _fireball.Tick(_fireball.CooldownSeconds + 0.01f);
+            Assert.IsTrue(_vitals.TrySpendMana(_vitals.Mana - FireballCaster.SpellManaCost * 0.5f));
+            Assert.IsFalse(_fireball.TryCast(Vector3.zero, Vector3.forward, null), "a fireball cast with half its mana");
+            Assert.AreEqual(FireballCaster.SpellManaCost * 0.5f, _vitals.Mana, 1e-3f, "a refused cast took mana");
+            Assert.IsTrue(_fireball.CanCast, "a refused cast started the cooldown");
+        }
+
+        [Test]
         public void AFireballGlowsInTheDark()
         {
             // Owner, 2026-10-10: "make the fireball have a light effect so it glows in the dark". The light is on the prefab every machine spawns.

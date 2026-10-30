@@ -54,6 +54,12 @@ a **Rank up** button where Learn was (a controller's second A press, likewise). 
 (`CharacterSave.SkillRanks`, only ranks past the first); the server counts them in the skill points a save has spent (`ProgressRules.SkillBudget`).
 What a rank does is the skill's own: Arcane Orb adds an orb a rank up to three, and a tenth more damage every rank.
 
+### Mana (2026-10-30)
+
+A spell pays mana (GAME_DESIGN.md), refused without enough, nothing spent and no cooldown started: the Fireball 10 (the Fireball Staff's plain
+shot; it paid nothing before, owner: "make fireball cost some mana that was unintended"), Arcane Orb 20, Arcane Barrier its raising and its
+upkeep, Fire Enhancement its own. The bar holds 100 and refills 4 a second (`PlayerVitals`).
+
 ### What a skill gates (`PlayerInputReader`)
 
 | Skill | Without it |

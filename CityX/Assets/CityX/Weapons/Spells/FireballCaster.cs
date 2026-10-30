@@ -52,6 +52,12 @@ namespace CityX.Weapons
         public const float FireballSpeed = 20.0f;
 
         /// <summary>
+        /// What a cast pays: the Fireball Staff's plain shot, the same ball. It paid nothing at first, never meant (owner, 2026-10-30: "make
+        /// fireball cost some mana that was unintended"; GAME_DESIGN.md: a spell pays mana).
+        /// </summary>
+        public const float SpellManaCost = 10.0f;
+
+        /// <summary>
         /// How far in front of the spawn point the fireball actually
         /// appears -- far enough that it does not spawn overlapping the
         /// caster's own collider and immediately register a self-hit.
@@ -105,7 +111,7 @@ namespace CityX.Weapons
 
         public bool TryCast(Vector3 origin, Vector3 direction, Collider[] ignoreColliders)
         {
-            if (!CanCast || direction.sqrMagnitude < 0.0001f)
+            if (!CanCast || direction.sqrMagnitude < 0.0001f || (_vitals != null && !_vitals.TrySpendMana(SpellManaCost)))
             {
                 return false;
             }
