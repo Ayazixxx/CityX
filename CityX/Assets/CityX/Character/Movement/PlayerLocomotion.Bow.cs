@@ -10,6 +10,8 @@ namespace CityX.Character
     /// nock (to the quiver and back to the string), the rest the pull. Posed by two-bone IK after the straight wrists (which would undo the
     /// fists' turns), the bow itself placed in the fist from here (it is parented to the hand only to follow it), on this body and on other
     /// players' copies alike: whoever has the bow calls <see cref="HoldBow"/> every frame it is up and <see cref="LooseBow"/> when it shoots.
+    /// A slingshot is held and drawn the same, in its own <see cref="DrawStyle"/> (docs/SLINGSHOT.md: Bully's and Twilight Princess's pull of
+    /// the pouch back to the face, no quiver).
     /// </summary>
     public sealed partial class PlayerLocomotion
     {
@@ -46,7 +48,33 @@ namespace CityX.Character
         /// <summary>How fast the draw follows the draw it is told, per second (a copy's, and the eased one here).</summary>
         public const float BowDrawFollowPerSecond = 6.0f;
 
+        /// <summary>
+        /// How a drawn weapon is drawn: the bow's (a reach to the quiver for the arrow, a long pull to the cheek) or a slingshot's (the pebble
+        /// already in the pouch, a shorter pull, the pouch held at the fork's height, above the grip).
+        /// </summary>
+        public readonly struct DrawStyle
+        {
+            /// <summary>The share of the draw spent fetching the shot; 0 for none.</summary>
+            public readonly float NockShare;
+
+            /// <summary>How far back along the aim the hand comes at full draw, metres.</summary>
+            public readonly float DrawLength;
+
+            /// <summary>How far above the grip the string hand holds the shot, metres.</summary>
+            public readonly float NockAbove;
+
+            public DrawStyle(float nockShare, float drawLength, float nockAbove)
+            {
+                NockShare = nockShare;
+                DrawLength = drawLength;
+                NockAbove = nockAbove;
+            }
+
+            public static DrawStyle Bow => new DrawStyle(BowNockShare, BowDrawLength, 0.0f);
+        }
+
         private Transform _bow;
+        private DrawStyle _bowStyle = DrawStyle.Bow;
         private float _bowRaise;
         private float _bowHold;
         private float _bowDraw;
@@ -64,10 +92,10 @@ namespace CityX.Character
         public float BowDraw => _bowDraw;
 
         /// <summary>How far the string is pulled back, 0..1: none until the arrow is nocked, full at the cheek.</summary>
-        public float BowPull => Mathf.Clamp01((_bowDraw - BowNockShare) / (1.0f - BowNockShare));
+        public float BowPull => Mathf.Clamp01((_bowDraw - _bowStyle.NockShare) / (1.0f - _bowStyle.NockShare));
 
-        /// <summary>The string hand has an arrow (it reached the quiver).</summary>
-        public bool BowArrowInHand => _bowDraw >= BowNockShare * 0.5f;
+        /// <summary>The string hand has an arrow (it reached the quiver; a slingshot's pebble is in the pouch from the start).</summary>
+        public bool BowArrowInHand => _bowDraw >= _bowStyle.NockShare * 0.5f;
 
         /// <summary>The way the bow aims (unit), as last told.</summary>
         public Vector3 BowAim => _bowAim;
@@ -75,9 +103,11 @@ namespace CityX.Character
         /// <summary>Where the string hand holds the string now (world): the nock, where the arrow sits.</summary>
         public Vector3 BowNock => _handR != null ? _handR.position : transform.position;
 
-        public void SetBow(Transform bow)
+        /// <summary>A bow (or a slingshot, drawn in its own <paramref name="style"/>) is now in the left hand.</summary>
+        public void SetBow(Transform bow, DrawStyle style)
         {
             _bow = bow;
+            _bowStyle = style;
             _bowRaise = 0.0f;
             _bowDraw = 0.0f;
             _bowDrawWanted = 0.0f;
@@ -143,14 +173,14 @@ namespace CityX.Character
 
                 // The string hand: at the nock behind the grip; over the shoulder to the quiver and back while nocking; then drawn back along the
                 // aim and up to the cheek; flicked back off the string on the loose. The elbow high and out.
-                Vector3 nock = bowHand - aim * (BowNockBehind * scale);
-                Vector3 cheek = bowHand - aim * (BowDrawLength * scale) + right * (BowCheek.x * scale) + up * (BowCheek.y * scale);
+                Vector3 nock = bowHand - aim * (BowNockBehind * scale) + up * (_bowStyle.NockAbove * scale);
+                Vector3 cheek = bowHand - aim * (_bowStyle.DrawLength * scale) + right * (BowCheek.x * scale) + up * (BowCheek.y * scale);
                 Vector3 quiver = (_head != null ? _head.position : _rightUpperArm.position + up * (0.3f * scale))
                     - aim * (BowQuiverBehind * scale) + right * (BowQuiverRight * scale);
                 Vector3 stringHand;
-                if (_bowDraw < BowNockShare)
+                if (_bowDraw < _bowStyle.NockShare)
                 {
-                    float t = _bowDraw / BowNockShare;
+                    float t = _bowDraw / _bowStyle.NockShare;
                     stringHand = t < 0.5f
                         ? Vector3.Lerp(nock, quiver, Mathf.SmoothStep(0.0f, 1.0f, t * 2.0f))
                         : Vector3.Lerp(quiver, nock, Mathf.SmoothStep(0.0f, 1.0f, (t - 0.5f) * 2.0f));

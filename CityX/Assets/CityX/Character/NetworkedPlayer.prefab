@@ -173,7 +173,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 394978892366274662}
+      addedObject: {fileID: 8825981053045727059}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -500,6 +500,8 @@ MonoBehaviour:
     Prefab: {fileID: 316468608459553576, guid: 49582453828391843979c7deea347ddc, type: 3}
   - ItemId: crossbow
     Prefab: {fileID: 5551751055494309447, guid: d136d5ac6b3e5ed4d9c9ce8cf4e316b5, type: 3}
+  - ItemId: slingshot
+    Prefab: {fileID: 3929815017825895367, guid: d86b5a7eb205e1142a7bebd96bda00ec, type: 3}
   - ItemId: knight_helmet
     Prefab: {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
   - ItemId: farmer_hat
@@ -925,6 +927,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.Archery
   ArrowPrefab: {fileID: 51535972593554971, guid: ddee658532cd227428efac010681840a, type: 3}
+  PebblePrefab: {fileID: 2377727206049707215, guid: fdab0bf7c5e5ee24ebc3bd31a8c9be0e, type: 3}
 --- !u!114 &3353174932153861613
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -988,7 +991,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &394978892366274662
+--- !u!114 &8825981053045727059
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

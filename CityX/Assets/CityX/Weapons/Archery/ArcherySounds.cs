@@ -5,7 +5,7 @@ namespace CityX.Weapons
     /// <summary>
     /// The bow's and the crossbow's sounds, made in code (no audio files to ship), as ArcaneOrbSounds are: the string's twang on a loose (the
     /// crossbow's harder, with the latch's clack), the creak of a draw, an arrow landing in something (a thud in a body, a knock in the world),
-    /// and the crossbow being spanned. Built once, on first use.
+    /// the crossbow being spanned, and the slingshot's (its bands' snap, a pebble's clack). Built once, on first use.
     /// </summary>
     public static class ArcherySounds
     {
@@ -16,6 +16,8 @@ namespace CityX.Weapons
         private static AudioClip _thud;
         private static AudioClip _knock;
         private static AudioClip _span;
+        private static AudioClip _snap;
+        private static AudioClip _pebble;
 
         public static AudioClip Twang => _twang != null ? _twang : (_twang = MakeTwang(170.0f, 0.35f, 0.0f));
 
@@ -32,11 +34,21 @@ namespace CityX.Weapons
         /// <summary>The crossbow spanned and a bolt laid: a ratchet of clicks then a snap.</summary>
         public static AudioClip Span => _span != null ? _span : (_span = MakeSpan());
 
-        public static void PlayImpact(Vector3 at, bool inSomeone)
+        /// <summary>The slingshot's loose: the bands' low, short snap with a slap of the pouch in it.</summary>
+        public static AudioClip Snap => _snap != null ? _snap : (_snap = MakeTwang(85.0f, 0.14f, 0.9f));
+
+        /// <summary>A pebble on something hard: a bright little clack.</summary>
+        public static AudioClip PebbleClack => _pebble != null ? _pebble : (_pebble = MakeHit(1400.0f, 0.05f, 0.45f));
+
+        /// <summary>The sound of <paramref name="kind"/> being loosed.</summary>
+        public static AudioClip LooseOf(DrawnKind kind) => kind == DrawnKind.Slingshot ? Snap : Twang;
+
+        /// <summary>A shot landing: an arrow's thud or knock, a pebble's lighter thud or clack (<paramref name="blunt"/>).</summary>
+        public static void PlayImpact(Vector3 at, bool inSomeone, bool blunt = false)
         {
             if (Application.isPlaying)
             {
-                AudioSource.PlayClipAtPoint(inSomeone ? Thud : Knock, at, 0.8f);
+                AudioSource.PlayClipAtPoint(inSomeone ? Thud : (blunt ? PebbleClack : Knock), at, blunt ? 0.5f : 0.8f);
             }
         }
 

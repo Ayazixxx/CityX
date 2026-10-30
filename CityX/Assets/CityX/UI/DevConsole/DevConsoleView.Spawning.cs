@@ -375,6 +375,8 @@ namespace CityX.UI
                 case "bow": return ItemRegistry.Bow;
                 case "crossbow":
                 case "xbow": return ItemRegistry.Crossbow;
+                case "slingshot":
+                case "sling": return ItemRegistry.Slingshot;
                 case "flamestaff":
                 case "flame_staff":
                 case "flame":

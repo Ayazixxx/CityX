@@ -10,7 +10,8 @@ namespace CityX.Weapons
     /// falling projectile (<see cref="ArcheryRules.Gravity"/>), swept each frame, hurting whatever it lands in and sticking in it. Stuck, it
     /// stays a while (longer in the world than in someone) and then is gone. A cosmetic one (another player's arrow, the flat part of every
     /// arrow) hurts nothing. A BURNING one (the Fire Enhancement, docs/FIRE_ENHANCEMENT.md) flies with flames along its shaft, sets alight
-    /// what it hurts, lights gasoline where it lands, and burns on a few seconds stuck.
+    /// what it hurts, lights gasoline where it lands, and burns on a few seconds stuck. A slingshot's PEBBLE (<see cref="Blunt"/>,
+    /// docs/SLINGSHOT.md) flies the same, slower, draws no blood, and drops off what it hits to bounce and roll a moment instead of sticking.
     /// </summary>
     public sealed class ArrowProjectile : MonoBehaviour
     {
@@ -27,7 +28,23 @@ namespace CityX.Weapons
             /// <summary>Past the flat range: a real projectile, falling.</summary>
             Falling,
             Stuck,
+            /// <summary>A pebble off what it hit: loose, bouncing and rolling, gone after a while.</summary>
+            Dropped,
         }
+
+        [Tooltip("From its origin (the nock end) to its head along +Z, metres: an arrow's length, a pebble's width.")]
+        public float Length = ArcheryRules.ArrowLength;
+
+        [Tooltip("How fast it is seen to cross its flat range, m/s.")]
+        public float VisibleSpeed = ArcheryRules.VisibleSpeed;
+
+        [Tooltip("A slingshot's pebble (docs/SLINGSHOT.md): it draws no blood, and drops off what it hits instead of sticking in it.")]
+        public bool Blunt;
+
+        /// <summary>How long a dropped pebble lies, seconds.</summary>
+        public const float DroppedSeconds = SlingshotRules.LieSeconds;
+
+        private static PhysicsMaterial _bounce;
 
         public Phase CurrentPhase { get; private set; }
 
@@ -71,7 +88,8 @@ namespace CityX.Weapons
             hitPoint = hitSomething ? hit.point : traceFrom + direction * flatRange;
             if (hitSomething && !cosmetic)
             {
-                Strike(hit.collider, damage, traceFrom, penetration, striker, hit.point, burning);
+                var shot = prefab != null ? prefab.GetComponent<ArrowProjectile>() : null;
+                Strike(hit.collider, damage, traceFrom, penetration, striker, hit.point, burning, shot != null && shot.Blunt);
             }
             Vector3 shown = hitPoint - shownFrom;
             return Show(prefab, shownFrom, hitPoint, hitSomething ? hit.collider : null, shown.sqrMagnitude > 1e-4f ? shown.normalized : direction,
@@ -141,19 +159,19 @@ namespace CityX.Weapons
         }
 
         /// <summary>The arrow's head (its origin is its nock end; the model runs up +Z).</summary>
-        private Vector3 Head => transform.position + transform.forward * ArcheryRules.ArrowLength;
+        private Vector3 Head => transform.position + transform.forward * Length;
 
         /// <summary>Across the flat range at the visible speed: when its head gets there it sticks where the hitscan hit, or starts to fall.</summary>
         private void FlyFlat(float deltaTime)
         {
             float left = Vector3.Distance(Head, _flatEnd);
-            float step = ArcheryRules.VisibleSpeed * deltaTime;
+            float step = VisibleSpeed * deltaTime;
             if (step < left)
             {
                 transform.position += _direction * step;
                 return;
             }
-            transform.position = _flatEnd - _direction * ArcheryRules.ArrowLength;
+            transform.position = _flatEnd - _direction * Length;
             if (_flatHit != null)
             {
                 Stick(_flatEnd, _direction, _flatHit);
@@ -182,7 +200,7 @@ namespace CityX.Weapons
             {
                 if (!Cosmetic)
                 {
-                    Strike(hit.collider, _damage, from, _penetration, _striker, hit.point, Burning);
+                    Strike(hit.collider, _damage, from, _penetration, _striker, hit.point, Burning, Blunt);
                 }
                 Stick(hit.point, direction, hit.collider);
                 return;
@@ -220,9 +238,10 @@ namespace CityX.Weapons
 
         /// <summary>
         /// The blow: physical (armour stops a share, a guard can turn it), a short stagger, Firearm Damage already in <paramref name="damage"/>;
-        /// <paramref name="burning"/>, its fire after it.
+        /// <paramref name="burning"/>, its fire after it; <paramref name="blunt"/> (a pebble), no blood.
         /// </summary>
-        private static void Strike(Collider what, float damage, Vector3 from, float penetration, GameObject striker, Vector3 point, bool burning)
+        private static void Strike(Collider what, float damage, Vector3 from, float penetration, GameObject striker, Vector3 point, bool burning,
+            bool blunt)
         {
             IDamageable target = what.GetComponentInParent<IDamageable>();
             if (target == null || (!target.IsAlive && !Dismemberer.TakesCorpseHits(target)))   // a corpse can still be taken apart (docs/DISMEMBERMENT.md)
@@ -230,7 +249,10 @@ namespace CityX.Weapons
                 return;
             }
             bool wasAlive = target.IsAlive;
-            DamageContext.Strike(target, damage, from, CombatTuning.HitstunSeconds * 0.5f, DamageKind.Physical, penetration, point, striker);
+            using (new DamageContext.BloodlessScope(blunt || DamageContext.Bloodless))
+            {
+                DamageContext.Strike(target, damage, from, CombatTuning.HitstunSeconds * 0.5f, DamageKind.Physical, penetration, point, striker);
+            }
             if (burning)
             {
                 FireEnhancementAbility.Burn(target, point, striker);
@@ -242,10 +264,15 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>Head in past the surface, pointing the way it came, riding whatever it hit.</summary>
+        /// <summary>Head in past the surface, pointing the way it came, riding whatever it hit (a pebble drops off it instead).</summary>
         private void Stick(Vector3 point, Vector3 direction, Collider what)
         {
             bool character = what.GetComponentInParent<IDamageable>() != null;
+            if (Blunt)
+            {
+                Drop(point, direction, character);
+                return;
+            }
             transform.rotation = Quaternion.LookRotation(direction);
             transform.position = point + direction * (ArcheryRules.EmbedMetres - ArcheryRules.ArrowLength);
             transform.SetParent(what.transform, true);
@@ -263,11 +290,51 @@ namespace CityX.Weapons
             }
         }
 
+        /// <summary>
+        /// A pebble off what it hit: a small loose stone, knocked back off it and falling, bouncing and rolling on (the physics' own, its
+        /// shooter's body left out), gone after <see cref="DroppedSeconds"/>.
+        /// </summary>
+        private void Drop(Vector3 point, Vector3 direction, bool character)
+        {
+            transform.position = point - direction * Length;
+            CurrentPhase = Phase.Dropped;
+            StuckSecondsRemaining = DroppedSeconds;
+            if (_trail != null)
+            {
+                _trail.emitting = false;
+            }
+            var body = gameObject.AddComponent<Rigidbody>();
+            body.mass = 0.05f;
+            body.linearVelocity = -direction * 2.5f + Vector3.up * 1.5f;
+            body.angularVelocity = Random.insideUnitSphere * 20.0f;
+            if (_bounce == null)
+            {
+                _bounce = new PhysicsMaterial("Pebble") { bounciness = 0.4f, bounceCombine = PhysicsMaterialCombine.Maximum, dynamicFriction = 0.6f };
+            }
+            foreach (Collider c in GetComponentsInChildren<Collider>())
+            {
+                c.enabled = true;
+                c.sharedMaterial = _bounce;
+                if (_ignore == null)
+                {
+                    continue;
+                }
+                foreach (Collider own in _ignore)
+                {
+                    if (own != null)
+                    {
+                        Physics.IgnoreCollision(c, own);
+                    }
+                }
+            }
+            ArcherySounds.PlayImpact(point, character, blunt: true);
+        }
+
         private void Age(float deltaTime)
         {
             _stuckFor += deltaTime;
             StuckSecondsRemaining -= deltaTime;
-            if (StuckSecondsRemaining <= 0.0f || StuckTo == null)
+            if (StuckSecondsRemaining <= 0.0f || (StuckTo == null && CurrentPhase != Phase.Dropped))
             {
                 Destroy(gameObject);
             }

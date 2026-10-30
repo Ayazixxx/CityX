@@ -39,12 +39,167 @@ namespace CityX.WeaponsEditor
         private const float BowAt = 0.3f;
         private const float LatchAt = -0.05f;
 
+        public const string SlingshotPrefabPath = "Assets/CityX/Weapons/Slingshot.prefab";
+        public const string PebblePrefabPath = "Assets/CityX/Weapons/Pebble.prefab";
+
+        private static readonly Color BandColour = new Color(0.62f, 0.4f, 0.2f);
+        private static readonly Color PebbleColour = new Color(0.5f, 0.48f, 0.45f);
+
+        /// <summary>The slingshot's fork, in its frame (+Y up the prongs, +Z the way it shoots): the grip below the crotch, the prongs' tips.</summary>
+        private const float SlingGripBottom = -0.07f;
+        private const float SlingCrotch = 0.075f;
+        private static readonly Vector3 SlingTip = new Vector3(0.06f, 0.215f, 0.0f);
+
         [MenuItem("CityX/Rebuild Archery")]
         public static void BuildAll()
         {
             GameObject arrow = BuildArrow();
             BuildBow(arrow);
             BuildCrossbow(arrow);
+            BuildSlingshot(BuildPebble());
+        }
+
+        /// <summary>
+        /// The slingshot's pebble (docs/SLINGSHOT.md): a small grey stone, a little lumpy, with a faint streak behind it; flung and seen as an
+        /// arrow is (ArrowProjectile, <see cref="ArrowProjectile.Blunt"/>), its origin at its back and +Z the way it flies.
+        /// </summary>
+        public static GameObject BuildPebble()
+        {
+            EnsureFolder();
+            var root = new GameObject("Pebble");
+            try
+            {
+                AddPebblePart(root.transform);
+                // A short faint streak, see-through (an opaque one is traced by the cel lines into a long black rod).
+                var trail = root.AddComponent<TrailRenderer>();
+                trail.time = 0.025f;
+                trail.minVertexDistance = 0.05f;
+                trail.widthMultiplier = SlingshotRules.PebbleSize * 0.7f;
+                trail.widthCurve = AnimationCurve.Linear(0.0f, 1.0f, 1.0f, 0.0f);
+                trail.sharedMaterial = PebbleTrailMaterial();
+                trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                trail.receiveShadows = false;
+                var collider = root.AddComponent<SphereCollider>();
+                collider.radius = SlingshotRules.PebbleSize * 0.5f;
+                collider.center = new Vector3(0.0f, 0.0f, SlingshotRules.PebbleSize * 0.5f);
+                var pebble = root.AddComponent<ArrowProjectile>();
+                pebble.Length = SlingshotRules.PebbleSize;
+                pebble.VisibleSpeed = SlingshotRules.VisibleSpeed;
+                pebble.Blunt = true;
+                return Save(root, PebblePrefabPath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
+        /// THE SLINGSHOT (docs/SLINGSHOT.md), a stand-in drawn in code: a wooden fork -- a grip wrapped in leather under the crotch, two prongs
+        /// curving up and out -- and rubber bands from the prongs' tips through a leather pouch, drawn as a line through the pouch (wide in its
+        /// middle) like the bow's string; the pebble shown in the pouch while drawing. Held and drawn as the bow is (BowWeapon, Kind Slingshot):
+        /// its origin the grip's middle, +Y up, +Z the way it shoots. 29 cm tall (a real one's 22 at the game's 1.3x): the prongs clear the fist.
+        /// </summary>
+        public static GameObject BuildSlingshot(GameObject pebblePrefab)
+        {
+            EnsureFolder();
+            Material wood = HeldModelBaker.LitMaterial($"{Folder}/SlingshotWood.mat", WoodColour, 0.0f, 0.35f);
+            Material wrap = HeldModelBaker.LitMaterial($"{Folder}/BowWrap.mat", DarkWoodColour, 0.0f, 0.2f);
+            var root = new GameObject("Slingshot");
+            try
+            {
+                Part(root.transform, "Grip", Lathe(new[]
+                {
+                    new Vector2(0.0f, SlingGripBottom), new Vector2(0.012f, SlingGripBottom + 0.002f), new Vector2(0.014f, SlingGripBottom + 0.02f),
+                    new Vector2(0.013f, SlingCrotch), new Vector2(0.0f, SlingCrotch + 0.012f),
+                }, "SlingshotGrip", 10), wood, Quaternion.identity);
+                Part(root.transform, "Wrap", Lathe(new[]
+                {
+                    new Vector2(0.0145f, -0.055f), new Vector2(0.0155f, -0.05f), new Vector2(0.0155f, 0.05f), new Vector2(0.0145f, 0.055f),
+                }, "SlingshotWrap", 10), wrap, Quaternion.identity);
+                Part(root.transform, "RightProng", ProngMesh("SlingshotRightProng", 1.0f), wood, Quaternion.identity);
+                Part(root.transform, "LeftProng", ProngMesh("SlingshotLeftProng", -1.0f), wood, Quaternion.identity);
+                Vector3 rest = new Vector3(0.0f, SlingTip.y - 0.01f, -0.035f);
+                Transform left = Point(root.transform, "LeftTip", new Vector3(-SlingTip.x, SlingTip.y - 0.008f, 0.0f));
+                Transform right = Point(root.transform, "RightTip", new Vector3(SlingTip.x, SlingTip.y - 0.008f, 0.0f));
+                LineRenderer bands = StringLine(root.transform, new[] { left.localPosition, rest, right.localPosition });
+                bands.widthMultiplier = 0.007f;
+                // The pouch: the line's middle, wide.
+                bands.widthCurve = new AnimationCurve(new Keyframe(0.0f, 1.0f), new Keyframe(0.4f, 1.0f), new Keyframe(0.5f, 3.2f),
+                    new Keyframe(0.6f, 1.0f), new Keyframe(1.0f, 1.0f));
+                bands.sharedMaterial = HeldModelBaker.LitMaterial($"{Folder}/SlingshotBands.mat", BandColour, 0.0f, 0.4f);
+
+                var loaded = new GameObject("PouchPebble");
+                loaded.transform.SetParent(root.transform, false);
+                loaded.transform.localPosition = rest;
+                AddPebblePart(loaded.transform);
+                loaded.SetActive(false);
+
+                var sling = root.AddComponent<BowWeapon>();
+                sling.Kind = DrawnKind.Slingshot;
+                sling.ArrowPrefab = pebblePrefab;
+                sling.NockedArrow = loaded.transform;
+                sling.String = bands;
+                sling.TopTip = left;
+                sling.BottomTip = right;
+                sling.RestPoint = rest;
+                return Save(root, SlingshotPrefabPath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>The pebble's streak: URP's unlit particle material, see-through, a pale grey fading out (SeeThroughMaterial), saved as an asset.</summary>
+        private static Material PebbleTrailMaterial()
+        {
+            string path = $"{Folder}/PebbleTrail.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+            CityX.Character.SeeThroughMaterial.Apply(material, false);
+            material.SetColor("_BaseColor", new Color(0.92f, 0.92f, 0.88f, 0.45f));
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>A pebble: a lathed ball squashed out of round and turned, grey stone; its back at the parent's origin, along +Z.</summary>
+        private static void AddPebblePart(Transform parent)
+        {
+            Material stone = HeldModelBaker.LitMaterial($"{Folder}/Pebble.mat", PebbleColour, 0.0f, 0.15f);
+            const int steps = 5;
+            float radius = SlingshotRules.PebbleSize * 0.5f;
+            var profile = new Vector2[steps + 1];
+            for (int i = 0; i <= steps; i++)
+            {
+                float angle = i * Mathf.PI / steps;
+                profile[i] = new Vector2(Mathf.Sin(angle) * radius, -Mathf.Cos(angle) * radius);
+            }
+            var part = HeldModelBaker.Part(parent, "Stone", Lathe(profile, "PebbleStone", 7), stone);
+            part.localPosition = new Vector3(0.0f, 0.0f, radius);
+            part.localRotation = Quaternion.Euler(25.0f, 40.0f, 10.0f);
+            part.localScale = new Vector3(1.0f, 0.75f, 0.88f);
+        }
+
+        /// <summary>A prong from the crotch up and out to its tip, tapering a little; <paramref name="sign"/> right or left.</summary>
+        private static Mesh ProngMesh(string name, float sign)
+        {
+            var points = new List<Vector3>();
+            var radii = new List<float>();
+            const int segments = 8;
+            Vector3 p0 = new Vector3(0.0f, SlingCrotch - 0.01f, 0.0f), p1 = new Vector3(sign * 0.045f, SlingCrotch + 0.05f, 0.0f);
+            Vector3 p2 = new Vector3(sign * SlingTip.x, SlingTip.y, 0.0f);
+            for (int i = 0; i <= segments; i++)
+            {
+                float t = i / (float)segments;
+                points.Add(Bezier(p0, p1, p2, t));
+                radii.Add(Mathf.Lerp(0.013f, 0.01f, t));
+            }
+            return Tube(name, points, radii, 8);
         }
 
         public static GameObject BuildArrow()

@@ -295,6 +295,8 @@ namespace CityX.ViewEditor
             GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
             GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
             GameObject crossbowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildCrossbow(arrowPrefab);
+            // The slingshot and its pebble (2026-10-30, docs/SLINGSHOT.md), which PlayerAbilityWiring gives the body by path.
+            GameObject slingshotPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildSlingshot(CityX.WeaponsEditor.ArcheryBuilder.BuildPebble());
             // The jerry can (2026-10-28, docs/FIRE.md): drawn in code, a stand-in until the owner's model; and the fire's own shader's materials.
             GameObject gasCanPrefab = CityX.WeaponsEditor.JerryCanBuilder.Build();
             CityX.CharacterEditor.FireMaterialsBuilder.Build();
@@ -585,6 +587,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Bow, Prefab = bowPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Crossbow, Prefab = crossbowPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Slingshot, Prefab = slingshotPrefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling

@@ -29,6 +29,7 @@ namespace CityX.CharacterEditor
         private const string AcidRainPrefabPath = "Assets/CityX/Weapons/AcidRainStorm.prefab";
         private const string StaffFlamePrefabPath = "Assets/CityX/Weapons/StaffFlame.prefab";
         private const string ArrowPrefabPath = "Assets/CityX/Weapons/Arrow.prefab";
+        private const string PebblePrefabPath = "Assets/CityX/Weapons/Pebble.prefab";
         private const string ThrownGrenadePrefabPath = "Assets/CityX/Weapons/ThrownGrenade.prefab";
         private const string ThunderStrikeClipPath = "Assets/CityX/UI/Audio/thunder_strike.ogg";
         private const string SelfSmiteLightMaterialPath = "Assets/CityX/Character/SelfSmiteLight.mat";
@@ -113,6 +114,7 @@ namespace CityX.CharacterEditor
             // --- the bow's draw and arrows as other players see them (2026-10-28, docs/ARCHERY.md): a copy looses the bow's own arrow.
             var archery = GetOrAdd<Archery>(player);
             archery.ArrowPrefab = Load(ArrowPrefabPath) ?? archery.ArrowPrefab;
+            archery.PebblePrefab = Load(PebblePrefabPath) ?? archery.PebblePrefab;   // a copy's slingshot flings one
 
             // --- grenades as other players see them (2026-10-29, docs/GRENADE.md): a copy throws the same grenade, and it goes off where it did.
             var grenades = GetOrAdd<GrenadeThrower>(player);

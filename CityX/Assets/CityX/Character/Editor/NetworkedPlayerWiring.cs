@@ -50,6 +50,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.JerryCan, "Assets/CityX/Weapons/JerryCan.prefab"),
             (ItemRegistry.Bow, "Assets/CityX/Weapons/Bow.prefab"),
             (ItemRegistry.Crossbow, "Assets/CityX/Weapons/Crossbow.prefab"),
+            (ItemRegistry.Slingshot, "Assets/CityX/Weapons/Slingshot.prefab"),
             (ItemRegistry.KnightHelmet, "Assets/CityX/Wearables/KnightHelmet.prefab"),
             (ItemRegistry.FarmerHat, "Assets/CityX/Wearables/FarmerHat.prefab"),
             (ItemRegistry.RoundShield, "Assets/CityX/Wearables/RoundShield.prefab"),

@@ -12,12 +12,28 @@ namespace CityX.Weapons
     /// (PlayerLocomotion.Bow.cs), so the gun's own arm pose stays off (<see cref="IDrawnWeapon"/>). The string follows the string hand once the
     /// arrow is nocked and twangs back on the loose; the arrow rides the hand from the quiver to the string; here and on other players'
     /// copies, which see the draw and the arrow through <see cref="Archery"/> on the body.
+    ///
+    /// THE SLINGSHOT is this too (docs/SLINGSHOT.md; owner, 2026-10-30: "make it work similarly to the bow and arrow where you hold to draw and
+    /// shoot at full power, make the draw quicker than the bow and just make it shoot a little pebble"), as the crossbow is a gun with its own
+    /// profile: <see cref="Kind"/> picks the numbers, the hold and the sounds (<see cref="DrawnProfile"/>). Its "arrow" is a pebble, its string
+    /// the bands from the prongs' tips through the pouch, and a pebble is fetched into the pouch after each shot before the next draw.
     /// </summary>
     public sealed class BowWeapon : MonoBehaviour, IEquippableItem, IEquippableGun, IDrawnWeapon, ICosmeticMountable, ICosmeticKeepsRunning
     {
-        public string ItemId => ItemRegistry.Bow;
+        [Tooltip("The bow, or the slingshot (docs/SLINGSHOT.md): drawn and loosed alike, its numbers and its hold its own (DrawnProfile).")]
+        [SerializeField] private DrawnKind _kind;
 
-        [Tooltip("The arrow loosed (ArrowProjectile on it), and the one shown in the hand and on the string while drawing (a child of the bow).")]
+        public DrawnKind Kind
+        {
+            get => _kind;
+            set => _kind = value;
+        }
+
+        public DrawnProfile Profile => DrawnProfile.For(_kind);
+
+        public string ItemId => Profile.ItemId;
+
+        [Tooltip("The arrow (or pebble) loosed (ArrowProjectile on it), and the one shown in the hand and on the string while drawing (a child of the bow).")]
         public GameObject ArrowPrefab;
 
         public Transform NockedArrow;
@@ -29,8 +45,11 @@ namespace CityX.Weapons
 
         public Transform BottomTip;
 
-        /// <summary>Where the string rests, in the bow's frame: just behind the grip.</summary>
+        /// <summary>Where the bow's string rests, in its frame: just behind the grip.</summary>
         public static readonly Vector3 StringRest = new Vector3(0.0f, 0.0f, -0.08f);
+
+        [Tooltip("Where the string (a slingshot's pouch) rests, in the weapon's frame.")]
+        public Vector3 RestPoint = StringRest;
 
         /// <summary>The string's twang after a loose: this far forward and back at first, this many times a second, gone in this long.</summary>
         public const float TwangMetres = 0.05f;
@@ -49,6 +68,7 @@ namespace CityX.Weapons
         private float _draw;
         private float _sendIn;
         private float _twangLeft;
+        private float _reload;
         private Vector3 _aim = Vector3.forward;
 
         public bool IsAutomatic => false;
@@ -134,7 +154,7 @@ namespace CityX.Weapons
                 c.enabled = false;
             }
             _locomotion = body != null ? body.GetComponent<PlayerLocomotion>() : null;
-            _locomotion?.SetBow(transform);
+            _locomotion?.SetBow(transform, Profile.Style);
         }
 
         private void Release()
@@ -155,7 +175,9 @@ namespace CityX.Weapons
             {
                 _aim = direction.normalized;
             }
-            if (held)
+            _reload = Mathf.Max(0.0f, _reload - deltaTime);
+            // A draw starts only once the next shot is in hand (a slingshot's pebble fetched into the pouch); held till then, it starts then.
+            if (held && (_drawing || _reload <= 0.0f))
             {
                 if (!_drawing)
                 {
@@ -164,11 +186,12 @@ namespace CityX.Weapons
                     _sendIn = 0.0f;
                     StartCreak();
                 }
-                _draw = Mathf.Min(1.0f, _draw + deltaTime / ArcheryRules.FullDrawSeconds);
+                _draw = Mathf.Min(1.0f, _draw + deltaTime / Profile.FullDrawSeconds);
             }
-            else if (_drawing)
+            else if (!held && _drawing)
             {
                 Loose(origin, _aim, aiming, wielder);
+                _reload = Profile.ReloadSeconds;
                 _drawing = false;
                 _draw = 0.0f;
                 StopCreak();
@@ -192,26 +215,28 @@ namespace CityX.Weapons
             _up = up;
         }
 
-        /// <summary>The arrow goes: the hit decided from the camera as a gun's, shown from the nock; the twang and the flick; the HUD told (GunFeel).</summary>
+        /// <summary>The shot goes: the hit decided from the camera as a gun's, shown from the nock; the twang and the flick; the HUD told (GunFeel).</summary>
         private void Loose(Vector3 origin, Vector3 direction, bool aiming, GameObject wielder)
         {
-            float draw = ArcheryRules.Clamp(_draw);
+            DrawnProfile profile = Profile;
+            float draw = profile.Clamp(_draw);
             PlayerVitals shooter = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
             int firearmDamage = shooter != null ? shooter.Stats[StatId.FirearmDamage] : 0;
             float penetration = shooter != null ? shooter.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-            float damage = CombatTuning.DamageFor(ArcheryRules.DamageFor(draw), firearmDamage);
+            float damage = CombatTuning.DamageFor(profile.DamageFor(draw), firearmDamage);
             Vector3 nock = _locomotion != null ? _locomotion.BowNock : transform.position;
             Collider[] own = wielder != null ? wielder.GetComponentsInChildren<Collider>() : null;
-            bool burning = FireEnhancementAbility.TakeShot(wielder);   // the Fire Enhancement: this arrow burns
-            ArrowProjectile.Loose(ArrowPrefab, origin, nock, direction, ArcheryRules.FlatRangeFor(draw), ArcheryRules.FallSpeedFor(draw), damage,
+            // The Fire Enhancement: an arrow burns (a pebble has no shaft to burn along: it leaves the enhancement waiting).
+            bool burning = _kind == DrawnKind.Bow && FireEnhancementAbility.TakeShot(wielder);
+            ArrowProjectile.Loose(ArrowPrefab, origin, nock, direction, profile.FlatRangeFor(draw), profile.FallSpeedFor(draw), damage,
                 penetration, wielder, own, cosmetic: false, out bool hit, out Vector3 point, burning);
             if (Application.isPlaying)
             {
-                AudioSource.PlayClipAtPoint(ArcherySounds.Twang, nock, 0.8f);
+                AudioSource.PlayClipAtPoint(ArcherySounds.LooseOf(_kind), nock, 0.8f);
             }
             _locomotion?.LooseBow();
             Twang();
-            _archery?.TellLoosed(nock, direction, draw, burning);
+            _archery?.TellLoosed(nock, direction, draw, burning, _kind);
             ShotResolved?.Invoke(new GunShot
             {
                 Fired = true,
@@ -248,15 +273,15 @@ namespace CityX.Weapons
         {
         }
 
-        public string GetAmmoText() => _drawing ? $"DRAW {Mathf.RoundToInt(_draw * 100.0f)}%" : "ARROWS";
+        public string GetAmmoText() => _drawing ? $"DRAW {Mathf.RoundToInt(_draw * 100.0f)}%" : Profile.AmmoName;
 
         public bool IsBarrelBlocked(Vector3 origin, Vector3 direction, GameObject wielder) => false;
 
         public void AimTrace(Vector3 origin, Vector3 direction, GameObject wielder, out Vector3 point, out bool barrelBlocked)
         {
             barrelBlocked = false;
-            point = origin + direction * ArcheryRules.FullFlatRange;
-            foreach (RaycastHit hit in Physics.RaycastAll(origin, direction, ArcheryRules.FullFlatRange, ~0, QueryTriggerInteraction.Ignore))
+            point = origin + direction * Profile.FullFlatRange;
+            foreach (RaycastHit hit in Physics.RaycastAll(origin, direction, Profile.FullFlatRange, ~0, QueryTriggerInteraction.Ignore))
             {
                 if (wielder != null && hit.collider.transform.IsChildOf(wielder.transform))
                 {
@@ -277,10 +302,10 @@ namespace CityX.Weapons
             _twangLeft = Mathf.Max(0.0f, _twangLeft - deltaTime);
             bool up = _locomotion != null && _locomotion.BowRaise > 0.5f;
             float pull = up && _locomotion != null ? _locomotion.BowPull : 0.0f;
-            bool inHand = up && _locomotion != null && _locomotion.BowArrowInHand;
-            Vector3 hand = _locomotion != null ? transform.InverseTransformPoint(_locomotion.BowNock) : StringRest;
+            bool inHand = up && _reload <= 0.0f && _locomotion != null && _locomotion.BowArrowInHand;
+            Vector3 hand = _locomotion != null ? transform.InverseTransformPoint(_locomotion.BowNock) : RestPoint;
 
-            Vector3 nock = StringRest;
+            Vector3 nock = RestPoint;
             if (pull > 0.01f)
             {
                 nock = hand;

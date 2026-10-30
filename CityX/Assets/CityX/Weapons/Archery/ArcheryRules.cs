@@ -71,16 +71,13 @@ namespace CityX.Weapons
         /// <summary>An arrow's sweep radius in flight, metres.</summary>
         public const float Radius = 0.03f;
 
-        /// <summary>The bow's flat range, damage and the speed it starts falling at for a draw of <paramref name="draw"/>: the tap's at <see cref="MinDraw"/> and under, the full at 1.</summary>
-        public static float FlatRangeFor(float draw) => Mathf.Lerp(TapFlatRange, FullFlatRange, Share(draw));
+        /// <summary>The bow's flat range, damage and the speed it starts falling at for a draw of <paramref name="draw"/> (DrawnProfile.Bow).</summary>
+        public static float FlatRangeFor(float draw) => DrawnProfile.Bow.FlatRangeFor(draw);
 
-        public static float DamageFor(float draw) => Mathf.Lerp(TapDamage, FullDamage, Share(draw));
+        public static float DamageFor(float draw) => DrawnProfile.Bow.DamageFor(draw);
 
-        public static float FallSpeedFor(float draw) => Mathf.Lerp(TapFallSpeed, FullFallSpeed, Share(draw));
+        public static float FallSpeedFor(float draw) => DrawnProfile.Bow.FallSpeedFor(draw);
 
-        public static float Clamp(float draw) => Mathf.Clamp(draw, MinDraw, 1.0f);
-
-        /// <summary>How far from the least draw to the full one, 0..1.</summary>
-        private static float Share(float draw) => (Clamp(draw) - MinDraw) / (1.0f - MinDraw);
+        public static float Clamp(float draw) => DrawnProfile.Bow.Clamp(draw);
     }
 }

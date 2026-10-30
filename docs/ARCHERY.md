@@ -37,6 +37,8 @@ then clicked, always full power, slower to reload, harder hitting**; arrows are 
 | Sounds | made in code (`ArcherySounds`): the string's twang (the crossbow's lower, with the latch's clack), the creak of a draw, a thud in a body or a knock in the world, the crossbow spanned |
 | Other players | `Archery` on the body (`IReplicatedAbility`): the draw (the aim and how far, ten times a second), the loose (their copy looses a cosmetic arrow the same way; the archer's machine decided the hit) and the bow lowered. The crossbow's shots reach copies as every gun's do, its bolt shown the same way |
 
+The slingshot (2026-10-30) is a bow too: `BowWeapon` with its own profile (`DrawnProfile`), docs/SLINGSHOT.md.
+
 Not yet: a quiver on the back (and ammo for the bow), a foot on the crossbow's stirrup, headshots, the owner's models, Blender-made clips in place of the keyed poses.
 
 ## Tests and pictures
