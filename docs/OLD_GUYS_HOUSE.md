@@ -116,7 +116,7 @@ Owner: "leave the boarded door, make it so you have to break the wood planks", "
 - **The building** (`View/Buildings/OldGuysHouseBuilder.cs`): floors and ceilings per room; walls with their openings cut and framed, each stretch
   painted for the room it faces (brick outside at street level, render above); windows with mullions and stone sills, each pane its own breakable
   object; the boarded front door; the closed roll-up garage door; the U stair (wood above, concrete below) with handrails; the outdoor steps with rails;
-  the porch on its stone block; the slate gable roof; a lamp and a warm light in every room; three loose bottles on the mantel (rigid bodies).
+  the porch on its stone block; a modern single-slope roof in dark metal (owner, 2026-10-31: "make it a more modern home roof maybe flat or slanted"; the photo was "just to show the roof", "no thin strip of glass"), about 10 degrees, high over the driveway (19.9 m) and low at the back, the walls risen under it; a lamp and a warm light in every room; three loose bottles on the mantel (rigid bodies).
 - **Furniture** (`View/Buildings/FurnitureKit.cs`): about forty low-effort pieces of tinted boxes, for the owner to replace: the car, workbenches,
   shelves, the fuse box, the boiler, the fireplace and its chimney breast up to the living room's ceiling, sofas (the den's plaid), armchairs, kitchen
   counters with a sink and a stove, the fridge, the knife block, the dining table and chairs, the old TV, the radiator, the bathroom, beds, desks,

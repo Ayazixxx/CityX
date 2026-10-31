@@ -414,44 +414,46 @@ namespace CityX.View
 
         // ---- roofs ----
 
+        /// <summary>
+        /// The single slope: a metal slab from its high front edge down to its low back edge (House.RoofTopAt), its edges a dark band, and the
+        /// walls risen under it to meet its underside: the front and back as rectangles, each side as the slope's trapezoid.
+        /// </summary>
         private static void Roofs(MeshBuffer b)
         {
-            float o = House.RoofOverhang, wall = House.OuterWallThickness * 0.5f;
-            Gable(b, -o, House.Width + o, -o, House.Depth + o, House.RidgeZ, House.EavesY, House.RidgeY, -wall, House.Width + wall, 0, House.Depth);
-        }
+            float x0 = -House.RoofOverhang, x1 = House.Width + House.RoofOverhang;
+            float z0 = -House.RoofFrontOverhang, z1 = House.Depth + House.RoofOverhang;
+            Vector3 down = Vector3.down * House.RoofThickness;
+            Vector3 f0 = new Vector3(x0, House.RoofTopAt(z0), z0), f1 = new Vector3(x1, f0.y, z0);
+            Vector3 k0 = new Vector3(x0, House.RoofTopAt(z1), z1), k1 = new Vector3(x1, k0.y, z1);
+            Vector3 up = Vector3.Cross(k0 - f0, f1 - f0).normalized;
+            if (up.y < 0) up = -up;
+            Color32 metal = SurfaceLook.Pack(House.RoofMetal, (int)WallMaterial.Metal, 0.15f);
+            b.Look = metal;
+            Quad(b, f0, f1, k1, k0, up);
+            Quad(b, f0, f1, f1 + down, f0 + down, Vector3.back);
+            Quad(b, k0, k1, k1 + down, k0 + down, Vector3.forward);
+            Quad(b, f0, k0, k0 + down, f0 + down, Vector3.left);
+            Quad(b, f1, k1, k1 + down, f1 + down, Vector3.right);
+            b.Look = RenderLook;
+            Quad(b, f0 + down, f1 + down, k1 + down, k0 + down, -up);
 
-        /// <summary>
-        /// A gable roof: two planes from eaves at z0 and z1 (height <paramref name="eaves"/>) up to a ridge along x at <paramref name="ridgeZ"/>,
-        /// spanning x0 to x1, with the triangular gable walls (at gx0 and gx1, over the walls from gz0 to gz1) under it.
-        /// </summary>
-        private static void Gable(MeshBuffer b, float x0, float x1, float z0, float z1, float ridgeZ, float eaves, float ridge, float gx0, float gx1, float gz0, float gz1)
-        {
-            const float thickness = 0.25f;
-            Color32 tiles = SurfaceLook.Pack(House.RoofTiles, (int)WallMaterial.Roof, 0.35f);
-            foreach (bool front in new[] { true, false })
+            float wall = House.OuterWallThickness * 0.5f, eaves = House.EavesY;
+            float Under(float z) => House.RoofTopAt(z) - House.RoofThickness;
+            foreach (float z in new[] { -wall, House.Depth + wall })
             {
-                float ze = front ? z0 : z1;
-                Vector3 e0 = new Vector3(x0, eaves, ze), e1 = new Vector3(x1, eaves, ze), r0 = new Vector3(x0, ridge, ridgeZ), r1 = new Vector3(x1, ridge, ridgeZ);
-                Vector3 normal = Vector3.Cross(r0 - e0, e1 - e0).normalized;
-                if (normal.y < 0) normal = -normal;
-                Vector3 down = Vector3.down * thickness;
-                b.Look = tiles;
-                Quad(b, e0, e1, r1, r0, normal);
-                b.Look = RenderLook;
-                Quad(b, e0 + down, e1 + down, r1 + down, r0 + down, -normal);
-                Quad(b, e0, e1, e1 + down, e0 + down, front ? Vector3.back : Vector3.forward);
-                Quad(b, e0, r0, r0 + down, e0 + down, Vector3.left);
-                Quad(b, e1, r1, r1 + down, e1 + down, Vector3.right);
+                float top = Under(z);
+                Vector3 a = new Vector3(-wall, eaves, z), c = new Vector3(House.Width + wall, eaves, z);
+                Vector3 n = z < 0 ? Vector3.back : Vector3.forward;
+                Quad(b, a, c, c + Vector3.up * (top - eaves), a + Vector3.up * (top - eaves), n);
+                Quad(b, c, a, a + Vector3.up * (top - eaves), c + Vector3.up * (top - eaves), -n);
             }
-            // The gable walls fill the triangle under the roof at each end, from the walls' top up to the roof's underside.
-            float apex = ridge - thickness;
-            foreach (float gx in new[] { gx0, gx1 })
+            foreach (float x in new[] { -wall, House.Width + wall })
             {
-                Vector3 n = new Vector3(gx <= (gx0 + gx1) * 0.5f ? -1.0f : 1.0f, 0, 0);
-                Vector3 a = new Vector3(gx, eaves, gz0), c = new Vector3(gx, eaves, gz1), top = new Vector3(gx, apex, ridgeZ);
-                b.Look = RenderLook;
-                b.AddTriangle(a, c, top, n, new Vector2(gz0, eaves), new Vector2(gz1, eaves), new Vector2(ridgeZ, apex));
-                b.AddTriangle(a, c, top, -n, new Vector2(gz0, eaves), new Vector2(gz1, eaves), new Vector2(ridgeZ, apex));
+                Vector3 n = x < 0 ? Vector3.left : Vector3.right;
+                Vector3 a = new Vector3(x, eaves, -wall), c = new Vector3(x, eaves, House.Depth + wall);
+                Vector3 at = new Vector3(x, Under(-wall), -wall), ct = new Vector3(x, Under(House.Depth + wall), House.Depth + wall);
+                Quad(b, a, c, ct, at, n);
+                Quad(b, c, a, at, ct, -n);
             }
         }
 

@@ -152,6 +152,17 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TheRoofIsOneGentleSlopeHighOverTheDrivewayAndClearOfTheWallsAtTheBack()
+        {
+            float front = House.RoofTopAt(-House.RoofFrontOverhang), back = House.RoofTopAt(House.Depth + House.RoofOverhang);
+            Assert.AreEqual(House.RoofHighY, front, 1e-4f, "the front edge is not the high one");
+            Assert.AreEqual(House.RoofLowY, back, 1e-4f);
+            float pitch = Mathf.Atan2(front - back, House.Depth + House.RoofFrontOverhang + House.RoofOverhang) * Mathf.Rad2Deg;
+            Assert.That(pitch, Is.InRange(7.0f, 15.0f), "a modern single slope is low");
+            Assert.Greater(House.RoofTopAt(House.Depth) - House.RoofThickness, House.EavesY, "the roof's underside dips into the back wall");
+        }
+
+        [Test]
         public void TheSwordsmanIsUpstairs()
         {
             Assert.AreEqual("Old Guy's bedroom", House.RoomAt(2, House.SwordsmanSpot.x, House.SwordsmanSpot.z)?.Name);

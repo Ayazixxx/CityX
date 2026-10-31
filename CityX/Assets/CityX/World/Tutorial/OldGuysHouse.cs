@@ -47,12 +47,22 @@ namespace CityX.World
         /// <summary>A stringer step hangs this far under its tread, so the flight above another leaves headroom under it.</summary>
         public const float StepDepth = 0.55f;
 
-        /// <summary>The top of the walls and the flat ceiling under the roof; the roof's eaves and ridge.</summary>
+        /// <summary>The top of the walls and the flat ceiling under the roof.</summary>
         public const float EavesY = 3 * Storey;
 
-        public const float RidgeY = (float)Plan.TutorialLot.HouseHeight;
-        public const float RidgeZ = Depth * 0.5f;
+        /// <summary>
+        /// A modern single-slope roof (owner, 2026-10-31: "make it a more modern home roof maybe flat or slanted"): its top at the front edge, over
+        /// the driveway, and at the back edge, about 10 degrees between. The walls rise under it to meet it.
+        /// </summary>
+        public const float RoofHighY = (float)Plan.TutorialLot.HouseHeight;
+        public const float RoofLowY = EavesY + 0.6f;
         public const float RoofOverhang = 0.6f;
+        public const float RoofFrontOverhang = 1.5f;
+        public const float RoofThickness = 0.35f;
+
+        /// <summary>The height of the roof's top surface over a line across the house (z on the plan, the overhangs included).</summary>
+        public static float RoofTopAt(float z) =>
+            RoofHighY + (RoofLowY - RoofHighY) * (z + RoofFrontOverhang) / (Depth + RoofFrontOverhang + RoofOverhang);
 
         public static float LevelY(int level) => level * Storey;
 
@@ -252,7 +262,7 @@ namespace CityX.World
         private static readonly Color Cream = new Color(0.93f, 0.88f, 0.76f);
         private static readonly Color WhiteTile = new Color(0.90f, 0.91f, 0.90f);
         public static readonly Color Render = new Color(0.90f, 0.89f, 0.85f);
-        public static readonly Color RoofTiles = new Color(0.45f, 0.20f, 0.16f);
+        public static readonly Color RoofMetal = new Color(0.23f, 0.24f, 0.26f);
         public static readonly Color Decking = new Color(0.55f, 0.40f, 0.26f);
         public static readonly Color Paving = new Color(0.70f, 0.68f, 0.64f);
         public static readonly Color Ceiling = new Color(0.95f, 0.95f, 0.93f);

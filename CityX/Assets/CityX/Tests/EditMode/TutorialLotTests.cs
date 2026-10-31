@@ -142,7 +142,7 @@ namespace CityX.Tests
             Assert.AreEqual(TutorialLot.LotZ0, House.Lot.Z0, 1e-4);
             Assert.AreEqual(TutorialLot.LotX1, House.Lot.X1, 1e-4);
             Assert.AreEqual(TutorialLot.LotZ1, House.Lot.Z1, 1e-4);
-            Assert.AreEqual(TutorialLot.HouseHeight, House.RidgeY, 1e-4);
+            Assert.AreEqual(TutorialLot.HouseHeight, House.RoofHighY, 1e-4);
             foreach (House.Room room in House.Rooms)
             {
                 foreach (House.Area area in room.Floors)
