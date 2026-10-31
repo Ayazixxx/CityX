@@ -191,5 +191,22 @@ namespace CityX.Tests
             Assert.AreEqual(KnifeRules.BaseDamage, knife.GetMeleeDamage());
 #endif
         }
+
+        /// <summary>The butter knife on Old Guy's kitchen counter (docs/OLD_GUYS_HOUSE.md): fought as a knife, its blows softer, and it cuts nothing off.</summary>
+        [Test]
+        public void TheButterKnifeIsADullOneHandedKnife()
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/ButterKnife.prefab");
+            Assert.IsNotNull(prefab, "no ButterKnife.prefab -- rebuild the scene");
+            var knife = prefab.GetComponent<SwordWeapon>();
+            Assert.IsNotNull(knife);
+            Assert.IsTrue(knife.IsKnife && knife.IsOneHanded, "the butter knife is not fought as a knife");
+            Assert.IsFalse(knife.IsEdged, "a butter knife has no edge to cut with");
+            Assert.AreEqual(ItemRegistry.ButterKnife, knife.ItemId);
+            Assert.AreEqual(KnifeRules.DullDamage, knife.GetMeleeDamage());
+            Assert.Less(knife.GetMeleeDamage(), KnifeRules.BaseDamage, "a butter knife hits as hard as a kitchen knife");
+#endif
+        }
     }
 }

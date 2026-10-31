@@ -313,7 +313,7 @@ My suggestions (not decided):
 
 The owner's list, as given. ✅ = in the game now.
 
-- **Common:** Crowbar ✅, Bat ✅, Glass bottle ✅, T-Shirt ✅, Long Sleeve T-Shirt ✅, Hoodie, Machete, Slingshot ✅, Magic Wand ✅, Butcher Knife, Butter Knife, Kitchen Knife ✅, Plastic Boomerang, Wooden Plank, Metal pole.
+- **Common:** Crowbar ✅, Bat ✅, Glass bottle ✅, T-Shirt ✅, Long Sleeve T-Shirt ✅, Hoodie, Machete, Slingshot ✅, Magic Wand ✅, Butcher Knife, Butter Knife ✅, Kitchen Knife ✅, Plastic Boomerang, Wooden Plank, Metal pole.
 - **Uncommon:** Combat Knife, Nail Bat, Wire Bat, Combat Sword ✅, Glock ✅ (the pistol), Fur Hood Parka, Longbow, Tactical Greatsword, Magic Staff, Wooden Boomerang, Golf club, Baton, Combat Axe, Bo Staff, Scythe.
 - **Rare:** Knight Helmet ✅, Black Fur Coat, AK-47 ✅, Deagle, Compound Bow, Crossbow, Dragunov, Barrett, Minigun, Grappling Hook ✅, Flame Staff, Frost Staff, Arcane Staff, Flamethrower ✅, Steel Boomerang, Combat Scythe.
 - **Very Rare:** Laser Gun, Laser Minigun, Laser Sword, RPG, Jetpack ✅, Demon Scythe.

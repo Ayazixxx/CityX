@@ -15,6 +15,12 @@ namespace CityX.Character
         public Quaternion Rotation;
         public Vector3 Velocity;
         public Vector3 Spin;
+
+        /// <summary>
+        /// Set down by hand rather than let go (a knife standing in its block, a bat leaning on a wall, docs/OLD_GUYS_HOUSE.md): it is held
+        /// exactly where it was put until it is picked up. Only ever this machine's own (the tutorial house's), never shared.
+        /// </summary>
+        public bool Placed;
     }
 
     /// <summary>The way a player's drop is shared with the other players (DroppedItemsNetwork). Null in singleplayer.</summary>

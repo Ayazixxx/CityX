@@ -4,6 +4,7 @@
     "references": [
         "CityX.World",
         "CityX.Character",
+        "CityX.Items",
         "Unity.InputSystem",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime"

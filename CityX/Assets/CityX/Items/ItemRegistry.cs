@@ -36,6 +36,7 @@ namespace CityX.Items
         public const string MetalCrowbar = "metal_crowbar";
         public const string BaseballBat = "baseball_bat";
         public const string KitchenKnife = "kitchen_knife";
+        public const string ButterKnife = "butter_knife";
         public const string Flamethrower = "flamethrower";
         public const string AK47 = "ak47";
         public const string SprayCan = "spray_can";
@@ -105,6 +106,8 @@ namespace CityX.Items
             [BaseballBat] = new ItemDefinition(BaseballBat, "Baseball Bat", "weapon", EquipSlots.Primary, 1),
             // A knife: one-handed, quicker and lighter than the sword, with the biggest backstab (docs/KNIFE.md, KnifeRules).
             [KitchenKnife] = new ItemDefinition(KitchenKnife, "Kitchen Knife", "weapon", EquipSlots.Primary, 1),
+            // A dull knife: the kitchen knife's moves, softer blows, no edge.
+            [ButterKnife] = new ItemDefinition(ButterKnife, "Butter Knife", "weapon", EquipSlots.Primary, 1),
             [Flamethrower] = new ItemDefinition(Flamethrower, "Flamethrower", "weapon", EquipSlots.Primary, 1),
             // Automatic; its handling is Weapons/FirearmProfile.AK47.
             [AK47] = new ItemDefinition(AK47, "AK-47", "weapon", EquipSlots.Primary, 1),

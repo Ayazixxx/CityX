@@ -352,6 +352,9 @@ namespace CityX.UI
                 case "knife":
                 case "kitchenknife":
                 case "kitchen_knife": return ItemRegistry.KitchenKnife;
+                case "butter":
+                case "butterknife":
+                case "butter_knife": return ItemRegistry.ButterKnife;
                 case "crowbar":
                 case "metalcrowbar":
                 case "metal_crowbar": return ItemRegistry.MetalCrowbar;

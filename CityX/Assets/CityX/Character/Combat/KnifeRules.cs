@@ -18,6 +18,9 @@ namespace CityX.Character
         /// <summary>A knife blow's base damage, the sword's being <see cref="CombatTuning.PunchDamage"/> (10).</summary>
         public const float BaseDamage = 7.0f;
 
+        /// <summary>A dull knife's blow (the butter knife): a rounded blade that bruises more than it cuts, and cuts nothing off.</summary>
+        public const float DullDamage = 4.0f;
+
         /// <summary>How many times the stamina a blow on a held guard costs with a knife: a thin blade stops little, and breaks sooner.</summary>
         public const float GuardStaminaShare = 1.6f;
 

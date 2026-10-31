@@ -42,9 +42,16 @@ A stand-in drawn in code until the owner's Meshy model: a flat steel chef's blad
 thick at the spine and thin at the edge) on a turned dark wooden handle with a steel bolster, in the one-handed sword's frame
 (`SwordWeapon`: the root at the bolster, the blade up +Y, the edge on -X). `/equip knife` (or `kitchenknife`).
 
+## The Butter Knife (2026-10-30)
+
+Made for Old Guy's kitchen counter (docs/OLD_GUYS_HOUSE.md; owner: "butter knife on the counter"), where it lies beside the knife block. A **dull
+knife** (`SwordWeapon.Dull`): the kitchen knife's moves, speed, reach and backstab, but its blows land as `KnifeRules.DullDamage` (4, the kitchen
+knife's 7) and it has no edge, so it cuts nothing off. The stand-in model comes from the same builder (`KitchenKnifeBuilder.BuildButterKnife`): a short
+blade (17.5 cm) with a rounded tip and a blunt edge, all steel. `/equip butterknife` (or `butter`). The numbers are mine.
+
 ## Other players (docs/MULTIPLAYER_STATE.md)
 
-The knife is a `SwordWeapon` (`ICosmeticMountable`): another player's copy holds it, and its swings are announced by name as the sword's
+The knife (the butter knife too) is a `SwordWeapon` (`ICosmeticMountable`): another player's copy holds it, and its swings are announced by name as the sword's
 are. The damage (a backstab's included) is dealt on the striker's machine and reaches the body through its copy, as every blow does.
 
 ## Tests

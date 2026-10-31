@@ -12,74 +12,137 @@ namespace CityX.WeaponsEditor
     /// its belly to the point, thick at the spine and thin at the edge, on a turned dark wooden handle with a steel bolster. In the one-handed
     /// sword's frame (SwordWeapon): the root at the bolster, the blade up +Y, the edge on -X, where every one-handed key leads; the handle
     /// runs down -Y through the fist. A 20 cm blade and a 12 cm handle at the game's 1.3x. Fought as a knife (SwordWeapon.Knife, KnifeRules).
+    ///
+    /// THE BUTTER KNIFE (2026-10-30, found on Old Guy's kitchen counter, docs/OLD_GUYS_HOUSE.md) is drawn the same way: a short blade with a
+    /// rounded tip and a blunt edge, all steel. A dull knife (SwordWeapon.Dull): the knife's moves with softer blows, and no edge.
     /// </summary>
     public static class KitchenKnifeBuilder
     {
         public const string PrefabPath = "Assets/CityX/Weapons/KitchenKnife.prefab";
+        public const string ButterKnifePrefabPath = "Assets/CityX/Weapons/ButterKnife.prefab";
         private const string Folder = "Assets/CityX/Weapons/KitchenKnife";
 
         /// <summary>From the bolster to the point, metres.</summary>
         public const float BladeLength = 0.26f;
 
-        /// <summary>The blade's outline, across (x, the edge toward -X) and along (y), from the spine's heel round the point to the edge's heel.</summary>
-        private static readonly Vector2[] BladeOutline =
-        {
-            new Vector2(0.010f, 0.0f), new Vector2(0.010f, 0.17f), new Vector2(0.002f, BladeLength), new Vector2(-0.020f, 0.20f),
-            new Vector2(-0.036f, 0.12f), new Vector2(-0.040f, 0.03f), new Vector2(-0.040f, 0.0f),
-        };
-
-        /// <summary>Half the blade's thickness at the spine, and at the edge.</summary>
-        private const float SpineHalfThickness = 0.0022f;
-
-        private const float EdgeHalfThickness = 0.0003f;
-
-        /// <summary>The handle turned: (radius, height) from its butt up to the bolster.</summary>
-        private static readonly Vector2[] HandleProfile =
-        {
-            new Vector2(0.0f, -0.172f), new Vector2(0.011f, -0.170f), new Vector2(0.0135f, -0.150f), new Vector2(0.0125f, -0.090f),
-            new Vector2(0.0115f, -0.025f), new Vector2(0.0125f, -0.014f), new Vector2(0.0f, -0.012f),
-        };
-
-        private static readonly Vector2[] BolsterProfile =
-        {
-            new Vector2(0.0f, -0.015f), new Vector2(0.0135f, -0.015f), new Vector2(0.0145f, -0.006f), new Vector2(0.012f, 0.0f), new Vector2(0.0f, 0.002f),
-        };
+        public const float ButterBladeLength = 0.175f;
 
         public static readonly Color SteelColour = new Color(0.74f, 0.76f, 0.78f);
 
         public static readonly Color HandleColour = new Color(0.17f, 0.10f, 0.06f);
 
+        /// <summary>One knife's drawing: its blade's outline and thickness, its handle and bolster turned, and what it is.</summary>
+        private sealed class KnifeDrawing
+        {
+            public string Name;
+            public string ItemId;
+            public string PrefabPath;
+            public float BladeLength;
+
+            /// <summary>The blade's outline, across (x, the edge toward -X) and along (y), from the spine's heel round the point to the edge's heel.</summary>
+            public Vector2[] BladeOutline;
+
+            /// <summary>Half the blade's thickness at the spine, and at the edge.</summary>
+            public float SpineHalfThickness;
+
+            public float EdgeHalfThickness;
+
+            /// <summary>The handle turned: (radius, height) from its butt up to the bolster.</summary>
+            public Vector2[] HandleProfile;
+
+            public Vector2[] BolsterProfile;
+
+            public bool SteelHandle;
+            public bool Dull;
+        }
+
+        private static readonly KnifeDrawing Kitchen = new KnifeDrawing
+        {
+            Name = "KitchenKnife",
+            ItemId = ItemRegistry.KitchenKnife,
+            PrefabPath = PrefabPath,
+            BladeLength = BladeLength,
+            BladeOutline = new[]
+            {
+                new Vector2(0.010f, 0.0f), new Vector2(0.010f, 0.17f), new Vector2(0.002f, BladeLength), new Vector2(-0.020f, 0.20f),
+                new Vector2(-0.036f, 0.12f), new Vector2(-0.040f, 0.03f), new Vector2(-0.040f, 0.0f),
+            },
+            SpineHalfThickness = 0.0022f,
+            EdgeHalfThickness = 0.0003f,
+            HandleProfile = new[]
+            {
+                new Vector2(0.0f, -0.172f), new Vector2(0.011f, -0.170f), new Vector2(0.0135f, -0.150f), new Vector2(0.0125f, -0.090f),
+                new Vector2(0.0115f, -0.025f), new Vector2(0.0125f, -0.014f), new Vector2(0.0f, -0.012f),
+            },
+            BolsterProfile = new[]
+            {
+                new Vector2(0.0f, -0.015f), new Vector2(0.0135f, -0.015f), new Vector2(0.0145f, -0.006f), new Vector2(0.012f, 0.0f), new Vector2(0.0f, 0.002f),
+            },
+        };
+
+        private static readonly KnifeDrawing Butter = new KnifeDrawing
+        {
+            Name = "ButterKnife",
+            ItemId = ItemRegistry.ButterKnife,
+            PrefabPath = ButterKnifePrefabPath,
+            BladeLength = ButterBladeLength,
+            BladeOutline = new[]
+            {
+                new Vector2(0.008f, 0.0f), new Vector2(0.008f, 0.135f), new Vector2(0.004f, 0.160f), new Vector2(-0.005f, ButterBladeLength),
+                new Vector2(-0.015f, 0.168f), new Vector2(-0.020f, 0.150f), new Vector2(-0.020f, 0.0f),
+            },
+            SpineHalfThickness = 0.0018f,
+            EdgeHalfThickness = 0.0009f,
+            HandleProfile = new[]
+            {
+                new Vector2(0.0f, -0.160f), new Vector2(0.008f, -0.158f), new Vector2(0.0105f, -0.140f), new Vector2(0.0095f, -0.060f),
+                new Vector2(0.0065f, -0.012f), new Vector2(0.0f, -0.010f),
+            },
+            BolsterProfile = new[]
+            {
+                new Vector2(0.0f, -0.012f), new Vector2(0.0065f, -0.012f), new Vector2(0.0055f, 0.0f), new Vector2(0.0f, 0.001f),
+            },
+            SteelHandle = true,
+            Dull = true,
+        };
+
         [MenuItem("CityX/Rebuild Kitchen Knife")]
-        public static GameObject Build()
+        public static GameObject Build() => BuildKnife(Kitchen);
+
+        [MenuItem("CityX/Rebuild Butter Knife")]
+        public static GameObject BuildButterKnife() => BuildKnife(Butter);
+
+        private static GameObject BuildKnife(KnifeDrawing knife)
         {
             if (!AssetDatabase.IsValidFolder(Folder))
             {
                 AssetDatabase.CreateFolder("Assets/CityX/Weapons", "KitchenKnife");
             }
             Material steel = HeldModelBaker.LitMaterial($"{Folder}/KitchenKnifeSteel.mat", SteelColour, 0.85f, 0.65f);
-            Material wood = HeldModelBaker.LitMaterial($"{Folder}/KitchenKnifeHandle.mat", HandleColour, 0.0f, 0.35f);
-            Mesh blade = BladeMesh($"{Folder}/KitchenKnifeBlade.asset");
-            Mesh handle = HeldModelBaker.Turned($"{Folder}/KitchenKnifeHandle.asset", HandleProfile, "KitchenKnifeHandle", 12);
-            Mesh bolster = HeldModelBaker.Turned($"{Folder}/KitchenKnifeBolster.asset", BolsterProfile, "KitchenKnifeBolster", 12);
+            Material grip = knife.SteelHandle ? steel : HeldModelBaker.LitMaterial($"{Folder}/KitchenKnifeHandle.mat", HandleColour, 0.0f, 0.35f);
+            Mesh blade = BladeMesh($"{Folder}/{knife.Name}Blade.asset", knife);
+            Mesh handle = HeldModelBaker.Turned($"{Folder}/{knife.Name}Handle.asset", knife.HandleProfile, knife.Name + "Handle", 12);
+            Mesh bolster = HeldModelBaker.Turned($"{Folder}/{knife.Name}Bolster.asset", knife.BolsterProfile, knife.Name + "Bolster", 12);
 
-            var root = new GameObject("KitchenKnife");
+            var root = new GameObject(knife.Name);
             try
             {
                 HeldModelBaker.Part(root.transform, "Blade", blade, steel);
                 HeldModelBaker.Part(root.transform, "Bolster", bolster, steel);
-                HeldModelBaker.Part(root.transform, "Handle", handle, wood);
+                HeldModelBaker.Part(root.transform, "Handle", handle, grip);
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
                 pickupTrigger.radius = SwordWeapon.InteractRange;
 
                 SwordWeapon weapon = root.AddComponent<SwordWeapon>();
-                weapon.ItemId = ItemRegistry.KitchenKnife;
+                weapon.ItemId = knife.ItemId;
                 weapon.OneHanded = true;
                 weapon.Knife = true;
-                weapon.BladeLength = BladeLength;
+                weapon.Dull = knife.Dull;
+                weapon.BladeLength = knife.BladeLength;
 
-                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, knife.PrefabPath);
                 AssetDatabase.SaveAssets();
                 return saved;
             }
@@ -93,19 +156,20 @@ namespace CityX.WeaponsEditor
         /// The blade: its outline as a face on each side, thick at the spine and tapering to the edge (a wedge, so it catches the light
         /// as a blade does), joined round its rim. Each face and each rim band has its own vertices, so the edges stay sharp.
         /// </summary>
-        private static Mesh BladeMesh(string meshPath)
+        private static Mesh BladeMesh(string meshPath, KnifeDrawing knife)
         {
+            Vector2[] outline = knife.BladeOutline;
             var positions = new List<Vector3>();
             var triangles = new List<int>();
-            float spine = BladeOutline[0].x;
-            float edge = BladeOutline[BladeOutline.Length - 1].x;
-            float HalfThickness(float x) => Mathf.Lerp(EdgeHalfThickness, SpineHalfThickness, Mathf.InverseLerp(edge, spine, x));
+            float spine = outline[0].x;
+            float edge = outline[outline.Length - 1].x;
+            float HalfThickness(float x) => Mathf.Lerp(knife.EdgeHalfThickness, knife.SpineHalfThickness, Mathf.InverseLerp(edge, spine, x));
 
-            int n = BladeOutline.Length;
+            int n = outline.Length;
             foreach (float side in new[] { 1.0f, -1.0f })
             {
                 int first = positions.Count;
-                foreach (Vector2 p in BladeOutline)
+                foreach (Vector2 p in outline)
                 {
                     positions.Add(new Vector3(p.x, p.y, side * HalfThickness(p.x)));
                 }
@@ -124,8 +188,8 @@ namespace CityX.WeaponsEditor
             }
             for (int i = 0; i < n; i++)
             {
-                Vector2 a = BladeOutline[i];
-                Vector2 b = BladeOutline[(i + 1) % n];
+                Vector2 a = outline[i];
+                Vector2 b = outline[(i + 1) % n];
                 int first = positions.Count;
                 positions.Add(new Vector3(a.x, a.y, HalfThickness(a.x)));
                 positions.Add(new Vector3(b.x, b.y, HalfThickness(b.x)));
@@ -136,7 +200,7 @@ namespace CityX.WeaponsEditor
 
             var scratch = new Mesh { vertices = positions.ToArray(), triangles = triangles.ToArray() };
             scratch.RecalculateNormals();
-            Mesh saved = HeldModelBaker.Save(meshPath, "KitchenKnifeBlade", scratch.vertices, scratch.normals, scratch.triangles);
+            Mesh saved = HeldModelBaker.Save(meshPath, knife.Name + "Blade", scratch.vertices, scratch.normals, scratch.triangles);
             Object.DestroyImmediate(scratch);
             return saved;
         }

@@ -95,7 +95,14 @@ namespace CityX.Character
             item._droppedAt = drop.Position;
             item._droppedRotation = drop.Rotation;
             item.MakeSolid(dropper);
-            item.Launch(drop.Velocity, drop.Spin);
+            if (drop.Placed)
+            {
+                item.Body.isKinematic = true;
+            }
+            else
+            {
+                item.Launch(drop.Velocity, drop.Spin);
+            }
             return item;
         }
 

@@ -83,6 +83,7 @@ namespace CityX.ViewEditor
             Material litGlass = EnsureGlassMaterial("CityGlassLit", true);
             Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
             Material crackDecal = EnsureCrackDecalMaterial();
+            OldGuysHouseMaterials.EnsureGlass();
             GameObject shards = GlassShardsBuilder.Build();
 
             // building_door.gd's own DOOR_COLOR / HANDLE_COLOR. Lit, unlike the
@@ -265,6 +266,7 @@ namespace CityX.ViewEditor
             GameObject metalCrowbarPrefab = CityX.WeaponsEditor.MetalCrowbarBuilder.Build();
             GameObject baseballBatPrefab = CityX.WeaponsEditor.BaseballBatBuilder.Build();
             GameObject kitchenKnifePrefab = CityX.WeaponsEditor.KitchenKnifeBuilder.Build();
+            GameObject butterKnifePrefab = CityX.WeaponsEditor.KitchenKnifeBuilder.BuildButterKnife();
             GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
             GameObject ak47Prefab = CityX.WeaponsEditor.AK47Builder.Build();
             GameObject sprayCanPrefab = CityX.WeaponsEditor.SprayCanBuilder.Build();
@@ -541,6 +543,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.CombatSword, Prefab = combatSwordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.KitchenKnife, Prefab = kitchenKnifePrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.ButterKnife, Prefab = butterKnifePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.MetalCrowbar, Prefab = metalCrowbarPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

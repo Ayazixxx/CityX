@@ -85,6 +85,11 @@ namespace CityX.Weapons
 
         public bool IsKnife => _knife;
 
+        /// <summary>A DULL knife (the butter knife): the knife's moves, but its blows land as <see cref="KnifeRules.DullDamage"/>.</summary>
+        [SerializeField] private bool _dull;
+
+        public bool Dull { get => _dull; set => _dull = value; }
+
         public float BladeLength { get => _bladeLength; set => _bladeLength = Mathf.Max(0.1f, value); }
 
         /// <summary>Where the blade meets the grip, in world space.</summary>
@@ -369,7 +374,7 @@ namespace CityX.Weapons
             return false;
         }
 
-        public float GetMeleeDamage() => _knife ? KnifeRules.BaseDamage : BaseMeleeDamage;
+        public float GetMeleeDamage() => _knife ? (_dull ? KnifeRules.DullDamage : KnifeRules.BaseDamage) : BaseMeleeDamage;
 
         public float MeleeCooldownSeconds => MeleeCooldownSecondsConst;
 
