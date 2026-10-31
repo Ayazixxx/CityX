@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// <summary>The skyline tier streaming round a viewer (SkylineStreamer, 2026-10-15): groups come within the radius, go when left behind, and the ones near the viewer are built again as it moves.</summary>
     public sealed class SkylinePlayTests
     {
-        private const int Seed = 61256619;
+        private const int Seed = 81565117;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]

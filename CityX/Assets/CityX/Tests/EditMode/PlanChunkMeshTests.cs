@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class PlanChunkMeshTests
     {
-        private const int Seed = 61256619;
+        private const int Seed = 81565117;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));

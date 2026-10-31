@@ -47,7 +47,7 @@ namespace CityX.ViewEditor
         /// screen's backdrop and the massing scene's own city stop
         /// matching.
         /// </summary>
-        private const int WorldSeed = 61256619;
+        private const int WorldSeed = 81565117;
 
         /// <summary>How glossy the city's three shared surfaces are when DRY. The rain restores to exactly these.</summary>
         private const float GroundDrySmoothness = 0.10f;
@@ -884,6 +884,8 @@ namespace CityX.ViewEditor
             streamerObject.AddComponent<CityX.Character.BalconyDoorsNetwork>();
             // Broken glass (2026-10-16): a window or a door's glass another player broke is broken here too.
             streamerObject.AddComponent<CityX.Character.GlassDamageNetwork>();
+            // Old Guy's house (2026-10-31): its front door's planks and its windows, broken on one machine, are broken on every machine.
+            streamerObject.AddComponent<CityX.Character.TutorialHouseNetwork>();
             // Dropped items (2026-10-17): the weapon a player let go of when they died lies on every machine, and only one player gets it.
             streamerObject.AddComponent<CityX.Character.DroppedItemsNetwork>();
             // Enemies (2026-10-27): /spawn in a session asks the server, and every player sees and fights what it spawns.
@@ -915,6 +917,9 @@ namespace CityX.ViewEditor
             tutorialHouse.Structure = structure;
             tutorialHouse.Glass = houseGlass;
             tutorialHouse.SwordsmanPrefab = swordsmanPrefab;
+            tutorialHouse.ShardPrefab = shards;
+            tutorialHouse.CrackSounds = breaker.CrackSounds;
+            tutorialHouse.BreakSounds = breaker.BreakSounds;
             streamer.TutorialHouse = tutorialHouse;
 
             // The skyline beyond the streamed city (SkylineStreamer, 2026-10-15: "the render distance on his looks waaay better than ours i want

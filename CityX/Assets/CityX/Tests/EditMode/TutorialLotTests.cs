@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class TutorialLotTests
     {
-        private const int Seed = 61256619;
+        private const int Seed = 81565117;
 
         private CityScale _scaleBefore;
 
@@ -150,10 +150,15 @@ namespace CityX.Tests
                     Assert.IsTrue(House.Lot.Contains(area.X0, area.Z0) && House.Lot.Contains(area.X1, area.Z1), $"{room.Name} reaches off the lot");
                 }
             }
-            foreach (UnityEngine.Vector2 post in House.Fence)
+            foreach (House.Block block in House.Blocks)
             {
-                Assert.IsTrue(House.Lot.Contains(post.x, post.y), "the fence leaves the lot");
+                Assert.IsTrue(House.Lot.Contains(block.Min.x, block.Min.z) && House.Lot.Contains(block.Max.x, block.Max.z), "the porch or a footing leaves the lot");
             }
+            foreach (House.Step step in House.OutdoorSteps())
+            {
+                Assert.IsTrue(House.Lot.Contains(step.Tread.X0, step.Tread.Z0) && House.Lot.Contains(step.Tread.X1, step.Tread.Z1), "the outdoor steps leave the lot");
+            }
+            Assert.IsTrue(House.Lot.Contains(-House.RoofOverhang, House.Depth + House.RoofOverhang), "the roof's eaves leave the lot");
         }
 
         [Test]

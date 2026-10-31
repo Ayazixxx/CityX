@@ -5,7 +5,7 @@ using CityX.World.Plan;
 /// <summary>
 /// tutoriallot [seed]: where Old Guy's house lands (TutorialLot) beside the spawn: its frame, how far its front is from the spawn, the ground under
 /// it, the step up from the pavement, and the generated buildings left nearest it.
-/// tutorialseeds [first] [count]: seeds on which the house is the building nearest the spawn, ranked as sunnyspawn ranks them (a flat spawn in the sun).
+/// tutorialseeds [first] [count]: seeds ranked by the sun and the flat ground where the player lands (the house's driveway), with a small step onto it.
 /// </summary>
 public static class TutorialSeeds
 {
@@ -32,14 +32,15 @@ public static class TutorialSeeds
                 Console.WriteLine($"  seed {seed}: no land for the house");
                 continue;
             }
-            double houseGap = GapToHouse(lot, sx, sz), buildingGap = NearestBuildingGap(world, sx, sz);
+            // The player lands on the driveway (TutorialLot.LandingX/Z): the sun and the ground round that spot are what is seen first.
+            lot.ToWorld(TutorialLot.LandingX, TutorialLot.LandingZ, out double lx, out double lz);
+            double houseGap = GapToHouse(lot, sx, sz), buildingGap = NearestBuildingGap(world, lx, lz);
             Vec2 front = lot.FrontMiddle;
             double step = lot.FloorHeight - world.GroundHeight(front.X, front.Y) - PlanBuildings.PavingRise;
-            double spread = SunnySpawn.Spread(world.Fields, sx, sz, 100.0, 10.0), lit = SunnySpawn.LitShare(world, sx, sz);
-            bool nearest = houseGap < buildingGap;
-            string line = $"seed {seed}: house {houseGap:F1} m from the spawn, nearest other building {buildingGap:F1} m{(nearest ? "" : " (NOT NEAREST)")}, step {step:F2} m, {lit:P0} in sun, spread {spread:F1} m";
+            double spread = SunnySpawn.Spread(world.Fields, lx, lz, 100.0, 10.0), lit = SunnySpawn.LitShare(world, lx, lz);
+            string line = $"seed {seed}: house walls {houseGap:F1} m from the spawn junction, nearest other building {buildingGap:F1} m from the landing, step {step:F2} m, {lit:P0} in sun at the landing, spread {spread:F1} m";
             Console.WriteLine("  " + line);
-            if (nearest) ranked.Add((lit - spread * 0.05 - houseGap * 0.005, line));
+            if (step <= 0.3) ranked.Add((lit - spread * 0.05 - houseGap * 0.003, line));
         }
         ranked.Sort((a, b) => b.score.CompareTo(a.score));
         Console.WriteLine("best:");

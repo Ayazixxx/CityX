@@ -99,7 +99,8 @@ benches), so no two feel alike; the same hash rules as everything else (pure fun
 - **Dry-lawn island**: straw-coloured ground inside a curvy 0.12 m kerb (the grass look, dried).
 - **Chessboard**: 8 x 8 squares of 0.6 m in two paving tones, two to six pieces 0.9 m high, some fallen.
 - **Focal pieces**: the dry fountain (have), a tiered **tower** 12-16 m (five concrete tiers on a core, the Peace Plaza pagoda's shape, one plaza in
-  ten), a **pergola** (posts and slats), a boulder **rill** (a dry stone channel) across a promenade.
+  ten), a **pergola** (posts and slats), a boulder **rill** (a dry stone channel) across a promenade. Every plaza has one: where the piece drawn does
+  not fit its middle (a small or oddly cut square, 2026-10-31) the slim tower stands there instead.
 - **Bike racks** (hoops), a **name wall** lettered in bars, **bins**, a **hoarding** for a vacant lot.
 
 ### 4.3 Paving patterns

@@ -10,9 +10,10 @@ namespace CityX.View
 {
     /// <summary>
     /// Builds the tutorial house (OldGuysHouse, docs/OLD_GUYS_HOUSE.md) under a transform, in the house's own frame: floors and ceilings per
-    /// room, walls with their doors and windows cut out and framed, the stair core and the outdoor steps, the raised garden, railings, the fence,
-    /// the gable roof, the glass conservatory, the balcony, the plank bridge and the tree house, the furniture (FurnitureKit), a lamp and a light
-    /// in every room, and loose bottles on the mantel. Everything solid collides (a mesh collider per part); the case over the wand does not.
+    /// room, walls with their doors and windows cut out and framed, the stair core and the outdoor steps, the porch, railings, the gable roof,
+    /// the furniture (FurnitureKit), a lamp and a light in every room, and loose bottles on the mantel. Everything solid collides (a mesh collider
+    /// per part); the case over the wand does not. What breaks is an object of its own: every window's pane (HousePane) and the planks across
+    /// the front door, with the door behind them (BoardedDoor).
     /// </summary>
     public static class OldGuysHouseBuilder
     {
@@ -20,13 +21,15 @@ namespace CityX.View
         {
             public Material Structure;
             public Material Glass;
+
+            /// <summary>What a shattered pane's pieces are drawn with (the city's broken glass).</summary>
+            public Material Shards;
         }
 
         private static readonly Color Brick = new Color(0.62f, 0.40f, 0.32f);
         private static readonly Color Stone = new Color(0.66f, 0.64f, 0.60f);
         private static readonly Color Frame = new Color(0.94f, 0.94f, 0.92f);
         private static readonly Color Rail = new Color(0.22f, 0.20f, 0.18f);
-        private static readonly Color FenceWood = new Color(0.50f, 0.36f, 0.22f);
         private static readonly Color DoorGreen = new Color(0.20f, 0.34f, 0.26f);
         private static readonly Color Plank = new Color(0.60f, 0.46f, 0.30f);
         private static readonly Color RollUpGrey = new Color(0.58f, 0.60f, 0.62f);
@@ -40,10 +43,9 @@ namespace CityX.View
 
         public static readonly Color LightColour = new Color(1.0f, 0.90f, 0.76f);
 
-        /// <summary>Builds the house as children of <paramref name="parent"/> and returns their root.</summary>
         /// <summary>
-        /// The house under <paramref name="parent"/>. <paramref name="footingDepth"/>: how far below its floor the footing under the whole lot reaches, so
-        /// on the city's uneven ground no gap shows under its edges (0: none, for a house on flat ground).
+        /// The house under <paramref name="parent"/>, returning its root. <paramref name="footingDepth"/>: how far below its floor the footing under the
+        /// whole lot reaches, so on the city's uneven ground no gap shows under its edges (0: none, for a house on flat ground).
         /// </summary>
         public static GameObject Build(Transform parent, Materials materials, float footingDepth = 0.0f)
         {
@@ -51,20 +53,15 @@ namespace CityX.View
             root.transform.SetParent(parent, false);
 
             var structure = new MeshBuffer();
-            var glass = new MeshBuffer();
             var caseGlass = new MeshBuffer();
             var furniture = new MeshBuffer();
 
             Floors(structure);
-            Walls(structure, glass);
+            Walls(structure);
             Stairs(structure);
             Ground(structure, footingDepth);
             Roofs(structure);
-            Conservatory(structure, glass);
-            Posts(structure);
-            Bridge(structure);
             Railings(structure);
-            Fence(structure);
             foreach (House.Furniture piece in House.FurnitureList)
             {
                 if (piece.Kind != House.FurnitureKind.Bottle)
@@ -79,7 +76,8 @@ namespace CityX.View
             Emit(root.transform, "Structure", structure, materials.Structure, true, true);
             Emit(root.transform, "Furniture", furniture, materials.Structure, true, true);
             Containers(root.transform, materials.Structure);
-            Emit(root.transform, "Glass", glass, materials.Glass, true, false);
+            Panes(root.transform, materials);
+            FrontDoor(root.transform, materials.Structure);
             Emit(root.transform, "CaseGlass", caseGlass, materials.Glass, false, false);
             Bottles(root.transform, materials.Structure);
             return root;
@@ -97,7 +95,6 @@ namespace CityX.View
                 case Finish.Roof: return (int)WallMaterial.Roof;
                 case Finish.Metal: return (int)WallMaterial.Metal;
                 case Finish.Paving: return SurfaceLook.Paving;
-                case Finish.Grass: return SurfaceLook.Earth;
                 default: return (int)WallMaterial.Plaster;
             }
         }
@@ -205,12 +202,12 @@ namespace CityX.View
                 }
             }
             // The ceiling under the roof, over the whole upper floor and the living room.
-            Slab(b, new Vector3(0, House.EavesY - House.SlabThickness, 0), new Vector3(20, House.EavesY, 16), RenderLook, CeilingLook, RenderLook);
+            Slab(b, new Vector3(0, House.EavesY - House.SlabThickness, 0), new Vector3(House.Width, House.EavesY, House.Depth), RenderLook, CeilingLook, RenderLook);
         }
 
         // ---- walls, doors, windows ----
 
-        private static void Walls(MeshBuffer b, MeshBuffer glass)
+        private static void Walls(MeshBuffer b)
         {
             foreach (House.Wall wall in House.Walls)
             {
@@ -226,7 +223,7 @@ namespace CityX.View
                     for (; i < openings.Count && Mathf.Approximately(openings[i].From, first.From) && Mathf.Approximately(openings[i].To, first.To); i++)
                     {
                         WallPiece(b, wall, first.From, first.To, y, openings[i].Sill);
-                        Dress(b, glass, wall, openings[i]);
+                        Dress(b, wall, openings[i]);
                         y = openings[i].Head;
                     }
                     WallPiece(b, wall, first.From, first.To, y, wall.Y1);
@@ -304,8 +301,8 @@ namespace CityX.View
                 new Vector2(from, y0), new Vector2(to, y0), new Vector2(to, y1), new Vector2(from, y1));
         }
 
-        /// <summary>A door's frame, a window's frame, glass and sill, the barricaded front door, the closed roll-up door.</summary>
-        private static void Dress(MeshBuffer b, MeshBuffer glass, House.Wall w, House.Opening o)
+        /// <summary>A door's frame, a window's frame and sill (its pane is an object of its own, see <see cref="Panes"/>), the front door's frame, the closed roll-up door.</summary>
+        private static void Dress(MeshBuffer b, House.Wall w, House.Opening o)
         {
             float half = w.Thickness * 0.5f + FrameProud;
             switch (o.Kind)
@@ -322,7 +319,6 @@ namespace CityX.View
                     WallBox(b, w, o.From, o.To, o.Head, o.Head + FrameWidth, half, FrameLook);
                     WallBox(b, w, o.From, o.To, o.Sill - FrameWidth, o.Sill, half, FrameLook);
                     WallBox(b, w, (o.From + o.To) * 0.5f - 0.03f, (o.From + o.To) * 0.5f + 0.03f, o.Sill, o.Head, 0.04f, FrameLook);   // the mullion
-                    WallBox(glass, w, o.From, o.To, o.Sill, o.Head, 0.02f, SurfaceLook.Default);
                     if (w.Outer)
                     {
                         float outside = OutsideSign(w, o);
@@ -332,21 +328,11 @@ namespace CityX.View
                     }
                     break;
                 case House.OpeningKind.FrontDoor:
-                {
-                    WallBox(b, w, o.From, o.To, o.Sill, o.Head, 0.05f, Look(Finish.Plaster, DoorGreen, false));
+                    // Its leaf and the planks across it are objects of their own (FrontDoor).
                     WallBox(b, w, o.From - FrameWidth, o.From, o.Sill, o.Head + FrameWidth, half, FrameLook);
                     WallBox(b, w, o.To, o.To + FrameWidth, o.Sill, o.Head + FrameWidth, half, FrameLook);
                     WallBox(b, w, o.From, o.To, o.Head, o.Head + FrameWidth, half, FrameLook);
-                    // Boarded up: planks nailed across it outside, one of them askew.
-                    float outside = OutsideSign(w, o) * (w.Thickness * 0.5f + 0.06f);
-                    foreach (float y in new[] { o.Sill + 0.7f, o.Sill + 1.9f })
-                    {
-                        Vector3 p = At(w, o.From - 0.3f, outside - 0.025f, y), q = At(w, o.To + 0.3f, outside + 0.025f, y + 0.28f);
-                        Box(b, Vector3.Min(p, q), Vector3.Max(p, q), PlankLook);
-                    }
-                    Beam(b, At(w, o.From - 0.2f, outside, o.Sill + 0.3f), At(w, o.To + 0.2f, outside, o.Head - 0.3f), 0.1f, PlankLook);
                     break;
-                }
                 case House.OpeningKind.RollUpDoor:
                 {
                     WallBox(b, w, o.From, o.To, o.Sill, o.Head, 0.04f, Look(Finish.Metal, RollUpGrey, false));
@@ -408,7 +394,7 @@ namespace CityX.View
             }
         }
 
-        // ---- the terrace, the garden wall ----
+        // ---- the footing and the solid blocks ----
 
         /// <summary>The footing's top stands this far under the floor, clear of the floors' own undersides and the paving the city lays round it.</summary>
         private const float FootingTopBelowFloor = 0.03f;
@@ -422,11 +408,8 @@ namespace CityX.View
             }
             foreach (House.Block block in House.Blocks)
             {
-                Slab(b, block.Min, block.Max, Look(block.Top, block.TopTint, false), StoneLook, block.Top == Finish.Concrete ? Look(Finish.Concrete, block.TopTint, true) : StoneLook);
+                Slab(b, block.Min, block.Max, Look(block.Top, block.TopTint, false), StoneLook, block.Top == Finish.Concrete ? BrickLook : StoneLook);   // the footing's sides are the street level's brick outside
             }
-            House.Rail wall = House.GardenWall;
-            Box(b, new Vector3(wall.A.x, wall.Y, wall.A.y - 0.15f), new Vector3(wall.B.x, wall.Y + House.GardenWallHeight - 0.06f, wall.B.y + 0.15f), BrickLook);
-            Box(b, new Vector3(wall.A.x, wall.Y + House.GardenWallHeight - 0.06f, wall.A.y - 0.2f), new Vector3(wall.B.x, wall.Y + House.GardenWallHeight, wall.B.y + 0.2f), StoneLook);
         }
 
         // ---- roofs ----
@@ -434,10 +417,7 @@ namespace CityX.View
         private static void Roofs(MeshBuffer b)
         {
             float o = House.RoofOverhang, wall = House.OuterWallThickness * 0.5f;
-            Gable(b, -o, 20 + o, -o, 16 + o, House.RidgeZ, House.EavesY, House.RidgeY, -wall, 20 + wall, 0, 16);
-            // The tree house's little roof over its hut.
-            float hutTop = House.LevelY(2) + 3.2f;
-            Gable(b, 2.2f, 7.8f, 25.7f, 30.3f, 28.0f, hutTop, hutTop + 1.1f, 2.5f - wall, 7.5f + wall, 26, 30);
+            Gable(b, -o, House.Width + o, -o, House.Depth + o, House.RidgeZ, House.EavesY, House.RidgeY, -wall, House.Width + wall, 0, House.Depth);
         }
 
         /// <summary>
@@ -475,95 +455,7 @@ namespace CityX.View
             }
         }
 
-        // ---- the conservatory ----
-
-        private static void Conservatory(MeshBuffer b, MeshBuffer glass)
-        {
-            float floor = House.LevelY(1), top = House.LevelY(2), low = top - 0.6f, sill = floor + 0.6f;
-            Color32 white = FrameLook;
-            // A low brick sill round its three glass sides (the north side's doorway left open), posts at the corners and every 1.5 m.
-            Box(b, new Vector3(-0.15f, floor, 16), new Vector3(0.15f, sill, 20.15f), BrickLook);
-            Box(b, new Vector3(8.85f, floor, 16), new Vector3(9.15f, sill, 20.15f), BrickLook);
-            Box(b, new Vector3(-0.15f, floor, 19.85f), new Vector3(2.9f, sill, 20.15f), BrickLook);
-            Box(b, new Vector3(4.7f, floor, 19.85f), new Vector3(9.15f, sill, 20.15f), BrickLook);
-            foreach (float x in new[] { 0f, 1.5f, 2.9f, 4.7f, 6.0f, 7.5f, 9f })
-            {
-                Box(b, new Vector3(x - 0.07f, floor, 19.93f), new Vector3(x + 0.07f, low, 20.07f), white);
-            }
-            foreach (float z in new[] { 16f, 17.3f, 18.6f, 20f })
-            {
-                float h = Mathf.Lerp(top, low, (z - 16) / 4f);
-                Box(b, new Vector3(-0.07f, floor, z - 0.07f), new Vector3(0.07f, h, z + 0.07f), white);
-                Box(b, new Vector3(8.93f, floor, z - 0.07f), new Vector3(9.07f, h, z + 0.07f), white);
-            }
-            // The doorway's head, and the beam along the low edge of the roof.
-            Box(b, new Vector3(2.9f, floor + House.DoorHeight, 19.93f), new Vector3(4.7f, floor + House.DoorHeight + 0.1f, 20.07f), white);
-            Box(b, new Vector3(-0.07f, low, 19.9f), new Vector3(9.07f, low + 0.12f, 20.1f), white);
-            // Glass: above the sill on three sides (over the doorway's head on the north), and the sloping roof.
-            Box(glass, new Vector3(-0.02f, sill, 16.07f), new Vector3(0.02f, low, 19.93f), SurfaceLook.Default);
-            Box(glass, new Vector3(8.98f, sill, 16.07f), new Vector3(9.02f, low, 19.93f), SurfaceLook.Default);
-            Box(glass, new Vector3(0.07f, sill, 19.98f), new Vector3(2.83f, low, 20.02f), SurfaceLook.Default);
-            Box(glass, new Vector3(4.77f, sill, 19.98f), new Vector3(8.93f, low, 20.02f), SurfaceLook.Default);
-            Box(glass, new Vector3(2.97f, floor + House.DoorHeight + 0.1f, 19.98f), new Vector3(4.63f, low, 20.02f), SurfaceLook.Default);
-            Vector3 ra = new Vector3(-0.1f, top, 16), rb = new Vector3(9.1f, top, 16), rc = new Vector3(9.1f, low + 0.12f, 20.1f), rd = new Vector3(-0.1f, low + 0.12f, 20.1f);
-            Vector3 up = Vector3.Cross(rb - ra, rd - ra).normalized;
-            if (up.y < 0) up = -up;
-            glass.Look = SurfaceLook.Default;
-            Quad(glass, ra, rb, rc, rd, up);
-            Quad(glass, ra - up * 0.03f, rb - up * 0.03f, rc - up * 0.03f, rd - up * 0.03f, -up);
-            for (float x = 0; x <= 9.01f; x += 1.5f)
-            {
-                Beam(b, new Vector3(x, top - 0.05f, 16), new Vector3(x, low + 0.1f, 20.05f), 0.05f, white);
-            }
-        }
-
-        // ---- posts under the balcony and the tree house ----
-
-        private static void Posts(MeshBuffer b)
-        {
-            Color32 wood = SurfaceLook.Pack(House.Decking, (int)WallMaterial.Plaster, 0.3f);
-            float from = House.LevelY(1), to = House.LevelY(2) - House.SlabThickness;
-            foreach (float x in new[] { 9.15f, 14.5f, 19.85f })
-            {
-                Box(b, new Vector3(x - 0.15f, from, 18.2f), new Vector3(x + 0.15f, to, 18.5f), RenderLook);
-            }
-            foreach (Vector2 p in new[] { new Vector2(2.15f, 25.65f), new Vector2(7.85f, 25.65f), new Vector2(2.15f, 30.35f), new Vector2(7.85f, 30.35f) })
-            {
-                Box(b, new Vector3(p.x - 0.12f, from, p.y - 0.12f), new Vector3(p.x + 0.12f, to, p.y + 0.12f), wood);
-            }
-            // The rope ladder, pulled up and coiled on the platform's edge.
-            Box(b, new Vector3(2.05f, House.LevelY(2), 27.0f), new Vector3(2.45f, House.LevelY(2) + 0.25f, 28.2f), SurfaceLook.Pack(new Color(0.70f, 0.60f, 0.40f), (int)WallMaterial.Plaster, 0.3f));
-        }
-
-        // ---- the plank bridge ----
-
-        private static void Bridge(MeshBuffer b)
-        {
-            Vector2 d = House.BridgeTo - House.BridgeFrom;
-            float length = d.magnitude, yaw = Mathf.Atan2(d.x, d.y);
-            float y = House.LevelY(2), w = House.BridgeWidth * 0.5f;
-            b.SetFrame(new Vector3(House.BridgeFrom.x, 0, House.BridgeFrom.y), Mathf.Cos(yaw), -Mathf.Sin(yaw));
-            // The boards run on past both ends onto the balcony and the platform, so the slanting ends leave no gap.
-            for (float s = -0.5f; s < length + 0.5f; s += 0.32f)
-            {
-                Box(b, new Vector3(-w, y - 0.06f, s + 0.02f), new Vector3(w, y + 0.02f, s + 0.29f), PlankLook);
-            }
-            Box(b, new Vector3(-w + 0.1f, y - 0.3f, 0), new Vector3(-w + 0.25f, y - 0.06f, length), PlankLook);
-            Box(b, new Vector3(w - 0.25f, y - 0.3f, 0), new Vector3(w - 0.1f, y - 0.06f, length), PlankLook);
-            Color32 rope = SurfaceLook.Pack(new Color(0.75f, 0.65f, 0.45f), (int)WallMaterial.Plaster, 0.2f);
-            foreach (float x in new[] { -w + 0.05f, w - 0.05f })
-            {
-                for (float s = 0.3f; s < length; s += 1.3f)
-                {
-                    Box(b, new Vector3(x - 0.05f, y, s - 0.05f), new Vector3(x + 0.05f, y + 1.15f, s + 0.05f), PlankLook);
-                }
-                Box(b, new Vector3(x - 0.03f, y + 1.05f, 0.3f), new Vector3(x + 0.03f, y + 1.11f, length - 0.2f), rope);
-                Box(b, new Vector3(x - 0.03f, y + 0.55f, 0.3f), new Vector3(x + 0.03f, y + 0.6f, length - 0.2f), rope);
-            }
-            b.ClearFrame();
-        }
-
-        // ---- railings and the fence ----
+        // ---- railings ----
 
         private static void Railings(MeshBuffer b)
         {
@@ -577,23 +469,6 @@ namespace CityX.View
                 {
                     Vector3 p = Vector3.Lerp(a, c, i / (balusters - 1.0f));
                     Box(b, new Vector3(p.x - 0.025f, p.y, p.z - 0.025f), new Vector3(p.x + 0.025f, p.y + House.RailHeight, p.z + 0.025f), RailLook);
-                }
-            }
-        }
-
-        private static void Fence(MeshBuffer b)
-        {
-            Color32 boards = SurfaceLook.Pack(FenceWood, (int)WallMaterial.Plaster, 0.35f);
-            float y = House.LevelY(1);
-            for (int i = 0; i + 1 < House.Fence.Length; i++)
-            {
-                Vector2 p = House.Fence[i], q = House.Fence[i + 1];
-                Box(b, new Vector3(Mathf.Min(p.x, q.x) - 0.06f, y, Mathf.Min(p.y, q.y) - 0.06f), new Vector3(Mathf.Max(p.x, q.x) + 0.06f, y + House.FenceHeight, Mathf.Max(p.y, q.y) + 0.06f), boards);
-                int posts = Mathf.Max(2, Mathf.CeilToInt((q - p).magnitude / 2.0f) + 1);
-                for (int k = 0; k < posts; k++)
-                {
-                    Vector2 at = Vector2.Lerp(p, q, k / (posts - 1.0f));
-                    Box(b, new Vector3(at.x - 0.1f, y, at.y - 0.1f), new Vector3(at.x + 0.1f, y + House.FenceHeight + 0.15f, at.y + 0.1f), boards);
                 }
             }
         }
@@ -630,6 +505,112 @@ namespace CityX.View
                 light.intensity = LightIntensity;
                 light.range = Mathf.Clamp(Mathf.Max(biggest.X1 - biggest.X0, biggest.Z1 - biggest.Z0) * 1.1f, 6.0f, 12.0f);
                 light.shadows = LightShadows.None;
+            }
+        }
+
+        // ---- what breaks: the windows' panes and the front door's planks ----
+
+        /// <summary>Thickness of a pane of glass, and of a plank.</summary>
+        private const float PaneThickness = 0.04f, PlankThickness = 0.05f, PlankHeight = 0.28f;
+
+        /// <summary>Every window's pane as an object of its own (HousePane), numbered as the plan numbers them, so each one cracks and shatters by itself.</summary>
+        private static void Panes(Transform root, Materials materials)
+        {
+            var parent = new GameObject("Panes").transform;
+            parent.SetParent(root, false);
+            int piece = House.FrontDoorPlanks;
+            foreach (House.Wall w in House.Walls)
+            {
+                foreach (House.Opening o in w.Openings)
+                {
+                    if (o.Kind != House.OpeningKind.Window)
+                    {
+                        continue;
+                    }
+                    float height = o.Head - o.Sill;
+                    Vector3 size = w.AlongX ? new Vector3(o.Width, height, PaneThickness) : new Vector3(PaneThickness, height, o.Width);
+                    var shape = new MeshBuffer();
+                    Box(shape, -size * 0.5f, size * 0.5f, SurfaceLook.Default);
+                    GameObject pane = Emit(parent, "Pane " + piece, shape, materials.Glass, false, false);
+                    pane.transform.localPosition = At(w, (o.From + o.To) * 0.5f, 0, (o.Sill + o.Head) * 0.5f);
+                    pane.AddComponent<BoxCollider>().size = size;
+                    var glass = pane.AddComponent<HousePane>();
+                    glass.Piece = piece++;
+                    glass.Size = new Vector2(o.Width, height);
+                    glass.AlongLocalX = w.AlongX;
+                    glass.ShardMaterial = materials.Shards;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The front door (docs/OLD_GUYS_HOUSE.md): its green leaf on a hinge, shut, and three planks nailed across it outside (pieces 0 to 2: two
+        /// across, one askew), each an object that takes blows and falls (BoardedPlank); with all three gone the door swings open (BoardedDoor).
+        /// </summary>
+        private static void FrontDoor(Transform root, Material material)
+        {
+            foreach (House.Wall w in House.Walls)
+            {
+                foreach (House.Opening o in w.Openings)
+                {
+                    if (o.Kind == House.OpeningKind.FrontDoor)
+                    {
+                        BuildFrontDoor(root, material, w, o);
+                    }
+                }
+            }
+        }
+
+        private static void BuildFrontDoor(Transform root, Material material, House.Wall w, House.Opening o)
+        {
+            var door = new GameObject("Front door");
+            door.transform.SetParent(root, false);
+            float outside = OutsideSign(w, o);
+            Vector3 along = w.AlongX ? Vector3.right : Vector3.forward, outward = (w.AlongX ? Vector3.forward : Vector3.right) * outside;
+
+            // The leaf, its hinge at the door's From side, in the wall's middle; it swings in, away from the planks.
+            var hinge = new GameObject("Leaf hinge");
+            hinge.transform.SetParent(door.transform, false);
+            hinge.transform.localPosition = At(w, o.From, 0, o.Sill);
+            var leafShape = new MeshBuffer();
+            Vector3 leafMin = Vector3.Min(Vector3.zero - outward * 0.05f, along * o.Width + Vector3.up * (o.Head - o.Sill) + outward * 0.05f);
+            Vector3 leafMax = Vector3.Max(Vector3.zero - outward * 0.05f, along * o.Width + Vector3.up * (o.Head - o.Sill) + outward * 0.05f);
+            Box(leafShape, leafMin, leafMax, Look(Finish.Plaster, DoorGreen, false));
+            GameObject leaf = Emit(hinge.transform, "Leaf", leafShape, material, false, true);
+            var leafBox = leaf.AddComponent<BoxCollider>();
+            leafBox.center = (leafMin + leafMax) * 0.5f;
+            leafBox.size = leafMax - leafMin;
+
+            var boarded = door.AddComponent<BoardedDoor>();
+            boarded.Leaf = hinge.transform;
+            // Turning about +y takes +along toward -outward when the turn is positive for an along-x wall facing +z (and the mirror otherwise).
+            Vector3 turned = Quaternion.Euler(0, BoardedDoor.OpenDegrees, 0) * along;
+            boarded.OpenSign = Vector3.Dot(turned, outward) < 0.0f ? 1.0f : -1.0f;
+
+            // The planks, outside the leaf: two across at waist and chest height, one from low on one side to high on the other.
+            float off = w.Thickness * 0.5f + 0.06f;
+            float mid = (o.From + o.To) * 0.5f;
+            Vector3 low = At(w, o.From - 0.2f, outside * off, o.Sill + 0.5f), high = At(w, o.To + 0.2f, outside * off, o.Head - 0.5f);
+            (Vector3 centre, float length, float tilt)[] planks =
+            {
+                (At(w, mid, outside * off, o.Sill + 1.0f), o.Width + 0.6f, 0.0f),
+                (At(w, mid, outside * off, o.Sill + 2.5f), o.Width + 0.6f, 0.0f),
+                ((low + high) * 0.5f, (high - low).magnitude, Mathf.Atan2(o.Head - o.Sill - 1.0f, o.Width + 0.4f) * Mathf.Rad2Deg),
+            };
+            for (int i = 0; i < planks.Length; i++)
+            {
+                var shape = new MeshBuffer();
+                Vector3 half = new Vector3(planks[i].length * 0.5f, PlankHeight * 0.5f, PlankThickness * 0.5f);
+                Box(shape, -half, half, PlankLook);
+                GameObject plank = Emit(door.transform, "Plank " + i, shape, material, false, true);
+                // The plank's own x along the wall, z out of it, then tilted in the wall's plane (the askew one, nailed toward the From side's foot).
+                Quaternion lay = Quaternion.LookRotation(outward, Vector3.up);
+                Vector3 alongLocal = Quaternion.Inverse(lay) * along;
+                float tilt = alongLocal.x > 0.0f ? planks[i].tilt : -planks[i].tilt;
+                plank.transform.localPosition = planks[i].centre;
+                plank.transform.localRotation = lay * Quaternion.Euler(0, 0, tilt);
+                plank.AddComponent<BoxCollider>().size = half * 2.0f;
+                plank.AddComponent<BoardedPlank>().Piece = i;
             }
         }
 

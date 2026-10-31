@@ -55,6 +55,9 @@ Infinite both ways. Each zone is very tall (hours to cross). **No digging, no bu
 | Floating islands | Sky city, Heaven |
 | New city builder | alien cities, maybe Hell |
 
+**The Sewers' look (owner, 2026-10-31):** the "fake liquid" streams (a bent, turning torus whose procedural texture drives its displacement and
+normals; Tuatara Games' realtime-VFX post) belong in the sewer level: water pouring from pipes and grates into the channels.
+
 Enemies are the real content cost, not terrain (see Enemies).
 
 ## The sky hub
@@ -119,6 +122,20 @@ Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-sh
   - **Finding your way back home after a long journey is part of the game** (owner: "i kind of like the idea of people having to find their way back home
     after a long journey"): a crystal is something to save, not something to use every trip.
   - Flying up to the sky island (jetpack, wings) is possible but high-level.
+- **Owner, 2026-10-31: the ways to teleport.**
+  - **Teleport crystals** (above).
+  - **Portal spells:** they open a portal to whatever location you select (home, the hub, etc.).
+  - **A Portal Gun:** the same idea, but more like the portal gun from Rick and Morty.
+  - **"Godspeed" dropped (owner, same day):** a high-level light spell to anywhere on the map you had been, once every 24 real hours, was "too op you
+    can just teleport into the enemies base"; "we will just get rid of it for now i will have some fast running ability later".
+  - **Who goes through (owner, same day):** a portal is open to allies and faction members, and closes once you go through it, so your team has to go
+    first. Playing solo and being chased, you can still use it to escape.
+  - **Portals are for high-level players:** "i want it to be hard to die once you high level. once you are high level you will already have had your
+    fair share of adventuring and will appreciate the fast travel back home."
+  - **No block after a fight for the portal spell:** instead its cast takes a couple of seconds, and you can still take damage during it.
+  - **The Portal Gun has a long cooldown,** maybe about 10 hours.
+  - Open (not decided): whether damage during the portal spell's cast cancels it or only hurts. Whether sieges and enemy territory block portals as they
+    block crystals.
 - My notes (not decided): a player who skips the tutorial starts with no crystals, so until they find one their ways up are dying (you respawn in the hub) or, my
   suggestion, a few free lift points in the starting streets. Whether the mirror keeps the crystals' 10 s charge and fight block is open (Terraria's mirror
   has neither, but an instant way home would be an escape from every fight).

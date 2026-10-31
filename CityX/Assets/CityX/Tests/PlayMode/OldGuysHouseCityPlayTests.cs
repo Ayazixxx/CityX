@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class OldGuysHouseCityPlayTests
     {
-        private const int Seed = 61256619;
+        private const int Seed = 81565117;
         private readonly List<GameObject> _made = new List<GameObject>();
         private CityScale _scaleBefore;
 
@@ -102,10 +102,13 @@ namespace CityX.Tests
             yield return null;
             Vector3 At(float x, float z) => house.transform.TransformPoint(new Vector3(x, 0.0f, z));
             CharacterController body = Body(At(House.Landing.x, House.Landing.z) + Vector3.up * 0.1f);
-            // Along the driveway to Old Guy's spot at the foot of the steps, up the steps onto the porch, back down, and out across the pavement to the kerb.
+            float steps = (House.OutdoorStepsX0 + House.OutdoorStepsX1) * 0.5f, foot = House.OutdoorStepsFootZ - 0.7f, top = House.OutdoorStepsTopZ + 1.6f;
+            Vector3 porch = At((House.Width + House.PorchX1) * 0.5f, (House.PorchZ0 + House.PorchZ1) * 0.5f);
+            // Along the driveway to Old Guy's spot at the foot of the steps, round the end of their rail, up onto the porch, back down, and out across the
+            // pavement to the kerb.
             Vector3[] route =
             {
-                At(House.OldGuyAtTheSteps.x, House.OldGuyAtTheSteps.z), At(21.8f, -5.0f), At(21.8f, 3.6f), At(22.3f, 7.2f),
+                At(House.OldGuyAtTheSteps.x, House.OldGuyAtTheSteps.z), At(House.OldGuyAtTheSteps.x, foot), At(steps, foot), At(steps, top), porch,
             };
             for (int i = 0; i < route.Length; i++)
             {
@@ -117,7 +120,7 @@ namespace CityX.Tests
             Assert.AreEqual(house.transform.position.y + House.Storey, body.transform.position.y, 0.4f, "the body is not standing on the porch");
 
             // Down again and off the lot: the step from the driveway to the pavement is walked, not climbed.
-            Vector3[] back = { At(21.8f, 3.6f), At(21.8f, -5.0f), At(11.5f, -5.0f), At(11.5f, -9.0f) };
+            Vector3[] back = { At(steps, top), At(steps, foot), At(House.Landing.x, foot + 0.2f), At(House.Landing.x, (float)TutorialLot.LotZ0 - 2.5f) };
             for (int i = 0; i < back.Length; i++)
             {
                 yield return WalkTo(body, back[i]);

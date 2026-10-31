@@ -9,7 +9,7 @@ namespace CityX.View
 {
     /// <summary>
     /// Where the tutorial house stands (docs/OLD_GUYS_HOUSE.md): builds it under this transform (OldGuysHouseBuilder), sets the weapons down where the
-    /// plan puts them, and puts the one swordsman in Old Guy's bedroom once this machine's player comes near. In the city the streamer moves it onto
+    /// plan puts them, and puts the one swordsman in Old Guy's bedroom once this machine's player gets in. In the city the streamer moves it onto
     /// the land the plan keeps for it beside the spawn (<see cref="PlaceOn"/>, Plan.TutorialLot). The weapons are this machine's own (the tutorial
     /// is played alone), held exactly where they were set down until picked up with E.
     /// </summary>
@@ -21,6 +21,14 @@ namespace CityX.View
         [Tooltip("See-through window glass.")]
         public Material Glass;
 
+        [Tooltip("The city's glass shards (GlassShardsBuilder): a shattered pane's pieces are drawn in their material.")]
+        public GameObject ShardPrefab;
+
+        [Tooltip("A pane cracking, and shattering: one picked at random each time.")]
+        public AudioClip[] CrackSounds;
+
+        public AudioClip[] BreakSounds;
+
         [Tooltip("The swordsman upstairs (owner: \"maybe just one swordsman upstairs\").")]
         public GameObject SwordsmanPrefab;
 
@@ -28,9 +36,10 @@ namespace CityX.View
 
         public bool SpawnSwordsman = true;
 
-        [Tooltip("How near this machine's player comes before the swordsman is put down. In a session he is spawned for everyone, run by that " +
-                 "player's machine (EnemyNetwork), which lets a player put an enemy down only near themselves.")]
-        public float SwordsmanWakeMetres = 30.0f;
+        [Tooltip("How far outside the walls this machine's player may be when the swordsman is put down: he waits until they get in, so the " +
+                 "bodies on the driveway are the player's and Old Guy's alone. In a session he is spawned for everyone, run by that player's " +
+                 "machine (EnemyNetwork), which lets a player put an enemy down only near themselves.")]
+        public float SwordsmanWakeMargin = 1.0f;
 
         [Tooltip("How far below the floor the footing under the lot reaches (set from the ground under it when placed in the city).")]
         public float FootingDepth;
@@ -77,7 +86,14 @@ namespace CityX.View
             {
                 return;
             }
-            Built = OldGuysHouseBuilder.Build(transform, new OldGuysHouseBuilder.Materials { Structure = Structure, Glass = Glass }, FootingDepth);
+            MeshRenderer shards = ShardPrefab != null ? ShardPrefab.GetComponentInChildren<MeshRenderer>(true) : null;
+            var materials = new OldGuysHouseBuilder.Materials { Structure = Structure, Glass = Glass, Shards = shards != null ? shards.sharedMaterial : null };
+            Built = OldGuysHouseBuilder.Build(transform, materials, FootingDepth);
+            foreach (HousePane pane in Built.GetComponentsInChildren<HousePane>())
+            {
+                pane.CrackSounds = CrackSounds;
+                pane.BreakSounds = BreakSounds;
+            }
             Physics.SyncTransforms();
             if (PlaceItems)
             {
@@ -116,7 +132,7 @@ namespace CityX.View
                 }
                 _player = reader.transform;
             }
-            if ((_player.position - transform.TransformPoint(OldGuysHouse.SwordsmanSpot)).sqrMagnitude <= SwordsmanWakeMetres * SwordsmanWakeMetres)
+            if (OldGuysHouse.WithinWalls(transform.InverseTransformPoint(_player.position), SwordsmanWakeMargin))
             {
                 PutDownSwordsman();
             }
@@ -132,6 +148,8 @@ namespace CityX.View
             if (network == null || !network.TrySpawn("swordsman", where, facing))
             {
                 Swordsman = Instantiate(SwordsmanPrefab, where, facing);
+                // Into the house's own scene, so he goes with it: Instantiate puts him in the active scene, which outlives an additive city.
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(Swordsman, gameObject.scene);
             }
         }
 

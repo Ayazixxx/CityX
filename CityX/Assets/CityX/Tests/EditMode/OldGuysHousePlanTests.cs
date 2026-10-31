@@ -82,17 +82,13 @@ namespace CityX.Tests
                     Link(a?.Name, b?.Name);
                 }
             }
-            // The ways that are not doorways: the stairs, the open side of the stair core, the outdoor steps, the vault over the garden wall,
-            // the open ground round the house, the conservatory's garden door, the bridge.
+            // The ways that are not doorways: the stairs, the open side of the stair core, the outdoor steps, and the front door once its planks
+            // are torn off (the tutorial's way in).
             Link("Stair core (street)", "Stair hall");
             Link("Stair core (street)", "Entry hall");
             Link("Entry hall", "Gallery");
             Link("Driveway", "Porch");
-            Link("Porch", "Side path");
-            Link("Side path", "Garden");
-            Link("Patio", "Garden");
-            Link("Garden", "Conservatory");
-            Link("Balcony", "Tree house platform");
+            Link("Porch", "Entry hall");
 
             var reached = new HashSet<string> { "Driveway" };
             var queue = new Queue<string>(reached);
@@ -132,7 +128,7 @@ namespace CityX.Tests
                 {
                     Assert.IsTrue(ItemRegistry.TryGet(id, out _), $"{id} is not an item");
                     ids.Add(id);
-                    if (id == ItemRegistry.BaseballBat) batRoom = House.RoomAt(2, piece.Position.x, piece.Position.z)?.Name;
+                    if (id == ItemRegistry.BaseballBat) batRoom = House.RoomAt(0, piece.Position.x, piece.Position.z)?.Name;
                 }
             }
             foreach (string id in new[] { ItemRegistry.KitchenKnife, ItemRegistry.MagicWand, ItemRegistry.Slingshot, ItemRegistry.ButterKnife, ItemRegistry.BaseballBat })
@@ -140,7 +136,7 @@ namespace CityX.Tests
                 Assert.IsTrue(ids.Contains(id), $"the house has no {id}");
             }
             Assert.AreEqual("Kitchen", House.RoomAt(1, House.Items[0].Position.x, House.Items[0].Position.z).Name, "the kitchen knife is not in the kitchen");
-            Assert.AreEqual("Tree house", batRoom, "the bat is not hidden in the tree house");
+            Assert.AreEqual("Cellar", batRoom, "the bat is not hidden in the cellar");
         }
 
         /// <summary>Every piece stands in a room or the garden (the wand's case once stood at the house's corner, read before its place was set).</summary>
@@ -159,6 +155,87 @@ namespace CityX.Tests
         public void TheSwordsmanIsUpstairs()
         {
             Assert.AreEqual("Old Guy's bedroom", House.RoomAt(2, House.SwordsmanSpot.x, House.SwordsmanSpot.z)?.Name);
+        }
+
+        /// <summary>
+        /// Third-person rooms (docs/OLD_GUYS_HOUSE.md, "Sizes"): with the camera 5 m behind the player, every room but the WC and the gallery's walk
+        /// is at least <see cref="House.CameraRoomSide"/> one way and a hall's width the other, and the rooms the tutorial is played in are big both ways.
+        /// </summary>
+        [Test]
+        public void TheRoomsAreSizedForTheThirdPersonCamera()
+        {
+            foreach (House.Room room in House.Rooms)
+            {
+                if (room.Outdoors || room.Small) continue;
+                foreach (House.Area a in room.Floors)
+                {
+                    float w = a.X1 - a.X0, d = a.Z1 - a.Z0;
+                    Assert.GreaterOrEqual(Mathf.Max(w, d), House.CameraRoomSide, $"{room.Name} is {w:F1} x {d:F1} m: the camera has no room");
+                    Assert.GreaterOrEqual(Mathf.Min(w, d), House.HallWidth, $"{room.Name} is {w:F1} x {d:F1} m: narrower than a hall");
+                }
+            }
+            foreach (string name in new[] { "Garage", "Living room", "Kitchen", "Dining room", "Old Guy's den", "Grandson's room", "Study", "Old Guy's bedroom" })
+            {
+                House.Area a = House.RoomNamed(name).Floors[0];
+                Assert.GreaterOrEqual(Mathf.Min(a.X1 - a.X0, a.Z1 - a.Z0), 7.0f, $"{name} is cramped for the camera");
+            }
+            Assert.GreaterOrEqual(House.ClearHeight, 4.6f, "the ceilings are too low for the camera over the player's head");
+        }
+
+        /// <summary>Owner, 2026-10-31: "there is one door that is being blocked by a coach". Nothing stands in the 1.5 m in front of any doorway, either side.</summary>
+        [Test]
+        public void NoFurnitureStandsInFrontOfADoorway()
+        {
+            const float clear = 1.5f;
+            var pieces = new List<(House.Furniture Piece, Bounds Box)>();
+            foreach (House.Furniture piece in House.FurnitureList)
+            {
+                if (piece.Kind == House.FurnitureKind.Rug || piece.Kind == House.FurnitureKind.Poster || piece.Kind == House.FurnitureKind.Drawing) continue;
+                var shape = new CityX.View.MeshBuffer();
+                CityX.View.FurnitureKit.Add(shape, piece);
+                var box = new Bounds(shape.Vertices[0], Vector3.zero);
+                foreach (Vector3 v in shape.Vertices) box.Encapsulate(v);
+                pieces.Add((piece, box));
+            }
+            foreach (House.Wall wall in House.Walls)
+            {
+                foreach (House.Opening o in wall.Openings)
+                {
+                    if (!o.Passable && o.Kind != House.OpeningKind.FrontDoor) continue;
+                    foreach (float side in new[] { -1.0f, 1.0f })
+                    {
+                        float near = wall.At + side * wall.Thickness * 0.5f, far = near + side * clear;
+                        Vector3 min = wall.AlongX ? new Vector3(o.From, o.Sill + 0.05f, Mathf.Min(near, far)) : new Vector3(Mathf.Min(near, far), o.Sill + 0.05f, o.From);
+                        Vector3 max = wall.AlongX ? new Vector3(o.To, o.Sill + 2.0f, Mathf.Max(near, far)) : new Vector3(Mathf.Max(near, far), o.Sill + 2.0f, o.To);
+                        var doorway = new Bounds((min + max) * 0.5f, max - min);
+                        foreach ((House.Furniture piece, Bounds box) in pieces)
+                        {
+                            Assert.IsFalse(doorway.Intersects(box), $"a {piece.Kind} at {piece.Position} stands in front of the doorway at {wall.At} ({o.From}-{o.To})");
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>The front door's planks are pieces 0 to 2 and every window's pane one piece after them: the numbers every machine shares.</summary>
+        [Test]
+        public void EveryPlankAndPaneHasItsOwnNumber()
+        {
+            int windows = 0, frontDoors = 0;
+            foreach (House.Wall wall in House.Walls)
+            {
+                foreach (House.Opening o in wall.Openings)
+                {
+                    if (o.Kind == House.OpeningKind.Window) windows++;
+                    if (o.Kind == House.OpeningKind.FrontDoor) frontDoors++;
+                }
+            }
+            Assert.AreEqual(1, frontDoors, "the house has no one front door");
+            Assert.AreEqual(windows, House.PaneCount);
+            Assert.AreEqual(House.FrontDoorPlanks + windows, House.BreakableCount);
+            Assert.IsTrue(TutorialHouseDamage.Acceptable(House.BreakableCount - 1));
+            Assert.IsFalse(TutorialHouseDamage.Acceptable(House.BreakableCount));
+            Assert.IsFalse(TutorialHouseDamage.Acceptable(-1));
         }
     }
 }

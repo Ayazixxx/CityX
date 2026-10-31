@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityClimbTopOutPlayTests
     {
-        private const int Seed = 61256619;
+        private const int Seed = 81565117;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]

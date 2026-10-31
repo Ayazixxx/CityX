@@ -14,11 +14,14 @@ namespace CityX.World.Plan
     /// </summary>
     public readonly struct TutorialLot
     {
-        /// <summary>The whole lot, the driveway, the garden and its fence included, in the house's frame (OldGuysHouse.Lot is these).</summary>
-        public const double LotX0 = -4.5, LotX1 = 27.5, LotZ0 = -6.5, LotZ1 = 35.5;
+        /// <summary>The whole lot, the driveway and the porch included, in the house's frame (OldGuysHouse.Lot is these).</summary>
+        public const double LotX0 = -1.5, LotX1 = 34.0, LotZ0 = -6.5, LotZ1 = 23.5;
 
-        /// <summary>The house itself under its roof, in its frame (the map draws it): the main block, ridge 15.6 m up.</summary>
-        public const double HouseX0 = 0.0, HouseX1 = 20.0, HouseZ0 = 0.0, HouseZ1 = 16.0, HouseHeight = 15.6;
+        /// <summary>The house itself under its roof, in its frame (the map draws it): the main block, ridge 19.9 m up.</summary>
+        public const double HouseX0 = 0.0, HouseX1 = 28.0, HouseZ0 = 0.0, HouseZ1 = 22.0, HouseHeight = 19.9;
+
+        /// <summary>Where the player lands, in the house's frame: on the driveway, the house the nearest building (OldGuysHouse.Landing).</summary>
+        public const double LandingX = 14.0, LandingZ = -3.5;
 
         /// <summary>How far from the spawn the land is looked for, metres.</summary>
         public const double SearchRadius = 300.0;

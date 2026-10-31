@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class StairLaneWalkPlayTests
     {
-        private const int Seed = 61256619;
+        private const int Seed = 81565117;
         private const float Step = 1.0f / 60.0f;
         private readonly List<GameObject> _made = new List<GameObject>();
 

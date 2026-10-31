@@ -31,6 +31,22 @@ namespace CityX.Tests
             return null;
         }
 
+        /// <summary>
+        /// The floor <paramref name="metres"/> in front of the first piece of <paramref name="kind"/> (behind it when negative), on its floor; only the
+        /// pieces standing at <paramref name="floorY"/> when it is given.
+        /// </summary>
+        private static Vector3 InFrontOf(House.FurnitureKind kind, float metres, float floorY = float.NaN)
+        {
+            foreach (House.Furniture piece in House.FurnitureList)
+            {
+                if (piece.Kind != kind || !float.IsNaN(floorY) && !Mathf.Approximately(piece.Position.y, floorY)) continue;
+                Vector3 feet = piece.Position + Quaternion.Euler(0, piece.Yaw, 0) * Vector3.forward * metres;
+                return new Vector3(feet.x, piece.Position.y, feet.z);
+            }
+            Assert.Fail($"the house has no {kind}");
+            return Vector3.zero;
+        }
+
         /// <summary>The real player at <paramref name="feet"/> in the house's frame, looking from its eyes at <paramref name="lookAt"/>.</summary>
         private GameObject PlayerLookingAt(Vector3 feet, Vector3 lookAt)
         {
@@ -62,7 +78,7 @@ namespace CityX.Tests
             LootContainer wardrobe = Holding(ItemRegistry.TShirt);
             Assert.IsNotNull(wardrobe, "no wardrobe holds the T-shirt");
             Assert.AreEqual("Old Guy's bedroom", House.RoomAt(2, wardrobe.transform.position.x, wardrobe.transform.position.z)?.Name);
-            GameObject player = PlayerLookingAt(new Vector3(15.8f, House.LevelY(2), 13.9f), wardrobe.Centre);
+            GameObject player = PlayerLookingAt(InFrontOf(House.FurnitureKind.Wardrobe, 2.0f), wardrobe.Centre);
             var searcher = player.GetComponent<LootSearcher>();
             yield return null;
             Assert.AreEqual(wardrobe, searcher.InReach(out _), "looking at the wardrobe's door from in front of it, it is not the one in reach");
@@ -90,26 +106,26 @@ namespace CityX.Tests
             LootContainer cabinet = null;
             foreach (LootContainer c in LootContainer.All) if (c.Label == "Bathroom cabinet" && c.transform.position.y < House.LevelY(2)) cabinet = c;
             Assert.IsNotNull(cabinet, "no bathroom cabinet in the WC");
-            // From the coats cupboard next door, through the wall between them.
-            GameObject behind = PlayerLookingAt(new Vector3(18.4f, House.LevelY(1), cabinet.transform.position.z), cabinet.Centre);
+            // From the coats room next door, through the wall the basin hangs on.
+            GameObject behind = PlayerLookingAt(InFrontOf(House.FurnitureKind.Basin, -1.6f, House.LevelY(1)), cabinet.Centre);
             yield return null;
             Assert.AreNotEqual(cabinet, behind.GetComponent<LootSearcher>().InReach(out _), "a cabinet on the far side of a wall was in reach");
             Object.Destroy(behind);
             yield return null;
-            GameObject inFront = PlayerLookingAt(new Vector3(15.3f, House.LevelY(1), cabinet.transform.position.z), cabinet.Centre);
+            GameObject inFront = PlayerLookingAt(InFrontOf(House.FurnitureKind.Basin, 1.9f, House.LevelY(1)), cabinet.Centre);
             yield return null;
             Assert.AreEqual(cabinet, inFront.GetComponent<LootSearcher>().InReach(out _), "the cabinet is not in reach from in front of it");
         }
 
         [UnityTest]
-        public IEnumerator TheBatIsHiddenInTheTreeHousesCrate()
+        public IEnumerator TheBatIsHiddenInACrateInTheCellar()
         {
             OldGuysHousePlayTests.MakeHouse(_made, false, false);
             yield return null;
             LootContainer crate = Holding(ItemRegistry.BaseballBat);
             Assert.IsNotNull(crate, "nothing holds the bat");
             Assert.AreEqual("Crate", crate.Label);
-            Assert.AreEqual("Tree house", House.RoomAt(2, crate.transform.position.x, crate.transform.position.z)?.Name);
+            Assert.AreEqual("Cellar", House.RoomAt(0, crate.transform.position.x, crate.transform.position.z)?.Name);
             Assert.AreEqual(ContainerKind.Lid, crate.Kind);
         }
     }

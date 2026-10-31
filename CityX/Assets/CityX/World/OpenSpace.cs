@@ -387,32 +387,39 @@ namespace CityX.World
             {
                 // The focal piece in the middle, and the spines stop short of it.
                 double f = U(0x10);
+                bool focal;
                 if (f < 0.45)
                 {
                     double radius = Math.Min(3.4, 0.11 * _extent);
                     SetSpines(radius + 0.8);
-                    TryPlace(OpenProp.Fountain, _c, _u, radius, radius, Seed(1), fallen: U(0x11) < 0.5, extra: radius, offSpines: false);
+                    focal = TryPlace(OpenProp.Fountain, _c, _u, radius, radius, Seed(1), fallen: U(0x11) < 0.5, extra: radius, offSpines: false);
                 }
                 else if (f < 0.6)
                 {
                     SetSpines(2.4);
-                    TryPlace(OpenProp.Tower, _c, _u, 1.6, 1.6, Seed(2), extra: 12.0 + 4.0 * U(0x12), offSpines: false);
+                    focal = TryPlace(OpenProp.Tower, _c, _u, 1.6, 1.6, Seed(2), extra: 12.0 + 4.0 * U(0x12), offSpines: false);
                 }
                 else if (f < 0.8)
                 {
                     SetSpines(3.6);
-                    TryPlace(OpenProp.Pergola, _c, _u, 3.0, 2.0, Seed(3), offSpines: false);
+                    focal = TryPlace(OpenProp.Pergola, _c, _u, 3.0, 2.0, Seed(3), offSpines: false);
                 }
                 else
                 {
                     SetSpines(3.2);
-                    TryPlace(OpenProp.Chessboard, _c, _u, 2.4, 2.4, Seed(4), blocks: false, offSpines: false);
+                    focal = TryPlace(OpenProp.Chessboard, _c, _u, 2.4, 2.4, Seed(4), blocks: false, offSpines: false);
                     int pieces = 2 + Index(U(0x13), 4);
                     for (int i = 0; i < pieces; i++)
                     {
                         Vec2 at = P((Index(U(0x20 + i), 8) - 3.5) * 0.6, (Index(U(0x30 + i), 8) - 3.5) * 0.6);
                         TryPlace(OpenProp.ChessPiece, at, _u, 0.18, 0.18, Seed(40 + i), fallen: U(0x40 + i) < 0.4, offSpines: false);
                     }
+                }
+                if (!focal)
+                {
+                    // The piece drawn does not fit the middle of a small or oddly cut square (seed 81565117, block 475): the slimmest, a tower, in its place.
+                    SetSpines(2.4);
+                    TryPlace(OpenProp.Tower, _c, _u, 1.6, 1.6, Seed(2), extra: 12.0 + 4.0 * U(0x12), offSpines: false);
                 }
 
                 // A big square is composed by QUADRANTS between its walks (docs/OPEN_SPACE.md: the Dutch square, the sports precinct, the pocket

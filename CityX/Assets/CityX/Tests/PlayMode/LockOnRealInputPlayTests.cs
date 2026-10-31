@@ -232,6 +232,11 @@ namespace CityX.Tests
         {
 #if UNITY_EDITOR
             yield return LoadScene();
+            // The player lands facing Old Guy's house, its wall 3.5 m ahead: a circle round a dummy 9 m off would put it inside, out of
+            // sight. Turn round to the open street first.
+            _camera.Yaw += 180.0f;
+            _vitals.transform.rotation = Quaternion.Euler(0.0f, _camera.Yaw, 0.0f);
+            yield return Wait(0.5f);
             SparringDummy target = PlaceDummy(9.0f, 0.0f);
 
             yield return TapTab();

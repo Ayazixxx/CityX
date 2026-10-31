@@ -38,7 +38,7 @@ that has furniture so far.
 | Old Guy's wardrobe (left door) | T-Shirt, Blue Jeans (the tutorial's basic clothing) |
 | Old Guy's dresser (middle drawer) | White Sneakers |
 | His bedside drawer | Farmer Hat |
-| The crate in the tree house | **the Baseball Bat** (hidden twice: in the tree house, inside its crate) |
+| A crate at the back of the cellar | **the Baseball Bat** (hidden twice: in the cellar, inside a crate; it was in the tree house's crate until the backyard went, 2026-10-31) |
 
 Every other drawer and cupboard is there to be opened and is empty for now: the game has few small items yet (Zomboid's houses are full of junk
 items: tins, tools, books). The starter weapons stay in the open where the owner put them (the knife block, the counter, the desk, the glass case).
@@ -53,7 +53,7 @@ container open and empty, as the doors and the glass are shared today.
 
 `LootingTests` (EditMode: taking one or all, a full inventory keeps the item inside, picking comes round, every kind opens outward and far enough, every
 piece that opens has its parts), `LootingPlayTests` (the real body opens Old Guy's wardrobe, its door swings open and the clothes go into the inventory; a
-bathroom cabinet behind a wall is never in reach but is from in front of it; the bat is in the tree house's crate), `OldGuysHousePlanTests` (what is inside
+bathroom cabinet behind a wall is never in reach but is from in front of it; the bat is in a crate in the cellar), `OldGuysHousePlanTests` (what is inside
 is real items, in parts the pieces have). `OldGuysHouseCapture` renders `house-loot-kitchen.png`, `house-loot-bedroom.png` and `house-loot-window.png`.
 
 ## Not done

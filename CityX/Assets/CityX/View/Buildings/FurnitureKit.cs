@@ -8,7 +8,7 @@ namespace CityX.View
     /// LOW-EFFORT FURNITURE (owner, 2026-10-30: "give it some basic furniture as well make low effort models i will replace with better stuff
     /// later"): each piece a few tinted boxes in the house's own material, recognisable at a glance and cheap to replace. A piece's frame: +z its
     /// front, +x its right, y up, at floor level; a piece that stands against a wall has its origin at the middle of its back, a free-standing one
-    /// (a table, a chair, the car, a crate, the tree) at its middle. Sizes are the 2.6 m player's (real times 1.3).
+    /// (a table, a chair, the car, a crate) at its middle. Sizes are the 2.6 m player's (real times 1.3).
     /// </summary>
     public static partial class FurnitureKit
     {
@@ -110,7 +110,7 @@ namespace CityX.View
                     B(b, -1.1f, 0, 0, 1.1f, 1.5f, 0.5f, c, Brick);
                     B(b, -0.6f, 0.12f, 0.49f, 0.6f, 1.0f, 0.52f, Dark, Brick);              // the hearth's mouth
                     B(b, -1.3f, 1.5f, 0, 1.3f, 1.6f, 0.6f, new Color(0.40f, 0.27f, 0.16f));   // the mantel
-                    B(b, -0.9f, 1.6f, 0, 0.9f, 7.0f, 0.35f, Shade(c, 0.08f), Brick);         // the chimney breast
+                    B(b, -0.9f, 1.6f, 0, 0.9f, 9.6f, 0.35f, Shade(c, 0.08f), Brick);         // the chimney breast, up to the living room's ceiling
                     B(b, -1.2f, 0, 0.5f, 1.2f, 0.08f, 1.1f, Shade(c, 0.2f), Brick);          // the hearth
                     break;
                 case Kind.Rug:
@@ -217,26 +217,13 @@ namespace CityX.View
                     B(b, -0.3f, -0.3f, 0.02f, 0.3f, 0.35f, 0.025f, new Color(0.85f, 0.25f, 0.15f));
                     break;
                 case Kind.Drawing:
-                    // The grandson's drawing: the tree, the tree house on it and a bridge to the house -- the hint to the hidden bat.
+                    // The grandson's drawing: a tree, a path, the house.
                     B(b, -0.4f, -0.3f, 0, 0.4f, 0.3f, 0.015f, c);
                     B(b, -0.25f, -0.25f, 0.015f, -0.2f, 0.1f, 0.02f, new Color(0.40f, 0.25f, 0.12f));
                     B(b, -0.35f, 0.05f, 0.015f, -0.08f, 0.25f, 0.02f, new Color(0.30f, 0.60f, 0.25f));
                     B(b, -0.3f, -0.05f, 0.015f, -0.14f, 0.06f, 0.02f, new Color(0.60f, 0.40f, 0.20f));
                     B(b, -0.14f, -0.02f, 0.015f, 0.2f, 0.0f, 0.02f, new Color(0.45f, 0.30f, 0.15f));
                     B(b, 0.2f, -0.25f, 0.015f, 0.35f, 0.05f, 0.02f, new Color(0.85f, 0.85f, 0.85f));
-                    break;
-                case Kind.Tree:
-                    B(b, -0.6f, 0, -0.6f, 0.6f, 9.0f, 0.6f, new Color(0.40f, 0.28f, 0.18f));
-                    B(b, -3.2f, 8.4f, -3.2f, 3.2f, 11.6f, 3.2f, c);
-                    B(b, -2.2f, 11.6f, -2.2f, 2.2f, 13.2f, 2.2f, Tint(c, 0.1f));
-                    B(b, 2.7f, 7.6f, -1.2f, 5.4f, 10.2f, 2.4f, Shade(c, 0.1f));
-                    B(b, -5.4f, 7.9f, -2.6f, -2.7f, 10.4f, 0.4f, Shade(c, 0.05f));
-                    break;
-                case Kind.Bench:
-                    B(b, -1.0f, 0.55f, 0.1f, 1.0f, 0.62f, 0.6f, c);
-                    B(b, -1.0f, 0.62f, 0.05f, 1.0f, 1.2f, 0.12f, c);
-                    B(b, -0.95f, 0, 0.15f, -0.85f, 0.55f, 0.55f, Shade(c, 0.3f), Metal);
-                    B(b, 0.85f, 0, 0.15f, 0.95f, 0.55f, 0.55f, Shade(c, 0.3f), Metal);
                     break;
                 case Kind.CeilingLamp:
                     B(b, -0.02f, -0.6f, -0.02f, 0.02f, 0, 0.02f, Dark);

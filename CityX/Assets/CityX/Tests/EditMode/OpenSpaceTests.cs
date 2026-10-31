@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class OpenSpaceTests
     {
-        private const int Seed = 61256619;
+        private const int Seed = 81565117;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
         private static PlanWorld Plan => World.Plan;

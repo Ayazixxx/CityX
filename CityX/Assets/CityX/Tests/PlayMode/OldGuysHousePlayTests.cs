@@ -77,7 +77,9 @@ namespace CityX.Tests
         {
 #if UNITY_EDITOR
             MakeHouse(_made, false, false);
-            var player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"), new Vector3(12.0f, 0.1f, 7.2f), Quaternion.identity);
+            float west = (House.FlightWestX0 + House.FlightWestX1) * 0.5f, east = (House.FlightEastX0 + House.FlightEastX1) * 0.5f;
+            float landing = (House.LandingZ0 + House.FlightTurnZ) * 0.5f;
+            var player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"), new Vector3(west, 0.1f, House.FlightTopZ + 2.0f), Quaternion.identity);
             _made.Add(player);
             player.GetComponent<PlayerInputReader>().enabled = false;
             var locomotion = player.GetComponent<PlayerLocomotion>();
@@ -89,8 +91,9 @@ namespace CityX.Tests
             // Up the west flight to the landing, round, up the east flight onto the main floor; again onto the upper floor.
             Vector2[] route =
             {
-                new Vector2(10.25f, 5.9f), new Vector2(10.25f, 1.2f), new Vector2(12.75f, 1.2f), new Vector2(12.75f, 6.4f),
-                new Vector2(10.25f, 6.3f), new Vector2(10.25f, 1.2f), new Vector2(12.75f, 1.2f), new Vector2(12.75f, 6.4f), new Vector2(11.5f, 7.6f),
+                new Vector2(west, House.FlightTopZ + 0.6f), new Vector2(west, landing), new Vector2(east, landing), new Vector2(east, House.FlightTopZ + 1.2f),
+                new Vector2(west, House.FlightTopZ + 0.8f), new Vector2(west, landing), new Vector2(east, landing), new Vector2(east, House.FlightTopZ + 1.2f),
+                new Vector2((west + east) * 0.5f, House.FlightTopZ + 2.6f),
             };
             int next = 0;
             for (int tick = 0; tick < 3600 && next < route.Length; tick++)
@@ -135,7 +138,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheSwordsmanIsPutDownWhenThePlayerComesNear()
+        public IEnumerator TheSwordsmanIsPutDownOnceThePlayerGetsIn()
         {
 #if UNITY_EDITOR
             OldGuysHouseSite site = MakeHouse(_made, false, false);
@@ -149,9 +152,12 @@ namespace CityX.Tests
             for (int i = 0; i < 10; i++) yield return null;
             Assert.IsNull(site.Swordsman, "the swordsman was put down with the player far off");
             player.GetComponent<CharacterController>().enabled = false;
-            player.transform.position = new Vector3(19.4f, 0.1f, -5.0f);
+            player.transform.position = House.Landing + new Vector3(0, 0.1f, 0);
             for (int i = 0; i < 10; i++) yield return null;
-            Assert.IsNotNull(site.Swordsman, "no swordsman once the player stood at the house's steps");
+            Assert.IsNull(site.Swordsman, "the swordsman was put down with the player still on the driveway");
+            player.transform.position = new Vector3(House.Width - 3.0f, House.LevelY(1) + 0.1f, 10.0f);
+            for (int i = 0; i < 10; i++) yield return null;
+            Assert.IsNotNull(site.Swordsman, "no swordsman once the player got into the house");
             _made.Add(site.Swordsman);
 #else
             yield break;
