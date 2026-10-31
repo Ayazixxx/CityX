@@ -250,3 +250,17 @@ only once it is lit (one mesh per light colour per chunk), and its real lights a
 most 32 a frame) while it is lit and in reach. Same blocks after: **0.16 ms** and **0.06 ms** (the first powered block of a session 4.5-6 ms
 once in the editor: its code running for the first time); twenty rooms of a block switched on at once cost 1.25 ms. The look is the same to the
 pixel (old and new code rendered). Details and tests: ROOM_LIGHTS.md, "nothing is made for a dark room".
+
+## Update: the long sounds stream from disk instead of decoding at load (2026-10-31)
+
+Measured while hunting a hitch: the first body spawned in an empty scene (the swordsman) cost 922 ms, the second 2 ms. A recorded profile
+(`Profiler.logFile` round the spawn, read with `ProfileReport`) put 86% of it in `PlayerAudio.Awake -> SoundManager.LoadFMODSound`: the
+player's city ambience, `city_ambience.mp3`, is 12 MB of MP3 (over ten minutes) imported as Decompress On Load, so the first body to wake
+decoded the whole loop on the main thread, about 130 MB of samples kept in memory. In the real scene the scene's own player pays it at load
+(an enemy spawned later cost 14 ms), so it was load time, not a hitch, and every test that loads the real scene paid it too.
+
+The six long tracks (the ambience, the title's `stars`, the intro's `ruins1`, `rain_noises`, and the radio's two songs) are now imported as
+**Streaming** (`loadType: 2` in their .meta): decoded a little at a time as they play, as Unity's own guidance has music and ambience.
+Short effects stay Decompress On Load. After: the first body spawns in 128 ms (JIT and asset reads), the rest of the load keeps about 130 MB
+free, and the sounds play as before (the radio, rain, thunder, title and intro tests). Nothing in the code reads a clip's raw samples, which
+streaming would forbid.
