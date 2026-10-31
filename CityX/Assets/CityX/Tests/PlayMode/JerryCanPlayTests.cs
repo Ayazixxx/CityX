@@ -109,6 +109,13 @@ namespace CityX.Tests
             }
             Assert.IsTrue(ahead, "the gasoline did not land on the ground ahead of the can");
             Assert.Greater(FireMarks.GasolineCount, 0, "the poured gasoline is not shown");
+            // The stream is one tube from the spout down to the ground (docs/FIRE.md), not a row of drops.
+            Assert.IsTrue(can.StreamShown, "no stream is drawn while the can pours");
+            Bounds stream = can.StreamMesh.bounds;
+            Vector3 streamTop = can.StreamTransform.TransformPoint(stream.max);
+            Vector3 streamFoot = can.StreamTransform.TransformPoint(stream.min);
+            Assert.Greater(Mathf.Max(streamTop.y, streamFoot.y), can.Spout.position.y - 0.1f, "the stream does not reach up to the spout");
+            Assert.Less(Mathf.Min(streamTop.y, streamFoot.y), 0.1f, "the stream does not reach down to the ground");
 
             for (float t = 0.0f; t < 1.5f; t += Step)
             {
@@ -118,6 +125,7 @@ namespace CityX.Tests
             }
             Assert.AreEqual(0.0f, can.Litres, 1e-4f, "the can never ran dry");
             Assert.IsFalse(can.IsPouring, "an empty can is still pouring");
+            Assert.IsFalse(can.StreamShown, "an empty can still shows a stream");
             Assert.AreEqual(1.0f, can.Poured, 0.05f, "the can poured a different amount than it held");
         }
 

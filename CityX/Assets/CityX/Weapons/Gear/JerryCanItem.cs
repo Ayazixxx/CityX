@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.Core;
 using CityX.Items;
 using CityX.World;
 using UnityEngine;
@@ -30,12 +31,20 @@ namespace CityX.Weapons
         /// <summary>How long a copy's stream shows after the last word of its owner's pour.</summary>
         public const float ShowSeconds = 0.3f;
 
-        /// <summary>The stream's drops fall this long from the spout to the ground.</summary>
+        /// <summary>The stream falls this long from the spout to the ground (PourStream draws it as one tube along that fall).</summary>
         public const float DropSeconds = 0.4f;
 
-        public const float DropsPerSecond = 45.0f;
+        /// <summary>The splash where it lands: this many small drops a second, thrown out and up this fast, living this long.</summary>
+        public const float SplashDropsPerSecond = 30.0f;
+
+        public const float SplashSpeed = 0.5f;
+
+        public const float SplashSeconds = 0.3f;
 
         public static readonly Color GasolineColour = new Color(0.9f, 0.7f, 0.25f, 0.85f);
+
+        /// <summary>The stream's own colour: a shade darker and solid, so the cel look draws it flat with its black line, like the fuel in a cartoon.</summary>
+        public static readonly Color StreamColour = new Color(0.78f, 0.50f, 0.12f);
 
         [Tooltip("Where the gasoline comes out. Set by JerryCanBuilder.")]
         public Transform Spout;
@@ -43,13 +52,16 @@ namespace CityX.Weapons
         [Tooltip("Litres left in the can.")]
         public float Litres = FireRules.CanLitres;
 
-        private ParticleSystem _stream;
+        private readonly PourStream _tube = new PourStream();
+        private ParticleSystem _splash;
+        private Mesh _tubeMesh;
+        private MeshRenderer _tubeRenderer;
         private Transform _wearer;
         private Vector3 _landing;
         private bool _hasLanding;
         private bool _equipped;
         private float _showUntil;
-        private float _dropDebt;
+        private float _splashDebt;
         private float _tilt;
 
         /// <summary>Pouring right now (the trigger held with gasoline left).</summary>
@@ -58,9 +70,17 @@ namespace CityX.Weapons
         /// <summary>Litres laid on the ground so far (for tests).</summary>
         public float Poured { get; private set; }
 
+        /// <summary>The stream is drawn right now, and its mesh (for tests).</summary>
+        public bool StreamShown => _tubeRenderer != null && _tubeRenderer.enabled;
+
+        public Mesh StreamMesh => _tubeMesh;
+
+        public Transform StreamTransform => _tubeRenderer != null ? _tubeRenderer.transform : null;
+
         private void Awake()
         {
-            _stream = BuildStream();
+            _splash = BuildSplash();
+            BuildTube();
         }
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
@@ -125,6 +145,7 @@ namespace CityX.Weapons
             Tip(pouring, deltaTime);
             if (!pouring)
             {
+                HideStream();
                 return;
             }
             float litres = Mathf.Min(Litres, FireRules.PourLitresPerSecond * deltaTime);
@@ -169,6 +190,10 @@ namespace CityX.Weapons
             {
                 Stream(Time.deltaTime);
             }
+            else
+            {
+                HideStream();
+            }
         }
 
         /// <summary>The can tipped over the fingers while it pours (its spout at the far end of the handle swings down and ahead), righted again after.</summary>
@@ -183,36 +208,81 @@ namespace CityX.Weapons
             transform.localRotation = Quaternion.AngleAxis(_tilt, Vector3.up) * Quaternion.Euler(GripHandRotationEuler);
         }
 
-        /// <summary>The drops: thrown from the spout so that they land where the gasoline goes, falling under gravity on the way.</summary>
+        /// <summary>The stream: one tube from the spout along the fall to where the gasoline lands (PourStream), and a splash of drops at its foot.</summary>
         private void Stream(float deltaTime)
         {
-            if (_stream == null || Spout == null)
+            if (_tubeMesh == null || Spout == null)
             {
                 return;
             }
-            _dropDebt += DropsPerSecond * deltaTime;
-            int count = Mathf.Min((int)_dropDebt, 8);
-            _dropDebt -= count;
-            if (count <= 0)
+            _tube.Fill(Spout.position, _landing, DropSeconds, Time.time);
+            Transform tube = _tubeRenderer.transform;
+            for (int i = 0; i < PourStream.VertexCount; i++)
             {
-                return;
+                _tube.Vertices[i] = tube.InverseTransformPoint(_tube.Vertices[i]);
+                _tube.Normals[i] = tube.InverseTransformDirection(_tube.Normals[i]);
             }
-            Vector3 from = Spout.position;
-            Vector3 velocity = (_landing - from) / DropSeconds - 0.5f * Physics.gravity * DropSeconds;
-            var emit = new ParticleSystem.EmitParams { applyShapeToPosition = false, startColor = GasolineColour, startLifetime = DropSeconds + 0.02f };
-            for (int i = 0; i < count; i++)
+            _tubeMesh.vertices = _tube.Vertices;
+            _tubeMesh.normals = _tube.Normals;
+            _tubeMesh.RecalculateBounds();
+            _tubeRenderer.enabled = true;
+            Splash(deltaTime);
+        }
+
+        private void HideStream()
+        {
+            if (_tubeRenderer != null)
             {
-                emit.position = from + Random.insideUnitSphere * 0.015f;
-                emit.velocity = velocity + Random.insideUnitSphere * 0.12f;
-                emit.startSize = Random.Range(0.035f, 0.06f);
-                _stream.Emit(emit, 1);
+                _tubeRenderer.enabled = false;
             }
         }
 
-        /// <summary>The stream's particles: small amber drops stretched along their fall, in the world, under gravity.</summary>
-        private ParticleSystem BuildStream()
+        /// <summary>Small drops thrown out and up from where the stream lands, falling back under gravity.</summary>
+        private void Splash(float deltaTime)
+        {
+            if (_splash == null)
+            {
+                return;
+            }
+            _splashDebt += SplashDropsPerSecond * deltaTime;
+            int count = Mathf.Min((int)_splashDebt, 6);
+            _splashDebt -= count;
+            var emit = new ParticleSystem.EmitParams { applyShapeToPosition = false, startColor = GasolineColour, startLifetime = SplashSeconds };
+            for (int i = 0; i < count; i++)
+            {
+                Vector2 out2 = Random.insideUnitCircle;
+                emit.position = _landing + Vector3.up * 0.01f;
+                emit.velocity = new Vector3(out2.x, 0.0f, out2.y) * SplashSpeed + Vector3.up * Random.Range(0.4f, 1.0f) * SplashSpeed;
+                emit.startSize = Random.Range(0.02f, 0.035f);
+                _splash.Emit(emit, 1);
+            }
+        }
+
+        /// <summary>The tube's mesh and its solid amber material, on a child of the can; hidden until something pours.</summary>
+        private void BuildTube()
         {
             var go = new GameObject("Stream");
+            go.transform.SetParent(transform, false);
+            _tubeMesh = new Mesh { name = "PourStream" };
+            _tubeMesh.MarkDynamic();
+            _tubeMesh.vertices = _tube.Vertices;
+            _tubeMesh.normals = _tube.Normals;
+            _tubeMesh.uv = _tube.Uvs;
+            _tubeMesh.triangles = _tube.Triangles;
+            go.AddComponent<MeshFilter>().sharedMesh = _tubeMesh;
+            _tubeRenderer = go.AddComponent<MeshRenderer>();
+            var material = new Material(LitShader.Find()) { color = StreamColour };
+            material.SetFloat("_Smoothness", 0.7f);
+            _tubeRenderer.sharedMaterial = material;
+            _tubeRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _tubeRenderer.receiveShadows = false;
+            _tubeRenderer.enabled = false;
+        }
+
+        /// <summary>The splash's particles: small amber drops stretched along their flight, in the world, under gravity.</summary>
+        private ParticleSystem BuildSplash()
+        {
+            var go = new GameObject("Splash");
             go.transform.SetParent(transform, false);
             ParticleSystem particles = go.AddComponent<ParticleSystem>();
             ParticleSystem.MainModule main = particles.main;
@@ -220,7 +290,7 @@ namespace CityX.Weapons
             main.playOnAwake = true;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.gravityModifier = 1.0f;
-            main.maxParticles = 200;
+            main.maxParticles = 120;
             main.startSpeed = 0.0f;
             ParticleSystem.EmissionModule emission = particles.emission;
             emission.rateOverTime = 0.0f;

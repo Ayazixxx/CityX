@@ -77,6 +77,15 @@ fingers (`PourTiltDegrees`, about the palm's axis, so its spout corner drops) an
 and lays gasoline where it lands, `FireRules.PourLitresPerSecond` out of `FireRules.CanLitres`. Empty, it pours nothing. Copies of other
 players tip and pour with their owner.
 
+**The stream's look (2026-10-31; the owner, on a Tuatara Games post faking liquid streams with a spun, deformed tube: "i guess we could do it
+for the pour of the gasoline"):** it was a row of thrown drops, which read as dots. Now it is one tube of mesh (`Weapons/Gear/PourStream`,
+pure; 21 rings of 8) along the same fall the drops took (the ballistic arc from the spout that lands at the gasoline's cell after
+`DropSeconds`), 1.8 cm across at the spout thinning to 1.1 cm, a wave of thickening running down it 2.5 times a second and its foot swaying a
+centimetre, rebuilt in place every frame it shows; solid amber on CityX/Lit, so the cel look draws it flat with its black line. Where it lands a
+splash of small drops is thrown out and up (the particles the stream used to be). `PourStreamTests` (the fall sags under gravity between spout
+and landing, the tube follows it and thins, the wave moves with time); `JerryCanPlayTests` (the stream spans spout to ground while pouring,
+gone when the can is empty).
+
 **Other players** see it all (`FireSync`, an IReplicatedAbility on the player body): every pour, ignition and dousing this machine does is
 sent as an event and replayed as cosmetic fire on every other machine, so everyone runs the same fire from the same events (the spread's
 randomness drifts a little between machines; it is only the look).
