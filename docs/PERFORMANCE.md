@@ -259,8 +259,8 @@ player's city ambience, `city_ambience.mp3`, is 12 MB of MP3 (over ten minutes) 
 decoded the whole loop on the main thread, about 130 MB of samples kept in memory. In the real scene the scene's own player pays it at load
 (an enemy spawned later cost 14 ms), so it was load time, not a hitch, and every test that loads the real scene paid it too.
 
-The six long tracks (the ambience, the title's `stars`, the intro's `ruins1`, `rain_noises`, and the radio's two songs) are now imported as
-**Streaming** (`loadType: 2` in their .meta): decoded a little at a time as they play, as Unity's own guidance has music and ambience.
-Short effects stay Decompress On Load. After: the first body spawns in 128 ms (JIT and asset reads), the rest of the load keeps about 130 MB
-free, and the sounds play as before (the radio, rain, thunder, title and intro tests). Nothing in the code reads a clip's raw samples, which
-streaming would forbid.
+The five long tracks (the ambience, the title's `stars`, the intro's `ruins1`, and the radio's two songs) are now imported as **Streaming**
+(`loadType: 2` in their .meta): decoded a little at a time as they play, as Unity's own guidance has music and ambience. Short effects stay
+Decompress On Load, and so does the 1 MB `rain_noises`: `OutdoorRainSoundTests` reads its samples to compare loudness, which a streaming clip
+cannot give. After: the first body spawns in 128 ms (JIT and asset reads), the rest of the load keeps about 130 MB free, and the sounds play
+as before (the radio, rain, thunder, title and intro tests). Nothing in the game's code reads a clip's raw samples.
