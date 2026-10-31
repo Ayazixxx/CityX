@@ -331,13 +331,23 @@ namespace CityX.Tests
             Assert.IsTrue(vitals.IsAlive);
 
             Vector3 striker = _extra.transform.position + _extra.transform.forward * 1.6f;
+            Vector3 torsoStart = ragdoll.Torso.position;
             DamageContext.Strike(vitals, 50.0f, striker, 0.6f, DamageKind.Physical, 0.0f, null);
-            yield return new WaitForFixedUpdate();
 
             Assert.IsTrue(vitals.IsDead);
             Assert.IsTrue(ragdoll.IsLimp, "a killing cut should drop the body limp");
+            // The fling is given to the limp body the moment it dies (Ragdoll.OnDied): read it there, before the joints and the floor have
+            // had a physics step to do what they will with it. Then it really travels: within half a second the torso is further from the
+            // striker than where it died.
             float away = Vector3.Dot(ragdoll.Torso.linearVelocity, -_extra.transform.forward);
-            Assert.Greater(away, 1.5f, $"the corpse should be flung away from the striker; its torso moves {away:0.0} m/s that way");
+            Assert.Greater(away, 1.5f, $"the corpse should be flung away from the striker; its torso leaves at {away:0.0} m/s that way");
+            float travelled = 0.0f;
+            for (int i = 0; i < 30 && travelled < 0.15f; i++)
+            {
+                yield return null;
+                travelled = Vector3.Dot(ragdoll.Torso.position - torsoStart, -_extra.transform.forward);
+            }
+            Assert.Greater(travelled, 0.15f, $"the corpse never moved away from the striker ({travelled:0.00} m in half a second)");
         }
     }
 }
