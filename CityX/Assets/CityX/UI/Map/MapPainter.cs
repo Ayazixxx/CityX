@@ -179,6 +179,21 @@ namespace CityX.UI
                     roofs.Add((corners, Color.Lerp(BuildingLowColour, BuildingTallColour, tallness)));
                 }
             }
+            // Old Guy's house is built by hand, not by the plan's buildings: its roof drawn the same way once its chunk is explored.
+            CityX.World.Plan.TutorialLot house = world.Plan.TutorialHouse;
+            if (house.Found && visible.Contains(new Vector2Int(Mathf.FloorToInt((float)house.OriginX / chunk), Mathf.FloorToInt((float)house.OriginZ / chunk))))
+            {
+                var corners = new[]
+                {
+                    HouseCorner(house, CityX.World.Plan.TutorialLot.HouseX0, CityX.World.Plan.TutorialLot.HouseZ0, frame),
+                    HouseCorner(house, CityX.World.Plan.TutorialLot.HouseX1, CityX.World.Plan.TutorialLot.HouseZ0, frame),
+                    HouseCorner(house, CityX.World.Plan.TutorialLot.HouseX1, CityX.World.Plan.TutorialLot.HouseZ1, frame),
+                    HouseCorner(house, CityX.World.Plan.TutorialLot.HouseX0, CityX.World.Plan.TutorialLot.HouseZ1, frame),
+                };
+                float tallness = Mathf.Clamp01(((float)CityX.World.Plan.TutorialLot.HouseHeight - BuildingMinHeight) / (BuildingMaxHeight - BuildingMinHeight));
+                shadows.Add(corners);
+                roofs.Add((corners, Color.Lerp(BuildingLowColour, BuildingTallColour, tallness)));
+            }
             // Every shadow under every roof, so a tall building's shadow never lands on top of its neighbour.
             var drop = new Vector2(ShadowPixels, ShadowPixels);
             foreach (Vector2[] s in shadows)
@@ -314,6 +329,12 @@ namespace CityX.UI
         private static Vector2 Corner(BuildingSite site, float localX, float localZ, MapFrame frame)
         {
             site.LocalToWorld(localX, localZ, out double wx, out double wz);
+            return frame.ToPanel((float)wx, (float)wz);
+        }
+
+        private static Vector2 HouseCorner(in CityX.World.Plan.TutorialLot house, double x, double z, MapFrame frame)
+        {
+            house.ToWorld(x, z, out double wx, out double wz);
             return frame.ToPanel((float)wx, (float)wz);
         }
 

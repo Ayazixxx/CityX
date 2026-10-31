@@ -28,10 +28,13 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. Requested: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 23481876;
+        public int WorldSeed = 61256619;
 
         [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
         public bool PlaceAtSpawn = false;
+
+        [Tooltip("Old Guy's house, stood on the land the world keeps for it beside the spawn (PlanWorld.TutorialHouse) whenever the world is made.")]
+        public OldGuysHouseSite TutorialHouse;
 
         [Tooltip("Chunks of radius kept loaded around the viewer.")]
         public int RadiusChunks = 14;
@@ -445,6 +448,13 @@ namespace CityX.View
                     Vector3 from = player.transform.position;
                     float ground = (float)_world.Terrain.ContinuousHeightAt(spawnX, spawnZ);
                     var to = new Vector3((float)spawnX, ground + 0.5f, (float)spawnZ);
+                    // With Old Guy's house in this world the player lands on its driveway and Old Guy waits at the foot of its steps.
+                    bool house = TutorialHouse != null && TutorialHouse.gameObject.activeSelf;
+                    if (house)
+                    {
+                        TutorialHouse.Build();   // standing before the player is put on it
+                        to = TutorialHouse.transform.TransformPoint(OldGuysHouse.Landing) + Vector3.up * 0.5f;
+                    }
                     if ((to - from).sqrMagnitude > 0.25f)
                     {
                         var controller = player.GetComponent<CharacterController>();
@@ -452,7 +462,17 @@ namespace CityX.View
                         if (controller != null) controller.enabled = false;   // a controller keeps its own copy of where it is
                         player.transform.position = to;
                         if (controller != null) controller.enabled = wasEnabled;
-                        foreach (CityX.Character.OldGuySpawner oldGuy in FindObjectsByType<CityX.Character.OldGuySpawner>(FindObjectsSortMode.None))
+                    }
+                    foreach (CityX.Character.OldGuySpawner oldGuy in FindObjectsByType<CityX.Character.OldGuySpawner>(FindObjectsSortMode.None))
+                    {
+                        if (house)
+                        {
+                            oldGuy.SpawnPosition = TutorialHouse.transform.TransformPoint(OldGuysHouse.OldGuyAtTheSteps);
+                            Vector3 facing = to - oldGuy.SpawnPosition;
+                            facing.y = 0.0f;
+                            oldGuy.SpawnRotation = Quaternion.LookRotation(facing, Vector3.up);
+                        }
+                        else
                         {
                             oldGuy.SpawnPosition += to - from;
                         }
@@ -501,6 +521,15 @@ namespace CityX.View
             _far.Clear();
             // A different seed makes the old explored coordinates meaningless.
             _explored.Clear();
+
+            if (TutorialHouse != null)
+            {
+                TutorialHouse.gameObject.SetActive(_world.Plan.TutorialHouse.Found);
+                if (_world.Plan.TutorialHouse.Found)
+                {
+                    TutorialHouse.PlaceOn(_world.Plan.TutorialHouse);
+                }
+            }
 
             // See CurrentWorld's own doc comment: this is the one place the
             // real, currently-running world actually gets built, so this is

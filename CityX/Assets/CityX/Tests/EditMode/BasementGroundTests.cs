@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BasementGroundTests
     {
-        private const int Seed = 23481876;
+        private const int Seed = 61256619;
 
         [Test]
         public void NoGroundOrPavingIsLeftInsideABasementAndThePavingOutsideIsWhole()
@@ -42,9 +42,9 @@ namespace CityX.Tests
             }
 
             var basements = new List<BuildingSite>();
-            foreach (BuildingSite site in TestSites.NearSpawn(world, 12))
+            foreach (BuildingSite site in TestSites.NearSpawn(world, 30))   // 12 chunks held only 2 on seed 61256619
             {
-                if (CitySurfaceBuilder.HasBasementUnder(site)) basements.Add(site);
+                if (CitySurfaceBuilder.HasBasementUnder(site) && basements.Count < 12) basements.Add(site);
             }
             Assert.That(basements.Count, Is.GreaterThan(5), "too few buildings with a basement near the spawn");
             int checkedOutside = 0, onRoads = 0;

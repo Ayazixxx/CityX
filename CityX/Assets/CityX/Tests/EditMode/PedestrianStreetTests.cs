@@ -10,7 +10,7 @@ namespace CityX.Tests
     /// <summary>Pedestrian streets (World/PedestrianStreets, docs/OPEN_SPACE.md 8): which streets, what stands on them, and the chunk they draw.</summary>
     public sealed class PedestrianStreetTests
     {
-        private const int Seed = 23481876;
+        private const int Seed = 61256619;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
         private static PlanWorld Plan => World.Plan;

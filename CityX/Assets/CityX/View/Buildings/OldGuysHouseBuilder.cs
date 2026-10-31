@@ -41,7 +41,11 @@ namespace CityX.View
         public static readonly Color LightColour = new Color(1.0f, 0.90f, 0.76f);
 
         /// <summary>Builds the house as children of <paramref name="parent"/> and returns their root.</summary>
-        public static GameObject Build(Transform parent, Materials materials)
+        /// <summary>
+        /// The house under <paramref name="parent"/>. <paramref name="footingDepth"/>: how far below its floor the footing under the whole lot reaches, so
+        /// on the city's uneven ground no gap shows under its edges (0: none, for a house on flat ground).
+        /// </summary>
+        public static GameObject Build(Transform parent, Materials materials, float footingDepth = 0.0f)
         {
             var root = new GameObject("OldGuysHouse");
             root.transform.SetParent(parent, false);
@@ -54,7 +58,7 @@ namespace CityX.View
             Floors(structure);
             Walls(structure, glass);
             Stairs(structure);
-            Ground(structure);
+            Ground(structure, footingDepth);
             Roofs(structure);
             Conservatory(structure, glass);
             Posts(structure);
@@ -406,8 +410,16 @@ namespace CityX.View
 
         // ---- the terrace, the garden wall ----
 
-        private static void Ground(MeshBuffer b)
+        /// <summary>The footing's top stands this far under the floor, clear of the floors' own undersides and the paving the city lays round it.</summary>
+        private const float FootingTopBelowFloor = 0.03f;
+
+        private static void Ground(MeshBuffer b, float footingDepth)
         {
+            if (footingDepth > FootingTopBelowFloor)
+            {
+                House.Area lot = House.Lot;
+                Slab(b, new Vector3(lot.X0, -footingDepth, lot.Z0), new Vector3(lot.X1, -FootingTopBelowFloor, lot.Z1), Look(Finish.Paving, House.Paving, false), StoneLook, StoneLook);
+            }
             foreach (House.Block block in House.Blocks)
             {
                 Slab(b, block.Min, block.Max, Look(block.Top, block.TopTint, false), StoneLook, block.Top == Finish.Concrete ? Look(Finish.Concrete, block.TopTint, true) : StoneLook);

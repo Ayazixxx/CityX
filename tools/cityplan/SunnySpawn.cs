@@ -50,7 +50,7 @@ public static class SunnySpawn
     }
 
     /// <summary>Highest minus lowest ground within <paramref name="radius"/> of a point, metres.</summary>
-    private static double Spread(PlanFields fields, double cx, double cz, double radius, double step)
+    public static double Spread(PlanFields fields, double cx, double cz, double radius, double step)
     {
         double low = double.MaxValue, high = double.MinValue;
         for (double x = -radius; x <= radius; x += step)
@@ -67,7 +67,7 @@ public static class SunnySpawn
     }
 
     /// <summary>The share of points within 25 m of the spawn that a ray toward the sun leaves without passing under a building's roof.</summary>
-    private static double LitShare(PlanWorld world, double sx, double sz)
+    public static double LitShare(PlanWorld world, double sx, double sz)
     {
         var near = new List<BuildingSite>();
         int cx = PlanWorld.ChunkOf(sx), cy = PlanWorld.ChunkOf(sz);

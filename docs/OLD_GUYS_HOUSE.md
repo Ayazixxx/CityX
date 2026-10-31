@@ -79,12 +79,40 @@ flights, a landing, 1.2 m handrails; garden wall 1.0 m (the vault band is 0.42 t
   a glass case, the wardrobe, the grandson's toy chest, poster and his drawing of the bridge, the tree, a garden bench.
 - **The weapons** lie where the plan puts them, held exactly there until picked up with E (`ItemDrop.Placed`: a dropped item that does not fall); the
   **swordsman** waits in Old Guy's bedroom (`OldGuysHouseSite`). The **Butter Knife** is new (docs/KNIFE.md).
-- Not yet: the house is not in the city (step 2: a reserved lot by the spawn, a world seed reroll); the power, the claim, the faction talk and the
-  cutscene (step 3); door leaves (doorways are framed and open); the bottles may not react to a pebble yet.
+- Not yet: the power, the claim, the faction talk and the cutscene (step 3); door leaves (doorways are framed and open); the bottles may not react
+  to a pebble yet.
 - Tests: `OldGuysHousePlanTests` (doorways fit the player, stairs under 34 degrees arriving on each floor, no overlapping rooms, every room reachable
   from the street by the tutorial's way in, the weapons real items in rooms, every piece of furniture in a room, the swordsman upstairs),
   `OldGuysHousePlayTests` (the real body walks up the stair core from the garage level to the upper floor; the weapons lie still where they were put;
   the swordsman stands upstairs). `OldGuysHouseCapture` (Explicit, -Graphics) renders `Logs/CityShots/house-*.png`.
+
+## In the city (2026-10-30, step 2 of 3)
+
+Owner: "im thinking it spawns as the closest building to you and the rest of the world is generated randomly".
+
+- **Where** (`World/Plan/TutorialLot.cs`, pure): the plan looks along every street frontage of the blocks within 300 m of the spawn junction, a metre at
+  a time, for the spot where the house's walls come nearest the spawn and its whole lot (32 x 42 m, driveway, garden and fence) fits inside the
+  block's lot line with its front on the street: the ground under it within 0.5 m (it stands on the highest point, so the step up from the pavement
+  stays small), no water, no expressway, not a plaza, mall, island block or stairway block. A pure function of the seed: every machine finds the same
+  land.
+- **Cleared**: every generated building whose footprint comes within 2 m of the lot is left out of the city, with the rest of its lot's blocks (an
+  L's wing goes with its bar); the others keep their places, the ids are numbered afresh. The spawn is chosen before the clearing, so the clearing
+  never moves it. Footbridges never cross the lot. The map draws the house's roof.
+- **Standing it**: the streamer stands the house (`OldGuysHouseSite.PlaceOn`) at the floor height the plan worked out, turned to face its street,
+  on a stone footing under the whole lot down into the lowest ground, so no gap shows under its edges.
+- **Landing**: the player lands on the driveway (`OldGuysHouse.Landing`), the house the nearest building, and Old Guy waits at the foot of the outdoor
+  steps facing them (step 1 of the route). Measured to the walls, the house was rarely nearer the spawn junction than every corner building (its
+  walls stand behind the 6.5 m driveway), so the landing moved to the house rather than the house to the junction.
+- **The swordsman** is put down when this machine's player first comes within 30 m of him, as `/spawn` does it: in a session spawned for everyone and
+  run by that player's machine (docs/MULTIPLAYER_STATE.md), alone a local one.
+- **World seed 23481876 -> 61256619** (the rule for city changes). `tools/cityplan tutorialseeds` ranked 40 flat seeds: on this one the spawn is in full
+  sun, the house's front is 30 m from it, and the step from the pavement onto the driveway is 10 cm. `tools/cityplan tutoriallot [seed]` prints where
+  the house lands on any seed.
+- Tests: `TutorialLotTests` (beside the spawn, the nearest building where the player lands, inside its block with its front on the street, flat, dry,
+  no building or footbridge on it, the same on every machine, the house's plan inside the land kept for it), `OldGuysHouseCityPlayTests` (the streamer
+  stands it on its land facing its street with nothing generated inside it and the footing at its edge; a body walks from the landing to Old Guy's
+  spot, up the steps onto the porch and back out to the street), `OldGuysHousePlayTests.TheSwordsmanIsPutDownWhenThePlayerComesNear`.
+  `OldGuysHouseCityCapture` (Explicit) renders `house-city-*.png`.
 
 ## Looting (2026-10-30)
 

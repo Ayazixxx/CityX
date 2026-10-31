@@ -72,7 +72,7 @@ namespace CityX.Tests
             CityScale.Active = CityScale.Default;   // the game's own districts, where the big buildings are
             try
             {
-                var world = new CityWorld(23481876);
+                var world = new CityWorld(61256619);
                 world.Plan.TryFindSpawn(out double sx, out double sz);
                 int cx0 = PlanWorld.ChunkOf(sx), cy0 = PlanWorld.ChunkOf(sz);
                 double worst = 0.0;

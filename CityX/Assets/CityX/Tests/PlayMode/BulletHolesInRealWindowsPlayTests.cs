@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BulletHolesInRealWindowsPlayTests
     {
-        private const int Seed = 23481876;
+        private const int Seed = 61256619;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -43,7 +43,7 @@ namespace CityX.Tests
         /// <summary>A pane on a building's door wall with clear air in front of it: the first thing a ray from six metres out hits is that pane.</summary>
         private static bool FindTarget(CityWorld world, out Target target, bool round = false)
         {
-            foreach (BuildingSite site in TestSites.NearSpawn(world))
+            foreach (BuildingSite site in TestSites.NearSpawn(world, round ? 40 : 12))   // round towers are rare: none within 12 chunks on seed 61256619
             {
                 // A box building's street wall (the window is found from MinX and MaxZ), or (round) a round tower's front side, which faces +Z
                 // like a box's north wall with its columns laid from -half to +half of the side (GlassDamage.RoundAlong); not a sealed block or

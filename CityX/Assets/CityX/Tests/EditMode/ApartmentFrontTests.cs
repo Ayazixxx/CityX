@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ApartmentFrontTests
     {
-        private const int Seed = 23481876;
+        private const int Seed = 61256619;
 
         /// <summary>The player's height (BodyRig.StandingHeight): what must walk out of the door and along the back under the first slab.</summary>
         private const float BodyHeight = 2.6f;
@@ -22,7 +22,7 @@ namespace CityX.Tests
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
 
         private static List<BuildingSite> _sites;
-        private static List<BuildingSite> Sites => _sites ?? (_sites = new List<BuildingSite>(TestSites.NearSpawn(World, 14)));
+        private static List<BuildingSite> Sites => _sites ?? (_sites = new List<BuildingSite>(TestSites.NearSpawn(World, 18)));   // 14 chunks held 14 apartment fronts on seed 61256619
 
         private static ApartmentFront FrontOf(BuildingSite site) => ApartmentFront.For(site, WindowPlan.For(World, site));
 

@@ -167,6 +167,13 @@ namespace CityX.World
                 Seed, ObstacleX0, ObstacleX1, ObstacleZ0, ObstacleZ1, OnRoof, Shell, Wing, contacts, RoofSealed, Sides, GroundLevel);
         }
 
+        /// <summary>The same building under another id (PlanWorld numbers the buildings afresh when Old Guy's house clears some).</summary>
+        public BuildingSite WithId(int id)
+        {
+            return new BuildingSite(id, Params, Zone, BaseHeight, PodiumBase, DoorGroundHeight, CentreX, CentreZ, AxisX, AxisZ, OwnerChunkX, OwnerChunkY,
+                Seed, ObstacleX0, ObstacleX1, ObstacleZ0, ObstacleZ1, OnRoof, Shell, Wing, Contacts, RoofSealed, Sides, GroundLevel);
+        }
+
         /// <summary>How far the top of this volume stands over the building's street-level floor: a stacked stage's reach is the whole tower's.</summary>
         public float Reach => Top - GroundLevel;
 

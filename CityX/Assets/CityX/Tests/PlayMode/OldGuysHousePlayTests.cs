@@ -64,7 +64,11 @@ namespace CityX.Tests
             site.PlaceItems = items;
             site.SpawnSwordsman = swordsman;
             site.Build();
-            if (site.Swordsman != null) made.Add(site.Swordsman);
+            if (swordsman)
+            {
+                site.PutDownSwordsman();
+                made.Add(site.Swordsman);
+            }
             return site;
         }
 
@@ -128,6 +132,30 @@ namespace CityX.Tests
             for (int i = 0; i < 60; i++) yield return null;
             Assert.Greater(site.Swordsman.transform.position.y, House.LevelY(2) - 0.3f, "the swordsman fell through the upper floor");
             Assert.AreEqual("Old Guy's bedroom", House.RoomAt(2, site.Swordsman.transform.position.x, site.Swordsman.transform.position.z)?.Name);
+        }
+
+        [UnityTest]
+        public IEnumerator TheSwordsmanIsPutDownWhenThePlayerComesNear()
+        {
+#if UNITY_EDITOR
+            OldGuysHouseSite site = MakeHouse(_made, false, false);
+            site.SpawnSwordsman = true;
+            site.SwordsmanPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Swordsman.prefab");
+            site.PlaceOn(new CityX.World.Plan.TutorialLot(0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0));
+            site.Build();
+            var player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"), new Vector3(10.0f, 0.1f, -60.0f), Quaternion.identity);
+            _made.Add(player);
+            player.GetComponent<PlayerInputReader>().enabled = false;
+            for (int i = 0; i < 10; i++) yield return null;
+            Assert.IsNull(site.Swordsman, "the swordsman was put down with the player far off");
+            player.GetComponent<CharacterController>().enabled = false;
+            player.transform.position = new Vector3(19.4f, 0.1f, -5.0f);
+            for (int i = 0; i < 10; i++) yield return null;
+            Assert.IsNotNull(site.Swordsman, "no swordsman once the player stood at the house's steps");
+            _made.Add(site.Swordsman);
+#else
+            yield break;
+#endif
         }
     }
 }

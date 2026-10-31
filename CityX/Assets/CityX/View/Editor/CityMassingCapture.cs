@@ -33,7 +33,7 @@ namespace CityX.ViewEditor
         // Requested: "generate a new world every time you make a change
         // to the city generation" -- change this alongside that constant
         // (and TitleScreenBuilder's own copy), never alone.
-        private const int WorldSeed = 23481876;
+        private const int WorldSeed = 61256619;
 
         /// <summary>Matches PC_RPAsset's own m_MSAA -- see Shoot's own comment.</summary>
         private const int PC_MsaaSamples = 4;

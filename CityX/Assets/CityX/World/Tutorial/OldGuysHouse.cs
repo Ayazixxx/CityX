@@ -654,9 +654,12 @@ namespace CityX.World
         /// <summary>Where Old Guy waits: at the foot of the outdoor steps, then in his den.</summary>
         public static readonly Vector3 OldGuyAtTheSteps = new Vector3(19.4f, 0, -5.0f);
 
+        /// <summary>Where the player lands (the intro's fall ends here): on his driveway, the house the nearest building, Old Guy at the steps watching.</summary>
+        public static readonly Vector3 Landing = new Vector3(12.0f, 0, -3.5f);
+
         public static readonly Vector3 OldGuyInTheDen = new Vector3(17.4f, LevelY(1), 12.4f);
 
-        /// <summary>The whole lot, the fence and the driveway included, on the ground plan.</summary>
-        public static readonly Area Lot = new Area(-4.5f, -6.5f, 27.5f, 35.5f);
+        /// <summary>The whole lot, the fence and the driveway included, on the ground plan: the land the city keeps for the house (Plan.TutorialLot).</summary>
+        public static readonly Area Lot = new Area((float)Plan.TutorialLot.LotX0, (float)Plan.TutorialLot.LotZ0, (float)Plan.TutorialLot.LotX1, (float)Plan.TutorialLot.LotZ1);
     }
 }

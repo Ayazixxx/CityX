@@ -38,7 +38,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 - Every change gets tests. Run EditMode and PlayMode before committing. **Order-dependent, not yours:** `HitImpactPlayTests.AKillingCutFlingsTheCorpseAwayFromTheStriker` reads the corpse's speed after ONE physics step, so it passes or fails by which tests ran before it (fails alone at 266e7854 too). `FootbridgePathWalkPlayTests.AStraightStreetStairIsClimbedOntoTheBridge` reports Inconclusive (shown as FAIL) when the seed has no straight street stair in its region.
 - **Verify visuals by rendering** (the Explicit `*Capture` tests with `-Graphics`) and looking at the images. Green tests do not mean it looks right.
 - Keep assets small: no embedded textures, bake and trim meshes.
-- **City-generation change = reroll the world seed.** It is hardcoded in several places (currently `23481876`): grep for the old number and change them all together.
+- **City-generation change = reroll the world seed.** It is hardcoded in several places (currently `61256619`): grep for the old number and change them all together.
 - If an open Unity editor blocks a headless run, **kill `Unity.exe` yourself without asking**. Never edit `.cs` files while a test run is in progress (it causes false failures).
 - **Commit each finished task** after its tests pass, with the `Co-Authored-By` line. **Never push** unless asked.
 

@@ -24,6 +24,12 @@ namespace CityX.World.Plan
         public readonly PlanFields Fields;
         public readonly BuildingSite[] Buildings;
 
+        /// <summary>Where Old Guy's house stands: the land nearest the spawn that holds it. The generated buildings on it are left out of <see cref="Buildings"/>.</summary>
+        public readonly TutorialLot TutorialHouse;
+
+        private readonly bool _hasSpawn;
+        private readonly double _spawnX, _spawnZ;
+
         private readonly Dictionary<long, List<int>> _buildingsByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _edgesByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _junctionsByChunk = new Dictionary<long, List<int>>();
@@ -77,9 +83,48 @@ namespace CityX.World.Plan
             Fields = Data.Fields;
             Geometry = PlanGeometry.Build(Data);
 
-            Buildings = PlanBuildings.Resolve(Data, Fields, unchecked((uint)seed));
+            Buildings = PlanBuildings.Resolve(Data, Fields, unchecked((uint)seed), out int[] lotOf);
+            IndexBuildings();
+            // The spawn is chosen among the city as generated, and Old Guy's house then takes the land nearest it: the buildings it clears do not move
+            // the spawn away from it.
+            _hasSpawn = FindSpawn(out _spawnX, out _spawnZ);
+            if (_hasSpawn)
+            {
+                TutorialHouse = TutorialLot.Find(Data, Fields, _spawnX, _spawnZ);
+            }
+            if (TutorialHouse.Found)
+            {
+                Buildings = WithoutLotsUnder(Buildings, lotOf, TutorialHouse);
+                IndexBuildings();
+            }
             IndexAll();
         }
+
+        /// <summary>
+        /// The buildings with every lot that has a building on the tutorial house's land taken out whole (an L's wing goes with its bar), numbered
+        /// afresh so a building's id stays its place in the array.
+        /// </summary>
+        private static BuildingSite[] WithoutLotsUnder(BuildingSite[] sites, int[] lotOf, in TutorialLot house)
+        {
+            var cleared = new HashSet<int>();
+            for (int i = 0; i < sites.Length; i++)
+            {
+                if (house.Overlaps(sites[i])) cleared.Add(lotOf[i]);
+            }
+            if (cleared.Count == 0)
+            {
+                return sites;
+            }
+            var kept = new List<BuildingSite>(sites.Length);
+            for (int i = 0; i < sites.Length; i++)
+            {
+                if (!cleared.Contains(lotOf[i])) kept.Add(sites[i].WithId(kept.Count));
+            }
+            return kept.ToArray();
+        }
+
+        /// <summary>Whether a world point is on the tutorial house's lot (or within <paramref name="margin"/> of it): nothing generated goes there.</summary>
+        public bool OnTutorialLot(double x, double z, double margin = 0.0) => TutorialHouse.Contains(x, z, margin);
 
         /// <summary>The configuration the game's own city uses.</summary>
         public static PlanConfig DefaultConfig()
@@ -294,6 +339,13 @@ namespace CityX.World.Plan
         /// <summary>A road junction near the origin with three or more roads, or the nearest node: where the player starts.</summary>
         public bool TryFindSpawn(out double x, out double z)
         {
+            x = _spawnX;
+            z = _spawnZ;
+            return _hasSpawn;
+        }
+
+        private bool FindSpawn(out double x, out double z)
+        {
             RoadNode best = null;
             double bestScore = double.MaxValue;
             foreach (RoadNode n in Data.Nodes)
@@ -374,8 +426,10 @@ namespace CityX.World.Plan
 
         // ------------------------------------------------------------------ indexing
 
-        private void IndexAll()
+        private void IndexBuildings()
         {
+            _buildingsByChunk.Clear();
+            LandmarkChunks.Clear();
             var landmarkSeen = new HashSet<long>();
             for (int i = 0; i < Buildings.Length; i++)
             {
@@ -386,7 +440,10 @@ namespace CityX.World.Plan
                     LandmarkChunks.Add((b.OwnerChunkX, b.OwnerChunkY));
                 }
             }
+        }
 
+        private void IndexAll()
+        {
             // Every building of a mall complex (its corridors and stores, a garage, the pads), by the block it stands on: its car park is laid
             // round them (CitySurfaceBuilder.BuildMallGrounds).
             foreach (int blockIndex in Data.MallBlocks)
@@ -638,11 +695,14 @@ namespace CityX.World.Plan
             return nearest >= 0 && StepStreets.Steep(fields, block.Poly[nearest], block.Poly[(nearest + 1) % m], block.EdgeClass[nearest]);
         }
 
-        public static BuildingSite[] Resolve(CityPlanData data, PlanFields fields, uint seed)
+        public static BuildingSite[] Resolve(CityPlanData data, PlanFields fields, uint seed) => Resolve(data, fields, seed, out _);
+
+        /// <summary>The buildings, and for each the plan lot it stands on (<paramref name="lotOf"/>: the blocks of one building share their lot).</summary>
+        public static BuildingSite[] Resolve(CityPlanData data, PlanFields fields, uint seed, out int[] lotOf)
         {
             var list = new List<BuildingSite>(data.Lots.Count);
             var blockOf = new List<int>(data.Lots.Count);
-            var lotOf = new List<int>(data.Lots.Count);
+            var lots = new List<int>(data.Lots.Count);
             uint characterSeed = PlanNoise.Mix(seed, 0x7A6F6E65U);   // "zone"
             var parking = new Amenities.ParkingPlanner();
 
@@ -938,11 +998,12 @@ namespace CityX.World.Plan
                         contacts[v] != null ? contacts[v].ToArray() : null,
                         !isTop && volumes[above].Shell, vol.Sides, (float)baseHeight));
                     blockOf.Add(lot.BlockIndex);
-                    lotOf.Add(lot.Id);
+                    lots.Add(lot.Id);
                 }
             }
             BuildingSite[] sites = list.ToArray();
-            AddPartyWalls(sites, blockOf, lotOf);
+            AddPartyWalls(sites, blockOf, lots);
+            lotOf = lots.ToArray();
             return sites;
         }
 

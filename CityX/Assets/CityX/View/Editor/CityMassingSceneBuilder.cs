@@ -47,7 +47,7 @@ namespace CityX.ViewEditor
         /// screen's backdrop and the massing scene's own city stop
         /// matching.
         /// </summary>
-        private const int WorldSeed = 23481876;
+        private const int WorldSeed = 61256619;
 
         /// <summary>How glossy the city's three shared surfaces are when DRY. The rain restores to exactly these.</summary>
         private const float GroundDrySmoothness = 0.10f;
@@ -83,7 +83,7 @@ namespace CityX.ViewEditor
             Material litGlass = EnsureGlassMaterial("CityGlassLit", true);
             Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
             Material crackDecal = EnsureCrackDecalMaterial();
-            OldGuysHouseMaterials.EnsureGlass();
+            Material houseGlass = OldGuysHouseMaterials.EnsureGlass();
             GameObject shards = GlassShardsBuilder.Build();
 
             // building_door.gd's own DOOR_COLOR / HANDLE_COLOR. Lit, unlike the
@@ -326,8 +326,8 @@ namespace CityX.ViewEditor
             CityX.WeaponsEditor.ShootaBuilder.Build();
 
             // --- the swordsman (2026-10-17): the player's own body, slate blue, with the combat sword and a duelist's mind. After the player rig
-            // --- and the combat sword; spawned only by /spawn swordsman.
-            CityX.WeaponsEditor.SwordsmanBuilder.Build();
+            // --- and the combat sword; spawned by /spawn swordsman, and the one in Old Guy's house.
+            GameObject swordsmanPrefab = CityX.WeaponsEditor.SwordsmanBuilder.Build();
 
             // --- the giant (2026-10-29): the player's own body at the Grow spell's size, stone grey, that leaps and slams the ground. After the
             // --- player rig; spawned only by /spawn giant.
@@ -908,6 +908,14 @@ namespace CityX.ViewEditor
             breaker.ShardPrefab = shards;
             streamer.Viewer = cameraObject.transform;
             console.Streamer = streamer;
+
+            // --- Old Guy's house (docs/OLD_GUYS_HOUSE.md): built in code when the game starts, on the land the world keeps for it beside the spawn,
+            // --- where the streamer stands it.
+            var tutorialHouse = new GameObject("OldGuysHouse").AddComponent<OldGuysHouseSite>();
+            tutorialHouse.Structure = structure;
+            tutorialHouse.Glass = houseGlass;
+            tutorialHouse.SwordsmanPrefab = swordsmanPrefab;
+            streamer.TutorialHouse = tutorialHouse;
 
             // The skyline beyond the streamed city (SkylineStreamer, 2026-10-15: "the render distance on his looks waaay better than ours i want
             // mine like that"): every building past the streamed ring as a box in its own colour, the ground as a floor, out to the fog's end at

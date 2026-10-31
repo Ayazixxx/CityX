@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class StreetWallTests
     {
-        private const int Seed = 23481876;
+        private const int Seed = 61256619;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -90,7 +90,7 @@ namespace CityX.Tests
         public void NoWindowLooksIntoTheNeighbour()
         {
             int checkedCells = 0;
-            foreach (BuildingSite site in TestSites.NearSpawn(World, 12))   // 8 chunks held only 26 walls against a neighbour on seed 74102958
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 16))   // 8 chunks held only 26 walls against a neighbour on seed 74102958, 12 only 24 on 61256619
             {
                 if (site.Contacts == null || site.OnRoof || site.Sides >= 3)
                 {

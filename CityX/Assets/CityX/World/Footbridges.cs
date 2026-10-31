@@ -1155,6 +1155,7 @@ namespace CityX.World
                     foreach (float w in new[] { 0.0f, DeckWidth * 0.5f + 0.2f, -(DeckWidth * 0.5f + 0.2f) })
                     {
                         Vector2 x = p + dir * d + side * w;
+                        if (world.Plan.OnTutorialLot(x.x, x.y)) return true;   // over Old Guy's house, which the plan does not count as a building
                         if (!world.TryBuildingAt(x.x, x.y, out BuildingSite other)) continue;
                         if (other.Id != a.Id && other.Id != b.Id) return true;
                         // Into A or B itself away from its doorway: a curve cutting a corner.
@@ -1507,6 +1508,7 @@ namespace CityX.World
                 {
                     Vector2 x = ByWall(a, startU, way, d, o);
                     if (OnACarriageway(world, x.x, x.y, 0.2)) return false;
+                    if (world.Plan.OnTutorialLot(x.x, x.y)) return false;
                     if (world.TryBuildingAt(x.x, x.y, out BuildingSite other) && other.Id != a.Site.Id) return false;
                 }
             }
