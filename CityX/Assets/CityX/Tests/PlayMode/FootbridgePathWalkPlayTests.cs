@@ -18,6 +18,13 @@ namespace CityX.Tests
     public sealed class FootbridgePathWalkPlayTests
     {
         private const int Seed = 81565117;
+
+        /// <summary>
+        /// The street stairs are rare (a straight run only under a low deck with room along its wall), and a world seed may have none near its
+        /// spawn: the climb is tried on the game's seed first, then on the earlier worlds' seeds, so a seed without one tests the stair on another.
+        /// </summary>
+        private static readonly int[] StairSeeds = { Seed, 61256619, 80469103, 23481876, 39271846 };
+
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -48,13 +55,13 @@ namespace CityX.Tests
             return false;
         }
 
-        private void City(Vector3 around)
+        private void City(int seed, Vector3 around)
         {
             var go = new GameObject("Streamer");
             _made.Add(go);
             go.SetActive(false);
             var streamer = go.AddComponent<CityStreamer>();
-            streamer.WorldSeed = Seed;
+            streamer.WorldSeed = seed;
             streamer.RadiusChunks = 3;
             streamer.GeneratorThreads = 0;
             streamer.SpawnPreStreamBudget = 0;
@@ -150,7 +157,7 @@ namespace CityX.Tests
             BridgePath path = bridge.Path;
             float length = path.Length;
             Vector2 mid = path.PlanAt(length * 0.5f, out _);
-            City(new Vector3(mid.x, path.HeightAt(length * 0.5f), mid.y));
+            City(Seed, new Vector3(mid.x, path.HeightAt(length * 0.5f), mid.y));
             yield return null;
             Vector2 start = path.PlanAt(0.8f, out _);
             CharacterController body = Body(new Vector3(start.x, path.HeightAt(0.8f) + 0.05f, start.y));
@@ -183,16 +190,24 @@ namespace CityX.Tests
 
         private IEnumerator ClimbTheStreetStair(bool tower)
         {
-            var world = new CityWorld(Seed);
-            if (!Find(world, b => b.Stair != null && b.Stair.Switchback == tower, out Footbridge bridge))
+            Footbridge bridge = default;
+            int seed = Seed;
+            bool found = false;
+            foreach (int candidate in StairSeeds)
+            {
+                seed = candidate;
+                found = Find(new CityWorld(seed), b => b.Stair != null && b.Stair.Switchback == tower, out bridge);
+                if (found) break;
+            }
+            if (!found)
             {
                 // The bridges favour high floors (Footbridges.TallFactor, HeightWeight), and a straight run is only for a deck 16 m or less over the
-                // paving with room along its wall: on seed 19077151 the whole test region has none. Not a failure of the stairs.
-                Assert.Inconclusive($"no {(tower ? "stair tower" : "straight street stair")} in the region on this seed");
+                // paving with room along its wall: a whole test region can have none. Not a failure of the stairs.
+                Assert.Inconclusive($"no {(tower ? "stair tower" : "straight street stair")} in the region on any of the seeds tried");
             }
             StreetStair stair = bridge.Stair;
             Vector3 foot = stair.Points[stair.Points.Length - 1];
-            City(foot);
+            City(seed, foot);
             yield return null;
             // Up the walking line from the foot to the top, then onto the deck toward its middle by the wall.
             var up = new Vector3[stair.Points.Length + 1];

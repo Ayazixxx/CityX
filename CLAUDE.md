@@ -35,7 +35,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 
 ## Hard rules
 - **Multiplayer-first**: anything a player does or has (ability, held item, movement) must be visible to other players in the same commit: `IReplicatedAbility` or `ICosmeticMountable`, wired in `PlayerAbilityWiring` / `NetworkedPlayerWiring`, with a test. Guard tests enforce it. Spec: `docs/MULTIPLAYER_STATE.md`.
-- Every change gets tests. Run EditMode and PlayMode before committing. **Known, not yours:** `FootbridgePathWalkPlayTests.AStraightStreetStairIsClimbedOntoTheBridge` reports Inconclusive (shown as FAIL) when the seed has no straight street stair in its region. (`HitImpactPlayTests.AKillingCutFlingsTheCorpseAwayFromTheStriker` used to pass or fail by test order; since 2026-10-31 it reads the fling the moment the body dies and then waits for the corpse to travel.)
+- Every change gets tests. Run EditMode and PlayMode before committing. **A full run is green** (since 2026-10-31: the corpse-fling test used to depend on test order, and the straight-street-stair test reported Inconclusive on seeds without one; now it tries earlier worlds' seeds too). A FAIL is yours.
 - **Verify visuals by rendering** (the Explicit `*Capture` tests with `-Graphics`) and looking at the images. Green tests do not mean it looks right.
 - Keep assets small: no embedded textures, bake and trim meshes.
 - **City-generation change = reroll the world seed.** It is hardcoded in several places (currently `81565117`): grep for the old number and change them all together.
