@@ -105,6 +105,30 @@ namespace CityX.Tests
             view.Close();
         }
 
+        /// <summary>Owner, 2026-10-30: "is there a compass on the map? if not there probably should be". The full map shows a compass, N above it and S below.</summary>
+        [UnityTest]
+        public IEnumerator TheFullMapHasACompassWithNorthAtTheTop()
+        {
+            yield return LoadScene();
+            var view = Object.FindFirstObjectByType<MapPanelView>();
+            view.Open();
+            yield return null;
+            var rose = Object.FindFirstObjectByType<MapCompassView>();
+            Assert.IsNotNull(rose, "the open full map shows no compass");
+            Assert.IsTrue(rose.transform.IsChildOf(view.Root.transform), "the compass is not part of the full map");
+            Transform n = rose.transform.Find("CompassN");
+            Transform s = rose.transform.Find("CompassS");
+            Assert.IsNotNull(n, "the compass has no N");
+            Assert.IsNotNull(s, "the compass has no S");
+            Assert.AreEqual("N", n.GetComponent<Text>().text);
+            Assert.Greater(n.position.y, rose.transform.position.y, "the N is not above the compass");
+            Assert.Less(s.position.y, rose.transform.position.y, "the S is not below the compass");
+            Assert.IsFalse(rose.raycastTarget, "the compass would swallow drags and right-clicks meant for the map");
+            view.Close();
+            yield return null;
+            Assert.IsFalse(rose.isActiveAndEnabled, "the compass stayed on screen with the map closed");
+        }
+
         [UnityTest]
         public IEnumerator ReachingTheWaypointClearsIt()
         {

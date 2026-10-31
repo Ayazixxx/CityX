@@ -104,6 +104,7 @@ namespace CityX.UIEditor
             view.Canvas = mapCanvas;
 
             view.MiniMap = BuildMiniMap(root.transform, streamer, player, waypoint);
+            BuildCompass(panel.transform);
 
             Text title = UiKit.MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
             var titleRect = (RectTransform)title.transform;
@@ -142,6 +143,44 @@ namespace CityX.UIEditor
             view.Root = panel;
             UiKit.EnsureEventSystem();
             return view;
+        }
+
+        private const float CompassSize = 76.0f;
+        private const float CompassLetterSize = 18.0f;
+
+        /// <summary>
+        /// The full map's compass, bottom left over the map (the title is top left, the legend top right, the controls bottom right): the rose
+        /// (MapCompassView) with N, E, S and W round it, N red as on the minimap. The full map never turns, so neither do the letters.
+        /// </summary>
+        private static void BuildCompass(Transform panel)
+        {
+            var compass = new GameObject("Compass", typeof(RectTransform), typeof(CanvasRenderer));
+            var compassRect = (RectTransform)compass.transform;
+            compassRect.SetParent(panel, false);
+            compassRect.anchorMin = compassRect.anchorMax = Vector2.zero;
+            compassRect.pivot = new Vector2(0.5f, 0.5f);
+            float inset = 24.0f + CompassLetterSize + CompassSize * 0.5f;
+            compassRect.anchoredPosition = new Vector2(inset, inset);
+            compassRect.sizeDelta = new Vector2(CompassSize, CompassSize);
+            MapCompassView rose = compass.AddComponent<MapCompassView>();
+            rose.color = Color.white;
+            rose.raycastTarget = false;
+
+            float rim = CompassSize * 0.5f + CompassLetterSize * 0.55f;
+            (string Letter, Vector2 Way)[] letters = { ("N", Vector2.up), ("E", Vector2.right), ("S", Vector2.down), ("W", Vector2.left) };
+            foreach ((string letter, Vector2 way) in letters)
+            {
+                bool north = letter == "N";
+                Text text = UiKit.MakeText(compassRect, "Compass" + letter, letter, north ? 17 : 14, north ? MapPainter.CompassNorthColour : MapPainter.CompassColour);
+                text.fontStyle = FontStyle.Bold;
+                text.alignment = TextAnchor.MiddleCenter;
+                text.raycastTarget = false;
+                text.gameObject.AddComponent<Outline>().effectColor = new Color(0.0f, 0.0f, 0.0f, 0.8f);
+                var rect = (RectTransform)text.transform;
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.sizeDelta = new Vector2(CompassLetterSize + 6.0f, CompassLetterSize + 6.0f);
+                rect.anchoredPosition = way * rim;
+            }
         }
 
         private const float MiniMapSize = 170.0f;

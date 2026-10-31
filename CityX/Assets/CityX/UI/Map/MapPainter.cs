@@ -275,6 +275,40 @@ namespace CityX.UI
             }
         }
 
+        public static readonly Color CompassNorthColour = new Color(1.0f, 0.4f, 0.35f);
+        public static readonly Color CompassColour = new Color(0.86f, 0.89f, 0.96f);
+
+        /// <summary>Where north (world -Z) points on the panel, as a unit direction: straight up unless the frame is turned.</summary>
+        public static Vector2 NorthOnPanel(MapFrame frame) => frame.TurnDirection(new Vector2(0.0f, -1.0f)).normalized;
+
+        /// <summary>
+        /// A COMPASS ROSE (owner, 2026-10-30: "is there a compass on the map? if not there probably should be"): a four-pointed star on a dark disc,
+        /// its north point red, each point shaded in two halves so it reads as raised; <paramref name="north"/> is the panel direction north points.
+        /// </summary>
+        public static void DrawCompass(VertexHelper vh, MapFrame frame, Vector2 centre, float radius, Vector2 north)
+        {
+            north = north.sqrMagnitude > 1e-6f ? north.normalized : new Vector2(0.0f, -1.0f);
+            Vector2 east = new Vector2(-north.y, north.x);
+            Disc(vh, frame, centre, radius, new Color(0.75f, 0.8f, 0.95f, 0.5f), 32);
+            Disc(vh, frame, centre, radius - 1.5f, new Color(0.03f, 0.035f, 0.05f, 0.85f), 32);
+            Vector2[] points = { north, east, -north, -east };
+            for (int pass = 0; pass < 2; pass++)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    float length = radius * (i % 2 == 0 ? 0.82f : 0.58f) + (pass == 0 ? 1.5f : 0.0f);
+                    float half = radius * 0.17f + (pass == 0 ? 1.5f : 0.0f);
+                    Vector2 tip = centre + points[i] * length;
+                    Vector2 side = new Vector2(-points[i].y, points[i].x) * half;
+                    Color light = pass == 0 ? new Color(0.0f, 0.0f, 0.0f, 0.8f) : i == 0 ? CompassNorthColour : CompassColour;
+                    Color dark = pass == 0 ? light : Color.Lerp(light, Color.black, 0.35f);
+                    Triangle(vh, frame, centre, tip, centre + side, light);
+                    Triangle(vh, frame, centre, centre - side, tip, dark);
+                }
+            }
+            Disc(vh, frame, centre, radius * 0.08f, new Color(0.03f, 0.035f, 0.05f));
+        }
+
         // ---- shapes ----
 
         private static Vector2 Corner(BuildingSite site, float localX, float localZ, MapFrame frame)

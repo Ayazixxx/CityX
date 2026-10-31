@@ -26,6 +26,14 @@ Asked for (2026-10-11): "research video game map systems and implement what you 
 | **Beam in the world** | `WaypointBeacon`: a 160 m beam of soft purple light standing on the ground at the pin, fading out between 60 m and 12 m away so it does not blind you on arrival |
 | **Minimap** | `MiniMapView`, top right, 170 px, 85 m radius; **turned so the way the camera looks is up**; the route; the pin, held at the edge pointing the way when it is further away; landmarks; an N on the rim where north is; "WAYPOINT 230 m" under it; shown only in the minimap step of the M cycle |
 
+**Compass (owner, 2026-10-30: "is there a compass on the map? if not there probably should be"):** the full map had none (it was north up, with
+nothing saying so; only the minimap had its N). Now a compass rose sits in its bottom-left corner (`MapCompassView`, drawn by
+`MapPainter.DrawCompass`): a four-pointed star on a dark disc, the north point red, N E S W round it (N red, as on the minimap). Clicks and drags go
+through it to the map. North is world -Z, the map's top (`MapPainter.NorthOnPanel`, which the turned minimap's N agrees with). It matters more now
+that finding the way home after a long journey is part of the game (docs/GAME_DESIGN.md, Getting home). Tests: `MapCompassTests` (the red point
+is the one pointing north, wherever north is; north is up on the full map and to the left facing east on the minimap),
+`MapWaypointPlayTests.TheFullMapHasACompassWithNorthAtTheTop` (the real scene).
+
 **How it is drawn:** both maps draw through one painter (`UI/Map/MapPainter`). A `MapFrame` turns world (x, z) into panel pixels (centred, scaled, optionally turned) and back again (`ToWorld`, for clicks). Each map is one UI mesh, rebuilt each frame it shows.
 
 **Fix on the way:** the map's drawing object was built without its CanvasRenderer, which logged "There is no 'CanvasRenderer' attached to the "Map" game object" on every scene build. It is now created with it.
