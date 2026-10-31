@@ -10,7 +10,7 @@ namespace CityX.View
     /// front, +x its right, y up, at floor level; a piece that stands against a wall has its origin at the middle of its back, a free-standing one
     /// (a table, a chair, the car, a crate, the tree) at its middle. Sizes are the 2.6 m player's (real times 1.3).
     /// </summary>
-    public static class FurnitureKit
+    public static partial class FurnitureKit
     {
         private const int Plaster = (int)WallMaterial.Plaster;
         private const int Metal = (int)WallMaterial.Metal;
@@ -42,6 +42,10 @@ namespace CityX.View
 
         private static void Build(MeshBuffer b, Kind kind, Color c)
         {
+            if (BuildCarcass(b, kind, c))
+            {
+                return;   // a piece that opens: its carcass here, its doors, drawers and lids as parts of their own (FurnitureKit.Containers.cs)
+            }
             switch (kind)
             {
                 case Kind.Car:
@@ -53,16 +57,6 @@ namespace CityX.View
                         B(b, x, 0, z, x + 0.3f, 0.9f, z + 0.9f, Dark, Metal);
                     B(b, -1.0f, 0.75f, 2.8f, -0.6f, 1.0f, 2.82f, Paper, Metal);              // headlamps
                     B(b, 0.6f, 0.75f, 2.8f, 1.0f, 1.0f, 2.82f, Paper, Metal);
-                    break;
-                case Kind.Workbench:
-                    B(b, -1.2f, 1.1f, 0, 1.2f, 1.2f, 0.9f, c);
-                    foreach (float x in new[] { -1.15f, 1.05f })
-                    foreach (float z in new[] { 0.05f, 0.75f })
-                        B(b, x, 0, z, x + 0.1f, 1.1f, z + 0.1f, Shade(c, 0.2f));
-                    B(b, -1.2f, 1.4f, 0, 1.2f, 2.4f, 0.04f, Tint(c, 0.4f));                  // pegboard
-                    B(b, -0.8f, 1.7f, 0.04f, -0.2f, 1.78f, 0.1f, Chrome, Metal);             // tools on it
-                    B(b, 0.1f, 1.6f, 0.04f, 0.18f, 2.1f, 0.1f, Chrome, Metal);
-                    B(b, 0.5f, 1.21f, 0.2f, 0.9f, 1.4f, 0.5f, new Color(0.65f, 0.15f, 0.12f), Metal);   // a toolbox
                     break;
                 case Kind.Shelves:
                     B(b, -1.1f, 0, 0, -1.05f, 2.4f, 0.6f, c, Metal);
@@ -91,10 +85,6 @@ namespace CityX.View
                     B(b, -0.45f, 0.6f, 0, 0.45f, 2.2f, 0.7f, c, Metal);
                     B(b, -0.3f, 0, 0.2f, -0.22f, 0.6f, 0.28f, Chrome, Metal);
                     B(b, 0.22f, 0, 0.2f, 0.3f, 0.6f, 0.28f, Chrome, Metal);
-                    break;
-                case Kind.Crate:
-                    B(b, -0.45f, 0, -0.45f, 0.45f, 0.9f, 0.45f, c);
-                    B(b, -0.47f, 0.4f, -0.47f, 0.47f, 0.5f, 0.47f, Shade(c, 0.25f));
                     break;
                 case Kind.Sofa:
                     B(b, -1.3f, 0, 0, 1.3f, 0.55f, 1.15f, Shade(c, 0.15f));
@@ -131,50 +121,11 @@ namespace CityX.View
                     B(b, -0.06f, 0, -0.06f, 0.06f, 0.3f, 0.06f, c);
                     B(b, -0.025f, 0.3f, -0.025f, 0.025f, 0.42f, 0.025f, c);
                     break;
-                case Kind.Counter:
-                case Kind.Sink:
-                case Kind.Stove:
-                    float half = kind == Kind.Stove ? 0.5f : 0.8f;
-                    B(b, -half, 0, 0, half, 1.07f, 0.95f, c);
-                    B(b, -half, 0, 0.92f, half, 0.12f, 0.96f, Dark);                          // kick plate
-                    B(b, -0.01f, 0.15f, 0.95f, 0.01f, 1.0f, 0.97f, Shade(c, 0.3f));          // between the doors
-                    if (kind == Kind.Sink)
-                    {
-                        B(b, -half, 1.07f, 0, half, OldGuysHouse.KitchenCounterHeight, 0.15f, Shade(c, 0.45f), Tile);
-                        B(b, -half, 1.07f, 0.8f, half, OldGuysHouse.KitchenCounterHeight, 1.0f, Shade(c, 0.45f), Tile);
-                        B(b, -half, 1.07f, 0.15f, -0.45f, OldGuysHouse.KitchenCounterHeight, 0.8f, Shade(c, 0.45f), Tile);
-                        B(b, 0.45f, 1.07f, 0.15f, half, OldGuysHouse.KitchenCounterHeight, 0.8f, Shade(c, 0.45f), Tile);
-                        B(b, -0.45f, 0.85f, 0.15f, 0.45f, 0.87f, 0.8f, Chrome, Metal);       // the basin's floor
-                        B(b, -0.04f, OldGuysHouse.KitchenCounterHeight, 0.05f, 0.04f, OldGuysHouse.KitchenCounterHeight + 0.4f, 0.13f, Chrome, Metal);
-                        B(b, -0.04f, OldGuysHouse.KitchenCounterHeight + 0.32f, 0.05f, 0.04f, OldGuysHouse.KitchenCounterHeight + 0.4f, 0.4f, Chrome, Metal);
-                    }
-                    else
-                    {
-                        B(b, -half, 1.07f, 0, half, OldGuysHouse.KitchenCounterHeight, 1.0f, kind == Kind.Stove ? Dark : Shade(c, 0.45f), Tile);
-                    }
-                    if (kind == Kind.Stove)
-                    {
-                        foreach (float x in new[] { -0.25f, 0.25f })
-                        foreach (float z in new[] { 0.3f, 0.7f })
-                            B(b, x - 0.12f, OldGuysHouse.KitchenCounterHeight, z - 0.12f, x + 0.12f, OldGuysHouse.KitchenCounterHeight + 0.02f, z + 0.12f, Chrome, Metal);
-                        B(b, -0.42f, 0.2f, 0.96f, 0.42f, 0.85f, 0.98f, Dark, Metal);          // the oven door
-                    }
-                    break;
-                case Kind.Fridge:
-                    B(b, -0.45f, 0, 0, 0.45f, 2.4f, 0.85f, c, Metal);
-                    B(b, -0.45f, 1.55f, 0.85f, 0.45f, 1.58f, 0.87f, Shade(c, 0.3f), Metal);
-                    B(b, 0.32f, 0.9f, 0.85f, 0.37f, 1.45f, 0.92f, Chrome, Metal);
-                    B(b, 0.32f, 1.7f, 0.85f, 0.37f, 2.1f, 0.92f, Chrome, Metal);
-                    break;
                 case Kind.KnifeBlock:
                     // The kitchen knife itself is an item standing in the front slot (OldGuysHouse.Items); two more handles behind it.
                     B(b, -0.09f, 0, -0.12f, 0.09f, 0.30f, 0.12f, c);
                     B(b, -0.045f, 0.30f, -0.09f, -0.015f, 0.42f, -0.06f, Dark);
                     B(b, 0.015f, 0.30f, -0.09f, 0.045f, 0.40f, -0.06f, Dark);
-                    break;
-                case Kind.UpperCabinet:
-                    B(b, -0.8f, 0, 0, 0.8f, 0.9f, 0.45f, c);
-                    B(b, -0.01f, 0.05f, 0.45f, 0.01f, 0.85f, 0.47f, Shade(c, 0.3f));
                     break;
                 case Kind.DiningTable:
                     B(b, -0.6f, 0.9f, -1.1f, 0.6f, 0.98f, 1.1f, c);
@@ -188,13 +139,6 @@ namespace CityX.View
                     foreach (float z in new[] { -0.26f, 0.21f })
                         B(b, x, 0, z, x + 0.05f, 0.58f, z + 0.05f, Shade(c, 0.15f));
                     B(b, -0.28f, 0.64f, -0.28f, 0.28f, 1.35f, -0.23f, c);
-                    break;
-                case Kind.Sideboard:
-                    B(b, -1.0f, 0, 0, 1.0f, 1.0f, 0.6f, c);
-                    B(b, -0.34f, 0.1f, 0.6f, -0.32f, 0.9f, 0.62f, Shade(c, 0.3f));
-                    B(b, 0.32f, 0.1f, 0.6f, 0.34f, 0.9f, 0.62f, Shade(c, 0.3f));
-                    B(b, -0.6f, 1.0f, 0.15f, -0.3f, 1.35f, 0.4f, new Color(0.70f, 0.70f, 0.80f));   // a vase and a photo frame
-                    B(b, 0.3f, 1.0f, 0.2f, 0.62f, 1.4f, 0.24f, Dark);
                     break;
                 case Kind.Television:
                     B(b, -0.7f, 0, 0, 0.7f, 0.7f, 0.6f, new Color(0.40f, 0.27f, 0.16f));
@@ -212,12 +156,6 @@ namespace CityX.View
                     B(b, -0.3f, 0.55f, 0, 0.3f, 1.05f, 0.25f, c, Tile);
                     B(b, -0.25f, 0, 0.2f, 0.25f, 0.55f, 0.95f, c, Tile);
                     B(b, -0.27f, 0.55f, 0.2f, 0.27f, 0.6f, 0.97f, Shade(c, 0.1f), Tile);
-                    break;
-                case Kind.Basin:
-                    B(b, -0.35f, 1.0f, 0, 0.35f, 1.25f, 0.55f, c, Tile);
-                    B(b, -0.1f, 0, 0.1f, 0.1f, 1.0f, 0.3f, c, Tile);
-                    B(b, -0.04f, 1.25f, 0.03f, 0.04f, 1.45f, 0.18f, Chrome, Metal);
-                    B(b, -0.3f, 1.6f, 0, 0.3f, 2.4f, 0.03f, new Color(0.75f, 0.85f, 0.90f), Metal);   // the mirror
                     break;
                 case Kind.Bathtub:
                     B(b, -1.1f, 0, 0, 1.1f, 0.72f, 0.95f, c, Tile);
@@ -249,12 +187,6 @@ namespace CityX.View
                     B(b, -w + 0.15f, 0.7f, 0.15f, w - 0.15f, 0.85f, 0.65f, Paper);             // the pillow
                     B(b, -w, 0, 0, w, 1.3f, 0.1f, new Color(0.40f, 0.27f, 0.16f));           // the headboard
                     break;
-                case Kind.Desk:
-                    B(b, -0.9f, 0.94f, 0, 0.9f, 1.0f, 0.8f, c);
-                    B(b, 0.4f, 0, 0.05f, 0.88f, 0.94f, 0.78f, Shade(c, 0.1f));
-                    B(b, -0.88f, 0, 0.05f, -0.8f, 0.94f, 0.75f, Shade(c, 0.15f));
-                    B(b, -0.6f, 1.0f, 0.1f, -0.2f, 1.06f, 0.4f, Paper);                        // papers
-                    break;
                 case Kind.Bookcase:
                     B(b, -0.7f, 0, 0, 0.7f, 2.6f, 0.06f, c);
                     B(b, -0.7f, 0, 0, -0.65f, 2.6f, 0.45f, c);
@@ -279,26 +211,6 @@ namespace CityX.View
                     B(b, -0.35f, 0, -0.35f, 0.35f, 1.05f, 0.35f, c);
                     B(b, -0.4f, 1.05f, -0.4f, 0.4f, 1.1f, 0.4f, Shade(c, 0.2f));
                     B(b, -0.28f, 1.1f, -0.16f, 0.28f, 1.14f, 0.16f, new Color(0.55f, 0.12f, 0.15f));
-                    break;
-                case Kind.Wardrobe:
-                    B(b, -0.9f, 0, 0, 0.9f, 2.6f, 0.7f, c);
-                    B(b, -0.01f, 0.1f, 0.7f, 0.01f, 2.5f, 0.72f, Shade(c, 0.35f));
-                    B(b, -0.12f, 1.2f, 0.7f, -0.08f, 1.5f, 0.76f, Chrome, Metal);
-                    B(b, 0.08f, 1.2f, 0.7f, 0.12f, 1.5f, 0.76f, Chrome, Metal);
-                    break;
-                case Kind.Nightstand:
-                    B(b, -0.3f, 0, 0, 0.3f, 0.7f, 0.5f, c);
-                    B(b, -0.12f, 0.7f, 0.15f, 0.12f, 1.05f, 0.35f, new Color(0.95f, 0.88f, 0.60f));   // a lamp
-                    break;
-                case Kind.Dresser:
-                    B(b, -0.7f, 0, 0, 0.7f, 1.1f, 0.6f, c);
-                    for (int i = 0; i < 3; i++)
-                        B(b, -0.65f, 0.3f + i * 0.3f, 0.6f, 0.65f, 0.32f + i * 0.3f, 0.62f, Shade(c, 0.35f));
-                    break;
-                case Kind.ToyChest:
-                    B(b, -0.6f, 0, 0, 0.6f, 0.65f, 0.6f, c);
-                    B(b, -0.62f, 0.65f, -0.02f, 0.62f, 0.72f, 0.62f, Shade(c, 0.25f));
-                    B(b, -0.3f, 0.72f, 0.15f, 0.0f, 0.95f, 0.4f, new Color(0.95f, 0.80f, 0.20f));   // a toy on its lid
                     break;
                 case Kind.Poster:
                     B(b, -0.45f, -0.6f, 0, 0.45f, 0.6f, 0.02f, c);

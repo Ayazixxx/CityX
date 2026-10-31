@@ -86,6 +86,12 @@ flights, a landing, 1.2 m handrails; garden wall 1.0 m (the vault band is 0.42 t
   `OldGuysHousePlayTests` (the real body walks up the stair core from the garage level to the upper floor; the weapons lie still where they were put;
   the swordsman stands upstairs). `OldGuysHouseCapture` (Explicit, -Graphics) renders `Logs/CityShots/house-*.png`.
 
+## Looting (2026-10-30)
+
+Drawers, cupboards, the fridge, the wardrobe, the chests and the toolbox open with E and are looked into (docs/LOOTING.md). The Baseball Bat moved from
+leaning in the tree house to inside the tree house's crate; the tutorial's basic clothing is in Old Guy's wardrobe, his hat in his bedside drawer, a
+flashlight in a kitchen drawer, a bottle in the fridge, a spray can in the garage toolbox.
+
 ## Open (the owner's)
 
 The slope beside a stair street (built as a raised garden terrace, it works on flat ground too); Old Guy following or waiting (drawn waiting in the

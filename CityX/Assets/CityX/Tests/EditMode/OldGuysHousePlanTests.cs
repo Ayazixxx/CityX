@@ -122,12 +122,25 @@ namespace CityX.Tests
                 int level = Mathf.FloorToInt((spot.Position.y + 0.1f) / House.Storey);
                 Assert.IsNotNull(House.RoomAt(level, spot.Position.x, spot.Position.z), $"the {spot.ItemId} lies outside every room");
             }
+            // What is inside the furniture (docs/LOOTING.md) counts too: real items, in a part the piece has.
+            string batRoom = null;
+            foreach (House.Furniture piece in House.FurnitureList)
+            {
+                if (piece.Stash.Length == 0) continue;
+                Assert.Less(piece.StashPart, CityX.View.FurnitureKit.PartsOf(piece.Kind, Color.white).Count, $"a {piece.Kind}'s things are in a part it does not have");
+                foreach (string id in piece.Stash)
+                {
+                    Assert.IsTrue(ItemRegistry.TryGet(id, out _), $"{id} is not an item");
+                    ids.Add(id);
+                    if (id == ItemRegistry.BaseballBat) batRoom = House.RoomAt(2, piece.Position.x, piece.Position.z)?.Name;
+                }
+            }
             foreach (string id in new[] { ItemRegistry.KitchenKnife, ItemRegistry.MagicWand, ItemRegistry.Slingshot, ItemRegistry.ButterKnife, ItemRegistry.BaseballBat })
             {
                 Assert.IsTrue(ids.Contains(id), $"the house has no {id}");
             }
             Assert.AreEqual("Kitchen", House.RoomAt(1, House.Items[0].Position.x, House.Items[0].Position.z).Name, "the kitchen knife is not in the kitchen");
-            Assert.AreEqual("Tree house", House.RoomAt(2, House.Items[4].Position.x, House.Items[4].Position.z).Name, "the bat is not hidden in the tree house");
+            Assert.AreEqual("Tree house", batRoom, "the bat is not hidden in the tree house");
         }
 
         /// <summary>Every piece stands in a room or the garden (the wand's case once stood at the house's corner, read before its place was set).</summary>

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Character;
 using CityX.World;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -73,6 +74,7 @@ namespace CityX.View
 
             Emit(root.transform, "Structure", structure, materials.Structure, true, true);
             Emit(root.transform, "Furniture", furniture, materials.Structure, true, true);
+            Containers(root.transform, materials.Structure);
             Emit(root.transform, "Glass", glass, materials.Glass, true, false);
             Emit(root.transform, "CaseGlass", caseGlass, materials.Glass, false, false);
             Bottles(root.transform, materials.Structure);
@@ -616,6 +618,47 @@ namespace CityX.View
                 light.intensity = LightIntensity;
                 light.range = Mathf.Clamp(Mathf.Max(biggest.X1 - biggest.X0, biggest.Z1 - biggest.Z0) * 1.1f, 6.0f, 12.0f);
                 light.shadows = LightShadows.None;
+            }
+        }
+
+        // ---- drawers, doors and lids (docs/LOOTING.md) ----
+
+        /// <summary>
+        /// Every part of the furniture that opens, as an object of its own on its hinge (LootContainer), with what the plan puts inside it: the
+        /// furniture mesh holds only the carcasses.
+        /// </summary>
+        private static void Containers(Transform root, Material material)
+        {
+            var parent = new GameObject("Containers").transform;
+            parent.SetParent(root, false);
+            foreach (House.Furniture piece in House.FurnitureList)
+            {
+                List<FurnitureKit.ContainerPart> parts = FurnitureKit.PartsOf(piece.Kind, piece.Tint);
+                Quaternion turn = Quaternion.Euler(0, piece.Yaw, 0);
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    FurnitureKit.ContainerPart part = parts[i];
+                    var hinge = new GameObject(part.Label);
+                    hinge.transform.SetParent(parent, false);
+                    hinge.transform.localPosition = piece.Position + turn * part.Pivot;
+                    hinge.transform.localRotation = turn;
+                    var shape = new MeshBuffer();
+                    FurnitureKit.BuildPart(shape, part);
+                    GameObject mesh = Emit(hinge.transform, "Part", shape, material, false, true);
+                    var box = mesh.AddComponent<BoxCollider>();
+                    box.center = (part.Min + part.Max) * 0.5f - part.Pivot;
+                    box.size = part.Max - part.Min;
+                    // Added once its hinge is in place: it takes the closed pose from where it stands when it wakes.
+                    var container = hinge.AddComponent<LootContainer>();
+                    container.Kind = part.Kind;
+                    container.Slide = part.Slide;
+                    container.Label = part.Label;
+                    container.LookPoint = part.Front - part.Pivot;
+                    if (i == piece.StashPart)
+                    {
+                        container.Items.AddRange(piece.Stash);
+                    }
+                }
             }
         }
 

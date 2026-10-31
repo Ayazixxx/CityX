@@ -39,10 +39,13 @@ namespace CityX.Character
         }
 
         /// <summary>The dropped item the player would pick up now, or null. Public so a test can ask without a keyboard.</summary>
-        public DroppedItem InReach()
+        public DroppedItem InReach() => InReach(out _);
+
+        /// <summary>The same, with how directly it is looked at (a container looked at more directly is LootSearcher's to open instead).</summary>
+        public DroppedItem InReach(out float bestDot)
         {
             DroppedItem best = null;
-            float bestDot = float.MinValue;
+            bestDot = float.MinValue;
             foreach (DroppedItem item in Record.Shown)
             {
                 if (item == null || Record.IsAskedFor(item.Id))
@@ -66,7 +69,12 @@ namespace CityX.Character
             {
                 return false;
             }
-            DroppedItem item = InReach();
+            DroppedItem item = InReach(out float dot);
+            var searcher = GetComponent<LootSearcher>();
+            if (item != null && searcher != null && searcher.InReach(out float containerDot) != null && containerDot > dot)
+            {
+                return false;   // a drawer or cupboard is looked at more directly: E opens it
+            }
             return item != null && Record.Take(item.Id, inventory);
         }
     }

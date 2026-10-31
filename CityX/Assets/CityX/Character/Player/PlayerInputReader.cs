@@ -321,6 +321,11 @@ namespace CityX.Character
             {
                 gameObject.AddComponent<DroppedItemPicker>();
             }
+            // E opens the drawer, cupboard or chest looked at and shows what is inside (docs/LOOTING.md).
+            if (GetComponent<LootSearcher>() == null)
+            {
+                gameObject.AddComponent<LootSearcher>();
+            }
 
             // A stagger cuts short what was winding up (2026-10-14: the Stability stat makes it rarer).
             if (_vitals != null)

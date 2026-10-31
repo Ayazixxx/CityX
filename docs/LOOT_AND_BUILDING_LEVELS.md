@@ -138,6 +138,9 @@ and repairs). The options as they were weighed:
 - My suggestion: **B for containers and open loot, A for a few contested prizes** (a vault, a world boss's chest), with containers refilling per player after
   some hours.
 
+**Built 2026-10-30:** step 4, closed containers (search, open, list), in Old Guy's house first: docs/LOOTING.md (owner: "i want the looting to be detailed
+like skyrim or project zomboid, you have look it cabinets and drawers and stuff").
+
 ### 4.7 Order, when the owner says go
 1. Floor plans with typed rooms, per building archetype (no furniture yet), with a test that every room is reachable.
 2. The furniture kit, built in code, placed by room type (pieces against the walls first, then free-standing), with collision.

@@ -206,10 +206,15 @@ namespace CityX.World
             public readonly float Yaw;
             public readonly Color Tint;
 
+            /// <summary>What is inside it (docs/LOOTING.md), ItemRegistry's ids, in the part numbered <see cref="StashPart"/> (top drawer first, left door first).</summary>
+            public readonly string[] Stash;
+
+            public readonly int StashPart;
+
             /// <summary>A piece at <paramref name="position"/> (its foot, or its back's middle for a wall piece), facing <paramref name="yaw"/> (0 = +z).</summary>
-            public Furniture(FurnitureKind kind, Vector3 position, float yaw, Color tint)
+            public Furniture(FurnitureKind kind, Vector3 position, float yaw, Color tint, int stashPart = 0, params string[] stash)
             {
-                Kind = kind; Position = position; Yaw = yaw; Tint = tint;
+                Kind = kind; Position = position; Yaw = yaw; Tint = tint; StashPart = stashPart; Stash = stash ?? new string[0];
             }
         }
 
@@ -523,7 +528,7 @@ namespace CityX.World
             {
                 // Garage, workshop, cellar.
                 new Furniture(FurnitureKind.Car, new Vector3(4.5f, 0, 6.5f), 180, new Color(0.25f, 0.33f, 0.45f)),
-                new Furniture(FurnitureKind.Workbench, new Vector3(0.15f, 0, 10.5f), 90, DarkOak),
+                new Furniture(FurnitureKind.Workbench, new Vector3(0.15f, 0, 10.5f), 90, DarkOak, 0, "spray_can"),
                 new Furniture(FurnitureKind.Shelves, new Vector3(8.85f, 0, 11.5f), 270, steel),
                 new Furniture(FurnitureKind.OilDrum, new Vector3(1.2f, 0, 13.0f), 0, red),
                 new Furniture(FurnitureKind.Manhole, new Vector3(2.4f, 0, 2.6f), 0, DarkConcrete),
@@ -555,7 +560,7 @@ namespace CityX.World
                 new Furniture(FurnitureKind.Shelves, new Vector3(17.15f, l1, 2.0f), 90, Oak),
 
                 // Kitchen: counters along the west wall under the window, the stove and fridge along the north wall.
-                new Furniture(FurnitureKind.Counter, new Vector3(0.15f, l1, 10.1f), 90, white),
+                new Furniture(FurnitureKind.Counter, new Vector3(0.15f, l1, 10.1f), 90, white, 0, "flashlight"),
                 new Furniture(FurnitureKind.Counter, new Vector3(0.15f, l1, 11.7f), 90, white),
                 new Furniture(FurnitureKind.Sink, new Vector3(0.15f, l1, 13.3f), 90, white),
                 new Furniture(FurnitureKind.Counter, new Vector3(0.15f, l1, 14.9f), 90, white),
@@ -563,7 +568,7 @@ namespace CityX.World
                 new Furniture(FurnitureKind.UpperCabinet, new Vector3(0.15f, l1 + 2.3f, 10.1f), 90, white),
                 new Furniture(FurnitureKind.Stove, new Vector3(2.4f, l1, 15.85f), 180, white),
                 new Furniture(FurnitureKind.Counter, new Vector3(4.0f, l1, 15.85f), 180, white),
-                new Furniture(FurnitureKind.Fridge, new Vector3(8.2f, l1, 15.85f), 180, white),
+                new Furniture(FurnitureKind.Fridge, new Vector3(8.2f, l1, 15.85f), 180, white, 0, "glass_bottle"),
 
                 // Dining room.
                 new Furniture(FurnitureKind.DiningTable, new Vector3(11.5f, l1, 12.6f), 0, DarkOak),
@@ -612,15 +617,16 @@ namespace CityX.World
 
                 // Old Guy's bedroom.
                 new Furniture(FurnitureKind.DoubleBed, new Vector3(19.85f, l2, 12.5f), 270, new Color(0.62f, 0.55f, 0.75f)),
-                new Furniture(FurnitureKind.Nightstand, new Vector3(19.85f, l2, 10.7f), 270, DarkOak),
+                new Furniture(FurnitureKind.Nightstand, new Vector3(19.85f, l2, 10.7f), 270, DarkOak, 0, "farmer_hat"),
                 new Furniture(FurnitureKind.Nightstand, new Vector3(19.85f, l2, 14.3f), 270, DarkOak),
-                new Furniture(FurnitureKind.Wardrobe, new Vector3(14.15f, l2, 13.6f), 90, DarkOak),
-                new Furniture(FurnitureKind.Dresser, new Vector3(15.6f, l2, 9.15f), 0, DarkOak),
+                new Furniture(FurnitureKind.Wardrobe, new Vector3(14.15f, l2, 13.6f), 90, DarkOak, 0, "t_shirt", "blue_jeans"),
+                new Furniture(FurnitureKind.Dresser, new Vector3(15.6f, l2, 9.15f), 0, DarkOak, 1, "white_sneaker"),
 
                 // The garden and the tree house.
                 new Furniture(FurnitureKind.Tree, TreeFoot, 0, new Color(0.28f, 0.48f, 0.22f)),
                 new Furniture(FurnitureKind.Bench, new Vector3(15.0f, l1, 31.0f), 180, DarkOak),
-                new Furniture(FurnitureKind.Crate, new Vector3(6.6f, l2, 29.2f), 10, pine),
+                // The bat, hidden twice: in the tree house, and inside its crate.
+                new Furniture(FurnitureKind.Crate, new Vector3(6.6f, l2, 29.2f), 10, pine, 0, "baseball_bat"),
             };
             return f.ToArray();
         }
@@ -628,9 +634,9 @@ namespace CityX.World
         // ---- the weapons, Old Guy and the swordsman ----
 
         /// <summary>
-        /// The five weapons: the three starters on the route (the Kitchen Knife in the knife block, the Slingshot on the grandson's desk, the
-        /// Magic Wand in its glass case), the Butter Knife on the counter beside the block, and the Baseball Bat hidden in the tree house.
-        /// Ids are ItemRegistry's (OldGuysHousePlanTests checks them).
+        /// The weapons lying in the open: the three starters on the route (the Kitchen Knife in the knife block, the Slingshot on the grandson's
+        /// desk, the Magic Wand in its glass case) and the Butter Knife on the counter beside the block. The fifth, the Baseball Bat, is inside the
+        /// tree house's crate (a piece's <see cref="Furniture.Stash"/>). Ids are ItemRegistry's (OldGuysHousePlanTests checks them).
         /// </summary>
         public static readonly ItemSpot[] Items =
         {
@@ -638,7 +644,6 @@ namespace CityX.World
             new ItemSpot("butter_knife", new Vector3(0.75f, LevelY(1) + KitchenCounterHeight + 0.012f, 12.1f), new Vector3(90, 15, 0)),
             new ItemSpot("slingshot", new Vector3(2.6f, LevelY(2) + 1.0f + 0.02f, 15.4f), new Vector3(90, 20, 0)),
             new ItemSpot("magic_wand", new Vector3(GlassCase.x, LevelY(2) + 1.16f, GlassCase.z), new Vector3(90, 90, 0)),
-            new ItemSpot("baseball_bat", new Vector3(3.4f, LevelY(2) + 0.25f, 29.4f), new Vector3(14, 0, 0)),
         };
 
         /// <summary>The one fight: a swordsman in Old Guy's bedroom (owner: "maybe just one swordsman upstairs").</summary>

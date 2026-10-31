@@ -31,7 +31,7 @@ namespace CityX.Tests
             sun.shadows = LightShadows.Soft;
             sun.transform.rotation = Quaternion.Euler(50.0f, -40.0f, 0.0f);
             made.Add(sun.gameObject);
-            OldGuysHousePlayTests.MakeHouse(made, true, true);
+            CityX.View.OldGuysHouseSite site = OldGuysHousePlayTests.MakeHouse(made, true, true);
             var camera = new GameObject("Cam").AddComponent<Camera>();
             camera.nearClipPlane = 0.05f;
             camera.clearFlags = CameraClearFlags.SolidColor;
@@ -52,6 +52,38 @@ namespace CityX.Tests
             yield return Shoot(camera, "house-bedroom", new Vector3(14.6f, 10.6f, 9.5f), new Vector3(17.5f, 8.8f, 12.5f));
             yield return Shoot(camera, "house-bridge", new Vector3(18.8f, 10.8f, 17.6f), new Vector3(6.0f, 9.0f, 26.5f));
             yield return Shoot(camera, "house-den", new Vector3(14.6f, 6.6f, 9.6f), new Vector3(18.5f, 4.6f, 14.5f));
+
+            // Looting (docs/LOOTING.md): the kitchen's and the bedroom's drawers and doors opened, then the loot window over the wardrobe. The
+            // swordsman goes first: left in, he walks up and fights whoever is looking into the wardrobe.
+            Object.Destroy(site.Swordsman);
+            foreach (LootContainer container in LootContainer.All)
+            {
+                CityX.World.OldGuysHouse.Room room = CityX.World.OldGuysHouse.RoomAt(Mathf.FloorToInt((container.transform.position.y + 0.1f) / CityX.World.OldGuysHouse.Storey),
+                    container.transform.position.x, container.transform.position.z);
+                if (room != null && (room.Name == "Kitchen" || room.Name == "Old Guy's bedroom"))
+                {
+                    container.Open();
+                }
+            }
+            for (int i = 0; i < 40; i++) yield return null;
+            yield return Shoot(camera, "house-loot-kitchen", new Vector3(5.6f, 6.8f, 12.4f), new Vector3(0.8f, 4.9f, 12.6f));
+            yield return Shoot(camera, "house-loot-bedroom", new Vector3(17.6f, 10.4f, 11.0f), new Vector3(14.6f, 9.0f, 13.8f));
+            LootContainer wardrobe = null;
+            foreach (LootContainer container in LootContainer.All) if (container.Items.Contains("t_shirt")) wardrobe = container;
+            var player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"), new Vector3(15.9f, 8.05f, 13.9f), Quaternion.Euler(0, 270, 0));
+            made.Add(player);
+            if (player.GetComponent<Inventory>() == null) player.AddComponent<Inventory>();
+            var window = new GameObject("LootWindow").AddComponent<CityX.UI.LootWindowView>();
+            made.Add(window.gameObject);
+            for (int i = 0; i < 3; i++) yield return null;
+            player.GetComponent<LootSearcher>().Search(wardrobe);
+            for (int i = 0; i < 40; i++) yield return null;
+            Canvas windowCanvas = window.GetComponentInChildren<Canvas>(true);
+            windowCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+            windowCanvas.worldCamera = camera;
+            windowCanvas.planeDistance = 0.5f;
+            camera.fieldOfView = 60.0f;
+            yield return Shoot(camera, "house-loot-window", new Vector3(18.6f, 11.2f, 13.4f), new Vector3(14.8f, 9.4f, 13.9f));
 
             Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             foreach (GameObject go in made) if (go != null) Object.Destroy(go);

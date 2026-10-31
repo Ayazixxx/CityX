@@ -919,6 +919,9 @@ namespace CityX.ViewEditor
             skyline.StructureMaterial = structure;
             skyline.Viewer = cameraObject.transform;
 
+            // --- the loot window: what is in the drawer or cupboard the player opened (docs/LOOTING.md). Builds itself.
+            new GameObject("LootWindow").AddComponent<CityX.UI.LootWindowView>();
+
             // --- the map. M opens it; it guards itself against opening on
             // --- top of the console or while the game is paused.
             var mapPlayer = Object.FindFirstObjectByType<PlayerVitals>();
