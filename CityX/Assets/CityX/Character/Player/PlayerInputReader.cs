@@ -326,6 +326,11 @@ namespace CityX.Character
             {
                 gameObject.AddComponent<LootSearcher>();
             }
+            // F opens the item looked at in its appraisal card beside it, the camera gliding in (docs/ITEM_INSPECT.md).
+            if (GetComponent<ItemInspector>() == null)
+            {
+                gameObject.AddComponent<ItemInspector>();
+            }
 
             // A stagger cuts short what was winding up (2026-10-14: the Stability stat makes it rarer).
             if (_vitals != null)

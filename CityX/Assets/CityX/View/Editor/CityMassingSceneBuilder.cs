@@ -934,6 +934,9 @@ namespace CityX.ViewEditor
 
             // --- the loot window: what is in the drawer or cupboard the player opened (docs/LOOTING.md). Builds itself.
             new GameObject("LootWindow").AddComponent<CityX.UI.LootWindowView>();
+            // --- the prompt under the crosshair naming the item looked at, and the appraisal card F opens beside it (docs/ITEM_INSPECT.md).
+            new GameObject("ItemPrompt").AddComponent<CityX.UI.ItemPromptView>();
+            new GameObject("ItemCard").AddComponent<CityX.UI.ItemCardView>();
 
             // --- the map. M opens it; it guards itself against opening on
             // --- top of the console or while the game is paused.

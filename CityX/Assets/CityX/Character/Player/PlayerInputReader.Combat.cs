@@ -179,8 +179,10 @@ namespace CityX.Character
             // as long as the button stays down.
             if (EquippedFlamethrower != null)
             {
-                // A flashlight also switches on and off with F (the Godot game's key; docs/FLASHLIGHT.md).
-                if (EquippedFlamethrower is ITorch torch && Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
+                // A flashlight also switches on and off with F (the Godot game's key; docs/FLASHLIGHT.md), unless F is about to open the
+                // card of an item in reach (ItemInspector).
+                if (EquippedFlamethrower is ITorch torch && Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame
+                    && !(GetComponent<ItemInspector>() is ItemInspector inspector && inspector.ClaimsF))
                 {
                     torch.Toggle();
                 }

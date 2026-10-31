@@ -56,6 +56,11 @@ piece that opens has its parts), `LootingPlayTests` (the real body opens Old Guy
 bathroom cabinet behind a wall is never in reach but is from in front of it; the bat is in a crate in the cellar), `OldGuysHousePlanTests` (what is inside
 is real items, in parts the pieces have). `OldGuysHouseCapture` renders `house-loot-kitchen.png`, `house-loot-bedroom.png` and `house-loot-window.png`.
 
+## The prompt
+
+Since 2026-10-31 a container looked at in reach names itself under the crosshair with `[E] Search`, as an item lying in the open names itself with
+`[E] Take  [F] Inspect` (docs/ITEM_INSPECT.md).
+
 ## Not done
 
 Searching time (instant now; docs/LOOT_AND_BUILDING_LEVELS.md asks whether a few seconds of risk is wanted), locked containers and keys, putting things
