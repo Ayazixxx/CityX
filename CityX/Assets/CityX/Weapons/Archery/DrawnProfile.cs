@@ -45,7 +45,7 @@ namespace CityX.Weapons
         public static readonly DrawnProfile Slingshot = new DrawnProfile(DrawnKind.Slingshot, ItemRegistry.Slingshot, SlingshotRules.FullDrawSeconds,
             ArcheryRules.MinDraw, SlingshotRules.TapFlatRange, SlingshotRules.FullFlatRange, SlingshotRules.TapDamage, SlingshotRules.FullDamage,
             SlingshotRules.TapFallSpeed, SlingshotRules.FullFallSpeed, SlingshotRules.ReloadSeconds, "PEBBLES",
-            new PlayerLocomotion.DrawStyle(0.0f, SlingshotRules.DrawLength, SlingshotRules.PouchAbove));
+            new PlayerLocomotion.DrawStyle(0.0f, SlingshotRules.DrawLength, SlingshotRules.PouchAbove, slingshot: true));
 
         private DrawnProfile(DrawnKind kind, string itemId, float fullDrawSeconds, float minDraw, float tapFlatRange, float fullFlatRange,
             float tapDamage, float fullDamage, float tapFallSpeed, float fullFallSpeed, float reloadSeconds, string ammoName,

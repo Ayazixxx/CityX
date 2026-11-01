@@ -306,7 +306,9 @@ namespace CityX.Weapons
             Vector3 hand = _locomotion != null ? transform.InverseTransformPoint(_locomotion.BowNock) : RestPoint;
 
             Vector3 nock = RestPoint;
-            if (pull > 0.01f)
+            // A slingshot's pouch is held from the moment it is aimed (the hand already up by the cheek, PlayerLocomotion.Slingshot.cs); a bow's
+            // string only once it is drawn.
+            if (pull > 0.01f || (up && _reload <= 0.0f && Profile.Style.Slingshot))
             {
                 nock = hand;
             }

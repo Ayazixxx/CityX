@@ -65,6 +65,7 @@ namespace CityX.Tests
             }
             yield return Shoot(camera, "magic-wand-pointed", body + new Vector3(3.2f, 2.0f, 1.6f), body + new Vector3(0.0f, 1.6f, 1.2f));
             yield return Shoot(camera, "magic-wand-speck", body + new Vector3(1.6f, 2.2f, 4.0f), body + new Vector3(0.3f, 2.0f, 6.0f));
+            yield return Shoot(camera, "magic-wand-pointed-game-view", body + new Vector3(0.87f, 3.2f, -5.0f), body + new Vector3(0.87f, 2.6f, 10.0f));
 
             wand.OnUnequip(player);
             yield return null;

@@ -14,15 +14,25 @@ namespace CityX.Character
         /// <summary>How long the wand takes to come up (and go back down), seconds.</summary>
         public const float WandRaiseSeconds = 0.08f;
 
-        /// <summary>Pointed, where the hand goes from the right shoulder along the aim, and how far across and up off that line, metres (built height).</summary>
-        public const float WandReach = 0.6f;
+        /// <summary>
+        /// Pointed, the arm straight out from the shoulder at what the crosshair is on, the wand running on along the arm's line (the owner,
+        /// 2026-10-31, with Hogwarts Legacy's casting: "just have him extend his arm out toward whatever he is aiming at"): the hand this share
+        /// of the arm's whole length from the shoulder, a hair short of locked straight.
+        /// </summary>
+        public const float WandArmStraightShare = 0.96f;
 
-        public static readonly Vector3 WandHoldOffset = new Vector3(-0.04f, -0.08f, 0.0f);
+        /// <summary>
+        /// Carried, the arm hanging relaxed at the side: the hand this share of the arm's length below the shoulder, swung this far forward and
+        /// out, the elbow a little back; the wand pointing on from the hand this much further forward than the forearm, so the wrist barely
+        /// bends (the old carry put the hand before the hip with the elbow out and back and the wrist cocked: "like his arm is bent the wrong way").
+        /// </summary>
+        public const float WandCarryShare = 0.93f;
 
-        /// <summary>Carried, where the hand hangs from the right shoulder (across, up, forward), and how far below ahead the wand points, degrees.</summary>
-        public static readonly Vector3 WandCarryHand = new Vector3(0.14f, -0.68f, 0.24f);
+        public const float WandCarryForwardDegrees = 14.0f;
 
-        public const float WandCarryDipDegrees = 55.0f;
+        public const float WandCarryOutDegrees = 6.0f;
+
+        public const float WandCarryWristDegrees = 40.0f;
 
         /// <summary>How long one <see cref="HoldWandOut"/> keeps the wand pointed, seconds: whoever wants it out calls it every frame.</summary>
         public const float WandHoldSeconds = 0.1f;
@@ -106,15 +116,27 @@ namespace CityX.Character
         /// <summary>The arm <paramref name="raise"/> of the way from carrying the wand to pointing it at <see cref="WandAimPoint"/>.</summary>
         private void PoseWand(float raise)
         {
-            Vector3 carried = Quaternion.AngleAxis(WandCarryDipDegrees, transform.right) * transform.forward;
-            Vector3 pointed = transform.forward;
-            Vector3 toAim = _wandAimPoint - _rightUpperArm.position;
+            Vector3 forward = transform.forward, right = transform.right;
+            Vector3 shoulder = _rightUpperArm.position;
+            float arm = Vector3.Distance(shoulder, _rightLowerArm.position) + Vector3.Distance(_rightLowerArm.position, _handR.position);
+
+            // Carried: hanging at the side, the wand on past the hand a little forward of the forearm's line.
+            Vector3 hang = Quaternion.AngleAxis(-WandCarryForwardDegrees, right) * Quaternion.AngleAxis(-WandCarryOutDegrees, forward) * Vector3.down;
+            Vector3 carriedHand = shoulder + hang * (arm * WandCarryShare);
+            Vector3 carried = Quaternion.AngleAxis(-WandCarryWristDegrees, right) * hang;
+
+            // Pointed: the arm straight out at the aim, the wand along it.
+            Vector3 pointed = forward;
+            Vector3 toAim = _wandAimPoint - shoulder;
             if (_wandAimAge <= WandAimFreshSeconds && toAim.sqrMagnitude > 0.01f)
             {
                 pointed = toAim.normalized;
             }
+            Vector3 pointedHand = shoulder + pointed * (arm * WandArmStraightShare);
+
             Vector3 direction = Vector3.Slerp(carried, pointed, raise).normalized;
-            HoldRightHandOut(direction, raise, WandCarryHand, WandReach, WandHoldOffset);
+            Vector3 elbowHint = Vector3.Lerp(-forward * 0.6f + right * 0.2f + Vector3.down, right * 0.3f + Vector3.down, raise);
+            PoseRightHand(Vector3.Lerp(carriedHand, pointedHand, raise), direction, elbowHint);
         }
     }
 }

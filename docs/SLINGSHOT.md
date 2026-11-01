@@ -29,12 +29,19 @@ go it shoots; a hitscan over a flat range that grows with the draw, the pebble t
 
 The numbers are mine. Pebbles are not counted (no ammo yet, as arrows).
 
-## The hold (`PlayerLocomotion.Bow.cs`, `DrawStyle`)
+## The hold (`PlayerLocomotion.Slingshot.cs`)
 
-The bow's pose in its own style: the fork upright in the left fist at arm's length along the aim; the right hand pinches the pouch at the fork's
-height (0.2 m above the grip, between the prongs' tips: `PouchAbove`), with no reach for a quiver, and pulls it straight back 0.5 m toward the chin
-and cheek (the bow's draw is 0.62 m). The bands follow the hand from the prongs' tips; the pebble rides in the pouch, hidden while the next one is
-fetched. On the loose the bands snap back and shiver, as the bow's string does, and the hand flicks off them.
+Bully's Jimmy's (the owner, 2026-11-01, with two Bully screenshots: "they actually put the slingshot in the left hand but angled it way better",
+"hold it further away from his head unbend his arm when holding right click or scoping in"; a right-handed try and two square-on tries, the
+fork behind the big head and the drawing arm through it, were dropped). Aimed (right-click), the torso turns 45 degrees side-on, the left shoulder
+leading, and the head turns back to look along the aim. The left arm is straight (99.5% of its length: 97% still bent it 29 degrees), the fork
+upright in the fist and leaning 30 degrees in toward the drawing hand. The pouch is held up by the right cheekbone, at an anchor just outside the
+head (0.85, 0, 0.75 head radii to the right, up and forward of its middle), the right hand pinching it with the fingers toward the fork and the
+palm to the cheek, the elbow low and back so the forearm rises to the face; the fork stands on the line from that anchor along the aim, as a
+shooter lines it up with the eye, which also keeps it clear of the head from the camera over the right shoulder. Aimed and undrawn, the hand rests
+90% of the way back (further forward, the arm, from the turned-back shoulder, straightened across the face); the draw pulls the rest, the bands
+following the hand from the moment it is aimed. On the loose the bands snap back and shiver, as the bow's string does, and the hand flicks off
+them. `SlingshotCapture` renders it from the side and from the game's own aiming camera (`slingshot-drawn-aim-view.png`: the player's view).
 
 ## The model (`ArcheryBuilder.BuildSlingshot`, `BuildPebble`)
 

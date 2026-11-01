@@ -31,8 +31,13 @@ namespace CityX.Character
 
             Vector3 held = HeldOutHand(shoulder, direction, reach, holdOffset);
             Vector3 hung = shoulder + (right * carryHand.x + up * carryHand.y + forward * carryHand.z) * scale;
-            Vector3 hand = Vector3.Lerp(hung, held, raise);
-            Vector3 elbowHint = Vector3.Lerp(right * 0.5f - forward * 0.4f + Vector3.down, right + Vector3.down * 0.6f, raise);
+            PoseRightHand(Vector3.Lerp(hung, held, raise), direction,
+                Vector3.Lerp(right * 0.5f - forward * 0.4f + Vector3.down, right + Vector3.down * 0.6f, raise));
+        }
+
+        /// <summary>The right hand at <paramref name="hand"/>, the elbow toward <paramref name="elbowHint"/>, turned so what it holds runs along <paramref name="direction"/>.</summary>
+        private void PoseRightHand(Vector3 hand, Vector3 direction, Vector3 elbowHint)
+        {
             TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, hand, elbowHint, 1.0f);
 
             Vector3 alongArm = _handR.position - _rightLowerArm.position;

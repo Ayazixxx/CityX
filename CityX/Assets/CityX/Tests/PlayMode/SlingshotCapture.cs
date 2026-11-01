@@ -65,7 +65,22 @@ namespace CityX.Tests
             // As the player sees it: the game's camera, behind and to the right, its aim field of view (docs/CAMERA.md).
             camera.fieldOfView = 50.0f;
             yield return Shoot(camera, "slingshot-drawn-game-view", body + new Vector3(0.87f, 3.2f, -5.0f), body + new Vector3(0.87f, 2.6f, 10.0f));
+            // Aimed in (right-click), as the player sees it: the game's own camera on this body in its aim framing, given a second to settle in.
             camera.fieldOfView = 30.0f;
+            var aimObject = new GameObject("AimCam");
+            Camera aimCamera = aimObject.AddComponent<Camera>();
+            aimCamera.fieldOfView = ThirdPersonCamera.DefaultFieldOfView;
+            aimCamera.nearClipPlane = 0.02f;
+            aimCamera.clearFlags = CameraClearFlags.SolidColor;
+            aimCamera.backgroundColor = camera.backgroundColor;
+            var aimRig = aimObject.AddComponent<ThirdPersonCamera>();
+            aimRig.Target = player.transform;
+            aimRig.Yaw = player.transform.eulerAngles.y;
+            aimRig.IsAiming = true;
+            yield return Hold(player, sling, true, true, 1.5f);
+            Transform aimView = aimObject.transform;
+            yield return Shoot(aimCamera, "slingshot-drawn-aim-view", aimView.position, aimView.position + aimView.forward * 10.0f);
+            Object.Destroy(aimObject);
             yield return Hold(player, sling, false, true, 4.0f * Step);
             yield return Shoot(camera, "slingshot-flung", body + new Vector3(3.0f, 3.4f, -2.6f), body + new Vector3(0.0f, 2.0f, 4.0f));
 

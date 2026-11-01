@@ -130,6 +130,20 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(sling.NockedArrow.position, rightHand.position), 0.12f, "the pebble is not at the pouch hand");
             float aboveGrip = Vector3.Dot(rightHand.position - leftHand.position, Vector3.up);
             Assert.Greater(aboveGrip, 0.0f, "the pouch is drawn from below the fork");
+
+            // Held as Bully's Jimmy holds it (the owner, 2026-11-01: "hold it further away from his head unbend his arm"): the fork arm
+            // straight, the pouch hand beside the jaw and outside the head, the fork well out in front of the face.
+            Transform leftUpper = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm), leftLower = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+            float straight = Vector3.Angle(leftLower.position - leftUpper.position, leftHand.position - leftLower.position);
+            Assert.Less(straight, 15.0f, $"the fork arm is bent {straight:F0} degrees at the elbow");
+            Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+            float headRadius = FusedBodyShape.HeadRadius * player.GetComponent<PlayerLocomotion>().WorldHeight / BodyRig.StandingHeight;
+            Assert.Greater(Vector3.Distance(rightHand.position, head.position), headRadius, "the pouch hand is inside the head");
+            float forkOut = Vector3.Dot(sling.transform.position - head.position, aim);
+            Assert.Greater(forkOut, 0.6f, $"the fork is only {forkOut:F2} m out before the head");
+            Transform rightLower = animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+            Assert.Greater(Vector3.Distance(rightLower.position, head.position), headRadius, "the drawing forearm goes through the head");
+            Assert.Greater(Vector3.Distance(leftLower.position, head.position), headRadius, "the fork arm goes through the head");
         }
 
         [UnityTest]

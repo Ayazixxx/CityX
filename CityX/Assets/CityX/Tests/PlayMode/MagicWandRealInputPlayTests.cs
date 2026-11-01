@@ -109,7 +109,9 @@ namespace CityX.Tests
             Assert.AreEqual(mana - FireballCaster.SpellManaCost * MagicSpeckRules.WandManaCostFactor, vitals.Mana, 0.3f,
                 "a fireball through the wand pays a tenth less");
             Assert.Greater(locomotion.WandRaise, 0.99f, "the wand was not pointed with the cast");
-            Assert.Less(Vector3.Distance(left.Value, locomotion.WandTip.position), 0.08f, "the fireball did not leave the wand's tip");
+            // Read a few frames after the cast: the arm held straight out (2026-11-01) puts the tip on a longer lever from the shoulder, so the
+            // body's idle sway since then moves it about a centimetre.
+            Assert.Less(Vector3.Distance(left.Value, locomotion.WandTip.position), 0.1f, "the fireball did not leave the wand's tip");
             Vector3 chest = player.transform.position + Vector3.up * (locomotion.WorldHeight * 0.68f);
             Assert.Greater(Vector3.Distance(left.Value, chest), 0.3f, "the fireball left the chest, as without a wand");
         }

@@ -63,11 +63,15 @@ namespace CityX.Character
             /// <summary>How far above the grip the string hand holds the shot, metres.</summary>
             public readonly float NockAbove;
 
-            public DrawStyle(float nockShare, float drawLength, float nockAbove)
+            /// <summary>Posed as Bully's slingshot (PlayerLocomotion.Slingshot.cs): side-on, the fork arm straight, the pouch drawn to the cheek.</summary>
+            public readonly bool Slingshot;
+
+            public DrawStyle(float nockShare, float drawLength, float nockAbove, bool slingshot = false)
             {
                 NockShare = nockShare;
                 DrawLength = drawLength;
                 NockAbove = nockAbove;
+                Slingshot = slingshot;
             }
 
             public static DrawStyle Bow => new DrawStyle(BowNockShare, BowDrawLength, 0.0f);
@@ -162,8 +166,13 @@ namespace CityX.Character
             Vector3 up = Vector3.ProjectOnPlane(Vector3.up, aim);
             up = up.sqrMagnitude > 1e-6f ? up.normalized : transform.up;
             Vector3 right = Vector3.Cross(up, aim).normalized;
+            Vector3 weaponUp = up;
 
-            if (raise > 0.0f)
+            if (raise > 0.0f && _bowStyle.Slingshot)
+            {
+                weaponUp = PoseSlingshotArms(raise, aim, up, right, scale);
+            }
+            else if (raise > 0.0f)
             {
                 // The bow arm: straight out along the aim from the left shoulder, the fist upright on the grip, palm to the aim, thumb up.
                 Vector3 bowHand = _leftUpperArm.position + aim * (BowArmReach * scale);
@@ -204,7 +213,7 @@ namespace CityX.Character
             Vector3 palm = _handL.position + _handL.rotation * new Vector3(-PalmOffsetMetres * scale, 0.0f, 0.0f);
             Vector3 bodyForward = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
             Quaternion lowered = Quaternion.LookRotation(bodyForward.sqrMagnitude > 1e-6f ? bodyForward.normalized : Vector3.forward, Vector3.up);
-            Quaternion raised = Quaternion.LookRotation(aim, up);
+            Quaternion raised = Quaternion.LookRotation(aim, weaponUp);
             _bow.SetPositionAndRotation(palm, Quaternion.Slerp(lowered, raised, raise));
         }
     }
