@@ -56,6 +56,8 @@ namespace CityX.Tests
             yield return Shoot(camera, "house-living-from-gallery", new Vector3(9.6f, l2 + 2.4f, 10.8f), new Vector3(1.0f, l1 + 0.5f, 5.0f));
             yield return Shoot(camera, "house-hall", new Vector3(12.6f, l1 + 2.8f, 9.7f), new Vector3(28.0f, l1 + 1.6f, 9.7f));
             yield return Shoot(camera, "house-kitchen", new Vector3(8.6f, l1 + 2.8f, 13.0f), new Vector3(0.8f, l1 + 1.4f, 18.4f));
+            // The first floor's floor at a grazing angle, over the ground floor's walls: no strip of wall top may show through it.
+            yield return Shoot(camera, "house-floor-grazing", new Vector3(14.0f, l1 + 1.2f, 21.0f), new Vector3(2.0f, l1 + 0.0f, 13.0f));
             yield return Shoot(camera, "house-den", new Vector3(19.4f, l1 + 2.6f, 12.8f), new Vector3(25.0f, l1 + 0.8f, 19.5f));
             yield return Shoot(camera, "house-stairs", new Vector3(16.4f, l1 + 2.8f, 10.8f), new Vector3(12.5f, 2.0f, 2.0f));
             yield return Shoot(camera, "house-grandson", new Vector3(9.6f, l2 + 2.6f, 13.0f), new Vector3(2.6f, l2 + 1.0f, 21.0f));

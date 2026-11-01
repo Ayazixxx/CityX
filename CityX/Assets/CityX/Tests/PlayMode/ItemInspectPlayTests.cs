@@ -220,6 +220,26 @@ namespace CityX.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheCardStandsClearOfAWallBesideTheItem()
+        {
+            yield return Rig();
+            // A wall just to the right of the knife (the viewer looks along +z, so the right is +x), where the card would otherwise stand.
+            GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _made.Add(wall);
+            wall.transform.position = _knife.Centre + new Vector3(0.6f, 1.0f, 0.0f);
+            wall.transform.localScale = new Vector3(0.2f, 3.0f, 4.0f);
+            Physics.SyncTransforms();
+            _inspector.Open(_knife);
+            yield return UntilOpen();
+            InspectShot shot = _inspector.Shot;
+            Assert.AreNotEqual(CardSide.Right, shot.Side, "the card went into the wall on the right");
+            Assert.IsFalse(Physics.CheckBox(shot.CardPosition, InspectShot.CardHalfExtents, shot.CardRotation, ~0, QueryTriggerInteraction.Ignore)
+                           && wall.GetComponent<Collider>().bounds.Intersects(new Bounds(shot.CardPosition, InspectShot.CardHalfExtents * 2.0f)),
+                "the card stands inside the wall");
+            Assert.IsTrue(_card.Showing);
+        }
+
+        [UnityTest]
         public IEnumerator TheArrowsCompareWithTheSwordInHand()
         {
             yield return Rig();

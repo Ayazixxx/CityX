@@ -41,6 +41,27 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TheCardCanStandOnTheLeftOrOverTheItemWhenTheRightIsTaken()
+        {
+            InspectShot right = InspectShot.For(Item, ViewedFrom);
+            InspectShot left = InspectShot.For(Item, ViewedFrom, InspectShot.Distance, CardSide.Left);
+            InspectShot over = InspectShot.For(Item, ViewedFrom, InspectShot.Distance, CardSide.Over);
+            Assert.AreEqual(CardSide.Right, right.Side);
+            Assert.Less(left.CardPosition.x, Item.x, "the left card should stand on the viewer's left");
+            Assert.AreEqual(Item.x - (right.CardPosition.x - Item.x), left.CardPosition.x, 1e-4f, "the left card mirrors the right one");
+            Assert.Less(left.CameraPosition.x, Item.x - 1.0f, "the camera should swing to the left card's side");
+            Assert.AreEqual(Item.x, over.CardPosition.x, 1e-4f, "the card over the item stands centred on it");
+            Assert.AreEqual(Item.z, over.CardPosition.z, 1e-4f);
+            Assert.Greater(over.CardPosition.y - InspectShot.CardHeight * 0.5f, Item.y + InspectShot.CardLift, "the card over the item clears it");
+            foreach (InspectShot shot in new[] { right, left, over })
+            {
+                Vector3 toCard = (shot.CardPosition - shot.CameraPosition).normalized;
+                Assert.Greater(Vector3.Dot(shot.CardRotation * Vector3.forward, toCard), 0.999f, $"the {shot.Side} card does not face the camera");
+                Assert.Less(Vector3.Angle(shot.CameraRotation * Vector3.forward, shot.Focus - shot.CameraPosition), 0.5f);
+            }
+        }
+
+        [Test]
         public void AWallBehindTheCameraPullsItInButNoCloserThanTheLeast()
         {
             InspectShot near = InspectShot.For(Item, ViewedFrom, 1.8f);

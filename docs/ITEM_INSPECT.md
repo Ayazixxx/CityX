@@ -15,6 +15,9 @@ decided there is **no durability**; on 2026-10-31 they chose **compare arrows** 
   top, a round mark with the item's initial (the owner draws the icons; the first letter stands in, as the hotbar's spell icons do), the
   NAME in its rarity's colour, "Knife / One Hand" under it and the rarity word, then the numbers in two columns and the notes, and
   `[E] Take   [F] Close` along the bottom.
+- **Beside a wall.** The card stands on the viewer's right unless something solid is there (a box check of the card's room), then on the
+  left, else standing over the item; the camera swings to whichever side the card took (the owner, 2026-10-31: "the inspect thing is going
+  through walls at certain angles").
 - **The glide.** The camera does not cut: over half a second it swings round to the card's side (so your own body is out of the way),
   comes in to 2.7 m and looks down a little, the card unfolding from nothing as it comes; at 50 degrees of view the card fills nearly half
   the height, so it reads. F or Tab folds the card away and the camera glides back to exactly where it was. E takes the item and does the same.

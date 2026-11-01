@@ -166,6 +166,13 @@ Drawers, cupboards, the fridge, the wardrobe, the chests and the toolbox open wi
 crate at the back of the cellar (it was in the tree house's crate until the backyard went); the tutorial's basic clothing is in Old Guy's wardrobe, his
 hat in his bedside drawer, a flashlight in a kitchen drawer, a bottle in the fridge, a spray can in the garage toolbox.
 
+## Walls under floors (2026-10-31)
+
+A wall ends 2 cm inside the slab over it (`OldGuysHouseBuilder.WallTopInset`): a ground-floor wall reaching exactly the first floor's height had
+its top face flush with that floor's top, and wherever no wall stood on it upstairs the two fought, a strip flickering in and out of the floor
+along the wall below (the owner: "a line going through the whole house that is clipping in and out of the floor"). `house-floor-grazing.png`
+in the capture looks along the first floor for it.
+
 ## Power (2026-10-31)
 
 docs/GAME_DESIGN.md: "The claim follows the real rule: the house is cleared, Old Guy has you turn its power back on, then you claim it." The

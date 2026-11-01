@@ -9,6 +9,14 @@ namespace CityX.Character
     /// card's writing is legible (the owner: "zooms into it a bit so its legible"). The move between the camera's own place and this one is
     /// eased (<see cref="Blend"/>), never a cut ("make it smoothly transition into it not just snap"). Plain maths, tested without a scene.
     /// </summary>
+    /// <summary>Where the card stands: beside the item on the viewer's right, on the left when a wall is there, or over it when both sides are.</summary>
+    public enum CardSide
+    {
+        Right,
+        Left,
+        Over,
+    }
+
     public readonly struct InspectShot
     {
         /// <summary>The card's size in metres (the player is 2.6 m tall): a sheet about the size of a door's window.</summary>
@@ -38,8 +46,9 @@ namespace CityX.Character
         public readonly Vector3 CardPosition;
         public readonly Quaternion CardRotation;
         public readonly float CameraDistance;
+        public readonly CardSide Side;
 
-        private InspectShot(Vector3 focus, Vector3 cameraPosition, Quaternion cameraRotation, Vector3 cardPosition, Quaternion cardRotation, float distance)
+        private InspectShot(Vector3 focus, Vector3 cameraPosition, Quaternion cameraRotation, Vector3 cardPosition, Quaternion cardRotation, float distance, CardSide side)
         {
             Focus = focus;
             CameraPosition = cameraPosition;
@@ -47,18 +56,28 @@ namespace CityX.Character
             CardPosition = cardPosition;
             CardRotation = cardRotation;
             CameraDistance = distance;
+            Side = side;
         }
 
-        /// <summary>The shot of the item at <paramref name="itemCentre"/> for a camera that looked at it from <paramref name="viewFrom"/>.</summary>
-        public static InspectShot For(Vector3 itemCentre, Vector3 viewFrom, float distance = Distance)
+        /// <summary>Half the card's size, for a box check of the room it needs (a little less than the sheet, so a wall it merely touches passes).</summary>
+        public static Vector3 CardHalfExtents => new Vector3(CardWidth * 0.45f, CardHeight * 0.45f, 0.02f);
+
+        /// <summary>
+        /// The shot of the item at <paramref name="itemCentre"/> for a camera that looked at it from <paramref name="viewFrom"/>, the card on
+        /// <paramref name="side"/>: beside the item on the viewer's right or left, or standing over it; the camera swings to the card's side.
+        /// </summary>
+        public static InspectShot For(Vector3 itemCentre, Vector3 viewFrom, float distance = Distance, CardSide side = CardSide.Right)
         {
             Vector3 approach = itemCentre - viewFrom;
             approach.y = 0.0f;
             Vector3 forward = approach.sqrMagnitude > 1e-4f ? approach.normalized : Vector3.forward;
             Vector3 right = Vector3.Cross(Vector3.up, forward);
-            Vector3 cardPosition = itemCentre + right * (CardWidth * 0.5f + CardGap) + Vector3.up * (CardHeight * 0.5f + CardLift);
+            float beside = side == CardSide.Right ? 1.0f : side == CardSide.Left ? -1.0f : 0.0f;
+            float lift = side == CardSide.Over ? CardHeight * 0.5f + CardLift + 0.25f : CardHeight * 0.5f + CardLift;
+            Vector3 cardPosition = itemCentre + right * (beside * (CardWidth * 0.5f + CardGap)) + Vector3.up * lift;
 
-            Vector3 cameraFlat = Quaternion.AngleAxis(-SwingDegrees, Vector3.up) * forward;
+            float swing = side == CardSide.Left ? SwingDegrees : -SwingDegrees;   // round to the card's side, the right by default
+            Vector3 cameraFlat = Quaternion.AngleAxis(swing, Vector3.up) * forward;
             Vector3 cameraRight = Vector3.Cross(Vector3.up, cameraFlat);
             Vector3 cameraForward = Quaternion.AngleAxis(LookDownDegrees, cameraRight) * cameraFlat;
             Vector3 focus = Vector3.Lerp(itemCentre, cardPosition, 0.55f);
@@ -66,7 +85,7 @@ namespace CityX.Character
             Quaternion cameraRotation = Quaternion.LookRotation(cameraForward, Vector3.up);
             // A canvas reads from along its own forward: the card's forward runs from the camera through it, so it faces the camera, leaning.
             Quaternion cardRotation = Quaternion.LookRotation(cardPosition - cameraPosition, Vector3.up);
-            return new InspectShot(focus, cameraPosition, cameraRotation, cardPosition, cardRotation, Mathf.Max(LeastDistance, distance));
+            return new InspectShot(focus, cameraPosition, cameraRotation, cardPosition, cardRotation, Mathf.Max(LeastDistance, distance), side);
         }
 
         /// <summary>The move's easing: still at both ends, quickest in the middle (a smoothstep), so neither end snaps.</summary>

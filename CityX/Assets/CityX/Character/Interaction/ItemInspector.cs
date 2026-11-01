@@ -178,10 +178,24 @@ namespace CityX.Character
             Shot = ShotFor(item);
         }
 
-        /// <summary>The shot of the item, the camera pulled in when a wall stands between the item and its place.</summary>
+        private static readonly Collider[] Overlaps = new Collider[8];
+
+        /// <summary>
+        /// The shot of the item: the card on the viewer's right unless a wall is there, then on the left, else over the item (the owner,
+        /// 2026-10-31: "the inspect thing is going through walls at certain angles"); and the camera pulled in when a wall stands between the
+        /// item and its place.
+        /// </summary>
         private InspectShot ShotFor(DroppedItem item)
         {
             InspectShot shot = InspectShot.For(item.Centre, _fromPosition);
+            foreach (CardSide side in new[] { CardSide.Right, CardSide.Left, CardSide.Over })
+            {
+                shot = InspectShot.For(item.Centre, _fromPosition, InspectShot.Distance, side);
+                if (!CardMeetsAWall(shot, item))
+                {
+                    break;
+                }
+            }
             Vector3 back = shot.CameraPosition - shot.Focus;
             float distance = back.magnitude;
             int count = Physics.SphereCastNonAlloc(shot.Focus, WallRadius, back / distance, Hits, distance, ~0, QueryTriggerInteraction.Ignore);
@@ -195,7 +209,22 @@ namespace CityX.Character
                 }
                 nearest = Mathf.Min(nearest, Hits[i].distance);
             }
-            return nearest < distance ? InspectShot.For(item.Centre, _fromPosition, nearest - 0.1f) : shot;
+            return nearest < distance ? InspectShot.For(item.Centre, _fromPosition, nearest - 0.1f, shot.Side) : shot;
+        }
+
+        /// <summary>Whether anything solid but the item itself or this body stands where the card would (a wall, a cupboard, a window).</summary>
+        private bool CardMeetsAWall(InspectShot shot, DroppedItem item)
+        {
+            int count = Physics.OverlapBoxNonAlloc(shot.CardPosition, InspectShot.CardHalfExtents, Overlaps, shot.CardRotation, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                Transform hit = Overlaps[i].transform;
+                if (!hit.IsChildOf(transform) && !hit.IsChildOf(item.transform))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void Tick()

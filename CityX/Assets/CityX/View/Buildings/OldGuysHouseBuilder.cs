@@ -208,10 +208,18 @@ namespace CityX.View
 
         // ---- walls, doors, windows ----
 
+        /// <summary>
+        /// A wall ends this far short of the slab over it, inside the slab: a wall reaching exactly the next floor's height had its top face flush
+        /// with that floor's top, and wherever no wall stood on it upstairs the two fought, a strip flickering in and out of the floor along the
+        /// wall below (the owner, 2026-10-31: "a line going through the whole house that is clipping in and out of the floor").
+        /// </summary>
+        private const float WallTopInset = 0.02f;
+
         private static void Walls(MeshBuffer b)
         {
             foreach (House.Wall wall in House.Walls)
             {
+                float top = wall.Y1 - WallTopInset;
                 // Openings that share a span (the living room's two windows, one over the other) are cut as one column: wall, window, wall, window, wall.
                 var openings = new List<House.Opening>(wall.Openings);
                 openings.Sort((p, q) => p.From != q.From ? p.From.CompareTo(q.From) : p.Sill.CompareTo(q.Sill));
@@ -219,7 +227,7 @@ namespace CityX.View
                 for (int i = 0; i < openings.Count;)
                 {
                     House.Opening first = openings[i];
-                    WallPiece(b, wall, cursor, first.From, wall.Y0, wall.Y1);
+                    WallPiece(b, wall, cursor, first.From, wall.Y0, top);
                     float y = wall.Y0;
                     for (; i < openings.Count && Mathf.Approximately(openings[i].From, first.From) && Mathf.Approximately(openings[i].To, first.To); i++)
                     {
@@ -227,10 +235,10 @@ namespace CityX.View
                         Dress(b, wall, openings[i]);
                         y = openings[i].Head;
                     }
-                    WallPiece(b, wall, first.From, first.To, y, wall.Y1);
+                    WallPiece(b, wall, first.From, first.To, y, top);
                     cursor = first.To;
                 }
-                WallPiece(b, wall, cursor, wall.To, wall.Y0, wall.Y1);
+                WallPiece(b, wall, cursor, wall.To, wall.Y0, top);
             }
         }
 
