@@ -35,6 +35,7 @@ namespace CityX.Tests
                 yield return SceneManager.UnloadSceneAsync(_scene);
             }
             LogAssert.ignoreFailingMessages = false;
+            Debug.unityLogger.logEnabled = true;
         }
 
         private static bool Enabled => Environment.GetEnvironmentVariable("CITYX_BENCH") == "1";
@@ -169,6 +170,9 @@ namespace CityX.Tests
             }
 
             LogAssert.ignoreFailingMessages = true;
+            // Silent while it measures: in the editor the scene warns every frame about what the test run lacks (no network manager, no audio
+            // listener), and a console log with its stack trace costs the main thread 0.5-7 ms, which the game never pays.
+            Debug.unityLogger.logEnabled = false;
             UnityEditor.PlayerSettings.enableFrameTimingStats = true;
             UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(ScenePath, new LoadSceneParameters(LoadSceneMode.Additive));
             yield return null;
@@ -250,6 +254,7 @@ namespace CityX.Tests
             string folder = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "Benchmark");
             Directory.CreateDirectory(folder);
             File.WriteAllText(Path.Combine(folder, $"bench-{DateTime.Now:yyyyMMdd-HHmmss}.txt"), sb.ToString());
+            Debug.unityLogger.logEnabled = true;
             Debug.Log("CityX BENCH:\n" + sb);
 #else
             yield break;

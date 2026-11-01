@@ -21,6 +21,11 @@ namespace CityX.ViewEditor
     /// </summary>
     public static class ProfileReport
     {
+        /// <summary>How many of the slowest frames are broken down on their own, and how many markers each shows.</summary>
+        private const int WorstFrames = 5;
+
+        private const int WorstFrameRows = 10;
+
         private sealed class Row
         {
             public string Name;
@@ -28,6 +33,9 @@ namespace CityX.ViewEditor
             public double TotalMs;
             public long Calls;
             public int Frames;
+
+            /// <summary>Managed memory allocated under this marker (its own and its children's), bytes: what feeds the garbage collector.</summary>
+            public double GcBytes;
         }
 
         [MenuItem("CityX/Profile Report (from CITYX_PROFILE_FILE)")]
@@ -64,6 +72,7 @@ namespace CityX.ViewEditor
             foreach (string threadName in new[] { "Main Thread", "Render Thread" })
             {
                 var rows = new Dictionary<string, Row>();
+                var worst = new List<(int frame, int thread, float ms)>();
                 double frameMs = 0.0;
                 int frames = 0;
                 for (int frame = from; frame <= last; frame++)
@@ -83,7 +92,35 @@ namespace CityX.ViewEditor
                         }
                         frames++;
                         frameMs += view.frameTimeMs;
+                        worst.Add((frame, threadIndex, view.frameTimeMs));
                         Visit(view, view.GetRootItemID(), rows, frame);
+                    }
+                }
+                // The averages hide a hitch: the handful of slowest frames, each with what it spent its time on by itself.
+                worst.Sort((a, b) => b.ms.CompareTo(a.ms));
+                if (threadName == "Main Thread" && worst.Count > 0)
+                {
+                    sb.AppendLine("\n== Main Thread: the worst frames");
+                    for (int i = 0; i < Mathf.Min(WorstFrames, worst.Count); i++)
+                    {
+                        using (HierarchyFrameDataView view = ProfilerDriver.GetHierarchyFrameDataView(
+                            worst[i].frame, worst[i].thread, HierarchyFrameDataView.ViewModes.MergeSamplesWithTheSameName,
+                            HierarchyFrameDataView.columnSelfTime, false))
+                        {
+                            if (view == null || !view.valid)
+                            {
+                                continue;
+                            }
+                            var alone = new Dictionary<string, Row>();
+                            Visit(view, view.GetRootItemID(), alone, worst[i].frame);
+                            var top = new List<Row>(alone.Values);
+                            top.Sort((a, b) => b.SelfMs.CompareTo(a.SelfMs));
+                            sb.AppendLine($"  frame {worst[i].frame}: {worst[i].ms:0.0} ms");
+                            for (int j = 0; j < Mathf.Min(WorstFrameRows, top.Count); j++)
+                            {
+                                sb.AppendLine($"      {top[j].SelfMs,7:0.00}  self   total {top[j].TotalMs,7:0.00}   calls {top[j].Calls,5}   {top[j].Name}");
+                            }
+                        }
                     }
                 }
 
@@ -106,6 +143,14 @@ namespace CityX.ViewEditor
                 for (int i = 0; i < Mathf.Min(22, list.Count); i++)
                 {
                     sb.AppendLine($"  {list[i].TotalMs / frames,7:0.00}  total  self {list[i].SelfMs / frames,7:0.00}   calls/frame {list[i].Calls / (double)frames,7:0.0}   {list[i].Name}");
+                }
+                // What makes the garbage: the markers under which managed memory is allocated, which is what the collections that stop a
+                // frame are paying for. A parent's figure includes its children's, so the deepest named marker is the one to read.
+                sb.AppendLine("Top by GARBAGE made (KB per frame, including children):");
+                list.Sort((a, b) => b.GcBytes.CompareTo(a.GcBytes));
+                for (int i = 0; i < Mathf.Min(22, list.Count) && list[i].GcBytes > 0.0; i++)
+                {
+                    sb.AppendLine($"  {list[i].GcBytes / frames / 1024.0,8:0.0}  KB   calls/frame {list[i].Calls / (double)frames,7:0.0}   {list[i].Name}");
                 }
             }
             return sb.ToString();
@@ -147,6 +192,7 @@ namespace CityX.ViewEditor
                 row.SelfMs += view.GetItemColumnDataAsFloat(child, HierarchyFrameDataView.columnSelfTime);
                 row.TotalMs += view.GetItemColumnDataAsFloat(child, HierarchyFrameDataView.columnTotalTime);
                 row.Calls += (long)view.GetItemColumnDataAsFloat(child, HierarchyFrameDataView.columnCalls);
+                row.GcBytes += view.GetItemColumnDataAsFloat(child, HierarchyFrameDataView.columnGcMemory);
                 Visit(view, child, rows, frame);
             }
         }
