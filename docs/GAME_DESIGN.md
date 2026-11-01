@@ -65,6 +65,7 @@ Enemies are the real content cost, not terrain (see Enemies).
 Owner, 2026-10-22: **a giant island in the sky**, set up like a Minecraft factions server's spawn. **No PvP damage and no damage to anything there** (no broken glass, no props knocked over). **You jump off its edges and plummet down into the world.** There will also be a way to be put somewhere random: a random location portal, or a command like `/random` (not decided).
 
 Owner, 2026-11-01:
+- **The hub is a vibe to hang out at**: the social place between trips down.
 - **A giant spiral staircase leads up to the island**, so anyone can walk home; you come down by jumping off, with no fall damage.
 - **The island is the safe zone; the staircase is guarded.** Attacking on the stairs is possible, but guards go after whoever attacks someone not fighting back ("gives me a chance to design some cool iconic guards of the safe zone": the owner designs them). The city below is free for all.
 - My suggestions (not decided): a gate at the top of the stairs where the safe zone starts, with a "Safe Zone" message; a barrier round the island that stops shots from outside; no entering for about 15 s after a hit (combat tag); a flagged attacker cannot enter the hub until the flag wears off (ties into karma); four staircases, one per corner tower, to spread out campers.
@@ -295,7 +296,7 @@ Undecided between the two; current recommendation:
 Minecraft Factions, in the city.
 
 - **Relations:** ally and truce need both sides to agree; neutral by default; enemy is one-sided.
-- **Territory:** first **a room**, then **a whole building**, then blocks, then districts (owner, 2026-10-18). A room is claimed by meeting a requirement, such as placing a bed in it; a whole building only once it is **cleared of enemies and has electricity**. Furniture found in buildings can be picked up and brought home to decorate your room and house. Details and open questions: `docs/LOOT_AND_BUILDING_LEVELS.md` section 5. (The existing `/claim` command, ported from Godot, claims a whole building at once with no requirement: a prototype.)
+- **Territory:** first **a room**, then **a whole building**, then blocks, then districts (owner, 2026-10-18). A room is claimed by meeting a requirement, such as placing a bed in it; a whole building only once it is **cleared of enemies and has electricity**. Furniture found in buildings can be picked up and brought home to decorate your room and house. **Big furniture is moved for real** (owner, 2026-11-01): a couch is dragged home, or picked up and carried with a friend, which is faster; with a lot of Strength one player can carry it alone. Details and open questions: `docs/LOOT_AND_BUILDING_LEVELS.md` section 5. (The existing `/claim` command, ported from Godot, claims a whole building at once with no requirement: a prototype.)
 - **Faction power:** members' deaths drain it; the land you can hold is limited by it; lose too much and your land becomes raidable.
 - **War:** declare, 24 h warm-up, a goal (take a district, raid a base, tribute), ends in surrender, truce or exhaustion.
 - **No offline raiding: sieges only happen in windows the defenders chose** (EVE, Albion). Scheduled sieges are also what guarantees big battles.
