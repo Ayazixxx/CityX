@@ -107,7 +107,7 @@ My suggestions (not decided):
 
 Open: what a player who skips misses (the gear and the faction for sure; the first skill point?); who the gunman and the rescuer are; how the rescuer gets you up to the sky hub.
 
-Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-shirt, stats, skill tree, spells, a prototype `/claim`, ragdolls. Not yet: the private copy and its edge, Old Guy's new dialogue and its "no" branches, house loot (the knife, turning the power on), factions, the cutscene system, the rescuer, the hub.
+Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-shirt, stats, skill tree, spells, a prototype `/claim`, ragdolls; since 2026-10-30/31 Old Guy's house itself with its loot (the knife, the bat, the wand, the slingshot, the drawers), its breakable door planks and windows, and its fuse box (the house is dark until its lever is thrown, docs/OLD_GUYS_HOUSE.md). Not yet: the private copy and its edge, Old Guy's new dialogue and its "no" branches, the claim gated on the power, factions, the cutscene system, the rescuer, the hub.
 
 ## Getting home
 

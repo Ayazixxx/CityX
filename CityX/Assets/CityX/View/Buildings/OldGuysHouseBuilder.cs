@@ -76,6 +76,7 @@ namespace CityX.View
             Emit(root.transform, "Structure", structure, materials.Structure, true, true);
             Emit(root.transform, "Furniture", furniture, materials.Structure, true, true);
             Containers(root.transform, materials.Structure);
+            FuseBox(root.transform, materials.Structure);
             Panes(root.transform, materials);
             FrontDoor(root.transform, materials.Structure);
             Emit(root.transform, "CaseGlass", caseGlass, materials.Glass, false, false);
@@ -654,6 +655,31 @@ namespace CityX.View
                         container.Items.AddRange(piece.Stash);
                     }
                 }
+            }
+        }
+
+        /// <summary>The fuse box's lever as a piece of its own on a hinge at its middle, with the switch that throws it (FuseBoxSwitch); the box is furniture.</summary>
+        private static void FuseBox(Transform root, Material material)
+        {
+            foreach (House.Furniture piece in House.FurnitureList)
+            {
+                if (piece.Kind != House.FurnitureKind.FuseBox)
+                {
+                    continue;
+                }
+                Quaternion turn = Quaternion.Euler(0, piece.Yaw, 0);
+                var hinge = new GameObject("FuseBoxLever");
+                hinge.transform.SetParent(root, false);
+                hinge.transform.localPosition = piece.Position + turn * FurnitureKit.FuseLeverHinge;
+                hinge.transform.localRotation = turn;
+                var shape = new MeshBuffer();
+                Box(shape, FurnitureKit.FuseLeverMin - FurnitureKit.FuseLeverHinge, FurnitureKit.FuseLeverMax - FurnitureKit.FuseLeverHinge,
+                    SurfaceLook.Pack(FurnitureKit.FuseLeverRed, (int)WallMaterial.Metal, 0.1f, true));
+                GameObject mesh = Emit(hinge.transform, "Lever", shape, material, false, true);
+                var box = mesh.AddComponent<BoxCollider>();
+                box.center = (FurnitureKit.FuseLeverMin + FurnitureKit.FuseLeverMax) * 0.5f - FurnitureKit.FuseLeverHinge;
+                box.size = FurnitureKit.FuseLeverMax - FurnitureKit.FuseLeverMin;
+                hinge.AddComponent<FuseBoxSwitch>().Lever = mesh.transform;
             }
         }
 

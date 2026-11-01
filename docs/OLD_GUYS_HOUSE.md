@@ -166,6 +166,22 @@ Drawers, cupboards, the fridge, the wardrobe, the chests and the toolbox open wi
 crate at the back of the cellar (it was in the tree house's crate until the backyard went); the tutorial's basic clothing is in Old Guy's wardrobe, his
 hat in his bedside drawer, a flashlight in a kitchen drawer, a bottle in the fridge, a spray can in the garage toolbox.
 
+## Power (2026-10-31)
+
+docs/GAME_DESIGN.md: "The claim follows the real rule: the house is cleared, Old Guy has you turn its power back on, then you claim it." The
+house is **dark when the player arrives**: every lamp off (by day the windows light the rooms; the flashlight is in a kitchen drawer). The
+**fuse box** on the workshop's east wall has a red lever on a hinge at its middle; looked at, it names itself under the crosshair ("Fuse box",
+`[E] Turn the power on`, the same prompt as the items and the drawers), and E throws it over with a switch's click: the power comes on
+(`World/TutorialHousePower`, kept apart from the house's objects so a rebuild keeps it, as the broken pieces are kept) and every lamp lights.
+Thrown, the lever hangs down and offers nothing more. This machine's own, as the containers are (the tutorial is played in a private copy of
+the streets); the claim is not gated on it yet (Old Guy's lines for it are the owner's to write; `TutorialHousePower.Shared.IsOn` is the hook).
+
+How: `View/Interactables/FuseBoxSwitch` is a `Character/Interaction/HoverTarget`, a thing that names itself and is used with E; the inspector's
+look (`ItemInspector`) picks the item, the container or the target looked at most directly, the prompt names it, and the pickup and the searcher
+yield to a target looked at more directly. `FuseBoxPlayTests` (dark; the lever named; E lights every lamp and the lever swings over; a rebuilt
+house is still lit with the lever down), `TutorialHousePowerTests`. `OldGuysHouseCapture` turns the power on before its room shots and renders
+`house-fuse-box.png`.
+
 ## Open (the owner's)
 
 Old Guy following or waiting (drawn waiting in the den); keeping the sealed manhole; the pool from gm_house4 (left out); whether the rooms want the full

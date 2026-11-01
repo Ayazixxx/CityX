@@ -33,6 +33,7 @@ namespace CityX.Tests
             sun.transform.rotation = Quaternion.Euler(50.0f, -40.0f, 0.0f);
             made.Add(sun.gameObject);
             CityX.View.OldGuysHouseSite site = OldGuysHousePlayTests.MakeHouse(made, true, true);
+            CityX.World.TutorialHousePower.Shared.TurnOn();   // the rooms are shot lit, as they are once the fuse box's lever is thrown
             var camera = new GameObject("Cam").AddComponent<Camera>();
             camera.nearClipPlane = 0.05f;
             camera.clearFlags = CameraClearFlags.SolidColor;
@@ -49,6 +50,8 @@ namespace CityX.Tests
             yield return Shoot(camera, "house-front-door", new Vector3(32.6f, l1 + 2.6f, 9.7f), new Vector3(28.0f, l1 + 1.8f, 9.7f));
             camera.fieldOfView = 70.0f;
             yield return Shoot(camera, "house-garage", new Vector3(10.2f, 3.4f, 1.0f), new Vector3(3.5f, 1.0f, 12.0f));
+            CityX.View.FuseBoxSwitch lever = site.Built.GetComponentInChildren<CityX.View.FuseBoxSwitch>();
+            yield return Shoot(camera, "house-fuse-box", lever.Centre + new Vector3(-2.6f, 0.5f, 1.4f), lever.Centre);
             yield return Shoot(camera, "house-living", new Vector3(10.4f, l1 + 3.0f, 11.4f), new Vector3(2.0f, l1 + 1.5f, 4.0f));
             yield return Shoot(camera, "house-living-from-gallery", new Vector3(9.6f, l2 + 2.4f, 10.8f), new Vector3(1.0f, l1 + 0.5f, 5.0f));
             yield return Shoot(camera, "house-hall", new Vector3(12.6f, l1 + 2.8f, 9.7f), new Vector3(28.0f, l1 + 1.6f, 9.7f));

@@ -22,6 +22,15 @@ namespace CityX.View
         private static readonly Color Chrome = new Color(0.70f, 0.72f, 0.74f);
 
         /// <summary>Adds <paramref name="piece"/> to <paramref name="buffer"/>, turned and moved into the house's frame.</summary>
+        /// <summary>The fuse box's lever in the box's own frame: a red handle proud of the face, hinged at its middle (FuseLeverHinge), pointing up.</summary>
+        public static readonly Vector3 FuseLeverMin = new Vector3(0.18f, 1.6f, 0.25f);
+
+        public static readonly Vector3 FuseLeverMax = new Vector3(0.28f, 1.95f, 0.33f);
+
+        public static readonly Vector3 FuseLeverHinge = new Vector3(0.23f, 1.775f, 0.29f);
+
+        public static readonly Color FuseLeverRed = new Color(0.75f, 0.15f, 0.10f);
+
         public static void Add(MeshBuffer buffer, OldGuysHouse.Furniture piece)
         {
             float yaw = piece.Yaw * Mathf.Deg2Rad;
@@ -78,7 +87,7 @@ namespace CityX.View
                     break;
                 case Kind.FuseBox:
                     B(b, -0.4f, 1.3f, 0, 0.4f, 2.4f, 0.25f, c, Metal);
-                    B(b, 0.18f, 1.6f, 0.25f, 0.28f, 1.95f, 0.33f, new Color(0.75f, 0.15f, 0.10f), Metal);   // the lever
+                    // Its lever is a piece of its own on a hinge (OldGuysHouseBuilder.FuseBox, FuseBoxSwitch): FuseLeverMin to FuseLeverMax.
                     B(b, -0.05f, 0, 0.02f, 0.05f, 1.3f, 0.08f, Dark, Metal);                // the cable down the wall
                     break;
                 case Kind.Boiler:

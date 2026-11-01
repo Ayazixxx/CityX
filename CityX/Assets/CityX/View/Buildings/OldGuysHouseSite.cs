@@ -94,6 +94,7 @@ namespace CityX.View
                 pane.CrackSounds = CrackSounds;
                 pane.BreakSounds = BreakSounds;
             }
+            ApplyPower(TutorialHousePower.Shared.IsOn);
             Physics.SyncTransforms();
             if (PlaceItems)
             {
@@ -135,6 +136,29 @@ namespace CityX.View
             if (OldGuysHouse.WithinWalls(transform.InverseTransformPoint(_player.position), SwordsmanWakeMargin))
             {
                 PutDownSwordsman();
+            }
+        }
+
+        private void OnEnable()
+        {
+            TutorialHousePower.Shared.Changed += ApplyPower;
+        }
+
+        private void OnDisable()
+        {
+            TutorialHousePower.Shared.Changed -= ApplyPower;
+        }
+
+        /// <summary>The house's lamps follow its power (TutorialHousePower): dark until the fuse box's lever is thrown, then lit.</summary>
+        private void ApplyPower(bool on)
+        {
+            if (Built == null)
+            {
+                return;
+            }
+            foreach (Light light in Built.GetComponentsInChildren<Light>(true))
+            {
+                light.enabled = on;
             }
         }
 

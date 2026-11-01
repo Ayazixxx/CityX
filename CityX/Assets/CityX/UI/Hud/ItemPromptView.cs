@@ -82,7 +82,8 @@ namespace CityX.UI
                     if (inspector.GetComponent<PlayerInputReader>() != null) _inspector = inspector;
                 }
             }
-            bool show = _inspector != null && !_inspector.IsOpen && (_inspector.Hovered != null || _inspector.HoveredContainer != null);
+            bool show = _inspector != null && !_inspector.IsOpen
+                && (_inspector.Hovered != null || _inspector.HoveredContainer != null || _inspector.HoveredTarget != null);
             if (_panel.activeSelf != show) _panel.SetActive(show);
             if (!show) return;
 
@@ -93,11 +94,17 @@ namespace CityX.UI
                 _name.color = RarityLook.OnDark(ItemRarity.Of(itemId));
                 _keys.text = ItemKeys;
             }
-            else
+            else if (_inspector.HoveredContainer != null)
             {
                 _name.text = _inspector.HoveredContainer.Label;
                 _name.color = Plain;
                 _keys.text = ContainerKeys;
+            }
+            else
+            {
+                _name.text = _inspector.HoveredTarget.Label;
+                _name.color = Plain;
+                _keys.text = _inspector.HoveredTarget.Keys;
             }
         }
     }

@@ -75,6 +75,10 @@ namespace CityX.Character
             {
                 return false;   // a drawer or cupboard is looked at more directly: E opens it
             }
+            if (item != null && HoverTarget.Best(transform, out float targetDot) != null && targetDot > dot)
+            {
+                return false;   // a lever is looked at more directly: E throws it (ItemInspector)
+            }
             return item != null && Record.Take(item.Id, inventory);
         }
     }

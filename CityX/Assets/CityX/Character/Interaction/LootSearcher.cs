@@ -51,7 +51,8 @@ namespace CityX.Character
             }
             LootContainer container = InReach(out float dot);
             var picker = GetComponent<DroppedItemPicker>();
-            if (container != null && (picker == null || picker.InReach(out float itemDot) == null || itemDot < dot))
+            if (container != null && (picker == null || picker.InReach(out float itemDot) == null || itemDot < dot)
+                && (HoverTarget.Best(transform, out float targetDot) == null || targetDot <= dot))   // a lever looked at more directly is E's (ItemInspector)
             {
                 Search(container);
             }

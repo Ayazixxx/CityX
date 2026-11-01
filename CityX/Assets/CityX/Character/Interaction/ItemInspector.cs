@@ -45,6 +45,9 @@ namespace CityX.Character
 
         public LootContainer HoveredContainer { get; private set; }
 
+        /// <summary>Or a thing that names itself and is used with E (HoverTarget: a lever), when it is the most directly looked at.</summary>
+        public HoverTarget HoveredTarget { get; private set; }
+
         /// <summary>F would open a card now: whatever else F does (a flashlight's switch) stands aside.</summary>
         public bool ClaimsF => !IsOpen && Hovered != null;
 
@@ -92,6 +95,7 @@ namespace CityX.Character
             }
             Hovered = null;
             HoveredContainer = null;
+            HoveredTarget = null;
             if (_reader == null || !_reader.enabled || _picker == null)
             {
                 return;
@@ -102,9 +106,17 @@ namespace CityX.Character
             {
                 Open(Hovered);
             }
+            else if (HoveredTarget != null && InteractKey.Tapped)
+            {
+                HoveredTarget.Use(gameObject);
+            }
         }
 
-        /// <summary>The item or the container looked at most directly in reach: the same tie as DroppedItemPicker's, the item winning a draw.</summary>
+        /// <summary>
+        /// The item, the container or the other thing looked at most directly in reach: the same tie as DroppedItemPicker's, the item winning
+        /// a draw with a container, and either winning a draw with a lever (the pickup and the searcher act on E by themselves and yield to a
+        /// lever looked at more directly, as this acts for it).
+        /// </summary>
         private void Look()
         {
             DroppedItem item = _picker.InReach(out float itemDot);
@@ -114,7 +126,13 @@ namespace CityX.Character
             {
                 container = _searcher.InReach(out containerDot);
             }
-            if (item != null && (container == null || itemDot >= containerDot))
+            HoverTarget target = HoverTarget.Best(transform, out float targetDot);
+            float best = Mathf.Max(item != null ? itemDot : float.MinValue, container != null ? containerDot : float.MinValue);
+            if (target != null && targetDot > best)
+            {
+                HoveredTarget = target;
+            }
+            else if (item != null && (container == null || itemDot >= containerDot))
             {
                 Hovered = item;
             }
