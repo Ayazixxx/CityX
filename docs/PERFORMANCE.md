@@ -60,11 +60,6 @@ city scene runs alone in this build, with no network manager: the animator sync 
 
 ## Still on the table
 
-- **One chunk's assembly in one frame (2026-10-31).** The worst sprinting frames (25-30 ms, three in a row as a new row of chunks comes in)
-  are one chunk each: 48 `Mesh.SetVertexBufferData` calls (a dozen meshes, four streams each, 5 ms), 167 `AddComponent`s and 79 awakenings
-  (doors, panes, props) in the same frame. `AssembleTimeBudgetMs` (2 ms) is checked between chunks, so a big chunk blows it alone. Next:
-  assemble a chunk in stages across frames (its structure first, its doors, panes and props over the following frames), measured with the
-  worst-frames table of `ProfileReport`.
 - Merge far chunks into blocks (4x4 chunks per mesh): draws in view ~2,500 -> a few hundred.
 - Frame pacing: ~20% of sprinting frames land at 17-20 ms even though CPU and GPU are each ~6 ms busy (windowed
   presentation); not chased.
@@ -297,3 +292,16 @@ from the table, so the collections that stopped a frame for 17 ms come several t
 `Mathf.Min` with more than two arguments allocate.
 What is left (7 KB a frame) is mostly 32 bytes a frame for each of the 133 `BuildingDoor`s streamed in; probes round every part of its
 `Update` found none of it inside, so it is likely the editor's own cost of invoking a script's Update, which a build does not pay. Not chased.
+
+## Update: a chunk is dressed over the frames its collider cooks (2026-10-31)
+
+The worst-frames table showed the worst sprinting frames (25-30 ms, three in a row as a new row of chunks came in) were one chunk each: 48
+`Mesh.SetVertexBufferData` calls (a dozen meshes, four streams each, 5 ms), 167 `AddComponent`s and 79 awakenings (its glass, decals,
+markings, rail, doors, lamps, interiors and room lights) in the frame it landed. `AssembleTimeBudgetMs` is checked between chunks, so one big
+chunk blew it alone. A chunk already waits, switched off, for its collider to cook on a worker (10-100 ms); now only its main mesh is made in
+the landing frame and the rest is queued as dressing steps (`AssembleChunk`'s `dressing`, `PendingSwap.Dressing`) run a step at a time within
+`DressTimeBudgetMs` (2 ms) a frame while it waits (`DressPending`), the chunk going on screen when both the collider and the dressing are
+done; its payload, which the steps read, is given back after the last step (`GiveBack`), or when the chunk is thrown away. The synchronous
+path (the spawn pre-stream, captures, tests) still makes it all at once. `ChunkDressingPlayTests`: the chunks round the spawn streamed on the
+budget are, part for part, the chunks made at once, and every payload comes back. After, in the same sprint: the worst profiled frames 22, 20,
+18, 17 ms with none of the chunk's markers among their top costs; 82 fps, p95 14.2 ms, 1.5% of frames under 60 fps.

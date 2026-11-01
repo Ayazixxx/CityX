@@ -75,6 +75,10 @@ namespace CityX.View
                  "(at least one chunk a frame is always finished).")]
         public float AssembleTimeBudgetMs = 2.0f;
 
+        [Tooltip("How long a frame spends dressing the chunks that wait for their colliders (their doors, glass, lamps, interiors), ms: a " +
+                 "step at least, more while this lasts. One chunk's whole dressing in one frame was the worst hitch left while sprinting.")]
+        public float DressTimeBudgetMs = 2.0f;
+
         [Tooltip("Most chunks being generated at once (at least twice the worker threads); more just queues work that may be stale by the time it lands.")]
         public int MaxChunksInFlight = 6;
 
@@ -1109,7 +1113,14 @@ namespace CityX.View
         /// streaming makes) the chunk is made INACTIVE and its big collider is left without its mesh: the caller has it cooked on a worker
         /// (BeginSwap) and switches the chunk on when that is done. Without it (the synchronous path) the collider is cooked here, at once.
         /// </summary>
-        private GameObject AssembleChunk(ChunkPayload payload, bool deferCollider = false)
+        /// <summary>
+        /// The chunk as a scene object. With <paramref name="dressing"/> given, only its main mesh is made now and everything else in it (the
+        /// glass and decals, the markings and the rail, the doors, the lamps, the interiors, the room lights) is queued as steps for the frames
+        /// its collider spends cooking (BeginSwap, CompleteSwaps): made in one frame they were the worst hitch left while sprinting, a dozen mesh
+        /// uploads and 170 components as each new chunk landed (docs/PERFORMANCE.md, 2026-10-31). The steps read <paramref name="payload"/>, so
+        /// it is given back only after them. Without a queue (the spawn pre-stream, captures, tests) it is all made here, as before.
+        /// </summary>
+        private GameObject AssembleChunk(ChunkPayload payload, bool deferCollider = false, Queue<System.Action> dressing = null)
         {
             _current = payload;
             Vector2Int key = payload.Key;
@@ -1166,16 +1177,36 @@ namespace CityX.View
                 return go;
             }
 
-            AddCrackedGlass(go, key);
-            AddCrackDecals(go, key);
-            AddMarkings(go, key);
-            AddGuardRail(go, key);
-            AddDoor(go, key);
-            AddEntranceLamps(go, key);
-            AddInteriorVolume(go, key);
-            AddRoomLights(go, payload);
+            if (dressing == null)
+            {
+                AddCrackedGlass(go, key);
+                AddCrackDecals(go, key);
+                AddMarkings(go, key);
+                AddGuardRail(go, key);
+                AddDoor(go, key);
+                AddEntranceLamps(go, key);
+                AddInteriorVolume(go, key);
+                AddRoomLights(go, payload);
+            }
+            else
+            {
+                dressing.Enqueue(() => Dressed(payload, () => { AddCrackedGlass(go, key); AddCrackDecals(go, key); }));
+                dressing.Enqueue(() => Dressed(payload, () => { AddMarkings(go, key); AddGuardRail(go, key); }));
+                dressing.Enqueue(() => AddDoor(go, key));
+                dressing.Enqueue(() => AddEntranceLamps(go, key));
+                dressing.Enqueue(() => AddInteriorVolume(go, key));
+                dressing.Enqueue(() => AddRoomLights(go, payload));
+            }
             _current = null;
             return go;
+        }
+
+        /// <summary>A deferred dressing step that reads the payload's buffers (through <see cref="_current"/>), run with it in place.</summary>
+        private void Dressed(ChunkPayload payload, System.Action step)
+        {
+            _current = payload;
+            step();
+            _current = null;
         }
 
         /// <summary>
@@ -1647,6 +1678,14 @@ namespace CityX.View
 
             /// <summary>A window in it changed while it was being generated: a rebuild follows it on screen.</summary>
             public bool ChangedMeanwhile;
+
+            /// <summary>
+            /// Its dressing still to be made (the glass and decals, the markings, the doors, the lamps, the interiors, the room lights), a step
+            /// a frame or so while its collider cooks (CompleteSwaps), and the payload those steps read, given back once they are done.
+            /// </summary>
+            public Queue<System.Action> Dressing;
+
+            public ChunkPayload Payload;
         }
 
         private readonly List<PendingSwap> _pendingSwaps = new List<PendingSwap>();
@@ -1692,18 +1731,60 @@ namespace CityX.View
         /// </summary>
         private void BeginSwap(ChunkPayload payload, GameObject replaces, bool streamed = false, bool changedMeanwhile = false)
         {
-            GameObject fresh = AssembleChunk(payload, deferCollider: true);
+            var dressing = new Queue<System.Action>();
+            GameObject fresh = AssembleChunk(payload, deferCollider: true, dressing);
             var collider = fresh.GetComponent<MeshCollider>();
             Mesh mesh = fresh.GetComponent<MeshFilter>().sharedMesh;
             var cook = new ColliderCook { MeshId = mesh.GetEntityId(), Options = collider.cookingOptions };
-            _pendingSwaps.Add(new PendingSwap
+            var swap = new PendingSwap
             {
                 Key = payload.Key, Fresh = fresh, Replaces = replaces, Collider = collider, Mesh = mesh, Cook = cook,
-                Streamed = streamed, Far = payload.Far, ChangedMeanwhile = changedMeanwhile,
-            });
+                Streamed = streamed, Far = payload.Far, ChangedMeanwhile = changedMeanwhile, Dressing = dressing, Payload = payload,
+            };
+            _pendingSwaps.Add(swap);
             Cook(cook);
             _inFlight.Add(payload.Key);   // still on its way: nothing else is started for it, and more hits on it wait for this one
-            Recycle(payload);   // made (the Mesh has its own copy): the payload goes to the next chunk
+            if (dressing.Count == 0)
+            {
+                GiveBack(swap);   // nothing left to read it (a far chunk): the payload goes to the next chunk
+            }
+        }
+
+        /// <summary>The payload a swap's dressing read, given back once, when the dressing is done or the chunk is thrown away.</summary>
+        private void GiveBack(PendingSwap swap)
+        {
+            if (swap.Payload != null)
+            {
+                Recycle(swap.Payload);
+                swap.Payload = null;
+            }
+        }
+
+        /// <summary>
+        /// The dressing steps of the chunks waiting for their colliders, oldest chunk first, within <see cref="DressTimeBudgetMs"/> a frame and at
+        /// least one step a frame, so a chunk is never held up for good; a chunk's payload is given back as its last step is done.
+        /// </summary>
+        private void DressPending()
+        {
+            System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+            bool first = true;
+            for (int i = 0; i < _pendingSwaps.Count; i++)
+            {
+                PendingSwap swap = _pendingSwaps[i];
+                while (swap.Dressing.Count > 0 && (first || clock.Elapsed.TotalMilliseconds < DressTimeBudgetMs))
+                {
+                    first = false;
+                    swap.Dressing.Dequeue()();
+                    if (swap.Dressing.Count == 0)
+                    {
+                        GiveBack(swap);
+                    }
+                }
+                if (swap.Dressing.Count > 0)
+                {
+                    return;   // the budget is spent: the rest next frame
+                }
+            }
         }
 
         /// <summary>
@@ -1714,10 +1795,11 @@ namespace CityX.View
         private void CompleteSwaps(Vector2Int centre)
         {
             _swapInClock.Restart();
+            DressPending();
             for (int i = 0; i < _pendingSwaps.Count;)
             {
                 PendingSwap swap = _pendingSwaps[i];
-                if (!swap.Cook.IsDone)
+                if (!swap.Cook.IsDone || swap.Dressing.Count > 0)
                 {
                     i++;
                     continue;
@@ -1735,6 +1817,7 @@ namespace CityX.View
                 bool onScreen = _loaded.TryGetValue(swap.Key, out GameObject current);
                 if (!ReferenceEquals(current, swap.Replaces) || (swap.Streamed && IsOutOfRange(swap.Key, centre)))
                 {
+                    GiveBack(swap);
                     DestroyChunk(swap.Fresh);
                     if (changed && onScreen)
                     {
@@ -1784,6 +1867,7 @@ namespace CityX.View
                 _inFlight.Remove(swap.Key);
                 _changedInFlight.Remove(swap.Key);
                 _pendingRefresh.Remove(swap.Key);
+                GiveBack(swap);
                 DestroyChunk(swap.Fresh);
             }
             _pendingSwaps.Clear();
