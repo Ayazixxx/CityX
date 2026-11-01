@@ -67,8 +67,9 @@ namespace CityX.ViewEditor
             var sb = new StringBuilder();
             sb.AppendLine($"Profile {Path.GetFileName(rawPath)}: frames {first}..{last} ({last - first + 1})");
 
-            // Skip the first few frames (warm-up) and any past the end.
-            int from = Mathf.Min(last, first + 5);
+            // Skip the first two frames (the profiler's own start-up) and any past the end: a hitch in the first second of a phase is as real as
+            // any, and five skipped frames used to hide the benchmark's worst one.
+            int from = Mathf.Min(last, first + 2);
             foreach (string threadName in new[] { "Main Thread", "Render Thread" })
             {
                 var rows = new Dictionary<string, Row>();
