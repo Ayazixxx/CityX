@@ -91,6 +91,8 @@ The owner's plan:
 - **About 10 minutes**, give or take. **Starting the game throws you straight into it**: no party invites or lobby on the title screen, and no doing the tutorial together with a friend. Friends meet up after it (or early, if one refuses it).
 - **Saying no at the start** (when you first talk to him outside, or never talking to him at all): he disappears at some point once off screen and you are moved into the full multiplayer game with no tutorial.
 - **The tutorial ends in the hub**, not with a jump off it (owner): the rescuer may show you the drop, but the first jump is your own.
+- **You can leave the tutorial at any time by walking away** (owner, 2026-11-01), into the real game.
+- **Old Guy's house is in the real city too** (owner, 2026-11-01, "if you walk away and then walk back and the house has changed or is gone wouldnt that be weird"): the same building on the same spot, abandoned, Old Guy gone. **It is claimable there, and it stands by the hub's drop-off, a dangerous area**: "like making your faction base right outside the spawn in minecraft factions". (Mine, to keep new players from being camped there: short new-player protection, and leaving the tutorial puts you at the private copy's edge, not on its doorstep.)
 - **He asks about the faction inside the house, after you clear it**, so the cutscene still makes sense whatever you answer. (My reading, to confirm: with yes you create the faction and claim the house before the door is broken in; with no the cutscene follows straight away.)
 
 My suggestions (not decided):
