@@ -305,7 +305,8 @@ Minecraft Factions, in the city.
 ## Social
 
 - **Uncensored chat and names**, no forced filter. Still required by law and platforms: an in-game **report button** and removal of illegal content (UK Online Safety Act covers game chat with no small-company exemption; EU DSA notice-and-action), Xbox mute/block/report rules (XR-015), US child-privacy rules. Hence: **the game is 18+**, each player can switch on a filter for themselves, mute and block, a streamer mode that hides names and chat. Names: anything except impersonating staff and invisible characters.
-- **Proximity voice:** fades with distance, muffled through walls, **faction radio** heard anywhere. Tool candidates: Dissonance (community FishNet connector) or Vivox. Microphone capture with push-to-talk already exists (`PlayerVoiceCapture`); nothing transmits yet.
+- **Proximity voice:** fades with distance, muffled through walls, **faction radio** heard anywhere. Proximity voice is built, with its own codec (2026-11-01, `docs/VOICE.md`); faction radio waits for factions.
+- **Text chat is proximity too** (owner, 2026-11-01), maybe with a `/g` for global chat ("we will figure it out later"). Today what you type only shows as your own speech bubble: nothing is sent yet.
 
 ## Enemies
 

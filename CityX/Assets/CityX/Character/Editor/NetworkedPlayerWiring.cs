@@ -14,6 +14,7 @@ namespace CityX.CharacterEditor
     ///    there is no stepping from rounding (the sword spin's fast turn used to arrive in visible steps);
     ///  * what the body holds or wears on its back (<see cref="NetworkedEquipmentSync"/>);
     ///  * damage between players (<see cref="NetworkedDamage"/>);
+    ///  * proximity voice (<see cref="NetworkedVoice"/>, played by <see cref="VoicePlayback"/>);
     ///  * the equipment list a copy builds its item models from (an Inventory with the item prefabs, which also lets a joining player equip things).
     /// </summary>
     public static class NetworkedPlayerWiring
@@ -111,6 +112,15 @@ namespace CityX.CharacterEditor
                 body.AddComponent<NetworkedDamage>();
             }
             AddRagdollSync(body);
+            // Proximity voice (docs/VOICE.md): the owner's microphone to the players near enough, played from this body's head on theirs.
+            if (body.GetComponent<VoicePlayback>() == null)
+            {
+                body.AddComponent<VoicePlayback>();
+            }
+            if (body.GetComponent<NetworkedVoice>() == null)
+            {
+                body.AddComponent<NetworkedVoice>();
+            }
             if (addInventory && body.GetComponent<Inventory>() == null)
             {
                 body.AddComponent<Inventory>().ItemPrefabs = ItemPrefabEntries();

@@ -5,14 +5,10 @@ using UnityEngine.InputSystem;
 namespace CityX.Character
 {
     /// <summary>
-    /// Local microphone capture, gated by Push-to-Talk/Open Mic. Ported from
-    /// the SETTING ui/settings_panel.gd exposes (push_to_talk, input_device),
-    /// not from any actual transmission code -- this port's real player has
-    /// no networking of any kind yet (confirmed: no NetworkObject, no
-    /// NetworkBehaviour, CityX.Character does not reference FishNet), so
-    /// there is nowhere to send captured audio to. This is the local half
-    /// only: proving the mic path itself works, so a later networking pass
-    /// has real captured audio to start from rather than nothing.
+    /// Local microphone capture, gated by Push-to-Talk (V) or Open Mic (the
+    /// settings' push_to_talk and input_device). What it records goes out in
+    /// 20 ms frames (<see cref="FrameCaptured"/>), which NetworkedVoice sends
+    /// to the players near enough to hear (docs/VOICE.md).
     ///
     /// THE DECISION IS SPLIT FROM THE DEVICE I/O, same reasoning
     /// PlayerAudio.StepFor is split from UpdateFootsteps: ShouldCapture is a
@@ -31,7 +27,23 @@ namespace CityX.Character
     /// </summary>
     public sealed class PlayerVoiceCapture : MonoBehaviour
     {
+        /// <summary>The microphone is read this many samples at a time.</summary>
+        private const int ReadBlock = 160;
+
         public bool IsCapturing { get; private set; }
+
+        /// <summary>Every 20 ms of what the microphone heard while capturing, as the voice codec takes it (sent on by NetworkedVoice).</summary>
+        public event System.Action<float[]> FrameCaptured
+        {
+            add => _framer.FrameReady += value;
+            remove => _framer.FrameReady -= value;
+        }
+
+        private readonly VoiceFramer _framer = new VoiceFramer();
+        private readonly float[] _block = new float[ReadBlock];
+        private AudioClip _clip;
+        private string _recording;
+        private int _read;
 
         private string _device = GameSettings.DefaultDevice;
         private bool _pushToTalk = true;
@@ -79,6 +91,30 @@ namespace CityX.Character
         private void Update()
         {
             Tick(Keyboard.current != null && Keyboard.current.vKey.isPressed);
+            ReadMicrophone();
+        }
+
+        /// <summary>Hands the framer what the microphone recorded since the last read (its clip is a one-second loop it writes round and round).</summary>
+        private void ReadMicrophone()
+        {
+            if (!IsCapturing || _clip == null)
+            {
+                return;
+            }
+            int position = Microphone.GetPosition(_recording);
+            if (position < 0)
+            {
+                return;
+            }
+            int length = _clip.samples;
+            int waiting = (position - _read + length) % length;
+            while (waiting >= ReadBlock)
+            {
+                _clip.GetData(_block, _read);   // reads on round the loop's end
+                _framer.Push(_block, ReadBlock);
+                _read = (_read + ReadBlock) % length;
+                waiting -= ReadBlock;
+            }
         }
 
         /// <summary>
@@ -109,17 +145,25 @@ namespace CityX.Character
             // Unity's own Microphone API takes null for "the default device",
             // not the literal string "Default" this project's settings save.
             string device = _device == GameSettings.DefaultDevice ? null : _device;
-            if (Microphone.Start(device, loop: true, lengthSec: 1, frequency: 16000) == null)
+            // The codec's rate when the microphone can record it, else the nearest it can (the framer resamples); 0 and 0 means any rate.
+            Microphone.GetDeviceCaps(device, out int lowest, out int highest);
+            int rate = lowest == 0 && highest == 0 ? VoiceCodec.SampleRate : Mathf.Clamp(VoiceCodec.SampleRate, lowest, highest);
+            _clip = Microphone.Start(device, loop: true, lengthSec: 1, frequency: rate);
+            if (_clip == null)
             {
                 return;
             }
+            _recording = device;
+            _read = 0;
+            _framer.InputRate = rate;
+            _framer.Reset();
             IsCapturing = true;
         }
 
         private void StopCapture()
         {
-            string device = _device == GameSettings.DefaultDevice ? null : _device;
-            Microphone.End(device);
+            Microphone.End(_recording);
+            _clip = null;
             IsCapturing = false;
         }
 

@@ -53,6 +53,7 @@ conventions down and apply them every time.
    | `Body` | the body's mesh, shape, paint, hair and ragdoll |
    | `NPC` | civilians, enemies' minds, story NPCs, the sparring dummy |
    | `Network` | everything that sends state to other players |
+   | `Voice` | proximity voice: the codec, the hearing, playback (sending it is `Network`'s `NetworkedVoice`) |
    | `Interaction` | picking things up and graffiti |
    | `Story` | the intro cutscene and claiming buildings |
 
