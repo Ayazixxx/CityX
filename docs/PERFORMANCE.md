@@ -264,3 +264,11 @@ The five long tracks (the ambience, the title's `stars`, the intro's `ruins1`, a
 Decompress On Load, and so does the 1 MB `rain_noises`: `OutdoorRainSoundTests` reads its samples to compare loudness, which a streaming clip
 cannot give. After: the first body spawns in 128 ms (JIT and asset reads), the rest of the load keeps about 130 MB free, and the sounds play
 as before (the radio, rain, thunder, title and intro tests). Nothing in the game's code reads a clip's raw samples.
+
+## Update: measured again after the house and the new seed (2026-10-31)
+
+`bench-20261031-172048.txt` against `bench-20261029-172358.txt`, the same laptop at 2560x1600 in the editor: standing still is the same
+(84 fps, 11.9 ms average, p99 18 ms), so the day's additions (the house and its fuse box, the item prompt and card, the poured stream)
+cost nothing per frame. Sprinting fell from 89 to 80 fps (11.2 -> 12.5 ms) with 1.8x the triangles in view (3.8M -> 6.7M): the world seed
+changed to 81565117 for the house's lot, and its spawn streets are denser. Still over the 60 fps budget; 2.5% of sprinting frames land
+under it, the worst 41 ms at the start and a few 30 ms frames while chunks stream in.
