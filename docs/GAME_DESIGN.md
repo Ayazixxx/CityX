@@ -64,6 +64,11 @@ Enemies are the real content cost, not terrain (see Enemies).
 
 Owner, 2026-10-22: **a giant island in the sky**, set up like a Minecraft factions server's spawn. **No PvP damage and no damage to anything there** (no broken glass, no props knocked over). **You jump off its edges and plummet down into the world.** There will also be a way to be put somewhere random: a random location portal, or a command like `/random` (not decided).
 
+Owner, 2026-11-01:
+- **A giant spiral staircase leads up to the island**, so anyone can walk home; you come down by jumping off, with no fall damage.
+- **The island is the safe zone; the staircase is guarded.** Attacking on the stairs is possible, but guards go after whoever attacks someone not fighting back ("gives me a chance to design some cool iconic guards of the safe zone": the owner designs them). The city below is free for all.
+- My suggestions (not decided): a gate at the top of the stairs where the safe zone starts, with a "Safe Zone" message; a barrier round the island that stops shots from outside; no entering for about 15 s after a hit (combat tag); a flagged attacker cannot enter the hub until the flag wears off (ties into karma); four staircases, one per corner tower, to spread out campers.
+
 My suggestions (not decided): the hub gives you a parachute for the drop (or a drop from the hub never does fall damage); the edge you jump from decides roughly where you land, so the island is a launch pad over the starting region; the fall is the intro's skydive (WASD drift, clouds thinning); a portal fits the world better than a command (keep `/random` for testing), it only sends you somewhere on your current layer and has a cooldown, so it is no escape from a fight; camping under the hub is held off by the island's size spreading drops out, spawn protection on landing, and karma (killing someone not fighting back turns you red, and reds cannot enter the hub).
 
 - A floating safe city above the starter city: trading, socialising, faction recruiting, the market board, basic skill trainers.
