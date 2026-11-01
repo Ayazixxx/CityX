@@ -60,6 +60,11 @@ city scene runs alone in this build, with no network manager: the animator sync 
 
 ## Still on the table
 
+- **One chunk's assembly in one frame (2026-10-31).** The worst sprinting frames (25-30 ms, three in a row as a new row of chunks comes in)
+  are one chunk each: 48 `Mesh.SetVertexBufferData` calls (a dozen meshes, four streams each, 5 ms), 167 `AddComponent`s and 79 awakenings
+  (doors, panes, props) in the same frame. `AssembleTimeBudgetMs` (2 ms) is checked between chunks, so a big chunk blows it alone. Next:
+  assemble a chunk in stages across frames (its structure first, its doors, panes and props over the following frames), measured with the
+  worst-frames table of `ProfileReport`.
 - Merge far chunks into blocks (4x4 chunks per mesh): draws in view ~2,500 -> a few hundred.
 - Frame pacing: ~20% of sprinting frames land at 17-20 ms even though CPU and GPU are each ~6 ms busy (windowed
   presentation); not chased.
@@ -281,3 +286,14 @@ near him. Timing its parts: all of it was `FindTarget`, whose once-a-second limi
 idle enemies would have cost 3-4 ms a frame. Now every enemy searches once a second, target or none, and a target that has died is replaced
 at once (`PlayerBodies.Searches` counts, `EnemyTargetSearchPlayTests` holds each kind to one to three searches in 90 frames). After:
 0.06 ms a frame for the same swordsman in the same run.
+
+## Update: the skyline streamer made three quarters of the garbage (2026-10-31)
+
+The report's new garbage table (`ProfileReport`, "Top by GARBAGE made") put 25 of the main thread's 32 KB a frame under
+`SkylineStreamer.Update`, 750 allocations a frame: `Distance` measured every nearby group with `Mathf.Max(a, b, c)`, and the three-argument
+form is the `params float[]` overload, an array per call (`NearViewer` had the same with ints). Nested two-argument calls now; `SkylineTests`
+holds a thousand distance measurements to zero bytes allocated. After, in the same sprint: 7 KB and 160 allocations a frame, the streamer gone
+from the table, so the collections that stopped a frame for 17 ms come several times less often. Lesson for every hot path: `Mathf.Max` and
+`Mathf.Min` with more than two arguments allocate.
+What is left (7 KB a frame) is mostly 32 bytes a frame for each of the 133 `BuildingDoor`s streamed in; probes round every part of its
+`Update` found none of it inside, so it is likely the editor's own cost of invoking a script's Update, which a build does not pay. Not chased.

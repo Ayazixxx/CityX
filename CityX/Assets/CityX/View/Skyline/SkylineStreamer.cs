@@ -239,18 +239,22 @@ namespace CityX.View
         {
             int x0 = group.x * GroupChunks, x1 = x0 + GroupChunks - 1;
             int y0 = group.y * GroupChunks, y1 = y0 + GroupChunks - 1;
-            int dx = Mathf.Max(x0 - around.x, 0, around.x - x1);
-            int dy = Mathf.Max(y0 - around.y, 0, around.y - y1);
+            int dx = Mathf.Max(Mathf.Max(x0 - around.x, 0), around.x - x1);   // two-argument Max: the three-argument form allocates
+            int dy = Mathf.Max(Mathf.Max(y0 - around.y, 0), around.y - y1);
             return Mathf.Max(dx, dy) <= ExcludeRadiusChunks + RebuildStepChunks;
         }
 
-        /// <summary>How far a group's nearest edge is from a point, horizontally, metres.</summary>
+        /// <summary>
+        /// How far a group's nearest edge is from a point, horizontally, metres. Two-argument Max only: the three-argument form is the
+        /// params overload and allocates an array, and this runs for every nearby group every frame (it was three quarters of the garbage,
+        /// docs/PERFORMANCE.md).
+        /// </summary>
         public static float Distance(Vector2Int group, Vector3 p)
         {
             float size = GroupSize;
             float x0 = group.x * size, z0 = group.y * size;
-            float dx = Mathf.Max(x0 - p.x, 0.0f, p.x - (x0 + size));
-            float dz = Mathf.Max(z0 - p.z, 0.0f, p.z - (z0 + size));
+            float dx = Mathf.Max(Mathf.Max(x0 - p.x, 0.0f), p.x - (x0 + size));
+            float dz = Mathf.Max(Mathf.Max(z0 - p.z, 0.0f), p.z - (z0 + size));
             return Mathf.Sqrt(dx * dx + dz * dz);
         }
 

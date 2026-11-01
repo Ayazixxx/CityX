@@ -74,6 +74,12 @@ conventions down and apply them every time.
 6. **No compiler warnings.** A warning is either a bug or noise that hides the next bug. The project compiled with 31 warnings before
    the review and with none after; keep it at none.
 7. **Tests and multiplayer as in CLAUDE.md.** Run EditMode and PlayMode before every commit.
+8. **No garbage in a hot path.** Anything that runs every frame, or once per chunk, group, door or enemy every frame, must allocate nothing:
+   no `new` collections or arrays, no closures, no LINQ, no string building, no `foreach` over an interface-typed collection, and no
+   `Mathf.Max`/`Mathf.Min` with more than two arguments (the three-argument form is the `params` overload and allocates an array per call: it
+   was three quarters of all garbage while sprinting until 2026-10-31, docs/PERFORMANCE.md). The profile report's "Top by GARBAGE" table
+   (`ProfileReport`) says where the garbage is made; a test can hold a pure helper to zero bytes with `GC.GetAllocatedBytesForCurrentThread`
+   (`SkylineTests.MeasuringAGroupsDistanceMakesNoGarbage`).
 
 ## The 2026-10-17 review
 

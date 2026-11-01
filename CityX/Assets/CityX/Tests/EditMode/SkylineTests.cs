@@ -160,5 +160,25 @@ namespace CityX.Tests
             Assert.IsFalse(SkylineStreamer.NearViewer(new Vector2Int(0, 0), new Vector2Int(SkylineStreamer.GroupChunks + reach, 0)));
             Assert.IsFalse(SkylineStreamer.NearViewer(new Vector2Int(0, 0), new Vector2Int(-reach - 1, 3)));
         }
+
+        /// <summary>
+        /// The streamer measures every nearby group's distance every frame: it must make no garbage doing it (the three-argument Mathf.Max
+        /// is the params overload and allocated an array per call, three quarters of all garbage while sprinting, docs/PERFORMANCE.md).
+        /// </summary>
+        [Test]
+        public void MeasuringAGroupsDistanceMakesNoGarbage()
+        {
+            var p = new Vector3(123.4f, 5.0f, -678.9f);
+            float sum = 0.0f;
+            for (int i = 0; i < 10; i++) sum += SkylineStreamer.Distance(new Vector2Int(i, -i), p);   // warmed up (the JIT's own first-call work)
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 1000; i++)
+            {
+                sum += SkylineStreamer.Distance(new Vector2Int(i % 20 - 10, i / 20 - 25), p);
+                sum += SkylineStreamer.NearViewer(new Vector2Int(i % 7, i % 5), new Vector2Int(i % 11, i % 13)) ? 1.0f : 0.0f;
+            }
+            long allocated = System.GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.AreEqual(0, allocated, $"measuring distances allocated {allocated} bytes over 1000 groups (sum {sum})");
+        }
     }
 }
