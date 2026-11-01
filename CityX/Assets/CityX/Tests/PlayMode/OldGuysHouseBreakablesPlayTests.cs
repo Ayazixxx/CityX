@@ -96,6 +96,8 @@ namespace CityX.Tests
                     yield return new WaitForSeconds(BoardedPlank.BlowSeconds + 0.05f);
                 }
                 Assert.IsTrue(plank.Broken, "three punches did not tear a plank off");
+                // Fallen, it is debris a body walks through, wherever it lands (one on its edge in the doorway used to stop the walk in).
+                Assert.AreEqual(CityX.World.GlassFracture.ShardLayer, plank.gameObject.layer, "a torn-off plank still blocks bodies");
             }
             Assert.IsTrue(door.Open, "the door did not open once the planks were gone");
             yield return new WaitForSeconds(BoardedDoor.OpenSeconds + 0.2f);

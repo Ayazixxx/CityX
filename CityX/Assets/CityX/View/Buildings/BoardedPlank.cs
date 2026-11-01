@@ -78,8 +78,11 @@ namespace CityX.View
                 return;
             }
             Broken = true;
-            // Torn off: it falls on its own, pushed the way the blow went (or straight off the door when another machine broke it).
+            // Torn off: it falls on its own, pushed the way the blow went (or straight off the door when another machine broke it), on the
+            // broken glass's layer, which bodies walk through and the world does not (a plank landed on its edge in the doorway stopped the
+            // body that tore it off).
             transform.SetParent(null, true);
+            gameObject.layer = GlassFracture.ShardLayer;
             var body = gameObject.AddComponent<Rigidbody>();
             body.mass = 4.0f;
             Vector3 push = _blowDirection.sqrMagnitude > 1e-4f ? _blowDirection.normalized : transform.forward;
