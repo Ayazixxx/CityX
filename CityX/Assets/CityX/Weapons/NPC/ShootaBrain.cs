@@ -581,7 +581,7 @@ namespace CityX.Weapons
                 }
                 return;
             }
-            if (Time.time < _nextSearch && _target != null)
+            if (Time.time < _nextSearch && (_target == null || _target.IsAlive))   // once a second, target or none (SwordsmanBrain.FindTarget)
             {
                 return;
             }

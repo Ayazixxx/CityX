@@ -544,7 +544,9 @@ namespace CityX.Weapons
             {
                 _targetCombat = _target.GetComponent<SoulsSwordCombat>();
             }
-            if (Time.time < _nextSearch && _target != null && _target.IsAlive)
+            // Once a second, with or without a target (every enemy used to scan the whole scene every frame while nobody was near: 0.33 ms
+            // each, docs/PERFORMANCE.md); a target that has died is replaced at once.
+            if (Time.time < _nextSearch && (_target == null || _target.IsAlive))
             {
                 return;
             }

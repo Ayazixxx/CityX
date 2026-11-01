@@ -154,7 +154,7 @@ namespace CityX.Weapons
 
         private void FindTarget()
         {
-            if (Time.time < _nextSearch && _target != null && _target.IsAlive)
+            if (Time.time < _nextSearch && (_target == null || _target.IsAlive))   // once a second, target or none (SwordsmanBrain.FindTarget)
             {
                 return;
             }

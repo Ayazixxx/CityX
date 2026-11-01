@@ -272,3 +272,12 @@ as before (the radio, rain, thunder, title and intro tests). Nothing in the game
 cost nothing per frame. Sprinting fell from 89 to 80 fps (11.2 -> 12.5 ms) with 1.8x the triangles in view (3.8M -> 6.7M): the world seed
 changed to 81565117 for the house's lot, and its spawn streets are denser. Still over the 60 fps budget; 2.5% of sprinting frames land
 under it, the worst 41 ms at the start and a few 30 ms frames while chunks stream in.
+
+## Update: an idle enemy no longer scans the scene for a player every frame (2026-10-31)
+
+The sprint profile (`profile-running.raw`, `ProfileReport`) showed `SwordsmanBrain.Update` at 0.40 ms a frame for one swordsman with nobody
+near him. Timing its parts: all of it was `FindTarget`, whose once-a-second limit only held while he had a target; with none,
+`PlayerBodies.NearestAlive` (a `FindObjectsByType` scan of the scene) ran every frame. The Shoota and the Giant did the same. A pack of ten
+idle enemies would have cost 3-4 ms a frame. Now every enemy searches once a second, target or none, and a target that has died is replaced
+at once (`PlayerBodies.Searches` counts, `EnemyTargetSearchPlayTests` holds each kind to one to three searches in 90 frames). After:
+0.06 ms a frame for the same swordsman in the same run.
