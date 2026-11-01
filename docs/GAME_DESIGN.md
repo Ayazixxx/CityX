@@ -133,9 +133,9 @@ Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-sh
   - **Portals are for high-level players:** "i want it to be hard to die once you high level. once you are high level you will already have had your
     fair share of adventuring and will appreciate the fast travel back home."
   - **No block after a fight for the portal spell:** instead its cast takes a couple of seconds, and you can still take damage during it.
+    **Getting hit does not cancel the cast** (owner, 2026-11-01): it only hurts.
   - **The Portal Gun has a long cooldown,** maybe about 10 hours.
-  - Open (not decided): whether damage during the portal spell's cast cancels it or only hurts. Whether sieges and enemy territory block portals as they
-    block crystals.
+  - Open (not decided): whether sieges and enemy territory block portals as they block crystals.
 - My notes (not decided): a player who skips the tutorial starts with no crystals, so until they find one their ways up are dying (you respawn in the hub) or, my
   suggestion, a few free lift points in the starting streets. Whether the mirror keeps the crystals' 10 s charge and fight block is open (Terraria's mirror
   has neither, but an instant way home would be an escape from every fight).

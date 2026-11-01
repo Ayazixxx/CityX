@@ -148,6 +148,40 @@ namespace CityX.Tests
             Assert.IsNull(vitals.SpellFocus, "put away, it boosts nothing");
         }
 
+        /// <summary>
+        /// Held as the owner holds a pen pointed at a door (2026-11-01, photo): pointed, the arm straight, the back of the hand up, the wrist barely
+        /// bent and the wand on at the aim; carried, the wrist barely bent either. The wand used to run out of the fist along the thumb, which
+        /// left the hand spun about a straight arm at random.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PointedTheArmIsStraightTheBackOfTheHandUpAndTheWristBarelyBent()
+        {
+            GameObject player = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            StaffItem wand = Hold(player, WandPath);
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            Animator animator = player.GetComponentInChildren<Animator>();
+            Transform upper = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            Transform lower = animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+            Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+            float WristBend() => Vector3.Angle(hand.position - lower.position, hand.right);
+
+            yield return Click(player, wand, false, 0.5f);
+            Assert.Less(WristBend(), 35.0f, "carried, the wrist is bent hard");
+
+            Vector3 aim = player.transform.position + new Vector3(-1.0f, 2.2f, 10.0f);
+            for (float t = 0.0f; t < 0.5f; t += Step)
+            {
+                locomotion.HoldWandOut(aim);
+                locomotion.Tick(new LocomotionInput(), Step);
+                yield return null;
+            }
+            Assert.Greater(locomotion.WandRaise, 0.99f, "the wand was not pointed");
+            Assert.Less(Vector3.Angle(lower.position - upper.position, hand.position - lower.position), 15.0f, "pointed, the arm is bent");
+            Assert.Less(WristBend(), 35.0f, "pointed, the wrist is bent hard");
+            Assert.Greater(Vector3.Dot(hand.up, Vector3.up), 0.3f, "pointed, the back of the hand does not face up");
+            Assert.Less(Vector3.Angle(wand.transform.up, aim - wand.transform.position), 5.0f, "the wand does not point at the aim");
+        }
+
         [UnityTest]
         public IEnumerator HeldTheWandShootsASpeckFromItsTipOnceASecondAtTheCrosshair()
         {

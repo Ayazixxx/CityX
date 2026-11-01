@@ -27,6 +27,9 @@ namespace CityX.Weapons
         /// <summary>The shaft (the model's +Y) along the hand's +Z, out past the thumb.</summary>
         public static Quaternion GripRotation => Quaternion.FromToRotation(Vector3.up, Vector3.forward);
 
+        /// <summary>This staff's turn in the hand: <see cref="GripRotation"/> unless it is held otherwise.</summary>
+        protected virtual Quaternion HeldRotation => GripRotation;
+
         /// <summary>The head of the staff in <paramref name="locomotion"/>'s hand (its tip, or the staff itself), or null with none held.</summary>
         public static Transform TipOf(PlayerLocomotion locomotion)
         {
@@ -107,7 +110,7 @@ namespace CityX.Weapons
             {
                 transform.SetParent(hand, false);
                 transform.localPosition = GripPosition;
-                transform.localRotation = GripRotation;
+                transform.localRotation = HeldRotation;
                 transform.localScale = Vector3.one;
             }
             foreach (Collider c in GetComponentsInChildren<Collider>())

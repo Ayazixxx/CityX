@@ -17,9 +17,22 @@ namespace CityX.Character
         /// <summary>
         /// Pointed, the arm straight out from the shoulder at what the crosshair is on, the wand running on along the arm's line (the owner,
         /// 2026-10-31, with Hogwarts Legacy's casting: "just have him extend his arm out toward whatever he is aiming at"): the hand this share
-        /// of the arm's whole length from the shoulder, a hair short of locked straight.
+        /// of the arm's whole length from the shoulder, a hair short of locked straight (0.96 still left the elbow bent a third, 0.99 by 16 degrees).
         /// </summary>
-        public const float WandArmStraightShare = 0.96f;
+        public const float WandArmStraightShare = 0.995f;
+
+        /// <summary>
+        /// The wand lies across the fist on a slant, out between the thumb and the first knuckle as a pen is held: its shaft turned this far from
+        /// the thumb's line toward the knuckles (MagicWand's grip). Held straight out of the fist along the thumb, a wand pointed down a straight
+        /// arm needed the wrist bent square, and the hand spun about the arm at random (owner, 2026-11-01, with a photo of their own arm: "the
+        /// arm is twisted all weird when casting", "you gotta rotate the hand").
+        /// </summary>
+        public const float WandGripTiltDegrees = 50.0f;
+
+        /// <summary>Pointed, the straight arm this far out and down from the aim, so the wrist bends a little and the wand points on inside it.</summary>
+        public const float WandArmOutDegrees = 12.0f;
+
+        public const float WandArmDownDegrees = 8.0f;
 
         /// <summary>
         /// Carried, the arm hanging relaxed at the side: the hand this share of the arm's length below the shoulder, swung this far forward and
@@ -125,18 +138,45 @@ namespace CityX.Character
             Vector3 carriedHand = shoulder + hang * (arm * WandCarryShare);
             Vector3 carried = Quaternion.AngleAxis(-WandCarryWristDegrees, right) * hang;
 
-            // Pointed: the arm straight out at the aim, the wand along it.
+            // Pointed: the arm straight out a little outside and under the aim, the wand from the hand at the aim.
             Vector3 pointed = forward;
             Vector3 toAim = _wandAimPoint - shoulder;
-            if (_wandAimAge <= WandAimFreshSeconds && toAim.sqrMagnitude > 0.01f)
+            bool aimed = _wandAimAge <= WandAimFreshSeconds && toAim.sqrMagnitude > 0.01f;
+            if (aimed)
             {
                 pointed = toAim.normalized;
             }
-            Vector3 pointedHand = shoulder + pointed * (arm * WandArmStraightShare);
+            Vector3 aside = Vector3.Cross(Vector3.up, pointed);
+            aside = aside.sqrMagnitude > 1e-4f ? aside.normalized : right;
+            Vector3 armLine = Quaternion.AngleAxis(WandArmOutDegrees, Vector3.up) * Quaternion.AngleAxis(WandArmDownDegrees, aside) * pointed;
+            Vector3 pointedHand = shoulder + armLine * (arm * WandArmStraightShare);
+            Vector3 handToAim = _wandAimPoint - pointedHand;
+            Vector3 wandLine = aimed && handToAim.sqrMagnitude > 0.01f ? handToAim.normalized : pointed;
 
-            Vector3 direction = Vector3.Slerp(carried, pointed, raise).normalized;
+            Vector3 direction = Vector3.Slerp(carried, wandLine, raise).normalized;
             Vector3 elbowHint = Vector3.Lerp(-forward * 0.6f + right * 0.2f + Vector3.down, right * 0.3f + Vector3.down, raise);
-            PoseRightHand(Vector3.Lerp(carriedHand, pointedHand, raise), direction, elbowHint);
+            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, Vector3.Lerp(carriedHand, pointedHand, raise), elbowHint, 1.0f);
+            TurnWandHand(direction, right + Vector3.down * 0.5f);
+        }
+
+        /// <summary>
+        /// The right hand turned so the wand (<see cref="WandGripTiltDegrees"/> across the fist) runs along <paramref name="direction"/>, the
+        /// knuckles as near the forearm's line as that leaves them, so the wrist bends only by what is left over and the back of the hand faces
+        /// the forearm's side of the wand (up and out when pointed, out when carried). <paramref name="outward"/> picks that side when the
+        /// forearm runs along the wand.
+        /// </summary>
+        private void TurnWandHand(Vector3 direction, Vector3 outward)
+        {
+            Vector3 across = Vector3.ProjectOnPlane(_handR.position - _rightLowerArm.position, direction);
+            if (across.sqrMagnitude < 1e-6f)
+            {
+                across = Vector3.ProjectOnPlane(outward, direction);
+            }
+            across.Normalize();
+            float tilt = WandGripTiltDegrees * Mathf.Deg2Rad;
+            Vector3 thumb = Mathf.Cos(tilt) * direction - Mathf.Sin(tilt) * across;
+            Vector3 knuckles = Mathf.Sin(tilt) * direction + Mathf.Cos(tilt) * across;
+            _handR.rotation = Quaternion.LookRotation(thumb, Vector3.Cross(thumb, knuckles));
         }
     }
 }
