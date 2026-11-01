@@ -95,6 +95,7 @@ namespace CityX.View
                 pane.BreakSounds = BreakSounds;
             }
             ApplyPower(TutorialHousePower.Shared.IsOn);
+            WarmTheSwordsman();
             Physics.SyncTransforms();
             if (PlaceItems)
             {
@@ -160,6 +161,25 @@ namespace CityX.View
             {
                 light.enabled = on;
             }
+        }
+
+        /// <summary>The swordsman has been made once already this session, so his first real spawn is a warm one (for tests).</summary>
+        public static bool SwordsmanWarmed { get; private set; }
+
+        /// <summary>
+        /// Makes the swordsman once and throws him away, while the house is built (at load, before the player is placed): his first spawn
+        /// paid for his code's first run, his sword's and helmet's assets read from disk and his skin's first batching, a 40-50 ms stall in the
+        /// frame the player got into the house (seen in the frame benchmark's worst frame, docs/PERFORMANCE.md); the second costs 3 ms.
+        /// </summary>
+        private void WarmTheSwordsman()
+        {
+            if (SwordsmanWarmed || SwordsmanPrefab == null || !Application.isPlaying)
+            {
+                return;
+            }
+            SwordsmanWarmed = true;
+            GameObject warm = Instantiate(SwordsmanPrefab, transform.position + Vector3.down * 500.0f, Quaternion.identity);
+            DestroyImmediate(warm);   // woken (Awake, OnEnable) and gone before any frame runs him
         }
 
         /// <summary>The swordsman in Old Guy's bedroom: in a session spawned for everyone and run by this machine, otherwise here alone.</summary>

@@ -305,3 +305,16 @@ done; its payload, which the steps read, is given back after the last step (`Giv
 path (the spawn pre-stream, captures, tests) still makes it all at once. `ChunkDressingPlayTests`: the chunks round the spawn streamed on the
 budget are, part for part, the chunks made at once, and every payload comes back. After, in the same sprint: the worst profiled frames 22, 20,
 18, 17 ms with none of the chunk's markers among their top costs; 82 fps, p95 14.2 ms, 1.5% of frames under 60 fps.
+
+**Run-to-run noise (2026-10-31):** on this laptop, consecutive editor benchmarks of the same code gave 73 to 82 fps sprinting as it warmed
+through an afternoon of runs. Compare the worst-frames breakdown and the garbage table between runs, and per-marker costs (0.40 -> 0.06 ms),
+not the average frame rate, unless the runs are minutes apart on a cool machine.
+
+## Update: the swordsman is warmed at load (2026-10-31)
+
+With the report's warm-up skip lowered to two frames, the benchmark's worst sprinting frame showed itself: 49 ms in the sprint's first second,
+three `Instantiate`s with 11 ms of `Awake`, 9 ms of asset reads, 6 ms of JIT, 4 ms of a skinned mesh's first batching and a new graphics
+pipeline: the house's swordsman, his sword and his helmet, put down as the benchmark's player ran through the house. In the game that is the
+frame the player gets into the house. `OldGuysHouseSite.WarmTheSwordsman` now makes him once and throws him away while the house is built at
+load (`OldGuysHousePlayTests.TheSwordsmanIsWarmedWhenTheHouseIsBuiltAndNoneIsLeftBehind`: a warm spawn under 100 ms, measured at 3). The same
+trick fits any enemy that first appears mid-play; the first body of each kind costs its code's first run and its assets' reads.

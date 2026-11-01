@@ -138,6 +138,25 @@ namespace CityX.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheSwordsmanIsWarmedWhenTheHouseIsBuiltAndNoneIsLeftBehind()
+        {
+#if UNITY_EDITOR
+            OldGuysHouseSite site = MakeHouse(_made, false, false);
+            Assert.IsTrue(OldGuysHouseSite.SwordsmanWarmed, "building the house did not warm the swordsman");
+            yield return null;
+            Assert.IsNull(Object.FindFirstObjectByType<CityX.Weapons.SwordsmanBrain>(), "the warm-up swordsman was left in the scene");
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            site.PutDownSwordsman();
+            double ms = clock.Elapsed.TotalMilliseconds;
+            _made.Add(site.Swordsman);
+            Assert.IsNotNull(site.Swordsman);
+            Assert.Less(ms, 100.0, $"a warm swordsman took {ms:0} ms to put down (a cold one took 130-920 ms, a warm one 3)");
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
         public IEnumerator TheSwordsmanIsPutDownOnceThePlayerGetsIn()
         {
 #if UNITY_EDITOR
