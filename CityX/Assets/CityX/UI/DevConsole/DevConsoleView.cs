@@ -442,6 +442,10 @@ namespace CityX.UI
                     GrappleCommand(line.Argument(0));
                     return;
 
+                case "movement":
+                    MovementCommand(line.Argument(0));
+                    return;
+
                 case "outlines":
                     OutlinesCommand(line.Argument(0));
                     return;

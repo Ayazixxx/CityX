@@ -1,0 +1,46 @@
+# Movement: facing, turning, side-steps
+
+Owner, 2026-11-01: "i just want dynamic movement that feels good improve upon our movement the best you can", "research how video games get
+good looking movement", then on GTA-style facing: "i want to try out both lets do gta style first and if i dont like it il have you revert it
+back".
+
+## What good third-person movement is made of (research, 2026-11-01)
+
+- **Motion matching** (For Honor, The Last of Us Part II): every few frames the game picks, from a large motion-capture library, the moment that
+  best fits where the body is and where the stick points. Looks the most natural; needs a big library (Ubisoft captured weekly). An MIT Unity 6
+  package exists (JLPM22/MotionMatching).
+- **Start, loop, stop and pivot clips**: separate short animations for setting off, stopping and a plant-and-turn reversal. Where the weight comes from.
+- **Orientation warping** (Unreal's Lyra): facing the aim while moving at an angle plays one walk and turns the hips and legs toward the travel,
+  the chest staying on the aim, instead of blending a forward walk with a side-step (which tangles the legs).
+- **Stride warping**: the steps stretched to the real speed (ours: PacedGait and the foot locks).
+- **Physics reactions** (GTA's and Red Dead's Euphoria): ours are the ragdolls and the hit reactions.
+
+## GTA-style facing (built 2026-11-01)
+
+Out of an aim (right-click), a gun's fire, a cast (spell, staff, wand) or a lock-on (Tab), the body **turns toward where the keys point and goes
+where it faces** (`MovementTurn`, `PlayerLocomotion.FaceMovement`). Before, it always faced the camera while moving, so A, D and S side-stepped and
+back-stepped, and W+A blended a forward walk with a side-step.
+
+| | |
+|---|---|
+| Turn rate | 900 deg/s from a standstill (an about-face in a fifth of a second), 600 at a walk, 300 at a sprint: a sprint curves round (a right angle in 0.3 s, an arc about 1.4 m across) |
+| Sharp turns | a turn more than 60 deg off where the body faces brakes it, down to 35% of its speed at 160 deg and more: a reversal plants and turns instead of skating round |
+| Sprint | any way the keys point (the body faces it); still forward only while facing the camera |
+| Facing the camera | aiming, firing, casting, a staff or wand pointed, locked on: as before, side-steps and back-steps |
+| Compare | `/movement classic` brings back the old camera-facing movement, `/movement gta` this one |
+
+Other players see it as it is: the facing travels with the body's rotation and the walk with the animator's parameters.
+
+## Next
+
+- The side-steps while aiming with a gun or holding the two-handed sword squat (bow-legged, `StrafeCapture` rows 4 and 5): give them the clean side-step.
+- Diagonals while facing the camera: orientation warping instead of the walk and side-step blend.
+- The owner's Mixamo Locomotion Pack (2026-11-01: idle, walk, run, jump, walking and running side-steps, turns on the spot and 90 deg turns) for
+  the side-steps and for turning on the spot.
+- Weight: starts and stops (the pack has none; Mixamo has more).
+
+## Tests
+
+`MovementTurnTests` (the rates and the braking), `PlayerLocomotionPlayTests` (pushing left turns and walks left; a sprint curves round and runs
+full speed any way; a reversal brakes; locked on still side-steps and backs up; classic mode side-steps). Render: `StrafeCapture` (every
+side-step and the diagonal, from the front).

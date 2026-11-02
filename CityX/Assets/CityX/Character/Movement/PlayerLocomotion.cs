@@ -66,8 +66,20 @@ namespace CityX.Character
         [Tooltip("player.gd GRAVITY. Deliberately gentler than Earth's 9.81.")]
         public float Gravity = 9.8f;
 
-        [Tooltip("How fast the body turns to face where it is going, in degrees per second.")]
+        [Tooltip("How fast the body turns to face the camera while moving (camera-facing movement), in degrees per second.")]
         public float TurnDegreesPerSecond = 720.0f;
+
+        /// <summary>
+        /// GTA style (true, MovementTurn): out of an aim, a lock-on or a cast the body turns to where it goes. False: the old camera-facing
+        /// movement, where the keys side-step and back-step (/movement classic, to compare; owner, 2026-11-01).
+        /// </summary>
+        public static bool FaceMovement = true;
+
+        /// <summary>The body faces the camera's yaw, whatever the keys: aiming, firing, casting (a spell, a staff or a wand), or locked on.</summary>
+        private bool FacesTheCamera(LocomotionInput input) => AimsWithTheCamera(input) || input.LockedOn || _castPoseFraction > 0.0f;
+
+        private bool AimsWithTheCamera(LocomotionInput input) =>
+            input.Aiming || _gunFireHold > 0.0f || (StaffCasting && Staff != null) || WandPointing;
 
         /// <summary>
         /// How quickly horizontal speed catches up to its target, in
@@ -1228,6 +1240,21 @@ namespace CityX.Character
 
             Vector3 direction = input.WorldDirection();
             bool moving = direction.sqrMagnitude > 0.0001f;
+            bool flying = input.FlightSpeed > 0.0f;
+
+            // GTA STYLE (MovementTurn): out of an aim, a lock-on or a cast the body turns toward the keys at a rate that falls with speed and
+            // goes where it faces, so it curves round instead of side-stepping; a sharp turn brakes it (below, on the speed).
+            bool facesMovement = FaceMovement && !FacesTheCamera(input) && !flying && !_facingOverride && _dashRemaining <= 0.0f;
+            float turnOff = 0.0f;
+            if (facesMovement && moving && !MovementRooted)
+            {
+                Quaternion wanted = Quaternion.LookRotation(direction);
+                turnOff = Quaternion.Angle(transform.rotation, wanted);
+                float pace = _horizontalVelocity.magnitude / SizeSpeedFactor;
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, wanted,
+                    MovementTurn.DegreesPerSecond(pace, WalkSpeed, SprintSpeed) * deltaTime);
+                direction = transform.forward * direction.magnitude;
+            }
 
             // CROUCHING, Source's way (PlayerLocomotion.Crouch.cs): on the ground the body goes down over 0.4 s, in the air its feet come up.
             TickCrouch(input.Crouch, _controller.isGrounded || _steppingUp, deltaTime);
@@ -1239,15 +1266,16 @@ namespace CityX.Character
             // exact moonwalk this rig's blend thresholds already exist to
             // prevent. Godot ties the speed to the direction for the same
             // reason it ties the clip to it.
-            bool forward = input.Move.y > 0.0f && input.Move.y >= Mathf.Abs(input.Move.x);
+            // Facing where it goes, every way is forward.
+            bool forward = facesMovement || (input.Move.y > 0.0f && input.Move.y >= Mathf.Abs(input.Move.x));
             // CROUCH WINS OVER SPRINT, as in Source: a crouched body cannot run (and under a low ceiling it is crouched whatever is held).
             bool sprinting = input.Sprint && moving && forward && !IsCrouching;
             IsSprinting = sprinting;
 
             // FLYING, THE GEAR'S SPEED IS THE SPEED (LocomotionInput.FlightSpeed: a jetpack's or wings', in every direction, no stamina): none
             // of the walking rules below apply to it.
-            bool flying = input.FlightSpeed > 0.0f;
             float speed = flying ? input.FlightSpeed : sprinting ? SprintSpeed : WalkSpeed;
+            speed *= MovementTurn.SpeedShare(turnOff);
 
             // AIMING DOWN SIGHTS SLOWS YOU (Fortnite, Gears, The Division all
             // do): you trade speed for a steady, zoomed aim. Not while
@@ -1493,7 +1521,7 @@ namespace CityX.Character
             // has to track the camera THE INSTANT it starts, moving or not --
             // a lagging catch-up reads as "at a weird angle" the whole time
             // it is catching up.
-            if (input.Aiming || _gunFireHold > 0.0f || (StaffCasting && Staff != null) || WandPointing)
+            if (AimsWithTheCamera(input))
             {
                 transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees + AimYawOffsetDegrees, 0.0f);
             }
@@ -1506,7 +1534,7 @@ namespace CityX.Character
                 // would double-lag it.
                 transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
             }
-            else if (moving)
+            else if (moving && !facesMovement)
             {
                 Quaternion facing = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
                 transform.rotation = Quaternion.RotateTowards(

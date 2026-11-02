@@ -157,6 +157,8 @@ namespace CityX.Tests
             var yaw = new GameObject("TestYaw");
             yaw.transform.rotation = Quaternion.LookRotation(heading, Vector3.up);
             _vitals.GetComponent<PlayerInputReader>().YawSource = yaw.transform;
+            // Facing it already: a body turning toward where it runs curves round (MovementTurn), off the level line it was given.
+            _vitals.transform.rotation = yaw.transform.rotation;
             yield return null;
         }
 

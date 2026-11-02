@@ -281,6 +281,14 @@ namespace CityX.UI
             Log("grapple swing " + (ragdoll ? "ragdoll" : "classic"));
         }
 
+        /// <summary>/movement [gta|classic]: the body turns to where it walks (PlayerLocomotion.FaceMovement) or always faces the camera; with no word, the other way.</summary>
+        private void MovementCommand(string which)
+        {
+            bool gta = which == "gta" || (which != "classic" && !CityX.Character.PlayerLocomotion.FaceMovement);
+            CityX.Character.PlayerLocomotion.FaceMovement = gta;
+            Log("movement " + (gta ? "gta" : "classic"));
+        }
+
         /// <summary>/outlines &lt;pixels&gt;: the black lines' width on a screen 1080 tall (scaled to this one); 0 draws none.</summary>
         private void OutlinesCommand(string pixels)
         {

@@ -51,6 +51,7 @@ namespace CityX.Tests
             // wall (see that test's neighbour below) and coming up short.
             if (_player != null) Object.DestroyImmediate(_player);
             if (_ground != null) Object.DestroyImmediate(_ground);
+            PlayerLocomotion.FaceMovement = true;
         }
 
         /// <summary>
@@ -81,15 +82,9 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// THE BODY FACES THE CAMERA, NOT WHERE IT IS GOING.
-        ///
-        /// It faced its own velocity until now, which sounds right and quietly
-        /// removes a whole dimension: if facing and travel are the same vector
-        /// then walking backwards is impossible -- the body just turns round
-        /// and walks forwards -- and walk_backward, walk_left and walk_right
-        /// can never play. Strafing is the clearest case: pushing the stick
-        /// left with the camera pointing north should move the body west while
-        /// it still faces north.
+        /// LOCKED ON (or aiming), THE BODY FACES THE CAMERA, NOT WHERE IT IS GOING: pushing the stick left with the camera pointing north moves
+        /// the body west while it still faces north, and the side-step plays. Out of a lock-on the body turns to where it goes (GTA style,
+        /// below).
         /// </summary>
         [UnityTest]
         public IEnumerator StrafingMovesSidewaysWithoutTurningTheBody()
@@ -101,6 +96,7 @@ namespace CityX.Tests
             {
                 Move = new Vector2(-1.0f, 0.0f),
                 YawDegrees = 0.0f,
+                LockedOn = true,
             }, 120);
 
             Vector3 travelled = _player.transform.position - start;
@@ -119,10 +115,7 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, _locomotion.LocalVelocity.y, 0.2f);
         }
 
-        /// <summary>
-        /// Backing up keeps the body facing forward, which is the whole reason
-        /// walk_backward exists.
-        /// </summary>
+        /// <summary>Locked on, backing up keeps the body facing forward, which is the whole reason walk_backward exists.</summary>
         [UnityTest]
         public IEnumerator WalkingBackwardsKeepsFacingForward()
         {
@@ -133,6 +126,7 @@ namespace CityX.Tests
             {
                 Move = new Vector2(0.0f, -1.0f),
                 YawDegrees = 0.0f,
+                LockedOn = true,
             }, 120);
 
             Assert.Less(_player.transform.position.z - start.z, -1.0f, "did not travel backwards");
@@ -142,7 +136,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// SPRINT IS FORWARD ONLY, from player.gd. There is no running-sideways
+        /// Locked on, SPRINT IS FORWARD ONLY, from player.gd. There is no running-sideways
         /// clip, so a 7.5 m/s strafe would be drawn by a 4 m/s walk -- feet
         /// sliding over the ground, the same moonwalk the blend thresholds
         /// exist to prevent.
@@ -157,6 +151,7 @@ namespace CityX.Tests
                 {
                     Move = move,
                     YawDegrees = 0.0f,
+                    LockedOn = true,
                     Sprint = true,
                 }, 30);
 
@@ -173,6 +168,71 @@ namespace CityX.Tests
                 Sprint = true,
             }, 30);
             Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
+        }
+
+        /// <summary>
+        /// GTA STYLE (MovementTurn; owner, 2026-11-01): out of a lock-on, pushing left turns the body and it walks left, forward in its own
+        /// terms, so the walk plays and not a side-step.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PushingLeftTurnsTheBodyAndItWalksThatWay()
+        {
+            _player.transform.rotation = Quaternion.identity;
+            Vector3 start = _player.transform.position;
+            yield return Drive(new LocomotionInput { Move = new Vector2(-1.0f, 0.0f), YawDegrees = 0.0f }, 60);
+
+            Assert.AreEqual(-90.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f, "the body did not turn to face left");
+            Assert.Less(_player.transform.position.x - start.x, -1.0f, "it did not walk left");
+            Assert.AreEqual(0.0f, _locomotion.LocalVelocity.x, 0.1f, "it side-stepped instead of walking forward");
+            Assert.Greater(_locomotion.LocalVelocity.y, 3.0f);
+        }
+
+        /// <summary>A sprint curves round into a turn (it turns slower than a walk) and runs at full speed whichever way the keys point.</summary>
+        [UnityTest]
+        public IEnumerator ASprintCurvesRoundIntoATurnAndRunsFullSpeedAnyWay()
+        {
+            _player.transform.rotation = Quaternion.identity;
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f, Sprint = true }, 60);
+            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
+
+            yield return Drive(new LocomotionInput { Move = new Vector2(1.0f, 0.0f), YawDegrees = 0.0f, Sprint = true }, 6);
+            float turned = Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y);
+            Assert.Greater(turned, 10.0f, "the sprint did not start turning");
+            Assert.Less(turned, 45.0f, "a sprint turned a right angle on the spot instead of curving round");
+
+            yield return Drive(new LocomotionInput { Move = new Vector2(1.0f, 0.0f), YawDegrees = 0.0f, Sprint = true }, 60);
+            Assert.AreEqual(90.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f, "the sprint never came round");
+            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f, "sprinting the way the keys point is not a full sprint");
+        }
+
+        /// <summary>Reversing at a sprint brakes into the turn and runs on the other way: a plant and turn, not a skate round.</summary>
+        [UnityTest]
+        public IEnumerator ReversingAtASprintBrakesIntoTheTurn()
+        {
+            _player.transform.rotation = Quaternion.identity;
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f, Sprint = true }, 60);
+            float slowest = float.MaxValue;
+            var back = new LocomotionInput { Move = new Vector2(0.0f, -1.0f), YawDegrees = 0.0f, Sprint = true };
+            for (int i = 0; i < 60; i++)
+            {
+                _locomotion.Tick(back, Step);
+                slowest = Mathf.Min(slowest, _locomotion.CurrentSpeed);
+                yield return null;
+            }
+            Assert.Less(slowest, _locomotion.SprintSpeed * 0.6f, "the reversal did not brake");
+            Assert.AreEqual(180.0f, Mathf.Abs(Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y)), 1.0f, "it did not turn round");
+            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f, "it did not run on the other way");
+        }
+
+        /// <summary>/movement classic: the old camera-facing movement, where the keys side-step, for comparing.</summary>
+        [UnityTest]
+        public IEnumerator ClassicMovementSideStepsWithoutTurning()
+        {
+            PlayerLocomotion.FaceMovement = false;
+            _player.transform.rotation = Quaternion.identity;
+            yield return Drive(new LocomotionInput { Move = new Vector2(-1.0f, 0.0f), YawDegrees = 0.0f }, 60);
+            Assert.AreEqual(0.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f, "classic movement turned the body");
+            Assert.Less(_locomotion.LocalVelocity.x, -1.0f, "classic movement did not side-step");
         }
 
         /// <summary>
