@@ -288,6 +288,10 @@ namespace CityX.View
 
             if (state != PaneState.Shattered)
             {
+                // The hole shows now; the block round it is rebuilt with the real one on a worker, a moment later. (A round building's side faces
+                // out from its middle, near enough for that moment.)
+                Vector3 facing = site.Sides >= 3 ? new Vector3(point.x - (float)site.CentreX, 0.0f, point.z - (float)site.CentreZ) : outward;
+                _streamer.ShowHoleAtOnce(site, point, facing);
                 return;
             }
             // THE PANE BREAKS INTO ITS OWN PIECES (GlassFractureBurst): cut where it stood round the blow, falling the way the blow went. A round

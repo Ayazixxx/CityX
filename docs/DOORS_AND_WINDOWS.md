@@ -352,3 +352,22 @@ measured across the sheet itself, so it passes the sheet. (A shot at an already 
 Tests: `BulletHoleCentreTests` (a box building's and a round tower's pane shot low-left and high-right: the crack decal's centre is within
 1 cm of the hit; 20-26 cm before), `BulletHoleCapture` (`Logs/CityShots/bullethole-*.png`, each hole on a red dot at its hit, and
 `bullettrail-*.png`, the trails before and after: docs/FIREARMS.md).
+
+## Update 2026-11-02: a bullet hole shows on the frame the bullet lands
+
+Reported: "bullet holes are appearing delayed on the building near spawn". Measured in the real scene (a throwaway test shooting real windows
+beside the spawn): the first hole in a pane took 260-360 ms and about a hundred frames to reach the screen, every further hole about 140 ms,
+because a hole only exists once the whole block round the window has been generated again on a worker (and for a first hole, its collider cooked and
+swapped in). Only windows near the spawn were measured, but every block goes the same way, so the fix is not particular to that building. (Shots in
+the first moments after load read 30-130 ms, but those blocks may not have been on screen yet, so they say little.)
+
+`InstantBulletHoles` (owned by `CityStreamer`, told by `GlassBreaker.Report`, so another player's bullets show the same way): the crack picture
+is drawn at once at the hit, the real decal's size, on one small mesh of world-space quads written only when a hole comes or goes. Each hole is kept
+under its block and let go on the frame that block's change has reached the screen (`WindowChangeOnItsWay`), after the streaming, so the window is
+never bare and the hole never drawn twice. A round building's side faces out from its middle, near enough for that moment.
+
+The rebuild itself is unchanged, so the pane's frosted cracked look and its opening still come when the block lands. A shattered pane's pieces
+fly at once, but the pane they came from stays drawn until its block lands too.
+
+Tests: `InstantBulletHolesTests` (size, place, facing, let go block by block), `WindowHitRefreshPlayTests` (a hole shows on the frame the bullet lands,
+stays while the rebuild is on its way, goes when it lands; another player's too). Render: `BulletHoleCapture`'s `bullethole-0-same-frame` and `-landed`.

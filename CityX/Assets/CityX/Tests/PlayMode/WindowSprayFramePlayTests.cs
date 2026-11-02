@@ -264,6 +264,7 @@ namespace CityX.Tests
             {
                 int pane = Mathf.Min(panes.Count - 1, (shots / 5) % panes.Count);
                 Vector3 at = panes[pane] + Vector3.up * (0.12f * ((shots % 3) - 1)) + Vector3.Cross(Vector3.up, outward) * (0.1f * ((shots % 2) * 2 - 1));
+                int collections = System.GC.CollectionCount(0);
                 clock.Restart();
                 bool fired = ak.Fire(standing, (at - standing).normalized, true, null);
                 double fireMs = clock.Elapsed.TotalMilliseconds;
@@ -278,8 +279,11 @@ namespace CityX.Tests
                 // The first two frames carry one-time loading (the first crack's sound, the first tracer, the first worker): judged apart.
                 // What this is about: the main-thread work the windows cost -- the shot itself and the streamer's frame (rebuilt blocks going on
                 // screen). The frame time also carries whatever the editor does in between (a garbage collection after hundreds of tests).
+                // Nor is a frame a collection ran in the windows' to pay for: after a thousand tests it takes tens of milliseconds, and a shatter, the biggest
+                // allocation here, is what sets it off. A real stall comes back shot after shot, and is caught on the frames with none.
+                bool collected = System.GC.CollectionCount(0) != collections;
                 double work = streamer.LastUpdateMs + (fired ? fireMs : 0.0);
-                if (frame >= 2 && work > worstWork)
+                if (frame >= 2 && !collected && work > worstWork)
                 {
                     worstWork = work;
                     worstWorkFrame = frame;
@@ -291,7 +295,7 @@ namespace CityX.Tests
                 }
                 if (fired || frameMs > 12.0f || children != lastChildren)
                 {
-                    lines.AppendLine($"  frame {frame,3}: {frameMs,6:0.0} ms  streamer {streamer.LastUpdateMs,5:0.0} ms  fire {(fired ? fireMs.ToString("0.0") + " ms" : "-"),-9} shots {shots,2}  pane {pane}  chunks {children}");
+                    lines.AppendLine($"  frame {frame,3}: {frameMs,6:0.0} ms  streamer {streamer.LastUpdateMs,5:0.0} ms  fire {(fired ? fireMs.ToString("0.0") + " ms" : "-"),-9} shots {shots,2}  pane {pane}  chunks {children}{(collected ? "  (collection)" : "")}");
                 }
                 lastChildren = children;
                 if (ak.MagazineAmmo == 0 && frame > 40)

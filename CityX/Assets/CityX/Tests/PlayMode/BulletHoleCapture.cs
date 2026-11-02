@@ -13,7 +13,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: renders a real window near the spawn shot three times away from its middle, each hit marked with a small red dot, to
+    /// Not a test: renders a real window near the spawn shot three times away from its middle (the first on the frame it is shot and again from the rebuilt block), each hit marked with a small red dot, to
     /// Logs/CityShots/bullethole-*.png (each hole should sit on its dot); then bullet trails against the sky and a wall, as they were (added light)
     /// and as they are (laid over what is behind). Explicit; run by name with -Graphics:
     /// ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.BulletHoleCapture
@@ -176,11 +176,27 @@ namespace CityX.Tests
 
             // Three shots away from the middle: low left, high right, and off to one side at the middle's height.
             Vector3[] hits = { glass - side * 0.3f - Vector3.up * 0.45f, glass + side * 0.35f + Vector3.up * 0.4f, glass + side * 0.15f - Vector3.up * 0.1f };
-            foreach (Vector3 hit in hits)
+            var streamer = breaker.GetComponent<CityStreamer>();
+            for (int shot = 0; shot < hits.Length; shot++)
             {
+                Vector3 hit = hits[shot];
                 Assert.IsTrue(breaker.TakeBlow(hit, -outward, BlowStrength.Bullet), $"the shot at {hit} found no glass");
+                if (shot == 0)
+                {
+                    // The first hole on the very frame it is shot (InstantBulletHoles), the window still whole behind it, and then from the rebuilt block.
+                    Render("bullethole-0-same-frame", glass + outward * 2.2f + side * 0.3f, glass);
+                }
                 Dot(hit, outward);
-                yield return Frames(30);   // the chunk is redrawn with the new hole
+                float until = Time.realtimeSinceStartup + 10.0f;
+                while (streamer.WindowRefreshPending && Time.realtimeSinceStartup < until)   // the chunk is redrawn with the new hole
+                {
+                    yield return null;
+                }
+                yield return null;
+                if (shot == 0)
+                {
+                    Render("bullethole-0-landed", glass + outward * 2.2f + side * 0.3f, glass);
+                }
             }
             Render("bullethole-1-close", glass + outward * 2.2f + side * 0.3f, glass);
             Render("bullethole-2-angle", glass + outward * 2.0f + side * 1.6f + Vector3.down * 0.5f, glass);

@@ -505,6 +505,7 @@ namespace CityX.View
             _refreshing.Clear();
             _pendingRefresh.Clear();
             _paneSeen.Clear();
+            _instantHoles?.Clear();
             while (_finished.TryDequeue(out ChunkPayload stale))
             {
                 Recycle(stale);
@@ -713,6 +714,11 @@ namespace CityX.View
             else
             {
                 StreamAround(viewer.position, Mathf.Max(1, ChunkBuildBudgetPerFrame), ChunkBuildTimeBudgetMs);
+            }
+            // After the streaming: a block that landed this frame has its real holes, so nothing is ever drawn twice.
+            if (InstantHoleCount > 0)
+            {
+                _instantHoles.Forget(_chunkLanded);
             }
             LastUpdateMs = _updateClock.Elapsed.TotalMilliseconds;
         }
@@ -1694,6 +1700,55 @@ namespace CityX.View
         /// <summary>How many chunks (streaming in, or rebuilt after a window was hit) are made and waiting for their collider. For tests.</summary>
         public int PendingSwapCount => _pendingSwaps.Count;
 
+        private InstantBulletHoles _instantHoles;
+        private GameObject _instantHolesObject;
+        private System.Func<Vector2Int, bool> _chunkLanded;
+
+        /// <summary>How many bullet holes are drawn ahead of their rebuilt block just now (InstantBulletHoles; for tests).</summary>
+        public int InstantHoleCount => _instantHoles != null ? _instantHoles.Count : 0;
+
+        /// <summary>The holes drawn ahead of their rebuilt block, as a mesh in world space, or null (for tests).</summary>
+        public Mesh InstantHoleMesh => _instantHoles != null ? _instantHoles.Mesh : null;
+
+        /// <summary>Draws a bullet hole now, on the frame the bullet lands, until the block of <paramref name="site"/> comes back with the real one cut (InstantBulletHoles).</summary>
+        public void ShowHoleAtOnce(BuildingSite site, Vector3 point, Vector3 outward)
+        {
+            if (CrackDecalMaterial == null)
+            {
+                return;
+            }
+            if (_instantHoles == null)
+            {
+                _instantHoles = new InstantBulletHoles();
+                _chunkLanded = chunk => !WindowChangeOnItsWay(chunk);
+            }
+            _instantHoles.Add(new Vector2Int(site.OwnerChunkX, site.OwnerChunkY), point, outward);
+            if (_instantHolesObject == null)
+            {
+                _instantHolesObject = new GameObject("InstantBulletHoles");
+                _instantHolesObject.AddComponent<MeshFilter>().sharedMesh = _instantHoles.Mesh;
+                var drawn = _instantHolesObject.AddComponent<MeshRenderer>();
+                drawn.sharedMaterial = CrackDecalMaterial;
+                drawn.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
+        private bool WindowChangeOnItsWay(Vector2Int chunk)
+        {
+            if (_refreshing.ContainsKey(chunk) || _changedInFlight.Contains(chunk))
+            {
+                return true;
+            }
+            foreach (PendingSwap swap in _pendingSwaps)
+            {
+                if (swap.Key == chunk && (!swap.Streamed || swap.ChangedMeanwhile))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>True while a window's change is still on its way to the screen: a refresh generating, a swap cooking, or more hits waiting.</summary>
         public bool WindowRefreshPending => _refreshing.Count > 0 || _changedInFlight.Count > 0 || SwapCarriesAWindowChange();
 
@@ -1957,6 +2012,11 @@ namespace CityX.View
                 DestroyChunk(pair.Value);
             }
             _loaded.Clear();
+            _instantHoles?.Dispose();
+            if (_instantHolesObject != null)
+            {
+                Destroy(_instantHolesObject);
+            }
             while (_finished.TryDequeue(out ChunkPayload left))
             {
                 Recycle(left);   // its arrays back to ChunkArrayPool, for whatever streams next

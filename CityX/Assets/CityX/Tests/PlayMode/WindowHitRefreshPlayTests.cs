@@ -132,5 +132,71 @@ namespace CityX.Tests
             }
             Assert.Greater(decals, 0, "the hole never appeared");
         }
+
+        /// <summary>A breaker on a streamer with workers, and the crack picture the real scene gives it, in a city that has finished streaming in.</summary>
+        private IEnumerator Shootable(Vector3 centre, System.Action<CityStreamer, GlassBreaker> ready)
+        {
+            CityStreamer streamer = Streamer(2, centre);
+            var decal = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            streamer.CrackDecalMaterial = decal;
+            var breaker = streamer.gameObject.AddComponent<GlassBreaker>();
+            float until = Time.realtimeSinceStartup + 20.0f;
+            while (streamer.IsStreaming && Time.realtimeSinceStartup < until)
+            {
+                yield return null;
+            }
+            ready(streamer, breaker);
+        }
+
+        /// <summary>
+        /// THE HOLE SHOWS ON THE FRAME THE BULLET LANDS (owner, 2026-11-02: "bullet holes are appearing delayed"): the real one needs the block built
+        /// again on a worker, 140 to 360 ms and a hundred frames later. Meanwhile the crack picture is drawn at the hit, and it goes as the block
+        /// comes back with the real one, never leaving the window bare or drawing the hole twice.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AHoleShowsOnTheFrameTheBulletLandsAndHandsOverToTheRebuiltBlock()
+        {
+            var world = new CityWorld(Seed);
+            Assert.IsTrue(FindPane(world, out PaneKey key, out Vector3 centre), "no window near the spawn");
+            CityStreamer streamer = null;
+            GlassBreaker breaker = null;
+            yield return Shootable(centre, (s, b) => { streamer = s; breaker = b; });
+            BuildingSite site = world.Building(key.Building);
+            Vector3 outward = CityMeshBuilder.WallNormal(site, key.Wall);
+            Vector3 hit = centre + outward * 0.02f;
+
+            Assert.IsTrue(breaker.TakeBlow(hit, -outward, BlowStrength.Bullet), "the bullet did not hit the window");
+            Assert.AreEqual(1, streamer.InstantHoleCount, "the hole was not drawn on the frame the bullet landed");
+            Assert.IsTrue(streamer.WindowRefreshPending, "the block was not being rebuilt: this test shows nothing");
+            Bounds drawn = streamer.InstantHoleMesh.bounds;
+            Assert.Less(Vector3.Distance(drawn.center, hit), 0.02f, "the hole was not drawn where the bullet hit");
+
+            float start = Time.realtimeSinceStartup;
+            while (streamer.WindowRefreshPending && Time.realtimeSinceStartup - start < 10.0f)
+            {
+                Assert.AreEqual(1, streamer.InstantHoleCount, "the hole went before the rebuilt block came: the window was bare for a moment");
+                yield return null;
+            }
+            yield return null;
+            Assert.AreEqual(0, streamer.InstantHoleCount, "the hole is still drawn over the real one");
+            Assert.Greater(DecalVertices(ChunkOf(streamer, world, key)), 0, "the rebuilt block has no real hole");
+        }
+
+        /// <summary>A hole another player made (GlassDamageNetwork, GlassDamage.Heard) shows here at once too.</summary>
+        [UnityTest]
+        public IEnumerator AHoleAnotherPlayerMadeShowsAtOnceToo()
+        {
+            var world = new CityWorld(Seed);
+            Assert.IsTrue(FindPane(world, out PaneKey key, out Vector3 centre), "no window near the spawn");
+            CityStreamer streamer = null;
+            yield return Shootable(centre, (s, b) => streamer = s);
+            Vector3 outward = CityMeshBuilder.WallNormal(world.Building(key.Building), key.Wall);
+            Vector3 hit = centre + outward * 0.02f;
+
+            streamer.Damage.Shoot(key, new Vector2(0.5f, 0.5f), out _);
+            GlassDamage.RaiseHeard(new PaneChange(key, PaneState.Cracked, new[] { new Vector2(0.5f, 0.5f) }, hit, -outward, BlowStrength.Bullet));
+            Assert.AreEqual(1, streamer.InstantHoleCount, "another player's hole was not drawn at once");
+            Assert.Less(Vector3.Distance(streamer.InstantHoleMesh.bounds.center, hit), 0.02f);
+        }
     }
 }

@@ -2257,15 +2257,15 @@ namespace CityX.View
         /// BulletHoleCrack.png's own 1024x856 ratio so the image doesn't
         /// stretch.
         /// </summary>
-        private const float BulletHoleDecalWidth = 0.34f;
-        private const float BulletHoleDecalHeight = 0.28f;
+        public const float BulletHoleDecalWidth = 0.34f;
+        public const float BulletHoleDecalHeight = 0.28f;
 
         /// <summary>
         /// How far the decal sits proud of the base glass plane -- both are
         /// alpha-blended and coplanar otherwise, which is exactly the
         /// condition that z-fights.
         /// </summary>
-        private const float BulletHoleDecalOffset = 0.003f;
+        public const float BulletHoleDecalOffset = 0.003f;
 
         /// <summary>
         /// The REAL geometric opening at the decal's own centre, sized as a fraction of the decal itself.
