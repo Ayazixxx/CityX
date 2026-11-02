@@ -1443,13 +1443,16 @@ namespace CityX.CharacterEditor
 
             AnimatorState gunLocomotionState = FindState(root, "GunLocomotion");
 
-            AddSpeedCondition(
-                Link(locomotion, gunLocomotionState, 0.15f, "GunEquipped", true),
-                AnimatorConditionMode.Greater);
+            // ONLY AIMING (owner, 2026-11-01: "i only want him only the pistol with two hands like that when holding right click on scoping in,
+            // have normal walk leave the arm normal just carrying it with 1 hand"): out of an aim the plain walk plays, the gun in one hand.
+            AnimatorStateTransition gunIn = Link(locomotion, gunLocomotionState, 0.15f, "GunEquipped", true);
+            gunIn.AddCondition(AnimatorConditionMode.If, 0.0f, "Aiming");
+            AddSpeedCondition(gunIn, AnimatorConditionMode.Greater);
             AddSpeedCondition(
                 Link(gunLocomotionState, locomotion, 0.15f, "GunEquipped", true),
                 AnimatorConditionMode.Less);
             Link(gunLocomotionState, locomotion, 0.15f, "GunEquipped", false);
+            Link(gunLocomotionState, locomotion, 0.15f, "Aiming", false);
 
             // THE SAME MOVING-EXIT "Aiming" ITSELF NEEDS -- see
             // AddAimingState's own doc comment on why its entry is now
@@ -1460,16 +1463,6 @@ namespace CityX.CharacterEditor
             // released, instead of moving straight into this gun-walk cycle
             // the instant Speed crosses the same threshold Locomotion's own
             // entry above already uses.
-            //
-            // KNOWN MINOR GAP: releasing aim (Aiming -> false) WHILE ALREADY
-            // MOVING with the gun still drawn takes AddAimingState's own
-            // plain "Aiming false" exit (added first, so Mecanim's
-            // first-satisfied-transition-wins rule picks it ahead of these
-            // two) straight to Locomotion for one blend, which Locomotion's
-            // own GunEquipped-and-moving entry above then immediately
-            // re-fires into GunLocomotion -- a
-            // double-hop, smoothed over by the short
-            // crossfade durations rather than eliminated outright.
             AnimatorState aiming = FindState(root, "Aiming");
             if (aiming != null)
             {

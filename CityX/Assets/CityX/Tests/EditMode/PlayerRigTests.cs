@@ -415,5 +415,40 @@ namespace CityX.Tests
             }
             return null;
         }
+
+        /// <summary>
+        /// The two-handed pistol walk only while aiming (owner, 2026-11-01: "i only want him only the pistol with two hands like that when holding
+        /// right click ... have normal walk leave the arm normal just carrying it with 1 hand"): the way from the plain walk into the gun's walk
+        /// needs Aiming, and the gun's walk goes back to the plain one when the aim is let go.
+        /// </summary>
+        [Test]
+        public void ThePistolWalkPlaysOnlyWhileAiming()
+        {
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+            Assert.IsNotNull(controller);
+            AnimatorState locomotion = null, gun = null;
+            foreach (ChildAnimatorState child in controller.layers[0].stateMachine.states)
+            {
+                if (child.state.name == "Locomotion") locomotion = child.state;
+                if (child.state.name == "GunLocomotion") gun = child.state;
+            }
+            Assert.IsNotNull(locomotion);
+            Assert.IsNotNull(gun);
+            bool anyIn = false;
+            foreach (AnimatorStateTransition transition in locomotion.transitions)
+            {
+                if (transition.destinationState != gun)
+                {
+                    continue;
+                }
+                anyIn = true;
+                Assert.IsTrue(System.Array.Exists(transition.conditions, c => c.parameter == "Aiming" && c.mode == AnimatorConditionMode.If),
+                    "the plain walk goes into the two-handed pistol walk without aiming");
+            }
+            Assert.IsTrue(anyIn, "nothing leads into the pistol walk");
+            Assert.IsTrue(System.Array.Exists(gun.transitions, t => t.destinationState == locomotion
+                && System.Array.Exists(t.conditions, c => c.parameter == "Aiming" && c.mode == AnimatorConditionMode.IfNot)),
+                "letting go of the aim does not leave the pistol walk");
+        }
     }
 }

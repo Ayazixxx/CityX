@@ -42,6 +42,14 @@ Other players see it as it is: the facing travels with the body's rotation and t
   flicker between the walk and the side-step. Worked out from the shown way (the synced Animator parameters) and the body's measured motion,
   so other players' copies warp the same. Before, a diagonal blended the walk with the side-step and the legs tangled.
 
+## The pistol: two hands only while aiming (2026-11-01)
+
+Owner: "i only want him only the pistol with two hands like that when holding right click on scoping in, have normal walk leave the arm normal
+just carrying it with 1 hand". The gun's walk (`GunLocomotion`, the Mixamo pistol walk, run and back-step with both hands on the gun) is entered
+only with Aiming held, and left when the aim is let go; out of an aim the plain walk plays and the pistol rides in the right hand at the side
+(`StrafeCapture`'s last row). The owner's Mixamo Pistol Handgun Locomotion Pack turned out to hold the same clips the game already had (the arm
+poses match frame for frame), so nothing was taken from it; its skinless copies also imported sunk into the ground.
+
 ## Next
 
 - The owner's Mixamo Locomotion Pack (2026-11-01: idle, walk, run, jump, walking and running side-steps, turns on the spot and 90 deg turns) for

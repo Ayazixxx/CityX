@@ -10,7 +10,8 @@ namespace CityX.Tests
     /// <summary>
     /// Not a test: every side-step and diagonal the body plays while it faces the camera (locked on or aiming; docs/MOVEMENT.md), seen from the
     /// front at six moments of a stride, one row each: bare-handed right, bare-handed forward-right (its legs turned toward the travel,
-    /// OrientationWarp), one-handed sword, two-handed sword, a gun aimed (each held). Written to Logs/CityShots/strafe-sheet.png. Explicit; run by name with -Graphics:
+    /// OrientationWarp), one-handed sword, two-handed sword, a gun aimed (each held); and last, the gun carried out of an aim, walking forward:
+    /// the plain walk, the gun in one hand. Written to Logs/CityShots/strafe-sheet.png. Explicit; run by name with -Graphics:
     /// ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.StrafeCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -47,6 +48,7 @@ namespace CityX.Tests
                 (Vector2.right, new LocomotionInput { LockedOn = true, Sword1HEquipped = true }, "Assets/CityX/Weapons/CombatSword.prefab"),
                 (Vector2.right, new LocomotionInput { LockedOn = true, SwordEquipped = true }, "Assets/CityX/Weapons/SpikeSword.prefab"),
                 (Vector2.right, new LocomotionInput { Aiming = true, GunEquipped = true, AimCameraForward = Vector3.forward }, "Assets/CityX/Weapons/Pistol.prefab"),
+                (Vector2.up, new LocomotionInput { GunEquipped = true }, "Assets/CityX/Weapons/Pistol.prefab"),
             };
             var sheet = new Texture2D(Cell * Columns, Cell * rows.Length, TextureFormat.RGB24, false);
             for (int row = 0; row < rows.Length; row++)
