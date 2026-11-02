@@ -176,7 +176,7 @@ Classless (like Terraria). Your **title** comes from your top one or two trees (
 
 **Trees** (draft): Magic: Pyromancer, Cryomancer, Stormcaller, Tidecaller, Geomancer, Aeromancer, Voidwalker (gravity; the Almighty Push), Necromancer, Plaguebringer, Hemomancer, Lightbringer. Melee: Sword (Knight 1H+shield / Berserker 2H / Duelist dual), Brawler, Lancer, Juggernaut, Assassin. Guns and tech: Gunslinger, Marksman, Demolitionist, Engineer. Movement: Freerunner, Aeronaut, Grappler. Summons are spread across trees.
 
-**Wizard** (owner, 2026-11-02): the tree for miscellaneous magic that belongs to no element: Grow and Shrink (built), the portal spells and invisibility (planned; how invisibility works is not decided).
+**Wizard** (owner, 2026-11-02): the tree for miscellaneous magic that belongs to no element: Grow and Shrink (built), the portal spells, invisibility and flight or levitation by magic alone, no wings or jetpack (planned; how invisibility and the flight work is not decided).
 
 **Where trees come from:** the basic trees are taught in the hub so a new player can build a real style; zones hold the rare trees and the top tiers (draft: Poison and Water in the Sewers, Earth in the Caves, Shadow in Pillars, top Fire in the Mantle, Necromancer and Blood in Hell, Void in The Black, Wind and Lightning up high, Light in Heaven, Ice in Space).
 
