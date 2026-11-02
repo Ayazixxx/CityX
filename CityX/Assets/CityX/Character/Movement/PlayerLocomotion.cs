@@ -1359,6 +1359,12 @@ namespace CityX.Character
                 _horizontalVelocity = steered;
                 horizontal = steered;
             }
+            else if (facesMovement && !MovementRooted && (_controller.isGrounded || _steppingUp))
+            {
+                // On foot and going where it faces: speed builds and falls with the body's weight. An aim, a lock-on or a blow stays quick (below).
+                _horizontalVelocity = MovementWeight.Step(_horizontalVelocity, targetHorizontal, SizeSpeedFactor * WetTraction(), deltaTime);
+                horizontal = _horizontalVelocity;
+            }
             else
             {
                 // A flight has its own inertia (LocomotionInput.FlightAcceleration): the body carries, and the keys lean it round.

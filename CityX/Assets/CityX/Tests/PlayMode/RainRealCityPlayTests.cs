@@ -212,7 +212,9 @@ namespace CityX.Tests
             Assert.Greater(shelter, 0.9f, "the cover map did not see the bridge deck over the trench");
             Assert.AreEqual(0.0f, CurrentWeather.RainOn(underDeck), 0.1f, "rain fell on the ground under the deck");
 
-            int under = rain.CountLiveDropsIn(new Bounds(new Vector3(deckX, deckGround + 4.0f, deckZ), new Vector3(4.0f, 6.0f, 4.0f)));
+            // Only the air under the deck, which may be low: a drop over it is not under it.
+            float underHeight = Mathf.Min(6.0f, RainCover.CastFromSky(deckX, deckZ, 450.0f) - deckGround - 0.5f);
+            int under = rain.CountLiveDropsIn(new Bounds(new Vector3(deckX, deckGround + underHeight * 0.5f, deckZ), new Vector3(4.0f, underHeight, 4.0f)));
 
             // The open beside it: a 14 m square of open sky inside the rain box round the player, well clear of this deck. Found, not assumed:
             // an elevated expressway (2026-10-12) can run along the same river and shelter the spot a fixed offset would land on.

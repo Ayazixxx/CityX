@@ -117,7 +117,7 @@ namespace CityX.Tests
             yield return StartFromRest((g, n) => { gain = g; counted = n; });
 
             Assert.GreaterOrEqual(counted, 4, "setup: the body was rarely grounded");
-            Assert.AreEqual(_locomotion.HorizontalAcceleration * Step, gain, 0.12f);
+            Assert.AreEqual(MovementWeight.Acceleration * Step, gain, 0.12f);
         }
 
         [UnityTest]
@@ -150,7 +150,7 @@ namespace CityX.Tests
             TestContext.WriteLine($"change per step while stopping: {dry:0.00} dry ({dryCounted} grounded), {wet:0.00} wet ({wetCounted})");
             Assert.GreaterOrEqual(dryCounted, 2);
             Assert.GreaterOrEqual(wetCounted, 2);
-            Assert.Less(dry, -0.5f, "setup: a dry body should be shedding speed");
+            Assert.Less(dry, -0.25f, "setup: a dry body should be shedding speed");
             Assert.Greater(wet, dry * 0.75f, "a soaked street should make the body slide on after the run stops (a smaller loss per step)");
         }
 
@@ -180,7 +180,7 @@ namespace CityX.Tests
             yield return StartFromRest((g, n) => second = g);
 
             Assert.AreEqual(first, second, 0.03f);
-            Assert.AreEqual(_locomotion.HorizontalAcceleration * Step, first, 0.12f);
+            Assert.AreEqual(MovementWeight.Acceleration * Step, first, 0.12f);
         }
 
         [UnityTest]

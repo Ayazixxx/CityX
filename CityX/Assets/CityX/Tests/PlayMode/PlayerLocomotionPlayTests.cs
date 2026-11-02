@@ -166,7 +166,7 @@ namespace CityX.Tests
                 Move = new Vector2(0.0f, 1.0f),
                 YawDegrees = 0.0f,
                 Sprint = true,
-            }, 30);
+            }, 60);
             Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
         }
 
@@ -323,10 +323,12 @@ namespace CityX.Tests
         {
             yield return Drive(default, 30);
 
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f) }, 30);   // up to speed first: it builds (MovementWeight)
             Vector3 walkStart = _player.transform.position;
             yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f) }, 60);
             float walked = Vector3.Distance(walkStart, _player.transform.position);
 
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Sprint = true }, 30);
             Vector3 sprintStart = _player.transform.position;
             yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Sprint = true }, 60);
             float sprinted = Vector3.Distance(sprintStart, _player.transform.position);

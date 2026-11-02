@@ -50,14 +50,20 @@ only with Aiming held, and left when the aim is let go; out of an aim the plain 
 (`StrafeCapture`'s last row). The owner's Mixamo Pistol Handgun Locomotion Pack turned out to hold the same clips the game already had (the arm
 poses match frame for frame), so nothing was taken from it; its skinless copies also imported sunk into the ground.
 
+## Weight (built 2026-11-02)
+
+Owner: "sure do movement weight". On foot and going where it faces (GTA style), speed builds and falls over a few steps (`MovementWeight`): 14 m/s per second speeding up (a walk in 0.3 s, a sprint from a stand in 0.55 s), 20 braking (a sprint stops in 0.38 s, about 1.4 m on). Before, every change took 60 m/s per second: a sprint in an eighth of a second, and a stop as sudden. Only speed along the way the body goes is slow: sideways drift is gripped away at 40, so a turn holds its line and does not slide as on ice. Wet ground scales all three down (`WetTraction`, as before), a giant's up, so it takes the same time.
+
+Left quick, at 60, on purpose: aiming, firing, casting, a lock-on, a blow (a fight needs to answer the keys at once), flight (its own inertia), the air, and `/movement classic`. `BodyLean` needed no change: it follows the measured motion, so the push off and the brace on a stop come by themselves. There are no start or stop clips yet: the strides simply grow and settle. Other players see it as it is, the movement travels with the body. The numbers are a first go, for the owner to feel.
+
 ## Next
 
 - The owner's Mixamo Locomotion Pack (2026-11-01: idle, walk, run, jump, walking and running side-steps, turns on the spot and 90 deg turns) for
   the side-steps and for turning on the spot.
-- Weight: starts and stops (the pack has none; Mixamo has more).
+- Start and stop clips (the pack has none; Mixamo has more).
 
 ## Tests
 
-`MovementTurnTests` (the rates and the braking), `PlayerLocomotionPlayTests` (pushing left turns and walks left; a sprint curves round and runs
-full speed any way; a reversal brakes; locked on still side-steps and backs up; classic mode side-steps). Render: `StrafeCapture` (every
+`MovementTurnTests` (the rates and the braking), `MovementWeightTests` (the build-up, the stop, the grip), `PlayerLocomotionPlayTests` (pushing left turns and walks left; a sprint curves round and runs
+full speed any way; a reversal brakes; locked on still side-steps and backs up; classic mode side-steps). Renders: `MovementWeightCapture` (a start, a stop, a reversal), `StrafeCapture` (every
 side-step and the diagonal, from the front).
