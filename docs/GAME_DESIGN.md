@@ -91,6 +91,7 @@ The owner's plan:
 - **He explains the basic mechanics** the game needs: spells, skill trees, stats.
 - **The faction.** He explains factions and suggests starting one together. If you say yes, **he has you create the faction** (you lead it, he joins), then teaches claiming a base. Claiming it ends the tutorial proper.
 - **The cutscene.** Someone bursts in the door, shoots Old Guy dead and aims the gun at you. Someone else shoots magic through the gunman's head and saves you at the last second. More lore follows and leads to them showing you **the hub**, where the tutorial ends.
+  **Replaced (owner, 2026-11-02), a comedic bit instead:** just after you think you have reached the end of the tutorial, Old Guy says something like "alright i think we're safe now", and bullets come raining in through the windows and kill you both at the same time. So no gunman at the door and no rescue at the last second. Open: what happens straight after (how Heaven or Hell, karma and the hub follow on from it).
 - **Old Guy dies so that every player does not have their own Old Guy** forever in their faction. The faction you created stays yours.
 - **Freedom to leave.** You can skip the tutorial and walk away, but once you are a certain distance from him you cannot go back. You can also say no to him several times through the tutorial: he says his lines, walks away and disappears once off screen.
 - **Nobody else is involved.** Old Guy is invisible to other players, and a player doing the tutorial must not be player-killed.
@@ -100,6 +101,7 @@ The owner's plan:
 - **You can leave the tutorial at any time by walking away** (owner, 2026-11-01), into the real game.
 - **Old Guy's house is in the real city too** (owner, 2026-11-01, "if you walk away and then walk back and the house has changed or is gone wouldnt that be weird"): the same building on the same spot, abandoned, Old Guy gone. **It is claimable there, and it stands by the hub's drop-off, a dangerous area**: "like making your faction base right outside the spawn in minecraft factions". **No new-player protection** (owner, same day). **A player who skips meets the real world once they move a certain distance from the starting area** (owner, same day), not on the house's doorstep.
 - **He asks about the faction inside the house, after you clear it**, so the cutscene still makes sense whatever you answer. (My reading, to confirm: with yes you create the faction and claim the house before the door is broken in; with no the cutscene follows straight away.)
+- **Karma choices in the tutorial, deciding between Heaven and Hell** (owner picked these two from my suggestions, 2026-11-02): **the swordsman begs**: at low health he drops his sword and pleads for his life, and you spare him or finish him. **The boxes in the basement**: Old Guy says something like "i have some boxes in the basement dont touch" (owner: not his wife's things, as I first suggested); you can open them anyway. Not settled: what is in the boxes; how the choices add up to one result.
 
 My suggestions (not decided):
 
