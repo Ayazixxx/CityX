@@ -115,7 +115,7 @@ My suggestions (not decided):
 - **A 10-minute budget (mine):** fall and meeting him 1 min; walk to the house (vaulting) 1; clearing it and the gear 3; stats, skill tree, spells 2; the faction and the claim 1; cutscene, rescuer, lore 1-2; arriving at the hub 1. So his house is right by where you land, and each mechanic is one action and a line or two, not a lecture.
 - **Where you land:** a quiet, unclaimed street with nobody near, inside a starting region under the hub (not anywhere in the endless city), so friends are never impossibly far apart; the hub is the meeting place. Later: friends and parties shown on the map, and teleport crystals that can take you to a party member who accepts (with the crystals' charge time and fight blocks).
 
-Open: what a player who skips misses (the gear and the faction for sure; the first skill point?); who the rescuer is, and who fired the bullets.
+Open: what a player who skips misses (the gear and the faction for sure; the first skill point?); who fired the bullets. The rescuer: the owner is thinking "some light entity maybe god" (2026-11-02, not final).
 
 Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-shirt, stats, skill tree, spells, a prototype `/claim`, ragdolls; since 2026-10-30/31 Old Guy's house itself with its loot (the knife, the bat, the wand, the slingshot, the drawers), its breakable door planks and windows, and its fuse box (the house is dark until its lever is thrown, docs/OLD_GUYS_HOUSE.md). Not yet: the private copy and its edge, Old Guy's new dialogue and its "no" branches, the claim gated on the power, factions, the cutscene system, the rescuer, the hub.
 
