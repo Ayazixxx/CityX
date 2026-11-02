@@ -16,7 +16,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FootbridgeWalkPlayTests
     {
-        private const int Seed = 81565117;
+        private const int Seed = 95998845;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]

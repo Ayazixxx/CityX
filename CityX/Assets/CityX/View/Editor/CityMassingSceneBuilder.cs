@@ -47,7 +47,7 @@ namespace CityX.ViewEditor
         /// screen's backdrop and the massing scene's own city stop
         /// matching.
         /// </summary>
-        private const int WorldSeed = 81565117;
+        private const int WorldSeed = 95998845;
 
         /// <summary>How glossy the city's three shared surfaces are when DRY. The rain restores to exactly these.</summary>
         private const float GroundDrySmoothness = 0.10f;
@@ -921,6 +921,11 @@ namespace CityX.ViewEditor
             tutorialHouse.CrackSounds = breaker.CrackSounds;
             tutorialHouse.BreakSounds = breaker.BreakSounds;
             streamer.TutorialHouse = tutorialHouse;
+
+            // --- The sky hub (docs/SKY_HUB.md): built in code when the world is made, where the streamer stands it.
+            var skyHub = new GameObject("SkyHub").AddComponent<SkyHubSite>();
+            skyHub.Structure = structure;
+            streamer.SkyHub = skyHub;
 
             // The skyline beyond the streamed city (SkylineStreamer, 2026-10-15: "the render distance on his looks waaay better than ours i want
             // mine like that"): every building past the streamed ring as a box in its own colour, the ground as a floor, out to the fog's end at

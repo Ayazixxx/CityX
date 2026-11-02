@@ -417,7 +417,7 @@ namespace CityX.World
                 }
                 if (!focal)
                 {
-                    // The piece drawn does not fit the middle of a small or oddly cut square (seed 81565117, block 475): the slimmest, a tower, in its place.
+                    // The piece drawn does not fit the middle of a small or oddly cut square (seed 95998845, block 475): the slimmest, a tower, in its place.
                     SetSpines(2.4);
                     TryPlace(OpenProp.Tower, _c, _u, 1.6, 1.6, Seed(2), extra: 12.0 + 4.0 * U(0x12), offSpines: false);
                 }

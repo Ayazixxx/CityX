@@ -66,7 +66,7 @@ Owner, 2026-10-22: **a giant island in the sky**, set up like a Minecraft factio
 
 Owner, 2026-11-01:
 - **The hub is a vibe to hang out at**: the social place between trips down.
-- **A giant spiral staircase leads up to the island**, so anyone can walk home; you come down by jumping off, with no fall damage.
+- **A giant spiral staircase leads up to the island**, so anyone can walk home; you come down by jumping off, with no fall damage. **Island and stair built** (2026-11-02, `docs/SKY_HUB.md`): round, as high as the clouds, the stair round its circumference, its foot on a flat lot off the roads and clear of every building; nothing on the island yet.
 - **The island is the safe zone; the staircase is guarded.** Attacking on the stairs is possible, but guards go after whoever attacks someone not fighting back ("gives me a chance to design some cool iconic guards of the safe zone": the owner designs them). The city below is free for all.
 - My suggestions (not decided): a gate at the top of the stairs where the safe zone starts, with a "Safe Zone" message; a barrier round the island that stops shots from outside; no entering for about 15 s after a hit (combat tag); a flagged attacker cannot enter the hub until the flag wears off (ties into karma); four staircases, one per corner tower, to spread out campers.
 

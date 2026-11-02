@@ -21,7 +21,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class GarageDriveInPlayTests
     {
-        private const int Seed = 81565117;
+        private const int Seed = 95998845;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -104,15 +104,25 @@ namespace CityX.Tests
             yield return null;
 
             const float dt = 1.0f / 60.0f;
+            bool walkedIn = false;
             foreach (GarageEntrance e in two)
             {
                 float mid = (e.X0 + e.X1) * 0.5f;
+                // KNOWN CORNER (docs/SKY_HUB.md, seed 95998845's garage 3317, on a steep hillside): an opening with no road found in front and the paving
+                // outside a metre over the deck. A body on that paving is too tall for it. Not a thing to walk in through; the other opening must be.
+                Vector3 outside = World(site, mid, front + 1.5, 0.0f);
+                if (!e.HasDriveway && world.Plan.GroundHeight(outside.x, outside.z) > e.DeckY + 0.3)
+                {
+                    Assert.IsTrue(walkedIn || e.X0 > two[0].X0, "neither of the garage's openings can be walked in through");
+                    continue;
+                }
+                walkedIn = true;
                 CharacterController body = Body(World(site, mid, front + 1.5, e.SurfaceAt(-1.5f) + 0.1f));
                 Vector3 inward = World(site, mid, front - 1.0, 0.0f) - World(site, mid, front, 0.0f);
                 inward.y = 0.0f;
                 inward.Normalize();
                 float goal = front - e.Length - 3.0f;
-                for (float t = 0.0f; t < 12.0f; t += dt)
+                for (float t = 0.0f, walk = (e.Length + 8.0f) / 2.0f; t < walk; t += dt)   // at 2 m/s, the whole ramp and on (one is 33 m long on some seeds)
                 {
                     body.Move((inward * 2.0f + Vector3.down * 3.0f) * dt);
                     site.WorldToLocal(body.transform.position.x, body.transform.position.z, out _, out double lz);

@@ -145,7 +145,7 @@ namespace CityX.Tests
                 {
                     Vector3 p = from + dir * run;
                     rise = Mathf.Max(rise, (float)(world.Plan.GroundHeight(p.x, p.z) - h0));   // only ground coming UP to meet the jump matters
-                    open = world.Plan.BuildingAt(p.x, p.z, 3.0) < 0;
+                    open = OpenRun.ClearAt(world, p);
                 }
                 if (open && rise < bestRise)
                 {

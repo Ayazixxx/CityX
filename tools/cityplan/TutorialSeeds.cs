@@ -32,6 +32,12 @@ public static class TutorialSeeds
                 Console.WriteLine($"  seed {seed}: no land for the house");
                 continue;
             }
+            SkyHubPlan hub = world.SkyHub;
+            if (!hub.Found)
+            {
+                Console.WriteLine($"  seed {seed}: no land for the sky hub's landing");
+                continue;
+            }
             // The player lands on the driveway (TutorialLot.LandingX/Z): the sun and the ground round that spot are what is seen first.
             lot.ToWorld(TutorialLot.LandingX, TutorialLot.LandingZ, out double lx, out double lz);
             double houseGap = GapToHouse(lot, sx, sz), buildingGap = NearestBuildingGap(world, lx, lz);
@@ -39,12 +45,32 @@ public static class TutorialSeeds
             double step = lot.FloorHeight - world.GroundHeight(front.X, front.Y) - PlanBuildings.PavingRise;
             double spread = SunnySpawn.Spread(world.Fields, lx, lz, 100.0, 10.0), lit = SunnySpawn.LitShare(world, lx, lz);
             string line = $"seed {seed}: house walls {houseGap:F1} m from the spawn junction, nearest other building {buildingGap:F1} m from the landing, step {step:F2} m, {lit:P0} in sun at the landing, spread {spread:F1} m";
+            double hillShare = HillShare(seed);
+            line += $", sky hub landing {(hub.PlaceAt(0.0) - new Vec2(sx, sz)).Length:F0} m from the spawn, {hillShare:P1} of the city on a hill";
             Console.WriteLine("  " + line);
-            if (step <= 0.3) ranked.Add((lit - spread * 0.05 - houseGap * 0.003, line));
+            if (step <= 0.3 && hillShare > 0.125) ranked.Add((lit - spread * 0.05 - houseGap * 0.003, line));
         }
         ranked.Sort((a, b) => b.score.CompareTo(a.score));
         Console.WriteLine("best:");
         foreach (var r in ranked) Console.WriteLine("  " + r.line);
+    }
+
+    /// <summary>The share of the land within 2.5 km of the origin on a hill, as HillTests measures it (the game's city wants hills; a flat spawn can come with a flat city).</summary>
+    private static double HillShare(int seed)
+    {
+        var fields = new PlanFields(seed, PlanConfig.For(CityScale.Varied));
+        int land = 0, hilly = 0;
+        const double step = 20.0;
+        for (double x = -2500.0; x <= 2500.0; x += step)
+        {
+            for (double z = -2500.0; z <= 2500.0; z += step)
+            {
+                if (fields.IsWater(x, z)) continue;
+                land++;
+                if (fields.Hillock(x, z) > 2.0) hilly++;
+            }
+        }
+        return (double)hilly / land;
     }
 
     private static double GapToHouse(in TutorialLot lot, double x, double z)
@@ -68,12 +94,26 @@ public static class TutorialSeeds
         return best;
     }
 
+    /// <summary>Where the sky hub lands (SkyHubPlan): its middle, its landing, how far they are from the spawn.</summary>
+    private static void ReportHub(PlanWorld world, double sx, double sz)
+    {
+        SkyHubPlan hub = world.SkyHub;
+        if (!hub.Found)
+        {
+            Console.WriteLine("  no land near the spawn holds the sky hub's landing");
+            return;
+        }
+        Vec2 foot = hub.PlaceAt(0.0), spawn = new Vec2(sx, sz);
+        Console.WriteLine($"  sky hub middle ({hub.CentreX:F1}, {hub.CentreZ:F1}), {(new Vec2(hub.CentreX, hub.CentreZ) - spawn).Length:F0} m from the spawn; landing ({foot.X:F1}, {foot.Y:F1}), {(foot - spawn).Length:F0} m from the spawn, floor {hub.FootHeight:F2}, ground down to {hub.LowestGround:F2}, block {hub.Block}");
+    }
+
     public static void Report(int seed)
     {
         PlanWorld world = PlanWorld.Create(seed, PlanConfig.For(CityScale.Active));
         world.TryFindSpawn(out double sx, out double sz);
         TutorialLot lot = world.TutorialHouse;
         Console.WriteLine($"seed {seed}: spawn ({sx:F1}, {sz:F1}), {world.Buildings.Length} buildings");
+        ReportHub(world, sx, sz);
         if (!lot.Found)
         {
             Console.WriteLine("  no land near the spawn holds the house");

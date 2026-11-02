@@ -715,7 +715,7 @@ namespace CityX.View
 
         // ---- meshes ----
 
-        private static GameObject Emit(Transform parent, string name, MeshBuffer buffer, Material material, bool collider, bool shadows)
+        internal static GameObject Emit(Transform parent, string name, MeshBuffer buffer, Material material, bool collider, bool shadows)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -723,7 +723,7 @@ namespace CityX.View
             {
                 return go;
             }
-            var mesh = new Mesh { name = "OldGuysHouse-" + name, indexFormat = IndexFormat.UInt32 };
+            var mesh = new Mesh { name = parent.name + "-" + name, indexFormat = IndexFormat.UInt32 };
             mesh.SetVertices(buffer.Vertices);
             mesh.SetNormals(buffer.Normals);
             mesh.SetUVs(0, buffer.Uvs);

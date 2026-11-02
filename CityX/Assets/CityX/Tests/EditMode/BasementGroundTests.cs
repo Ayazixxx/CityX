@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BasementGroundTests
     {
-        private const int Seed = 81565117;
+        private const int Seed = 95998845;
 
         [Test]
         public void NoGroundOrPavingIsLeftInsideABasementAndThePavingOutsideIsWhole()

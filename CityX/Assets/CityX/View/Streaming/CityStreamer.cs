@@ -28,13 +28,16 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. Requested: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 81565117;
+        public int WorldSeed = 95998845;
 
         [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
         public bool PlaceAtSpawn = false;
 
         [Tooltip("Old Guy's house, stood on the land the world keeps for it beside the spawn (PlanWorld.TutorialHouse) whenever the world is made.")]
         public OldGuysHouseSite TutorialHouse;
+
+        [Tooltip("The sky hub, stood where the world keeps it (PlanWorld.SkyHub) whenever the world is made.")]
+        public SkyHubSite SkyHub;
 
         [Tooltip("Chunks of radius kept loaded around the viewer.")]
         public int RadiusChunks = 14;
@@ -533,6 +536,15 @@ namespace CityX.View
                 if (_world.Plan.TutorialHouse.Found)
                 {
                     TutorialHouse.PlaceOn(_world.Plan.TutorialHouse);
+                }
+            }
+
+            if (SkyHub != null)
+            {
+                SkyHub.gameObject.SetActive(_world.Plan.SkyHub.Found);
+                if (_world.Plan.SkyHub.Found)
+                {
+                    SkyHub.PlaceOn(_world.Plan.SkyHub);
                 }
             }
 

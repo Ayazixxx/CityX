@@ -15,7 +15,7 @@ namespace CityX.World
     public static class PlanPrewarm
     {
         /// <summary>The seed the game's own scenes use (CityMassingSceneBuilder.WorldSeed).</summary>
-        public const int DefaultSeed = 81565117;
+        public const int DefaultSeed = 95998845;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Start()

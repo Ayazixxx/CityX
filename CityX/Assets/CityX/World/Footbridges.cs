@@ -1156,6 +1156,7 @@ namespace CityX.World
                     {
                         Vector2 x = p + dir * d + side * w;
                         if (world.Plan.OnTutorialLot(x.x, x.y)) return true;   // over Old Guy's house, which the plan does not count as a building
+                        if (world.Plan.SkyHub.BlocksABridge(x.x, x.y)) return true;   // on the sky hub's landing, or where its stair is low
                         if (!world.TryBuildingAt(x.x, x.y, out BuildingSite other)) continue;
                         if (other.Id != a.Id && other.Id != b.Id) return true;
                         // Into A or B itself away from its doorway: a curve cutting a corner.
@@ -1509,6 +1510,7 @@ namespace CityX.World
                     Vector2 x = ByWall(a, startU, way, d, o);
                     if (OnACarriageway(world, x.x, x.y, 0.2)) return false;
                     if (world.Plan.OnTutorialLot(x.x, x.y)) return false;
+                    if (world.Plan.SkyHub.BlocksABridge(x.x, x.y)) return false;
                     if (world.TryBuildingAt(x.x, x.y, out BuildingSite other) && other.Id != a.Site.Id) return false;
                 }
             }

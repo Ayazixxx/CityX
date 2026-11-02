@@ -27,6 +27,9 @@ namespace CityX.World.Plan
         /// <summary>Where Old Guy's house stands: the land nearest the spawn that holds it. The generated buildings on it are left out of <see cref="Buildings"/>.</summary>
         public readonly TutorialLot TutorialHouse;
 
+        /// <summary>Where the sky hub stands: its island over the city, its stair's landing in a block near the spawn (SkyHubPlan).</summary>
+        public readonly SkyHubPlan SkyHub;
+
         private readonly bool _hasSpawn;
         private readonly double _spawnX, _spawnZ;
 
@@ -92,24 +95,29 @@ namespace CityX.World.Plan
             {
                 TutorialHouse = TutorialLot.Find(Data, Fields, _spawnX, _spawnZ);
             }
-            if (TutorialHouse.Found)
+            // The sky hub's landing and stair go where they leave room for the spawn and the house.
+            if (_hasSpawn)
             {
-                Buildings = WithoutLotsUnder(Buildings, lotOf, TutorialHouse);
+                SkyHub = SkyHubPlan.Find(Data, Fields, _spawnX, _spawnZ, TutorialHouse);
+            }
+            if (TutorialHouse.Found || SkyHub.Found)
+            {
+                Buildings = WithoutLotsUnder(Buildings, lotOf, TutorialHouse, SkyHub);
                 IndexBuildings();
             }
             IndexAll();
         }
 
         /// <summary>
-        /// The buildings with every lot that has a building on the tutorial house's land taken out whole (an L's wing goes with its bar), numbered
-        /// afresh so a building's id stays its place in the array.
+        /// The buildings with every lot that has a building on the tutorial house's land, or in the way of the sky hub's landing and stair, taken out
+        /// whole (an L's wing goes with its bar), numbered afresh so a building's id stays its place in the array.
         /// </summary>
-        private static BuildingSite[] WithoutLotsUnder(BuildingSite[] sites, int[] lotOf, in TutorialLot house)
+        private static BuildingSite[] WithoutLotsUnder(BuildingSite[] sites, int[] lotOf, in TutorialLot house, in SkyHubPlan hub)
         {
             var cleared = new HashSet<int>();
             for (int i = 0; i < sites.Length; i++)
             {
-                if (house.Overlaps(sites[i])) cleared.Add(lotOf[i]);
+                if (house.Overlaps(sites[i]) || hub.Overlaps(sites[i])) cleared.Add(lotOf[i]);
             }
             if (cleared.Count == 0)
             {

@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class EntranceStairWalkPlayTests
     {
-        private const int Seed = 81565117;
+        private const int Seed = 95998845;
         private const float Step = 1.0f / 60.0f;
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -44,7 +44,7 @@ namespace CityX.Tests
             // The raised door near the spawn whose stair folds into the most lanes (then has the most steps), reaching the ground on a flight.
             BuildingSite site = BuildingSite.None;
             EntranceStairs.Folded stair = null;
-            foreach (BuildingSite s in TestSites.NearSpawn(world, tight ? 60 : 14))   // 30 chunks held no tight one on seed 81565117
+            foreach (BuildingSite s in TestSites.NearSpawn(world, tight ? 60 : 14))   // 30 chunks held no tight one on seed 95998845
             {
                 if (s.OnRoof || s.Shell || s.Sides >= 3 || !BuildingDecor.EntranceStyleFor(s.BaseHeight - s.DoorGroundHeight).NeedsStairs) continue;
                 EntranceStairs.Folded f = EntranceStairs.ForDoor(world.Plan, s, 0.0f, s.BaseHeight, s.Params.Depth * 0.5f, s.Params.Width * 0.5f);
