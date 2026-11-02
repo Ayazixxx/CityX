@@ -279,7 +279,8 @@ namespace CityX.CharacterEditor
             AddAimingState(controller, root);
             // AFTER AddAimingState: AddGunLocomotion looks up the "Aiming"
             // state by name to add its own moving-exit transitions out of it.
-            AddGunLocomotion(controller, root);
+            // The plain side-steps for the gun and the two-handed sword: their own (Mixamo pistol and great-sword strafes) squat bow-legged (docs/MOVEMENT.md).
+            AddGunLocomotion(controller, root, left, right);
             AddJetpackIdleState(controller, root, idle);
             AddDanceStates(controller, root);
             AddPushUpStates(controller, root);
@@ -290,7 +291,7 @@ namespace CityX.CharacterEditor
             // AFTER AddPunchStates: AddSwordLocomotion has to exist before
             // AddSwordStates looks its state up by name for the sword
             // swings' own exit transition.
-            AddSwordLocomotion(controller, root);
+            AddSwordLocomotion(controller, root, left, right);
             AddSword1HLocomotion(controller, root);
             AddSwordStates(root);
             // AFTER AddSwordStates and every base state: the upper-body layer
@@ -1270,7 +1271,7 @@ namespace CityX.CharacterEditor
         /// for a detail nobody asked for; left as a known, deliberate gap
         /// rather than attempted half-way.
         /// </summary>
-        private static void AddSwordLocomotion(AnimatorController controller, AnimatorStateMachine root)
+        private static void AddSwordLocomotion(AnimatorController controller, AnimatorStateMachine root, AnimationClip left, AnimationClip right)
         {
             AnimationClip idle = FindClip("2hsw_idle");
             AnimationClip walk = FindClip("2hsw_walk");
@@ -1284,8 +1285,6 @@ namespace CityX.CharacterEditor
 
             AnimationClip sprint = FindClip("2hsw_sprint");
             AnimationClip back = FindClip("2hsw_backwardwalk");
-            AnimationClip left = FindClip("2hsw_left");
-            AnimationClip right = FindClip("2hsw_right");
 
             // Bug report, with a screenshot: "this is the current
             // idle pose ... it should be moving slightly but its frozen."
@@ -1301,8 +1300,6 @@ namespace CityX.CharacterEditor
             MakeLooping(walk);
             MakeLooping(sprint);
             MakeLooping(back);
-            MakeLooping(left);
-            MakeLooping(right);
 
             controller.AddParameter("SwordEquipped", AnimatorControllerParameterType.Bool);
 
@@ -1407,7 +1404,7 @@ namespace CityX.CharacterEditor
         /// drops, not just when the gun itself comes out of the holster.
         /// Hence AddSpeedCondition: a bool alone is not the whole story.
         /// </summary>
-        private static void AddGunLocomotion(AnimatorController controller, AnimatorStateMachine root)
+        private static void AddGunLocomotion(AnimatorController controller, AnimatorStateMachine root, AnimationClip left, AnimationClip right)
         {
             AnimationClip walk = FindClip("pistol_walk");
             AnimatorState locomotion = FindState(root, "Locomotion");
@@ -1419,8 +1416,6 @@ namespace CityX.CharacterEditor
 
             AnimationClip run = FindClip("pistol_run");
             AnimationClip back = FindClip("pistol_walk_backward");
-            AnimationClip left = FindClip("pistol_walk_left");
-            AnimationClip right = FindClip("pistol_walk_right");
 
             // MIXAMO CLIPS ARE SINGLE STRIDES -- see Build()'s own comment on
             // why idle/walk/sprint/etc all get this same treatment. Confirmed
@@ -1433,8 +1428,6 @@ namespace CityX.CharacterEditor
             MakeLooping(walk);
             MakeLooping(run);
             MakeLooping(back);
-            MakeLooping(left);
-            MakeLooping(right);
 
             controller.AddParameter("GunEquipped", AnimatorControllerParameterType.Bool);
 

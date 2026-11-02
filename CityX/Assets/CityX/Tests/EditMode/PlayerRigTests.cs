@@ -369,5 +369,51 @@ namespace CityX.Tests
                 }
             }
         }
+
+        /// <summary>
+        /// A gun aimed and the two-handed sword side-step with the plain side-steps (docs/MOVEMENT.md): their own, the Mixamo pistol and
+        /// great-sword strafes, squatted bow-legged (owner, 2026-11-01: "when you move sideways with some weapons you looks like your squatting").
+        /// </summary>
+        [Test]
+        public void TheGunAndTheTwoHandedSwordSideStepAsThePlainWalkDoes()
+        {
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+            Assert.IsNotNull(controller);
+            BlendTree plain = TreeOf(controller, "Locomotion");
+            foreach (string name in new[] { "GunLocomotion", "SwordLocomotion" })
+            {
+                BlendTree tree = TreeOf(controller, name);
+                foreach (float side in new[] { -1.0f, 1.0f })
+                {
+                    Assert.AreEqual(SideStep(plain, side), SideStep(tree, side), $"{name}'s {(side < 0 ? "left" : "right")} side-step is not the plain one");
+                }
+            }
+        }
+
+        private static BlendTree TreeOf(AnimatorController controller, string state)
+        {
+            foreach (ChildAnimatorState child in controller.layers[0].stateMachine.states)
+            {
+                if (child.state.name == state && child.state.motion is BlendTree tree)
+                {
+                    return tree;
+                }
+            }
+            Assert.Fail($"no {state} blend tree");
+            return null;
+        }
+
+        /// <summary>The clip at the straight side-step sample (MoveZ 0) on the side <paramref name="side"/> points.</summary>
+        private static Motion SideStep(BlendTree tree, float side)
+        {
+            foreach (ChildMotion child in tree.children)
+            {
+                if (Mathf.Abs(child.position.y) < 0.01f && child.position.x * side > 0.1f && !(child.motion is BlendTree))
+                {
+                    return child.motion;
+                }
+            }
+            return null;
+        }
     }
 }

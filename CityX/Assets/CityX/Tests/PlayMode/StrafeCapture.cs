@@ -9,8 +9,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: every side-step and diagonal the body plays while it faces the camera (locked on or aiming; docs/MOVEMENT.md), seen from the
-    /// front at six moments of a stride, one row each: bare-handed right, bare-handed forward-right, one-handed sword, two-handed sword, a gun
-    /// aimed. Written to Logs/CityShots/strafe-sheet.png. Explicit; run by name with -Graphics:
+    /// front at six moments of a stride, one row each: bare-handed right, bare-handed forward-right (its legs turned toward the travel,
+    /// OrientationWarp), one-handed sword, two-handed sword, a gun aimed (each held). Written to Logs/CityShots/strafe-sheet.png. Explicit; run by name with -Graphics:
     /// ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.StrafeCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -40,13 +40,13 @@ namespace CityX.Tests
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
 
-            var rows = new (Vector2 move, LocomotionInput flags)[]
+            var rows = new (Vector2 move, LocomotionInput flags, string held)[]
             {
-                (Vector2.right, new LocomotionInput { LockedOn = true }),
-                (new Vector2(0.7071f, 0.7071f), new LocomotionInput { LockedOn = true }),
-                (Vector2.right, new LocomotionInput { LockedOn = true, Sword1HEquipped = true }),
-                (Vector2.right, new LocomotionInput { LockedOn = true, SwordEquipped = true }),
-                (Vector2.right, new LocomotionInput { Aiming = true, GunEquipped = true }),
+                (Vector2.right, new LocomotionInput { LockedOn = true }, null),
+                (new Vector2(0.7071f, 0.7071f), new LocomotionInput { LockedOn = true }, null),
+                (Vector2.right, new LocomotionInput { LockedOn = true, Sword1HEquipped = true }, "Assets/CityX/Weapons/CombatSword.prefab"),
+                (Vector2.right, new LocomotionInput { LockedOn = true, SwordEquipped = true }, "Assets/CityX/Weapons/SpikeSword.prefab"),
+                (Vector2.right, new LocomotionInput { Aiming = true, GunEquipped = true, AimCameraForward = Vector3.forward }, "Assets/CityX/Weapons/Pistol.prefab"),
             };
             var sheet = new Texture2D(Cell * Columns, Cell * rows.Length, TextureFormat.RGB24, false);
             for (int row = 0; row < rows.Length; row++)
@@ -55,6 +55,12 @@ namespace CityX.Tests
                     new Vector3(row * 40.0f, 0.05f, 0.0f), Quaternion.identity);
                 player.GetComponent<PlayerInputReader>().enabled = false;
                 var locomotion = player.GetComponent<PlayerLocomotion>();
+                GameObject held = null;
+                if (rows[row].held != null)
+                {
+                    held = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(rows[row].held));
+                    held.GetComponent<CityX.Items.IEquippableItem>().OnEquip(player, CityX.Items.ItemInstanceData.None);
+                }
                 LocomotionInput input = rows[row].flags;
                 input.Move = rows[row].move;
                 for (int i = 0; i < 90; i++)
@@ -75,6 +81,7 @@ namespace CityX.Tests
                     Object.Destroy(cell);
                 }
                 Object.Destroy(player);
+                if (held != null) Object.Destroy(held);
             }
             sheet.Apply();
             var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");

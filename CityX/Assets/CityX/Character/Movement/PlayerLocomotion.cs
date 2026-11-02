@@ -861,6 +861,8 @@ namespace CityX.Character
             }
             // In a push-up, the body tipped up about the toes until the palms are on the floor (PlayerLocomotion.PushUps.cs).
             ApplyPushUpGrounding();
+            // Moving at an angle to the facing, the legs turned toward the travel and the chest kept on the aim (PlayerLocomotion.Warp.cs).
+            ApplyOrientationWarp();
             // A sword cut's hips turn first (the legs are re-solved under them by the foot IK, right after).
             ApplySwordHips();
             // The feet on the real ground (hip drop, locks, sole tilt, a sword fight's stepping): right after the clamp, which it builds on,
@@ -1561,8 +1563,10 @@ namespace CityX.Character
                 // In the body's own terms: a giant's 12.6 m/s walk is a walk (its cycle slowed by BodySizeAbility's StrideRate).
                 float ownPace = 1.0f / SizeSpeedFactor;
                 _animator.SetFloat(SpeedParameter, CurrentSpeed * ownPace);
-                _animator.SetFloat(MoveXParameter, LocalVelocity.x * ownPace);
-                _animator.SetFloat(MoveZParameter, LocalVelocity.y * ownPace);
+                // Only the nearest straight way: the hips are turned the rest after the Animator (PlayerLocomotion.Warp.cs).
+                Vector2 shown = _orientationWarp.Shown(LocalVelocity);
+                _animator.SetFloat(MoveXParameter, shown.x * ownPace);
+                _animator.SetFloat(MoveZParameter, shown.y * ownPace);
                 // A floating body treads water: the walk and idle, not the fall.
                 _animator.SetBool(GroundedParameter, _controller.isGrounded || _steppingUp || IsFloating);
                 _animator.SetBool(CrouchingParameter, IsCrouching);

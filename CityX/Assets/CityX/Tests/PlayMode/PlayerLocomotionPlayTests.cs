@@ -224,6 +224,30 @@ namespace CityX.Tests
             Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f, "it did not run on the other way");
         }
 
+        /// <summary>
+        /// Locked on and moving forward-right, the Animator is shown the forward walk alone and the hips turn toward the travel (OrientationWarp):
+        /// a diagonal blended from the walk and the side-step tangled the legs.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ALockedOnDiagonalWalksForwardWithTheHipsTurned()
+        {
+            Object.DestroyImmediate(_player);
+#if UNITY_EDITOR
+            _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
+                new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            _player.GetComponent<PlayerInputReader>().enabled = false;
+            _locomotion = _player.GetComponent<PlayerLocomotion>();
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.7071f, 0.7071f), YawDegrees = 0.0f, LockedOn = true }, 90);
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            Assert.AreEqual(0.0f, animator.GetFloat("MoveX"), 0.05f, "the Animator was shown a side-step blend, not the walk");
+            Assert.Greater(animator.GetFloat("MoveZ"), 3.0f);
+            Assert.AreEqual(45.0f, _locomotion.WarpDegrees, 5.0f, "the hips did not turn toward the travel");
+            Assert.AreEqual(0.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f, "locked on, the body turned off the target");
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>/movement classic: the old camera-facing movement, where the keys side-step, for comparing.</summary>
         [UnityTest]
         public IEnumerator ClassicMovementSideStepsWithoutTurning()

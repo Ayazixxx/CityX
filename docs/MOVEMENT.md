@@ -31,10 +31,19 @@ back-stepped, and W+A blended a forward walk with a side-step.
 
 Other players see it as it is: the facing travels with the body's rotation and the walk with the animator's parameters.
 
+## Side-steps and diagonals (built 2026-11-01)
+
+- **The gun aimed and the two-handed sword side-step as the plain walk does.** Their own side-steps (the Mixamo pistol and great-sword strafes)
+  squatted bow-legged (`StrafeCapture` rows 4 and 5, "you looks like your squatting"). The arms come from the aim and the sword carry, which
+  sit on top, so only the legs changed. The one-handed sword's baked carry keeps its own (baked from the same plain side-steps).
+- **Orientation warping** (`OrientationWarp`, `PlayerLocomotion.Warp.cs`): facing the camera and moving at an angle, the Animator is shown only
+  the nearest of the four straight ways (forward, left, right, back), and after it the hips and legs turn the rest of the way toward the travel
+  (60 deg at most) while the chest turns back onto the facing. A shown way holds until the travel is 55 deg off it, so a diagonal does not
+  flicker between the walk and the side-step. Worked out from the shown way (the synced Animator parameters) and the body's measured motion,
+  so other players' copies warp the same. Before, a diagonal blended the walk with the side-step and the legs tangled.
+
 ## Next
 
-- The side-steps while aiming with a gun or holding the two-handed sword squat (bow-legged, `StrafeCapture` rows 4 and 5): give them the clean side-step.
-- Diagonals while facing the camera: orientation warping instead of the walk and side-step blend.
 - The owner's Mixamo Locomotion Pack (2026-11-01: idle, walk, run, jump, walking and running side-steps, turns on the spot and 90 deg turns) for
   the side-steps and for turning on the spot.
 - Weight: starts and stops (the pack has none; Mixamo has more).

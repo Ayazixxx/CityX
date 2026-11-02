@@ -51,6 +51,7 @@ namespace CityX.Character
                 }
             }
             _leanLastPosition = position;
+            _measuredVelocity = velocity;
             _leanHasPosition = true;
 
             // A baked move carries its own lean (an Octaslash dash along the ground is 52 m/s, which would tip the running lean right over).
