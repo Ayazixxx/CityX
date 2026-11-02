@@ -286,7 +286,7 @@ Undecided between the two; current recommendation:
 - **How you died matters:** monsters and the deep zones = full penalty; **declared faction war = items only, keep levels** (otherwise nobody fights); murdered outside war by a red player = items only, and the killer is marked.
 
 ## Karma: the red name
-Owner, 2026-11-02: the tutorial must put this across, because it is what makes the game unique: **the game is hardcore; being good or bad earns positive or negative karma, with consequences: you end up in heaven or hell, and a character can be saved after it dies.** The rules below and in Death are older and do not yet say this; how the two fit is still to be written down with the owner. (Also that day: the opening stays the owner's, not a powerful start that is lost.)
+Owner, 2026-11-02: the tutorial must put this across, because it is what makes the game unique: **the game is hardcore; being good or bad earns positive or negative karma, with consequences: you end up in heaven or hell, and a character can be saved after it dies.** It must also put across **the endless combinations of skill trees, weapon styles and stats.** The rules below and in Death are older and do not yet say this; how the two fit is still to be written down with the owner. (Also that day: the opening stays the owner's, not a powerful start that is lost.)
 
 - A symbol and name that go from **white to darker red** with each murder (inspired by Sword Art Online's cursor; white-to-red reads well for colour-blind players).
 - **Counts only killing someone who was not fighting back.** War kills, self-defence (whoever strikes first is marked) and killing red players do not count; killing reds is bounty hunting.
