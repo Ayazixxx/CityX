@@ -132,7 +132,7 @@ Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-sh
   - Flying up to the sky island (jetpack, wings) is possible but high-level.
 - **Owner, 2026-10-31: the ways to teleport.**
   - **Teleport crystals** (above).
-  - **Portal spells:** they open a portal to whatever location you select (home, the hub, etc.).
+  - **Portal spells:** they open a portal to whatever location you select (home, the hub, etc.). In the **Wizard** tree (owner, 2026-11-02).
   - **A Portal Gun:** the same idea, but more like the portal gun from Rick and Morty.
   - **"Godspeed" dropped (owner, same day):** a high-level light spell to anywhere on the map you had been, once every 24 real hours, was "too op you
     can just teleport into the enemies base"; "we will just get rid of it for now i will have some fast running ability later".
