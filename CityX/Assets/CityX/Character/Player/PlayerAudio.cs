@@ -76,6 +76,7 @@ namespace CityX.Character
 
         private float _ambienceTarget;
         private float _ambienceRate;
+        private bool _somebodyElses;
 
         public bool IsIndoors => _insideOf.Count > 0;
 
@@ -92,13 +93,44 @@ namespace CityX.Character
             _oneShots.playOnAwake = false;
             _oneShots.spatialBlend = 0.0f;
 
-            if (CityAmbience != null)
+            // Enemies and display bodies are built from the player's parts, so they carry this too. Being flat, each
+            // would add another whole layer of the city wherever it stood; only a body someone plays as may sound it.
+            if (!_somebodyElses && GetComponent<PlayerInputReader>() != null)
+            {
+                StartAmbience();
+            }
+        }
+
+        /// <summary>Told by the network which body is this machine's, possibly before this component's Awake: somebody else's copy has the same parts, and must not add its own layer of the city.</summary>
+        public void SetOwnBody(bool own)
+        {
+            _somebodyElses = !own;
+            if (own)
+            {
+                StartAmbience();
+            }
+            else if (_ambience != null)
+            {
+                _ambience.Stop();
+            }
+        }
+
+        private void StartAmbience()
+        {
+            if (CityAmbience == null)
+            {
+                return;
+            }
+            if (_ambience == null)
             {
                 _ambience = AddLoop(CityAmbience);
                 _ambience.volume = 0.0f;
-                _ambience.Play();
-                FadeAmbience(true, SlowFadeSeconds);
             }
+            if (!_ambience.isPlaying)
+            {
+                _ambience.Play();
+            }
+            FadeAmbience(!IsIndoors, SlowFadeSeconds);
         }
 
         private AudioSource AddLoop(AudioClip clip)

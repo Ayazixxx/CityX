@@ -81,11 +81,13 @@ namespace CityX.Character
 
         private PlayerInputReader _inputReader;
         private CharacterIdentity _identity;
+        private PlayerAudio _audio;
 
         private void Awake()
         {
             _inputReader = GetComponent<PlayerInputReader>();
             _identity = GetComponent<CharacterIdentity>();
+            _audio = GetComponent<PlayerAudio>();
 
             // NetworkObject.Start() (TryStartDeactivation) deactivates any
             // scene-placed NetworkObject outright whenever no FishNet
@@ -109,11 +111,17 @@ namespace CityX.Character
             {
                 GetComponent<NetworkObject>().SetIsNetworked(false);
             }
+            else if (_audio != null)
+            {
+                // Silent until known to be ours: a host holds every player's body, and one beyond the view radius never gets OnStartClient to be told.
+                _audio.SetOwnBody(false);
+            }
         }
 
         public override void OnStartClient()
         {
             base.OnStartClient();
+            TellAudioWhoseBodyThisIs();
 
             // THE SKILL MENU AND THE BAR FOLLOW THE BODY THIS MACHINE CONTROLS:
             // somebody else's body gives the claim up, our own takes it.
@@ -169,6 +177,20 @@ namespace CityX.Character
 
             byte[] paint = character.GetPaint() ?? System.Array.Empty<byte>();
             SendAppearanceToServer(character.Name, character.Skin, character.HairStyle, character.HairColour, paint);
+        }
+
+        public override void OnOwnershipClient(FishNet.Connection.NetworkConnection prevOwner)
+        {
+            base.OnOwnershipClient(prevOwner);
+            TellAudioWhoseBodyThisIs();
+        }
+
+        private void TellAudioWhoseBodyThisIs()
+        {
+            if (_audio != null)
+            {
+                _audio.SetOwnBody(IsOwner);
+            }
         }
 
         [ServerRpc(RequireOwnership = true)]

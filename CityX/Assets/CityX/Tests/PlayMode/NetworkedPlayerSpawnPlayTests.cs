@@ -204,6 +204,14 @@ namespace CityX.Tests
 
             var cloneTransform = clone.GetComponent<FishNet.Component.Transforming.NetworkTransform>();
             Assert.IsNotNull(cloneTransform, "the friend's spawned clone has no NetworkTransform to sync position");
+
+            // The city's flat sound: on the host's screen only the host's own body may play it, or each player who joins turns it up.
+            // The friend is out of the host's view radius here, so the host's client never starts this copy: it must be silent without being told.
+            yield return WaitUntil(() => CityAmbienceBodiesPlayTests.LayersOfTheCity(clone.gameObject) == 0,
+                "the friend's copy to stop playing the city on the host's machine");
+            // IsOwner is true on the server's side as soon as ownership is given; the client's callback that starts the sound arrives a little later.
+            yield return WaitUntil(() => CityAmbienceBodiesPlayTests.LayersOfTheCity(hostIdentity.gameObject) == 1,
+                "the host's own body to play the city once");
 #else
             yield break;
 #endif
