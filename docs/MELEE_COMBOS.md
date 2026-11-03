@@ -1,0 +1,72 @@
+# Melee combos: what Dark Souls does, and ours
+
+Owner, 2026-11-03: "lets make combos", "no i dont want to use the same animations as everyone else", "make the fists balanced right now they are too op and i dont like the animations either", "research dark souls pvp and the dark souls combos for 1 handed two handeded etc". Earlier: Dark Souls style fits the game best, with combos in it; guns and magic feel decent, melee does not.
+
+## Dark Souls PvP: why a duel feels fair (research, 2026-11-03)
+
+Community guides and the wikis agree on what a Souls duel is made of; none of it is secret, all of it is rules the player can read off the screen:
+
+- **Spacing is the whole game.** You stand just outside the other's reach to bait a swing, and punish the miss ("whiff punishing"). Every attack has a wind-up and a recovery you cannot cancel, so a swing is a promise: throw it at nothing and you are open ([Steam PvP guide](https://steamcommunity.com/sharedfiles/filedetails/?id=2103327069), [part 2](https://steamcommunity.com/sharedfiles/filedetails/?id=2306866874)).
+- **Stamina is the clock.** The pool is about 160 and refills at about 45 a second, so about 3.6 s from empty ([Fextralife, stamina](https://darksouls3.wiki.fextralife.com/Stamina)). A light attack costs less than a heavy; a heavy weapon runs dry after about three swings. The strong player waits until the other has spent theirs, then goes. Never swing on empty.
+- **The roll is the dodge, and it can be caught.** It has invulnerable frames at its start and a recovery at its end; a panicked roll after a hit is punished by a delayed follow-up ("roll catching"): the straight sword's R1, R1, R2 works because the R2's delay matches a medium roll ([Fextralife, Longsword](https://darksouls3.wiki.fextralife.com/Longsword)).
+- **Trades are decided by hyper armour.** Big weapons cannot be interrupted during part of their swing (the end of it), so a greatsword takes the small weapon's hit and lands its own; a light weapon's whole plan is to never be where that lands ([Fextralife, combat](https://darksouls3.wiki.fextralife.com/Combat), [Claymore](https://darksouls3.wiki.fextralife.com/Claymore)). Poise is the health of that armour; broken, you can be staggered mid-swing.
+- **Parry, backstab, guard break, riposte.** A parry window of a few frames, then a free critical; a backstab from behind with a delay before it; a kick drains a shield's stamina and can break the guard. Dead-angling: hitting with the side of the arc so it cannot be parried, unlocked and stepping sideways.
+- **Nothing reads your inputs.** Every tell is in the animation. That is why a loss feels like your own fault. (The owner's own rule for enemies, docs/SWORDSMAN.md.)
+
+## The chains (Dark Souls 3, the moveset templates)
+
+From the [moveset templates](http://darksouls3.wikidot.com/move-sets-template). Every class has a two-hit R1 chain, a two-hit R2 chain (the first R2 chargeable), a fast rolling attack and a running attack; the templates give no frame data.
+
+| Class | One-handed R1 | Two-handed R1 | R2 | Rolling | Running |
+|---|---|---|---|---|---|
+| Straight sword | left slash, right slash | right-down slash, left-up slash | thrust, right upward slash (2H: left slash, right slash) | fast thrust | right slash (2H: downward) |
+| Greatsword | left-down, right-down | left-down, right-up (hyper armour on every 2H attack) | down, right-down (2H: left, right) | fast downward | right-down |
+| Fists | left-down strike, right strike | (none given) | strong strike, uppercut | fast right-up strike | right strike |
+
+PvP strings: straight sword R1, R1, R2 (the R2 catches the roll); some weapons' R1, weapon art, R1 are true combos (the target cannot escape). Fist weapons: the shortest range in the game, so the whole build leans on stamina and being light; a two-punch combo is guaranteed, after it the other player escapes every time; great stagger and shield damage; the off-hand fist parries ([Fextralife, fist weapons](https://darksouls.wiki.fextralife.com/Fist+Weapons), [forum](https://steamcommunity.com/app/374320/discussions/0/361787186435643128)).
+
+## Ours, measured against that
+
+The rules we already have (`SoulsSwordCombat`, docs/SOULSLIKE_COMBAT.md): stamina per swing, a parry in the guard's first 0.2 s, the dash with i-frames, hyper armour on heavies, a guard break by holding, backstab crits. The sword's numbers: one-handed lights 8, 8.5 and 10 damage for 16, 16 and 18 stamina (hitstun 0.45 s), heavy 16 for 30; two-handed lights 10, 10.5, 13 for 22, 22, 26, heavy 20 for 40; the knife 5.6 for 11. A player has 100 health and 130 stamina, regained at 15.6 a second (8.3 s from empty: a slower clock than Souls' 3.6).
+
+**The fists break every one of those rules** (`ComboChain.Unarmed`, `CombatTuning`, `MeleeAttacker`, from Godot's player.gd):
+
+| | Fists now | The one-handed sword | Souls' fists |
+|---|---|---|---|
+| Damage a hit | 10 (haymaker 15) | 8 to 10 (heavy 16) | the lowest class |
+| Hits a second | up to 4 (the last 35% of each cancels into the next) | about 2 | fast |
+| Stamina a hit | **none** | 16 | low but paid |
+| Reach | **2.5 m, a 120 degree cone** | 2.2 m | the shortest in the game |
+| Hitstun a hit | 0.45 s, longer than the gap to the next punch: a chain is a lock | 0.45 s | two hits guaranteed, then you escape |
+
+So bare hands out-damage a sword per hit, swing twice as fast, reach further, cost nothing and lock the target for the chain: 55 damage in 1.7 s, a player dead in under three seconds with nothing to answer. That is the "too op".
+
+## The fist balance (to build)
+
+Souls' logic for fists: fast and cheap, but short and weak, and only two hits guaranteed. Numbers, my first go, for the owner to feel:
+
+| | Jab | Cross | Hook | Uppercut | Haymaker (hold) |
+|---|---|---|---|---|---|
+| Damage | 4 | 5 | 6 | 6 | 10, and the knockdown as now |
+| Stamina | 7 | 8 | 9 | 9 | 16 |
+| Hitstun | 0.22 s | 0.22 s | 0.3 s | 0.4 s | none (the knockdown) |
+
+- The chain of four does 21, the haymaker 10: 31 against the sword chain's 26.5 plus a 16 heavy, and the fists must be a metre closer to land any of it.
+- **Reach 1.4 m** (an arm and the step into the blow) in a **90 degree cone**: the sword's 2.2 m keeps you off.
+- Two punches are guaranteed (the stun outlasts the gap to the next), the third is not: as in Souls.
+- No stamina, no punch (as the sword).
+
+## The fist animations (to build, our own)
+
+Owner: not store packs, and then "make the fists animations like dark souls unarmed punching". Not a boxer's: a brawler's. What Souls' bare hands look like, from the game and the [moveset templates](http://darksouls3.wikidot.com/move-sets-template):
+
+- **No guard.** The body stands as it always stands, arms down, fists closed, a little crouched: the first pass's boxing guard (fists up at the face, `FistStrikes.GuardOffset`) goes.
+- **Lights are alternating straight punches, right then left**, each a committed lunge: the fist drawn back to the hip in a short wind-up, a step forward with the rear foot as it goes out, the torso leaning well into it, the arm straight at full reach at the contact, a hold there, then a slow pull back to the sides. Two punches look alike mirrored; that is the point.
+- **The heavy (hold) is the big one**: the fist wound back and high over the shoulder for a long moment (the tell), then brought down and across with the whole body; our knockdown finisher. Held again in the window: **the uppercut**, from a dip, driven up.
+- **Weight and feet carry it.** The step into each punch is a real step (the stance's feet planted, one steps: `SwordFootwork`, which the sword already uses, with a square stance for the fists), the rear heel coming up as the weight goes forward. Each punch is a half second of commitment, not a snap, and the recovery is where you are open.
+
+Ours now (`FistStrikes`, the renders in `Logs/CityShots/fist-sheet*.png`): a boxer's jab, cross, hook, uppercut and haymaker from a guard at the face, the arm a straight poke, the legs the walk clip's. What changes: the chain becomes right straight, left straight (looping, as Souls' two-hit R1), the heavy the overhand with the uppercut after it, the guard goes, and the legs step. All procedural (`FistStrikes` paths, `FistPoseDriver`, the footwork), so other players' copies show it with nothing new sent, and it is rendered from the side and the front and judged before it is called done.
+
+## Then: the sword combos
+
+The same treatment for the one-handed sword (3 lights into a heavy, full-body, feet planted, a roll-catching delay on the heavy), with a steer at the nearest enemy, then the two-handed sword, then one system for every melee weapon. Owner's picks: Dark Souls pacing with combos.
