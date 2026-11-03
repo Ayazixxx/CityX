@@ -178,6 +178,11 @@ namespace CityX.Tests
             AllowMultipleNetworkManagers(_friendManager);
             _friendGo.SetActive(true);
 
+            // Checked before the friend connects: their client shares this process and switches this scene's network objects off as it starts,
+            // which a host on its own machine never sees.
+            yield return WaitUntil(() => CityAmbienceBodiesPlayTests.LayersOfTheCity(hostIdentity.gameObject) == 1,
+                "the host's own body to play the city once");
+
             _friendManager.ClientManager.StartConnection("127.0.0.1", port);
 
             yield return WaitUntil(() => _hostManager.ServerManager.Clients.Count >= 2,
@@ -209,9 +214,6 @@ namespace CityX.Tests
             // The friend is out of the host's view radius here, so the host's client never starts this copy: it must be silent without being told.
             yield return WaitUntil(() => CityAmbienceBodiesPlayTests.LayersOfTheCity(clone.gameObject) == 0,
                 "the friend's copy to stop playing the city on the host's machine");
-            // IsOwner is true on the server's side as soon as ownership is given; the client's callback that starts the sound arrives a little later.
-            yield return WaitUntil(() => CityAmbienceBodiesPlayTests.LayersOfTheCity(hostIdentity.gameObject) == 1,
-                "the host's own body to play the city once");
 #else
             yield break;
 #endif
