@@ -319,6 +319,8 @@ Minecraft Factions, in the city.
 
 "the shooting with guns and magic feels descent enough for now", "the melee combat doesnt not feel very good", "animations obviously need to change". Of Dark Souls, God of War and Devil May Cry pacing: "i kind of like the combos but i feel like the dark souls style fits the game better". So: Dark Souls style, with combos in it.
 
+Owner, 2026-11-03, on using a free or bought animation pack: "no i dont want to use the same animations as everyone else. lets make combos". So the melee animations are our own, and combos come first.
+
 My suggestion, not yet agreed: keep the rules underneath (damage, stamina, guard, parry, hit detection, hit freeze, ragdolls, sync); replace the swings with real full-body animations with the feet planted; steer a swing at the nearest enemy in front and step in, gently; one system for every melee weapon (fists, bats and bottles still run the old one). Rebuild the one-handed sword first, with a command to compare old and new.
 
 ## Enemies
