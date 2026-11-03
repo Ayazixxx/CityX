@@ -178,7 +178,7 @@ namespace CityX.Tests
             Assert.IsTrue(melee.TryAttack(), "the punch was refused, so there is nothing to announce");
 
             Assert.AreEqual(1, heard.Count, "one punch should announce exactly one state");
-            Assert.AreEqual(FistStrikes.JabName, heard[0], "the opening punch of the unarmed chain");
+            Assert.AreEqual(FistStrikes.RightStraightName, heard[0], "the opening punch of the unarmed chain");
 #else
             Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
             yield break;
@@ -199,7 +199,7 @@ namespace CityX.Tests
             driver.StatePlayed += _ => announced++;
 
             yield return null;
-            driver.PlayRemoteState(FistStrikes.JabName);
+            driver.PlayRemoteState(FistStrikes.RightStraightName);
             yield return WaitUntil(() => _player.GetComponent<FistPoseDriver>().IsStriking, "the replayed punch to play");
 
             Assert.AreEqual(0, announced,

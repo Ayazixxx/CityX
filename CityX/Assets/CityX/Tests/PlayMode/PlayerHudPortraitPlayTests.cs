@@ -458,13 +458,13 @@ namespace CityX.Tests
                 TearDown();
                 yield return null;
 
-                // A jab thrown as the world loads: the fists are up when the HUD takes its first portrait.
+                // A punch thrown as the world loads: the fists are up when the HUD takes its first portrait.
                 Build("hair1");
                 var fists = _player.GetComponent<FistPoseDriver>() ?? _player.AddComponent<FistPoseDriver>();
-                fists.Begin(FistKind.Jab);
-                for (int i = 0; i < 30; i++)
+                fists.Begin(FistKind.Overhand);
+                for (int i = 0; i < 20; i++)
                 {
-                    yield return null;   // the jab thrown and the guard fully up
+                    yield return null;   // the fist wound up high over the shoulder (the overhand's long wind-up)
                 }
                 _hud.CaptureNow();
                 Assert.IsTrue(_player.GetComponent<PlayerLocomotion>().FistPoseActive, "the fists were not up for the first portrait");
@@ -475,7 +475,7 @@ namespace CityX.Tests
                 Debug.Log($"CityX portrait: {fistsShow * 100:0.0}% of the picture differs with the fists up");
                 Assert.Greater(fistsShow, 0.02f, "the fists made no difference to the picture: nothing was tested");
 
-                // The guard drops after FistPoseDriver.GuardLingerSeconds: the portrait is taken again, plain, and kept.
+                // The stance drops after FistPoseDriver.ReadyLingerSeconds: the portrait is taken again, plain, and kept.
                 for (int i = 0; i < 300; i++)
                 {
                     yield return null;
@@ -483,7 +483,7 @@ namespace CityX.Tests
                 Assert.IsFalse(_hud.AwaitingPlainPose, "the portrait was never taken again once the fists were down");
                 Texture2D after = Read();
                 Save("fists-down", after);
-                // Above the shoulders (the fists rose across the face): as plain as the plain one, give or take the pixel or two the framing moves
+                // Above the shoulders (the fist rose over it): as plain as the plain one, give or take the pixel or two the framing moves
                 // (a body settled on the ground for seconds against one still dropping the 10 cm it was put above it).
                 float face = DiffersBeyondAShift(plain, after, FaceBandBottom, 1.0f, FramingShift);
                 float left = DiffersBeyondAShift(plain, after, 0.0f, 1.0f, FramingShift);

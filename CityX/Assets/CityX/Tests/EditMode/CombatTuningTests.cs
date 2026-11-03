@@ -14,10 +14,10 @@ namespace CityX.Tests
     public class CombatTuningTests
     {
         [Test]
-        public void TheUnarmedChainIsFiveStagesEndingInAFinisher()
+        public void TheUnarmedChainIsTwoStagesEndingInAFinisher()
         {
             ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
-            Assert.AreEqual(5, chain.Length, "the unarmed chain changed length");
+            Assert.AreEqual(2, chain.Length, "the unarmed chain changed length");
 
             for (int i = 0; i < chain.Length - 1; i++)
             {
@@ -42,30 +42,29 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheFinisherHitsHardestAndClosesTheChain()
+        public void TheFinisherClosesTheChain()
         {
             ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
             ComboStage finisher = chain[chain.Length - 1];
-
-            for (int i = 0; i < chain.Length - 1; i++)
-            {
-                Assert.Greater(finisher.DamageScale, chain[i].DamageScale - 0.001f,
-                    $"stage {i} hits harder than the finisher");
-            }
             Assert.AreEqual(0.0f, finisher.WindowSeconds, 0.001f,
                 "the finisher has a follow-up window, so the chain never ends");
         }
 
         /// <summary>
-        /// The finisher ragdolls instead of stunning. Hitstun on top would be a
+        /// A knockdown blow ragdolls instead of stunning. Hitstun on top would be a
         /// second competing reaction to the same hit -- the original set the
-        /// scale to zero for exactly this reason.
+        /// scale to zero for exactly this reason. The chain's closing straight is
+        /// no knockdown: it stuns, and the stun runs out before the fighter has
+        /// recovered (FistStrikesTests).
         /// </summary>
         [Test]
-        public void TheFinisherAppliesNoHitstunBecauseItRagdolls()
+        public void AKnockdownBlowAppliesNoHitstunBecauseItRagdolls()
         {
+            Assert.IsTrue(CombatTuning.HeavyPunch.KnocksDown);
+            Assert.AreEqual(0.0f, CombatTuning.HitstunFor(CombatTuning.HeavyPunch), 0.001f);
             ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
-            Assert.AreEqual(0.0f, CombatTuning.HitstunFor(chain[chain.Length - 1]), 0.001f);
+            Assert.IsFalse(chain[chain.Length - 1].KnocksDown);
+            Assert.Greater(CombatTuning.HitstunFor(chain[chain.Length - 1]), 0.0f);
         }
 
         [Test]
@@ -85,8 +84,8 @@ namespace CityX.Tests
             float atZero = CombatTuning.DamageFor(first, 0);
             float atFifty = CombatTuning.DamageFor(first, 50);
 
-            Assert.AreEqual(CombatTuning.PunchDamage, atZero, 0.001f,
-                "a Strength of zero should deal exactly the base punch damage");
+            Assert.AreEqual(CombatTuning.PunchDamage * first.DamageScale, atZero, 0.001f,
+                "a Strength of zero should deal exactly the stage's share of the base punch damage");
             Assert.AreEqual(atZero * 2.0f, atFifty, 0.01f,
                 "50 points at 2% each should double damage");
         }

@@ -66,11 +66,29 @@ namespace CityX.Character
         /// <summary>The sword pose being applied this frame (for tests and captures).</summary>
         public SwordFrame CurrentSwordFrame => _swordFrame;
 
-        /// <summary>How far the hips are sunk by the pose this frame, metres: the foot IK takes it off the root with the legs kept planted.</summary>
-        private float PoseHipDrop => _swordFrame.Active ? Mathf.Max(0.0f, _swordFrame.HipDrop) * Mathf.Clamp01(_swordFrame.Weight) : 0.0f;
+        /// <summary>How far the hips are sunk by the pose this frame (the sword's or the fists'), metres: the foot IK takes it off the root with the legs kept planted.</summary>
+        private float PoseHipDrop => (_swordFrame.Active ? Mathf.Max(0.0f, _swordFrame.HipDrop) * Mathf.Clamp01(_swordFrame.Weight) : 0.0f) + FistHipDrop;
 
         /// <summary>How much the feet should stand in the sword's stance and step (SwordFootwork) this frame, 0 to 1.</summary>
         private float SwordFootworkWanted => _swordFrame.Active ? Mathf.Clamp01(_swordFrame.Footwork) * Mathf.Clamp01(_swordFrame.Weight) : 0.0f;
+
+        /// <summary>The stance the footwork stands in this frame: the sword's while it has one, else the fists'.</summary>
+        private void StanceWanted(out float footwork, out float lead, out float depth)
+        {
+            float sword = SwordFootworkWanted;
+            float fists = FistFootworkWanted;
+            footwork = Mathf.Max(sword, fists);
+            if (sword >= fists)
+            {
+                lead = _swordFrame.StanceLead;
+                depth = _swordFrame.StanceDepth;
+            }
+            else
+            {
+                lead = _fistFrame.StanceLead;
+                depth = _fistFrame.StanceDepth;
+            }
+        }
 
         /// <summary>The sword in the right hand, if there is one: on this body or on another player's copy alike (the same model is mounted there).</summary>
         public ISwordBlade HeldSword

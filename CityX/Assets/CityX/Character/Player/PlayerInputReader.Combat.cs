@@ -343,7 +343,8 @@ namespace CityX.Character
 
             // A PUNCH GOES OUT ON THE PRESS, not on the release. It used to wait for the button to come back up (to tell a tap from a hold), which put
             // 100 ms or more between the click and the fist: the "horrible" lag. Now the click throws the punch at once; holding the button on
-            // past HeavyPunchHoldSeconds and letting go follows it with the haymaker (buffered if the first punch is still going).
+            // past HeavyPunchHoldSeconds and letting go follows it with the overhand (buffered if the first punch is still going), and held
+            // again in the overhand's window, the uppercut.
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
                 _punchHeld = true;
