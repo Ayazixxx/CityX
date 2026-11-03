@@ -9,7 +9,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: the body's weight (MovementWeight, docs/MOVEMENT.md), seen from the side a tenth of a second apart: a sprint starting from a stand, a
-    /// sprint stopping, and a sprint reversing. Written to Logs/CityShots/movement-weight-sheet.png, a row each; the speed each row reaches is logged.
+    /// sprint stopping, a sprint reversing, and a walk turning from W to W+A and from W to A. Written to Logs/CityShots/movement-weight-sheet.png, a row each;
+    /// each row's speed@yaw is logged.
     /// Explicit; run by name with -Graphics: ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.MovementWeightCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -39,8 +40,9 @@ namespace CityX.Tests
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
 
-            Vector2 forward = Vector2.up, none = Vector2.zero, back = Vector2.down;
-            var rows = new (bool runUp, Vector2 move)[] { (false, forward), (true, none), (true, back) };
+            Vector2 forward = Vector2.up, none = Vector2.zero, back = Vector2.down, forwardLeft = new Vector2(-0.7071f, 0.7071f), left = Vector2.left;
+            // The last two: a walk going from W to W+A, and from W to A (MovementTurn).
+            var rows = new (bool runUp, Vector2 move, bool sprint)[] { (false, forward, true), (true, none, true), (true, back, true), (true, forwardLeft, false), (true, left, false) };
             var sheet = new Texture2D(Cell * Columns, Cell * rows.Length, TextureFormat.RGB24, false);
             for (int row = 0; row < rows.Length; row++)
             {
@@ -55,7 +57,7 @@ namespace CityX.Tests
                 }
                 for (int i = 0; rows[row].runUp && i < 90; i++)
                 {
-                    locomotion.Tick(new LocomotionInput { Move = forward, Sprint = true }, Step);
+                    locomotion.Tick(new LocomotionInput { Move = forward, Sprint = rows[row].sprint }, Step);
                     yield return null;
                 }
                 string speeds = "";
@@ -65,10 +67,10 @@ namespace CityX.Tests
                     Texture2D cell = Render(camera, p + new Vector3(8.0f, 1.6f, 0.0f), p + Vector3.up * 1.2f);
                     sheet.SetPixels(column * Cell, (rows.Length - 1 - row) * Cell, Cell, Cell, cell.GetPixels());
                     Object.Destroy(cell);
-                    speeds += $" {locomotion.CurrentSpeed:0.0}";
+                    speeds += $" {locomotion.CurrentSpeed:0.0}@{Mathf.DeltaAngle(0.0f, player.transform.eulerAngles.y):0}";
                     for (int i = 0; i < FramesBetween; i++)
                     {
-                        locomotion.Tick(new LocomotionInput { Move = rows[row].move, Sprint = true }, Step);
+                        locomotion.Tick(new LocomotionInput { Move = rows[row].move, Sprint = rows[row].sprint }, Step);
                         yield return null;
                     }
                 }

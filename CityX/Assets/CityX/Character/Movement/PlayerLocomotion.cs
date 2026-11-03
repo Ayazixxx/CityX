@@ -189,6 +189,12 @@ namespace CityX.Character
         /// <summary>The smoothed horizontal velocity HorizontalAcceleration eases toward its target -- see that field's own doc comment.</summary>
         private Vector3 _horizontalVelocity;
 
+        /// <summary>How fast the body is turning toward where it goes, degrees per second (MovementTurn.Step).</summary>
+        private float _turnVelocity;
+
+        /// <summary>Whether a player drives this body (it has a PlayerInputReader, which enemies do not), so its turns ease round.</summary>
+        private bool _easesTurns;
+
         /// <summary>Set every Tick from LocomotionInput.Aiming/AimPitchDegrees, applied later by ApplyGunAimPose.</summary>
         private bool _isAimingGun;
 
@@ -689,6 +695,7 @@ namespace CityX.Character
         {
             _controller = GetComponent<CharacterController>();
             CityX.World.GlassFracture.LetThrough(_controller);   // broken glass is walked through, not over
+            _easesTurns = GetComponent<PlayerInputReader>() != null;
             _animator = GetComponentInChildren<Animator>();
             _hips = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Hips) : null;
             _spine = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Spine) : null;
@@ -1253,9 +1260,16 @@ namespace CityX.Character
                 Quaternion wanted = Quaternion.LookRotation(direction);
                 turnOff = Quaternion.Angle(transform.rotation, wanted);
                 float pace = _horizontalVelocity.magnitude / SizeSpeedFactor;
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, wanted,
-                    MovementTurn.DegreesPerSecond(pace, WalkSpeed, SprintSpeed) * deltaTime);
+                // Only a body someone plays eases round. A brain steering for a spot needs the steady rate, whose lag brakes it (SpeedShare): eased, it
+                // settled into a circle round the spot at a run and never arrived (a Shoota round his cover, ShootaPlayTests).
+                transform.rotation = _easesTurns
+                    ? Quaternion.Euler(0.0f, MovementTurn.Step(transform.eulerAngles.y, wanted.eulerAngles.y, ref _turnVelocity, pace, WalkSpeed, SprintSpeed, deltaTime), 0.0f)
+                    : Quaternion.RotateTowards(transform.rotation, wanted, MovementTurn.DegreesPerSecond(pace, WalkSpeed, SprintSpeed) * deltaTime);
                 direction = transform.forward * direction.magnitude;
+            }
+            else
+            {
+                _turnVelocity = 0.0f;
             }
 
             // CROUCHING, Source's way (PlayerLocomotion.Crouch.cs): on the ground the body goes down over 0.4 s, in the air its feet come up.

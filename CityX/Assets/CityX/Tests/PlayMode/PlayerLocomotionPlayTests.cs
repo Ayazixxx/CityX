@@ -187,6 +187,72 @@ namespace CityX.Tests
             Assert.Greater(_locomotion.LocalVelocity.y, 3.0f);
         }
 
+        /// <summary>W to W+A to A at a walk (owner, 2026-11-02: "it kind of snaps into place"): each change of keys turns the real body over several frames, with no jump.</summary>
+        [UnityTest]
+        public IEnumerator WToWPlusAToAAtAWalkTurnsSmoothly()
+        {
+            UseThePlayersBody();
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f }, 60);
+
+            foreach (Vector2 keys in new[] { new Vector2(-0.7071f, 0.7071f), new Vector2(-1.0f, 0.0f) })
+            {
+                float wanted = Mathf.Atan2(keys.x, keys.y) * Mathf.Rad2Deg;
+                var input = new LocomotionInput { Move = keys, YawDegrees = 0.0f };
+                int framesToNineTenths = 0;
+                float mostInAFrame = 0.0f;
+                float startOff = Mathf.Abs(Mathf.DeltaAngle(_player.transform.eulerAngles.y, wanted));
+                for (int i = 0; i < 60; i++)
+                {
+                    float before = _player.transform.eulerAngles.y;
+                    _locomotion.Tick(input, Step);
+                    mostInAFrame = Mathf.Max(mostInAFrame, Mathf.Abs(Mathf.DeltaAngle(before, _player.transform.eulerAngles.y)));
+                    if (framesToNineTenths == 0 && Mathf.Abs(Mathf.DeltaAngle(_player.transform.eulerAngles.y, wanted)) <= startOff * 0.1f)
+                    {
+                        framesToNineTenths = i + 1;
+                    }
+                    yield return null;
+                }
+                Assert.GreaterOrEqual(framesToNineTenths, 12, "the change of keys still snaps the body round");
+                Assert.Less(mostInAFrame, 5.0f, "a frame jumped");
+                Assert.AreEqual(0.0f, Mathf.DeltaAngle(_player.transform.eulerAngles.y, wanted), 1.0f, "it did not come round");
+            }
+        }
+
+        /// <summary>The player's body, eased: a reversal at a sprint still brakes, comes round and runs on the other way.</summary>
+        [UnityTest]
+        public IEnumerator ThePlayersBodyReversesAtASprintWithItsEasedTurn()
+        {
+            UseThePlayersBody();
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f, Sprint = true }, 60);
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, -1.0f), YawDegrees = 0.0f, Sprint = true }, 90);
+            Assert.AreEqual(180.0f, Mathf.Abs(Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y)), 1.0f, "it did not turn round");
+            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f, "it did not run on the other way");
+        }
+
+        /// <summary>A body no player drives keeps the steady rate: a brain steering for a spot circled it for ever when eased.</summary>
+        [UnityTest]
+        public IEnumerator ABodyNoPlayerDrivesKeepsItsSharpTurn()
+        {
+            _player.transform.rotation = Quaternion.identity;
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f }, 60);
+            yield return Drive(new LocomotionInput { Move = new Vector2(-0.7071f, 0.7071f), YawDegrees = 0.0f }, 6);
+            Assert.AreEqual(-45.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f);
+        }
+
+        /// <summary>Swaps the fixture's bare body for the real Player.prefab, facing +z (Animator, input reader and all, the reader off: the test drives it).</summary>
+        private void UseThePlayersBody()
+        {
+#if UNITY_EDITOR
+            Object.DestroyImmediate(_player);
+            _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
+                new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            _player.GetComponent<PlayerInputReader>().enabled = false;
+            _locomotion = _player.GetComponent<PlayerLocomotion>();
+#else
+            Assert.Ignore("needs the editor's asset database");
+#endif
+        }
+
         /// <summary>A sprint curves round into a turn (it turns slower than a walk) and runs at full speed whichever way the keys point.</summary>
         [UnityTest]
         public IEnumerator ASprintCurvesRoundIntoATurnAndRunsFullSpeedAnyWay()
@@ -231,12 +297,8 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator ALockedOnDiagonalWalksForwardWithTheHipsTurned()
         {
-            Object.DestroyImmediate(_player);
 #if UNITY_EDITOR
-            _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
-                new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
-            _player.GetComponent<PlayerInputReader>().enabled = false;
-            _locomotion = _player.GetComponent<PlayerLocomotion>();
+            UseThePlayersBody();
             yield return Drive(new LocomotionInput { Move = new Vector2(0.7071f, 0.7071f), YawDegrees = 0.0f, LockedOn = true }, 90);
             Animator animator = _player.GetComponentInChildren<Animator>();
             Assert.AreEqual(0.0f, animator.GetFloat("MoveX"), 0.05f, "the Animator was shown a side-step blend, not the walk");

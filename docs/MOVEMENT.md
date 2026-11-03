@@ -23,7 +23,8 @@ back-stepped, and W+A blended a forward walk with a side-step.
 
 | | |
 |---|---|
-| Turn rate | 900 deg/s from a standstill (an about-face in a fifth of a second), 600 at a walk, 300 at a sprint: a sprint curves round (a right angle in 0.3 s, an arc about 1.4 m across) |
+| Turn rate | at most 900 deg/s from a standstill, 600 at a walk, 300 at a sprint: a sprint curves round |
+| Turn ease | a turn builds and settles (`MovementTurn.Step`, eased over 0.07 s standing, 0.14 s walking, 0.2 s sprinting; nine tenths of a turn takes about twice that). W to W+A at a walk takes about 0.3 s. Owner, 2026-11-02: "it kind of snaps into place ... more smoothly rotate"; at one steady rate it took 0.08 s. Only bodies a player plays: enemies steering for a spot keep the steady rate, because eased a Shoota ran in a circle round his cover spot for ever (its lag settles at 90 degrees, too little to brake him; the steady rate falls behind until `SpeedShare` slows him enough to arrive) |
 | Sharp turns | a turn more than 60 deg off where the body faces brakes it, down to 35% of its speed at 160 deg and more: a reversal plants and turns instead of skating round |
 | Sprint | any way the keys point (the body faces it); still forward only while facing the camera |
 | Facing the camera | aiming, firing, casting, a staff or wand pointed, locked on: as before, side-steps and back-steps |
