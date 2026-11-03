@@ -315,6 +315,12 @@ Minecraft Factions, in the city.
 - **Proximity voice:** fades with distance, muffled through walls, **faction radio** heard anywhere. Proximity voice is built, with its own codec (2026-11-01, `docs/VOICE.md`); faction radio waits for factions.
 - **Text chat is proximity too** (owner, 2026-11-01), maybe with a `/g` for global chat ("we will figure it out later"). Today what you type only shows as your own speech bubble: nothing is sent yet.
 
+## Melee (owner, 2026-11-02)
+
+"the shooting with guns and magic feels descent enough for now", "the melee combat doesnt not feel very good", "animations obviously need to change". Of Dark Souls, God of War and Devil May Cry pacing: "i kind of like the combos but i feel like the dark souls style fits the game better". So: Dark Souls style, with combos in it.
+
+My suggestion, not yet agreed: keep the rules underneath (damage, stamina, guard, parry, hit detection, hit freeze, ragdolls, sync); replace the swings with real full-body animations with the feet planted; steer a swing at the nearest enemy in front and step in, gently; one system for every melee weapon (fists, bats and bottles still run the old one). Rebuild the one-handed sword first, with a command to compare old and new.
+
 ## Enemies
 
 - **Most are humanoid**, built on the player body (civilians already are). An enemy = **look** (paint, outfit, size) + **loadout** (the same abilities players unlock) + **stats** + **brain**. A new enemy is a settings file, not new code, and enemies hint at what a zone teaches.
