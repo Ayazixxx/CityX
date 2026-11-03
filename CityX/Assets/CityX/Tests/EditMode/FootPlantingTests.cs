@@ -52,6 +52,38 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void AStepInTheGroundUnderASwingingFootIsFollowedOverAFewFramesNotAtOnce()
+        {
+            var feet = new FootPlanting();
+            Run(feet, 30, i => Foot(-0.12f, 0.0f, 0.3f, 0.0f), i => Foot(0.12f, 0.0f, 0.0f, 0.0f));
+            float before = feet.Of(0).Target.y;
+            Run(feet, 1, i => Foot(-0.12f, 0.0f, 0.3f, 0.227f), i => Foot(0.12f, 0.0f, 0.0f, 0.0f));
+            float rose = feet.Of(0).Target.y - before;
+            Assert.Greater(rose, 0.0f, "the foot did not start up");
+            Assert.Less(rose, 0.227f * 0.5f, "a riser under the foot was a jump");
+            Run(feet, 30, i => Foot(-0.12f, 0.0f, 0.3f, 0.227f), i => Foot(0.12f, 0.0f, 0.0f, 0.0f));
+            Assert.AreEqual(0.227f, feet.Of(0).Target.y - before, 0.005f, "the foot never got to the new height");
+        }
+
+        [Test]
+        public void OnAStairTheHipsAreHeldUpAndAFootMayStandFurtherFromTheFloor()
+        {
+            var feet = new FootPlanting();
+            feet.FitToSlope(0.63f);
+            Run(feet, 60, i => Foot(-0.12f, 0.0f, 0.0f, -0.4f), i => Foot(0.12f, 0.0f, 0.0f, 0.0f));
+            Assert.AreEqual(FootPlanting.MaxHipDropOnSlope, feet.HipDrop, 0.01f, "up a stair the hips sank for the trailing foot");
+            Assert.Greater(feet.FootRaiseLimit, FootPlanting.MaxFootRaise);
+
+            feet.FitToSlope(-0.63f);
+            Run(feet, 60, i => Foot(-0.12f, 0.0f, 0.0f, -0.4f), i => Foot(0.12f, 0.0f, 0.0f, 0.0f));
+            Assert.AreEqual(FootPlanting.MaxHipDropGoingDown, feet.HipDrop, 0.01f, "going down the back knee did not bend for the front foot");
+
+            feet.FitToSlope(0.0f);
+            Assert.AreEqual(FootPlanting.MaxHipDrop, feet.HipDropLimit);
+            Assert.AreEqual(FootPlanting.MaxFootRaise, feet.FootRaiseLimit);
+        }
+
+        [Test]
         public void TheDropNeverExceedsWhatTheLegsCanGive()
         {
             var feet = new FootPlanting();

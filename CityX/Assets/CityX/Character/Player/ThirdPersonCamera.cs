@@ -741,7 +741,8 @@ namespace CityX.Character
             {
                 float height = (_player != null ? _player.StandingHeight : 1.8f) * scale;
                 // Crouched, down with the eyes (Source's ducked view); a crouch in the air lifted the body as far, so the view holds still.
-                pivot = Target.position + Vector3.up * (height * PivotHeightFraction - (_player != null ? _player.CrouchDrop : 0.0f));
+                // (And over a stair's steps with the body: the capsule goes up them in lurches, PlayerLocomotion.GlideOffset.)
+                pivot = Target.position + Vector3.up * (height * PivotHeightFraction - (_player != null ? _player.CrouchDrop - _player.GlideOffset : 0.0f));
                 // Aiming: a little higher, over the shoulder, and closer (below): eased over a quarter of a second, an S-curve.
                 pivot += Vector3.up * (AimPivotRaise * AimCameraBlend * scale);
             }

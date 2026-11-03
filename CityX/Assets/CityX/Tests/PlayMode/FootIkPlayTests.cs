@@ -141,6 +141,8 @@ namespace CityX.Tests
 
             Transform[] feet = { Bone(_player, HumanBodyBones.LeftFoot), Bone(_player, HumanBodyBones.RightFoot) };
             var lastLocked = new Vector3?[2];
+            var heldFrames = new int[2];
+            const int SettledAfterFrames = 5;
             int lockedFrames = 0;
             float worstSlide = 0.0f;
             float worstOffGround = 0.0f;
@@ -181,10 +183,16 @@ namespace CityX.Tests
                         continue;
                     }
                     lockedFrames++;   // on its tread
-                    // The tread under the ANKLE (a ray from the toe can start inside the next riser); the height is the sole's lowest point over it.
-                    if (dropSettled && GroundUnder(ankle, _player.transform, out RaycastHit tread))
+                    // A foot HELD a moment (it comes down its last few centimetres over a few frames), against its tread: under the ankle or the ball of the foot, the higher
+                    // (docs/STAIRS.md: on a stair it stands on its ball, the heel over the edge; and a trailing foot the clip still has on the floor has left its tread, the hips
+                    // no longer sinking for it). The height is the sole's lowest point over it.
+                    heldFrames[i] = locomotion.FootPlanting.IsLocked(i) ? heldFrames[i] + 1 : 0;
+                    Vector3 toes = feet[i].forward;
+                    toes.y = 0.0f;
+                    Vector3 ball = ankle + toes.normalized * (FusedBodyShape.FootToeCentreForward * feet[i].lossyScale.y);
+                    if (dropSettled && heldFrames[i] > SettledAfterFrames && GroundUnder(ankle, _player.transform, out RaycastHit tread) && GroundUnder(ball, _player.transform, out RaycastHit under))
                     {
-                        worstOffGround = Mathf.Max(worstOffGround, Mathf.Abs(LowestFootPoint(feet[i]).y - tread.point.y));
+                        worstOffGround = Mathf.Max(worstOffGround, Mathf.Abs(LowestFootPoint(feet[i]).y - Mathf.Max(tread.point.y, under.point.y)));
                     }
                 }
             }

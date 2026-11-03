@@ -100,6 +100,31 @@ namespace CityX.Character
 
         public const float HipDropUpSeconds = 0.12f;
 
+        /// <summary>
+        /// Going up or down a stair the hips drop at most this: lowered for the foot furthest down the flight, they sat 40 cm low all the way, a third of the leg, knees to
+        /// the chest. Past it the trailing foot leaves its tread sooner, as a real one does, pushing off.
+        /// </summary>
+        public const float MaxHipDropOnSlope = 0.12f;
+
+        /// <summary>Going down a little more: the back knee bends so the front foot can reach down to its tread.</summary>
+        public const float MaxHipDropGoingDown = 0.2f;
+
+        /// <summary>From this slope along the travel (rise per metre) the hips start to be limited, and at <see cref="SlopeLimitsFully"/> they are at <see cref="MaxHipDropOnSlope"/>.</summary>
+        public const float SlopeStartsLimiting = 0.1f;
+
+        public const float SlopeLimitsFully = 0.4f;
+
+        /// <summary>How much further above or below the floor a foot may stand, metres per unit of slope.</summary>
+        public const float FootRaisePerSlope = 0.6f;
+
+        /// <summary>Ground this far under the deepest the hips can drop is a drop: that foot is left to the clip.</summary>
+        private const float LowestFootPastDrop = 0.15f;
+
+        /// <summary>How quickly a foot's idea of its ground follows the real thing, rising and falling: a riser under a swinging foot is a step in height, and followed at once it was a jump of up to 65 cm in a frame.</summary>
+        public const float FootGroundRiseSeconds = 0.035f;
+
+        public const float FootGroundFallSeconds = 0.05f;
+
         /// <summary>The sole is held a hair above the surface, so it never z-fights with it.</summary>
         public const float SoleLift = 0.004f;
 
@@ -138,6 +163,8 @@ namespace CityX.Character
         private readonly Placement[] _placement = new Placement[2];
         private readonly float[] _lastLift = new float[2];
         private readonly Vector3[] _lastAnimated = new Vector3[2];
+        private readonly float[] _footGround = new float[2];
+        private readonly bool[] _hasFootGround = new bool[2];
         private int _animatedFrames;
         private float _hipDrop;
         private float _floorLift;
@@ -189,10 +216,32 @@ namespace CityX.Character
 
         public int ReleasedByLift { get; private set; }
 
-        /// <summary>Where the ground should be probed for a foot: under its lock while it is held, else under the clip's ankle.</summary>
+        /// <summary>The most the hips may drop this frame (<see cref="FitToSlope"/>).</summary>
+        public float HipDropLimit { get; private set; } = MaxHipDrop;
+
+        /// <summary>How far above the floor a foot's ground may be this frame (<see cref="FitToSlope"/>).</summary>
+        public float FootRaiseLimit { get; private set; } = MaxFootRaise;
+
+        /// <summary>How far below the floor a foot's ground may be this frame (<see cref="FitToSlope"/>).</summary>
+        public float FootLowerLimit { get; private set; } = MaxHipDrop + LowestFootPastDrop;
+
+        /// <summary>
+        /// Going along a slope of this rise per metre (0 on the flat): the hips are held higher, and a foot may be on ground further above or below the floor, which a long stride
+        /// on a stair reaches: past the limit, it was left to the clip, in and out of the steps, a jump of up to 72 cm in a frame.
+        /// </summary>
+        public void FitToSlope(float slope)
+        {
+            float steep = Mathf.Abs(slope);
+            HipDropLimit = Mathf.Lerp(MaxHipDrop, slope > 0.0f ? MaxHipDropOnSlope : MaxHipDropGoingDown, Mathf.InverseLerp(SlopeStartsLimiting, SlopeLimitsFully, steep));
+            FootRaiseLimit = MaxFootRaise + steep * FootRaisePerSlope;
+            FootLowerLimit = MaxHipDrop + LowestFootPastDrop + steep * FootRaisePerSlope;
+        }
+
+        /// <summary>Where the ground should be probed for a foot: where the foot really is, under its lock while it is held and on the way back from it to the clip's ankle after.</summary>
         public Vector3 ProbeAt(int foot, Vector3 animated)
         {
-            return _locked[foot] ? new Vector3(_lockPoint[foot].x, animated.y, _lockPoint[foot].z) : animated;
+            float held = _locked[foot] ? 1.0f : _lockWeight[foot];
+            return new Vector3(Mathf.Lerp(animated.x, _lockPoint[foot].x, held), animated.y, Mathf.Lerp(animated.z, _lockPoint[foot].z, held));
         }
 
         /// <summary>Forgets every lock and drop (a teleport, a respawn).</summary>
@@ -204,6 +253,7 @@ namespace CityX.Character
                 _lockWeight[i] = 0.0f;
                 _weight[i] = 0.0f;
                 _placement[i] = default;
+                _hasFootGround[i] = false;
             }
             _animatedFrames = 0;
             _hipDrop = 0.0f;
@@ -284,7 +334,7 @@ namespace CityX.Character
             StepFoot(1, deltaTime, active, right, floorY, soleOffset, releaseLocks, heading, out float needRight);
 
             // THE HIPS DROP for the foot that must reach furthest below where the clip has it (or furthest along a stride), never further than the legs can give.
-            float wanted = active ? Mathf.Clamp(Mathf.Max(needLeft, needRight), 0.0f, MaxHipDrop) : 0.0f;
+            float wanted = active ? Mathf.Clamp(Mathf.Max(needLeft, needRight), 0.0f, HipDropLimit) : 0.0f;
             float seconds = wanted > _hipDrop ? HipDropDownSeconds : HipDropUpSeconds;
             _hipDrop = Mathf.Lerp(_hipDrop, wanted, 1.0f - Mathf.Exp(-deltaTime / seconds));
             if (Mathf.Abs(_hipDrop - wanted) < 0.0005f)
@@ -331,7 +381,7 @@ namespace CityX.Character
         {
             need = 0.0f;
             float soleOffset = SoleOf(sample, soleOffsetDefault);
-            bool usable = active && sample.HasGround && sample.Ground.y - floorY <= MaxFootRaise && floorY - sample.Ground.y <= MaxHipDrop + 0.15f;
+            bool usable = active && sample.HasGround && sample.Ground.y - floorY <= FootRaiseLimit && floorY - sample.Ground.y <= FootLowerLimit;
             _weight[i] = Mathf.MoveTowards(_weight[i], usable ? 1.0f : 0.0f, deltaTime / WeightFadeSeconds);
             if (!active)
             {
@@ -352,9 +402,27 @@ namespace CityX.Character
             float lift = onFloor ? 0.0f : Mathf.Max(0.0f, overFloor);
             // Where the sole should be, and how far below the clip's ankle that is (what the hips will give): known before the lock is judged,
             // since a lock's reach is judged with the hips where they are about to be, not where the clip has them.
-            float groundTargetY = usable ? sample.Ground.y + soleOffset + lift + SoleLift : sample.Animated.y;
+            float ground = sample.Ground.y;
+            if (usable)
+            {
+                // A step in the ground is followed over a few frames, not at once; a foot coming down onto its tread comes down on the real thing.
+                if (_hasFootGround[i])
+                {
+                    float seconds = ground > _footGround[i] ? FootGroundRiseSeconds : FootGroundFallSeconds;
+                    ground = _locked[i] && _lockWeight[i] >= 1.0f && Mathf.Abs(ground - _footGround[i]) < 0.005f
+                        ? ground
+                        : Mathf.Lerp(_footGround[i], ground, 1.0f - Mathf.Exp(-deltaTime / seconds));
+                }
+                _footGround[i] = ground;
+                _hasFootGround[i] = true;
+            }
+            else
+            {
+                _hasFootGround[i] = false;
+            }
+            float groundTargetY = usable ? ground + soleOffset + lift + SoleLift : sample.Animated.y;
             float verticalNeed = usable ? Mathf.Max(0.0f, sample.Animated.y - groundTargetY) : 0.0f;
-            float hipDropComing = Mathf.Clamp(Mathf.Max(_hipDrop, verticalNeed), 0.0f, MaxHipDrop);
+            float hipDropComing = Mathf.Clamp(Mathf.Max(_hipDrop, verticalNeed), 0.0f, HipDropLimit);
             bool planted = usable && (_locked[i] ? overFloor < UnplantAbove : onFloor) && !releaseLocks;
             if (planted && !_locked[i] && LocksViable)
             {
@@ -423,7 +491,7 @@ namespace CityX.Character
                     // in toward the hip along the ground, so it lands short rather than hanging in the air (the "floating" the owner saw).
                     if (!_locked[i])
                     {
-                        float h = sample.Hip.y - Mathf.Clamp(need, 0.0f, MaxHipDrop) - target.y;
+                        float h = sample.Hip.y - Mathf.Clamp(need, 0.0f, HipDropLimit) - target.y;
                         Vector3 flat = new Vector3(target.x - sample.Hip.x, 0.0f, target.z - sample.Hip.z);
                         float hz = flat.magnitude;
                         float r = reach * 0.99f;

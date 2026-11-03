@@ -1,5 +1,7 @@
 # Foot placement, hip drop, landing, lean and slope posture
 
+On stairs, since 2026-11-02, the hips, the feet's ground and the body's height have their own rules: docs/STAIRS.md.
+
 Owner, 2026-10-13: "Add Unity Animation Rigging foot IK with ground detection, hip drop, and stride adjustment so the character walks/runs smoothly
 on slopes and stairs without sliding feet ... right now there is a very apparent lean when moving around in third person that doesnt really look good,
 please tone it down or remove it completely but make it work with the foot ground detection. please also research dynamic movement and implement more

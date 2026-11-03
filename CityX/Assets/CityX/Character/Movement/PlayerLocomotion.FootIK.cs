@@ -121,11 +121,24 @@ namespace CityX.Character
             {
                 _feet.Reset();
                 _footwork.Reset();
+                _glide.Reset();
                 moved = Vector3.zero;
             }
             var flat = new Vector3(moved.x, 0.0f, moved.z);
             float speed = flat.magnitude / deltaTime;
             Vector3 heading = speed > 0.5f ? flat / (speed * deltaTime) : Vector3.zero;
+
+            // Everything that decides whether the feet are placed, bar being in the air (below, from the samples).
+            bool placeable = FootIkEnabled && !IsSitting && !InCarSeat && !IsResized   // its rays are metres for a 2.6 m body
+                && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && (_bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly)
+                && (_controller == null || _controller.enabled)
+                && !_animator.GetBool(DancingParameter) && !_animator.GetBool(BreakdancingParameter)
+                && _animator.GetInteger(PushUpPhaseParameter) == 0;   // the push-up clips put the feet (and the hands) where they go
+
+            // THE BODY GLIDES OVER THE STEPS (PlayerLocomotion.Stairs.cs): drawn from the blurred ground, not the capsule, before anything is measured from it.
+            StepGlide(position, moved, deltaTime, placeable && !_footIkWasInAir);
+            root.localPosition += Vector3.up * _glide.Offset;
+            _feet.FitToSlope(_glide.Slope);
 
             // The stride for this gait (GaitStrides), from the Animator's own blend position: a copy of another player's body has the same.
             float strideTarget = 1.0f;
@@ -151,8 +164,8 @@ namespace CityX.Character
             float soleOffset = BodyRig.FootY * _leftFoot.lossyScale.y;
             // THE CLIP'S FLOOR IS THE CONTROLLER'S BOTTOM, not the drawn root: ClampFeetAboveGround has just lifted the root by however far a clip
             // sank its lowest foot (the charged jump: a metre), and measuring the other foot's lift against that lifted root made it look planted
-            // over a half-metre drop, which dropped the hips through the floor.
-            float floorY = transform.position.y;
+            // over a half-metre drop, which dropped the hips through the floor. (Where the glide has drawn it.)
+            float floorY = transform.position.y + _glide.Offset;
             // Standing still the soles are laid flat (SolveLeg) and set down flat: measured as a flat sole, the foot is placed so its whole sole is on the ground.
             float flatten = Mathf.Clamp01(1.0f - speed / FlatFootBelowSpeed);
 
@@ -162,7 +175,7 @@ namespace CityX.Character
             float legLength = Vector3.Distance(_leftUpperLeg.position, _leftLowerLeg.position) + Vector3.Distance(_leftLowerLeg.position, _leftFoot.position);
             _footwork.Step(IsImpactFrozen ? 0.0f : deltaTime, footworkWanted, new SwordFootwork.Body
             {
-                Ground = position,
+                Ground = position + Vector3.up * _glide.Offset,
                 Yaw = yaw,
                 Velocity = moved / deltaTime,
                 LegLength = legLength,
@@ -200,11 +213,7 @@ namespace CityX.Character
                 // The impact speed is the fastest the body fell: the frame it lands on is cut short by the ground.
                 _footIkFallSpeed = Mathf.Max(_footIkFallSpeed, -verticalSpeed);
             }
-            bool active = FootIkEnabled && !inAir && !IsSitting && !InCarSeat && !IsResized   // its rays are metres for a 2.6 m body
-                && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && (_bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly)
-                && (_controller == null || _controller.enabled)
-                && !_animator.GetBool(DancingParameter) && !_animator.GetBool(BreakdancingParameter)
-                && _animator.GetInteger(PushUpPhaseParameter) == 0;   // the push-up clips put the feet (and the hands) where they go
+            bool active = placeable && !inAir;
             FootIkActive = active;
 
             if (!inAir && _footIkWasInAir)
@@ -246,6 +255,7 @@ namespace CityX.Character
                 _footwork.Of(0).Yaw, footwork);
             SolveLeg(1, _rightUpperLeg, _rightLowerLeg, _rightFoot, transform.right, lean, side > 0.25f ? LeadYaw(_rightFoot, heading, side) : 0.0f, flatten,
                 _footwork.Of(1).Yaw, footwork);
+            ApplyStairTorso(speed, deltaTime);
         }
 
         /// <summary>A planted foot may be at least this far out from under its hip, leg lengths, whatever the hips' height (the planting dips them for it).</summary>
@@ -426,13 +436,25 @@ namespace CityX.Character
             sample.SoleBelowAnkle = Mathf.Lerp(Mathf.Max(0.01f, foot.position.y - lowest), BodyRig.FootY * scale, flatten);
 
             Vector3 probe = _feet.ProbeAt(index, animated);
-            float top = floorY + FootPlanting.MaxFootRaise + 0.1f;
-            float length = FootPlanting.MaxFootRaise + 0.1f + FootPlanting.MaxHipDrop + 0.25f;
+            float top = floorY + _feet.FootRaiseLimit + 0.1f;
+            float length = _feet.FootRaiseLimit + 0.1f + _feet.FootLowerLimit + 0.1f;
             if (GroundUnder(new Vector3(probe.x, top, probe.z), length, out RaycastHit hit) && hit.normal.y >= 0.5f)
             {
                 sample.HasGround = true;
                 sample.Ground = hit.point;
                 sample.Normal = hit.normal;
+            }
+            // ON A STAIR THE BALL OF THE FOOT IS ON THE STEP, the heel over the edge behind it: a foot is longer than a tread, and stood on what is under its ankle its toes were in the next riser.
+            if (sample.HasGround && SlopeShare > 0.0f)
+            {
+                Vector3 toes = foot.forward;
+                toes.y = 0.0f;
+                Vector3 ball = probe + toes.normalized * (FusedBodyShape.FootToeCentreForward * scale);
+                if (GroundUnder(new Vector3(ball.x, top, ball.z), length, out RaycastHit under) && under.normal.y >= 0.5f && under.point.y > sample.Ground.y)
+                {
+                    sample.Ground = under.point;
+                    sample.Normal = under.normal;
+                }
             }
             return sample;
         }
@@ -441,7 +463,7 @@ namespace CityX.Character
         private bool GroundUnder(Vector3 origin, float length, out RaycastHit best)
         {
             best = default;
-            int count = Physics.RaycastNonAlloc(origin, Vector3.down, FootHits, length, ~0, QueryTriggerInteraction.Ignore);
+            int count = Physics.RaycastNonAlloc(origin, Vector3.down, FootHits, length, CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);   // bodies walk through broken glass
             float nearest = float.MaxValue;
             bool found = false;
             for (int i = 0; i < count; i++)

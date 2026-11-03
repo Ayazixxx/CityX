@@ -1501,6 +1501,7 @@ namespace CityX.Character
             FitStepUnderCeiling(motion * deltaTime);
             Velocity = motion;
             LastMoveCollisionFlags = _controller.Move(motion * deltaTime);
+            StickToGround(grounded, motion.y, flying);
             AfterStepUpMove(deltaTime);
 
             // THE BODY FACES THE CAMERA, NOT WHERE IT IS GOING.
