@@ -43,10 +43,18 @@ dominant hand driving the gun and the off hand IK'd to a point on it, the off-ha
 
 ### The models (made from scratch in Blender, headless)
 
-- **Glock** (`CityX/SourceArt/Glock/glock_model.py`): a Glock 19's real dimensions times 1.9 (the body is 2.6 m with wide hands; at
-  2.6x the grip was deeper than the palm and the fingers could not wrap it). Parts: Frame, Slide (with the ejection port, rear
-  serrations and three-dot sights), Barrel, Magazine, Trigger. It **replaces the placeholder Beretta** (`Models/Beretta_M9.obj`, the
-  owner's Meshy model, left on disk unused). The item is still `pistol` and the prefab still `Pistol.prefab`.
+- **Glock** (`CityX/SourceArt/Glock/glock_model.py`): since 2026-11-03 the **Counter-Strike 2 Glock-18's side silhouette** (the owner's
+  reference: "research how a glock looks and make it like that", "look at counter strike glock", "keep ours all black"), measured off the
+  picture in millimetres about the web of the grip and built as outlines extruded across the gun's width, the slide's nose lofted. The
+  picture looks a little down on the gun, which stood the grip up (traced, the backstrap leaned forward and the fingers could not get
+  round the grip), so below the frame the grip is leaned back 8 degrees (`GRIP_LEAN_DEGREES`; the magazine's rake comes to 23). Times
+  1.9, as before (the body is 2.6 m with wide hands). Parts: Frame (grip, trigger guard, levers, pins), Slide (ejection port, rear
+  serrations, three-dot sights), Barrel, Magazine (with its baseplate), Trigger. The first model (2026-10-14, boxes from a Glock 19's
+  figures) had the grip as a long slab hanging off the back and the trigger guard as a loose wire ("ours is all jacked up"). It
+  **replaces the placeholder Beretta** (`Models/Beretta_M9.obj`, the owner's Meshy model, left on disk unused). The item is still
+  `pistol` and the prefab still `Pistol.prefab`. The gun's points in `FirearmProfile` (muzzle, ejection port, magazine's way out, the
+  support hand's palm) are the class defaults, baked into the prefab by the build: change them and rebuild. The support hand sits at the
+  rear of the grip's left side, low; forward or higher is out of the support arm's reach (`WeaponHandsPlayTests`).
 - **AK-47** (`CityX/SourceArt/AK47/ak47_model.py`): real proportions (880 mm overall, 415 mm barrel) times 1.45 -- the size at
   which the support hand reaches the handguard with the stock in the shoulder. Parts: Body (receiver, dust cover, wooden stock, grip
   and handguards, gas tube, barrel, sights, trigger guard, magazine paddle, selector), a curved Magazine whose origin is its front lug

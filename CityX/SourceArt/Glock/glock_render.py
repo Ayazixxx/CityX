@@ -66,8 +66,8 @@ def render_model():
     scene = bpy.context.scene
     workbench(scene)
     root = bpy.data.objects["Glock"]
-    centre = Vector((0.0, -0.08, 0.05))   # Blender axes: the gun points -Y
-    size = 0.75
+    centre = Vector((0.0, -0.17, -0.04))   # Blender axes: the gun points -Y; the middle of the slide and grip
+    size = 0.5
     # Blender axes: the shooter's right is -X, the muzzle -Y, up +Z.
     camera_at(scene, centre + Vector((-2.0, 0.0, 0.0)), centre, ortho_scale=size)   # from the shooter's right
     render(scene, "glock_right")

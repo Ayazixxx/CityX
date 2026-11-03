@@ -107,15 +107,15 @@ namespace CityX.Weapons
         [Header("The support hand (gun frame)")]
         [Tooltip("Where the free hand's palm goes on the gun. The Glock's is on the left of the grip, a little behind its middle: with the " +
                  "shooting arm out at full reach, the other arm (0.89 m) only just gets there (WeaponHandsPlayTests measures it).")]
-        public Vector3 SupportHandLocal = new Vector3(-0.07f, -0.105f, -0.035f);
+        public Vector3 SupportHandLocal = new Vector3(-0.07f, -0.11f, -0.02f);
 
         [Tooltip("True for a pistol: the free hand comes onto the gun only when it is raised to aim. A rifle is held two-handed always.")]
         public bool SupportHandOnlyWhenAiming = true;
 
         [Header("Points on the gun (gun frame, from the model's .points.json)")]
-        public Vector3 MuzzleLocal = new Vector3(0.0f, 0.058f, 0.367f);
+        public Vector3 MuzzleLocal = new Vector3(0.0f, 0.043f, 0.352f);
 
-        public Vector3 EjectionPortLocal = new Vector3(0.024f, 0.066f, 0.258f);
+        public Vector3 EjectionPortLocal = new Vector3(0.024f, 0.050f, 0.171f);
 
         [Tooltip("Which way a spent case leaves the port: right, up, a little back.")]
         public Vector3 EjectionDirectionLocal = new Vector3(1.0f, 0.75f, -0.3f);
@@ -124,7 +124,7 @@ namespace CityX.Weapons
         public Vector3 ButtLocal = new Vector3(0.0f, -0.04f, -0.42f);
 
         [Tooltip("Which way the magazine leaves the gun, for the dropped magazine.")]
-        public Vector3 MagazineOutLocal = new Vector3(0.0f, -0.951f, -0.309f);
+        public Vector3 MagazineOutLocal = new Vector3(0.0f, -0.924f, -0.383f);
 
         [Header("Moving parts (the names the reload motion's props use)")]
         public string ActionPartName = "Slide";
