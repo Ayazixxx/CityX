@@ -112,6 +112,7 @@ namespace CityX.Tests
             controller.radius = FusedBodyShape.TorsoRadius;
             controller.center = new Vector3(0, BodyRig.StandingHeight * 0.5f, 0);
             controller.stepOffset = 0.3f;
+            CityX.World.GlassFracture.LetThrough(controller);   // as every real body: the torn-off planks are debris, wherever they landed
             Physics.SyncTransforms();
             Vector3 inside = site.transform.TransformPoint(new Vector3(24.0f, l1, 9.7f));
             for (float t = 0; t < 6.0f; t += 1.0f / 60.0f)

@@ -156,7 +156,7 @@ namespace CityX.Character
         {
             float radius = _controller.radius * BodyScale;
             Vector3 from = feet + Vector3.up * (radius + 0.02f * BodyScale);
-            int count = Physics.SphereCastNonAlloc(from, radius * 0.95f, Vector3.down, GroundHits, 0.3f * BodyScale, ~0, QueryTriggerInteraction.Ignore);
+            int count = Physics.SphereCastNonAlloc(from, radius * 0.95f, Vector3.down, GroundHits, 0.3f * BodyScale, CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);
             float nearest = float.MaxValue;
             float y = float.MinValue;
             for (int i = 0; i < count; i++)
@@ -217,7 +217,7 @@ namespace CityX.Character
         {
             var half = new Vector3(halfWidth, 0.01f, halfWidth);
             int count = Physics.BoxCastNonAlloc(from, half, Vector3.up, CeilingHits, Quaternion.Euler(0.0f, transform.eulerAngles.y, 0.0f), most,
-                ~0, QueryTriggerInteraction.Ignore);
+                CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);
             float free = most;
             for (int i = 0; i < count; i++)
             {

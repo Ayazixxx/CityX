@@ -165,7 +165,7 @@ namespace CityX.Character
             float roomRadius = radius * RoomRadiusFactor;
             Vector3 low = new Vector3(landing.x, topY + roomRadius + 0.04f, landing.z);
             Vector3 high = new Vector3(landing.x, topY + standingHeight - roomRadius - 0.02f, landing.z);
-            int count = Physics.OverlapCapsuleNonAlloc(low, high, roomRadius, Overlaps, ~0, QueryTriggerInteraction.Ignore);
+            int count = Physics.OverlapCapsuleNonAlloc(low, high, roomRadius, Overlaps, CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < count; i++)
             {
                 if (!IsIgnored(Overlaps[i], self))
@@ -189,7 +189,8 @@ namespace CityX.Character
         private static bool SolidRayHit(Vector3 origin, Vector3 direction, float distance, Transform self, out RaycastHit best)
         {
             best = default;
-            int count = Physics.RaycastNonAlloc(origin, direction, Hits, distance, ~0, QueryTriggerInteraction.Ignore);
+            // Not broken glass: bodies run through it (GlassFracture.LetThrough), so a falling piece is no step to climb.
+            int count = Physics.RaycastNonAlloc(origin, direction, Hits, distance, CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);
             float nearest = float.MaxValue;
             bool found = false;
             for (int i = 0; i < count; i++)

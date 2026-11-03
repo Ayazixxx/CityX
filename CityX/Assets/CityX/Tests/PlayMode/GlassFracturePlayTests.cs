@@ -151,6 +151,50 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// A falling piece knee high in the way is not a step: the step up took it for one (it looks for solid things by its own rays, which the
+        /// controller's LetThrough does not reach) and lifted the body. Where the pieces were depended on frame times, so the run above only sometimes met one.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AKneeHighPieceInTheWayIsNotAStepToClimb()
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            GameObject player = Object.Instantiate(prefab, new Vector3(0.0f, 0.05f, -2.0f), Quaternion.identity);
+            var piece = new GameObject("GlassPiece") { layer = GlassFractureBurst.ShardLayer };
+            piece.transform.position = new Vector3(0.0f, 0.25f, 1.0f);
+            piece.AddComponent<BoxCollider>().size = new Vector3(3.0f, 0.5f, 0.5f);
+            Physics.SyncTransforms();
+            try
+            {
+                player.GetComponent<CityX.Character.PlayerInputReader>().enabled = false;
+                var body = player.GetComponent<CityX.Character.PlayerLocomotion>();
+                for (int i = 0; i < 20; i++)
+                {
+                    body.Tick(new CityX.Character.LocomotionInput(), 1.0f / 60.0f);
+                    yield return null;
+                }
+                var run = new CityX.Character.LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f, Sprint = true };
+                float highest = 0.0f;
+                for (int i = 0; i < 90; i++)
+                {
+                    body.Tick(run, 1.0f / 60.0f);
+                    highest = Mathf.Max(highest, player.transform.position.y);
+                    yield return null;
+                }
+                Assert.Greater(player.transform.position.z, 2.0f, $"the body was stopped by the piece at {player.transform.position}");
+                Assert.Less(highest, 0.15f, $"the body was lifted {highest:0.00} m onto the piece");
+            }
+            finally
+            {
+                Object.Destroy(player);
+                Object.Destroy(piece);
+            }
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>THE OWNER'S QUESTION, MEASURED: what one break costs on the frame it happens, and what a full load of falling glass costs the physics.</summary>
         [UnityTest]
         public IEnumerator ABreakIsCheapAndAFullLoadOfFallingGlassIsCheapToSimulate()

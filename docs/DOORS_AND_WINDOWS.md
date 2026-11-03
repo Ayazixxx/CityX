@@ -251,7 +251,8 @@ Unity glass generates a 2D pattern at the impact, clips it to the pane and extru
 - The glass never gets in a body's way: a piece hanging in the frame is not solid until it drops (a body running through a window that
   has just broken passes through it), and bodies walk through pieces lying on the ground (their layer, `GlassFracture.ShardLayer`, is
   excluded from players' and passers-by's controllers). The camera ignores falling glass too. (In the first full test run a hanging piece
-  held a body 0.58 m up and lying ones tripped it.)
+  held a body 0.58 m up and lying ones tripped it.) The step up's own rays skip it as well (2026-11-02, `GlassFracture.AllButShards`): the
+  controller's exclusion does not reach them, so a falling piece knee high ahead was taken for a step and lifted a running body 0.58 m.
 
 Tests: `GlassFractureTests` (the pieces cover the pane exactly once, convex; slivers at the blow, big shards at the frame; the same seed breaks
 the same way; a shop window is a few dozen pieces; the cut matches the glass the city drew for that window), `GlassFracturePlayTests` (the
