@@ -32,8 +32,17 @@ namespace CityX.Character
 
         private const float SlopeSeconds = 0.15f;
 
+        /// <summary>Stairs are ground this steep with flats in it, for this long and held this long after: a kerb is over before it counts, and a ramp has no flats.</summary>
+        public const float StairSlope = 0.3f;
+
+        public const float StairAfterSeconds = 0.08f;
+
+        public const float StairHoldSeconds = 0.25f;
+
         private float _height;
         private bool _started;
+        private float _steepFor;
+        private float _sinceFlats = float.MaxValue;
 
         /// <summary>How far above the capsule the body is drawn, metres (below it when negative).</summary>
         public float Offset { get; private set; }
@@ -41,12 +50,18 @@ namespace CityX.Character
         /// <summary>The ground's rise per metre along the travel, smoothed: 0 on the flat, about 0.63 up a stair, negative going down.</summary>
         public float Slope { get; private set; }
 
+        /// <summary>True on a stair: steep ground that comes in steps, as against a ramp or a hill (StairSteps takes the legs here).</summary>
+        public bool IsStairs { get; private set; }
+
         /// <summary>Forgets it all (a teleport, a respawn).</summary>
         public void Reset()
         {
             _started = false;
             Offset = 0.0f;
             Slope = 0.0f;
+            IsStairs = false;
+            _steepFor = 0.0f;
+            _sinceFlats = float.MaxValue;
         }
 
         /// <summary>
@@ -121,6 +136,17 @@ namespace CityX.Character
             {
                 Slope = 0.0f;
             }
+
+            // Two samples side by side at the same height on steep ground is a tread: a ramp's differ by its slope times their spacing.
+            bool flats = false;
+            for (int i = 1; glides && i < groundAt.Length; i++)
+            {
+                flats |= Mathf.Abs(groundAt[i] - groundAt[i - 1]) < FlatWithin;
+            }
+            _sinceFlats = flats ? 0.0f : _sinceFlats + deltaTime;
+            bool steep = onGround && Mathf.Abs(Slope) >= StairSlope;
+            _steepFor = steep ? _steepFor + deltaTime : 0.0f;
+            IsStairs = steep && _steepFor >= StairAfterSeconds && _sinceFlats <= StairHoldSeconds;
         }
     }
 }

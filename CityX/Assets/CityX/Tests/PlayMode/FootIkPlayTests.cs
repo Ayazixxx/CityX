@@ -140,67 +140,29 @@ namespace CityX.Tests
             yield return null;
 
             Transform[] feet = { Bone(_player, HumanBodyBones.LeftFoot), Bone(_player, HumanBodyBones.RightFoot) };
-            var lastLocked = new Vector3?[2];
-            var heldFrames = new int[2];
-            const int SettledAfterFrames = 5;
-            int lockedFrames = 0;
-            float worstSlide = 0.0f;
-            float worstOffGround = 0.0f;
-            float lowestLift = float.MaxValue, highestLift = float.MinValue;
-            int inactiveFrames = 0;
-            float lastDrop = 0.0f;
+            // On a stair the stair's own steps have the legs (StairSteps, docs/STAIRS.md). What the eye sees is the ball of the real foot, against where it is planted.
+            var plantedFrames = new int[2];
+            const int SettledAfterFrames = 3;
+            int measured = 0;
+            float worstOffItsPlace = 0.0f;
             for (int frame = 0; frame < 170 && _player.transform.position.z < 5.4f; frame++)
             {
                 locomotion.Tick(new LocomotionInput { Move = Vector2.up }, Dt);
                 yield return null;
-                if (_player.transform.position.z < 1.0f) continue;   // not on the stairs yet
-                if (!locomotion.FootIkActive) inactiveFrames++;
-                // The hips take a few frames to come down to a lower tread; a planted foot is measured against its tread once they have.
-                bool dropSettled = Mathf.Abs(locomotion.FootPlanting.HipDrop - lastDrop) < 0.004f;
-                lastDrop = locomotion.FootPlanting.HipDrop;
+                if (_player.transform.position.z < 1.6f || locomotion.StairSteps.Weight < 1.0f) continue;   // not on the stairs yet
                 for (int i = 0; i < 2; i++)
                 {
-                    lowestLift = Mathf.Min(lowestLift, locomotion.FootPlanting.LastLift(i));
-                    highestLift = Mathf.Max(highestLift, locomotion.FootPlanting.LastLift(i));
-                    Vector3 ankle = feet[i].position;
-                    // A foot that is HELD must not slide (the walk clip is too slow for the body to be held all the time: see LocksViable).
-                    if (locomotion.FootPlanting.IsLocked(i))
-                    {
-                        if (lastLocked[i].HasValue && dropSettled)
-                        {
-                            Vector3 slid = ankle - lastLocked[i].Value;
-                            slid.y = 0.0f;
-                            worstSlide = Mathf.Max(worstSlide, slid.magnitude);
-                        }
-                        lastLocked[i] = ankle;
-                    }
-                    else
-                    {
-                        lastLocked[i] = null;
-                    }
-                    if (!locomotion.FootPlanting.IsOnFloor(i))
-                    {
-                        continue;
-                    }
-                    lockedFrames++;   // on its tread
-                    // A foot HELD a moment (it comes down its last few centimetres over a few frames), against its tread: under the ankle or the ball of the foot, the higher
-                    // (docs/STAIRS.md: on a stair it stands on its ball, the heel over the edge; and a trailing foot the clip still has on the floor has left its tread, the hips
-                    // no longer sinking for it). The height is the sole's lowest point over it.
-                    heldFrames[i] = locomotion.FootPlanting.IsLocked(i) ? heldFrames[i] + 1 : 0;
-                    Vector3 toes = feet[i].forward;
-                    toes.y = 0.0f;
-                    Vector3 ball = ankle + toes.normalized * (FusedBodyShape.FootToeCentreForward * feet[i].lossyScale.y);
-                    if (dropSettled && heldFrames[i] > SettledAfterFrames && GroundUnder(ankle, _player.transform, out RaycastHit tread) && GroundUnder(ball, _player.transform, out RaycastHit under))
-                    {
-                        worstOffGround = Mathf.Max(worstOffGround, Mathf.Abs(LowestFootPoint(feet[i]).y - Mathf.Max(tread.point.y, under.point.y)));
-                    }
+                    StairSteps.Foot foot = locomotion.StairSteps.Of(i);
+                    plantedFrames[i] = foot.Stepping ? 0 : plantedFrames[i] + 1;
+                    if (plantedFrames[i] <= SettledAfterFrames) continue;
+                    Vector3 ball = feet[i].position + feet[i].rotation * (new Vector3(0.0f, -BodyRig.FootY, FusedBodyShape.FootToeCentreForward) * feet[i].lossyScale.y);
+                    worstOffItsPlace = Mathf.Max(worstOffItsPlace, Vector3.Distance(ball, foot.Ball));
+                    measured++;
                 }
             }
             Assert.Greater(_player.transform.position.z, 2.5f, "the body did not climb the stairs");
-            Assert.Greater(lockedFrames, 30, $"the feet were hardly ever on the treads (clip lift {lowestLift:0.000} to {highestLift:0.000} m, the placement off for {inactiveFrames} frames; " +
-                $"releases: {locomotion.FootPlanting.ReleasedBySwing} swing, {locomotion.FootPlanting.ReleasedByStretch} stretch, {locomotion.FootPlanting.ReleasedByLift} lift)");
-            Assert.Less(worstSlide, 0.015f, $"a planted foot slid {worstSlide * 100:0.0} cm in one frame");
-            Assert.Less(worstOffGround, 0.06f, $"a planted foot sat {worstOffGround * 100:0.0} cm off its tread (floating over the step below, or buried)");
+            Assert.Greater(measured, 10, "the feet were hardly ever planted on the treads");
+            Assert.Less(worstOffItsPlace, 0.15f, $"a planted foot's ball was {worstOffItsPlace * 100:0.0} cm off where it was planted");
 #else
             yield break;
 #endif

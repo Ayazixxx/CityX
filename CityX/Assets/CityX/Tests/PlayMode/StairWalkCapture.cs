@@ -17,8 +17,8 @@ namespace CityX.Tests
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class StairWalkCapture
     {
-        private const int Cell = 260;
-        private const int Columns = 8;
+        private const int Cell = 300;
+        private const int Columns = 7;
         private const float Step = 1.0f / 60.0f;
         private const float Tread = 0.36f;
         private const float Riser = 0.227f;
@@ -60,12 +60,13 @@ namespace CityX.Tests
             sun.transform.rotation = Quaternion.Euler(40.0f, -30.0f, 0.0f);
             var camera = new GameObject("Cam").AddComponent<Camera>();
             camera.orthographic = true;
-            camera.orthographicSize = 2.0f;
+            camera.orthographicSize = 1.7f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
 
             var rows = new (string name, bool up, bool sprint)[] { ("walk-up", true, false), ("walk-down", false, false), ("sprint-up", true, true), ("sprint-down", false, true) };
             var sheet = new Texture2D(Cell * Columns, Cell * rows.Length, TextureFormat.RGB24, false);
+            var gameSheet = new Texture2D(Cell * Columns, Cell * rows.Length, TextureFormat.RGB24, false);
             GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
             for (int row = 0; row < rows.Length; row++)
             {
@@ -91,10 +92,11 @@ namespace CityX.Tests
                 var hipsY = new System.Collections.Generic.List<float>();
                 var headY = new System.Collections.Generic.List<float>();
                 var footY = new[] { new System.Collections.Generic.List<float>(), new System.Collections.Generic.List<float>() };
-                int inStairs = 0, ungrounded = 0, floating = 0, buried = 0, frames = 0, column = 0, held = 0, onFloor = 0;
-                var lastAnkle = new Vector3?[2];
-                float slideSum = 0.0f;
-                int slideCount = 0;
+                int inStairs = 0, ungrounded = 0, floating = 0, buried = 0, frames = 0, column = 0, stepperFrames = 0, shutKnees = 0, backKnees = 0;
+                float worstMiss = 0.0f, tightestKnee = 180.0f, planeOff = 0.0f;
+                int stepsAtStart = -1;
+                Transform[] shins = { animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg), animator.GetBoneTransform(HumanBodyBones.RightLowerLeg) };
+                Transform[] thighs = { animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg), animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) };
                 float firstZ = FirstStepZ + 1.0f, lastZ = TopZ - 1.0f;
                 var input = new LocomotionInput { Move = Vector2.up, YawDegrees = yaw, Sprint = sprint };
                 for (int frame = 0; frame < 900; frame++)
@@ -123,44 +125,54 @@ namespace CityX.Tests
                         line.Append($",{ground:0.000}");
                         float clearance = lowest.y - ground;
                         anyPlanted |= locomotion.FootPlanting.IsOnFloor(f);
-                        if (locomotion.FootPlanting.IsLocked(f)) held++;
-                        if (locomotion.FootPlanting.IsOnFloor(f))
+                        if (locomotion.StairSteps.Weight >= 1.0f)
                         {
-                            onFloor++;
-                            // A foot on the ground should not move over it: how fast it does, metres a second.
-                            if (lastAnkle[f].HasValue)
+                            stepperFrames++;
+                            // A planted foot the leg cannot reach has left its tread. (One in the air at the end of the leg is a trailing foot.)
+                            if (!locomotion.StairSteps.Of(f).Stepping)
                             {
-                                Vector3 slid = feet[f].position - lastAnkle[f].Value;
-                                slid.y = 0.0f;
-                                slideSum += slid.magnitude / Step;
-                                slideCount++;
+                                worstMiss = Mathf.Max(worstMiss, Vector3.Distance(feet[f].position, locomotion.StairSteps.Of(f).Ankle));
                             }
-                            lastAnkle[f] = feet[f].position;
+                            // The leg as the eye sees it: the knee's angle, whether it bends forward, whether the shin stays in the leg's plane.
+                            Vector3 thighBone = thighs[f].position - shins[f].position, shinBone = feet[f].position - shins[f].position;
+                            float knee = Vector3.Angle(thighBone, shinBone);
+                            tightestKnee = Mathf.Min(tightestKnee, knee);
+                            if (knee < 70.0f) shutKnees++;
+                            Vector3 mid = 0.5f * (thighs[f].position + feet[f].position);
+                            if (Vector3.Dot(shins[f].position - mid, player.transform.forward) < 0.0f) backKnees++;
+                            planeOff = Mathf.Max(planeOff, Mathf.Abs(Vector3.Dot(feet[f].position - thighs[f].position, player.transform.right)));
                         }
-                        else
-                        {
-                            lastAnkle[f] = null;
-                        }
-                        if (locomotion.FootPlanting.IsOnFloor(f) && clearance > 0.05f) floating++;
+                        if (!locomotion.StairSteps.Of(f).Stepping && clearance > 0.05f) floating++;
                         if (clearance < -0.03f) buried++;
                         if (InTheStairs(ToeOf(feet[f]), player.transform) || InTheStairs(HeelOf(feet[f]), player.transform)) inStairs++;
                     }
+                    if (stepsAtStart < 0) stepsAtStart = locomotion.StairSteps.StepsTaken;
                     if (!locomotion.IsGrounded) ungrounded++;
                     line.Append($",{(locomotion.IsGrounded ? 1 : 0)},{locomotion.FootPlanting.TotalDrop:0.000},{locomotion.GroundSlope:0.00},{locomotion.GlideOffset:0.000}");
                     csv.AppendLine(line.ToString());
 
-                    if (column < Columns && frames % (sprint ? 5 : 8) == 0)
+                    if (column < Columns && frames > 20 && frames % (sprint ? 2 : 3) == 0)
                     {
-                        Texture2D cell = Render(camera, p + new Vector3(8.0f, 1.3f, 0.0f), p + Vector3.up * 1.3f);
+                        Texture2D cell = Render(camera, p + new Vector3(8.0f, 1.0f, 0.0f), p + Vector3.up * 1.0f);
                         sheet.SetPixels(column * Cell, (rows.Length - 1 - row) * Cell, Cell, Cell, cell.GetPixels());
                         Object.Destroy(cell);
+                        // And as the game's camera sees it: FOV 50, 5 m back, over the shoulder.
+                        camera.orthographic = false;
+                        camera.fieldOfView = 50.0f;
+                        Vector3 pivot = p + Vector3.up * 1.6f;
+                        Vector3 back = Quaternion.Euler(12.0f, yaw, 0.0f) * Vector3.forward;
+                        Texture2D game = Render(camera, pivot - back * 5.0f + Vector3.up * 1.0f + player.transform.right * 0.87f, pivot + back * 2.0f);
+                        gameSheet.SetPixels(column * Cell, (rows.Length - 1 - row) * Cell, Cell, Cell, game.GetPixels());
+                        Object.Destroy(game);
+                        camera.orthographic = true;
                         column++;
                     }
                 }
                 File.WriteAllText(Path.Combine(BuildingShapeCapture.ShotsFolder, $"stairs-{name}.csv"), csv.ToString());
                 Debug.Log($"CityX stairs {name}: {frames} frames; jolt off a steady climb, cm in a frame: capsule {Jolt(capsuleY):0.0}, hips {Jolt(hipsY):0.0}, head {Jolt(headY):0.0}; " +
                     $"head wobble {Wobble(headY):0.0} cm rms; foot's biggest jump {Mathf.Max(BiggestJump(footY[0]), BiggestJump(footY[1])):0.0} cm; " +
-                    $"foot frames in the stairs {inStairs}, buried {buried}, floating {floating}; not grounded {ungrounded}; feet on the floor {onFloor} frames, held {held}, skating {(slideCount > 0 ? slideSum / slideCount : 0.0f):0.0} m/s");
+                    $"foot frames in the stairs {inStairs}, buried {buried}, floating {floating}; not grounded {ungrounded}; stepper {stepperFrames / 2}/{frames} frames, {locomotion.StairSteps.StepsTaken - stepsAtStart} steps; " +
+                    $"worst IK miss {worstMiss * 100.0f:0.0} cm; knee tightest {tightestKnee:0} deg, under 70: {shutKnees}, bent backward: {backKnees}, foot sideways of hip {planeOff * 100.0f:0} cm");
                 Object.Destroy(player);
                 yield return null;
             }
@@ -170,6 +182,9 @@ namespace CityX.Tests
             var encode = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
             File.WriteAllBytes(Path.Combine(BuildingShapeCapture.ShotsFolder, "stairs-sheet.png"), (byte[])encode.Invoke(null, new object[] { sheet }));
             Object.Destroy(sheet);
+            gameSheet.Apply();
+            File.WriteAllBytes(Path.Combine(BuildingShapeCapture.ShotsFolder, "stairs-game-camera.png"), (byte[])encode.Invoke(null, new object[] { gameSheet }));
+            Object.Destroy(gameSheet);
             foreach (GameObject go in made) Object.Destroy(go);
             Object.Destroy(sun.gameObject);
             Object.Destroy(camera.gameObject);

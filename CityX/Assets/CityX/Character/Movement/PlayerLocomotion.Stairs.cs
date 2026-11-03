@@ -16,9 +16,20 @@ namespace CityX.Character
         private const float StickMinNormalY = 0.3f;
 
         private readonly GroundGlide _glide = new GroundGlide();
+        private readonly StairSteps _stairSteps = new StairSteps();
         private readonly float[] _glideGround = new float[GroundGlide.SampleAlong.Length];
+        private StairSteps.GroundAt _stairGround;
         private bool _glideRead;
         private static readonly RaycastHit[] StickHits = new RaycastHit[8];
+
+        /// <summary>The stepping feet on a stair (StairSteps), for tests and captures.</summary>
+        public StairSteps StairSteps => _stairSteps;
+
+        /// <summary>A stair's feet read the ground this far above and below where they are.</summary>
+        private const float StairRayMetres = 1.2f;
+
+        /// <summary>Moving more sideways than this share of forward or back, the feet are left to the clip: the stepper's feet go one in front of the other.</summary>
+        private const float StairStepsLeastForwardShare = 0.6f;
 
         /// <summary>How far above the capsule the body is drawn, metres (below when negative): the camera goes with it.</summary>
         public float GlideOffset => _glide.Offset;
@@ -89,6 +100,47 @@ namespace CityX.Character
         private const float TorsoBendSeconds = 0.2f;
 
         private float _stairTorsoDegrees;
+
+        /// <summary>The ground's height near a point, for the stair's feet.</summary>
+        private bool StairGround(Vector3 at, out float height)
+        {
+            bool found = GroundUnder(new Vector3(at.x, at.y + StairRayMetres, at.z), StairRayMetres * 2.0f, out RaycastHit hit) && hit.normal.y >= 0.5f;
+            height = found ? hit.point.y : 0.0f;
+            return found;
+        }
+
+        /// <summary>
+        /// One frame of the stair's feet: on a stair, on the ground, going forward or back and not in a sword fight or a crouch, they are StairSteps' (the legs all IK, SolveLeg).
+        /// </summary>
+        private void StepStairFeet(bool active, float footwork, Vector3 heading, float speed, float yaw, float floorY, float soleOffset, float deltaTime)
+        {
+            bool forwardOrBack = heading == Vector3.zero || Mathf.Abs(Vector3.Dot(heading, transform.forward)) >= StairStepsLeastForwardShare;
+            float wanted = active && _glide.IsStairs && footwork <= 0.01f && forwardOrBack && !IsCrouching && !IsImpactFrozen ? 1.0f : 0.0f;
+            Vector3 hips = 0.5f * (_leftUpperLeg.position + _rightUpperLeg.position);
+            var body = new StairSteps.Body
+            {
+                Centre = new Vector3(hips.x, floorY, hips.z),
+                Along = heading != Vector3.zero ? heading : transform.forward,
+                Speed = heading != Vector3.zero ? speed : 0.0f,
+                Slope = _glide.Slope,
+                Yaw = yaw,
+                LeftHip = _leftUpperLeg.position,
+                RightHip = _rightUpperLeg.position,
+                HalfWidth = 0.5f * Vector3.Distance(_leftUpperLeg.position, _rightUpperLeg.position),
+                LegLength = Vector3.Distance(_leftUpperLeg.position, _leftLowerLeg.position) + Vector3.Distance(_leftLowerLeg.position, _leftFoot.position),
+                SoleHeight = soleOffset,
+                BallForward = FusedBodyShape.FootToeCentreForward * _leftFoot.lossyScale.y,
+                ToeTip = FusedBodyShape.FootToeRadius * _leftFoot.lossyScale.y,
+                HeelBack = (FusedBodyShape.FootToeCentreForward - FusedBodyShape.FootHeelCentreForward + FusedBodyShape.FootHeelRadius) * _leftFoot.lossyScale.y,
+                ClipLeft = _leftFoot.position,
+                ClipRight = _rightFoot.position,
+            };
+            if (_stairGround == null)
+            {
+                _stairGround = StairGround;
+            }
+            _stairSteps.Step(deltaTime, wanted, body, _stairGround);
+        }
 
         /// <summary>The share of the slope's effects in force, from none at a gentle ramp to all on a stair.</summary>
         private float SlopeShare => Mathf.InverseLerp(FootPlanting.SlopeStartsLimiting, FootPlanting.SlopeLimitsFully, Mathf.Abs(_glide.Slope));

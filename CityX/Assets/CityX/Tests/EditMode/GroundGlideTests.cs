@@ -64,6 +64,36 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void AFlightIsStairsAndARampOfTheSameSlopeIsNot()
+        {
+            var flight = new GroundGlide();
+            var ramp = new GroundGlide();
+            bool flightSeen = false, rampSeen = false;
+            for (int i = 0; i < 90; i++)
+            {
+                float z = i * 4.0f * Dt;
+                flight.Step(StairAt(z) + Skin, Read(StairAt, z, 0.0f), Skin, 0.0f, true, Dt);
+                ramp.Step(z * (Riser / Tread) + Skin, Read(at => at * (Riser / Tread), z, 0.0f), Skin, 0.0f, true, Dt);
+                flightSeen |= flight.IsStairs;
+                rampSeen |= ramp.IsStairs;
+            }
+            Assert.IsTrue(flightSeen, "a flight was not taken for stairs");
+            Assert.IsFalse(rampSeen, "a ramp was taken for stairs");
+        }
+
+        [Test]
+        public void AKerbIsNotStairs()
+        {
+            var glide = new GroundGlide();
+            for (int i = 0; i < 90; i++)
+            {
+                float z = i * 4.0f * Dt - 2.0f;
+                glide.Step((z > 0.0f ? 0.2f : 0.0f) + Skin, Read(at => at > 0.0f ? 0.2f : 0.0f, z, 0.0f), Skin, 0.0f, true, Dt);
+                Assert.IsFalse(glide.IsStairs, "a kerb was taken for stairs");
+            }
+        }
+
+        [Test]
         public void AWallAheadIsNotTheWayOn()
         {
             var glide = new GroundGlide();

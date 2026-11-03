@@ -122,6 +122,7 @@ namespace CityX.Character
                 _feet.Reset();
                 _footwork.Reset();
                 _glide.Reset();
+                _stairSteps.Reset();
                 moved = Vector3.zero;
             }
             var flat = new Vector3(moved.x, 0.0f, moved.z);
@@ -229,6 +230,7 @@ namespace CityX.Character
             // (The footwork plants its own feet: the planting's locks stand aside while it has them.)
             bool releaseLocks = (Mathf.Abs(yawDelta) > ReleaseLocksYawDegreesPerFrame && speed < ReleaseLocksBelowSpeed) || footwork > 0.01f;
             _feet.Step(deltaTime, active, left, right, floorY, soleOffset, releaseLocks, moved / deltaTime);
+            StepStairFeet(active, footwork, heading, speed, yaw, floorY, soleOffset, deltaTime);
 
             // The slope under the body, for the lean: the feet's grounds averaged, smoothed.
             Vector3 normal = Vector3.zero;
@@ -237,7 +239,7 @@ namespace CityX.Character
             if (normal.sqrMagnitude < 0.25f) normal = Vector3.up;
             _groundNormal = Vector3.Slerp(_groundNormal, normal.normalized, 1.0f - Mathf.Exp(-deltaTime / 0.15f));
 
-            float drop = _feet.TotalDrop;
+            float drop = Mathf.Lerp(_feet.TotalDrop, _stairSteps.Drop, _stairSteps.Weight);
             if (active)
             {
                 drop += PoseHipDrop;   // a sword attack sinking into its cut: the legs bend, the feet stay planted
@@ -444,18 +446,6 @@ namespace CityX.Character
                 sample.Ground = hit.point;
                 sample.Normal = hit.normal;
             }
-            // ON A STAIR THE BALL OF THE FOOT IS ON THE STEP, the heel over the edge behind it: a foot is longer than a tread, and stood on what is under its ankle its toes were in the next riser.
-            if (sample.HasGround && SlopeShare > 0.0f)
-            {
-                Vector3 toes = foot.forward;
-                toes.y = 0.0f;
-                Vector3 ball = probe + toes.normalized * (FusedBodyShape.FootToeCentreForward * scale);
-                if (GroundUnder(new Vector3(ball.x, top, ball.z), length, out RaycastHit under) && under.normal.y >= 0.5f && under.point.y > sample.Ground.y)
-                {
-                    sample.Ground = under.point;
-                    sample.Normal = under.normal;
-                }
-            }
             return sample;
         }
 
@@ -494,11 +484,14 @@ namespace CityX.Character
             float headingYaw = 0.0f, float headingWeight = 0.0f)
         {
             FootPlanting.Placement placement = _feet.Of(index);
-            float weight = placement.Weight;
+            // ON A STAIR THE LEGS ARE ALL IK (StairSteps), the ankle where the stepper has it and the knee forward, not bent the way the clip's flat-ground stride bends it.
+            float stairs = _stairSteps.Weight;
+            float weight = Mathf.Max(placement.Weight, stairs);
             if (weight <= 0.001f)
             {
                 return;
             }
+            StairSteps.Foot stairFoot = _stairSteps.Of(index);
             Vector3 hip = upper.position;
             Vector3 axis = foot.position - hip;
             Vector3 bow = lower.position - hip;
@@ -513,8 +506,12 @@ namespace CityX.Character
                 float r = headingYaw * Mathf.Deg2Rad;
                 hint = Vector3.Slerp(hint, new Vector3(Mathf.Sin(r), 0.0f, Mathf.Cos(r)), Mathf.Clamp01(headingWeight)).normalized;
             }
+            if (stairs > 0.0f)
+            {
+                hint = Vector3.Slerp(hint, (transform.forward + outward * StairKneeOutShare).normalized, stairs).normalized;
+            }
             Quaternion footBefore = foot.rotation;
-            TwoBoneIK.Solve(upper, lower, foot, placement.Target, hint, weight);
+            TwoBoneIK.Solve(upper, lower, foot, Vector3.Lerp(placement.Target, stairFoot.Ankle, stairs), hint, weight);
 
             Quaternion tilt = Quaternion.FromToRotation(Vector3.up, placement.Normal);
             tilt = Quaternion.RotateTowards(Quaternion.identity, tilt, MaxSoleTiltDegrees);
@@ -538,6 +535,16 @@ namespace CityX.Character
             }
             Quaternion wanted = Quaternion.AngleAxis(yawDegrees, Vector3.up) * asClipped;
             foot.rotation = Quaternion.Slerp(footBefore, wanted, weight);
+            if (stairs > 0.0f)
+            {
+                // The foot's +Z is the toes and its +Y the sole's up (SampleFoot): pitched about the way across it, toes down when positive.
+                Vector3 across = Vector3.Cross(Vector3.up, stairFoot.Toes);
+                Quaternion pitched = Quaternion.AngleAxis(stairFoot.Pitch, across) * Quaternion.LookRotation(stairFoot.Toes, Vector3.up);
+                foot.rotation = Quaternion.Slerp(foot.rotation, pitched, stairs);
+            }
         }
+
+        /// <summary>On a stair a knee points forward and this share out to its own side.</summary>
+        private const float StairKneeOutShare = 0.15f;
     }
 }

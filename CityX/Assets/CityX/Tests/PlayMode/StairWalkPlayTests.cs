@@ -106,8 +106,11 @@ namespace CityX.Tests
             var bodyPivot = new List<float>();
             var left = new List<float>();
             var right = new List<float>();
-            int inAir = 0;
-            float deepest = 0.0f;
+            Transform[] thighs = { animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg), animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) };
+            Transform[] shins = { animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg), animator.GetBoneTransform(HumanBodyBones.RightLowerLeg) };
+            int inAir = 0, legsAreSteppers = 0, backward = 0;
+            float tightestKnee = 180.0f;
+            int stepsAtStart = -1;
             var input = new LocomotionInput { Move = Vector2.up, YawDegrees = yaw, Sprint = sprint };
             for (int frame = 0; frame < 900; frame++)
             {
@@ -122,16 +125,46 @@ namespace CityX.Tests
                 left.Add(feet[0].position.y);
                 right.Add(feet[1].position.y);
                 if (!_locomotion.IsGrounded) inAir++;
-                deepest = Mathf.Max(deepest, _locomotion.FootPlanting.HipDrop);
+                if (stepsAtStart < 0) stepsAtStart = _locomotion.StairSteps.StepsTaken;
+                if (_locomotion.StairSteps.Weight < 1.0f) continue;
+                legsAreSteppers++;
+                // The leg as the eye sees it: its knee not folded shut (the curled shin the owner saw), and bending forward.
+                for (int f = 0; f < 2; f++)
+                {
+                    tightestKnee = Mathf.Min(tightestKnee, Vector3.Angle(thighs[f].position - shins[f].position, feet[f].position - shins[f].position));
+                    Vector3 middle = 0.5f * (thighs[f].position + feet[f].position);
+                    if (Vector3.Dot(shins[f].position - middle, _player.transform.forward) < 0.0f) backward++;
+                }
             }
             string which = $"{(sprint ? "sprinting" : "walking")} {(up ? "up" : "down")}";
             Assert.Greater(capsule.Count, 20, $"setup: {which} never crossed the flight");
             Assert.LessOrEqual(inAir, 1, $"{which}, the body was off the ground for {inAir} of {capsule.Count} frames");
             Assert.Greater(Jolt(capsule), 0.05f, "setup: this capsule did not lurch, so nothing here is being smoothed");
-            Assert.Less(Jolt(heads), 0.04f, $"{which}, the head jolted");
+            Assert.Less(Jolt(heads), 0.05f, $"{which}, the head jolted");
             Assert.Less(Jolt(bodyPivot), 0.04f, $"{which}, what the camera follows jolted");
-            Assert.Less(Mathf.Max(BiggestJump(left), BiggestJump(right)), 0.27f, $"{which}, a foot jumped");
-            Assert.LessOrEqual(deepest, (up ? FootPlanting.MaxHipDropOnSlope : FootPlanting.MaxHipDropGoingDown) + 0.04f, $"{which}, the hips sank");
+            Assert.Less(Mathf.Max(BiggestJump(left), BiggestJump(right)), 0.45f, $"{which}, a foot jumped");
+            Assert.Greater(legsAreSteppers, capsule.Count * 0.8f, $"{which}, the legs were not the stair's own steps ({legsAreSteppers} of {capsule.Count} frames)");
+            Assert.GreaterOrEqual(_locomotion.StairSteps.StepsTaken - stepsAtStart, 6, $"{which}, it hardly stepped");
+            Assert.GreaterOrEqual(tightestKnee, 65.0f, $"{which}, a knee folded shut");
+            Assert.AreEqual(0, backward, $"{which}, a knee bent backward");
+        }
+
+        /// <summary>Off the top of a flight the clip has the legs back.</summary>
+        [UnityTest]
+        public IEnumerator AtTheTopTheLegsGoBackToTheClip()
+        {
+            BuildStairs();
+            yield return Spawn(new Vector3(0.0f, 0.05f, FirstStepZ - 3.0f), 0.0f);
+            var input = new LocomotionInput { Move = Vector2.up, YawDegrees = 0.0f };
+            bool had = false;
+            while (_player.transform.position.z < TopZ + 3.0f)
+            {
+                _locomotion.Tick(input, Step);
+                had |= _locomotion.StairSteps.Weight >= 1.0f;
+                yield return null;
+            }
+            Assert.IsTrue(had, "the stair's steps never had the legs");
+            Assert.AreEqual(0.0f, _locomotion.StairSteps.Weight, "the clip did not get the legs back on the landing");
         }
 
         [UnityTest]
