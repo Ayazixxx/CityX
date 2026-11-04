@@ -19,6 +19,8 @@ namespace CityX.Tests
     {
         private const int Cell = 300;
 
+        private const int StanceCell = 600;
+
         [UnityTest]
         public IEnumerator RenderThePunches()
         {
@@ -41,7 +43,7 @@ namespace CityX.Tests
             const float dt = 1.0f / 60.0f;
 
             FistKind[] kinds = { FistKind.RightStraight, FistKind.LeftStraight, FistKind.Overhand, FistKind.Uppercut };
-            float[] fractions = { 0.02f, 0.22f, -1.0f, 0.66f, 0.9f };   // -1 = the contact moment; the first is the stance the blow starts from
+            float[] fractions = { 0.22f, -1.0f, 0.66f, 0.9f, 1.4f };   // -1 = the contact moment; the last is the stance the blow leaves it in
             foreach (bool front in new[] { false, true })
             {
                 var sheet = new Texture2D(Cell * fractions.Length, Cell * kinds.Length, TextureFormat.RGB24, false);
@@ -94,25 +96,61 @@ namespace CityX.Tests
                     }
                 }
                 sheet.Apply();
-                var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
-                var enc = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
-                File.WriteAllBytes(Path.Combine(directory, front ? "fist-sheet-front.png" : "fist-sheet.png"), (byte[])enc.Invoke(null, new object[] { sheet }));
+                SavePng(sheet, Path.Combine(directory, front ? "fist-sheet-front.png" : "fist-sheet.png"));
                 Object.Destroy(sheet);
             }
+
+            // The stance on its own, front on, beside the plain body it should match: the arms the same, only the crouch and the feet differ.
+            fists.Cancel();
+            yield return StepBody(locomotion, animator, fists, 40, dt);
+            Vector3 at = player.transform.position;
+            Vector3 eyeFront = at + player.transform.forward * 6.0f + Vector3.up * 1.6f;
+            Texture2D plain = Render(camera, eyeFront, at + Vector3.up * 1.3f, StanceCell);
+            fists.Begin(FistKind.RightStraight);
+            fists.enabled = false;
+            yield return StepBody(locomotion, animator, fists, Mathf.CeilToInt((FistStrikes.Seconds(FistKind.RightStraight) + 0.5f) / dt), dt);
+            Texture2D stance = Render(camera, eyeFront, at + Vector3.up * 1.3f, StanceCell);
+            var both = new Texture2D(StanceCell * 2, StanceCell, TextureFormat.RGB24, false);
+            both.SetPixels(0, 0, StanceCell, StanceCell, plain.GetPixels());
+            both.SetPixels(StanceCell, 0, StanceCell, StanceCell, stance.GetPixels());
+            both.Apply();
+            SavePng(both, Path.Combine(directory, "fist-stance.png"));
+            Object.Destroy(plain);
+            Object.Destroy(stance);
+            Object.Destroy(both);
             Object.Destroy(cameraObject);
 #else
             yield break;
 #endif
         }
 
-        private static Texture2D Render(Camera camera, Vector3 position, Vector3 lookAt)
+        private static IEnumerator StepBody(PlayerLocomotion locomotion, Animator animator, FistPoseDriver fists, int frames, float dt)
+        {
+            for (int i = 0; i < frames; i++)
+            {
+                locomotion.Tick(default, dt);
+                animator.Update(dt);
+                fists.Step(dt);
+                fists.enabled = false;
+                yield return null;
+            }
+        }
+
+        private static void SavePng(Texture2D image, string path)
+        {
+            var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
+            var enc = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
+            File.WriteAllBytes(path, (byte[])enc.Invoke(null, new object[] { image }));
+        }
+
+        private static Texture2D Render(Camera camera, Vector3 position, Vector3 lookAt, int size = Cell)
         {
             camera.transform.position = position;
             camera.transform.rotation = Quaternion.LookRotation(lookAt - position, Vector3.up);
-            RenderTexture rt = RenderTexture.GetTemporary(Cell, Cell, 24, RenderTextureFormat.ARGB32);
+            RenderTexture rt = RenderTexture.GetTemporary(size, size, 24, RenderTextureFormat.ARGB32);
             camera.targetTexture = rt; camera.Render(); RenderTexture.active = rt;
-            var image = new Texture2D(Cell, Cell, TextureFormat.RGB24, false);
-            image.ReadPixels(new Rect(0, 0, Cell, Cell), 0, 0); image.Apply();
+            var image = new Texture2D(size, size, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, size, size), 0, 0); image.Apply();
             camera.targetTexture = null; RenderTexture.active = null; RenderTexture.ReleaseTemporary(rt);
             return image;
         }

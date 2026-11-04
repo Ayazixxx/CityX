@@ -5,7 +5,7 @@ namespace CityX.Character
     /// <summary>
     /// Plays the unarmed strikes (<see cref="FistStrikes"/>) on a body, owner or network copy alike: <see cref="PlayerAnimationDriver"/> calls
     /// <see cref="Begin"/> when a punch is thrown (here, or replayed from the network, which is why a copy punches the same way), this advances the blow
-    /// and holds the READY stance (arms down, a little crouched, the feet planted) for a moment after the last one, and hands each frame to
+    /// and holds the READY stance (a little crouched, the feet planted, the arms left to the walk cycle) for a moment after the last one, and hands each frame to
     /// <see cref="PlayerLocomotion"/>, whose LateUpdate puts the fists where the frame says (after the Animator, like every other procedural pose).
     ///
     /// A HIT FREEZES THE BLOW for a moment (hit-stop): the fist stays at full reach for <see cref="HitHoldSeconds"/> when it lands, the single cheapest
@@ -21,6 +21,9 @@ namespace CityX.Character
 
         public const float DisengageSeconds = 0.35f;
 
+        /// <summary>How long the next punch takes to take over from one still recovering, seconds.</summary>
+        public const float CrossfadeSeconds = 0.1f;
+
         /// <summary>How long a landed blow holds at full reach, seconds.</summary>
         public const float HitHoldSeconds = 0.055f;
 
@@ -33,6 +36,9 @@ namespace CityX.Character
         private float _hold;
         private float _readyRemaining;
         private float _engage;
+        private FistFrame _shown;
+        private FistFrame _crossfadeFrom;
+        private float _crossfadeRemaining;
 
         /// <summary>A blow is in progress.</summary>
         public bool IsStriking => _striking;
@@ -82,6 +88,11 @@ namespace CityX.Character
         /// <summary>A blow starts (an earlier one still going is replaced: the chain's next punch).</summary>
         public void Begin(FistKind kind)
         {
+            if (_striking)
+            {
+                _crossfadeFrom = _shown;
+                _crossfadeRemaining = CrossfadeSeconds;
+            }
             _kind = kind;
             _striking = true;
             _elapsed = 0.0f;
@@ -105,6 +116,7 @@ namespace CityX.Character
         {
             _striking = false;
             _readyRemaining = 0.0f;
+            _crossfadeRemaining = 0.0f;
         }
 
         private PlayerInputReader _reader;
@@ -189,7 +201,13 @@ namespace CityX.Character
                 return;
             }
 
-            FistFrame frame = _striking ? FistStrikes.Evaluate(_kind, Progress, 1.0f) : FistStrikes.Ready(1.0f);
+            FistFrame frame = _striking ? FistStrikes.Evaluate(_kind, Progress) : FistStrikes.Ready();
+            if (_crossfadeRemaining > 0.0f)
+            {
+                _crossfadeRemaining -= deltaTime;
+                frame = FistStrikes.Blend(_crossfadeFrom, frame, Mathf.SmoothStep(0.0f, 1.0f, 1.0f - _crossfadeRemaining / CrossfadeSeconds));
+            }
+            _shown = frame;
             float w = Mathf.SmoothStep(0.0f, 1.0f, _engage);
             frame.RightWeight *= w;
             frame.LeftWeight *= w;

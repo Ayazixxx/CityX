@@ -36,8 +36,8 @@ punching". The research and the numbers' reasoning are in `MELEE_COMBOS.md`.
 
 Not a boxer's: a brawler's, from Souls' bare-handed moveset.
 
-- **No guard.** Between blows the arms hang **down at the sides** in the READY stance (`FistStrikes.Ready`): fists a little forward of the hips,
-  elbows slightly bent, hips sunk 7 cm, feet planted square. Held 1.5 s after the last blow (`FistPoseDriver.ReadyLingerSeconds`), then the body
+- **No guard, and no placed hands.** Between blows the arms are simply the walk cycle's own (`FistStrikes.Ready` poses neither; placing the hands put them on the hips, elbows out: owner, 2026-11-03,
+  "what the fuck is this attack position"). Hips sunk 7 cm, feet planted square. Held 1.5 s after the last blow (`FistPoseDriver.ReadyLingerSeconds`), then the body
   stands as it always does.
 - **A straight**: the fist drawn back to the hip (low, behind the shoulder) with the torso wound against it, then driven straight out to full reach
   at chest height with the torso turned 38 degrees into it and leaning 16 degrees forward, the hips sinking 11 cm; a hold at the contact (hit-stop
@@ -47,7 +47,7 @@ Not a boxer's: a brawler's, from Souls' bare-handed moveset.
 - **The feet** stand in the fighting stance and step to it with `SwordFootwork` (the sword's stepper): each blow puts the OTHER foot forward
   (`FistFrame.StanceLead`, half a leg length apart), so the hips turn into the blow over the front foot; the ready stance is square. The hips' drop
   (`FistFrame.HipDrop`) goes through `PlayerLocomotion.PoseHipDrop` like the sword's, which is what lets the feet stand apart (the foot reach).
-- The other hand stays down at the side while one throws.
+- Only the throwing arm is posed, and only while it throws: taken from the walk cycle over the wind-up, given back over the pull-back. The other arm is never touched. A punch taking over from one still recovering crossfades over 0.1 s (`FistStrikes.Blend`), so nothing snaps.
 
 ### Where it lives
 
@@ -61,14 +61,14 @@ Not a boxer's: a brawler's, from Souls' bare-handed moveset.
 
 ## Tests
 
-`FistStrikesTests` (ready stance at both ends and arms down, full reach at contact, the straights mirror and the heavies differ, the straight is drawn
+`FistStancePlayTests` (on the real body: the hands in the stance are where they hang standing plain; no snap as a punch takes over), `FistStrikesTests` (the arms untouched at both ends and in the stance, full reach at contact, the straights mirror and the heavies differ, the straight is drawn
 back to the hip, the overhand comes down from high and the uppercut rises, torso turns the right way, the other foot forward, two hits guaranteed and
 not three, weaker than a sword and costs stamina), `CombatTuningTests` and `BlockAndHeavyTests` (the chain's shape, the knockdown's zero stun, the
 overhand above every straight, the uppercut after it), `MeleeCombatPlayTests` (reach, buffering, cancel, the closing punch recovered in full and the
 chain restarting, overhand then uppercut, stamina), `RealInputPunchPlayTests` (a real mouse and keyboard: the punch is on the press, the body walks
 and steps into it, it turns to the enemy near the camera, hold-and-release is the overhand), `NetworkedActionSyncPlayTests` (a copy punches),
 `PlayerHudPortraitPlayTests` (a portrait is not taken with the fist up). `FistCapture` (Explicit, -Graphics) renders a contact sheet of the four
-punches to `Logs/CityShots/fist-sheet.png` (side) and `fist-sheet-front.png` (three-quarter).
+punches to `Logs/CityShots/fist-sheet.png` (side) and `fist-sheet-front.png` (three-quarter), and the stance beside the plain body to `fist-stance.png`.
 
 ## History
 

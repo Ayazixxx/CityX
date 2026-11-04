@@ -63,7 +63,7 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>After the Animator: turn and lean the torso into the blow, then put each fist where the frame says (two-bone IK), the other held down at the side.</summary>
+        /// <summary>After the Animator: turn and lean the torso into the blow, then put the throwing fist where the frame says (two-bone IK); the other arm stays the walk cycle's.</summary>
         private void ApplyFistPose()
         {
             if (!_fistFrame.Active)

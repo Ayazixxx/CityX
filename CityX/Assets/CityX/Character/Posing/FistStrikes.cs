@@ -52,7 +52,7 @@ namespace CityX.Character
     /// PROCEDURAL FIST STRIKES, a brawler's, not a boxer's (owner, 2026-11-03: "make the fists animations like dark souls unarmed punching"; the research
     /// in docs/MELEE_COMBOS.md). What Souls' bare hands look like, and what this is built on:
     ///
-    ///  * NO GUARD. The fighter stands as he always stands, arms down at his sides, a little crouched (the READY stance); the fists do not come up to the
+    ///  * NO GUARD. The fighter stands as he always stands, his arms the walk cycle's own, a little crouched (the READY stance); the fists do not come up to the
     ///    face between blows. The first pass's boxing guard went with the owner's ask.
     ///  * the lights are ALTERNATING STRAIGHT PUNCHES, right then left, each a committed lunge: the fist drawn back to the hip, a step forward with the
     ///    other foot as it goes out, the torso leaning well into it, the arm straight at full reach at the contact, a hold there, and a slow pull back
@@ -64,7 +64,7 @@ namespace CityX.Character
     ///    that accelerates into the target.
     ///
     /// Pure data and maths (no scene), so the paths can be tested: contact is at <see cref="ContactFraction"/> of the swing, the fist is at full reach
-    /// then, and the pose starts and ends in the ready stance.
+    /// then, and the arm starts and ends the walk cycle's.
     /// </summary>
     public static class FistStrikes
     {
@@ -156,12 +156,12 @@ namespace CityX.Character
         public const float StanceDepth = 0.5f;
 
         /// <summary>
-        /// Where each fist rests in the ready stance, in arm lengths from its shoulder: down at the side, a little out and a little forward of the hip,
-        /// the elbow slightly bent (a straight hanging arm would be a full length down). These place the WRIST; the hand reaches a further 0.16 m past it.
+        /// Where the fist is drawn to as a blow recovers, in arm lengths from its shoulder, while the arm is handed back to the walk cycle: in front of the
+        /// belly with the elbow bent, so the arm comes back as a pull and does not swing down straight like a lever.
         /// </summary>
-        public static Vector3 ReadyOffset(bool rightHand)
+        private static Vector3 PullBackOffset(bool rightHand)
         {
-            return Side(rightHand, -0.10f, -0.84f, 0.14f);
+            return Side(rightHand, 0.0f, -0.62f, 0.34f);
         }
 
         // The key times of a blow, as fractions of it: the end of the anticipation, the contact (full reach), the end of the hold on contact.
@@ -234,19 +234,19 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// The pose at <paramref name="t01"/> (0 to 1) through a blow of the given kind. <paramref name="ready"/> is how much the OTHER arm (and
-        /// both arms outside a blow) is held down in the ready stance.
+        /// The pose at <paramref name="t01"/> (0 to 1) through a blow of the given kind. Only the throwing arm is posed, and only while it throws: it is
+        /// taken from the walk cycle over the wind-up and given back over the pull-back. The other arm is never touched.
         /// </summary>
-        public static FistFrame Evaluate(FistKind kind, float t01, float ready)
+        public static FistFrame Evaluate(FistKind kind, float t01)
         {
             t01 = Mathf.Clamp01(t01);
             Phases(kind, out float anticipationEnd, out float contact, out float holdEnd);
             Keys(kind, out Vector3 windup, out Vector3 control, out Vector3 peak, out float twist, out float windupTwist,
                 out float lean, out float windupLean, out float elbowOut, out float hipDrop, out float windupHipDrop);
             bool right = UsesRightHand(kind);
-            Vector3 readyPose = ReadyOffset(right);
 
             Vector3 hand;
+            float armWeight = 1.0f;
             float twistNow;
             float leanNow;
             float dropNow;
@@ -254,7 +254,8 @@ namespace CityX.Character
             if (t01 < anticipationEnd)
             {
                 float u = EaseInOut(t01 / anticipationEnd);
-                hand = Vector3.Lerp(readyPose, windup, u);
+                hand = windup;
+                armWeight = u;
                 twistNow = -windupTwist * u;     // wound up AGAINST the blow
                 leanNow = windupLean * u;
                 dropNow = Mathf.Lerp(ReadyHipDrop, windupHipDrop, u);
@@ -280,8 +281,10 @@ namespace CityX.Character
             }
             else
             {
-                float u = EaseOut((t01 - holdEnd) / (1.0f - holdEnd));
-                hand = Vector3.Lerp(peak, readyPose, u);
+                float through = (t01 - holdEnd) / (1.0f - holdEnd);
+                float u = EaseOut(through);
+                hand = Vector3.Lerp(peak, PullBackOffset(right), u);
+                armWeight = 1.0f - EaseInOut(through);
                 twistNow = Mathf.Lerp(twist, 0.0f, u);
                 leanNow = Mathf.Lerp(lean, 0.0f, u);
                 dropNow = Mathf.Lerp(hipDrop, ReadyHipDrop, u);
@@ -302,44 +305,63 @@ namespace CityX.Character
                 Extension = extension,
             };
 
-            float readyWeight = Mathf.Max(Mathf.Clamp01(ready), 0.85f);
-            Vector3 otherReady = ReadyOffset(!right);
             if (right)
             {
-                frame.RightWeight = 1.0f;
+                frame.RightWeight = armWeight;
                 frame.RightHand = hand;
                 frame.RightElbowOut = elbowOut;
-                frame.LeftWeight = readyWeight;
-                frame.LeftHand = otherReady;
             }
             else
             {
-                frame.LeftWeight = 1.0f;
+                frame.LeftWeight = armWeight;
                 frame.LeftHand = hand;
                 frame.LeftElbowOut = elbowOut;
-                frame.RightWeight = readyWeight;
-                frame.RightHand = otherReady;
             }
             return frame;
         }
 
-        /// <summary>Just the ready stance, held at the given strength (0 = the animation's own arms): arms down, a little crouched, the feet square.</summary>
-        public static FistFrame Ready(float weight, float twistDegrees = 0.0f)
+        /// <summary>
+        /// The ready stance between blows: a little crouched with the feet square. The arms are not posed at all, they stay the walk cycle's: placing the
+        /// hands here put them on the hips, elbows out, which is the pose the owner rejected on 2026-11-03.
+        /// </summary>
+        public static FistFrame Ready()
         {
-            weight = Mathf.Clamp01(weight);
             return new FistFrame
             {
-                Active = weight > 0.001f,
-                RightWeight = weight,
-                LeftWeight = weight,
-                RightHand = ReadyOffset(true),
-                LeftHand = ReadyOffset(false),
-                TwistDegrees = twistDegrees,
+                Active = true,
                 HipDrop = ReadyHipDrop,
                 Footwork = 1.0f,
                 StanceLead = 0.0f,
                 StanceDepth = 0.0f,
             };
+        }
+
+        /// <summary>
+        /// A pose part way from <paramref name="from"/> to <paramref name="to"/> (<paramref name="share"/> 0 to 1): the next punch taking over from one still
+        /// recovering, whose arm and torso would otherwise snap. The stance is <paramref name="to"/>'s at once: the feet step to it in their own time.
+        /// </summary>
+        public static FistFrame Blend(in FistFrame from, in FistFrame to, float share)
+        {
+            share = Mathf.Clamp01(share);
+            FistFrame frame = to;
+            frame.TwistDegrees = Mathf.Lerp(from.TwistDegrees, to.TwistDegrees, share);
+            frame.LeanDegrees = Mathf.Lerp(from.LeanDegrees, to.LeanDegrees, share);
+            frame.HipDrop = Mathf.Lerp(from.HipDrop, to.HipDrop, share);
+            BlendArm(from.RightWeight, from.RightHand, from.RightElbowOut, to.RightWeight, to.RightHand, to.RightElbowOut, share,
+                out frame.RightWeight, out frame.RightHand, out frame.RightElbowOut);
+            BlendArm(from.LeftWeight, from.LeftHand, from.LeftElbowOut, to.LeftWeight, to.LeftHand, to.LeftElbowOut, share,
+                out frame.LeftWeight, out frame.LeftHand, out frame.LeftElbowOut);
+            return frame;
+        }
+
+        private static void BlendArm(float fromWeight, Vector3 fromHand, float fromElbow, float toWeight, Vector3 toHand, float toElbow, float share,
+            out float weight, out Vector3 hand, out float elbow)
+        {
+            weight = Mathf.Lerp(fromWeight, toWeight, share);
+            // An arm one pose does not use has no place in that pose: it keeps the other pose's, or the hand would be pulled to the shoulder as it fades.
+            float place = fromWeight <= 0.0f ? 1.0f : toWeight <= 0.0f ? 0.0f : share;
+            hand = Vector3.Lerp(fromHand, toHand, place);
+            elbow = Mathf.Lerp(fromElbow, toElbow, place);
         }
     }
 }
