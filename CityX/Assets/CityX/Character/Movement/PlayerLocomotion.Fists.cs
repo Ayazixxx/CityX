@@ -24,12 +24,6 @@ namespace CityX.Character
         /// <summary>True while a fist pose is being applied.</summary>
         public bool FistPoseActive => _fistFrame.Active;
 
-        /// <summary>How much the feet should stand in the fists' stance and step (SwordFootwork, as the sword's) this frame, 0 to 1.</summary>
-        private float FistFootworkWanted => _fistFrame.Active ? Mathf.Clamp01(_fistFrame.Footwork) : 0.0f;
-
-        /// <summary>How far the fists' stance sinks the hips this frame, metres.</summary>
-        private float FistHipDrop => _fistFrame.Active ? Mathf.Max(0.0f, _fistFrame.HipDrop) : 0.0f;
-
         // THE FACING A BLOW TURNS THE BODY TO. A punch goes where the body faces, and the body only turned to the camera while moving: standing still
         // after turning the camera, the punch went the way you USED to face. A blow asks for a quick turn to the camera (or to a target near it).
         private bool _facingOverride;
@@ -63,7 +57,7 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>After the Animator: turn and lean the torso into the blow, then put each fist where the frame says (two-bone IK), the other held down at the side.</summary>
+        /// <summary>After the Animator: turn and lean the torso into the blow, then put each fist where the frame says (two-bone IK), the other held in the guard.</summary>
         private void ApplyFistPose()
         {
             if (!_fistFrame.Active)
@@ -88,7 +82,7 @@ namespace CityX.Character
             }
             float length = Vector3.Distance(upper.position, lower.position) + Vector3.Distance(lower.position, hand.position);
             Vector3 target = upper.position + (transform.right * offset.x + transform.up * offset.y + transform.forward * offset.z) * length;
-            // The elbow goes down and out; a blow swung across (the overhand) pushes it right out to the side.
+            // The elbow goes down and out; a hook swings it right out to the side.
             Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * side * (0.55f + 0.9f * elbowOut);
             TwoBoneIK.Solve(upper, lower, hand, target, hint, weight);
         }

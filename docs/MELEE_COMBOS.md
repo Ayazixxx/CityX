@@ -41,24 +41,22 @@ The rules we already have (`SoulsSwordCombat`, docs/SOULSLIKE_COMBAT.md): stamin
 
 So bare hands out-damage a sword per hit, swing twice as fast, reach further, cost nothing and lock the target for the chain: 55 damage in 1.7 s, a player dead in under three seconds with nothing to answer. That is the "too op".
 
-## The fist balance (BUILT 2026-11-03: `FIST_COMBAT.md`)
+## The fist balance (to build)
 
-Souls' logic for fists: fast and cheap, but short and weak, and only two hits guaranteed. The chain became Souls' own two-hit string rather than the
-four-punch plan below, so the numbers moved with it; the plan is kept for the reasoning:
+Souls' logic for fists: fast and cheap, but short and weak, and only two hits guaranteed. Numbers, my first go, for the owner to feel:
 
-| | Right straight | Left straight | Overhand (hold) | Uppercut (hold again) |
-|---|---|---|---|---|
-| Damage | 5 | 5 | 10, and the knockdown | 8 |
-| Stamina | 8 | 8 | 16 | 12 |
-| Hitstun | 0.33 s | 0.25 s | none (the knockdown) | 0.4 s |
+| | Jab | Cross | Hook | Uppercut | Haymaker (hold) |
+|---|---|---|---|---|---|
+| Damage | 4 | 5 | 6 | 6 | 10, and the knockdown as now |
+| Stamina | 7 | 8 | 9 | 9 | 16 |
+| Hitstun | 0.22 s | 0.22 s | 0.3 s | 0.4 s | none (the knockdown) |
 
-- The string does 10 (one sword blow) and must then be recovered from; the overhand 10: against the sword chain's 26.5 plus a 16 heavy, and the fists
-  must be a metre closer to land any of it.
+- The chain of four does 21, the haymaker 10: 31 against the sword chain's 26.5 plus a 16 heavy, and the fists must be a metre closer to land any of it.
 - **Reach 1.4 m** (an arm and the step into the blow) in a **90 degree cone**: the sword's 2.2 m keeps you off.
-- Two punches are guaranteed (the first's stun outlasts the gap to the second), the third is not: as in Souls (the test proves the timings).
+- Two punches are guaranteed (the stun outlasts the gap to the next), the third is not: as in Souls.
 - No stamina, no punch (as the sword).
 
-## The fist animations (BUILT 2026-11-03, our own: `FIST_COMBAT.md`)
+## The fist animations (to build, our own)
 
 Owner: not store packs, and then "make the fists animations like dark souls unarmed punching". Not a boxer's: a brawler's. What Souls' bare hands look like, from the game and the [moveset templates](http://darksouls3.wikidot.com/move-sets-template):
 
@@ -67,9 +65,7 @@ Owner: not store packs, and then "make the fists animations like dark souls unar
 - **The heavy (hold) is the big one**: the fist wound back and high over the shoulder for a long moment (the tell), then brought down and across with the whole body; our knockdown finisher. Held again in the window: **the uppercut**, from a dip, driven up.
 - **Weight and feet carry it.** The step into each punch is a real step (the stance's feet planted, one steps: `SwordFootwork`, which the sword already uses, with a square stance for the fists), the rear heel coming up as the weight goes forward. Each punch is a half second of commitment, not a snap, and the recovery is where you are open.
 
-Built as planned (`FistStrikes`, the renders in `Logs/CityShots/fist-sheet*.png`): right straight, left straight (the string; the left closes it and is
-recovered from in full), the overhand on a hold with the uppercut on a second hold, no guard (the ready stance has the arms down), and the legs step
-in the stance with `SwordFootwork`. All procedural, so other players' copies show it with nothing new sent.
+Ours now (`FistStrikes`, the renders in `Logs/CityShots/fist-sheet*.png`): a boxer's jab, cross, hook, uppercut and haymaker from a guard at the face, the arm a straight poke, the legs the walk clip's. What changes: the chain becomes right straight, left straight (looping, as Souls' two-hit R1), the heavy the overhand with the uppercut after it, the guard goes, and the legs step. All procedural (`FistStrikes` paths, `FistPoseDriver`, the footwork), so other players' copies show it with nothing new sent, and it is rendered from the side and the front and judged before it is called done.
 
 ## Then: the sword combos
 

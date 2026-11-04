@@ -4,16 +4,16 @@ namespace CityX.Character
 {
     public enum FistKind
     {
-        RightStraight,
-        LeftStraight,
-        Overhand,
+        Jab,
+        Cross,
+        Hook,
         Uppercut,
+        Haymaker,
     }
 
     /// <summary>
-    /// What the arms, torso and stance are doing at one moment of an unarmed strike, in terms that do not depend on the rig: where each fist is relative
-    /// to ITS shoulder (in the body's own axes, in units of the arm's length), how strongly to hold it there, how far the torso is turned and leaning, how
-    /// far the hips sink, and which foot the stance has forward.
+    /// What the arms and torso are doing at one moment of an unarmed strike, in terms that do not depend on the rig: where each fist is relative to ITS
+    /// shoulder (in the body's own axes, in units of the arm's length), how strongly to hold it there, and how far the torso is turned and leaning.
     /// </summary>
     public struct FistFrame
     {
@@ -26,7 +26,7 @@ namespace CityX.Character
         /// <summary>Right-handed offsets from the shoulder: x to the body's right, y up, z forward, in arm lengths.</summary>
         public Vector3 RightHand, LeftHand;
 
-        /// <summary>How much the elbow is pushed out to the side rather than down (0 straight punches, 1 a swing across).</summary>
+        /// <summary>How much the elbow is pushed out to the side rather than down (0 straight punches, 1 a hook).</summary>
         public float RightElbowOut, LeftElbowOut;
 
         /// <summary>The torso's turn about the vertical, degrees, positive to the body's right.</summary>
@@ -35,53 +35,43 @@ namespace CityX.Character
         /// <summary>The torso's lean forward, degrees (negative leans back).</summary>
         public float LeanDegrees;
 
-        /// <summary>How far the hips are sunk, metres (the legs bend: the stance's crouch, the lean into a blow).</summary>
-        public float HipDrop;
-
-        /// <summary>0 to 1: how much the feet stand in the stance and step to it (SwordFootwork) rather than follow the walk clip.</summary>
-        public float Footwork;
-
-        /// <summary>The stance: which foot is forward (-1 left, 1 right, 0 square) and how far apart front to back, leg lengths.</summary>
-        public float StanceLead, StanceDepth;
-
         /// <summary>0 to 1: how far through the blow's FORWARD reach it is (for effects).</summary>
         public float Extension;
     }
 
     /// <summary>
-    /// PROCEDURAL FIST STRIKES, a brawler's, not a boxer's (owner, 2026-11-03: "make the fists animations like dark souls unarmed punching"; the research
-    /// in docs/MELEE_COMBOS.md). What Souls' bare hands look like, and what this is built on:
+    /// PROCEDURAL FIST STRIKES. The old punches were two weak Mixamo jab clips played over the WHOLE body: the feet froze for the clip, the arms barely
+    /// left the chest on this rig (short arms on a tall body), and every punch was the same punch. Third-person fighting games (Sifu, the Arkham and
+    /// Yakuza games, Street Fighter's 3D cousins, Fortnite's melee) all get their feel from the same few things, which this is built on:
     ///
-    ///  * NO GUARD. The fighter stands as he always stands, arms down at his sides, a little crouched (the READY stance); the fists do not come up to the
-    ///    face between blows. The first pass's boxing guard went with the owner's ask.
-    ///  * the lights are ALTERNATING STRAIGHT PUNCHES, right then left, each a committed lunge: the fist drawn back to the hip, a step forward with the
-    ///    other foot as it goes out, the torso leaning well into it, the arm straight at full reach at the contact, a hold there, and a slow pull back
-    ///    down to the side. The two look alike mirrored; that is the point.
-    ///  * the heavy is the OVERHAND: the fist wound back and high over the shoulder for a long moment (the tell), then brought down and across with
-    ///    the whole body; it knocks the target down. Held again in its window: the UPPERCUT, from a dip, driven up under the chin.
-    ///  * WEIGHT AND FEET carry it: the stance's feet are planted and one steps (SwordFootwork, as the sword's), the hips sink into the lean.
-    ///  * the arm reaches FULL EXTENSION at the moment of contact (the hand goes where the blow lands), after a short anticipation and a fast extension
-    ///    that accelerates into the target.
+    ///  * a GUARD stance the fists return to, so the fighter looks ready and every blow starts and ends in the same place;
+    ///  * a short ANTICIPATION (the fist drawn back), a fast EXTENSION that accelerates into the target, a brief HOLD on contact, a slower RECOVERY;
+    ///  * different punches along different PATHS: a straight jab, a cross with the hips behind it, a hook that sweeps in an arc, an uppercut that
+    ///    rises, a haymaker that arches over the top;
+    ///  * the TORSO turns and leans into each blow (the arm alone is a puppet's), against a small counter-turn in the anticipation;
+    ///  * the arm reaches FULL EXTENSION at the moment of contact (the hand goes where the blow lands), not a fixed short arc.
     ///
     /// Pure data and maths (no scene), so the paths can be tested: contact is at <see cref="ContactFraction"/> of the swing, the fist is at full reach
-    /// then, and the pose starts and ends in the ready stance.
+    /// then, and the pose starts and ends in the guard.
     /// </summary>
     public static class FistStrikes
     {
-        public const string RightStraightName = "punch_right";
-        public const string LeftStraightName = "punch_left";
-        public const string OverhandName = "punch_heavy";
+        public const string JabName = "punch_jab";
+        public const string CrossName = "punch_cross";
+        public const string HookName = "punch_hook";
         public const string UppercutName = "punch_uppercut";
+        public const string HaymakerName = "punch_heavy";
 
         public static bool TryGet(string animation, out FistKind kind)
         {
             switch (animation)
             {
-                case RightStraightName: kind = FistKind.RightStraight; return true;
-                case LeftStraightName: kind = FistKind.LeftStraight; return true;
-                case OverhandName: kind = FistKind.Overhand; return true;
+                case JabName: kind = FistKind.Jab; return true;
+                case CrossName: kind = FistKind.Cross; return true;
+                case HookName: kind = FistKind.Hook; return true;
                 case UppercutName: kind = FistKind.Uppercut; return true;
-                default: kind = FistKind.RightStraight; return false;
+                case HaymakerName: kind = FistKind.Haymaker; return true;
+                default: kind = FistKind.Jab; return false;
             }
         }
 
@@ -91,25 +81,27 @@ namespace CityX.Character
         {
             switch (kind)
             {
-                case FistKind.RightStraight: return RightStraightName;
-                case FistKind.LeftStraight: return LeftStraightName;
-                case FistKind.Overhand: return OverhandName;
-                default: return UppercutName;
+                case FistKind.Jab: return JabName;
+                case FistKind.Cross: return CrossName;
+                case FistKind.Hook: return HookName;
+                case FistKind.Uppercut: return UppercutName;
+                default: return HaymakerName;
             }
         }
 
-        /// <summary>The right hand throws everything but the left straight.</summary>
-        public static bool UsesRightHand(FistKind kind) => kind != FistKind.LeftStraight;
+        /// <summary>The right hand throws it (the cross, the uppercut, the haymaker); the jab and the hook are the lead, left, hand.</summary>
+        public static bool UsesRightHand(FistKind kind) => kind == FistKind.Cross || kind == FistKind.Uppercut || kind == FistKind.Haymaker;
 
-        /// <summary>How long the whole blow takes, seconds: anticipation, strike, hold and recovery. Each is a commitment, not a snap.</summary>
+        /// <summary>How long the whole blow takes, seconds: anticipation, strike, hold and recovery.</summary>
         public static float Seconds(FistKind kind)
         {
             switch (kind)
             {
-                case FistKind.RightStraight: return 0.50f;
-                case FistKind.LeftStraight: return 0.50f;
-                case FistKind.Overhand: return 0.80f;
-                default: return 0.60f;
+                case FistKind.Jab: return 0.30f;
+                case FistKind.Cross: return 0.36f;
+                case FistKind.Hook: return 0.42f;
+                case FistKind.Uppercut: return 0.42f;
+                default: return 0.70f;
             }
         }
 
@@ -118,22 +110,24 @@ namespace CityX.Character
         {
             switch (kind)
             {
-                case FistKind.RightStraight: return 0.46f;
-                case FistKind.LeftStraight: return 0.46f;
-                case FistKind.Overhand: return 0.60f;
-                default: return 0.50f;
+                case FistKind.Jab: return 0.38f;
+                case FistKind.Cross: return 0.42f;
+                case FistKind.Hook: return 0.45f;
+                case FistKind.Uppercut: return 0.45f;
+                default: return 0.62f;
             }
         }
 
-        /// <summary>The share of walking pace the body keeps while throwing it (the legs go on under the blow).</summary>
+        /// <summary>The share of walking pace the body keeps while throwing it (the legs go on walking under the blow).</summary>
         public static float MoveFraction(FistKind kind)
         {
             switch (kind)
             {
-                case FistKind.RightStraight: return 0.5f;
-                case FistKind.LeftStraight: return 0.5f;
-                case FistKind.Overhand: return 0.3f;
-                default: return 0.35f;
+                case FistKind.Jab: return 0.8f;
+                case FistKind.Cross: return 0.75f;
+                case FistKind.Hook: return 0.7f;
+                case FistKind.Uppercut: return 0.65f;
+                default: return 0.5f;
             }
         }
 
@@ -142,26 +136,22 @@ namespace CityX.Character
         {
             switch (kind)
             {
-                case FistKind.RightStraight: return 0.9f;
-                case FistKind.LeftStraight: return 0.9f;
-                case FistKind.Overhand: return 1.0f;
-                default: return 0.7f;
+                case FistKind.Jab: return 0.55f;
+                case FistKind.Cross: return 0.8f;
+                case FistKind.Hook: return 0.6f;
+                case FistKind.Uppercut: return 0.5f;
+                default: return 1.0f;
             }
         }
 
-        /// <summary>The hips sink this far in the ready stance, metres: the crouch that lets the feet stand apart (PlayerLocomotion.FootReach).</summary>
-        public const float ReadyHipDrop = 0.07f;
-
-        /// <summary>The feet stand apart front to back by this many leg lengths when a punch has one foot forward.</summary>
-        public const float StanceDepth = 0.5f;
-
         /// <summary>
-        /// Where each fist rests in the ready stance, in arm lengths from its shoulder: down at the side, a little out and a little forward of the hip,
-        /// the elbow slightly bent (a straight hanging arm would be a full length down). These place the WRIST; the hand reaches a further 0.16 m past it.
+        /// Where each fist rests in the guard, in the same units: the lead (left) hand a little further out than the rear. These place the WRIST; the hand now reaches a
+        /// further 0.16 m past it (the arm is the Godot character's full length, see BodyRig.ShapePositionOf), so the guard sits lower than it did, at chin height:
+        /// with the old height the fists covered the eyes of anyone looking at the fighter from the front.
         /// </summary>
-        public static Vector3 ReadyOffset(bool rightHand)
+        public static Vector3 GuardOffset(bool rightHand)
         {
-            return Side(rightHand, -0.10f, -0.84f, 0.14f);
+            return rightHand ? new Vector3(-0.16f, 0.10f, 0.52f) : new Vector3(0.16f, 0.10f, 0.64f);
         }
 
         // The key times of a blow, as fractions of it: the end of the anticipation, the contact (full reach), the end of the hold on contact.
@@ -170,10 +160,11 @@ namespace CityX.Character
             contact = ContactFraction(kind);
             switch (kind)
             {
-                case FistKind.RightStraight: anticipationEnd = 0.22f; holdEnd = 0.60f; break;
-                case FistKind.LeftStraight: anticipationEnd = 0.22f; holdEnd = 0.60f; break;
-                case FistKind.Overhand: anticipationEnd = 0.45f; holdEnd = 0.72f; break;   // the long wind-up is the tell
-                default: anticipationEnd = 0.26f; holdEnd = 0.64f; break;
+                case FistKind.Jab: anticipationEnd = 0.12f; holdEnd = 0.46f; break;
+                case FistKind.Cross: anticipationEnd = 0.20f; holdEnd = 0.52f; break;
+                case FistKind.Hook: anticipationEnd = 0.22f; holdEnd = 0.54f; break;
+                case FistKind.Uppercut: anticipationEnd = 0.22f; holdEnd = 0.54f; break;
+                default: anticipationEnd = 0.42f; holdEnd = 0.70f; break;
             }
         }
 
@@ -184,48 +175,49 @@ namespace CityX.Character
             return new Vector3(rightHand ? -inward : inward, y, z);
         }
 
-        /// <summary>The windup and peak of each blow (inward, up, forward) for the hand that throws it, the torso's turn and lean, and how far the hips sink.</summary>
-        private static void Keys(FistKind kind, out Vector3 windup, out Vector3 control, out Vector3 peak, out float twist, out float windupTwist,
-            out float lean, out float windupLean, out float elbowOut, out float hipDrop, out float windupHipDrop)
+        // The windup and peak of each blow (inward, up, forward) for the hand that throws it; arcs add their own control.
+        private static void Keys(FistKind kind, out Vector3 windup, out Vector3 control, out Vector3 peak, out float twist, out float windupTwist, out float lean, out float windupLean, out float elbowOut)
         {
             bool right = UsesRightHand(kind);
             switch (kind)
             {
-                case FistKind.RightStraight:
-                case FistKind.LeftStraight:
-                    windup = Side(right, 0.10f, -0.42f, -0.14f);   // drawn back to the hip, the elbow behind the body
-                    control = Side(right, 0.14f, -0.10f, 0.56f);
-                    peak = Side(right, 0.18f, 0.04f, 1.02f);       // straight out at chest height, the arm locked
-                    twist = 38.0f; windupTwist = 14.0f; lean = 16.0f; windupLean = -4.0f; elbowOut = 0.1f;
-                    hipDrop = 0.11f; windupHipDrop = 0.08f;
+                case FistKind.Jab:
+                    windup = Side(right, 0.22f, 0.26f, 0.42f);
+                    control = Side(right, 0.28f, 0.22f, 0.70f);
+                    peak = Side(right, 0.20f, 0.13f, 1.02f);
+                    twist = 12.0f; windupTwist = 4.0f; lean = 7.0f; windupLean = -2.0f; elbowOut = 0.0f;
                     break;
-                case FistKind.Overhand:
-                    windup = Side(right, -0.14f, 0.84f, -0.30f);   // wound back and high over the shoulder
-                    control = Side(right, 0.02f, 0.92f, 0.52f);
-                    peak = Side(right, 0.30f, -0.40f, 0.86f);      // brought down and across, landing below the shoulder
-                    twist = 44.0f; windupTwist = 22.0f; lean = 24.0f; windupLean = -14.0f; elbowOut = 0.5f;
-                    hipDrop = 0.15f; windupHipDrop = 0.05f;
+                case FistKind.Cross:
+                    windup = Side(right, 0.40f, 0.22f, 0.12f);
+                    control = Side(right, 0.30f, 0.20f, 0.60f);
+                    peak = Side(right, 0.16f, 0.12f, 1.04f);
+                    twist = 34.0f; windupTwist = 12.0f; lean = 11.0f; windupLean = -3.0f; elbowOut = 0.0f;
                     break;
-                default:   // the uppercut: from a dip, driven up under the chin
-                    windup = Side(right, 0.18f, -0.68f, 0.30f);
-                    control = Side(right, 0.14f, -0.10f, 0.56f);
-                    peak = Side(right, 0.12f, 0.30f, 0.62f);       // up to the chin (a quarter arm above the shoulder), the elbow bent
-                    twist = 24.0f; windupTwist = 8.0f; lean = -6.0f; windupLean = 14.0f; elbowOut = 0.35f;
-                    hipDrop = 0.04f; windupHipDrop = 0.17f;
+                case FistKind.Hook:
+                    windup = Side(right, -0.80f, 0.20f, 0.10f);   // wide out to the side, a little back
+                    control = Side(right, -0.30f, 0.16f, 0.82f);
+                    peak = Side(right, 0.52f, 0.12f, 0.70f);       // across the front, elbow bent
+                    twist = 40.0f; windupTwist = 16.0f; lean = 7.0f; windupLean = -2.0f; elbowOut = 1.0f;
+                    break;
+                case FistKind.Uppercut:
+                    windup = Side(right, 0.20f, -0.62f, 0.34f);    // dropped low
+                    control = Side(right, 0.14f, -0.05f, 0.52f);
+                    peak = Side(right, 0.12f, 0.64f, 0.66f);       // driven up under the chin
+                    twist = 22.0f; windupTwist = 8.0f; lean = -6.0f; windupLean = 12.0f; elbowOut = 0.35f;
+                    break;
+                default:   // the haymaker: back and high, over the top
+                    windup = Side(right, -0.30f, 0.72f, -0.36f);
+                    control = Side(right, 0.05f, 0.95f, 0.50f);
+                    peak = Side(right, 0.14f, -0.06f, 1.06f);
+                    twist = 46.0f; windupTwist = 30.0f; lean = 16.0f; windupLean = -12.0f; elbowOut = 0.6f;
                     break;
             }
         }
-
-        /// <summary>Which foot the stance has forward for a blow: the OTHER foot from the fist (the hips turn into it over the front foot).</summary>
-        public static float StanceLeadOf(FistKind kind) => UsesRightHand(kind) ? -1.0f : 1.0f;
 
         private static float EaseInOut(float u) => u * u * (3.0f - 2.0f * u);
 
         /// <summary>Accelerates into the target: slow off the mark, fastest just before it arrives.</summary>
         private static float EaseIn(float u) => u * u * (1.6f - 0.6f * u);
-
-        /// <summary>Fast away, settling slowly: the pull back down to the side.</summary>
-        private static float EaseOut(float u) => 1.0f - (1.0f - u) * (1.0f - u);
 
         private static Vector3 Bezier(Vector3 a, Vector3 c, Vector3 b, float u)
         {
@@ -234,30 +226,28 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// The pose at <paramref name="t01"/> (0 to 1) through a blow of the given kind. <paramref name="ready"/> is how much the OTHER arm (and
-        /// both arms outside a blow) is held down in the ready stance.
+        /// The pose at <paramref name="t01"/> (0 to 1) through a blow of the given kind. <paramref name="guard"/> is how much the OTHER arm (and
+        /// both arms outside a blow) is held in the guard stance.
         /// </summary>
-        public static FistFrame Evaluate(FistKind kind, float t01, float ready)
+        public static FistFrame Evaluate(FistKind kind, float t01, float guard)
         {
             t01 = Mathf.Clamp01(t01);
             Phases(kind, out float anticipationEnd, out float contact, out float holdEnd);
             Keys(kind, out Vector3 windup, out Vector3 control, out Vector3 peak, out float twist, out float windupTwist,
-                out float lean, out float windupLean, out float elbowOut, out float hipDrop, out float windupHipDrop);
+                out float lean, out float windupLean, out float elbowOut);
             bool right = UsesRightHand(kind);
-            Vector3 readyPose = ReadyOffset(right);
+            Vector3 guardPose = GuardOffset(right);
 
             Vector3 hand;
             float twistNow;
             float leanNow;
-            float dropNow;
             float extension;
             if (t01 < anticipationEnd)
             {
                 float u = EaseInOut(t01 / anticipationEnd);
-                hand = Vector3.Lerp(readyPose, windup, u);
+                hand = Vector3.Lerp(guardPose, windup, u);
                 twistNow = -windupTwist * u;     // wound up AGAINST the blow
                 leanNow = windupLean * u;
-                dropNow = Mathf.Lerp(ReadyHipDrop, windupHipDrop, u);
                 extension = 0.0f;
             }
             else if (t01 < contact)
@@ -266,7 +256,6 @@ namespace CityX.Character
                 hand = Bezier(windup, control, peak, u);
                 twistNow = Mathf.Lerp(-windupTwist, twist, u);
                 leanNow = Mathf.Lerp(windupLean, lean, u);
-                dropNow = Mathf.Lerp(windupHipDrop, hipDrop, u);
                 extension = u;
             }
             else if (t01 < holdEnd)
@@ -275,16 +264,14 @@ namespace CityX.Character
                 hand = peak + (peak - control).normalized * (0.03f * (1.0f - u));   // a hair of follow-through, settling
                 twistNow = twist;
                 leanNow = lean;
-                dropNow = hipDrop;
                 extension = 1.0f;
             }
             else
             {
-                float u = EaseOut((t01 - holdEnd) / (1.0f - holdEnd));
-                hand = Vector3.Lerp(peak, readyPose, u);
+                float u = EaseInOut((t01 - holdEnd) / (1.0f - holdEnd));
+                hand = Vector3.Lerp(peak, guardPose, u);
                 twistNow = Mathf.Lerp(twist, 0.0f, u);
                 leanNow = Mathf.Lerp(lean, 0.0f, u);
-                dropNow = Mathf.Lerp(hipDrop, ReadyHipDrop, u);
                 extension = 1.0f - u;
             }
 
@@ -295,36 +282,32 @@ namespace CityX.Character
                 Active = true,
                 TwistDegrees = sign * twistNow,
                 LeanDegrees = leanNow,
-                HipDrop = dropNow,
-                Footwork = 1.0f,
-                StanceLead = StanceLeadOf(kind),
-                StanceDepth = StanceDepth,
                 Extension = extension,
             };
 
-            float readyWeight = Mathf.Max(Mathf.Clamp01(ready), 0.85f);
-            Vector3 otherReady = ReadyOffset(!right);
+            float guardWeight = Mathf.Clamp01(guard);
+            Vector3 otherGuard = GuardOffset(!right);
             if (right)
             {
                 frame.RightWeight = 1.0f;
                 frame.RightHand = hand;
                 frame.RightElbowOut = elbowOut;
-                frame.LeftWeight = readyWeight;
-                frame.LeftHand = otherReady;
+                frame.LeftWeight = Mathf.Max(guardWeight, 0.85f);
+                frame.LeftHand = otherGuard;
             }
             else
             {
                 frame.LeftWeight = 1.0f;
                 frame.LeftHand = hand;
                 frame.LeftElbowOut = elbowOut;
-                frame.RightWeight = readyWeight;
-                frame.RightHand = otherReady;
+                frame.RightWeight = Mathf.Max(guardWeight, 0.85f);
+                frame.RightHand = otherGuard;
             }
             return frame;
         }
 
-        /// <summary>Just the ready stance, held at the given strength (0 = the animation's own arms): arms down, a little crouched, the feet square.</summary>
-        public static FistFrame Ready(float weight, float twistDegrees = 0.0f)
+        /// <summary>Just the guard stance, held at the given strength (0 = the animation's own arms).</summary>
+        public static FistFrame Guard(float weight, float twistDegrees = 0.0f)
         {
             weight = Mathf.Clamp01(weight);
             return new FistFrame
@@ -332,13 +315,9 @@ namespace CityX.Character
                 Active = weight > 0.001f,
                 RightWeight = weight,
                 LeftWeight = weight,
-                RightHand = ReadyOffset(true),
-                LeftHand = ReadyOffset(false),
+                RightHand = GuardOffset(true),
+                LeftHand = GuardOffset(false),
                 TwistDegrees = twistDegrees,
-                HipDrop = ReadyHipDrop,
-                Footwork = 1.0f,
-                StanceLead = 0.0f,
-                StanceDepth = 0.0f,
             };
         }
     }

@@ -23,23 +23,14 @@ namespace CityX.Character
     public sealed partial class MeleeAttacker : MonoBehaviour, IReplicatedAbility
     {
         [Header("Reach (ported from player.gd)")]
-        [Tooltip("player.gd PUNCH_RANGE: a held weapon's reach (the bottle), and how far a fist reaches a window.")]
+        [Tooltip("player.gd PUNCH_RANGE")]
         public float Range = 2.5f;
 
         [Tooltip("player.gd PUNCH_ORIGIN_HEIGHT, as a fraction of standing height.")]
         public float OriginHeightFraction = 0.68f;
 
-        [Tooltip("Half-angle of the arc in front that a weapon swing can reach, in degrees.")]
+        [Tooltip("Half-angle of the arc in front that a swing can reach, in degrees.")]
         public float HalfArcDegrees = 60.0f;
-
-        /// <summary>
-        /// A BARE FIST'S REACH, metres from the body: an arm and the step into the blow (docs/MELEE_COMBOS.md, 2026-11-03). The sword's 2.2 m keeps a
-        /// puncher off; the old 2.5 m let the fists out-reach it.
-        /// </summary>
-        public const float FistReachMetres = 1.4f;
-
-        /// <summary>Half-angle of the cone a punch lands in, degrees: a straight punch goes where the body faces.</summary>
-        public const float FistHalfArcDegrees = 45.0f;
 
         [Header("Timing (ported from player.gd)")]
         [Tooltip("player.gd PUNCH_COOLDOWN_SECONDS -- how long a swing occupies the body.")]
@@ -155,21 +146,14 @@ namespace CityX.Character
         /// <summary>The share of the swing that is only recovery, during which the next punch of a chain may already be thrown (cancelling the rest).</summary>
         public const float ChainCancelFraction = 0.35f;
 
-        /// <summary>
-        /// A punch pressed during a swing is remembered until the swing lets it out (the cancel point, or its end) and this much longer, seconds, and
-        /// thrown the moment it allows: as in Souls, where a press anywhere in an attack queues the next.
-        /// </summary>
+        /// <summary>A punch pressed during a swing is remembered this long, seconds, and thrown the moment the swing allows.</summary>
         public const float InputBufferSeconds = 0.25f;
 
         private float _bufferRemaining;
         private bool _bufferedHeavy;
 
-        /// <summary>Seconds left in which a HELD punch follows the overhand with the uppercut.</summary>
-        private float _heavyFollowUpRemaining;
-
-        /// <summary>The recovery of a punch can be cancelled into the next of the chain; a chain's closing punch (and the heavies) must be recovered from.</summary>
         private bool CanChainNow =>
-            EquippedWeapon == null && _spinState == SpinState.None && _contactDone && _swingRemaining > 0.0f && !_currentStage.IsFinisher
+            EquippedWeapon == null && _spinState == SpinState.None && _contactDone && _swingRemaining > 0.0f
             && _swingRemaining <= _activeSwingSeconds * ChainCancelFraction;
 
         /// <summary>The stage currently being swung. Meaningless when not swinging.</summary>
@@ -223,8 +207,7 @@ namespace CityX.Character
                 // Busy: remember the press so it fires the moment the swing lets it (input buffering), instead of being lost.
                 if (EquippedWeapon == null && _spinState == SpinState.None)
                 {
-                    float untilFree = _currentStage.IsFinisher ? _swingRemaining : Mathf.Max(0.0f, _swingRemaining - _activeSwingSeconds * ChainCancelFraction);
-                    _bufferRemaining = untilFree / Mathf.Max(SwingSpeed, 0.01f) + InputBufferSeconds;
+                    _bufferRemaining = InputBufferSeconds;
                     _bufferedHeavy = heavy;
                 }
                 return false;
@@ -297,35 +280,27 @@ namespace CityX.Character
                 return true;
             }
 
-            // THE HEAVIES ARE NOT PART OF THE CHAIN. The overhand is its own committed swing: slowest, hardest, a knockdown, and it starts the
-            // chain over rather than advancing it -- which is what makes holding for one a decision rather than a free upgrade to whatever the
-            // next straight was going to be. Held again inside the overhand's window it is the uppercut, which opens nothing.
+            // A HAYMAKER IS NOT PART OF THE CHAIN. It is its own committed
+            // swing: slower, harder, and it starts the chain over rather than
+            // advancing it -- which is what makes holding for one a decision
+            // rather than a free upgrade to whatever the next jab was going to
+            // be. Godot's own heavy_punch resets _combo_stage_index for the
+            // same reason.
             if (heavy)
             {
-                bool uppercut = _heavyFollowUpRemaining > 0.0f;
-                if (!SpendStamina(uppercut ? CombatTuning.UppercutStaminaCost : CombatTuning.HeavyPunchStaminaCost))
-                {
-                    return false;
-                }
-                _currentStage = uppercut ? CombatTuning.UppercutPunch : CombatTuning.HeavyPunch;
-                FistStrikes.TryGet(_currentStage.Animation, out FistKind heavyKind);
-                _activeSwingSeconds = FistStrikes.Seconds(heavyKind);
+                _currentStage = CombatTuning.HeavyPunch;
+                _activeSwingSeconds = FistStrikes.Seconds(FistKind.Haymaker);
                 _swingRemaining = _activeSwingSeconds;
-                _activeContact = FistStrikes.ContactFraction(heavyKind);
+                _activeContact = FistStrikes.ContactFraction(FistKind.Haymaker);
                 _contactDone = false;
                 _nextStage = 0;
                 _windowRemaining = 0.0f;
-                _heavyFollowUpRemaining = uppercut ? 0.0f : _activeSwingSeconds + _currentStage.WindowSeconds;
                 SwingStarted?.Invoke(_currentStage);
                 return true;
             }
 
             ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
             if (chain.Length == 0)
-            {
-                return false;
-            }
-            if (!SpendStamina(CombatTuning.PunchStaminaCost))
             {
                 return false;
             }
@@ -347,7 +322,6 @@ namespace CityX.Character
             _activeSwingSeconds = chainSeconds;
             _swingRemaining = chainSeconds;
             _contactDone = false;
-            _heavyFollowUpRemaining = 0.0f;   // a light after the overhand is the chain again, not the uppercut
 
             // A finisher closes the chain; anything else opens the window for
             // the following stage. Advancing here rather than on contact means
@@ -369,24 +343,11 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// A bare-handed blow costs stamina the Souls way (PlayerVitals.TrySpendCombatStamina: allowed while any is left, refused on empty), as the
-        /// sword's do. A body without vitals (a test's bare attacker) punches for free.
-        /// </summary>
-        private bool SpendStamina(float cost)
-        {
-            return _vitals == null || _vitals.TrySpendCombatStamina(cost, CombatTuning.PunchRegenDelaySeconds);
-        }
-
-        /// <summary>
         /// Advances swing and window timers, and lands the blow at the contact
         /// moment. Call once per frame.
         /// </summary>
         public void Tick(float deltaTime)
         {
-            if (_heavyFollowUpRemaining > 0.0f)
-            {
-                _heavyFollowUpRemaining = Mathf.Max(0.0f, _heavyFollowUpRemaining - deltaTime);
-            }
             if (_spinCooldownRemaining > 0.0f)
             {
                 _spinCooldownRemaining -= deltaTime;
@@ -546,11 +507,9 @@ namespace CityX.Character
             var found = new List<Contact>();
             Vector3 origin = SwingOrigin();
 
-            // Bare fists reach less far, and less far round, than a weapon.
-            bool bare = EquippedWeapon == null;
-            Collider[] hits = Physics.OverlapSphere(origin, reach > 0.0f ? reach : (bare ? FistReachMetres : Range), TargetLayers,
+            Collider[] hits = Physics.OverlapSphere(origin, reach > 0.0f ? reach : Range, TargetLayers,
                 QueryTriggerInteraction.Ignore);
-            float cosLimit = Mathf.Cos((halfArc > 0.0f ? halfArc : (bare ? FistHalfArcDegrees : HalfArcDegrees)) * Mathf.Deg2Rad);
+            float cosLimit = Mathf.Cos((halfArc > 0.0f ? halfArc : HalfArcDegrees) * Mathf.Deg2Rad);
 
             foreach (Collider collider in hits)
             {
@@ -691,13 +650,13 @@ namespace CityX.Character
                     BloodBurst.Spawn(contact.Point, contact.Point - origin, 1.0f);
                 }
 
-                // A KNOCKDOWN BLOW RAGDOLLS INSTEAD OF STUNNING -- see
+                // THE FINISHER RAGDOLLS INSTEAD OF STUNNING -- see
                 // PlayerVitals.TriggerFinisherKnockdown's own doc comment
                 // for why this is a direct call rather than threaded
                 // through ApplyHit's own hitstunSeconds parameter. A no-op
                 // against anything that isn't a real PlayerVitals (a
                 // Civilian already ragdolls on any hit at all, unconditionally).
-                if (_currentStage.KnocksDown && contact.Target is PlayerVitals targetVitals)
+                if (_currentStage.IsFinisher && contact.Target is PlayerVitals targetVitals)
                 {
                     targetVitals.TriggerFinisherKnockdown(contact.Point - origin);
                 }

@@ -12,7 +12,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: renders every unarmed strike on the real rig as a contact sheet (a row per punch, five moments along it) to Logs/CityShots/fist-sheet.png,
-    /// seen from the side and, in fist-sheet-front.png, from the front. The body walks up, then plants its feet and punches. Explicit; needs -Graphics.
+    /// seen from the side and, in fist-sheet-front.png, from the front. The body walks while it punches (the legs must keep going). Explicit; needs -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class FistCapture
@@ -40,8 +40,8 @@ namespace CityX.Tests
             camera.orthographic = true; camera.orthographicSize = 1.7f;
             const float dt = 1.0f / 60.0f;
 
-            FistKind[] kinds = { FistKind.RightStraight, FistKind.LeftStraight, FistKind.Overhand, FistKind.Uppercut };
-            float[] fractions = { 0.02f, 0.22f, -1.0f, 0.66f, 0.9f };   // -1 = the contact moment; the first is the stance the blow starts from
+            FistKind[] kinds = { FistKind.Jab, FistKind.Cross, FistKind.Hook, FistKind.Uppercut, FistKind.Haymaker };
+            float[] fractions = { 0.10f, 0.28f, -1.0f, 0.62f, 0.85f };   // -1 = the contact moment
             foreach (bool front in new[] { false, true })
             {
                 var sheet = new Texture2D(Cell * fractions.Length, Cell * kinds.Length, TextureFormat.RGB24, false);

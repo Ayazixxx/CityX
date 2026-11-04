@@ -113,45 +113,66 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The overhand hits twice as hard as a straight. That is what is being
-        /// bought with the longer wind-up (and the stamina).
+        /// A haymaker hits half again as hard as a jab. That is what is being
+        /// bought with the longer wind-up.
         /// </summary>
         [Test]
-        public void TheOverhandHitsHarderThanAnyStraight()
+        public void TheHaymakerHitsHarderThanAnyJab()
         {
             float heavy = CombatTuning.DamageFor(CombatTuning.HeavyPunch, 0);
 
             ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
             for (int i = 0; i < chain.Length; i++)
             {
+                if (chain[i].IsFinisher)
+                {
+                    continue;   // the finisher is meant to be the biggest hit
+                }
                 Assert.Greater(heavy, CombatTuning.DamageFor(chain[i], 0),
-                    $"the overhand is weaker than chain stage {i}");
+                    $"the haymaker is weaker than chain stage {i}");
             }
-            Assert.Greater(CombatTuning.DamageFor(CombatTuning.UppercutPunch, 0), CombatTuning.DamageFor(chain[0], 0), "the uppercut is weaker than a straight");
-            Assert.Greater(heavy, CombatTuning.DamageFor(CombatTuning.UppercutPunch, 0), "the uppercut out-hits the overhand");
+
+            Assert.AreEqual(CombatTuning.PunchDamage * 1.5f, heavy, 0.001f);
         }
 
         /// <summary>
-        /// The overhand is outside the chain: a light after it starts the chain over, and its window is only for the held uppercut, which opens
-        /// nothing. Holding for a heavy punch is a decision to commit, not a free upgrade to whichever straight was coming next.
+        /// It opens no follow-up window. Holding for a heavy punch is a
+        /// decision to commit, not a free upgrade to whichever jab was coming
+        /// next.
         ///
-        /// ZERO HITSTUN, NOT A DIFFERENT REACTION: the overhand knocks the target down (the ragdoll), so a stun on top would be a second
-        /// competing reaction to the same hit. The uppercut does not knock down, so it stuns, longest of the fists.
+        /// It DOES share its clip with the chain's finisher, which is fine and
+        /// deliberate -- the chain reuses punch_right across three stages for
+        /// the same reason. What must not be shared is the stage itself: the
+        /// finisher ragdolls and closes the chain, and a haymaker that inherited
+        /// either of those would be a very different move.
+        ///
+        /// ZERO HITSTUN, NOT A DIFFERENT REACTION -- an earlier version of
+        /// this test asserted the opposite ("unlike the finisher, it stuns"),
+        /// on the reasoning that a hit which neither stuns nor ragdolls gives
+        /// the target nothing to react to. Checked directly against
+        /// player.gd instead of trusting that reasoning: `_punch()` seeds
+        /// `var hitstun := 0.0` and only overwrites it from
+        /// get_last_attack_combo_info() `if not is_heavy` -- a heavy punch
+        /// (or its sword equivalent, sword_heavy_attack, which runs through
+        /// the identical is_heavy=true path) keeps that zero unconditionally.
+        /// The real trade is real damage (1.5x) for real follow-up-window,
+        /// full stop -- no consolation stun.
         /// </summary>
         [Test]
-        public void TheOverhandKnocksDownAndOnlyTheUppercutFollowsIt()
+        public void TheHaymakerOpensNoFollowUpWindow()
         {
+            Assert.AreEqual(0.0f, CombatTuning.HeavyPunch.WindowSeconds);
             Assert.IsFalse(CombatTuning.HeavyPunch.IsFinisher);
-            Assert.IsTrue(CombatTuning.HeavyPunch.KnocksDown);
-            Assert.Greater(CombatTuning.HeavyPunch.WindowSeconds, 0.0f, "the overhand leaves no time for the held uppercut");
             Assert.AreEqual(0.0f, CombatTuning.HitstunFor(CombatTuning.HeavyPunch),
-                "a knockdown blow should deal real damage with zero hitstun");
+                "a heavy punch should deal real damage with zero hitstun, matching player.gd exactly");
 
-            Assert.AreEqual(0.0f, CombatTuning.UppercutPunch.WindowSeconds, "the uppercut opens a window of its own");
-            Assert.IsFalse(CombatTuning.UppercutPunch.KnocksDown);
             foreach (ComboStage stage in ComboChain.For(ComboChain.Unarmed))
             {
-                Assert.Greater(CombatTuning.HitstunFor(CombatTuning.UppercutPunch), CombatTuning.HitstunFor(stage), "the uppercut stuns less than a straight");
+                if (stage.IsFinisher)
+                {
+                    Assert.AreEqual(0.0f, CombatTuning.HitstunFor(stage),
+                        "the finisher has started stunning as well as ragdolling");
+                }
             }
         }
     }

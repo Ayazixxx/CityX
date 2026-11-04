@@ -465,17 +465,18 @@ namespace CityX.Character
         private float _finisherRagdollRemaining;
 
         /// <summary>
-        /// Called by MeleeAttacker when a landed hit's own ComboStage
-        /// KnocksDown -- see take_damage()'s own `if is_finisher:
+        /// Called by MeleeAttacker when a landed hit's own ComboStage is
+        /// IsFinisher -- see take_damage()'s own `if is_finisher:
         /// _begin_finisher_ragdoll(attacker)` in player.gd. Deliberately
         /// NOT threaded through IDamageable.ApplyHit's own hitstunSeconds
         /// parameter (e.g. as a sentinel value): that parameter cannot
         /// distinguish "this hit has no hitstun because it's a committed
-        /// heavy attack, which never ragdolls" (see SwordHeavyAttack's own
-        /// hitstun_scale=0) from "this hit has no hitstun because it
-        /// knocks down instead" -- both would arrive as hitstunSeconds==0
-        /// with nothing else to tell them apart, so MeleeAttacker calls
-        /// this directly instead, since it already knows the stage.
+        /// heavy attack, which never ragdolls" (see HeavyPunch/
+        /// SwordHeavyAttack's own hitstun_scale=0) from "this hit has no
+        /// hitstun because it's a chain finisher, which ragdolls instead"
+        /// -- both would arrive as hitstunSeconds==0 with nothing else to
+        /// tell them apart, so MeleeAttacker calls this directly instead,
+        /// since it already knows _currentStage.IsFinisher.
         ///
         /// A NO-OP WITHOUT A REAL Ragdoll COMPONENT, same tolerance
         /// Civilian.ApplyHit's own `if (_ragdoll != null)` already

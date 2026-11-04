@@ -101,7 +101,7 @@ namespace CityX.Tests
             yield return null;
             Assert.IsTrue(rig.Melee.IsSwinging, "the punch waited for the button to come up");
             Assert.IsTrue(rig.Fists.IsStriking || rig.Fists.Engage > 0.0f, "the fists did not move on the press");
-            Assert.AreEqual(FistStrikes.RightStraightName, rig.Melee.CurrentStage.Animation, "the opening punch is the right straight");
+            Assert.AreEqual(FistStrikes.JabName, rig.Melee.CurrentStage.Animation, "the opening punch is the jab");
             Release(_mouse.leftButton);
 #else
             yield break;
@@ -174,7 +174,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator HoldingTheButtonAndLettingGoThrowsTheOverhandAfterTheStraight()
+        public IEnumerator HoldingTheButtonAndLettingGoThrowsTheHaymakerAfterTheJab()
         {
 #if UNITY_EDITOR
             Rig rig = default;
@@ -187,9 +187,9 @@ namespace CityX.Tests
             Release(_mouse.leftButton);
             yield return Wait(1.2f);
 
-            Assert.GreaterOrEqual(thrown.Count, 2, "holding then releasing did not follow the straight");
-            Assert.AreEqual(FistStrikes.RightStraightName, thrown[0]);
-            Assert.AreEqual(FistStrikes.OverhandName, thrown[thrown.Count - 1], "the held punch did not come out as the overhand");
+            Assert.GreaterOrEqual(thrown.Count, 2, "holding then releasing did not follow the jab");
+            Assert.AreEqual(FistStrikes.JabName, thrown[0]);
+            Assert.AreEqual(FistStrikes.HaymakerName, thrown[thrown.Count - 1], "the held punch did not come out as the haymaker");
 #else
             yield break;
 #endif
