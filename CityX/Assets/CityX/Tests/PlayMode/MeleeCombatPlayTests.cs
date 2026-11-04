@@ -36,7 +36,7 @@ namespace CityX.Tests
 
             _dummyObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             _dummyObject.name = "Dummy";
-            // Well inside the 2.5m reach, directly in front (+Z is forward at
+            // Inside a fist's 1.4 m reach (its near surface a metre away), directly in front (+Z is forward at
             // identity rotation).
             _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 1.5f);
             _dummy = _dummyObject.AddComponent<SparringDummy>();
@@ -81,7 +81,7 @@ namespace CityX.Tests
             SwingOnce();
 
             Assert.AreEqual(1, _dummy.TimesHit, "the punch did not connect");
-            Assert.AreEqual(CombatTuning.PunchDamage, _dummy.TotalDamageTaken, 0.01f);
+            Assert.AreEqual(CombatTuning.DamageFor(ComboChain.For(ComboChain.Unarmed)[0], 0), _dummy.TotalDamageTaken, 0.01f);
             Assert.Less(_dummy.Health, _dummy.MaxHealth);
         }
 
@@ -93,6 +93,17 @@ namespace CityX.Tests
 
             SwingOnce();
             Assert.AreEqual(0, _dummy.TimesHit, "punched something well out of range");
+        }
+
+        /// <summary>A fist reaches less far than a weapon: a target a sword would reach (its surface 1.7 m off) is out of a punch's reach.</summary>
+        [Test]
+        public void AFistReachesLessFarThanAWeapon()
+        {
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, MeleeAttacker.FistReachMetres + 0.8f);
+            Physics.SyncTransforms();
+
+            SwingOnce();
+            Assert.AreEqual(0, _dummy.TimesHit, "a bare fist reached as far as a weapon");
         }
 
         /// <summary>
@@ -136,7 +147,7 @@ namespace CityX.Tests
             Assert.IsTrue(_attacker.IsSwinging);
             Assert.IsFalse(_attacker.TryAttack(), "started a second swing during the first");
 
-            Step(FistStrikes.Seconds(FistKind.Jab) * 0.2f);
+            Step(FistStrikes.Seconds(FistKind.RightStraight) * 0.2f);
             Assert.IsFalse(_attacker.TryAttack(), "swing released early in the windup");
 
             // The presses above were remembered (input buffering), so the next punch comes by itself; let the whole chain play out and finish.
@@ -150,12 +161,12 @@ namespace CityX.Tests
         public void APunchPressedWhileBusyIsBufferedAndThrownAsSoonAsItAllows()
         {
             Assert.IsTrue(_attacker.TryAttack());
-            Assert.AreEqual(FistStrikes.JabName, _attacker.CurrentStage.Animation);
+            Assert.AreEqual(FistStrikes.RightStraightName, _attacker.CurrentStage.Animation);
             Step(0.05f);
             Assert.IsFalse(_attacker.TryAttack(), "a second swing started in the middle of the first");   // remembered, not thrown
 
-            Step(FistStrikes.Seconds(FistKind.Jab));
-            Assert.AreEqual(FistStrikes.CrossName, _attacker.CurrentStage.Animation, "the remembered press was lost");
+            Step(FistStrikes.Seconds(FistKind.RightStraight));
+            Assert.AreEqual(FistStrikes.LeftStraightName, _attacker.CurrentStage.Animation, "the remembered press was lost");
             Assert.IsTrue(_attacker.IsSwinging);
         }
 
@@ -164,9 +175,75 @@ namespace CityX.Tests
         public void TheRecoveryOfAPunchCanBeCancelledIntoTheNext()
         {
             Assert.IsTrue(_attacker.TryAttack());
-            Step(FistStrikes.Seconds(FistKind.Jab) * 0.8f);   // past the contact, in the recovery
+            Step(FistStrikes.Seconds(FistKind.RightStraight) * 0.8f);   // past the contact, in the recovery
             Assert.IsTrue(_attacker.TryAttack(), "the next punch could not cancel the recovery");
-            Assert.AreEqual(FistStrikes.CrossName, _attacker.CurrentStage.Animation);
+            Assert.AreEqual(FistStrikes.LeftStraightName, _attacker.CurrentStage.Animation);
+        }
+
+        /// <summary>
+        /// The chain's closing punch (the left straight) must be recovered from in full, as in Souls: a press in its recovery is kept and thrown
+        /// only once it is over, from the start of the chain again.
+        /// </summary>
+        [Test]
+        public void TheClosingPunchCannotBeCancelledAndRestartsTheChain()
+        {
+            Assert.IsTrue(_attacker.TryAttack());
+            Step(FullSwing());
+            Assert.IsTrue(_attacker.TryAttack());
+            Assert.AreEqual(FistStrikes.LeftStraightName, _attacker.CurrentStage.Animation);
+            Step(FistStrikes.Seconds(FistKind.LeftStraight) * 0.8f);   // in the recovery
+            Assert.IsFalse(_attacker.TryAttack(), "the closing punch's recovery was cancelled");
+            Assert.AreEqual(FistStrikes.LeftStraightName, _attacker.CurrentStage.Animation);
+
+            Step(FistStrikes.Seconds(FistKind.LeftStraight) * 0.2f + 0.05f);
+            Assert.IsTrue(_attacker.IsSwinging, "the press in the recovery was lost");
+            Assert.AreEqual(FistStrikes.RightStraightName, _attacker.CurrentStage.Animation, "the chain did not start over after its closing punch");
+            Assert.Greater(_dummy.LastHitstun, 0.0f, "the closing punch did not stun");
+        }
+
+        /// <summary>The held punch is the overhand; held again in its window, the uppercut; a light after the overhand is the chain from the start.</summary>
+        [Test]
+        public void TheHeldPunchIsTheOverhandAndHeldAgainTheUppercut()
+        {
+            Assert.IsTrue(_attacker.TryAttack(heavy: true));
+            Assert.AreEqual(FistStrikes.OverhandName, _attacker.CurrentStage.Animation);
+            Step(FullSwing());
+            Assert.AreEqual(0.0f, _dummy.LastHitstun, 0.001f, "the overhand stunned as well as knocking down");
+            float overhand = _dummy.TotalDamageTaken;
+
+            Assert.IsTrue(_attacker.TryAttack(heavy: true));
+            Assert.AreEqual(FistStrikes.UppercutName, _attacker.CurrentStage.Animation, "the held follow-up to the overhand is not the uppercut");
+            Step(FullSwing());
+            Assert.Greater(_dummy.LastHitstun, 0.0f, "the uppercut did not stun");
+            Assert.Less(_dummy.TotalDamageTaken - overhand, overhand, "the uppercut out-hit the overhand");
+
+            Assert.IsTrue(_attacker.TryAttack(heavy: true));
+            Assert.AreEqual(FistStrikes.OverhandName, _attacker.CurrentStage.Animation, "the uppercut opened a window of its own");
+            Step(FullSwing());
+            Assert.IsTrue(_attacker.TryAttack());
+            Assert.AreEqual(FistStrikes.RightStraightName, _attacker.CurrentStage.Animation, "a light after the overhand is not the chain's first punch");
+        }
+
+        /// <summary>No stamina, no punch (as with the sword); a punch with any left is allowed, and bottoms the bar out.</summary>
+        [Test]
+        public void PunchesCostStaminaAndStopWhenItIsGone()
+        {
+            var vitals = _attackerObject.AddComponent<PlayerVitals>();
+            vitals.Revive();
+            Object.DestroyImmediate(_attacker);
+            _attacker = _attackerObject.AddComponent<MeleeAttacker>();
+
+            float before = vitals.Stamina;
+            Assert.IsTrue(_attacker.TryAttack());
+            Assert.AreEqual(before - CombatTuning.PunchStaminaCost, vitals.Stamina, 0.01f, "a straight did not cost its stamina");
+            Step(FullSwing());
+
+            vitals.TrySpendCombatStamina(vitals.Stamina - 1.0f, 0.0f);   // down to the last point
+            Assert.IsTrue(_attacker.TryAttack(), "a punch with a little stamina left was refused");
+            Assert.AreEqual(0.0f, vitals.Stamina, 0.01f);
+            Step(FullSwing() + 0.1f);
+            Assert.IsFalse(_attacker.TryAttack(), "a punch was thrown on empty");
+            Assert.IsFalse(_attacker.TryAttack(heavy: true), "an overhand was thrown on empty");
         }
 
         /// <summary>The body keeps part of its pace during a punch (the legs keep walking) and steps into it; it is no longer rooted.</summary>
@@ -176,7 +253,7 @@ namespace CityX.Tests
             Assert.IsTrue(_attacker.TryAttack());
             Assert.Greater(_attacker.SwingMoveFraction, 0.3f, "the body is rooted for a punch");
             Assert.Greater(_attacker.LungeFraction, 0.3f, "no step into the punch while the fist goes out");
-            Step(FistStrikes.Seconds(FistKind.Jab) * 0.9f);
+            Step(FistStrikes.Seconds(FistKind.RightStraight) * 0.9f);
             Assert.AreEqual(0.0f, _attacker.LungeFraction, 0.001f, "still lunging after the contact");
         }
 
@@ -196,41 +273,6 @@ namespace CityX.Tests
             Assert.AreEqual(chain.Length, _dummy.TimesHit, "not every stage of the chain landed");
             Assert.AreEqual(0, _attacker.NextStageIndex,
                 "the chain did not reset after its finisher");
-        }
-
-        [Test]
-        public void TheFinisherHitsHarderThanTheOpener()
-        {
-            ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
-
-            SwingOnce();
-            float first = _dummy.TotalDamageTaken;
-
-            // Walk the rest of the chain to reach and consume the finisher, so
-            // the next pass starts from a clean chain rather than mid-combo.
-            for (int i = 1; i < chain.Length; i++)
-            {
-                Assert.IsTrue(_attacker.TryAttack());
-                Step(FullSwing());
-            }
-
-            _dummy.Reset();
-            Step(2.0f);   // let the window lapse so the chain restarts
-
-            for (int i = 0; i < chain.Length - 1; i++)
-            {
-                Assert.IsTrue(_attacker.TryAttack());
-                Step(FullSwing());
-            }
-            float beforeFinisher = _dummy.TotalDamageTaken;
-            Assert.IsTrue(_attacker.TryAttack());
-            Step(FullSwing());
-            float finisherDamage = _dummy.TotalDamageTaken - beforeFinisher;
-
-            Assert.Greater(finisherDamage, first,
-                $"the finisher did {finisherDamage:0.0} against an opener's {first:0.0}");
-            Assert.AreEqual(0.0f, _dummy.LastHitstun, 0.001f,
-                "the finisher applied hitstun as well as ragdolling");
         }
 
         /// <summary>
@@ -341,7 +383,7 @@ namespace CityX.Tests
             _attacker = _attackerObject.AddComponent<MeleeAttacker>();
 
             SwingOnce();
-            Assert.AreEqual(CombatTuning.PunchDamage * 2.0f, _dummy.TotalDamageTaken, 0.05f,
+            Assert.AreEqual(CombatTuning.DamageFor(ComboChain.For(ComboChain.Unarmed)[0], 0) * 2.0f, _dummy.TotalDamageTaken, 0.05f,
                 "50 Strength at 2% a point should double the damage");
         }
 

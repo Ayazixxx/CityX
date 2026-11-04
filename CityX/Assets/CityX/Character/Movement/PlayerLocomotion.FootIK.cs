@@ -170,9 +170,10 @@ namespace CityX.Character
             // Standing still the soles are laid flat (SolveLeg) and set down flat: measured as a flat sole, the foot is placed so its whole sole is on the ground.
             float flatten = Mathf.Clamp01(1.0f - speed / FlatFootBelowSpeed);
 
-            // THE SWORD'S FOOTWORK (SwordFootwork): in a sword fight the feet stand in the stance and step to it, instead of following the walk clip
-            // (whose slowed blend slid them along the ground). Off in the air (last frame's verdict: this frame's needs the samples below).
-            float footworkWanted = FootIkEnabled && !_footIkWasInAir && !IsResized && (_controller == null || _controller.enabled) ? SwordFootworkWanted : 0.0f;
+            // THE FIGHT'S FOOTWORK (SwordFootwork): with a sword in hand or the fists up the feet stand in the stance and step to it, instead of following
+            // the walk clip (whose slowed blend slid them along the ground). Off in the air (last frame's verdict: this frame's needs the samples below).
+            StanceWanted(out float stanceWanted, out float stanceLead, out float stanceDepth);
+            float footworkWanted = FootIkEnabled && !_footIkWasInAir && !IsResized && (_controller == null || _controller.enabled) ? stanceWanted : 0.0f;
             float legLength = Vector3.Distance(_leftUpperLeg.position, _leftLowerLeg.position) + Vector3.Distance(_leftLowerLeg.position, _leftFoot.position);
             _footwork.Step(IsImpactFrozen ? 0.0f : deltaTime, footworkWanted, new SwordFootwork.Body
             {
@@ -183,8 +184,8 @@ namespace CityX.Character
                 LeftHip = _leftUpperLeg.position,
                 RightHip = _rightUpperLeg.position,
                 Reach = FootReach(legLength, floorY, soleOffset),
-                Lead = _swordFrame.StanceLead,
-                Depth = _swordFrame.StanceDepth,
+                Lead = stanceLead,
+                Depth = stanceDepth,
                 ClipLeft = _leftFoot.position,
                 ClipRight = _rightFoot.position,
                 ClipLeftYaw = HeadingOf(_leftFoot),
@@ -242,7 +243,7 @@ namespace CityX.Character
             float drop = Mathf.Lerp(_feet.TotalDrop, _stairSteps.Drop, _stairSteps.Weight);
             if (active)
             {
-                drop += PoseHipDrop;   // a sword attack sinking into its cut: the legs bend, the feet stay planted
+                drop += PoseHipDrop;   // a sword attack sinking into its cut, a punch leaning in: the legs bend, the feet stay planted
             }
             if (drop > 0.0f)
             {

@@ -5,16 +5,16 @@ namespace CityX.Character
     /// <summary>
     /// Plays the unarmed strikes (<see cref="FistStrikes"/>) on a body, owner or network copy alike: <see cref="PlayerAnimationDriver"/> calls
     /// <see cref="Begin"/> when a punch is thrown (here, or replayed from the network, which is why a copy punches the same way), this advances the blow
-    /// and holds the GUARD stance for a few seconds after the last one, and hands each frame to <see cref="PlayerLocomotion"/>, whose LateUpdate puts
-    /// the fists where the frame says (after the Animator, like every other procedural pose).
+    /// and holds the READY stance (arms down, a little crouched, the feet planted) for a moment after the last one, and hands each frame to
+    /// <see cref="PlayerLocomotion"/>, whose LateUpdate puts the fists where the frame says (after the Animator, like every other procedural pose).
     ///
     /// A HIT FREEZES THE BLOW for a moment (hit-stop): the fist stays at full reach for <see cref="HitHoldSeconds"/> when it lands, the single cheapest
     /// thing that makes a punch feel like it connected.
     /// </summary>
     public sealed class FistPoseDriver : MonoBehaviour
     {
-        /// <summary>How long the guard is held after the last blow, seconds.</summary>
-        public const float GuardLingerSeconds = 3.0f;
+        /// <summary>How long the ready stance is held after the last blow, seconds (then the body goes back to standing as it always does).</summary>
+        public const float ReadyLingerSeconds = 1.5f;
 
         /// <summary>How quickly the arms come into the pose (and go back to the walk cycle's), seconds.</summary>
         public const float EngageSeconds = 0.09f;
@@ -31,7 +31,7 @@ namespace CityX.Character
         private float _elapsed;
         private float _duration = 0.3f;
         private float _hold;
-        private float _guardRemaining;
+        private float _readyRemaining;
         private float _engage;
 
         /// <summary>A blow is in progress.</summary>
@@ -88,7 +88,7 @@ namespace CityX.Character
             _speed = 1.0f;
             _duration = FistStrikes.Seconds(kind);
             _hold = 0.0f;
-            _guardRemaining = GuardLingerSeconds;
+            _readyRemaining = ReadyLingerSeconds;
             enabled = true;
         }
 
@@ -100,11 +100,11 @@ namespace CityX.Character
 
         private float _speed = 1.0f;
 
-        /// <summary>Ends any blow and drops the guard at once (a block, a ragdoll, an equipped weapon).</summary>
+        /// <summary>Ends any blow and drops the stance at once (a block, a ragdoll, an equipped weapon).</summary>
         public void Cancel()
         {
             _striking = false;
-            _guardRemaining = 0.0f;
+            _readyRemaining = 0.0f;
         }
 
         private PlayerInputReader _reader;
@@ -115,7 +115,7 @@ namespace CityX.Character
 
         /// <summary>
         /// Something else owns the arms: a weapon or gun or tool in hand, a climb or vault, a ragdoll, a grapple, a sit. The fists never fight those poses
-        /// for the arms (a punch is thrown with bare hands), and the guard is dropped at once.
+        /// for the arms (a punch is thrown with bare hands), and the stance is dropped at once.
         /// </summary>
         private bool ArmsAreBusy()
         {
@@ -150,7 +150,7 @@ namespace CityX.Character
         /// <summary>Advances by <paramref name="deltaTime"/> and gives the locomotion this frame's pose. Public so a test can step it without frames.</summary>
         public void Step(float deltaTime)
         {
-            if ((_striking || _guardRemaining > 0.0f || _engage > 0.0f) && ArmsAreBusy())
+            if ((_striking || _readyRemaining > 0.0f || _engage > 0.0f) && ArmsAreBusy())
             {
                 Cancel();
                 _engage = 0.0f;
@@ -170,12 +170,12 @@ namespace CityX.Character
                     _striking = false;
                 }
             }
-            else if (_guardRemaining > 0.0f)
+            else if (_readyRemaining > 0.0f)
             {
-                _guardRemaining -= deltaTime;
+                _readyRemaining -= deltaTime;
             }
 
-            bool wantsPose = _striking || _guardRemaining > 0.0f;
+            bool wantsPose = _striking || _readyRemaining > 0.0f;
             _engage = Mathf.MoveTowards(_engage, wantsPose ? 1.0f : 0.0f, deltaTime / (wantsPose ? EngageSeconds : DisengageSeconds));
 
             if (_locomotion == null)
@@ -189,12 +189,14 @@ namespace CityX.Character
                 return;
             }
 
-            FistFrame frame = _striking ? FistStrikes.Evaluate(_kind, Progress, 1.0f) : FistStrikes.Guard(1.0f);
+            FistFrame frame = _striking ? FistStrikes.Evaluate(_kind, Progress, 1.0f) : FistStrikes.Ready(1.0f);
             float w = Mathf.SmoothStep(0.0f, 1.0f, _engage);
             frame.RightWeight *= w;
             frame.LeftWeight *= w;
             frame.TwistDegrees *= w;
             frame.LeanDegrees *= w;
+            frame.HipDrop *= w;
+            frame.Footwork *= w;
             _locomotion.SetFistPose(frame);
         }
     }

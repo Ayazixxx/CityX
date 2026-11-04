@@ -1,55 +1,78 @@
 # Unarmed (fist) combat
 
-## What was wrong
+## What it is now (2026-11-03: Souls-style)
 
-Reported: "the no-weapons fists melee feels really horrible and looks awful: the feet freeze up and stop moving and the animations themselves just look awful."
-Diagnosed in the code:
+Owner: "make the fists balanced right now they are too op and i dont like the animations either", "make the fists animations like dark souls unarmed
+punching". The research and the numbers' reasoning are in `MELEE_COMBOS.md`.
 
-1. **The feet froze twice over.** The punches were two full-body Mixamo jab clips played on the animator's BASE layer (so the legs stopped walking for the clip), and
-   `MeleeAttacker.SwingMoveFraction` was 0 for an unarmed swing (so the body could not move at all while it lasted). The sword had already been fixed the same way
-   ("make the legs walk and not freeze up during sword use too"); the fists never were.
-2. **The punch came late.** `PlayerInputReader` threw it when the mouse button was RELEASED (to tell a tap from a hold): 100 ms or more between the click and the fist.
-3. **It punched where it used to face.** The body turned to the camera only while MOVING; standing still after turning the camera, the punch went the old way.
-4. **Every punch was the same punch.** `punch_right`/`punch_left` x2 plus the haymaker, each one the same weak jab; on this rig (short arms on a 2.6 m body) the clip barely
-   left the chest.
-5. A press during a swing was simply lost, and each swing had to play out its whole tail before the next could start.
+### The moves
 
-## What third-person fighting games do (the research)
+- **Lights: a right straight, then a left straight** (`ComboChain.Unarmed`, Souls' two-hit R1 string). The left closes the chain and its recovery
+  cannot be cancelled: after it the fighter is open. The first's stun outlasts the gap to the second's contact, the second's does not outlast its
+  own recovery: **two hits are guaranteed, the third is not** (`FistStrikesTests.TwoPunchesAreGuaranteedAndTheThirdIsNot`).
+- **Heavy (hold left click, let go): the overhand** (`CombatTuning.HeavyPunch`): the fist wound back and high over the shoulder for a long moment
+  (the tell), then brought down and across with the whole body. It **knocks a player down** (`ComboStage.KnocksDown`: the finisher ragdoll), no
+  stun on top. It is outside the chain: a light after it starts the chain over.
+- **Held again inside the overhand's window: the uppercut** (`CombatTuning.UppercutPunch`), from a dip, driven up under the chin. It stuns longest
+  of the fists and opens nothing.
 
-Sifu, the Arkham and Yakuza games, Street Fighter's 3D cousins, Fortnite's melee, Souls-likes: (a) a **guard stance** the fists return to; (b) **anticipation, fast extension
-that accelerates into the target, a brief hold on contact, slower recovery**; (c) **different punches on different paths** (jab, cross, hook, uppercut, haymaker);
-(d) the **torso turns and leans into each blow**, with a small counter-turn in the wind-up; (e) the **fist reaches full extension at the moment it lands**;
-(f) **hit-stop** on contact; (g) **punch magnetism** (a blow is thrown at the enemy near where the camera looks) and a **step into the blow**; (h) **input buffering**
-and **cancelling a recovery into the next punch**; (i) **instant response**: attack on the press.
+### The numbers (`ComboChain.cs`)
 
-## What it does now
+| | Right straight | Left straight | Overhand (hold) | Uppercut (hold again) |
+|---|---|---|---|---|
+| Damage (of a sword blow's 10) | 5 | 5 | 10 | 8 |
+| Stamina | 8 | 8 | 16 | 12 |
+| Hitstun | 0.33 s | 0.25 s | knockdown | 0.4 s |
+| Length / contact | 0.5 s / 0.23 s | 0.5 s / 0.23 s | 0.8 s / 0.48 s | 0.6 s / 0.3 s |
 
-- `Character/Posing/FistStrikes.cs` (pure data and maths): five procedural strikes. Each is a path for the throwing fist (in arm lengths, relative to its shoulder), a torso twist
-  and lean, a duration and a contact moment. `Evaluate(kind, t, guard)` gives the pose; `Guard()` the stance. Chain: **jab, cross, hook, uppercut, haymaker** (same
-  damage/hitstun as before; the haymaker is still the finisher and the held punch).
-- `Character/Posing/FistPoseDriver.cs`: plays a strike on any body (the owner's and every network copy's: `PlayerAnimationDriver.PlayState` hands it the move), holds the guard for 3 s
-  after the last blow, and freezes the fist at full reach for 55 ms when a blow lands (hit-stop). Yields to anything else that owns the arms (a weapon, a gun, a climb, a vault, a ragdoll, a grapple).
-- `PlayerLocomotion.ApplyFistPose` (LateUpdate, after the Animator): twists and leans the spine, puts each fist where the frame says with two-bone IK, the other held in the guard.
-  `SetFacingOverride` turns the body.
-- The legs keep walking: no clip is played over the body, and `MeleeAttacker.UnarmedMoveFraction` keeps 25-65% of walking pace (by punch) and `LungeFraction` steps INTO the blow
-  while the fist is going out.
-- `PlayerInputReader`: the punch goes out **on the press**; holding past 0.4 s and letting go follows with the haymaker. The body turns (1200 deg/s) to the nearest enemy within
-  70 degrees of where the camera looks and within 4.5 m (`MeleeAttacker.TryFindMagnetYaw`), else to the camera.
-- `MeleeAttacker`: each strike has its own length and contact moment (`FistStrikes`); a press during a swing is remembered for 0.25 s and thrown when the swing allows; the
-  last 35% of a swing (after the contact) can be cancelled into the next punch.
-- Multiplayer: the strike's name already travels (`PlayerAnimationDriver.StatePlayed`), and a copy plays the same procedural punch (`NetworkedActionSyncPlayTests`).
+- **Reach 1.4 m** in a **90 degree cone** (`MeleeAttacker.FistReachMetres`, `FistHalfArcDegrees`): the sword's 2.2 m keeps a puncher off. The old
+  2.5 m / 120 degrees out-reached the sword. (`Range` stays for a held weapon's swing and for breaking a window.)
+- **No stamina, no punch**, as with the sword (`PlayerVitals.TrySpendCombatStamina`: allowed while any is left, then the bar bottoms out; recovery
+  pauses 0.6 s).
+- A press during a punch is kept until the punch lets it out (as in Souls: the punches are long enough now that the old 0.25 s buffer lost presses
+  made early in one); the last 35% of a non-closing punch can be cancelled into the next, as before.
+
+### The animation (`Character/Posing/FistStrikes.cs`, all procedural)
+
+Not a boxer's: a brawler's, from Souls' bare-handed moveset.
+
+- **No guard.** Between blows the arms hang **down at the sides** in the READY stance (`FistStrikes.Ready`): fists a little forward of the hips,
+  elbows slightly bent, hips sunk 7 cm, feet planted square. Held 1.5 s after the last blow (`FistPoseDriver.ReadyLingerSeconds`), then the body
+  stands as it always does.
+- **A straight**: the fist drawn back to the hip (low, behind the shoulder) with the torso wound against it, then driven straight out to full reach
+  at chest height with the torso turned 38 degrees into it and leaning 16 degrees forward, the hips sinking 11 cm; a hold at the contact (hit-stop
+  on a landed blow, as before); then a slow pull back down to the side. The left straight is the right one mirrored.
+- **The overhand**: wound up high over the shoulder for 45% of its length, then brought down and across (elbow out), the body leaning 24 degrees.
+- **The uppercut**: the hips dip 17 cm and the fist drops low, then it rises under the chin while the body straightens and leans back.
+- **The feet** stand in the fighting stance and step to it with `SwordFootwork` (the sword's stepper): each blow puts the OTHER foot forward
+  (`FistFrame.StanceLead`, half a leg length apart), so the hips turn into the blow over the front foot; the ready stance is square. The hips' drop
+  (`FistFrame.HipDrop`) goes through `PlayerLocomotion.PoseHipDrop` like the sword's, which is what lets the feet stand apart (the foot reach).
+- The other hand stays down at the side while one throws.
+
+### Where it lives
+
+- `FistStrikes` (pure paths and timings, tested on paper), `FistPoseDriver` (plays a blow on any body: the owner's and every network copy's, holds the
+  ready stance, hit-stop), `PlayerLocomotion.Fists.cs` (`ApplyFistPose`: spine twist and lean, two-bone IK on each arm; `SetFacingOverride` turns the
+  body to the target), `PlayerLocomotion.SwordPose.cs` (`StanceWanted`: the footwork takes the sword's stance while a sword is in hand, else the fists').
+- `MeleeAttacker`: the chain, the heavy and its held follow-up (`_heavyFollowUpRemaining`), the stamina, the reach, the knockdown (`KnocksDown`).
+- `PlayerInputReader.Combat.cs`: the punch goes out on the press; held past 0.4 s and let go it is the overhand; the body turns (1200 deg/s) to the
+  nearest enemy within 70 degrees of where the camera looks and within 4.5 m (`MeleeAttacker.TryFindMagnetYaw`), else to the camera.
+- Multiplayer: the strike's name travels as before (`PlayerAnimationDriver.StatePlayed`); a copy plays the same procedural punch, stance and all.
 
 ## Tests
 
-`FistStrikesTests` (paths: guard at both ends, full reach at contact, five distinct paths, torso turns the right way, no NaN), `MeleeCombatPlayTests` (chain, buffering, cancel,
-the body keeps its pace and lunges), `RealInputPunchPlayTests` (a real mouse and keyboard: the punch is on the press, the body walks and steps into it, it turns to the enemy near the
-camera, hold-and-release is the haymaker), `NetworkedActionSyncPlayTests` (a copy punches). `FistCapture` (Explicit, -Graphics) renders a contact sheet of all five punches to
-`Logs/CityShots/fist-sheet.png` (side) and `fist-sheet-front.png` (three-quarter).
+`FistStrikesTests` (ready stance at both ends and arms down, full reach at contact, the straights mirror and the heavies differ, the straight is drawn
+back to the hip, the overhand comes down from high and the uppercut rises, torso turns the right way, the other foot forward, two hits guaranteed and
+not three, weaker than a sword and costs stamina), `CombatTuningTests` and `BlockAndHeavyTests` (the chain's shape, the knockdown's zero stun, the
+overhand above every straight, the uppercut after it), `MeleeCombatPlayTests` (reach, buffering, cancel, the closing punch recovered in full and the
+chain restarting, overhand then uppercut, stamina), `RealInputPunchPlayTests` (a real mouse and keyboard: the punch is on the press, the body walks
+and steps into it, it turns to the enemy near the camera, hold-and-release is the overhand), `NetworkedActionSyncPlayTests` (a copy punches),
+`PlayerHudPortraitPlayTests` (a portrait is not taken with the fist up). `FistCapture` (Explicit, -Graphics) renders a contact sheet of the four
+punches to `Logs/CityShots/fist-sheet.png` (side) and `fist-sheet-front.png` (three-quarter).
 
-## Animations: what was looked at
+## History
 
-- **FiveMCombatOverhaul** (alberttheprince): a FiveM resource that replaces GTA V's own melee animations with Wolf Fire Modz's, "not exposed" as standalone files (the game's
-  animation dictionaries): nothing to import, and they are Rockstar's/modder's assets, so not usable in this game.
-- The project's existing clips (`boxing_left_jab`, `boxing_right_jab`, `heavy_punch`, `boxing_idle`, `body_block`) are no longer used for the punches (they remain in the folder).
-- If better CLIPS are wanted they could be played on the arms on top of this (the strikes are procedural so the paths, the contact timing and the network replay do not depend on
-  clips): see the end of the session summary for sources.
+- First pass (2026-10): the two Mixamo jab clips froze the feet, punched on the release and all looked alike; replaced by five procedural boxing
+  punches (jab, cross, hook, uppercut, haymaker) from a guard at the face, with punch magnetism, hit-stop, buffering and the body kept walking.
+  Those are gone: the owner wanted Souls' brawler, and the fists (10 a hit at 2.5 m for nothing) were "too op".
+- Clips looked at then: FiveMCombatOverhaul (Rockstar's/a modder's assets, not usable); the project's `boxing_*` and `heavy_punch` clips are unused.

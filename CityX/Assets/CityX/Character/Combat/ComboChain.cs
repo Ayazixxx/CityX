@@ -21,19 +21,23 @@ namespace CityX.Character
         public readonly float WindowSeconds;
 
         /// <summary>
-        /// Last swing of the chain. An explicit flag rather than "is it the
-        /// last index", so a chain could end early without renumbering.
+        /// Last swing of the chain: it closes it, and its recovery cannot be cancelled into the next (the fighter is open there). An explicit flag
+        /// rather than "is it the last index", so a chain could end early without renumbering.
         /// </summary>
         public readonly bool IsFinisher;
 
+        /// <summary>A landed hit knocks a player down (the finisher ragdoll) instead of stunning: its hitstun scale is zero.</summary>
+        public readonly bool KnocksDown;
+
         public ComboStage(string animation, float damageScale, float hitstunScale,
-            float windowSeconds, bool isFinisher)
+            float windowSeconds, bool isFinisher, bool knocksDown = false)
         {
             Animation = animation;
             DamageScale = damageScale;
             HitstunScale = hitstunScale;
             WindowSeconds = windowSeconds;
             IsFinisher = isFinisher;
+            KnocksDown = knocksDown;
         }
     }
 
@@ -98,23 +102,21 @@ namespace CityX.Character
             {
                 [Unarmed] = new[]
                 {
-                    // A boxer's one-two, then a hook and an uppercut, then the haymaker: five different punches along five different paths
-                    // (see FistStrikes), not one jab played alternately by each hand. Same damage and hitstun as the chain this replaces.
-                    new ComboStage(FistStrikes.JabName, 1.0f, 1.0f, 0.9f, false),
-                    new ComboStage(FistStrikes.CrossName, 1.0f, 1.0f, 0.9f, false),
-                    new ComboStage(FistStrikes.HookName, 1.0f, 1.0f, 0.9f, false),
-                    new ComboStage(FistStrikes.UppercutName, 1.0f, 1.1f, 0.9f, false),
-                    // The finisher's hitstun scale is zero on purpose: it
-                    // ragdolls the target instead, so hitstun would be a second
-                    // competing reaction to the same hit.
-                    new ComboStage(FistStrikes.HaymakerName, 1.5f, 0.0f, 0.0f, true),
+                    // SOULS' TWO-HIT STRING (docs/MELEE_COMBOS.md; owner, 2026-11-03: "the fists ... are too op"): a right straight and a left
+                    // straight, each half a sword blow, then the fighter must recover (the left closes the chain and cannot be cancelled). The
+                    // first's stun outlasts the gap to the second, so two hits are guaranteed; the third is not.
+                    new ComboStage(FistStrikes.RightStraightName, 0.5f, 0.65f, 0.9f, false),
+                    new ComboStage(FistStrikes.LeftStraightName, 0.5f, 0.5f, 0.0f, true),
                 },
                 [Sword] = new[]
                 {
                     // SWORD_COMBO_WINDOW_SECONDS in character.gd -- a real 5
                     // seconds, not the unarmed chain's own 0.9s window.
                     new ComboStage("sword_attack", 1.0f, 1.0f, 5.0f, false),
-                    new ComboStage("sword_attack2", 1.0f, 0.0f, 0.0f, true),
+                    // The finisher's hitstun scale is zero on purpose: it
+                    // ragdolls the target instead, so hitstun would be a second
+                    // competing reaction to the same hit.
+                    new ComboStage("sword_attack2", 1.0f, 0.0f, 0.0f, true, knocksDown: true),
                 },
             };
 
@@ -134,7 +136,7 @@ namespace CityX.Character
     /// </summary>
     public static class CombatTuning
     {
-        /// <summary>player.gd PUNCH_DAMAGE</summary>
+        /// <summary>player.gd PUNCH_DAMAGE: the base every melee figure scales from (a sword blow's; a bare straight is half of it, 2026-11-03).</summary>
         public const float PunchDamage = 10.0f;
 
         /// <summary>player.gd HITSTUN_SECONDS</summary>
@@ -155,25 +157,31 @@ namespace CityX.Character
         public const float PostFinisherInvulnerabilitySeconds = 1.0f;
 
         /// <summary>
-        /// The haymaker thrown by holding the punch button rather than tapping
-        /// it. player.gd's HEAVY_PUNCH_DAMAGE, which is 1.5x a jab.
+        /// The overhand thrown by holding the punch button rather than tapping it: the fists' big blow, a whole sword blow's damage, and it
+        /// KNOCKS THE TARGET DOWN (no hitstun on top: the ragdoll is the reaction).
         ///
-        /// NOT A MEMBER OF ANY CHAIN, which is the point. It hits harder and
-        /// takes longer, and it opens no follow-up window -- so throwing one is
-        /// a decision to commit rather than a free upgrade to whichever jab was
-        /// coming next.
-        ///
-        /// HITSTUN SCALE IS 0, NOT 1.5 -- an earlier version of this file had
-        /// this at 1.5 (matching the damage scale), which was never actually
-        /// checked against player.gd: `_punch()` seeds `var hitstun := 0.0`
-        /// and only overwrites it from get_last_attack_combo_info() when
-        /// `not is_heavy` -- a heavy/haymaker punch keeps that zero default
-        /// unconditionally, real damage but no hitstun at all, same shape the
-        /// unarmed chain's own finisher already uses here for the opposite
-        /// reason (ragdoll instead). Confirmed by reading player.gd directly.
+        /// NOT A MEMBER OF THE CHAIN, which is the point. It takes longest to throw (the long wind-up is the tell), and it starts the chain over
+        /// rather than advancing it, so throwing one is a decision to commit rather than a free upgrade to whichever straight was coming next.
+        /// Its window is for one thing only: the button HELD again inside it follows with <see cref="UppercutPunch"/>.
         /// </summary>
         public static readonly ComboStage HeavyPunch =
-            new ComboStage(FistStrikes.HaymakerName, 1.5f, 0.0f, 0.0f, false);
+            new ComboStage(FistStrikes.OverhandName, 1.0f, 0.0f, 0.9f, false, knocksDown: true);
+
+        /// <summary>The uppercut: the held follow-up to the overhand, driven up from a dip. Hits a little less, stuns longest, opens nothing.</summary>
+        public static readonly ComboStage UppercutPunch =
+            new ComboStage(FistStrikes.UppercutName, 0.8f, 0.8f, 0.0f, false);
+
+        /// <summary>
+        /// STAMINA (docs/MELEE_COMBOS.md): no stamina, no punch, as with the sword. A straight costs half a sword light; the overhand as much as a
+        /// sword's light; recovery pauses as after a sword swing.
+        /// </summary>
+        public const float PunchStaminaCost = 8.0f;
+
+        public const float HeavyPunchStaminaCost = 16.0f;
+
+        public const float UppercutStaminaCost = 12.0f;
+
+        public const float PunchRegenDelaySeconds = 0.6f;
 
         /// <summary>
         /// The sword's own held-attack variant, played from
