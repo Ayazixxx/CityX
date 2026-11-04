@@ -323,7 +323,113 @@ namespace CityX.Tests
 #endif
         }
 
-        private static void ShootAt(Camera camera, Texture2D sheet, int column, Vector3 position, Vector3 lookAt, float fov)
+        /// <summary>
+        /// A blade striking a held guard, a frame every 0.05 s from just before the blow: from the side, from over the attacker's shoulder and from over the
+        /// blocker's, as each would see it in the game. Output: CityX/Logs/CityShots/guard-clash.png.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RenderTheGuardClash()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            Time.captureFramerate = 60;
+            string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(directory);
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.transform.position = new Vector3(0, -0.5f, 0);
+            ground.transform.localScale = new Vector3(60, 1, 60);
+            var sun = new GameObject("Sun").AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.intensity = 1.2f;
+            sun.transform.rotation = Quaternion.Euler(45, -35, 0);
+            var cameraObject = new GameObject("Cam");
+            Camera camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.55f, 0.68f, 0.85f);
+            camera.nearClipPlane = 0.05f;
+
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/CombatSword.prefab");
+            var attacker = Object.Instantiate(playerPrefab, new Vector3(0, 0.05f, 0), Quaternion.identity);
+            var blocker = Object.Instantiate(playerPrefab, new Vector3(0, 0.05f, 1.9f), Quaternion.Euler(0, 180, 0));
+            var bodies = new[] { attacker, blocker };
+            var swords = new GameObject[2];
+            var combats = new SoulsSwordCombat[2];
+            var vitals = new PlayerVitals[2];
+            var locomotions = new PlayerLocomotion[2];
+            for (int i = 0; i < 2; i++)
+            {
+                bodies[i].GetComponent<PlayerInputReader>().enabled = false;
+                swords[i] = Object.Instantiate(swordPrefab, new Vector3(10 + i, 1, 10), Quaternion.identity);
+                swords[i].GetComponent<SwordWeapon>().OnEquip(bodies[i], CityX.Items.ItemInstanceData.None);
+                combats[i] = bodies[i].GetComponent<SoulsSwordCombat>();
+                vitals[i] = bodies[i].GetComponent<PlayerVitals>();
+                vitals[i].InfiniteStamina = true;
+                vitals[i].Roll = () => 1.0f;
+                locomotions[i] = bodies[i].GetComponent<PlayerLocomotion>();
+            }
+            var idle = new LocomotionInput { Sword1HEquipped = true };
+            System.Action tick = () =>
+            {
+                combats[1].SetBlockHeld(true);
+                for (int i = 0; i < 2; i++)
+                {
+                    combats[i].Tick(Dt);
+                    vitals[i].TickHitstun(Dt);
+                    locomotions[i].Tick(idle, Dt);
+                }
+            };
+            for (int i = 0; i < 60; i++)
+            {
+                tick();
+                yield return null;
+            }
+            var log = new StringBuilder("CityX guard clash:\n");
+            bool rebounded = false;
+            combats[0].Rebounded += () => rebounded = true;
+            combats[0].RequestLight(0.0f);
+            const int columns = 12;
+            var sheet = new Texture2D(Cell * columns, Cell * 3, TextureFormat.RGB24, false);
+            int column = 0;
+            int frame = 0;
+            while (column < columns && frame < 120)
+            {
+                tick();
+                yield return null;
+                bool started = combats[0].Phase == SoulsPhase.Active || rebounded || column > 0;
+                if (started && frame % 3 == 0)
+                {
+                    Vector3 middle = (attacker.transform.position + blocker.transform.position) * 0.5f + Vector3.up * 1.5f;
+                    ShootAt(camera, sheet, column, middle + new Vector3(7.0f, 0.5f, 0.0f), middle, 36.0f, 2);
+                    Vector3 pastAttacker = attacker.transform.position + attacker.transform.rotation * new Vector3(0.87f, 2.9f, -5.0f);
+                    ShootAt(camera, sheet, column, pastAttacker, attacker.transform.position + attacker.transform.forward * 1.5f + Vector3.up * 1.5f, 50.0f, 1);
+                    Vector3 pastBlocker = blocker.transform.position + blocker.transform.rotation * new Vector3(0.87f, 2.9f, -5.0f);
+                    ShootAt(camera, sheet, column, pastBlocker, blocker.transform.position + blocker.transform.forward * 1.5f + Vector3.up * 1.5f, 50.0f, 0);
+                    log.AppendLine($"col {column}: rebounded {rebounded} attacker z {attacker.transform.position.z:0.00} blocker z {blocker.transform.position.z:0.00} " +
+                                   $"frozen {locomotions[0].IsImpactFrozen}/{locomotions[1].IsImpactFrozen} tip y {bodies[0].GetComponent<PlayerLocomotion>().HeldSword.BladeTipWorld.y:0.00}");
+                    column++;
+                }
+                frame++;
+            }
+            Save(sheet, Path.Combine(directory, "guard-clash.png"));
+            Debug.Log(log.ToString());
+
+            for (int i = 0; i < 2; i++)
+            {
+                Object.Destroy(swords[i]);
+                Object.Destroy(bodies[i]);
+            }
+            Object.Destroy(cameraObject);
+            Object.Destroy(sun.gameObject);
+            Object.Destroy(ground);
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+            yield return null;
+#else
+            yield break;
+#endif
+        }
+
+        private static void ShootAt(Camera camera, Texture2D sheet, int column, Vector3 position, Vector3 lookAt, float fov, int row = 0)
         {
             camera.fieldOfView = fov;
             camera.transform.position = position;
@@ -340,7 +446,7 @@ namespace CityX.Tests
             camera.targetTexture = null;
             target.Release();
             Object.Destroy(target);
-            sheet.SetPixels(column * Cell, 0, Cell, Cell, image.GetPixels());
+            sheet.SetPixels(column * Cell, row * Cell, Cell, Cell, image.GetPixels());
             Object.Destroy(image);
         }
 

@@ -884,11 +884,56 @@ namespace CityX.Character
         {
             Key ready = oneHanded ? ReadyKey1H : ReadyKey2H;
             Key thrown = oneHanded
-                ? Pose(0.24f, Ease.SlowIn, new Vector3(0.62f, 1.74f, 0.02f), new Vector3(0.28f, 0.80f, -0.53f), Vector3.forward,
-                    elbow: 0.60f, twist: 28.0f, hips: 10.0f, lean: -9.0f, tilt: 3.0f, drop: 0.05f, lead: -0.5f, depth: 0.30f)
-                : Pose(0.24f, Ease.SlowIn, new Vector3(0.40f, 1.80f, 0.06f), new Vector3(0.20f, 0.85f, -0.48f), Vector3.forward,
-                    elbow: 0.50f, twist: 30.0f, hips: 12.0f, lean: -9.0f, tilt: 3.0f, drop: 0.05f, lead: -1.0f, depth: 0.35f);
+                ? FreeArm(Pose(0.24f, Ease.SlowIn, new Vector3(0.78f, 2.02f, -0.12f), new Vector3(0.45f, 0.80f, -0.40f), Vector3.forward,
+                    elbow: 0.75f, twist: 42.0f, hips: 18.0f, lean: -16.0f, tilt: -5.0f, drop: 0.10f, lead: -0.5f, depth: 0.60f), new Vector3(-0.35f, -0.50f, 0.72f))
+                : Pose(0.24f, Ease.SlowIn, new Vector3(0.50f, 2.02f, -0.02f), new Vector3(0.30f, 0.85f, -0.43f), Vector3.forward,
+                    elbow: 0.60f, twist: 42.0f, hips: 18.0f, lean: -15.0f, tilt: -4.0f, drop: 0.10f, lead: -1.0f, depth: 0.60f);
             return new[] { ready, thrown, Hold(thrown, 0.50f), At(ready, 1.0f) };
+        }
+
+        /// <summary>
+        /// A blade stopped on a guard at fighting distance: rising steeply to cross the blocker's blade, its point above and short of their head, the hand out to the right where
+        /// the game's camera sees it past the player's own head. Left where the strike had it, a blade 1.4 m long
+        /// at under 2 m went through the blocker and under their guard, and the freeze held it there. Where the two blades cross varies a little with the distance; a pose
+        /// (not an aim at the real guard) so another player's copy, told only the rebound's name, shows the same.
+        /// </summary>
+        private static readonly Vector3 StoppedHand1H = new Vector3(0.42f, 1.72f, 0.42f);
+
+        private static readonly Vector3 StoppedHand2H = new Vector3(0.22f, 1.66f, 0.42f);
+
+        private static readonly Vector3 StoppedBlade = new Vector3(-0.25f, 0.80f, 0.55f);
+
+        /// <summary><paramref name="from"/> (the cut as the blade struck) <paramref name="t"/> of the way to stopped on the guard: the blade and the hand only, the body stays as it was.</summary>
+        public static SwordFrame StoppedOnGuard(in SwordFrame from, bool oneHanded, float t)
+        {
+            SwordFrame stopped = from;
+            stopped.Hand = ((oneHanded ? StoppedHand1H : StoppedHand2H) - RightShoulder(from.TwistDegrees)) / ArmMetres;
+            stopped.Blade = StoppedBlade.normalized;
+            stopped.Edge = (Vector3.forward - stopped.Blade * Vector3.Dot(Vector3.forward, stopped.Blade)).normalized;   // the edge on the guard
+            return Lerp(from, stopped, t);
+        }
+
+        /// <summary>How long a guard that took a blow takes to come back, seconds.</summary>
+        public const float GuardJoltSeconds = 0.34f;
+
+        /// <summary>The share of that it takes to be knocked back: sudden, then a slower recovery.</summary>
+        private const float GuardJoltPeakShare = 0.18f;
+
+        /// <summary>
+        /// <paramref name="frame"/> as a blow knocks it back, <paramref name="t01"/> of the way through <see cref="GuardJoltSeconds"/>: the hand driven in toward the chest
+        /// and up, the tip knocked back, the shoulders turned and the body leaning away and sinking under the weight of it. Nothing at either end.
+        /// </summary>
+        public static SwordFrame GuardJolted(SwordFrame frame, float t01)
+        {
+            t01 = Mathf.Clamp01(t01);
+            float shape = t01 < GuardJoltPeakShare ? t01 / GuardJoltPeakShare : 1.0f - (t01 - GuardJoltPeakShare) / (1.0f - GuardJoltPeakShare);
+            float amount = Mathf.SmoothStep(0.0f, 1.0f, shape);
+            frame.Hand += new Vector3(0.05f, 0.12f, -0.24f) * amount;
+            frame.Blade = Vector3.Slerp(frame.Blade, (frame.Blade + new Vector3(0.0f, 0.3f, -0.7f)).normalized, amount);
+            frame.TwistDegrees += 10.0f * amount;
+            frame.LeanDegrees -= 12.0f * amount;
+            frame.HipDrop += 0.05f * amount;
+            return frame;
         }
 
         /// <summary>The pose at <paramref name="t01"/> along a run of keys.</summary>

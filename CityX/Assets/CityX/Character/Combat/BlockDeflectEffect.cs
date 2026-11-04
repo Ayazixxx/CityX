@@ -10,6 +10,11 @@ namespace CityX.Character
     ///
     /// Added at runtime by PlayerInputReader.Awake, like PlayerWetness (every body has one: a copy's reader is switched off only after it woke).
     /// Drawn and voiced in code: a few line streaks and a sound made of decaying partials, no assets.
+    ///
+    /// A BLADE MEETING A GUARD IS THE BIG ONE (owner, 2026-11-04: "it should feel impactful hitting an opponent who is blocking and when you block an attack the
+    /// opponents weapon should bounce off with a loud noise"): several things on the same frame, as a hit that lands has (HitImpactEffects). Both fighters held still for
+    /// an instant, a loud clash with a thunk under it, a flash and a big burst of sparks where the blades meet, and the camera jolted. Then the blocker's guard is knocked
+    /// back and the body slides (SwordStrikes.GuardJolted), and the attacker's blade is thrown back (SwordPoseDriver.BeginRebound). A parry stands firm: only the attacker moves.
     /// </summary>
     public sealed class BlockDeflectEffect : MonoBehaviour
     {
@@ -22,7 +27,33 @@ namespace CityX.Character
         /// <summary>The owner's sword-on-sword recordings (2026-10-17), in Resources: one is picked at random for each clash.</summary>
         public static readonly string[] ClashClipNames = { "SwordClash/SwordClash1", "SwordClash/SwordClash2", "SwordClash/SwordClash3" };
 
-        public const float ClashVolume = 0.8f;
+        public const float ClashVolume = 1.0f;
+
+        /// <summary>The thunk laid under the recording: the weight of the blow.</summary>
+        public const float ClashBodyVolume = 0.85f;
+
+        /// <summary>
+        /// A clash is at full volume this near, metres, and only fades beyond it. The game's camera is 5 m behind the player and hears for the player, so with the
+        /// usual one-shot's 1 m a clash under the player's own nose came through at a fifth of its volume.
+        /// </summary>
+        public const float ClashFullVolumeMetres = 12.0f;
+
+        /// <summary>The name of a clash's sound objects.</summary>
+        public const string ClashSoundName = "GuardClashSound";
+
+        /// <summary>How long a blade meeting a guard holds both fighters still, seconds. Past about 0.12 s a freeze reads as a dropped frame.</summary>
+        public const float ClashFreezeSeconds = 0.1f;
+
+        /// <summary>How far a blow slides the body holding the guard, metres, a heavy one further. Kept small: the blocker must stay in reach to punish the opening.</summary>
+        public const float GuardShoveMetres = 0.15f;
+
+        public const float HeavyGuardShoveMetres = 0.3f;
+
+        public const float GuardShoveSeconds = 0.16f;
+
+        public const float GuardShakeMetres = 0.08f;
+
+        public const float GuardShakeSeconds = 0.2f;
 
         public const int SparkCount = 9;
         public const float SparkSeconds = 0.2f;
@@ -30,8 +61,17 @@ namespace CityX.Character
         public const float SparkLength = 0.16f;
         public const float SparkWidth = 0.012f;
 
+        public const int ClashSparkCount = 26;
+        public const float ClashSparkSeconds = 0.3f;
+        public const float ClashSparkSpeed = 10.0f;
+        public const float ClashSparkLength = 0.34f;
+        public const float ClashSparkWidth = 0.026f;
+
         /// <summary>How far in front of the chest the guard meets the blow, in metres.</summary>
         public const float GuardReach = 0.55f;
+
+        /// <summary>Where along the guard's blade the blow meets it, hilt to tip.</summary>
+        public const float BladeMeetShare = 0.55f;
 
         public const float Volume = 0.55f;
 
@@ -40,10 +80,12 @@ namespace CityX.Character
         private static Material _material;
         private static AudioClip _ting;
         private static AudioClip[] _clashes;
+        private static AudioClip _clashBody;
 
         private PlayerVitals _vitals;
         private PlayerAnimationDriver _driver;
         private PlayerLocomotion _locomotion;
+        private bool _parried;
 
         /// <summary>How many deflections this body has shown (here or from another player): what a test reads.</summary>
         public int Shown { get; private set; }
@@ -59,6 +101,8 @@ namespace CityX.Character
         {
             if (_vitals != null) _vitals.Deflected += OnDeflected;
             if (_vitals != null) _vitals.GuardStruck += OnGuardStruck;
+            if (_vitals != null) _vitals.Parried += OnParried;
+            if (_vitals != null) _vitals.GuardBroken += OnGuardBroken;
             if (_driver != null) _driver.RemoteDeflected += OnRemoteDeflected;
         }
 
@@ -66,19 +110,52 @@ namespace CityX.Character
         {
             if (_vitals != null) _vitals.Deflected -= OnDeflected;
             if (_vitals != null) _vitals.GuardStruck -= OnGuardStruck;
+            if (_vitals != null) _vitals.Parried -= OnParried;
+            if (_vitals != null) _vitals.GuardBroken -= OnGuardBroken;
             if (_driver != null) _driver.RemoteDeflected -= OnRemoteDeflected;
         }
 
-        /// <summary>A sword guard met a blow (a parry or a soak, owner 2026-10-17's guard rebound): sparks and one of the recorded clashes.</summary>
+        /// <summary>The blow about to clash was caught in the guard's first instant (said just before <see cref="OnGuardStruck"/>).</summary>
+        private void OnParried(Vector3 from)
+        {
+            _parried = true;
+        }
+
+        /// <summary>A sword guard met a blow (a parry or a soak, owner 2026-10-17's guard rebound): the clash, and what it does to this body.</summary>
         private void OnGuardStruck(Vector3 from)
         {
             Vector3 direction = Toward(from);
-            Show(Chest() + direction * GuardReach, direction, true);
+            Show(GuardPoint(direction), direction, true);
+            _driver?.AnnounceState(ClashStateName);
+            _locomotion?.ImpactFreeze(ClashFreezeSeconds);
+            if (ThirdPersonCamera.Local != null && ThirdPersonCamera.Local.Target == transform)
+            {
+                ThirdPersonCamera.Local.AddShake(GuardShakeMetres, GuardShakeSeconds);
+            }
+            bool parried = _parried;
+            _parried = false;
+            if (!parried)
+            {
+                _locomotion?.Shove(-direction, DamageContext.HeavyBlow ? HeavyGuardShoveMetres : GuardShoveMetres, GuardShoveSeconds);
+                _driver?.SwordPoser?.GuardJolt(ClashFreezeSeconds);
+            }
+        }
+
+        /// <summary>A blow broke the guard open: it still clashes, and the wound and the stagger follow (HitImpactEffects).</summary>
+        private void OnGuardBroken()
+        {
+            Show(GuardPoint(transform.forward), transform.forward, true);
             _driver?.AnnounceState(ClashStateName);
         }
 
         private void OnDeflected(Vector3 from, DamageKind kind)
         {
+            _parried = false;
+            if (kind == DamageKind.Physical && _locomotion != null && _locomotion.HeldSword != null)
+            {
+                OnGuardStruck(from);   // a blade stopped outright by Block Chance bounces like any other (the attacker is thrown back the same)
+                return;
+            }
             Vector3 direction = Toward(from);
             Show(Chest() + direction * GuardReach, direction);
             _driver?.AnnounceState(StateName);
@@ -86,7 +163,26 @@ namespace CityX.Character
 
         private void OnRemoteDeflected(bool clash)
         {
-            Show(Chest() + transform.forward * GuardReach, transform.forward, clash);
+            Vector3 direction = transform.forward;
+            if (!clash)
+            {
+                Show(Chest() + direction * GuardReach, direction);
+                return;
+            }
+            Show(GuardPoint(direction), direction, true);
+            _locomotion?.ImpactFreeze(ClashFreezeSeconds);
+            SwordPoseDriver poser = _driver != null ? _driver.SwordPoser : null;
+            if (poser != null && !poser.IsParrying)
+            {
+                poser.GuardJolt(ClashFreezeSeconds);
+            }
+        }
+
+        /// <summary>Where a blow meets the guard: on the blade held up, or in front of the chest with none in hand.</summary>
+        private Vector3 GuardPoint(Vector3 direction)
+        {
+            ISwordBlade held = _locomotion != null ? _locomotion.HeldSword : null;
+            return held != null ? Vector3.Lerp(held.BladeBaseWorld, held.BladeTipWorld, BladeMeetShare) : Chest() + direction * GuardReach;
         }
 
         private Vector3 Toward(Vector3 from)
@@ -127,15 +223,70 @@ namespace CityX.Character
             }
             var burst = new GameObject("DeflectSparks");
             burst.transform.position = point;
-            burst.AddComponent<SparkBurst>().Begin(point, direction);
+            burst.AddComponent<SparkBurst>().Begin(point, direction, clash);
+            if (clash)
+            {
+                AttackGlint.Flash(point);
+                PlayClashSound(ClashBody(), point, ClashBodyVolume);
+            }
             if (clip != null)
             {
-                AudioSource.PlayClipAtPoint(clip, point, ClashVolume);
+                PlayClashSound(clip, point, ClashVolume);
             }
-            else
+            else if (!clash)
             {
                 AudioSource.PlayClipAtPoint(Ting(), point, Volume);
             }
+        }
+
+        /// <summary>One layer of a clash: in the world, so a far-off fight is quieter, but at full volume anywhere near it (<see cref="ClashFullVolumeMetres"/>).</summary>
+        private static void PlayClashSound(AudioClip clip, Vector3 point, float volume)
+        {
+            var sound = new GameObject(ClashSoundName);
+            sound.transform.position = point;
+            AudioSource source = sound.AddComponent<AudioSource>();
+            source.clip = clip;
+            source.volume = volume;
+            source.spatialBlend = 1.0f;
+            source.rolloffMode = AudioRolloffMode.Logarithmic;
+            source.minDistance = ClashFullVolumeMetres;
+            source.dopplerLevel = 0.0f;
+            source.Play();
+            Destroy(sound, clip.length + 0.1f);
+        }
+
+        /// <summary>The weight under a clash: a low thump, a hard strike and a dull clank of steel, gone in a third of a second.</summary>
+        public static AudioClip ClashBody()
+        {
+            if (_clashBody != null)
+            {
+                return _clashBody;
+            }
+            const int rate = 44100;
+            const float seconds = 0.32f;
+            int count = Mathf.RoundToInt(rate * seconds);
+            var samples = new float[count];
+            float[] partials = { 830.0f, 1290.0f, 1870.0f };
+            float[] loudness = { 0.42f, 0.28f, 0.18f };
+            float[] decay = { 14.0f, 18.0f, 24.0f };
+            var noise = new System.Random(5);
+            float phase = 0.0f;
+            for (int i = 0; i < count; i++)
+            {
+                float t = i / (float)rate;
+                float frequency = 110.0f - 55.0f * Mathf.Min(1.0f, t / 0.15f);
+                phase += 2.0f * Mathf.PI * frequency / rate;
+                float value = Mathf.Sin(phase) * Mathf.Exp(-t * 18.0f) * 0.9f;
+                for (int p = 0; p < partials.Length; p++)
+                {
+                    value += loudness[p] * Mathf.Exp(-decay[p] * t) * Mathf.Sin(2.0f * Mathf.PI * partials[p] * t);
+                }
+                value += (float)(noise.NextDouble() * 2.0 - 1.0) * 0.8f * Mathf.Exp(-t * 300.0f);
+                samples[i] = Mathf.Clamp(value, -1.0f, 1.0f) * 0.95f;
+            }
+            _clashBody = AudioClip.Create("GuardClashBody", count, 1, rate, false);
+            _clashBody.SetData(samples, 0);
+            return _clashBody;
         }
 
         /// <summary>The owner's clash recordings, loaded once.</summary>
@@ -215,20 +366,27 @@ namespace CityX.Character
             private Vector3[] _velocities;
             private Vector3[] _heads;
             private float _elapsed;
+            private float _seconds;
+            private float _length;
 
-            public void Begin(Vector3 point, Vector3 direction)
+            public void Begin(Vector3 point, Vector3 direction, bool clash)
             {
                 var random = new System.Random(unchecked((int)(Time.frameCount * 7919 + point.GetHashCode())));
-                _streaks = new LineRenderer[SparkCount];
-                _velocities = new Vector3[SparkCount];
-                _heads = new Vector3[SparkCount];
+                int count = clash ? ClashSparkCount : SparkCount;
+                float speed = clash ? ClashSparkSpeed : SparkSpeed;
+                float width = clash ? ClashSparkWidth : SparkWidth;
+                _seconds = clash ? ClashSparkSeconds : SparkSeconds;
+                _length = clash ? ClashSparkLength : SparkLength;
+                _streaks = new LineRenderer[count];
+                _velocities = new Vector3[count];
+                _heads = new Vector3[count];
                 Vector3 forward = direction.sqrMagnitude > 1e-4f ? direction.normalized : Vector3.forward;
-                for (int i = 0; i < SparkCount; i++)
+                for (int i = 0; i < count; i++)
                 {
                     // Out over the half facing the blow, a little upward.
                     Vector3 spread = new Vector3((float)random.NextDouble() * 2.0f - 1.0f, (float)random.NextDouble() * 1.4f - 0.4f,
                         (float)random.NextDouble() * 2.0f - 1.0f);
-                    Vector3 velocity = (forward + spread * 0.9f).normalized * SparkSpeed * (0.6f + (float)random.NextDouble() * 0.6f);
+                    Vector3 velocity = (forward + spread * 0.9f).normalized * speed * (0.6f + (float)random.NextDouble() * 0.6f);
                     _velocities[i] = velocity;
                     _heads[i] = point;
                     var streak = new GameObject("Spark").AddComponent<LineRenderer>();
@@ -237,8 +395,8 @@ namespace CityX.Character
                     streak.useWorldSpace = true;
                     streak.positionCount = 2;
                     streak.numCapVertices = 0;
-                    streak.startWidth = SparkWidth;
-                    streak.endWidth = SparkWidth * 0.3f;
+                    streak.startWidth = width;
+                    streak.endWidth = width * 0.3f;
                     streak.startColor = SparkColour;
                     streak.endColor = new Color(SparkColour.r, SparkColour.g * 0.6f, 0.1f, 0.0f);
                     streak.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -252,17 +410,17 @@ namespace CityX.Character
             private void Update()
             {
                 _elapsed += Time.deltaTime;
-                float life = Mathf.Clamp01(1.0f - _elapsed / SparkSeconds);
+                float life = Mathf.Clamp01(1.0f - _elapsed / _seconds);
                 for (int i = 0; i < _streaks.Length; i++)
                 {
                     _velocities[i] += Physics.gravity * Time.deltaTime * 0.5f;
                     _heads[i] += _velocities[i] * Time.deltaTime;
-                    Vector3 tail = _heads[i] - _velocities[i].normalized * SparkLength * life;
+                    Vector3 tail = _heads[i] - _velocities[i].normalized * _length * life;
                     _streaks[i].SetPosition(0, _heads[i]);
                     _streaks[i].SetPosition(1, tail);
                     _streaks[i].widthMultiplier = life;
                 }
-                if (_elapsed >= SparkSeconds)
+                if (_elapsed >= _seconds)
                 {
                     Destroy(gameObject);
                 }

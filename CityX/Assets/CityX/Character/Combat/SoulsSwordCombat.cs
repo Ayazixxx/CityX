@@ -56,6 +56,9 @@ namespace CityX.Character
         [Tooltip("Seconds into the wind-up where the pose rests at its top: where an enemy's tell holds the swing (SoulsSwordCombat.TelegraphLightSeconds).")]
         public float HoldAt;
 
+        [Tooltip("Seconds into the swing where a posed blade arrives at the front of the body: the forgiving reach volume waits for it. 0 for a clip.")]
+        public float ContactAt;
+
         [Tooltip("Length in seconds of the Mixamo clip at its own pace (measured -- see SoulsSwordCapture.MeasureClips).")]
         public float ClipSeconds;
 
@@ -101,6 +104,7 @@ namespace CityX.Character
             attack.BreaksGuard = hyperArmour;   // the heavies
             SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(kind);
             attack.HoldAt = timing.WindUp + timing.Hold * 0.5f;   // in the pause at the top, where the pose rests
+            attack.ContactAt = timing.Contact;
             return attack;
         }
 
@@ -336,6 +340,16 @@ namespace CityX.Character
         /// guard could not afford breaks the guard instead and does not rebound.
         /// </summary>
         public float GuardReboundSeconds = 0.6f;
+
+        /// <summary>How far a blow bounced off a guard knocks its attacker back, metres: kept small, or the two end up out of reach and the opening cannot be punished.</summary>
+        public const float ReboundShoveMetres = 0.25f;
+
+        public const float ReboundShoveSeconds = 0.2f;
+
+        /// <summary>The jolt of the player's own blade bouncing: harder than a blade that lands (HitImpactEffects.LandedShakeMetres).</summary>
+        public const float ReboundShakeMetres = 0.1f;
+
+        public const float ReboundShakeSeconds = 0.22f;
 
         /// <summary>Raised when this body's blade is thrown back off a guard (a soak or a parry, here or decided on another player's machine).</summary>
         public event System.Action Rebounded;
@@ -794,9 +808,14 @@ namespace CityX.Character
                 SetBlockHeld(false);
                 if (_reboundPending)
                 {
-                    // Bounced off a guard: the blade thrown back, shown on this body and (by name) on its copies.
+                    // Bounced off a guard: the blade thrown back, shown on this body and (by name) on its copies; the body knocked back a step (a copy is moved by the network).
                     _reboundPending = false;
                     _driver?.PlayLocalState(SwordStrikes.ReboundName(_oneHanded));
+                    _locomotion?.Shove(-transform.forward, ReboundShoveMetres, ReboundShoveSeconds);
+                    if (ThirdPersonCamera.Local != null && ThirdPersonCamera.Local.Target == transform)
+                    {
+                        ThirdPersonCamera.Local.AddShake(ReboundShakeMetres, ReboundShakeSeconds);
+                    }
                     Rebounded?.Invoke();
                 }
                 return;
@@ -1090,8 +1109,10 @@ namespace CityX.Character
             _prevBase = bladeBase;
             _prevTip = bladeTip;
 
+            // The reach volume waits until the blade has come round. From the first live frame it landed the blow with the blade still pointing behind the body (the live
+            // window opens a quarter into the strike, and the strike's whip has hardly moved it by then), and the hit-stop froze it there.
             float reach = Reach;
-            if (reach > 0.0f)
+            if (reach > 0.0f && _current != null && _current.Startup + _phaseTime >= _current.ContactAt)
             {
                 float height = _locomotion != null ? _locomotion.StandingHeight : 1.8f;
                 Vector3 center = transform.position

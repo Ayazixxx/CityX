@@ -763,7 +763,10 @@ namespace CityX.Character
             {
                 BloodBurst.Spawn(contactPoint, contactPoint - SwingOrigin(), 1.0f);
             }
-            PlayImpact();
+            if (response != HitResponse.Blocked && response != HitResponse.Guarded)
+            {
+                PlayImpact();   // a guard's sound is the clash (BlockDeflectEffect), not a blade going into a body
+            }
             EquippedWeapon?.RegisterLandedMeleeHit();
             return response;
         }

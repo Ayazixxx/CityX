@@ -227,7 +227,10 @@ namespace CityX.Character
             enabled = true;
         }
 
-        /// <summary>The blade bounced off a guard: thrown back, held open, gathered into the ready stance (<see cref="SwordStrikes.Rebound"/>).</summary>
+        /// <summary>
+        /// The blade bounced off a guard: stopped dead on it for an instant (a blow must be seen to land: it used to fly off the very next frame), thrown back, held
+        /// open, gathered into the ready stance (<see cref="SwordStrikes.Rebound"/>), inside the same <see cref="SwordStrikes.ReboundSeconds"/>. The whole body holds too.
+        /// </summary>
         public void BeginRebound(bool oneHanded)
         {
             StartTakeover(ReboundTakeoverSeconds);
@@ -236,9 +239,35 @@ namespace CityX.Character
             _guarding = false;
             _rebounding = true;
             _elapsed = 0.0f;
-            _duration = SwordStrikes.ReboundSeconds;
+            _duration = SwordStrikes.ReboundSeconds - BlockDeflectEffect.ClashFreezeSeconds;
+            _reboundHoldRemaining = BlockDeflectEffect.ClashFreezeSeconds;
+            _reboundFrom = _hasLastFrame ? _lastFrame : SwordStrikes.Ready(oneHanded);
+            _locomotion?.ImpactFreeze(BlockDeflectEffect.ClashFreezeSeconds);
             _speed = 1.0f;
             _readyRemaining = ReadyLingerSeconds;
+            enabled = true;
+        }
+
+        /// <summary>How much of the hold the blade takes to get from where it struck to stopped on the guard: a frame or two, under the flash.</summary>
+        private const float StopShareOfHold = 0.3f;
+
+        private float _reboundHoldRemaining;
+        private SwordFrame _reboundFrom;
+        private float _guardJoltDelay;
+        private float _guardJoltRemaining;
+
+        /// <summary>A held guard is being knocked back by a blow.</summary>
+        public bool IsGuardJolting => _guardJoltRemaining > 0.0f;
+
+        /// <summary>A blow struck the held guard: it is knocked back after <paramref name="delaySeconds"/> (the body held still by the impact) and comes back. Nothing without a sword's guard up.</summary>
+        public void GuardJolt(float delaySeconds)
+        {
+            if (!_guarding)
+            {
+                return;
+            }
+            _guardJoltDelay = delaySeconds;
+            _guardJoltRemaining = SwordStrikes.GuardJoltSeconds;
             enabled = true;
         }
 
@@ -357,9 +386,16 @@ namespace CityX.Character
                 _carryOneHanded = held.IsOneHanded;
             }
 
+            float clock = deltaTime * _speed;
+            bool stoppedOnGuard = _rebounding && _reboundHoldRemaining > 0.0f;
+            if (stoppedOnGuard)
+            {
+                _reboundHoldRemaining -= deltaTime;
+                clock = 0.0f;
+            }
             if (_striking || _rebounding)
             {
-                _elapsed += deltaTime * _speed;
+                _elapsed += clock;
                 if (_elapsed >= _duration)
                 {
                     _striking = false;
@@ -405,7 +441,16 @@ namespace CityX.Character
             _stanceGate = Mathf.Lerp(_stanceGate, stanceTarget, rate);
 
             SwordFrame frame;
-            if (_rebounding)
+            if (stoppedOnGuard)
+            {
+                float into = 1.0f - Mathf.Clamp01(_reboundHoldRemaining / BlockDeflectEffect.ClashFreezeSeconds);
+                frame = SwordStrikes.StoppedOnGuard(_reboundFrom, _oneHanded, into / StopShareOfHold);
+                // Thrown from here when the hold lets go.
+                _takeoverFrom = frame;
+                _takeoverSeconds = ReboundTakeoverSeconds;
+                _takeoverRemaining = ReboundTakeoverSeconds;
+            }
+            else if (_rebounding)
             {
                 frame = SwordStrikes.Rebound(_oneHanded, Progress);
             }
@@ -433,9 +478,9 @@ namespace CityX.Character
                 // to the clip rather than jumping to another first.
                 frame = _hasLastFrame ? _lastFrame : SwordStrikes.Ready(_oneHanded);
             }
-            if (_takeoverRemaining > 0.0f)
+            if (_takeoverRemaining > 0.0f && !stoppedOnGuard)
             {
-                _takeoverRemaining -= deltaTime * _speed;   // held still by a hit-stop like the attack itself
+                _takeoverRemaining -= clock;   // held still by a hit-stop like the attack itself
                 float s = 1.0f - Mathf.Clamp01(_takeoverRemaining / Mathf.Max(_takeoverSeconds, 1e-4f));
                 frame = SwordStrikes.Lerp(_takeoverFrom, frame, Mathf.SmoothStep(0.0f, 1.0f, s));
             }
@@ -447,6 +492,18 @@ namespace CityX.Character
                 frame.Hand += new Vector3(0.0f, 0.06f, 0.18f) * pulse;
                 frame.TwistDegrees -= 12.0f * pulse;
                 frame.LeanDegrees += 6.0f * pulse;
+            }
+            if (_guardJoltRemaining > 0.0f)
+            {
+                if (_guardJoltDelay > 0.0f)
+                {
+                    _guardJoltDelay -= deltaTime;
+                }
+                else
+                {
+                    _guardJoltRemaining -= deltaTime;
+                    frame = SwordStrikes.GuardJolted(frame, 1.0f - Mathf.Clamp01(_guardJoltRemaining / SwordStrikes.GuardJoltSeconds));
+                }
             }
             _lastFrame = frame;
             _hasLastFrame = true;

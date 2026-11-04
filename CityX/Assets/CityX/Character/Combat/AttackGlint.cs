@@ -32,12 +32,22 @@ namespace CityX.Character
 
         private static readonly AnimationCurve Taper = new AnimationCurve(new Keyframe(0.0f, 0.0f), new Keyframe(0.5f, 1.0f), new Keyframe(1.0f, 0.0f));
 
+        /// <summary>How long the flash of a blade striking a guard shows, its arm and its width: bigger and quicker than a tell.</summary>
+        public const float FlashSeconds = 0.16f;
+
+        public const float FlashArmMetres = 0.9f;
+
+        public const float FlashLineWidth = 0.1f;
+
         /// <summary>How many glints have been shown (for the tests).</summary>
         public static int Shown { get; private set; }
 
         private LineRenderer[] _arms;
         private Vector3 _point;
         private float _elapsed;
+        private float _seconds;
+        private float _armMetres;
+        private float _lineWidth;
 
         /// <summary>A glint at <paramref name="point"/>, and the ting.</summary>
         public static void Show(Vector3 point)
@@ -47,9 +57,26 @@ namespace CityX.Character
             {
                 return;
             }
-            var glint = new GameObject("AttackGlint").AddComponent<AttackGlint>();
-            glint.Begin(point);
+            Spawn(point, Seconds, ArmMetres, LineWidth);
             AudioSource.PlayClipAtPoint(BlockDeflectEffect.Ting(), point, Volume);
+        }
+
+        /// <summary>The same star as the flash of a blade striking a guard: silent, the clash has its own sound.</summary>
+        public static void Flash(Vector3 point)
+        {
+            if (Application.isPlaying)
+            {
+                Spawn(point, FlashSeconds, FlashArmMetres, FlashLineWidth);
+            }
+        }
+
+        private static void Spawn(Vector3 point, float seconds, float armMetres, float lineWidth)
+        {
+            var glint = new GameObject("AttackGlint").AddComponent<AttackGlint>();
+            glint._seconds = seconds;
+            glint._armMetres = armMetres;
+            glint._lineWidth = lineWidth;
+            glint.Begin(point);
         }
 
         private void Begin(Vector3 point)
@@ -75,7 +102,7 @@ namespace CityX.Character
         private void LateUpdate()
         {
             _elapsed += Time.deltaTime;
-            if (_elapsed >= Seconds)
+            if (_elapsed >= _seconds)
             {
                 Destroy(gameObject);
                 return;
@@ -89,8 +116,8 @@ namespace CityX.Character
             Camera camera = Camera.main;
             Vector3 right = camera != null ? camera.transform.right : Vector3.right;
             Vector3 up = camera != null ? camera.transform.up : Vector3.up;
-            float t = Mathf.Clamp01(_elapsed / Seconds);
-            float size = Mathf.Sin(t * Mathf.PI) * ArmMetres;   // out and back in
+            float t = Mathf.Clamp01(_elapsed / _seconds);
+            float size = Mathf.Sin(t * Mathf.PI) * _armMetres;   // out and back in
             float fade = 1.0f - t * t;
             Color colour = new Color(GlintColour.r, GlintColour.g, GlintColour.b, fade);
             Vector3[] directions =
@@ -103,7 +130,7 @@ namespace CityX.Character
                 arm.SetPosition(0, _point - directions[i] * size);
                 arm.SetPosition(1, _point);
                 arm.SetPosition(2, _point + directions[i] * size);
-                arm.widthMultiplier = LineWidth * (0.5f + fade * 0.5f);
+                arm.widthMultiplier = _lineWidth * (0.5f + fade * 0.5f);
                 arm.startColor = arm.endColor = colour;
             }
         }

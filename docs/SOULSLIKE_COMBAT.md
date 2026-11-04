@@ -689,3 +689,20 @@ Owner: "i dont hate the first two swings of the sword but am curious to see how 
 - **Known:** a knife swings 1.3x faster but a step still takes 0.17 s, so its front foot can land just after the blow.
 - **Other players** get all of it: the rule comes with the pose, which plays by name.
 - **Not yet:** the staged strike and free arm's swing on the two-handed cuts and the heavies; the finisher has the free arm and the foot rule, not the staging.
+
+## Update 2026-11-04: blades meeting guards
+
+Owner: "I want the blocks to feel more impactful, have the noise a bit louder and really have the attackers weapon bounce off of the blocker. it should feel impactful hitting an opponent who is blocking and when you block an attack the opponents weapon should bounce off with a loud noise".
+
+What was wrong: the clash was a 3D one-shot heard by the camera 5 m behind the player at about a fifth of its volume (with a body-hit sound over it on the attacker's side); the rebound began the next frame, so the blade never stopped on anything; the blocker's guard did not move.
+
+- **Hits land when the blade arrives (every sword hit, not only blocks):** the forgiving reach volume (`ReachMetres`) used to catch a target on the first live frame, when the strike's whip has hardly moved the blade: it was still pointing behind the body, and the hit-stop froze it there. It now waits for `SoulsAttack.ContactAt`, the pose's own contact, about 0.08 s later. The blade's own sweep is unchanged. The gaps between hits, and so the chain's guarantees, stay as they were.
+- **The beat (`BlockDeflectEffect.ClashFreezeSeconds`, 0.1 s):** both fighters held still. The attacker's blade stops on the guard (`SwordStrikes.StoppedOnGuard`, a pose: it rises to cross the blocker's blade, its point short of their body), inside the rebound's 0.6 s, so the stun is no longer.
+- **The bounce:** the rebound's thrown pose is much bigger (hand above the shoulder, shoulders 42 degrees open, leaning back 16, free arm flung out) and the attacker is knocked back 0.25 m (`ReboundShoveMetres`), with a camera jolt harder than a landed blow's.
+- **The blocker:** the guard is driven back and comes back (`SwordStrikes.GuardJolted`, 0.34 s), the body slides 0.15 m, 0.3 m from a finisher (`GuardShoveMetres`), with a camera jolt. The shoves are small so the two stay in reach to punish the opening. A parry stands firm: the same freeze and camera jolt, but the guard is not driven back and the body does not slide.
+- **The sound:** the owner's recordings at full volume, with a low thunk under them (`ClashBody`), at full volume within 12 m (`ClashFullVolumeMetres`) and fading beyond it. The attacker's body-hit sound no longer plays on a guarded blow. `SwordClash1.mp3` peaks at 0.60, the other two at about 1.0, so it is the quiet one of the three.
+- **The sight:** a flash (`AttackGlint.Flash`) and 26 sparks, was 9, bigger and longer, where the blades meet.
+- **Also clashes now:** a blade stopped outright by Block Chance, and a guard broken open. A bullet glancing off stays the small ting.
+- **Other players:** the clash and the rebound travel by name as before; a copy shows the freeze, the pose, the sparks and the sound, and its place stays the network's. `GuardClashPlayTests`.
+- **Render:** `SwordStrikeCapture.RenderTheGuardClash`, `Logs/CityShots/guard-clash.png`.
+- **Not changed:** bare fists hitting a guard do not bounce (they have no rebound).

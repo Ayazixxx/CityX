@@ -291,6 +291,51 @@ namespace CityX.Tests
             Assert.IsTrue(SwordStrikes.TryGetRebound(SwordStrikes.ReboundName(true), out one) && one);
         }
 
+        /// <summary>Owner, 2026-11-04: "really have the attackers weapon bounce off of the blocker": well above the shoulder, the body thrown back on its heels, the free arm flung out to catch it.</summary>
+        [Test]
+        public void TheReboundThrowsTheWholeBodyNotJustTheArm()
+        {
+            foreach (bool oneHanded in new[] { true, false })
+            {
+                SwordFrame thrown = SwordStrikes.Rebound(oneHanded, 0.35f);
+                Assert.Greater(SwordStrikes.HandPoint(thrown).y, BodyRig.ShoulderY, "the hand is not knocked above the shoulder");
+                Assert.Less(thrown.LeanDegrees, -12.0f, "the body is not thrown back");
+                Assert.Greater(thrown.TwistDegrees, 30.0f, "the shoulders are not turned open");
+                Assert.Greater(thrown.StanceDepth, SwordStrikes.Ready(oneHanded).StanceDepth + 0.2f, "the feet do not catch the body");
+            }
+            Assert.Greater(SwordStrikes.Rebound(true, 0.35f).FreeHand.z, 0.5f, "the free arm is not flung out");
+            Assert.Less(Vector3.Distance(SwordStrikes.Rebound(true, 1.0f).FreeHand, SwordStrikes.FreeHandRelaxed), SwordStrikes.FreeHandBalanceSwing, "the free arm does not end relaxed");
+        }
+
+        [Test]
+        public void AGuardThatTakesABlowIsKnockedBackAndComesBack()
+        {
+            foreach (bool oneHanded in new[] { true, false })
+            {
+                SwordFrame guard = SwordStrikes.Guard(oneHanded);
+                SwordFrame start = SwordStrikes.GuardJolted(guard, 0.0f);
+                SwordFrame end = SwordStrikes.GuardJolted(guard, 1.0f);
+                Assert.Less(Vector3.Distance(start.Hand, guard.Hand), 0.001f, "the guard jumps as the blow lands");
+                Assert.Less(Vector3.Distance(end.Hand, guard.Hand), 0.001f, "the guard does not come back");
+                float most = 0.0f;
+                float mostAt = 0.0f;
+                for (float t = 0.0f; t <= 1.0f; t += 0.01f)
+                {
+                    float back = guard.Hand.z - SwordStrikes.GuardJolted(guard, t).Hand.z;
+                    if (back > most)
+                    {
+                        most = back;
+                        mostAt = t;
+                    }
+                }
+                Assert.Greater(most, 0.2f, "the hand is hardly driven back");
+                Assert.Less(mostAt, 0.3f, "the blow takes its time: it should be sudden, the recovery slower");
+                SwordFrame peak = SwordStrikes.GuardJolted(guard, mostAt);
+                Assert.Less(peak.Blade.z, guard.Blade.z, "the tip is not knocked back");
+                Assert.Less(peak.LeanDegrees, guard.LeanDegrees - 8.0f, "the body does not take the weight of it");
+            }
+        }
+
         [Test]
         public void TheTwoHandedWindUpsKeepTheGripWithinTheLeftArmsReach()
         {
