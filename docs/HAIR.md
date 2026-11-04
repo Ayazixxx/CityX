@@ -179,6 +179,12 @@ below the head; Decimate Collapse). At 6,000 the strand grooves down the back me
 textures; style `kickhair`, button KICK, baked as usual. `TitleScreenCapture.RebuildAndCaptureKickHair` shoots `Logs/CityShots/hair-kick-*.png`. Both scenes and
 `NetworkedPlayer.prefab` were rebuilt.
 
+2026-11-04, owner: "there is a slit where you can see underneath the hair and the sky shows behind it, can you make it roll inward into the head". The hair is an open shell standing
+up to 8 cm off the head, and a surface is drawn only from outside, so a look in under its edge went out through the far side. `kickhair_roll_in.py` carries every open edge on, curling
+under and in, to end inside the head (the head's place comes from the owner's fit), and fills the three pinholes. 9,000 triangles to about 10,300. Its input is `KickHair-reduced.glb`.
+`HairAssets.RebakeKickHair` bakes into the same asset, so nothing else needs rebuilding. `EveryOpenEdgeOfTheKickHairEndsInsideTheHead`. A fit moved far from the owner's numbers would need
+the script run again. The model check's `--kind hat` budget does not suit hair; its holes are the openings left buried in the head.
+
 Its fit is the owner's, placed by hand (position 0, -2.27, 0; scale 1; 2026-11-04).
 
 ## Added 2026-10-21: dreads

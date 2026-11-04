@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.Character;
 using NUnit.Framework;
 using UnityEditor;
@@ -337,12 +338,69 @@ namespace CityX.Tests
         public void TheKickHairIsCutDownAndWornWhereTheOwnerPlacedIt()
         {
             Mesh mesh = BakedMesh(CharacterHair.KickHair);
-            Assert.LessOrEqual(mesh.triangles.Length / 3, 9500, "the kick hair is not cut down");
+            Assert.LessOrEqual(mesh.triangles.Length / 3, 11000, "the kick hair is not cut down");
             Assert.Less(mesh.bounds.size.y, 1.0f, "stray pieces are left far from the hair");
             var saved = UnityEditor.AssetDatabase.LoadAssetAtPath<HairFitSettings>(UIEditor.HairAssets.FitSettingsPath);
             Assert.IsTrue(saved.TryGet(CharacterHair.KickHair, out CharacterHair.Fit fit), "the kick hair has no saved fit");
             Assert.AreEqual(new Vector3(0.0f, -2.27f, 0.0f), fit.Position);
             Assert.AreEqual(Vector3.one, fit.Scale);
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-04: "there is a slit where you can see underneath the hair and the sky shows behind it". A surface is drawn only from outside, so any open edge standing off
+        /// the head lets the eye in under the hair and out through its far side. Worn where the owner placed it (the head bone at the head's centre), every open edge ends inside the head.
+        /// </summary>
+        [Test]
+        public void EveryOpenEdgeOfTheKickHairEndsInsideTheHead()
+        {
+            Mesh mesh = BakedMesh(CharacterHair.KickHair);
+            var saved = UnityEditor.AssetDatabase.LoadAssetAtPath<HairFitSettings>(UIEditor.HairAssets.FitSettingsPath);
+            Assert.IsTrue(saved.TryGet(CharacterHair.KickHair, out CharacterHair.Fit fit));
+            Matrix4x4 worn = Matrix4x4.TRS(fit.Position, Quaternion.Euler(fit.Euler), fit.Scale);
+
+            // Corners at the same place are one corner, however the mesh split them.
+            Vector3[] vertices = mesh.vertices;
+            var corner = new int[vertices.Length];
+            var ids = new Dictionary<Vector3Int, int>();
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3 v = vertices[i] * 100000.0f;
+                var key = new Vector3Int(Mathf.RoundToInt(v.x), Mathf.RoundToInt(v.y), Mathf.RoundToInt(v.z));
+                if (!ids.TryGetValue(key, out int id))
+                {
+                    id = i;
+                    ids[key] = id;
+                }
+                corner[i] = id;
+            }
+            var uses = new Dictionary<(int, int), int>();
+            int[] triangles = mesh.triangles;
+            for (int t = 0; t < triangles.Length; t += 3)
+            {
+                for (int side = 0; side < 3; side++)
+                {
+                    int a = corner[triangles[t + side]];
+                    int b = corner[triangles[t + (side + 1) % 3]];
+                    (int, int) edge = a < b ? (a, b) : (b, a);
+                    uses.TryGetValue(edge, out int count);
+                    uses[edge] = count + 1;
+                }
+            }
+            int open = 0;
+            foreach (KeyValuePair<(int, int), int> edge in uses)
+            {
+                if (edge.Value != 1)
+                {
+                    continue;
+                }
+                open++;
+                foreach (int end in new[] { edge.Key.Item1, edge.Key.Item2 })
+                {
+                    Vector3 placed = worn.MultiplyPoint3x4(vertices[end]);
+                    Assert.Less(placed.magnitude, FusedBodyShape.HeadRadius, $"an open edge of the kick hair stands off the head at {placed}: the sky shows under it");
+                }
+            }
+            Assert.Greater(open, 0, "the hair is closed all round: the test no longer says anything");
         }
 
         [Test]
