@@ -86,7 +86,7 @@ namespace CityX.Character
                 return;
             }
             Landed(new DamageDealt(striker, target, contactPoint ?? PointOn(target), amount, ShareOf(target, amount), kind,
-                hitstunSeconds >= HitImpactEffects.HeavyHitstunSeconds, DamageContext.Critical));
+                hitstunSeconds >= HitImpactEffects.HeavyHitstunSeconds || DamageContext.HeavyBlow, DamageContext.Critical));
         }
     }
 }

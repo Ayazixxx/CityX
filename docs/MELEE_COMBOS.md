@@ -73,4 +73,6 @@ in the stance with `SwordFootwork`. All procedural, so other players' copies sho
 
 ## Then: the sword combos
 
+**One-handed chain built 2026-11-04 (`SOULSLIKE_COMBAT.md`): slash, backhand, diagonal finisher.** Still to do: the heavy's place in it, a steer at the nearest enemy, the two-handed sword.
+
 The same treatment for the one-handed sword (3 lights into a heavy, full-body, feet planted, a roll-catching delay on the heavy), with a steer at the nearest enemy, then the two-handed sword, then one system for every melee weapon. Owner's picks: Dark Souls pacing with combos.

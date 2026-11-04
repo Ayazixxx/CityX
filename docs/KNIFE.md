@@ -33,7 +33,7 @@ back third (within 60 degrees of straight behind it) is a critical hit -- the mu
 knife's light, twice the hit-stop, and a **gold** damage number a third bigger (`DamageContext.Critically`, `DamageDealt.Critical`). Face to
 face it never happens: it takes a dash round someone, or catching them busy with someone else. The two-handed weapons have none.
 
-The chain is the one-handed sword's, back and forth: the flat slash and the backhand (`SwordStrikes`), the knife's run faster. The kitchen
+The chain is the one-handed sword's first two cuts, back and forth: the flat slash and the backhand (`SwordStrikes`), the knife's run faster. The kitchen
 knife is edged, so an overkill blow cuts the part it hits off (docs/DISMEMBERMENT.md).
 
 ## The model (`KitchenKnifeBuilder`)

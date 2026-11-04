@@ -29,6 +29,9 @@ namespace CityX.Character
         [Tooltip("Fraction of Recovery that must have passed before a buffered next attack may fire. Lower = snappier chains.")]
         public float ChainAt;
 
+        [Tooltip("Lands as a heavy blow whatever its stun: a chain's finisher.")]
+        public bool LandsHeavily;
+
         [Tooltip("Stamina spent to start this swing.")]
         public float StaminaCost;
 
@@ -100,6 +103,19 @@ namespace CityX.Character
             attack.HoldAt = timing.WindUp + timing.Hold * 0.5f;   // in the pause at the top, where the pose rests
             return attack;
         }
+
+        /// <summary>The attack as a chain's finisher: it lands as a heavy blow whatever its stun (DamageContext.HeavyBlow), a longer hit-stop included.</summary>
+        public static SoulsAttack AsFinisher(SoulsAttack attack)
+        {
+            attack.LandsHeavily = true;
+            return attack;
+        }
+
+        /// <summary>
+        /// The stun it leaves on a target, swung at <paramref name="swingSpeed"/> (Melee Speed). A finisher's shrinks with the swing: its recovery does, and a
+        /// fast enough blade would otherwise be free before its target is.
+        /// </summary>
+        public float HitstunAt(float swingSpeed) => LandsHeavily ? HitstunSeconds / Mathf.Max(swingSpeed, 1.0f) : HitstunSeconds;
 
         /// <summary>True when the attack is posed by SwordStrikes rather than played from a clip.</summary>
         public bool IsProcedural => SwordStrikes.Has(Animation);
@@ -235,7 +251,14 @@ namespace CityX.Character
         [Header("One-handed light chain (left click)")]
         public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.45f, 16.0f, 0.80f, 0.45f, 0.20f, 20.0f, false);
         public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.45f, 16.0f, 0.85f, 0.45f, 0.20f, 20.0f, false);
-        public SoulsAttack OneHandLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.50f, 18.0f, 1.00f, 0.50f, 0.50f, 25.0f, false);
+
+        /// <summary>
+        /// THE FINISHER (owner, 2026-11-04: a three-hit combo ending in a diagonal, no fling to start, and "if the final hit gives a stagger then why wouldnt
+        /// you just keep attacking you can just spam click"): the biggest of the three and it lands as a heavy blow, but its stagger is shorter than the
+        /// recovery it leaves the attacker in, which cannot be cancelled into the next swing (chain window 1, the very end). The target is free first.
+        /// Its damage pays for that recovery: the whole string does what the two cuts alone did a second, and so stays above a knife's (KnifeRulesTests).
+        /// </summary>
+        public SoulsAttack OneHandLight3 = SoulsAttack.AsFinisher(SoulsAttack.FromStrike(SwordStrikeKind.Finisher1H, 1.0f, 24.0f, 2.10f, 0.50f, 0.55f, 30.0f, false));
 
         [Header("One-handed heavy (held left click)")]
         public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.55f, 30.0f, 1.60f, 0.90f, 0.35f, 50.0f, true);
@@ -458,12 +481,8 @@ namespace CityX.Character
             return index == 0 ? Light1 : (index == 1 ? Light2 : Light3);
         }
 
-        /// <summary>
-        /// How many lights the chain runs through before it starts again: the two-handed three, the one-handed TWO -- the horizontal slash
-        /// and the backhand, back and forth (owner, 2026-10-17: "get rid of the stabbing animation that happens on the third click with the
-        /// one handed sword. just use the first two ... go back and forth between them"). OneHandLight3 (the thrust) stays defined, unused.
-        /// </summary>
-        public int LightChainLength => _oneHanded ? 2 : 3;
+        /// <summary>How many lights the chain runs through before it starts again: three, ending in the finisher; a knife's two, back and forth.</summary>
+        public int LightChainLength => _knife ? 2 : 3;
 
         /// <summary>The heavy for the sword in hand.</summary>
         public SoulsAttack HeavyAttack => _knife ? KnifeHeavy : (_oneHanded ? OneHandHeavy : Heavy);
@@ -1151,7 +1170,7 @@ namespace CityX.Character
 
             // THE BACKSTAB (Backstab): a one-handed blade's blow from behind a living body is a critical hit -- far more damage (a knife's the
             // most), and a stagger even from a knife's light.
-            float hitstun = _current.HitstunSeconds;
+            float hitstun = _current.HitstunAt(_swingSpeed);
             bool backstab = _oneHanded && target.IsAlive && target is Component body && body != null
                 && Backstab.IsBehind(body.transform.position, body.transform.forward, transform.position);
             if (backstab)
@@ -1169,6 +1188,7 @@ namespace CityX.Character
             using (DamageContext.GuardBreaking(_current.BreaksGuard))
             using (DamageContext.Cutting(edged))
             using (DamageContext.Critically(backstab))
+            using (DamageContext.LandingHeavily(_current.LandsHeavily))
             {
                 response = _melee != null
                     ? _melee.RegisterExternalHit(target, point, damage, hitstun)
@@ -1295,7 +1315,7 @@ namespace CityX.Character
             {
                 return;
             }
-            float seconds = HitStopSeconds * (_currentIsLight ? 1.0f : HeavyHitStopMultiplier) * multiplier;
+            float seconds = HitStopSeconds * (_currentIsLight && !_current.LandsHeavily ? 1.0f : HeavyHitStopMultiplier) * multiplier;
             if (seconds <= _hitStopRemaining)
             {
                 return;   // several targets in one frame: the longest stop wins, they do not add up

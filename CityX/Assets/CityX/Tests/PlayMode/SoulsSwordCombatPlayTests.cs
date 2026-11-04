@@ -476,10 +476,9 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheOneHandedChainGoesBackAndForthBetweenItsTwoSlashes()
+        public void TheOneHandedChainIsTwoCutsAndTheFinisherThenStartsAgain()
         {
-            // Owner, 2026-10-17: "get rid of the stabbing animation that happens on the third click with the one handed sword. just use the
-            // first two horizontal slashes and make it go back and forth between them".
+            // Owner, 2026-11-04: a three-hit combo ending in a diagonal. (And 2026-10-17: no stab on the third click.)
             _combat.Equip(new OneHandedBlade());
             var seen = new System.Collections.Generic.List<string>();
             _combat.AttackStarted += attack => seen.Add(attack.Animation);
@@ -491,10 +490,108 @@ namespace CityX.Tests
             }
             Assert.GreaterOrEqual(seen.Count, 5, "the chain did not continue");
             Assert.IsFalse(seen.Contains(SwordStrikes.Thrust1HName), "the one-handed chain still thrusts");
+            string[] chain = { SwordStrikes.Slash1HName, SwordStrikes.Cut1HName, SwordStrikes.Finisher1HName };
             for (int i = 0; i < seen.Count; i++)
             {
-                Assert.AreEqual(i % 2 == 0 ? SwordStrikes.Slash1HName : SwordStrikes.Cut1HName, seen[i], $"swing {i + 1} of the chain");
+                Assert.AreEqual(chain[i % 3], seen[i], $"swing {i + 1} of the chain");
             }
+        }
+
+        /// <summary>Clicking on through the finisher's recovery does not cut it short: the next swing waits until it is over.</summary>
+        [Test]
+        public void SpamClickingCannotCutTheFinishersRecoveryShort()
+        {
+            _combat.Equip(new OneHandedBlade());
+            _vitals.InfiniteStamina = true;
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 30.0f);
+            Physics.SyncTransforms();
+            float finisherStarted = -1.0f, nextStarted = -1.0f, clock = 0.0f;
+            _combat.AttackStarted += attack =>
+            {
+                if (attack.Animation == SwordStrikes.Finisher1HName && finisherStarted < 0.0f)
+                {
+                    finisherStarted = clock;
+                }
+                else if (finisherStarted >= 0.0f && nextStarted < 0.0f)
+                {
+                    nextStarted = clock;
+                }
+            };
+            for (; clock < 4.0f && nextStarted < 0.0f; clock += 0.02f)
+            {
+                _combat.RequestLight(0.0f);
+                Step(0.02f, 0.02f);
+            }
+            Assert.GreaterOrEqual(nextStarted, 0.0f, "nothing followed the finisher");
+            Assert.GreaterOrEqual(nextStarted - finisherStarted, _combat.OneHandLight3.Total - 0.05f, "the finisher's recovery was cut short by clicking");
+        }
+
+        /// <summary>The same on real bodies with the hit-stop on: a target hit by the finisher is free before the next swing even starts, however fast the clicks.</summary>
+        [Test]
+        public void ATargetHitByTheFinisherIsFreeBeforeTheNextSwingStarts()
+        {
+            _combat.Equip(new OneHandedBlade());
+            _combat.HitStopSeconds = 0.09f;
+            _vitals.InfiniteStamina = true;
+            var targetObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            try
+            {
+                Object.DestroyImmediate(_dummyObject);
+                targetObject.transform.position = new Vector3(0.0f, 1.0f, 1.5f);
+                var target = targetObject.AddComponent<PlayerVitals>();
+                target.Roll = () => 1.0f;
+                target.Revive();
+                Physics.SyncTransforms();
+
+                bool finisherLanded = false, stunned = false, nextStarted = false;
+                float clock = 0.0f, targetFreeAt = -1.0f, nextAt = -1.0f;
+                _combat.AttackStarted += attack => { if (finisherLanded) { nextStarted = true; nextAt = clock; } };
+                _combat.AttackHit += _ =>
+                {
+                    if (_combat.CurrentAttack == _combat.OneHandLight3)
+                    {
+                        finisherLanded = true;
+                        stunned = target.IsStunned;
+                    }
+                };
+                for (; clock < 6.0f && !nextStarted; clock += 1.0f / 60.0f)
+                {
+                    _combat.RequestLight(0.0f);
+                    _combat.Tick(1.0f / 60.0f);
+                    target.TickHitstun(1.0f / 60.0f);
+                    if (finisherLanded && targetFreeAt < 0.0f && !target.IsStunned)
+                    {
+                        targetFreeAt = clock;
+                    }
+                }
+                Assert.IsTrue(finisherLanded, "the finisher never landed");
+                Assert.IsTrue(stunned, "the finisher did not stagger the target: nothing was tested");
+                Assert.IsTrue(nextStarted, "nothing followed the finisher");
+                Assert.GreaterOrEqual(targetFreeAt, 0.0f, "the target was still stunned when the next swing started");
+                Assert.Greater(nextAt - targetFreeAt, 0.15f, $"the target was free only {nextAt - targetFreeAt:0.00} s before the next swing started");
+            }
+            finally
+            {
+                Object.DestroyImmediate(targetObject);
+            }
+        }
+
+        /// <summary>A perfect loop runs out of stamina: the third string cannot be finished.</summary>
+        [Test]
+        public void StaminaEndsTheLoopWithinAboutThreeStrings()
+        {
+            _combat.Equip(new OneHandedBlade());
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 30.0f);
+            Physics.SyncTransforms();
+            int finishers = 0;
+            _combat.AttackStarted += attack => { if (attack.Animation == SwordStrikes.Finisher1HName) finishers++; };
+            for (float t = 0.0f; t < 7.0f; t += 0.02f)
+            {
+                _combat.RequestLight(0.0f);
+                Step(0.02f, 0.02f);
+            }
+            Assert.Greater(finishers, 0, "no finisher was thrown");
+            Assert.LessOrEqual(finishers, 5, $"{finishers} finishers in 7 s of spam: stamina does not bite");
         }
 
         [Test]

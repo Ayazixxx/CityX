@@ -35,7 +35,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void FourAttacksAreOneHandedAndFourTwoHanded()
+        public void FiveAttacksAreOneHandedAndFourTwoHanded()
         {
             int oneHanded = 0;
             foreach (SwordStrikeKind kind in SwordStrikes.All)
@@ -44,7 +44,7 @@ namespace CityX.Tests
                 Assert.AreEqual(SwordStrikes.IsOneHanded(kind), !mid.TwoHanded, $"{kind}'s frames disagree with its handedness");
                 if (SwordStrikes.IsOneHanded(kind)) oneHanded++;
             }
-            Assert.AreEqual(4, oneHanded);
+            Assert.AreEqual(5, oneHanded);
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.All[0]);
         }
 
@@ -241,7 +241,7 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, SwordStrikes.Guard(true).FreeHandWeight, 0.001f, "the guard holds the free hand up instead of leaving it relaxed");
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (SwordStrikes.IsOneHanded(kind))
+                if (SwordStrikes.IsOneHanded(kind) && kind != SwordStrikeKind.Finisher1H)
                 {
                     float most = float.MinValue, least = float.MaxValue;
                     for (int i = 0; i <= 50; i++)
@@ -392,7 +392,7 @@ namespace CityX.Tests
         {
             // No dead stop where the strike meets the follow-through (the slam aside: it hits the floor on purpose, and a thrust stops at full
             // stretch): the blade's turning rate just after the contact is within a third of what it was just before.
-            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Cut2H })
+            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Cut2H, SwordStrikeKind.Finisher1H })
             {
                 float contact = SwordStrikes.ContactFraction(kind);
                 float before = Vector3.Angle(SwordStrikes.Evaluate(kind, contact - 0.012f).Blade, SwordStrikes.Evaluate(kind, contact - 0.002f).Blade);
@@ -441,12 +441,41 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>The finisher reads as the end of the chain: from over the right shoulder down to the lower left, a longer stride and a deeper sink than either cut before it.</summary>
+        [Test]
+        public void TheOneHandedFinisherIsADiagonalWithTheWholeBodyBehindIt()
+        {
+            SwordStrikeKind kind = SwordStrikeKind.Finisher1H;
+            SwordFrame windup = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveStart(kind) - 0.03f);
+            SwordFrame contact = SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind));
+            Vector3 follow = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveEnd(kind) + 0.05f).Blade;
+            Assert.Greater(windup.Blade.y, 0.3f, "the blade is not raised over the shoulder");
+            Assert.Less(windup.Blade.z, 0.0f, "the blade is not wound back");
+            Assert.Greater(windup.Blade.x, 0.2f, "the blade is not wound back on the right");
+            Assert.Less(follow.x, -0.3f, "the blade does not carry through to the left");
+            Assert.Less(follow.y, -0.1f, "the blade does not carry on down: not a diagonal");
+            Assert.Less(contact.StanceLead, -0.9f, "the left foot does not stride through");
+            foreach (SwordStrikeKind earlier in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H })
+            {
+                SwordFrame other = SwordStrikes.Evaluate(earlier, SwordStrikes.ContactFraction(earlier));
+                Assert.Greater(contact.StanceDepth, other.StanceDepth, $"the finisher does not stride further than {earlier}");
+                Assert.Greater(contact.HipDrop, other.HipDrop, $"the finisher does not sink lower than {earlier}");
+                Assert.Greater(contact.LeanDegrees, other.LeanDegrees, $"the finisher does not lean further than {earlier}");
+                Assert.Greater(SwordStrikes.TimingOf(kind).Recover, SwordStrikes.TimingOf(earlier).Recover, $"the finisher does not recover slower than {earlier}");
+            }
+            // The free arm works against the blade: reaching ahead in the wind-up, back past the hip at the blow, and hanging relaxed again by the end.
+            Assert.Greater(windup.FreeHand.z, 0.5f, "the free arm does not reach ahead in the wind-up");
+            Assert.Less(contact.FreeHand.z, -0.2f, "the free arm is not whipped back at the blow");
+            Assert.Less(Vector3.Distance(SwordStrikes.Evaluate(kind, 1.0f).FreeHand, SwordStrikes.FreeHandRelaxed), SwordStrikes.FreeHandBalanceSwing,
+                "the free arm does not end relaxed");
+        }
+
         [Test]
         public void TheHipsLeadTheShouldersIntoTheCut()
         {
             // The kinetic chain: at the contact the hips have already done more of their turn than the shoulders have of theirs, and every
             // swinging cut turns the hips at all (a twist at the waist alone is the corkscrew the owner saw).
-            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Cut2H })
+            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Cut2H, SwordStrikeKind.Finisher1H })
             {
                 SwordFrame windup = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveStart(kind) - 0.03f);
                 SwordFrame contact = SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind));
@@ -517,7 +546,8 @@ namespace CityX.Tests
                 }
                 else
                 {
-                    Assert.LessOrEqual(t.Contact, kind == SwordStrikeKind.Cut2H ? 0.45f : 0.35f, $"{kind} takes {t.Contact:0.00} s to land: not snappy");
+                    bool finisher = kind == SwordStrikeKind.Cut2H || kind == SwordStrikeKind.Finisher1H;
+                    Assert.LessOrEqual(t.Contact, finisher ? 0.45f : 0.35f, $"{kind} takes {t.Contact:0.00} s to land: not snappy");
                     Assert.LessOrEqual(t.Hold, 0.08f, $"{kind} hangs at the top for {t.Hold:0.00} s");
                 }
             }

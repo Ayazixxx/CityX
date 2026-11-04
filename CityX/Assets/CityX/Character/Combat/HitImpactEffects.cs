@@ -50,6 +50,7 @@ namespace CityX.Character
         public const float TakenShakeMetres = 0.07f;
         public const float HeavyTakenShakeMetres = 0.12f;
         public const float LandedShakeMetres = 0.035f;
+        public const float HeavyLandedShakeMetres = 0.075f;
         public const float KillShakeMetres = 0.09f;
         public const float ShakeSeconds = 0.25f;
         public const float LandedShakeSeconds = 0.15f;
@@ -148,7 +149,7 @@ namespace CityX.Character
             Vector3 toward = fromPosition - chest;
             toward.y = 0.0f;
             Vector3 towardBlow = toward.sqrMagnitude > 1e-4f ? toward.normalized : transform.forward;
-            bool heavy = hitstunSeconds >= HeavyHitstunSeconds;
+            bool heavy = hitstunSeconds >= HeavyHitstunSeconds || DamageContext.HeavyBlow;
             Vector3 point = DamageContext.ContactPoint ?? (chest + towardBlow * BodyRadius);
             if ((point - chest).sqrMagnitude > 4.0f)
             {
@@ -207,7 +208,8 @@ namespace CityX.Character
             if (IsTheLocalPlayer)
             {
                 bool killed = target != null && !target.IsAlive;
-                Shake(killed ? KillShakeMetres : LandedShakeMetres, killed ? ShakeSeconds : LandedShakeSeconds);
+                bool big = killed || DamageContext.HeavyBlow;
+                Shake(killed ? KillShakeMetres : (big ? HeavyLandedShakeMetres : LandedShakeMetres), big ? ShakeSeconds : LandedShakeSeconds);
             }
         }
 

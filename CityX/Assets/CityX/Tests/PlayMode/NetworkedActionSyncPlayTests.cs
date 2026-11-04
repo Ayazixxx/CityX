@@ -188,6 +188,22 @@ namespace CityX.Tests
         // --- layer 2: a copy replays it, without echoing it back ---
 
         [UnityTest]
+        public IEnumerator AnotherPlayersCopyThrowsTheFinisherWhenToldItsName()
+        {
+#if UNITY_EDITOR
+            _player = SpawnPlainPlayer();
+            var driver = _player.GetComponent<PlayerAnimationDriver>();
+            yield return null;
+            driver.PlayRemoteState(SwordStrikes.Finisher1HName);
+            yield return WaitUntil(() => driver.SwordPoser.IsStriking, "the replayed finisher to play");
+            Assert.AreEqual(SwordStrikeKind.Finisher1H, driver.SwordPoser.Kind);
+#else
+            Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
+            yield break;
+#endif
+        }
+
+        [UnityTest]
         public IEnumerator AReplayedStatePlaysWithoutBeingReAnnounced()
         {
 #if UNITY_EDITOR

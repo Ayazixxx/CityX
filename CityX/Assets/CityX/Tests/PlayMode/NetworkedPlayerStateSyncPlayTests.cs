@@ -568,6 +568,34 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>A finisher struck at another player's copy lands as a heavy blow on their own machine too.</summary>
+        [UnityTest]
+        public IEnumerator AHeavyBlowOnACopyLandsHeavilyOnThatPlayersRealBody()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            var realVitals = _bOnB.GetComponent<PlayerVitals>();
+            var copyVitals = _bOnA.GetComponent<PlayerVitals>();
+            realVitals.Roll = () => 1.0f;
+            bool wounded = false, heavily = false;
+            realVitals.Wounded += (from, damage, stun) =>
+            {
+                wounded = true;
+                heavily = DamageContext.HeavyBlow;
+            };
+
+            using (DamageContext.LandingHeavily(true))
+            {
+                ((IDamageable)copyVitals).ApplyHit(20.0f, _aOnA.transform.position, 0.5f);
+            }
+            yield return WaitUntil(() => wounded, "the heavy blow to reach player B's real body");
+            Assert.IsTrue(heavily, "the blow arrived on player B's machine as a light one");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator YouCannotHurtYourselfThroughTheRelayAndForgedHitsAreRefused()
         {

@@ -161,7 +161,7 @@ namespace CityX.Character
             {
                 _whooshed = true;
                 Vector3 point = held != null ? (held.BladeBaseWorld + held.BladeTipWorld) * 0.5f : transform.position + Vector3.up * 1.5f;
-                SwingWhoosh.Play(SwordStrikes.IsHeavy(_kind), point);
+                SwingWhoosh.Play(SwordStrikes.SoundsHeavy(_kind), point);
             }
 
             bool live = BladeIsLive;

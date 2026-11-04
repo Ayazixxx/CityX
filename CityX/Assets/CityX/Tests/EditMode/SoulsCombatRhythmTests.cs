@@ -52,10 +52,45 @@ namespace CityX.Tests
             Assert.GreaterOrEqual(free, 0.0f, "the second cut lands while the first still holds: a stun-lock, not a follow-up");
             Assert.LessOrEqual(free, 0.12f, $"the victim is free for {free:0.00} s before the second cut: long enough to swing first again");
             Assert.Greater(_combat.OneHandLight2.Startup, free + 0.1f, "a swing started the moment the stun ends must not land before the follow-up");
-            // The one-handed chain goes back and forth (slash, cut, slash...): the cut's follow-up is the slash again.
-            float freeBack = FreeBeforeTheNextCut(_combat.OneHandLight2, _combat.OneHandLight1);
-            Assert.GreaterOrEqual(freeBack, 0.0f);
-            Assert.LessOrEqual(freeBack, 0.12f, $"free for {freeBack:0.00} s between the cut and the slash after it");
+        }
+
+        /// <summary>The first two cuts are guaranteed, the finisher is not: its bigger wind-up leaves the target time to dash or raise a guard.</summary>
+        [Test]
+        public void TheOneHandedFinisherCanBeGotOutOfAfterTheSecondCut()
+        {
+            float free = FreeBeforeTheNextCut(_combat.OneHandLight2, _combat.OneHandLight3);
+            Assert.Greater(free, 0.15f, $"the second cut's stun runs almost to the finisher ({free:0.00} s free): three hits are guaranteed");
+            Assert.Less(free, _combat.OneHandLight3.Startup, $"free for {free:0.00} s: long enough to swing and land first every time");
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-04: "if the final hit gives a stagger then why wouldnt you just keep attacking you can just spam click". The target is free before the
+        /// attacker can act again, at the latest moment the finisher can land (the end of its live window) and with the highest Melee Speed that counts.
+        /// </summary>
+        [TestCase(1.0f)]
+        [TestCase(1.5f)]
+        public void TheFinisherFreesTheTargetBeforeTheAttackerCanAct(float meleeSpeed)
+        {
+            SoulsAttack finisher = _combat.OneHandLight3;
+            Assert.AreEqual(1.0f, finisher.ChainAt, 0.001f, "the finisher's recovery can be cancelled into the next swing");
+            float targetHeld = finisher.HitstunAt(meleeSpeed) + HitImpactEffects.HeavyStopSeconds;
+            float attackerHeld = finisher.Recovery / meleeSpeed + _combat.HitStopSeconds * _combat.HeavyHitStopMultiplier;
+            Assert.Greater(attackerHeld - targetHeld, 0.15f, $"the target is held {targetHeld:0.00} s and the attacker {attackerHeld:0.00} s: the combo can be looped");
+            SoulsAttack next = _combat.OneHandLight1;
+            Assert.Greater(attackerHeld + next.Startup / meleeSpeed - targetHeld, next.Startup / meleeSpeed, "the target is not free before the next swing starts");
+        }
+
+        [Test]
+        public void TheFinisherIsTheBiggestOfTheThreeAndCostsTheMost()
+        {
+            SoulsAttack finisher = _combat.OneHandLight3;
+            Assert.Greater(finisher.DamageScale, _combat.OneHandLight2.DamageScale);
+            Assert.Greater(finisher.StaminaCost, _combat.OneHandLight2.StaminaCost);
+            Assert.Greater(finisher.LungeMetres, _combat.OneHandLight2.LungeMetres);
+            Assert.IsTrue(finisher.LandsHeavily, "the finisher does not land as a heavy blow");
+            Assert.Less(finisher.HitstunSeconds, HitImpactEffects.HeavyHitstunSeconds, "the finisher's stagger is as long as a heavy's");
+            Assert.IsFalse(finisher.BreaksGuard, "the finisher breaks guards: blocking it must work");
+            Assert.IsFalse(_combat.OneHandLight1.LandsHeavily, "a first cut lands as a heavy blow");
         }
 
         [Test]

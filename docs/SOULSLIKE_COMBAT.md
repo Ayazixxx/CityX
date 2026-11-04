@@ -17,7 +17,7 @@ better"), and the spike sword keeps its frame and hold.
 
 | Input | What it does |
 |---|---|
-| Left-click | Light attack. Two-handed: chains light 1 -> 2 -> 3 -> back to 1. One-handed: the two slashes back and forth (no thrust, owner 2026-10-17). You keep 65% of walking speed while swinging (40% until 2026-10-17). |
+| Left-click | Light attack. Two-handed: chains light 1 -> 2 -> 3 -> back to 1. One-handed: the slash, the backhand, then the diagonal finisher, then back to the slash (owner, 2026-11-04; a knife goes back and forth between the first two). You keep 65% of walking speed while swinging (40% until 2026-10-17). |
 | Left-click (hold) | Heavy attack (since 2026-10-24; it was the wheel's click): slow wind-up, big damage, long stagger, hyper-armour, and it **breaks a held guard**. The light goes out on the press; still held after 0.15 s it becomes the heavy from the pose the light has reached. (F stays unbound: explicit ask.) |
 | Right-click (hold) | Guard. Its **first 0.2 s parries** (tap to parry, hold to block). Slows you to half speed (legs keep walking). Costs stamina per hit absorbed. |
 | Double-tap Shift | Roll (dodge). Legal out of idle or the tail of a swing, never out of a wind-up. 0.42 s of i-frames. |
@@ -663,3 +663,15 @@ he does now). What the sword combat gained for it, all off for a player:
   solids, which the cel look's black lines traced until a thin spark was all line (docs/CEL_SHADING.md).
 - Tests: `SwordsmanPlayTests.HisCutHoldsItsTellAndDoesNotFollowADashRoundHim`,
   `LockOnRealInputPlayTests.WithAGunInHandTabDoesNotLockOnAndDrawingOneLetsALockGo`, `DuelistMindTests`, `CrimsonClawTests`.
+
+## Update 2026-11-04: the one-handed sword's three-hit combo
+
+Owner: "lets make combos", a diagonal finisher, no knockback to start ("that should be stuff you have to upgrade to or unlock"), and "if the final hit gives a stagger then why wouldnt you just keep attacking you can just spam click". Then "make it feel really good AAA level".
+
+- **The chain:** slash, backhand, then `SwordStrikeKind.Finisher1H` (`sword1h_finisher`), posed in `SwordStrikes` like the other two so it keeps the grip and blends out of the backhand. A knife keeps its two cuts (`LightChainLength`). The old thrust stays for the knife's heavy.
+- **The swing:** the blade up over the right shoulder, the body sunk and coiled, the free arm reaching ahead (`FreeArm`: only this attack moves it this far); the left foot strides out through the wind-up, so it is planted before the blade lands (with the stance opening on the strike, the foot landed after the blow and the legs were bunched under it); around and down to the lower left with the body driving in; the free arm straight back against the blade (bent, it read as a hand on the hip, which the owner has rejected). `TheOneHandedFinisherIsADiagonalWithTheWholeBodyBehindIt`.
+- **Why it cannot be looped:** `ChainAt` 1 (the recovery cannot be cancelled into a swing; a dash still can) and a stagger shorter than the recovery: target held 0.50 s + 0.12 s, attacker at least 0.83 s, then the next swing's 0.2 s to go live. `SoulsAttack.HitstunAt` shrinks the stagger with the attacker's Melee Speed, or a fast blade would be free first. The first two cuts are guaranteed, the finisher is not: about 0.2 s free after the backhand. `TheFinisherFreesTheTargetBeforeTheAttackerCanAct`, `ATargetHitByTheFinisherIsFreeBeforeTheNextSwingStarts`, `SpamClickingCannotCutTheFinishersRecoveryShort`, `TheOneHandedFinisherCanBeGotOutOfAfterTheSecondCut`.
+- **Damage 2.1x (21 on a 10 blade), above the 1.6x heavy, on purpose:** its long recovery would otherwise drop the sword's damage a second below a knife's (`KnifeRulesTests`); the whole string does what the two cuts alone did. Stamina 16 + 16 + 24. It does not break guards.
+- **The weight:** it lands as a heavy blow whatever its stun (`SoulsAttack.LandsHeavily`, `DamageContext.HeavyBlow`, forwarded to other players' bodies by `NetworkedDamage`): the heavy hit-stop, freeze, burst, thud, number, swing sound, and a bigger camera jolt for the attacker.
+- **Other players** see it by name, like every swing.
+- **Not built:** knockback or ragdoll (to be unlocked), and the two-handed sword's chain is unchanged.

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace CityX.Character
 {
-    /// <summary>The sword attacks: four with a one-handed sword, four with a two-handed one.</summary>
+    /// <summary>The sword attacks: five with a one-handed sword, four with a two-handed one.</summary>
     public enum SwordStrikeKind
     {
         /// <summary>One-handed: a horizontal slash, right to left, at chest height (the owner's choice for the first attack).</summary>
@@ -28,6 +28,9 @@ namespace CityX.Character
 
         /// <summary>Two-handed heavy: the overhead slam, a long hold at the top then everything into the floor.</summary>
         Slam2H,
+
+        /// <summary>One-handed: the last of the three lights, a big diagonal from over the right shoulder down to the lower left, the whole body stepping through it.</summary>
+        Finisher1H,
     }
 
     /// <summary>
@@ -128,6 +131,7 @@ namespace CityX.Character
         public const string Cut1HName = "sword1h_cut";
         public const string Thrust1HName = "sword1h_thrust";
         public const string Overhead1HName = "sword1h_overhead";
+        public const string Finisher1HName = "sword1h_finisher";
         public const string Cut2HName = "sword2h_cut";
         public const string Reverse2HName = "sword2h_reverse";
         public const string Sweep2HName = "sword2h_sweep";
@@ -166,7 +170,7 @@ namespace CityX.Character
         public static readonly SwordStrikeKind[] All =
         {
             SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Thrust1H, SwordStrikeKind.Overhead1H,
-            SwordStrikeKind.Cut2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Slam2H,
+            SwordStrikeKind.Cut2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Slam2H, SwordStrikeKind.Finisher1H,
         };
 
         public static bool TryGet(string animation, out SwordStrikeKind kind)
@@ -177,6 +181,7 @@ namespace CityX.Character
                 case Cut1HName: kind = SwordStrikeKind.Cut1H; return true;
                 case Thrust1HName: kind = SwordStrikeKind.Thrust1H; return true;
                 case Overhead1HName: kind = SwordStrikeKind.Overhead1H; return true;
+                case Finisher1HName: kind = SwordStrikeKind.Finisher1H; return true;
                 case Cut2HName: kind = SwordStrikeKind.Cut2H; return true;
                 case Reverse2HName: kind = SwordStrikeKind.Reverse2H; return true;
                 case Sweep2HName: kind = SwordStrikeKind.Sweep2H; return true;
@@ -204,6 +209,7 @@ namespace CityX.Character
                 case SwordStrikeKind.Cut1H: return Cut1HName;
                 case SwordStrikeKind.Thrust1H: return Thrust1HName;
                 case SwordStrikeKind.Overhead1H: return Overhead1HName;
+                case SwordStrikeKind.Finisher1H: return Finisher1HName;
                 case SwordStrikeKind.Cut2H: return Cut2HName;
                 case SwordStrikeKind.Reverse2H: return Reverse2HName;
                 case SwordStrikeKind.Sweep2H: return Sweep2HName;
@@ -216,10 +222,13 @@ namespace CityX.Character
         public static bool IsOneHanded(SwordStrikeKind kind)
         {
             return kind == SwordStrikeKind.Slash1H || kind == SwordStrikeKind.Cut1H
-                || kind == SwordStrikeKind.Thrust1H || kind == SwordStrikeKind.Overhead1H;
+                || kind == SwordStrikeKind.Thrust1H || kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Finisher1H;
         }
 
         public static bool IsHeavy(SwordStrikeKind kind) => kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Slam2H;
+
+        /// <summary>The swing is heard as a heavy one: the heavies, and a chain's finisher.</summary>
+        public static bool SoundsHeavy(SwordStrikeKind kind) => IsHeavy(kind) || kind == SwordStrikeKind.Finisher1H;
 
         /// <summary>
         /// THE PHASES OF AN ATTACK, in seconds (owner, 2026-10-23: "attacks should have clear anticipation -> acceleration -> impact -> recovery.
@@ -261,6 +270,8 @@ namespace CityX.Character
                 case SwordStrikeKind.Cut1H: return new StrikeTiming(0.14f, 0.04f, 0.11f, 0.085f, 0.05f, 0.195f);
                 case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.12f, 0.04f, 0.10f, 0.06f, 0.04f, 0.20f);
                 case SwordStrikeKind.Overhead1H: return new StrikeTiming(0.30f, 0.22f, 0.13f, 0.12f, 0.14f, 0.30f);
+                // The chain's end: a bigger wind-up the target can see coming, the blow's pose held, and a long recovery in which the fighter is open.
+                case SwordStrikeKind.Finisher1H: return new StrikeTiming(0.24f, 0.08f, 0.13f, 0.095f, 0.10f, 0.55f);
                 case SwordStrikeKind.Cut2H: return new StrikeTiming(0.20f, 0.07f, 0.15f, 0.115f, 0.07f, 0.25f);
                 case SwordStrikeKind.Reverse2H: return new StrikeTiming(0.15f, 0.05f, 0.13f, 0.12f, 0.05f, 0.20f);
                 case SwordStrikeKind.Sweep2H: return new StrikeTiming(0.16f, 0.05f, 0.13f, 0.12f, 0.05f, 0.21f);
@@ -508,6 +519,8 @@ namespace CityX.Character
             public bool OnPlane;
             public CutPlane Plane;
             public float Angle;
+            public bool HasFreeHand;
+            public Vector3 FreeHand;
         }
 
         /// <summary>
@@ -555,6 +568,14 @@ namespace CityX.Character
         {
             key.HasVia = true;
             key.BladeVia = bladeVia.normalized;
+            return key;
+        }
+
+        /// <summary>The free hand goes here at this key (from the left shoulder, arm lengths), not where it hangs relaxed: a big blow's arm working against the sword.</summary>
+        private static Key FreeArm(Key key, Vector3 freeHand)
+        {
+            key.HasFreeHand = true;
+            key.FreeHand = freeHand;
             return key;
         }
 
@@ -611,7 +632,7 @@ namespace CityX.Character
             };
         }
 
-        private static readonly Key[][] Cache = new Key[8][];
+        private static readonly Key[][] Cache = new Key[9][];
 
         private static Key[] KeysFor(SwordStrikeKind kind)
         {
@@ -711,6 +732,22 @@ namespace CityX.Character
                         lean: 9.0f, tilt: -4.0f, drop: 0.11f, lead: 1.0f, depth: 0.55f, reach: 1.0f), new Vector3(-0.45f, 1.75f, 0.50f), -5.0f);
                     Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.58f, 1.32f, 0.28f), cut, 115.0f, elbow: 0.50f, twist: 45.0f, hips: 38.0f,
                         lean: 6.0f, tilt: -3.0f, drop: 0.10f, lead: 1.0f, depth: 0.50f, reach: 0.6f);
+                    return Assemble(kind, ready1, windup, contact, follow);
+                }
+                case SwordStrikeKind.Finisher1H:
+                {
+                    // Out of the backhand's follow-through on the right: the hand rises over the right shoulder with the blade back and up, the body
+                    // sunk and coiled against the cut, leaning away, the free arm reaching ahead at the target. The left foot strides out through the
+                    // wind-up, so it is planted before the blade arrives (the stance opening with the strike landed the foot after the blow, the legs
+                    // bunched under it). Then around and down across the front to the lower left, the body driving in over the front foot, the right
+                    // shoulder dropping, the free arm whipped straight back against it. 140 degrees in 0.13 s, 105 more in 0.095 s.
+                    CutPlane cut = DiagonalDown;
+                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(0.70f, 2.12f, -0.10f), cut, -130.0f, elbow: 0.70f, twist: 50.0f, hips: 22.0f,
+                        lean: -10.0f, tilt: -6.0f, drop: 0.12f, lead: -1.0f, depth: 0.70f), new Vector3(0.25f, -0.30f, 0.80f));
+                    Key contact = FreeArm(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.0f, 1.40f, 0.76f), cut, 10.0f, elbow: 0.25f, twist: -25.0f, hips: -32.0f,
+                        lean: 30.0f, tilt: 10.0f, drop: 0.18f, lead: -1.0f, depth: 0.95f, reach: 1.0f), new Vector3(0.72f, 1.92f, 0.52f), 12.5f), new Vector3(-0.45f, -0.55f, -0.60f));
+                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(-0.38f, 1.26f, 0.44f), cut, 115.0f, elbow: 0.45f, twist: -60.0f, hips: -46.0f,
+                        lean: 26.0f, tilt: 8.0f, drop: 0.18f, lead: -1.0f, depth: 0.90f, reach: 0.6f), new Vector3(-0.45f, -0.50f, -0.65f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
                 case SwordStrikeKind.Thrust1H:
@@ -849,6 +886,11 @@ namespace CityX.Character
                 Depth = Mathf.Lerp(a.Depth, b.Depth, uc),
                 Reach = Mathf.Lerp(a.Reach, b.Reach, uc),
             };
+            if (a.HasFreeHand || b.HasFreeHand)
+            {
+                key.HasFreeHand = true;
+                key.FreeHand = Vector3.Lerp(FreeHandFor(a), FreeHandFor(b), uc);
+            }
             return Frame(key, 1.0f, twoHanded);
         }
 
@@ -887,6 +929,10 @@ namespace CityX.Character
         /// <summary>The free hand through a one-handed attack: hanging relaxed at the side, swinging against the cut for balance (<see cref="FreeHandRelaxed"/>).</summary>
         private static Vector3 FreeHandFor(Key key)
         {
+            if (key.HasFreeHand)
+            {
+                return key.FreeHand;
+            }
             // Forward while the sword hand is out on the right (wound up), back as it crosses to the left (the cut through): against the sword.
             float balance = Mathf.Clamp((key.Hand.x - 0.15f) * 0.5f, -1.0f, 1.0f) * FreeHandBalanceSwing;
             return FreeHandRelaxed + new Vector3(0.0f, 0.0f, balance);

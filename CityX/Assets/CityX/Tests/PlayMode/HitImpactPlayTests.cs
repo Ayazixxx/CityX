@@ -128,6 +128,28 @@ namespace CityX.Tests
             Assert.Greater(back, 0.5f, $"a heavy blow threw the body only {back:0.00} m");
         }
 
+        /// <summary>A chain's finisher lands as a heavy blow on a short stun: the heavy's freeze, with the short stun's shove (no fling: owner, 2026-11-04).</summary>
+        [UnityTest]
+        public IEnumerator AFinishersBlowHoldsLikeAHeavyButThrowsNoFurtherThanItsStun()
+        {
+            yield return Settle();
+            Vector3 before = _body.transform.position;
+            using (DamageContext.LandingHeavily(true))
+            {
+                StrikeFromTheFront(0.5f);
+            }
+            int frozenFrames = 0;
+            for (int i = 0; i < 40; i++)
+            {
+                if (_locomotion.IsImpactFrozen) frozenFrames++;
+                _locomotion.Tick(default, Dt);
+                yield return null;
+            }
+            float back = Vector3.Dot(_body.transform.position - before, -_body.transform.forward);
+            Assert.GreaterOrEqual(frozenFrames, 6, $"the finisher held the body for only {frozenFrames} frames (0.12 s is 7)");
+            Assert.Less(back, 0.5f, $"the finisher threw the body {back:0.00} m: no knockback until it is unlocked");
+        }
+
         [UnityTest]
         public IEnumerator ABlowSoakedByAHeldGuardShowsNoWound()
         {

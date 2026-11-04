@@ -80,6 +80,31 @@ namespace CityX.Character
         /// <summary>Opens a scope in which blows are critical hits (or not).</summary>
         public static CriticalScope Critically(bool critical) => new CriticalScope(critical);
 
+        /// <summary>
+        /// The blow lands as a heavy one whatever its stun (a chain's finisher: its stagger is short so it cannot be looped): the bigger freeze,
+        /// burst, jolt and number. Separate from <see cref="Scope"/> as <see cref="BreaksGuard"/> is.
+        /// </summary>
+        public static bool HeavyBlow { get; private set; }
+
+        /// <summary>Opens a scope in which blows land as heavy ones (or not).</summary>
+        public static HeavyBlowScope LandingHeavily(bool heavy) => new HeavyBlowScope(heavy);
+
+        public readonly struct HeavyBlowScope : IDisposable
+        {
+            private readonly bool _before;
+
+            public HeavyBlowScope(bool heavy)
+            {
+                _before = HeavyBlow;
+                HeavyBlow = heavy;
+            }
+
+            public void Dispose()
+            {
+                HeavyBlow = _before;
+            }
+        }
+
         public readonly struct CriticalScope : IDisposable
         {
             private readonly bool _before;
