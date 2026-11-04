@@ -40,6 +40,7 @@ namespace CityX.Character
         public const string ChadHair2 = "chadhair2";
         public const string Hyde = "hyde";
         public const string Dreads = "dreads";
+        public const string KickHair = "kickhair";
 
         /// <summary>
         /// Every style there is, "none" first. The creator's buttons, the mesh list and the
@@ -52,7 +53,7 @@ namespace CityX.Character
         /// ignores a name that is not here, and a head starts out bald, so such a character is
         /// simply bald until they pick again.
         /// </summary>
-        public static readonly string[] ValidStyles = { None, Hair1, Danny, AnimeHair, ChadHair, OldManHair, SpikeX, SwipeCut, IdkNeedsWork, ChadHair2, Hyde, Dreads };
+        public static readonly string[] ValidStyles = { None, Hair1, Danny, AnimeHair, ChadHair, OldManHair, SpikeX, SwipeCut, IdkNeedsWork, ChadHair2, Hyde, Dreads, KickHair };
 
         /// <summary>The short name a button or a console line uses for a style.</summary>
         public static string LabelFor(string style)
@@ -71,6 +72,7 @@ namespace CityX.Character
                 case ChadHair2: return "CHAD2";
                 case Hyde: return "HYD";
                 case Dreads: return "DREAD";
+                case KickHair: return "KICK";
                 default: return (style ?? string.Empty).ToUpperInvariant();
             }
         }

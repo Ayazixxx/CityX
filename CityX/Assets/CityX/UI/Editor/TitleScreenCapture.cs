@@ -130,6 +130,13 @@ namespace CityX.UIEditor
             ShootHairViews("hair-dreads-", Character.CharacterHair.Dreads);
         }
 
+        /// <summary>Rebuilds the title scene, then photographs the kick hair (the owner's model, brought down to 9k triangles).</summary>
+        public static void RebuildAndCaptureKickHair()
+        {
+            TitleScreenBuilder.Build();
+            ShootHairViews("hair-kick-", Character.CharacterHair.KickHair);
+        }
+
         /// <summary>Front and side close-ups of every style after Danny (the user-supplied 2026-09-27..10-01 batch).</summary>
         public static void CaptureBatchStyles()
         {

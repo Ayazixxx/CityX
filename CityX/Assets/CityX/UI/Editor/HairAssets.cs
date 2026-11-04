@@ -36,6 +36,8 @@ namespace CityX.UIEditor
         public const string HydeBaked = Folder + "/HydeMesh.asset";
         public const string DreadsSource = Folder + "/Dreads.glb";
         public const string DreadsBaked = Folder + "/DreadsMesh.asset";
+        public const string KickHairSource = Folder + "/KickHair.glb";
+        public const string KickHairBaked = Folder + "/KickHairMesh.asset";
 
         /// <summary>Where the saved hand-tuned fits live: a Resources folder, so every head reads them with nothing wired.</summary>
         public const string FitSettingsPath = HairFitSettings.AssetPath;
@@ -125,6 +127,7 @@ namespace CityX.UIEditor
                 case CharacterHair.ChadHair2: return BakedFromModel(ChadHair2Source, ChadHair2Baked, "ChadHair2Mesh");
                 case CharacterHair.Hyde: return BakedFromModel(HydeSource, HydeBaked, "HydeMesh");
                 case CharacterHair.Dreads: return BakedFromModel(DreadsSource, DreadsBaked, "DreadsMesh");
+                case CharacterHair.KickHair: return BakedFromModel(KickHairSource, KickHairBaked, "KickHairMesh");
                 default:
                     Debug.LogWarning($"CityX: no model is wired for the hairstyle \"{style}\" -- add it to HairAssets.MeshFor.");
                     return null;
@@ -198,6 +201,90 @@ namespace CityX.UIEditor
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: baked {bakedPath} -- bounds {baked.bounds.min} to {baked.bounds.max}");
             return baked;
+        }
+
+        /// <summary>How much room a fit on the hollow leaves round the head, as a share of its radius.</summary>
+        public const float HollowSpare = 1.1f;
+
+        /// <summary>
+        /// A placement from the HOLLOW inside a style rather than its outer width: the middle of the largest ball every way out of which, above the hairline, meets the hair, and
+        /// the scale at which that ball holds the head. A style whose locks flare past its cap sinks the head through it on the automatic fit.
+        /// </summary>
+        public static CharacterHair.Fit HollowFit(Mesh mesh)
+        {
+            var probe = new GameObject("HollowProbe");
+            bool hitBackfaces = Physics.queriesHitBackfaces;
+            try
+            {
+                probe.AddComponent<MeshCollider>().sharedMesh = mesh;
+                Physics.SyncTransforms();
+                Physics.queriesHitBackfaces = true;
+                Bounds bounds = mesh.bounds;
+                Vector3 best = bounds.center;
+                float bestRadius = 0.0f;
+                for (float x = -0.06f; x <= 0.06f; x += 0.02f)
+                {
+                    for (float y = bounds.min.y; y <= bounds.max.y; y += 0.02f)
+                    {
+                        for (float z = -0.2f; z <= 0.2f; z += 0.02f)
+                        {
+                            Vector3 centre = bounds.center + new Vector3(x, 0.0f, z);
+                            centre.y = y;
+                            float radius = NearestHairAbove(centre);
+                            if (radius > bestRadius)
+                            {
+                                bestRadius = radius;
+                                best = centre;
+                            }
+                        }
+                    }
+                }
+                if (bestRadius <= 0.0f)
+                {
+                    Debug.LogWarning($"CityX: no ball fits under {mesh.name}: the hair has a gap above the hairline wherever the head goes");
+                    return new CharacterHair.Fit(Vector3.zero, Vector3.zero, Vector3.one);
+                }
+                float scale = FusedBodyShape.HeadRadius * HollowSpare / bestRadius;
+                return new CharacterHair.Fit(-best * scale, Vector3.zero, Vector3.one * scale);
+            }
+            finally
+            {
+                Physics.queriesHitBackfaces = hitBackfaces;
+                Object.DestroyImmediate(probe);
+            }
+        }
+
+        /// <summary>How far out from <paramref name="centre"/> the nearest hair is, over every way out above the hairline; 0 if any way out misses it.</summary>
+        private static float NearestHairAbove(Vector3 centre)
+        {
+            float nearest = float.MaxValue;
+            for (float turn = 0.0f; turn < 360.0f; turn += 15.0f)
+            {
+                for (float height = HairScalp.Hairline(turn) + 5.0f; height < 90.0f; height += 10.0f)
+                {
+                    float h = height * Mathf.Deg2Rad, t = turn * Mathf.Deg2Rad;
+                    var direction = new Vector3(Mathf.Cos(h) * Mathf.Sin(t), Mathf.Sin(h), Mathf.Cos(h) * Mathf.Cos(t));
+                    if (!Physics.Raycast(centre, direction, out RaycastHit hit, 2.0f))
+                    {
+                        return 0.0f;
+                    }
+                    nearest = Mathf.Min(nearest, hit.distance);
+                }
+            }
+            return nearest;
+        }
+
+        /// <summary>Saves the kick hair's placement from its hollow; the Inspector's Save overwrites it when it is placed by hand.</summary>
+        [MenuItem("CityX/Fit Kick Hair To Its Hollow")]
+        public static void FitKickHair()
+        {
+            Mesh mesh = MeshFor(CharacterHair.KickHair);
+            var settings = AssetDatabase.LoadAssetAtPath<HairFitSettings>(FitSettingsPath);
+            CharacterHair.Fit fit = HollowFit(mesh);
+            settings.Set(CharacterHair.KickHair, fit);
+            EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"CityX: kick hair fit {fit.Position} scale {fit.Scale}");
         }
 
         /// <summary>The dreads baked again (with their scalp cap, placed by their saved fit) into the same asset, so every head wearing them keeps it.</summary>

@@ -172,6 +172,13 @@ Both are on the automatic fit; tune by hand with the Inspector + Save. Both scen
   the backdrop is the kept one; `EquipmentReplicationGuardTests` checks the networked body has a mesh for every style, so other
   players never see a newer style as bald.
 
+## Added 2026-11-03: kickhair
+
+The owner's `kickhair.glb` (164,057 triangles) brought down to 9,000 by `CityX/SourceArt/KickHair/kickhair_reduce.py` (keeps the biggest piece: two specks floated a metre
+below the head; Decimate Collapse). At 6,000 the strand grooves down the back melted away; at 9,000 the locks, the fringe and the curled tips hold. `KickHair.glb` is 174 KB, no
+textures; style `kickhair`, button KICK, baked as usual. `TitleScreenCapture.RebuildAndCaptureKickHair` shoots `Logs/CityShots/hair-kick-*.png`. Both scenes and
+`NetworkedPlayer.prefab` were rebuilt.
+
 ## Added 2026-10-21: dreads
 
 The owner's dreadlocks (701,603 triangles from Meshy) brought down in Blender to 5,983 (Decimate Collapse; 11 stray triangles below
