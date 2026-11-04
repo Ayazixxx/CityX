@@ -325,6 +325,8 @@ My suggestion, not yet agreed: keep the rules underneath (damage, stamina, guard
 
 Owner, 2026-11-04, on combos and being locked: not sure about combos at first; now thinks they may give melee fighters a fighting chance against guns and ranged magic. No very long combos ("like naruto storm where you can spam attack and get like a 16 hit combo"); regular swings mixed with sword skills could make a longer one. Being combo locked would be annoying, "so there has to be a way to get out", like Naruto Storm's substitution jutsu, maybe a spell that does something similar, "but there has to be another way". "theres going to be a bunch of teleportation/substitution style moves. like flash step or instant transmission type stuff". "no you cannot flash step through walls"; the same rule for instant transmission and substitution.
 
+Owner, 2026-11-04, on the one-handed sword's 3-hit combo: likes a diagonal finisher for the third hit; "i kind of like the idea of people being flung around and ragdolled by attacks with large knockback but we would have to figure out how to make it fair". A body flying ragdolled should be able to recover in mid air, as in Saints Row 4: press Space and regain control.
+
 My suggestions, not agreed: 2-3 swings, extended only by skills that cancel a swing's recovery (5-6 hits at most, limited by stamina, mana and cooldowns); each hit in a row stuns less, and after 3-4 you stop flinching for a moment; a breakaway dash anyone can use, for half the stamina bar; a hit stops a shooter shooting.
 
 ## Enemies
