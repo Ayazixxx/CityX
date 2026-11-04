@@ -130,6 +130,21 @@ namespace CityX.Character
 
         public const float DefaultAimPivotRaise = 0.35f;
 
+        /// <summary>
+        /// Set every frame by PlayerInputReader, like IsAiming: the gun in hand is a pistol, aimed from its own closer framing (owner, 2026-11-03: "the pov when
+        /// shooting the pistol doesnt show enough of the gun its covered by the body"). A pistol barrel points where the camera looks, so from far behind the
+        /// gun shows only its back: close in and well to the side, it shows its side, the body pushed to the corner of the picture as in GTA V.
+        /// </summary>
+        public bool PistolAim;
+
+        public const float PistolAimDistance = 2.4f;
+
+        public const float PistolAimShoulderOffset = 1.4f;
+
+        public const float PistolAimPivotRaise = 0.3f;
+
+        public const float PistolAimFieldOfView = 40.0f;
+
         [Tooltip("How far back from the shoulder pivot the camera sits while aiming, metres (Distance otherwise). Closer is what makes the gun read.")]
         public float AimDistance = DefaultAimDistance;
 
@@ -744,7 +759,7 @@ namespace CityX.Character
                 // (And over a stair's steps with the body: the capsule goes up them in lurches, PlayerLocomotion.GlideOffset.)
                 pivot = Target.position + Vector3.up * (height * PivotHeightFraction - (_player != null ? _player.CrouchDrop - _player.GlideOffset : 0.0f));
                 // Aiming: a little higher, over the shoulder, and closer (below): eased over a quarter of a second, an S-curve.
-                pivot += Vector3.up * (AimPivotRaise * AimCameraBlend * scale);
+                pivot += Vector3.up * ((PistolAim ? PistolAimPivotRaise : AimPivotRaise) * AimCameraBlend * scale);
             }
 
             // The recoil kick and roll jolt ride on top of where you are
@@ -759,7 +774,7 @@ namespace CityX.Character
             // camera in correctly rather than missing it because the cast
             // started somewhere already past the collider.
             _currentShoulderOffset = Mathf.MoveTowards(
-                _currentShoulderOffset, IsAiming ? AimShoulderOffset : ShoulderOffset,
+                _currentShoulderOffset, IsAiming ? (PistolAim ? PistolAimShoulderOffset : AimShoulderOffset) : ShoulderOffset,
                 AimShoulderOffsetMetresPerSecond * Time.deltaTime);
             _currentShoulderSide = Mathf.MoveTowards(
                 _currentShoulderSide, _shoulderSide, ShoulderSwapPerSecond * Time.deltaTime);
@@ -767,7 +782,7 @@ namespace CityX.Character
             // down to its own over-the-shoulder framing.
             float raise = FramingHeight * (1.0f - AimCameraBlend) * scale;
             Vector3 shoulderPivot = pivot + rotation * new Vector3(_currentShoulderOffset * _currentShoulderSide * scale, raise, 0.0f);
-            float distance = Mathf.Lerp(Distance + FlightDistanceBonus, AimDistance, AimCameraBlend) * scale;
+            float distance = Mathf.Lerp(Distance + FlightDistanceBonus, PistolAim ? PistolAimDistance : AimDistance, AimCameraBlend) * scale;
             Vector3 wanted = shoulderPivot - rotation * Vector3.forward * distance;
 
             // Pull in if a wall is in the way. The sphere radius keeps the near
@@ -818,7 +833,7 @@ namespace CityX.Character
             {
                 // The sprint's widening rides on the rest field of view and blends on its own clock (_sprintBlend); the flight bonus the same.
                 float rest = _restFieldOfView * Mathf.Lerp(1.0f, SprintFieldOfViewScale, _sprintBlend) + FlightFovBonus;
-                float target = IsAiming ? AimFieldOfView : rest;
+                float target = IsAiming ? (PistolAim ? PistolAimFieldOfView : AimFieldOfView) : rest;
                 _camera.fieldOfView = Mathf.MoveTowards(
                     _camera.fieldOfView, target, (IsAiming ? AimZoomDegreesPerSecond : AimZoomOutDegreesPerSecond) * Time.deltaTime);
             }

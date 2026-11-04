@@ -9,6 +9,11 @@
 from mathutils import Vector, Quaternion
 import math
 
+# The Glock's own hold, measured against the hand: the game's FirearmProfile.HoldPosition and HoldDipDegrees (the rifles keep firearm_pose.py's).
+HOLD_POS = Vector((-0.056, -0.0795, 0.037))
+HOLD_DIP = -22.0
+HOLD_ROT = hold_rotation()
+
 P = POINTS
 MAG_MOUTH = Vector(P["mag_mouth"])
 MAG_OUT = Vector(P["mag_axis_out"])          # unit, down the grip
@@ -19,7 +24,7 @@ SLIDE_REAR_TOP = Vector(P["slide_rear_top"])
 # The magazine in the support hand (the LEFT hand's frame: fingers run -x, the palm faces -y, the thumb's side is +z): its top (the well-mouth
 # point, its origin) past the palm toward the fingertips, its body lying back along the forearm, the front strap against the palm, the flat
 # right side toward the thumb (see firearm_pose.hand_holding).
-MAG_IN_HAND = (Vector((-0.19, -0.06, 0.01)), rot_cols((0, 0, 1), (-1, 0, 0), (0, -1, 0)))   # the mag's +x, +y, +z in the hand's axes
+MAG_IN_HAND = (Vector((-0.25, -0.08, 0.013)), rot_cols((0, 0, 1), (-1, 0, 0), (0, -1, 0)))   # the mag's +x, +y, +z in the hand's axes
 
 
 def mag(travel=0.0, visible=1, in_hand=0):
@@ -42,7 +47,7 @@ def props(mag_spec, slide_back=0.0):
 # ---- the hands on the gun -------------------------------------------------------------------------------------------------------------------
 # The support hand's two-handed hold (gun frame): the palm's heel on the left grip panel below the strong fingers, the fingers wrapped over
 # them, the thumb forward along the frame. The wrist sits left of and below the web.
-SUPPORT_ON_GUN = {"at": (-0.115, -0.10, -0.03), "fingers": (0.55, -0.7, 0.4), "palm": (0.8, 0.15, 0.55), "space": "gun", "pole": (-0.8, -0.9, -0.2)}
+SUPPORT_ON_GUN = {"at": (-0.0795, -0.135, 0.053), "fingers": (0.0, -0.375, 0.927), "palm": (1.0, 0.0, 0.0), "space": "gun", "pole": (-0.8, -0.9, -0.2)}
 
 # Over the top of the slide for the rack: the palm down on the rear serrations, the fingers over the left side, the thumb on the right.
 OVERHAND = {"at": (0.0, SLIDE_REAR_TOP.y + 0.045, SLIDE_REAR_TOP.z + 0.09), "fingers": (-0.85, -0.5, -0.1), "palm": (0.0, -1.0, 0.0), "space": "gun", "pole": (-0.5, -0.4, -0.9)}
@@ -60,7 +65,7 @@ def hand_with_mag(travel):
 
 
 # ---- the gun in the chest's frame ----------------------------------------------------------------------------------------------------------
-READY_GUN = {"at": (0.20, -0.10, 0.52), "fwd": (0.0, 0.0, 1.0), "up": (0.0, 1.0, 0.0)}
+READY_GUN = {"at": (0.24, 0.05, 0.5), "fwd": (0.0, 0.0, 1.0), "up": (0.0, 1.0, 0.0)}
 # The workspace: in close, muzzle up, the top rolled OUTBOARD (to the right) so the grip's bottom and the well swing toward the support hand.
 WORK_GUN = {"at": (0.06, 0.0, 0.40), "fwd": (-0.10, 0.42, 0.90), "up": (0.55, 0.78, -0.30)}
 INSERT_GUN = {"at": (0.04, 0.03, 0.38), "fwd": (-0.12, 0.55, 0.82), "up": (0.58, 0.70, -0.40)}
@@ -76,8 +81,8 @@ def spec(gun, l_hand, fingers_r, fingers_l, props_, spine=0.0, head_down=0.0, r_
     }
 
 
-READY = spec(READY_GUN, SUPPORT_ON_GUN, PISTOL_STRONG, PISTOL_SUPPORT, props(mag()))
-THUMB_ON_RELEASE = fingers(0.12, 1.0, 1.0, 1.0, 1.0, thumb_forward=5.0)
+READY = spec(READY_GUN, SUPPORT_ON_GUN, PISTOL_STRONG, PISTOL_SUPPORT, props(mag()), spine=15.0)
+THUMB_ON_RELEASE = dict(PISTOL_STRONG, thumb=1.0, thumb_forward=5.0, thumb_authored=0.0)
 TO_HIP = {"at": (-0.22, -0.45, 0.22), "fingers": (-0.3, -0.9, 0.3), "palm": (0.8, -0.3, 0.5), "space": "chest", "pole": (-0.9, -0.6, -0.3)}
 AT_POUCH = {"at": (-0.27, -0.70, 0.10), "fingers": (-0.2, -0.95, 0.2), "palm": (0.9, 0.1, 0.4), "space": "chest", "pole": (-0.9, -0.5, -0.4)}
 # After the seat the palm heel pushes on up, then the hand leaves below the grip.

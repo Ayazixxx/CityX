@@ -268,9 +268,10 @@ namespace CityX.Tests
                 yield return null;
                 follow.Yaw = 0.0f;
                 follow.Pitch = 3.0f;
-                for (float t = 0.0f; t < 1.0f; t += Dt)
+                for (float t = 0.0f; t < 2.0f; t += Dt)
                 {
                     follow.IsAiming = true;
+                    follow.PistolAim = locomotion.HoldsPistol;
                     locomotion.Tick(new LocomotionInput
                     {
                         GunEquipped = true, Aiming = true, YawDegrees = 0.0f,
@@ -295,6 +296,25 @@ namespace CityX.Tests
                 float along = Mathf.Clamp01(Vector3.Dot(c - a, b - a) / (b - a).sqrMagnitude);
                 float clearance = Vector3.Distance(c, a + (b - a) * along) - FusedBodyShape.HeadRadius;
                 Assert.Greater(clearance, 0.03f, $"{gun.Profile.DisplayName}: the view of the gun passes {-clearance * 100:0} cm into the head -- it is hidden behind it");
+                if (locomotion.HoldsPistol)
+                {
+                    // The centre clear is not enough (half the Glock was behind the head with this passing): every corner of it, and it must be big enough to read.
+                    float least = float.MaxValue;
+                    float left = 1.0f;
+                    float right = 0.0f;
+                    for (int corner = 0; corner < 8; corner++)
+                    {
+                        Vector3 point = gunBounds.center + Vector3.Scale(gunBounds.extents, new Vector3((corner & 1) * 2 - 1, (corner & 2) - 1, (corner & 4) / 2 - 1));
+                        float share = Mathf.Clamp01(Vector3.Dot(c - a, point - a) / (point - a).sqrMagnitude);
+                        least = Mathf.Min(least, Vector3.Distance(c, a + (point - a) * share) - FusedBodyShape.HeadRadius);
+                        float x = view.WorldToViewportPoint(point).x;
+                        left = Mathf.Min(left, x);
+                        right = Mathf.Max(right, x);
+                    }
+                    Debug.Log($"CityX pistol while aiming: {least * 100:0} cm clear of the head at its nearest, {(right - left) * 100:0.0}% of the screen wide");
+                    Assert.Greater(least, 0.0f, $"part of the pistol is behind the head (by {-least * 100:0} cm)");
+                    Assert.Greater(right - left, 0.06f, "the pistol is too small on the screen to read");
+                }
                 Object.Destroy(player);
                 Object.Destroy(cameraObject);
                 yield return null;

@@ -32,12 +32,15 @@ namespace CityX.Tests
         {
             public Transform Gun;
             public Transform Muzzle;
-            public Vector3 GunPosition;
+            public Vector3 GunInHand;
+            public Vector3 BarrelInHand;
             public Vector3 MuzzleForward;
 
+            // In the hand's space: a shot raises the arm in the same frame, which carries the gun further than the kick shoves it.
             private void LateUpdate()
             {
-                GunPosition = Gun.position;
+                GunInHand = Gun.parent.InverseTransformPoint(Gun.position);
+                BarrelInHand = Gun.parent.InverseTransformDirection(Muzzle.forward);
                 MuzzleForward = Muzzle.forward;
             }
         }
@@ -94,7 +97,8 @@ namespace CityX.Tests
             probe.Muzzle = muzzle;
             yield return null;   // one whole frame, so the probe has read the unkicked gun as drawn
             Vector3 baselineForward = probe.MuzzleForward;
-            Vector3 baselinePosition = probe.GunPosition;
+            Vector3 baselinePosition = probe.GunInHand;
+            Vector3 baselineBarrel = probe.BarrelInHand;
             float baselinePitch = Mathf.Asin(Mathf.Clamp(baselineForward.y, -1.0f, 1.0f)) * Mathf.Rad2Deg;
 
             Assert.IsTrue(_pistol.Fire(_player.transform.position + Vector3.up * 1.6f - Vector3.forward * 3.0f,
@@ -103,8 +107,8 @@ namespace CityX.Tests
             yield return null;
 
             float kickedPitch = Mathf.Asin(Mathf.Clamp(probe.MuzzleForward.y, -1.0f, 1.0f)) * Mathf.Rad2Deg;
-            Vector3 shove = probe.GunPosition - baselinePosition;
-            float alongBarrel = Vector3.Dot(shove, baselineForward);
+            Vector3 shove = probe.GunInHand - baselinePosition;
+            float alongBarrel = Vector3.Dot(shove, baselineBarrel);
 
             Assert.Greater(kickedPitch - baselinePitch, 2.0f,
                 $"the muzzle did not tip up (pitch {baselinePitch:0.0} -> {kickedPitch:0.0})");

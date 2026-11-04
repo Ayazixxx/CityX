@@ -76,6 +76,15 @@ differed from the old one in that one component only: `FramingHeight` 1.3, `Dist
 - Unity, [Cinemachine Third Person Follow](https://docs.unity3d.com/Packages/com.unity.cinemachine@3.1/manual/CinemachineThirdPersonFollow.html) (shoulder offset and vertical arm)
 - ActualidadGadget, [God of War's camera position](https://www.actualidadgadget.com/en/god-of-war-ps4-was-the-subject-of-discussions-development-the-position-the-camera/) and eXputer, [on the God of War camera](https://exputer.com/features/marvels-wolverine-god-of-war-camera-unfitting/)
 
+## 2026-11-03: the pistol's own aim framing
+
+Owner: "the pov when shooting the pistol doesnt show enough of the gun its covered by the body look at how other third person shooters handle this". A barrel
+points where the camera looks, so its screen length comes only from how far it is off to the side for how far away it is: from 3.9 m the Glock showed its
+back, 4% of the screen wide, 38% of it seen past the head. GTA V's third-person aim (gameplay footage) has the camera close, the head and shoulder cut off at the lower left
+and the gun clear beside them. `ThirdPersonCamera.PistolAim` (set by `PlayerInputReader` from `PlayerLocomotion.HoldsPistol`): 2.4 m back, 1.4 m to the
+side, pivot raised 0.3 m, field of view 40. **This undoes for the pistol the metre the owner added to the aim distance on 2026-10-24; every other gun keeps
+3.9 m / 1.3 m / 30.** The barrel still points at the crosshair's point, on purpose: yawing it to show more of its side would part it from the tracer.
+
 ## 2026-10-23: Saints Row: The Third's camera, copied
 
 > "our third person pov camera needs work research the saints row the third camera pov and zoom and just copy that"

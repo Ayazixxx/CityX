@@ -220,9 +220,11 @@ namespace CityX.Character
                 _gunAimBlend = 0.0f;   // a bow is aimed with both arms by its own pose (PlayerLocomotion.Bow.cs), never the gun arm's
                 return;
             }
-            float deltaTime = Mathf.Max(_lastTickDeltaTime, 0.0f);
+            float deltaTime = PoseDeltaTime;
+            // (On another player's copy a pistol is raised by the synced Aiming parameter, as a rifle is.)
+            bool copyAimsPistol = _pistolGun != null && _animator != null && _animator.isActiveAndEnabled && _animator.GetBool(AimingParameter);
             _gunAimBlend = Mathf.MoveTowards(
-                _gunAimBlend, (_isAimingGun || _gunFireHold > 0.0f) ? 1.0f : 0.0f,
+                _gunAimBlend, (_isAimingGun || _gunFireHold > 0.0f || copyAimsPistol) ? 1.0f : 0.0f,
                 // The arm swings up FAST for a shot: the tracer only lives ~0.12s, and
                 // at the ordinary 6/s (0.17s) the gun was still coming up while the
                 // streak was already gone.
@@ -308,9 +310,16 @@ namespace CityX.Character
             // torso/legs) is what looks wrong, THIS is the value that
             // actually reaches it.
             targetDirection = Quaternion.AngleAxis(ArmAimYawOffsetDegrees, Vector3.up) * targetDirection;
-            Vector3 currentDirection = (_rightLowerArm.position - _rightUpperArm.position).normalized;
-            Vector3 blendedDirection = Vector3.Slerp(currentDirection, targetDirection, EasedGunAimBlend);
-            BendLimbToward(_rightUpperArm, _rightLowerArm.position, blendedDirection);
+            if (_pistolGun != null)
+            {
+                ApplyPistolPose(targetDirection);
+            }
+            else
+            {
+                Vector3 currentDirection = (_rightLowerArm.position - _rightUpperArm.position).normalized;
+                Vector3 blendedDirection = Vector3.Slerp(currentDirection, targetDirection, EasedGunAimBlend);
+                BendLimbToward(_rightUpperArm, _rightLowerArm.position, blendedDirection);
+            }
 
             // THEN AIM THE BARREL ITSELF. Pointing the UPPER ARM at the target only
             // points the shoulder-to-elbow segment; the forearm, hand and grip carry
@@ -319,7 +328,7 @@ namespace CityX.Character
             // invented to hand-tune). With the real muzzle known, measure where the
             // barrel actually points and rotate the whole arm by the remaining error:
             // a rigid rotation about the shoulder turns the barrel by exactly that.
-            if (GunMuzzle != null && _hasAimedPoint)
+            if (_pistolGun == null && GunMuzzle != null && _hasAimedPoint)
             {
                 // A FEW PASSES, not one: turning the arm about the shoulder also MOVES
                 // the muzzle (about 0.7m from the shoulder), which shifts the direction

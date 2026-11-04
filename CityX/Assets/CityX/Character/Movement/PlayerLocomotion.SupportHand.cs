@@ -18,6 +18,11 @@ namespace CityX.Character
 
         private bool _supportOnlyWhenAiming;
 
+        private Quaternion? _supportHandRotation;
+
+        /// <summary>How far this frame's left hand is laid on the weapon by <see cref="_supportHandRotation"/>, 0 to 1: ApplyStraightWrists leaves it that bent.</summary>
+        private float _supportHandLaid;
+
         /// <summary>How fast the support hand takes hold (and lets go), per second: a grab, not a snap.</summary>
         public const float SupportHandBlendPerSecond = 9.0f;
 
@@ -32,11 +37,15 @@ namespace CityX.Character
         /// True for a gun: the free hand comes up to steady it only as the gun is raised to aim (or fire), and
         /// swings free while it is carried. False for a sword, held in both hands all the time.
         /// </param>
-        public void SetSupportHand(Transform weapon, Vector3 weaponLocalPoint, bool onlyWhenAiming = false)
+        /// <param name="handRotation">
+        /// How the hand lies on the weapon, in the weapon's frame (a pistol's grip, the palm flat on its panel); null leaves the wrist to the arm.
+        /// </param>
+        public void SetSupportHand(Transform weapon, Vector3 weaponLocalPoint, bool onlyWhenAiming = false, Quaternion? handRotation = null)
         {
             _supportAnchor = weapon;
             _supportLocalPoint = weaponLocalPoint;
             _supportOnlyWhenAiming = onlyWhenAiming;
+            _supportHandRotation = handRotation;
         }
 
         /// <summary>Lets go -- only if <paramref name="weapon"/> is still the weapon being held (a swap must not drop the new one).</summary>
@@ -56,16 +65,19 @@ namespace CityX.Character
             {
                 return false;
             }
-            palm = _handL.position + (_handL.position - _leftLowerArm.position).normalized * PalmOffsetMetres;
+            // A hand laid on the weapon may bend at the wrist: its palm is along its own fingers (the left hand bone's -X), not the forearm.
+            Vector3 fingers = _supportHandRotation.HasValue ? -_handL.right : (_handL.position - _leftLowerArm.position).normalized;
+            palm = _handL.position + fingers * PalmOffsetMetres;
             return true;
         }
 
         private void ApplySupportHand()
         {
-            float deltaTime = Mathf.Max(_lastTickDeltaTime, 0.0f);
+            float deltaTime = PoseDeltaTime;
             _supportBlend = Mathf.MoveTowards(_supportBlend, _supportAnchor != null ? 1.0f : 0.0f, SupportHandBlendPerSecond * deltaTime);
             // A baked move (the sword spin, Octaslash) lets go of the handle: it places the free arm itself (ApplyBakedPose).
             float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f) * (1.0f - _bakedPoseWeight);
+            _supportHandLaid = 0.0f;
             if (weight <= 0.0f || _supportAnchor == null || _leftUpperArm == null || _leftLowerArm == null || _handL == null)
             {
                 return;
@@ -74,6 +86,17 @@ namespace CityX.Character
             Vector3 point = _supportAnchor.TransformPoint(_supportLocalPoint);
             // Elbow down and a little out, the way a person braces a heavy weapon.
             Vector3 elbowHint = -transform.up - transform.right * 0.6f;
+
+            // A HAND LAID ON THE WEAPON: its rotation is known, so the wrist's place is too, and the hand is turned onto it.
+            if (_supportHandRotation.HasValue)
+            {
+                Quaternion hand = _supportAnchor.rotation * _supportHandRotation.Value;
+                TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, point + hand * Vector3.right * PalmOffsetMetres, elbowHint, weight);
+                _handL.rotation = Quaternion.Slerp(_handL.rotation, hand, weight);
+                WristTwist.ShareWithForearm(_leftLowerArm, _handL);
+                _supportHandLaid = weight;
+                return;
+            }
 
             // The wrist bone is not the palm: aim the PALM at the point. Two passes, since turning the
             // forearm turns the palm's direction too.

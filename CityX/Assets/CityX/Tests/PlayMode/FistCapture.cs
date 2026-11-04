@@ -96,7 +96,7 @@ namespace CityX.Tests
                     }
                 }
                 sheet.Apply();
-                SavePng(sheet, Path.Combine(directory, front ? "fist-sheet-front.png" : "fist-sheet.png"));
+                CapturePng.Write(sheet, Path.Combine(directory, front ? "fist-sheet-front.png" : "fist-sheet.png"));
                 Object.Destroy(sheet);
             }
 
@@ -114,7 +114,7 @@ namespace CityX.Tests
             both.SetPixels(0, 0, StanceCell, StanceCell, plain.GetPixels());
             both.SetPixels(StanceCell, 0, StanceCell, StanceCell, stance.GetPixels());
             both.Apply();
-            SavePng(both, Path.Combine(directory, "fist-stance.png"));
+            CapturePng.Write(both, Path.Combine(directory, "fist-stance.png"));
             Object.Destroy(plain);
             Object.Destroy(stance);
             Object.Destroy(both);
@@ -134,13 +134,6 @@ namespace CityX.Tests
                 fists.enabled = false;
                 yield return null;
             }
-        }
-
-        private static void SavePng(Texture2D image, string path)
-        {
-            var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
-            var enc = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
-            File.WriteAllBytes(path, (byte[])enc.Invoke(null, new object[] { image }));
         }
 
         private static Texture2D Render(Camera camera, Vector3 position, Vector3 lookAt, int size = Cell)

@@ -34,7 +34,7 @@ GLB = os.path.join(REPO, "CityX", "Assets", "CityX", "Weapons", "Glock.glb")
 
 # A real pistol in metres, times this: the body is 2.6 m and its hands are wide, so a real-size pistol was a nub in them. 1.9 fits the hand:
 # three fingers on the grip and the little finger under the baseplate, as a compact pistol sits in a big hand (checked in the Blender renders).
-SCALE = 1.9
+SCALE = 2.5
 MM = 0.001 * SCALE   # a millimetre of the reference, in the model's metres
 
 # THE SILHOUETTE, millimetres about the web (z forward to the muzzle, y up), measured off the Counter-Strike 2 Glock-18 picture scaled so the

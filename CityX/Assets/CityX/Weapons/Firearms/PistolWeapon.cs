@@ -414,9 +414,13 @@ namespace CityX.Weapons
         {
             get
             {
+                bool pulled = _sinceShot < TriggerPullSeconds;
+                if (!Profile.IsRifle)
+                {
+                    return FingerAmounts.PistolStrong(pulled ? 1.0f : 0.0f);   // always through the guard, on the trigger (owner, 2026-11-03)
+                }
                 bool aiming = _locomotion != null && _locomotion.IsAimingGun;
-                float trigger = _sinceShot < TriggerPullSeconds ? 1.0f : (aiming || _sinceShot < 0.4f ? 0.45f : 0.0f);
-                return Profile.IsRifle ? FingerAmounts.RifleStrong(trigger) : FingerAmounts.PistolStrong(trigger);
+                return FingerAmounts.RifleStrong(pulled ? 1.0f : (aiming || _sinceShot < 0.4f ? 0.45f : 0.0f));
             }
         }
 
@@ -562,11 +566,7 @@ namespace CityX.Weapons
                     _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
                 }
                 ApplyGrip();
-                _locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: Profile.SupportHandOnlyWhenAiming);
-                if (Profile.IsRifle)
-                {
-                    _locomotion.SetRifle(transform, Profile.ButtLocal, Profile.MuzzleLocal, Profile.HoldPosition, Profile.HoldRotation);
-                }
+                HoldOn(_locomotion, Profile.SupportHandOnlyWhenAiming);
             }
             HookReload(player, ref _reloader);
             FirearmEffects.Warm();
@@ -639,6 +639,7 @@ namespace CityX.Weapons
             {
                 locomotionOnUnequip.ClearSupportHand(_leftHandGrip);
                 locomotionOnUnequip.ClearRifle(transform);
+                locomotionOnUnequip.ClearPistol(transform);
                 if (locomotionOnUnequip.GunMuzzle == (MuzzleFlashObject != null ? MuzzleFlashObject.transform : null))
                 {
                     locomotionOnUnequip.GunMuzzle = null;
@@ -664,15 +665,29 @@ namespace CityX.Weapons
                 _cosmeticDriver.RemoteGunFired += OnRemoteShot;
             }
             var locomotion = body.GetComponent<PlayerLocomotion>();
-            if (locomotion != null && Profile.IsRifle)
+            if (locomotion != null)
             {
                 if (_leftHandGrip == null)
                 {
                     _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
                 }
                 ApplyGrip();
-                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: false);
+                HoldOn(locomotion, !Profile.IsRifle);
+            }
+        }
+
+        /// <summary>Tells a body how both its hands hold this gun: the free hand on its marker, a rifle by its stock, a pistol placed before the chest.</summary>
+        private void HoldOn(PlayerLocomotion locomotion, bool supportOnlyWhenAiming)
+        {
+            if (Profile.IsRifle)
+            {
+                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: supportOnlyWhenAiming);
                 locomotion.SetRifle(transform, Profile.ButtLocal, Profile.MuzzleLocal, Profile.HoldPosition, Profile.HoldRotation);
+            }
+            else
+            {
+                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: supportOnlyWhenAiming, handRotation: Profile.SupportHandRotation);
+                locomotion.SetPistol(transform, Profile.MuzzleLocal, Profile.HoldPosition, Profile.HoldRotation);
             }
         }
 
@@ -769,6 +784,7 @@ namespace CityX.Weapons
             {
                 locomotion.ClearSupportHand(_leftHandGrip);
                 locomotion.ClearRifle(transform);
+                locomotion.ClearPistol(transform);
             }
             UnhookReload(body, _cosmeticReloader);
             if (_cosmeticDriver != null)

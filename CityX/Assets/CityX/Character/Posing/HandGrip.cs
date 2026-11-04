@@ -22,6 +22,21 @@ namespace CityX.Character
         /// <summary>Extra fold of the index finger: the trigger pulled.</summary>
         public float Trigger;
 
+        /// <summary>
+        /// 0 to 1: how far the fingers take the folds below instead of the amounts above. A hand measured against what it holds (the pistol's grip and
+        /// trigger guard) is authored in degrees: an amount folds the tip with the root, which curled the fingers through the grip.
+        /// </summary>
+        public float Authored;
+
+        /// <summary>The index finger's folds, root and tip, degrees toward the palm on top of the modelled curl (negative opens it).</summary>
+        public float IndexRootDegrees, IndexTipDegrees;
+
+        /// <summary>The other three fingers' folds.</summary>
+        public float FingerRootDegrees, FingerTipDegrees;
+
+        /// <summary>The thumb's folds, root and tip, degrees across the palm on top of the modelled curl (negative lifts it clear of what the palm is on).</summary>
+        public float ThumbRootDegrees, ThumbTipDegrees;
+
         public FingerAmounts(float index, float middle, float ring, float little, float thumb, float thumbForward = 0.0f, float trigger = 0.0f)
         {
             Index = index;
@@ -31,6 +46,13 @@ namespace CityX.Character
             Thumb = thumb;
             ThumbForward = thumbForward;
             Trigger = trigger;
+            Authored = 0.0f;
+            IndexRootDegrees = 0.0f;
+            IndexTipDegrees = 0.0f;
+            FingerRootDegrees = 0.0f;
+            FingerTipDegrees = 0.0f;
+            ThumbRootDegrees = 0.0f;
+            ThumbTipDegrees = 0.0f;
         }
 
         /// <summary>The hand as modelled: nothing folded.</summary>
@@ -40,13 +62,33 @@ namespace CityX.Character
         public static FingerAmounts Wrap(float amount) => new FingerAmounts(amount, amount, amount, amount, amount);
 
         /// <summary>
-        /// The shooting hand on a pistol grip: three fingers wrapped round the front strap, the INDEX straight along the frame above the
-        /// trigger (on it only while <paramref name="trigger"/> pulls), the thumb forward along the frame (the thumbs-forward grip).
+        /// The shooting hand on a pistol grip (owner, 2026-11-03: "put the finger that pulls the trigger through that hole"), measured against the Glock's
+        /// outline in its hold (FirearmProfile.HoldPosition): three fingers square round the front strap and no further, the INDEX through the trigger
+        /// guard with its pad on the trigger, <paramref name="trigger"/> pulling it back, the thumb lying forward along the frame, lifted clear of it (a modelled
+        /// thumb curls in, and went into the frame). The numbers are the reload's too (CityX/SourceArt/Firearms/firearm_pose.py: PISTOL_STRONG).
         /// </summary>
-        public static FingerAmounts PistolStrong(float trigger = 0.0f) => new FingerAmounts(0.12f, 1.0f, 1.0f, 1.0f, 0.25f, 55.0f, 0.55f * Mathf.Clamp01(trigger));
+        public static FingerAmounts PistolStrong(float trigger = 0.0f) => new FingerAmounts(0.12f, 1.0f, 1.0f, 1.0f, 0.0f, 40.0f, Mathf.Clamp01(trigger))
+        {
+            Authored = 1.0f,
+            IndexRootDegrees = 30.0f,
+            IndexTipDegrees = 15.0f,
+            FingerRootDegrees = 70.0f,
+            FingerTipDegrees = -30.0f,
+            ThumbRootDegrees = -15.0f,
+            ThumbTipDegrees = -35.0f,
+        };
 
-        /// <summary>The support hand on a pistol: wrapped over the shooting hand's fingers, the thumb forward under the slide.</summary>
-        public static FingerAmounts PistolSupport => new FingerAmounts(0.95f, 0.95f, 0.95f, 0.9f, 0.2f, 50.0f);
+        /// <summary>The support hand on a pistol: all four fingers square round the shooting hand's on the front strap, the thumb lying forward along the frame.</summary>
+        public static FingerAmounts PistolSupport => new FingerAmounts(0.95f, 0.95f, 0.95f, 0.9f, 0.0f, 40.0f)
+        {
+            Authored = 1.0f,
+            IndexRootDegrees = 70.0f,
+            IndexTipDegrees = -30.0f,
+            FingerRootDegrees = 70.0f,
+            FingerTipDegrees = -30.0f,
+            ThumbRootDegrees = -15.0f,
+            ThumbTipDegrees = -35.0f,
+        };
 
         /// <summary>The shooting hand on a rifle's pistol grip.</summary>
         public static FingerAmounts RifleStrong(float trigger = 0.0f) => new FingerAmounts(0.12f, 1.0f, 1.0f, 1.0f, 0.35f, 40.0f, 0.55f * Mathf.Clamp01(trigger));
@@ -59,7 +101,16 @@ namespace CityX.Character
             t = Mathf.Clamp01(t);
             return new FingerAmounts(Mathf.Lerp(a.Index, b.Index, t), Mathf.Lerp(a.Middle, b.Middle, t), Mathf.Lerp(a.Ring, b.Ring, t),
                 Mathf.Lerp(a.Little, b.Little, t), Mathf.Lerp(a.Thumb, b.Thumb, t), Mathf.Lerp(a.ThumbForward, b.ThumbForward, t),
-                Mathf.Lerp(a.Trigger, b.Trigger, t));
+                Mathf.Lerp(a.Trigger, b.Trigger, t))
+            {
+                Authored = Mathf.Lerp(a.Authored, b.Authored, t),
+                IndexRootDegrees = Mathf.Lerp(a.IndexRootDegrees, b.IndexRootDegrees, t),
+                IndexTipDegrees = Mathf.Lerp(a.IndexTipDegrees, b.IndexTipDegrees, t),
+                FingerRootDegrees = Mathf.Lerp(a.FingerRootDegrees, b.FingerRootDegrees, t),
+                FingerTipDegrees = Mathf.Lerp(a.FingerTipDegrees, b.FingerTipDegrees, t),
+                ThumbRootDegrees = Mathf.Lerp(a.ThumbRootDegrees, b.ThumbRootDegrees, t),
+                ThumbTipDegrees = Mathf.Lerp(a.ThumbTipDegrees, b.ThumbTipDegrees, t),
+            };
         }
     }
 
@@ -82,6 +133,11 @@ namespace CityX.Character
 
         /// <summary>How far the finger's tip bone folds on, degrees.</summary>
         public const float FingerIntermediateDegrees = 50.0f;
+
+        /// <summary>How much further an authored index finger folds with the trigger fully pulled, degrees, root then tip.</summary>
+        public const float TriggerPullRootDegrees = 6.0f;
+
+        public const float TriggerPullTipDegrees = 14.0f;
 
         /// <summary>How far the thumb folds across the handle, degrees, root then tip.</summary>
         public const float ThumbProximalDegrees = 35.0f;
@@ -155,7 +211,9 @@ namespace CityX.Character
             if (thumb)
             {
                 float t = Mathf.Clamp01(amounts.Thumb);
-                Quaternion curl = ThumbCurl((root ? ThumbProximalDegrees : ThumbIntermediateDegrees) * t);
+                float fold = (root ? ThumbProximalDegrees : ThumbIntermediateDegrees) * t;
+                fold = Mathf.Lerp(fold, root ? amounts.ThumbRootDegrees : amounts.ThumbTipDegrees, amounts.Authored);
+                Quaternion curl = ThumbCurl(fold);
                 return root ? ThumbForward(rightHand, amounts.ThumbForward) * curl : curl;
             }
             float amount;
@@ -167,7 +225,15 @@ namespace CityX.Character
                 default: amount = amounts.Little; break;
             }
             amount = Mathf.Clamp01(amount);
-            return FingerCurl(rightHand, (root ? FingerProximalDegrees : FingerIntermediateDegrees) * amount);
+            float degrees = (root ? FingerProximalDegrees : FingerIntermediateDegrees) * amount;
+            if (amounts.Authored > 0.0f)
+            {
+                float authored = index < 2
+                    ? (root ? amounts.IndexRootDegrees + TriggerPullRootDegrees * amounts.Trigger : amounts.IndexTipDegrees + TriggerPullTipDegrees * amounts.Trigger)
+                    : (root ? amounts.FingerRootDegrees : amounts.FingerTipDegrees);
+                degrees = Mathf.Lerp(degrees, authored, amounts.Authored);
+            }
+            return FingerCurl(rightHand, degrees);
         }
     }
 

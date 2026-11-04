@@ -92,7 +92,6 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(hold * Vector3.forward, new Vector3(Mathf.Cos(dip), 0.0f, -Mathf.Sin(dip))), 1e-4f, "the barrel");
             Assert.Less(Vector3.Distance(hold * Vector3.up, new Vector3(Mathf.Sin(dip), 0.0f, Mathf.Cos(dip))), 1e-4f, "the top of the gun");
             Assert.Less(Vector3.Distance(hold * Vector3.right, Vector3.up), 1e-4f, "the gun's right is the back of the hand");
-            Assert.AreEqual(FirearmProfile.Glock().HoldRotation, FirearmProfile.AK47().HoldRotation, "one hold for every pistol grip");
         }
 
         [Test]
@@ -158,14 +157,23 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void AGunsTriggerFingerLiesAlongTheFrameUntilItFires()
+        public void ARiflesTriggerFingerLiesAlongTheFrameUntilItFiresAndAPistolsRestsOnTheTrigger()
         {
             float IndexFold(FingerAmounts a) => Quaternion.Angle(Quaternion.identity, HandGrip.CurlFor(0, true, a));
+            float IndexTipFold(FingerAmounts a) => Quaternion.Angle(Quaternion.identity, HandGrip.CurlFor(1, true, a));
             float MiddleFold(FingerAmounts a) => Quaternion.Angle(Quaternion.identity, HandGrip.CurlFor(2, true, a));
+            FingerAmounts rifle = FingerAmounts.RifleStrong(0.0f);
+            Assert.Less(IndexFold(rifle), 10.0f, "a rifle's trigger finger is curled round the grip while it is only carried");
+            Assert.AreEqual(HandGrip.FingerProximalDegrees, MiddleFold(rifle), 0.01f, "a rifle's other fingers wrap the grip");
+            Assert.Greater(IndexFold(FingerAmounts.RifleStrong(1.0f)), IndexFold(rifle) + 20.0f, "pulling the trigger folds a rifle's trigger finger");
+
+            // The pistol's are authored against its grip (PistolHoldPlayTests has them on the real hands): through the guard even while only carried.
             FingerAmounts carried = FingerAmounts.PistolStrong(0.0f);
-            Assert.Less(IndexFold(carried), 10.0f, "the trigger finger is curled round the grip while the gun is only carried");
-            Assert.AreEqual(HandGrip.FingerProximalDegrees, MiddleFold(carried), 0.01f, "the other fingers wrap the grip");
-            Assert.Greater(IndexFold(FingerAmounts.PistolStrong(1.0f)), IndexFold(carried) + 20.0f, "pulling the trigger folds the trigger finger");
+            FingerAmounts pulled = FingerAmounts.PistolStrong(1.0f);
+            Assert.Greater(IndexFold(carried), 20.0f, "a pistol's trigger finger is not curled in through the guard");
+            Assert.Greater(MiddleFold(carried), IndexFold(carried), "a pistol's other fingers do not close further than the trigger finger");
+            Assert.Greater(IndexFold(pulled), IndexFold(carried) + 4.0f, "pulling the trigger folds a pistol's trigger finger");
+            Assert.Greater(IndexTipFold(pulled), IndexTipFold(carried) + 10.0f, "pulling the trigger folds a pistol's trigger finger's tip");
             Quaternion thumbForward = HandGrip.CurlFor(8, true, carried);
             Quaternion thumbWrapped = HandGrip.CurlFor(8, true, FingerAmounts.Wrap(1.0f));
             Assert.Greater(Quaternion.Angle(thumbForward, thumbWrapped), 30.0f, "the thumb lies forward along a gun's frame, not across it");

@@ -19,8 +19,8 @@ namespace CityX.Weapons
     /// stays in the weapon.
     ///
     /// GEOMETRY is in the gun model's own frame: x the shooter's right, y up, z the muzzle, the origin at the WEB of the pistol grip (the model
-    /// scripts put it there: CityX/SourceArt/Glock/glock_model.py, CityX/SourceArt/AK47/ak47_model.py), which is why one hold
-    /// (<see cref="HoldPosition"/>, <see cref="HoldDipDegrees"/>) fits every gun with a pistol grip. The points are the model's own .points.json.
+    /// scripts put it there: CityX/SourceArt/Glock/glock_model.py, CityX/SourceArt/AK47/ak47_model.py), so a hold
+    /// (<see cref="HoldPosition"/>, <see cref="HoldDipDegrees"/>) means the same on every gun. The rifles share one; the Glock has its own, measured against the hand. The points are the model's own .points.json.
     /// </summary>
     [System.Serializable]
     public sealed class FirearmProfile
@@ -93,29 +93,32 @@ namespace CityX.Weapons
         public AudioClip ReloadSoundFor(bool empty) => empty ? EmptyReloadSound : ReloadSound;
 
         [Header("The hold (the gun's frame in the right hand bone's)")]
-        [Tooltip("Where the gun's origin (the web of its grip) sits in the hand bone's frame: the web of the hand, between thumb and index.")]
-        public Vector3 HoldPosition = new Vector3(0.10f, -0.01f, 0.095f);
+        [Tooltip("Where the gun's origin (the web of its grip) sits in the hand bone's frame. The Glock's is measured against the hand (FusedBodyShape): its " +
+                 "right panel flat on the palm (half the palm's thickness and half the frame's width to the palm side), its front strap one finger's radius " +
+                 "short of the finger roots, the trigger guard level with the index finger.")]
+        public Vector3 HoldPosition = new Vector3(-0.056f, -0.0795f, 0.037f);
 
-        [Tooltip("The barrel dips this many degrees below the hand's own knuckle line (a high grip).")]
-        public float HoldDipDegrees = 15.0f;
+        [Tooltip("The barrel dips this many degrees below the hand's own knuckle line. The Glock's is negative: the barrel rises by the grip's rake, so the " +
+                 "grip runs along the line of the finger roots and the fingers close square round it.")]
+        public float HoldDipDegrees = -22.0f;
 
         public float HoldScale = 1.0f;
 
         [Tooltip("How much bigger it lies in the world than in the hand, so it can be seen on the ground.")]
-        public float WorldPickupScale = 1.3f;
+        public float WorldPickupScale = 1.0f;
 
         [Header("The support hand (gun frame)")]
-        [Tooltip("Where the free hand's palm goes on the gun. The Glock's is on the left of the grip, a little behind its middle: with the " +
-                 "shooting arm out at full reach, the other arm (0.89 m) only just gets there (WeaponHandsPlayTests measures it).")]
-        public Vector3 SupportHandLocal = new Vector3(-0.07f, -0.11f, -0.02f);
+        [Tooltip("Where the free hand's palm goes on the gun. The Glock's is flat on the left panel, a finger's thickness forward of the shooting hand's " +
+                 "mirror image (its fingers close over the shooting fingers) and low enough that its index finger is under the trigger guard.")]
+        public Vector3 SupportHandLocal = new Vector3(-0.0795f, -0.165f, 0.127f);
 
         [Tooltip("True for a pistol: the free hand comes onto the gun only when it is raised to aim. A rifle is held two-handed always.")]
         public bool SupportHandOnlyWhenAiming = true;
 
         [Header("Points on the gun (gun frame, from the model's .points.json)")]
-        public Vector3 MuzzleLocal = new Vector3(0.0f, 0.043f, 0.352f);
+        public Vector3 MuzzleLocal = new Vector3(0.0f, 0.05625f, 0.4625f);
 
-        public Vector3 EjectionPortLocal = new Vector3(0.024f, 0.050f, 0.171f);
+        public Vector3 EjectionPortLocal = new Vector3(0.031875f, 0.06625f, 0.225f);
 
         [Tooltip("Which way a spent case leaves the port: right, up, a little back.")]
         public Vector3 EjectionDirectionLocal = new Vector3(1.0f, 0.75f, -0.3f);
@@ -132,7 +135,7 @@ namespace CityX.Weapons
         public string TriggerPartName = "Trigger";
 
         [Tooltip("How far the slide or bolt travels back on a shot, metres (the model's own travel).")]
-        public float ActionTravel = 0.0855f;
+        public float ActionTravel = 0.1125f;
 
         [Tooltip("How long the action takes to cycle on a shot, seconds: back, then home.")]
         public float ActionCycleSeconds = 0.075f;
@@ -140,9 +143,9 @@ namespace CityX.Weapons
         public float TriggerPullDegrees = 14.0f;
 
         [Tooltip("A spent case's size, metres: a pistol's short and fat, a rifle's long and bottlenecked.")]
-        public float CasingLength = 0.036f;
+        public float CasingLength = 0.047f;
 
-        public float CasingRadius = 0.0095f;
+        public float CasingRadius = 0.0125f;
         [Header("A crossbow (docs/ARCHERY.md)")]
         [Tooltip("Its shot is an arrow (PistolWeapon.ArrowPrefab) that falls on past the range at this speed, m/s. 0 for a gun.")]
         public float ArrowFallSpeed;
@@ -160,6 +163,12 @@ namespace CityX.Weapons
                 return Quaternion.LookRotation(barrel, top);
             }
         }
+
+        /// <summary>
+        /// The free hand's rotation on a pistol, in the gun's frame: the shooting hand's mirrored across the gun, palm on the left panel, fingers the way the
+        /// shooting fingers run, thumb up the grip (the left hand bone's +X runs back up the arm, -Y is the palm, +Z the thumb).
+        /// </summary>
+        public Quaternion SupportHandRotation => Quaternion.LookRotation(Quaternion.Inverse(HoldRotation) * Vector3.forward, Vector3.left);
 
         /// <summary>The camera kick of the n-th shot of a burst (0-based): the pattern's entry, its last repeating.</summary>
         public Vector2 RecoilFor(int shotInBurst)
@@ -195,6 +204,8 @@ namespace CityX.Weapons
                 ItemId = ItemRegistry.AK47,
                 DisplayName = "AK-47",
                 Kind = FirearmKind.Rifle,
+                HoldPosition = new Vector3(0.10f, -0.01f, 0.095f),
+                HoldDipDegrees = 15.0f,
                 MagazineSize = 30,
                 StartingReserveAmmo = 90,
                 Damage = 34.0f,
@@ -251,6 +262,8 @@ namespace CityX.Weapons
                 ItemId = ItemRegistry.Crossbow,
                 DisplayName = "Crossbow",
                 Kind = FirearmKind.Rifle,
+                HoldPosition = new Vector3(0.10f, -0.01f, 0.095f),
+                HoldDipDegrees = 15.0f,
                 MagazineSize = 1,
                 StartingReserveAmmo = 40,
                 Damage = ArcheryRules.BoltDamage,

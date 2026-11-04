@@ -926,7 +926,9 @@ namespace CityX.Character
             float keep = _bakedPoseWeight;
             if (_handL != null && !LeftHandHolds)
             {
-                _handL.localRotation = keep > 0.0f ? Quaternion.Slerp(Quaternion.identity, _handL.localRotation, keep) : Quaternion.identity;
+                // (Nor is a hand laid flat on a pistol's grip empty: straightened, its fingers ran down the forearm's line, through the gun.)
+                float keepLeft = Mathf.Max(keep, _supportHandLaid);
+                _handL.localRotation = keepLeft > 0.0f ? Quaternion.Slerp(Quaternion.identity, _handL.localRotation, keepLeft) : Quaternion.identity;
             }
             if (_handR != null && !RightHandHolds)
             {

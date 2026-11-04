@@ -183,13 +183,18 @@ def child_head(D, pos, child, parent):
 #   props: {part: {pos, rot (gun frame), visible, in_hand (the free hand carries it), hand (pos, rot of the part in the free hand's frame)}}
 # Discrete fields (space, visible, in_hand, hand) step at a key; everything else blends between keys.
 
-def fingers(index=1.0, middle=1.0, ring=1.0, little=1.0, thumb=1.0, thumb_forward=0.0, trigger=0.0):
-    return {"index": index, "middle": middle, "ring": ring, "little": little, "thumb": thumb, "thumb_forward": thumb_forward, "trigger": trigger}
+def fingers(index=1.0, middle=1.0, ring=1.0, little=1.0, thumb=1.0, thumb_forward=0.0, trigger=0.0, authored=0.0, index_root=0.0, index_tip=0.0, finger_root=0.0, finger_tip=0.0, thumb_root=0.0, thumb_tip=0.0, thumb_authored=0.0):
+    return {"index": index, "middle": middle, "ring": ring, "little": little, "thumb": thumb, "thumb_forward": thumb_forward, "trigger": trigger,
+            "authored": authored, "index_root": index_root, "index_tip": index_tip, "finger_root": finger_root, "finger_tip": finger_tip,
+            "thumb_root": thumb_root, "thumb_tip": thumb_tip, "thumb_authored": thumb_authored}
 
 
 OPEN_HAND = fingers(0.15, 0.15, 0.15, 0.15, 0.1)
-PISTOL_STRONG = fingers(0.12, 1.0, 1.0, 1.0, 0.25, thumb_forward=55.0)
-PISTOL_SUPPORT = fingers(0.95, 0.95, 0.95, 0.9, 0.2, thumb_forward=50.0)
+# Measured against the Glock in its hold: the game's FingerAmounts.PistolStrong and PistolSupport, the same numbers.
+PISTOL_STRONG = fingers(0.12, 1.0, 1.0, 1.0, 0.0, thumb_forward=40.0, authored=1.0, index_root=30.0, index_tip=15.0, finger_root=70.0, finger_tip=-30.0,
+                        thumb_root=-15.0, thumb_tip=-35.0, thumb_authored=1.0)
+PISTOL_SUPPORT = fingers(0.95, 0.95, 0.95, 0.9, 0.0, thumb_forward=40.0, authored=1.0, index_root=70.0, index_tip=-30.0, finger_root=70.0, finger_tip=-30.0,
+                         thumb_root=-15.0, thumb_tip=-35.0, thumb_authored=1.0)
 RIFLE_STRONG = fingers(0.12, 1.0, 1.0, 1.0, 0.35, thumb_forward=40.0)
 RIFLE_SUPPORT = fingers(0.75, 0.8, 0.8, 0.75, 1.0)
 MAG_HOLD = fingers(0.3, 0.85, 0.9, 0.9, 0.7, thumb_forward=20.0)
@@ -202,11 +207,19 @@ def finger_turns(spec, right):
     for name in ("index", "middle", "ring", "little"):
         amount = spec[name] + (spec.get("trigger", 0.0) if name == "index" else 0.0)
         amount = max(0.0, min(1.0, amount))
-        out.append(Quaternion((0, 0, 1), math.radians(sign * FINGER_PROXIMAL * amount)))
-        out.append(Quaternion((0, 0, 1), math.radians(sign * FINGER_INTERMEDIATE * amount)))
+        root_fold, tip_fold = FINGER_PROXIMAL * amount, FINGER_INTERMEDIATE * amount
+        if spec["authored"] > 0.0:
+            pull = spec.get("trigger", 0.0) if name == "index" else 0.0
+            wanted_root = spec["index_root"] + 6.0 * pull if name == "index" else spec["finger_root"]
+            wanted_tip = spec["index_tip"] + 14.0 * pull if name == "index" else spec["finger_tip"]
+            root_fold, tip_fold = lerp(root_fold, wanted_root, spec["authored"]), lerp(tip_fold, wanted_tip, spec["authored"])
+        out.append(Quaternion((0, 0, 1), math.radians(sign * root_fold)))
+        out.append(Quaternion((0, 0, 1), math.radians(sign * tip_fold)))
     forward = Quaternion((0, 1, 0), math.radians((1.0 if right else -1.0) * spec.get("thumb_forward", 0.0)))
-    out.append(forward @ Quaternion((1, 0, 0), math.radians(THUMB_PROXIMAL * spec["thumb"])))
-    out.append(Quaternion((1, 0, 0), math.radians(THUMB_INTERMEDIATE * spec["thumb"])))
+    thumb_root = lerp(THUMB_PROXIMAL * spec["thumb"], spec["thumb_root"], spec["thumb_authored"])
+    thumb_tip = lerp(THUMB_INTERMEDIATE * spec["thumb"], spec["thumb_tip"], spec["thumb_authored"])
+    out.append(forward @ Quaternion((1, 0, 0), math.radians(thumb_root)))
+    out.append(Quaternion((1, 0, 0), math.radians(thumb_tip)))
     return out
 
 

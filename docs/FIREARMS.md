@@ -48,13 +48,14 @@ dominant hand driving the gun and the off hand IK'd to a point on it, the off-ha
   picture in millimetres about the web of the grip and built as outlines extruded across the gun's width, the slide's nose lofted. The
   picture looks a little down on the gun, which stood the grip up (traced, the backstrap leaned forward and the fingers could not get
   round the grip), so below the frame the grip is leaned back 8 degrees (`GRIP_LEAN_DEGREES`; the magazine's rake comes to 23). Times
-  1.9, as before (the body is 2.6 m with wide hands). Parts: Frame (grip, trigger guard, levers, pins), Slide (ejection port, rear
+  2.5: at 1.9 the grip was 16 cm tall for a 22 cm hand and the guard's opening hardly wider than a 5 cm finger (owner, 2026-11-03: "scale it up
+  if you have to"). Parts: Frame (grip, trigger guard, levers, pins), Slide (ejection port, rear
   serrations, three-dot sights), Barrel, Magazine (with its baseplate), Trigger. The first model (2026-10-14, boxes from a Glock 19's
   figures) had the grip as a long slab hanging off the back and the trigger guard as a loose wire ("ours is all jacked up"). It
   **replaces the placeholder Beretta** (`Models/Beretta_M9.obj`, the owner's Meshy model, left on disk unused). The item is still
   `pistol` and the prefab still `Pistol.prefab`. The gun's points in `FirearmProfile` (muzzle, ejection port, magazine's way out, the
-  support hand's palm) are the class defaults, baked into the prefab by the build: change them and rebuild. The support hand sits at the
-  rear of the grip's left side, low; forward or higher is out of the support arm's reach (`WeaponHandsPlayTests`).
+  support hand's palm) are the class defaults, baked into the prefab by the build: change them and rebuild. How the hands hold it: "The
+  pistol in both hands", below.
 - **AK-47** (`CityX/SourceArt/AK47/ak47_model.py`): real proportions (880 mm overall, 415 mm barrel) times 1.45 -- the size at
   which the support hand reaches the handguard with the stock in the shoulder. Parts: Body (receiver, dust cover, wooden stock, grip
   and handguards, gas tube, barrel, sights, trigger guard, magazine paddle, selector), a curved Magazine whose origin is its front lug
@@ -106,10 +107,35 @@ cancel; after the rack for an empty reload). A body without the motion (a bare t
 ### The fingers on the gun
 
 `HandGrip` now takes per-digit amounts (`FingerAmounts`) instead of one "closed" number, and a held item can say how its hands
-hold it (`IHandGripStyle`). A gun's shooting hand: three fingers round the front strap, the **trigger finger straight along the
-frame** while carried, **on the trigger** while aimed, **pulled** for a moment on each shot; the thumb lies forward along the frame.
-The pistol's support hand wraps over the shooting hand's fingers, thumb forward; the rifle's support hand curls under the handguard.
-During a reload the motion's own finger poses win (`BakedPoseWeight`).
+hold it (`IHandGripStyle`). A rifle's shooting hand: three fingers round the grip, the trigger finger straight along the frame while
+carried, on the trigger while aimed, pulled for a moment on each shot; its support hand curls under the handguard. During a reload the
+motion's own finger poses win (`BakedPoseWeight`).
+
+### The pistol in both hands (owner, 2026-11-03)
+
+"he doesnt grip the glock properly", "put the finger that pulls the trigger through that hole", "look its fucking poking through", "the pov when
+shooting the pistol doesnt show enough of the gun its covered by the body". What was wrong, all of it measured: the gun sat inside the hand
+(`HoldPosition` 1 cm to the palm side, when the palm's surface is 4 cm from the bone), so folded fingers went through it; the grip was too small for
+the hand; `ApplyStraightWrists` straightened the left hand after it was placed, so its fingers ran down the forearm's line through the gun; a straight
+arm from the shoulder left the left arm out of reach and the gun level with the face, behind the head.
+
+- **The hold is measured against the hand** (`FusedBodyShape`'s palm and fingers, `glock_model.py`'s outline). The right panel flat on the palm, the
+  front strap a finger's radius short of the finger roots, the barrel rising 22 degrees above the knuckle line (the grip's rake), so the grip
+  runs along the line of the finger roots. The rifles keep the old hold.
+- **The fingers are authored in degrees** (`FingerAmounts.PistolStrong`, `PistolSupport`; `Authored`): an amount folds the tip with the root, which curls a
+  finger through a grip. Three fingers square round the front strap and no further; **the index through the guard with its pad on the trigger, always**;
+  a shot pulls it back; the thumbs lie forward along the frame, lifted clear of it. (Real shooters' strong thumb is on the far side of the frame; ours
+  starts ahead of the backstrap, level with the slide, and can only get there through the gun, so it lies along the near side.)
+- **The gun is placed and the arms follow** (`PlayerLocomotion.PistolHold.cs`, as the rifle): raised, the chest turns 15 degrees right, the gun goes out past
+  the side of the head and over the shoulder (`PistolInChest`), barrel at the crosshair's point, the right arm solved onto it.
+- **The left hand is laid on the grip** (`SetSupportHand`'s `handRotation`, `FirearmProfile.SupportHandRotation`): the right hand's rotation mirrored across the
+  gun, palm flat on the left panel, a finger's thickness further forward so its fingers close over the right hand's.
+- **Other players see it**: `MountCosmetic` sets the same hold, and a copy raises the pistol on its synced Aiming parameter.
+- **The aim camera** is the pistol's own: `ThirdPersonCamera.PistolAim`, docs/CAMERA.md.
+
+`PistolHoldPlayTests` checks all of this against the model's outline on the real hands, `FirearmPlayTests` that no corner of the gun is behind the head and
+it is at least 6% of the screen wide. `PistolAimCapture` (Explicit, -Graphics) renders `pistol-grip.png`, `pistol-aim-game.png`, `pistol-aim-views.png`
+and `pistol-hipfire.png`. The reload's `READY`, hold and finger numbers (`glock_reload.py`, `firearm_pose.py`) match these: change both and rebake.
 
 ### The rifle hold (`PlayerLocomotion.RifleAim.cs`)
 

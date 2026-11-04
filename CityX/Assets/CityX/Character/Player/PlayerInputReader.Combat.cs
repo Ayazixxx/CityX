@@ -78,6 +78,7 @@ namespace CityX.Character
             if (_orbitCamera != null)
             {
                 _orbitCamera.IsAiming = false;
+                _orbitCamera.PistolAim = _locomotion != null && _locomotion.HoldsPistol;
             }
             _isAimingGun = false;
             if (_vitals != null)
