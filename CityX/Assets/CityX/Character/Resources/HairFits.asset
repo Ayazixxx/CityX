@@ -55,6 +55,6 @@ MonoBehaviour:
       Scale: {x: 1, y: 1, z: 1}
   - Style: kickhair
     Fit:
-      Position: {x: 0.012366095, y: -2.2251189, z: -0.020252394}
+      Position: {x: 0, y: -2.27, z: 0}
       Euler: {x: 0, y: 0, z: 0}
-      Scale: {x: 1.0324687, y: 1.0324687, z: 1.0324687}
+      Scale: {x: 1, y: 1, z: 1}

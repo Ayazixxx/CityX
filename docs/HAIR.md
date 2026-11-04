@@ -179,6 +179,8 @@ below the head; Decimate Collapse). At 6,000 the strand grooves down the back me
 textures; style `kickhair`, button KICK, baked as usual. `TitleScreenCapture.RebuildAndCaptureKickHair` shoots `Logs/CityShots/hair-kick-*.png`. Both scenes and
 `NetworkedPlayer.prefab` were rebuilt.
 
+Its fit is the owner's, placed by hand (position 0, -2.27, 0; scale 1; 2026-11-04).
+
 ## Added 2026-10-21: dreads
 
 The owner's dreadlocks (701,603 triangles from Meshy) brought down in Blender to 5,983 (Decimate Collapse; 11 stray triangles below

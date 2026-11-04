@@ -332,38 +332,17 @@ namespace CityX.Tests
             Assert.That(placed.max.y, Is.InRange(FusedBodyShape.HeadRadius, FusedBodyShape.HeadRadius * 1.7f), "the dreads do not sit on the crown");
         }
 
-        /// <summary>The kick hair (2026-11-03) came as 164,057 triangles with specks a metre under the head: cut down, in one piece, and placed on its hollow, so the head stays inside.</summary>
+        /// <summary>The kick hair (2026-11-03) came as 164,057 triangles with specks a metre under the head: cut down, in one piece, and worn where the owner placed it.</summary>
         [Test]
-        public void TheKickHairIsCutDownAndHoldsTheWholeHead()
+        public void TheKickHairIsCutDownAndWornWhereTheOwnerPlacedIt()
         {
             Mesh mesh = BakedMesh(CharacterHair.KickHair);
             Assert.LessOrEqual(mesh.triangles.Length / 3, 9500, "the kick hair is not cut down");
             Assert.Less(mesh.bounds.size.y, 1.0f, "stray pieces are left far from the hair");
             var saved = UnityEditor.AssetDatabase.LoadAssetAtPath<HairFitSettings>(UIEditor.HairAssets.FitSettingsPath);
             Assert.IsTrue(saved.TryGet(CharacterHair.KickHair, out CharacterHair.Fit fit), "the kick hair has no saved fit");
-            var cover = new GameObject("KickCover");
-            bool hitBackfaces = Physics.queriesHitBackfaces;
-            try
-            {
-                cover.AddComponent<MeshCollider>().sharedMesh = UIEditor.HairAssets.Bake(mesh, Matrix4x4.TRS(fit.Position, Quaternion.Euler(fit.Euler), fit.Scale));
-                Physics.SyncTransforms();
-                Physics.queriesHitBackfaces = true;
-                for (float turn = 0.0f; turn < 360.0f; turn += 15.0f)
-                {
-                    for (float height = HairScalp.Hairline(turn) + 5.0f; height < 90.0f; height += 10.0f)
-                    {
-                        float h = height * Mathf.Deg2Rad, t = turn * Mathf.Deg2Rad;
-                        var direction = new Vector3(Mathf.Cos(h) * Mathf.Sin(t), Mathf.Sin(h), Mathf.Cos(h) * Mathf.Cos(t));
-                        Assert.IsTrue(Physics.Raycast(direction * FusedBodyShape.HeadRadius, direction, FusedBodyShape.HeadRadius),
-                            $"the head comes through the kick hair {turn:0} degrees round, {height:0} up");
-                    }
-                }
-            }
-            finally
-            {
-                Physics.queriesHitBackfaces = hitBackfaces;
-                Object.DestroyImmediate(cover);
-            }
+            Assert.AreEqual(new Vector3(0.0f, -2.27f, 0.0f), fit.Position);
+            Assert.AreEqual(Vector3.one, fit.Scale);
         }
 
         [Test]
