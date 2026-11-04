@@ -241,7 +241,7 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, SwordStrikes.Guard(true).FreeHandWeight, 0.001f, "the guard holds the free hand up instead of leaving it relaxed");
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (SwordStrikes.IsOneHanded(kind) && kind != SwordStrikeKind.Finisher1H)
+                if (kind == SwordStrikeKind.Thrust1H || kind == SwordStrikeKind.Overhead1H)   // (the chain's cuts swing it against the blade: below)
                 {
                     float most = float.MinValue, least = float.MaxValue;
                     for (int i = 0; i <= 50; i++)
@@ -439,6 +439,80 @@ namespace CityX.Tests
             {
                 Object.DestroyImmediate(body);
             }
+        }
+
+        /// <summary>
+        /// The whole body behind the first two cuts, not an arm waving a stiff one: leaning away in the wind-up with the stride already open, into the blow at the
+        /// contact, and the free arm swinging against the blade. Long and out at its own side: bent, it reads as a hand on the hip, and across, in front of the crotch.
+        /// </summary>
+        [Test]
+        public void TheFirstTwoCutsPutTheBodyBehindTheBlade()
+        {
+            foreach ((SwordStrikeKind kind, float armAtWindUp) in new[] { (SwordStrikeKind.Slash1H, 1.0f), (SwordStrikeKind.Cut1H, -1.0f) })
+            {
+                SwordFrame windup = SwordStrikes.Evaluate(kind, SwordStrikes.StrikeStart(kind));
+                SwordFrame contact = SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind));
+                SwordFrame follow = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveEnd(kind) + 0.05f);
+                Assert.Less(windup.LeanDegrees, 0.0f, $"{kind} does not lean away in its wind-up");
+                Assert.Greater(contact.LeanDegrees, 10.0f, $"{kind} does not drive in over the front foot");
+                Assert.Greater(windup.StanceDepth, SwordStrikes.Ready(true).StanceDepth + 0.1f, $"{kind}: the stride opens on the strike, so the foot lands after the blow");
+                Assert.Greater(armAtWindUp * windup.FreeHand.z, 0.3f, $"{kind}: the free arm is not on the far side of the swing at the wind-up");
+                Assert.Less(armAtWindUp * contact.FreeHand.z, -0.3f, $"{kind}: the free arm does not swing across against the blade");
+                foreach (SwordFrame held in new[] { windup, contact, follow })
+                {
+                    Assert.Greater(held.FreeHand.magnitude, 0.9f, $"{kind}: the free arm is bent: it reads as a hand on the hip");
+                    Assert.Less(held.FreeHand.x, -0.1f, $"{kind}: the free hand is across the body");
+                    Assert.Less(held.FreeHand.y, -0.6f, $"{kind}: the free hand is held up, not swinging low");
+                }
+                Assert.Less(Vector3.Distance(SwordStrikes.Evaluate(kind, 1.0f).FreeHand, SwordStrikes.FreeHandRelaxed), SwordStrikes.FreeHandBalanceSwing,
+                    $"{kind}: the free arm does not end relaxed");
+                // Round from the shoulder as it crosses: straight across the chord it would fold on the way.
+                for (float t = SwordStrikes.StrikeStart(kind); t < SwordStrikes.ContactFraction(kind); t += 0.005f)
+                {
+                    Assert.Greater(SwordStrikes.Evaluate(kind, t).FreeHand.magnitude, 0.9f, $"{kind} t={t:0.00}: the free arm folds as it swings");
+                }
+            }
+        }
+
+        /// <summary>The power travels up the body: halfway through the strike the hips have done most of their turn, the shoulders less, the arm less, the blade least. All arrive together.</summary>
+        [Test]
+        public void TheFirstTwoCutsSetOffFromTheHipsAndTheBladeComesLast()
+        {
+            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H })
+            {
+                float start = SwordStrikes.StrikeStart(kind), end = SwordStrikes.ContactFraction(kind);
+                SwordFrame a = SwordStrikes.Evaluate(kind, start);
+                SwordFrame mid = SwordStrikes.Evaluate(kind, (start + end) * 0.5f);
+                SwordFrame b = SwordStrikes.Evaluate(kind, end);
+                float hips = (mid.HipTwistDegrees - a.HipTwistDegrees) / (b.HipTwistDegrees - a.HipTwistDegrees);
+                float shoulders = (mid.TwistDegrees - a.TwistDegrees) / (b.TwistDegrees - a.TwistDegrees);
+                float blade = Vector3.Angle(a.Blade, mid.Blade) / Vector3.Angle(a.Blade, b.Blade);
+                Assert.Greater(hips, shoulders, $"{kind}: the shoulders are ahead of the hips");
+                Assert.Greater(shoulders, blade, $"{kind}: the blade is ahead of the shoulders");
+                Assert.AreEqual(0.125f, blade, 0.05f, $"{kind}: the blade's own whip has changed");
+            }
+        }
+
+        /// <summary>One step a cut, on the foot the cut strides on, and nothing in the air for the blow. The feet catch up after it.</summary>
+        [Test]
+        public void EachCutOfTheChainStepsOneFootAndKeepsBothDownForTheBlow()
+        {
+            foreach ((SwordStrikeKind kind, FootSteps stride) in new[]
+            {
+                (SwordStrikeKind.Slash1H, FootSteps.OnlyLeft), (SwordStrikeKind.Cut1H, FootSteps.OnlyRight), (SwordStrikeKind.Finisher1H, FootSteps.OnlyLeft),
+            })
+            {
+                SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
+                float lastDeparture = (t.Contact - SwordFootwork.StepSeconds) / t.Total;
+                Assert.Greater(lastDeparture, 0.0f, $"{kind} is too quick for a step to land before the blow");
+                Assert.AreEqual(stride, SwordStrikes.Evaluate(kind, 0.0f).Steps, $"{kind} at the start");
+                Assert.AreEqual(stride, SwordStrikes.Evaluate(kind, lastDeparture - 0.01f).Steps, $"{kind} just before the last moment a step could land in time");
+                Assert.AreEqual(FootSteps.None, SwordStrikes.Evaluate(kind, lastDeparture + 0.01f).Steps, $"{kind}: a step could set off and still be in the air at the blow");
+                Assert.AreEqual(FootSteps.None, SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind)).Steps, $"{kind} at the blow");
+                Assert.AreEqual(FootSteps.Any, SwordStrikes.Evaluate(kind, 1.0f).Steps, $"{kind}: the feet do not catch up in the recovery");
+            }
+            Assert.AreEqual(FootSteps.Any, SwordStrikes.Ready(true).Steps);
+            Assert.AreEqual(FootSteps.Any, SwordStrikes.Evaluate(SwordStrikeKind.Sweep2H, 0.3f).Steps, "the two-handed chain has not had this treatment yet");
         }
 
         /// <summary>The finisher reads as the end of the chain: from over the right shoulder down to the lower left, a longer stride and a deeper sink than either cut before it.</summary>

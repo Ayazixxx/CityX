@@ -192,7 +192,8 @@ namespace CityX.Tests
                             log.AppendLine($"t={t:0.00} {combat.Phase,-8} progress={driver.SwordPoser.Progress:0.00} tip=({tipLocal.x:0.00},{tipLocal.y:0.00},{tipLocal.z:0.00}) " +
                                            $"tipSpeed={tipSpeed:0.0} hand=({handActual.x:0.00},{handActual.y:0.00},{handActual.z:0.00}) asked=({frame.Hand.x:0.00},{frame.Hand.y:0.00},{frame.Hand.z:0.00}) " +
                                            $"blade=({bladeActual.x:0.00},{bladeActual.y:0.00},{bladeActual.z:0.00}) asked=({frame.Blade.x:0.00},{frame.Blade.y:0.00},{frame.Blade.z:0.00}) " +
-                                           $"twist={frame.TwistDegrees:0} lean={frame.LeanDegrees:0} drop={frame.HipDrop:0.00} left={leftError * 100:0}cm");
+                                           $"twist={frame.TwistDegrees:0} lean={frame.LeanDegrees:0} drop={frame.HipDrop:0.00} left={leftError * 100:0}cm " +
+                                           $"feet={(locomotion.SwordFootwork.IsStepping(0) ? "L" : "-")}{(locomotion.SwordFootwork.IsStepping(1) ? "R" : "-")}");
                         }
                         if (t >= shots[column] - 0.0001f)
                         {

@@ -675,3 +675,17 @@ Owner: "lets make combos", a diagonal finisher, no knockback to start ("that sho
 - **The weight:** it lands as a heavy blow whatever its stun (`SoulsAttack.LandsHeavily`, `DamageContext.HeavyBlow`, forwarded to other players' bodies by `NetworkedDamage`): the heavy hit-stop, freeze, burst, thud, number, swing sound, and a bigger camera jolt for the attacker.
 - **Other players** see it by name, like every swing.
 - **Not built:** knockback or ragdoll (to be unlocked), and the two-handed sword's chain is unchanged.
+
+## Update 2026-11-04: the whole body behind the first two cuts
+
+Owner: "i dont hate the first two swings of the sword but am curious to see how you could improve them". Same shapes (the flat slash, the backhand diagonal), same timings and damage. The renders showed an arm waving a stiff body: upright, the free arm limp (`FreeHandBalanceSwing` moved it about 3 cm in practice), and the feet often in the air at the blow.
+
+- **Staged strike (`SwordStrikes.Staged`):** everything arrives together at the contact, but the hips and the weight set off first, then the shoulders, then the arm, and the blade's cubic last. `TheFirstTwoCutsSetOffFromTheHipsAndTheBladeComesLast`.
+- **The body:** coiled further in the wind-up (shoulders 55 and 48 degrees, leaning away), driving in at the contact (lean 16, hips 0.15 m lower), always less than the finisher. `TheFirstTwoCutsPutTheBodyBehindTheBlade`.
+- **The free arm:** swings against the blade from the shoulder (`Slerp`: across the chord it folded on the way), long and out at its own side. In front of the belly it read as a hand on the crotch; bent, as a hand on the hip.
+- **The backhand's wind-up:** the hand crosses past the left shoulder, not at the neck, so the arm is not all hidden behind the head.
+- **One step a cut (`FootSteps`, `SwordStrikes.StepsAt`, all three cuts of the chain):** only the foot the cut strides on may step, and only while it can still land before the contact; nothing leaves the ground again until the blow's pose has been held, then the feet catch up. A foot the leg can no longer reach steps anyway, so walking while swinging does not lock the feet. The finisher's lunge carries the body past what the back leg reaches, so that foot trails off the ground at the blow; the front foot is planted. `SwordChainFeetPlayTests`, `EachCutOfTheChainStepsOneFootAndKeepsBothDownForTheBlow`.
+- **One gameplay change:** the backhand's lunge is 0.40 m, was 0.20 m. With the right foot passing the left and the body staying back, the feet landed side by side. So the second cut reaches 20 cm further. The knife's stays 0.15 m.
+- **Known:** a knife swings 1.3x faster but a step still takes 0.17 s, so its front foot can land just after the blow.
+- **Other players** get all of it: the rule comes with the pose, which plays by name.
+- **Not yet:** the staged strike and free arm's swing on the two-handed cuts and the heavies; the finisher has the free arm and the foot rule, not the staging.

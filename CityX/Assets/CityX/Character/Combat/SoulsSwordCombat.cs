@@ -250,7 +250,8 @@ namespace CityX.Character
 
         [Header("One-handed light chain (left click)")]
         public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.45f, 16.0f, 0.80f, 0.45f, 0.20f, 20.0f, false);
-        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.45f, 16.0f, 0.85f, 0.45f, 0.20f, 20.0f, false);
+        // A further lunge than the first cut's: the right foot passes the left in this one, and with the body staying back the feet landed side by side.
+        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.45f, 16.0f, 0.85f, 0.45f, 0.40f, 20.0f, false);
 
         /// <summary>
         /// THE FINISHER (owner, 2026-11-04: a three-hit combo ending in a diagonal, no fling to start, and "if the final hit gives a stagger then why wouldnt

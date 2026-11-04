@@ -47,6 +47,75 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>Settled in the left-foot-forward stance, then one frame after another with the stance and step rule given.</summary>
+        private static SwordFootwork Settled(ref Vector3 ground, ref float yaw)
+        {
+            var feet = new SwordFootwork();
+            Run(feet, ref ground, ref yaw, Vector3.zero, 1.0f);
+            return feet;
+        }
+
+        [Test]
+        public void AFootBarredFromSteppingStaysDownHoweverFarItsPlaceMoves()
+        {
+            Vector3 ground = Vector3.zero;
+            float yaw = 0.0f;
+            SwordFootwork feet = Settled(ref ground, ref yaw);
+            int steps = feet.StepsTaken;
+            Vector3 left = feet.Of(0).Position;
+            Vector3 right = feet.Of(1).Position;
+            SwordFootwork.Body body = BodyAt(ground, yaw, Vector3.zero, lead: 1.0f, depth: 0.8f);
+            body.Steps = FootSteps.None;
+            for (int i = 0; i < 30; i++)
+            {
+                feet.Step(Dt, 1.0f, body);
+            }
+            Assert.AreEqual(steps, feet.StepsTaken, "a foot set off with every step barred");
+            Assert.AreEqual(left, feet.Of(0).Position);
+            Assert.AreEqual(right, feet.Of(1).Position);
+        }
+
+        [Test]
+        public void OnlyTheFootACutStridesOnSteps()
+        {
+            Vector3 ground = Vector3.zero;
+            float yaw = 0.0f;
+            SwordFootwork feet = Settled(ref ground, ref yaw);
+            Vector3 left = feet.Of(0).Position;
+            float rightWas = feet.Of(1).Position.z;
+            SwordFootwork.Body body = BodyAt(ground, yaw, Vector3.zero, lead: 1.0f, depth: 0.8f);
+            body.Steps = FootSteps.OnlyRight;
+            for (int i = 0; i < 30; i++)
+            {
+                feet.Step(Dt, 1.0f, body);
+            }
+            Assert.AreEqual(left, feet.Of(0).Position, "the other foot stepped too: a shuffle");
+            Assert.Greater(feet.Of(1).Position.z, rightWas + 0.2f, "the right foot did not stride through");
+        }
+
+        /// <summary>Walking and swinging must not lock the feet up (owner, 2026-10-16): a foot the leg can no longer reach goes, whatever the cut says.</summary>
+        [Test]
+        public void AFootTheLegCanNoLongerReachStepsAnyway()
+        {
+            Vector3 ground = Vector3.zero;
+            float yaw = 0.0f;
+            SwordFootwork feet = Settled(ref ground, ref yaw);
+            int steps = feet.StepsTaken;
+            Vector3 velocity = new Vector3(0.0f, 0.0f, 1.6f);
+            const float reach = 0.45f;
+            for (int i = 0; i < 60; i++)
+            {
+                ground += velocity * Dt;
+                SwordFootwork.Body body = BodyAt(ground, yaw, velocity);
+                body.Steps = FootSteps.None;
+                body.Reach = reach;
+                body.LeftHip = ground + new Vector3(-0.1f, 0.9f, 0.0f);
+                body.RightHip = ground + new Vector3(0.1f, 0.9f, 0.0f);
+                feet.Step(Dt, 1.0f, body);
+            }
+            Assert.Greater(feet.StepsTaken, steps + 1, "a walking body left its barred feet behind");
+        }
+
         [Test]
         public void TheFeetTakeTheStanceFromWhereTheClipHadThem()
         {

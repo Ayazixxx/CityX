@@ -186,6 +186,7 @@ namespace CityX.Character
                 Reach = FootReach(legLength, floorY, soleOffset),
                 Lead = stanceLead,
                 Depth = stanceDepth,
+                Steps = _swordFrame.Active ? _swordFrame.Steps : FootSteps.Any,
                 ClipLeft = _leftFoot.position,
                 ClipRight = _rightFoot.position,
                 ClipLeftYaw = HeadingOf(_leftFoot),

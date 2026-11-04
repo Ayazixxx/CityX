@@ -2,6 +2,15 @@ using UnityEngine;
 
 namespace CityX.Character
 {
+    /// <summary>Which feet may set off on a new step right now. A foot the leg can no longer reach steps whatever this says, or it would be dragged.</summary>
+    public enum FootSteps
+    {
+        Any,
+        OnlyLeft,
+        OnlyRight,
+        None,
+    }
+
     /// <summary>
     /// THE FEET IN A SWORD FIGHT (owner, 2026-10-16: "make sure his feet dont lock up during combat animations while moving"). Swinging on the
     /// move used to leave the legs to the walk clip slowed to 40%: a blend of the idle and the walk that barely lifts its feet, so they slid
@@ -101,6 +110,9 @@ namespace CityX.Character
             public float Lead;
 
             public float Depth;
+
+            /// <summary>Which feet may set off on a new step this frame.</summary>
+            public FootSteps Steps;
 
             /// <summary>
             /// The hip joints, and how far out from under its hip a foot can stand on the ground with the hips as low as they are (metres, along
@@ -279,7 +291,7 @@ namespace CityX.Character
                 int other = 1 - i;
                 // (A foot at the very end of its leg's reach goes at once, even with the other still in the air: a run's flight, not a drag.)
                 bool atReachEnd = body.Reach > 0.0f && Flat(_anchor[i] - Hip(i, body)).magnitude > body.Reach;
-                if (_stepping[other] && _progress[other] < OverlapShare && !atReachEnd)
+                if (!atReachEnd && (!MayStep(i, body.Steps) || (_stepping[other] && _progress[other] < OverlapShare)))
                 {
                     continue;
                 }
@@ -326,6 +338,17 @@ namespace CityX.Character
                 {
                     _foot[i] = new Foot { Position = _anchor[i], Lift = 0.0f, Yaw = _yaw[i], Stepping = false };
                 }
+            }
+        }
+
+        private static bool MayStep(int foot, FootSteps steps)
+        {
+            switch (steps)
+            {
+                case FootSteps.None: return false;
+                case FootSteps.OnlyLeft: return foot == 0;
+                case FootSteps.OnlyRight: return foot == 1;
+                default: return true;
             }
         }
 
