@@ -28,6 +28,7 @@ back-stepped, and W+A blended a forward walk with a side-step.
 | Sharp turns | a turn more than 60 deg off where the body faces brakes it, down to 35% of its speed at 160 deg and more: a reversal plants and turns instead of skating round |
 | Sprint | any way the keys point (the body faces it); still forward only while facing the camera |
 | Facing the camera | aiming, firing, casting, a staff or wand pointed, locked on: as before, side-steps and back-steps |
+| Ready to fight | a melee weapon in hand (sword, knife, bat, crowbar), or the fists still up after a punch: moving, the body faces the camera, so S back-steps and A and D side-step with no lock-on (owner, 2026-11-04: "it does a whole rotating walking animation instead of just walking backwards which is not what you want in a melee fight"). Standing still it does not follow the camera. Sprint held, it turns and runs as ever. Only a body someone plays (`PlayerLocomotion.ReadyToFight`) |
 | Compare | `/movement classic` brings back the old camera-facing movement, `/movement gta` this one |
 
 Other players see it as it is: the facing travels with the body's rotation and the walk with the animator's parameters.

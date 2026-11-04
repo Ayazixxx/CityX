@@ -82,6 +82,14 @@ namespace CityX.Character
             input.Aiming || _gunFireHold > 0.0f || (StaffCasting && Staff != null) || WandPointing;
 
         /// <summary>
+        /// READY TO FIGHT HAND TO HAND (owner, 2026-11-04: "you have to lock onto the enemy because if you dont and you press S to move backward it does a whole rotating walking
+        /// animation instead of just walking backwards which is not what you want in a melee fight"): a melee weapon in hand, or the fists still up after a punch. The keys back-step and
+        /// side-step, facing the camera as they do out of GTA style, without a lock-on. A sprint still turns and runs: away from a fight, or across town with a sword out. Only a body
+        /// someone plays: a brain steering for a spot goes where it faces.
+        /// </summary>
+        private bool ReadyToFight(LocomotionInput input) => _easesTurns && !input.Sprint && (HeldSword != null || _fistFrame.Active);
+
+        /// <summary>
         /// How quickly horizontal speed catches up to its target, in
         /// metres per second squared -- not ported from player.gd, which
         /// has none (WASD there is the same instant direction*speed snap
@@ -1255,7 +1263,7 @@ namespace CityX.Character
 
             // GTA STYLE (MovementTurn): out of an aim, a lock-on or a cast the body turns toward the keys at a rate that falls with speed and
             // goes where it faces, so it curves round instead of side-stepping; a sharp turn brakes it (below, on the speed).
-            bool facesMovement = FaceMovement && !FacesTheCamera(input) && !flying && !_facingOverride && _dashRemaining <= 0.0f;
+            bool facesMovement = FaceMovement && !FacesTheCamera(input) && !ReadyToFight(input) && !flying && !_facingOverride && _dashRemaining <= 0.0f;
             float turnOff = 0.0f;
             if (facesMovement && moving && !MovementRooted)
             {

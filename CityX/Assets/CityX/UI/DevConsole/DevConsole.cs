@@ -175,7 +175,7 @@ namespace CityX.UI
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade [on|off] -- the cel look (cel-shaded light and thick black lines) on or off";
                 case "grapple": return "/grapple [ragdoll|classic] -- the grapple swing hangs the body limp from the rope (ragdoll, the default) or keeps the upright swing (classic)";
-                case "movement": return "/movement [gta|classic] -- the body turns to where it walks, side-stepping only to aim or locked on (gta, the default), or always faces the camera (classic)";
+                case "movement": return "/movement [gta|classic] -- the body turns to where it walks, side-stepping only to aim, locked on or ready with a melee weapon (gta, the default), or always faces the camera (classic)";
                 case "outlines": return "/outlines <pixels> -- the black lines' width on a screen 1080 tall (2 by default; 0 draws none)";
                 case "equip": return "/equip <bottle|cloak|coat|tshirt|bloodraven|redcamo|grapple|pistol|flamethrower|jetpack|parachute|" +
                     "knight_helmet|jeans|spikesword|combatsword|knife|ak47|crowbar|bat|spraycan|shield|staff|firestaff|icestaff|waterstaff|flamestaff|beamstaff|" +
