@@ -600,7 +600,8 @@ namespace CityX.Tests
                 }
                 else
                 {
-                    Assert.IsNotNull(Worn(hair), $"the \"{style}\" button produced no hair");
+                    // (Any renderer: a style baked to bend is skinned, HairBend.)
+                    Assert.IsNotNull(hair.Worn.GetComponent<Renderer>(), $"the \"{style}\" button produced no hair");
                 }
             }
         }

@@ -96,6 +96,8 @@ namespace CityX.Character
 
         private GameObject _worn;
 
+        private Transform _neckAnchor;
+
         private int _covers;
 
         private static MaterialPropertyBlock _block;
@@ -127,7 +129,7 @@ namespace CityX.Character
 
         private void ApplyCovered()
         {
-            var renderer = _worn != null ? _worn.GetComponent<MeshRenderer>() : null;
+            var renderer = _worn != null ? _worn.GetComponent<Renderer>() : null;
             if (renderer != null)
             {
                 renderer.forceRenderingOff = IsCovered;
@@ -153,7 +155,7 @@ namespace CityX.Character
             {
                 return;
             }
-            var renderer = _worn.GetComponent<MeshRenderer>();
+            var renderer = _worn.GetComponent<Renderer>();
             if (renderer == null)
             {
                 return;
@@ -360,6 +362,18 @@ namespace CityX.Character
                 }
                 _worn = null;
             }
+            if (_neckAnchor != null)
+            {
+                if (Application.isPlaying)
+                {
+                    Destroy(_neckAnchor.gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(_neckAnchor.gameObject);
+                }
+                _neckAnchor = null;
+            }
 
             Mesh mesh = MeshFor(_style);
             if (mesh == null || Head == null)
@@ -371,8 +385,24 @@ namespace CityX.Character
             _worn.transform.SetParent(Head, false);
             _worn.layer = Head.gameObject.layer;
 
-            _worn.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var renderer = _worn.AddComponent<MeshRenderer>();
+            Renderer renderer;
+            if (mesh.bindposes.Length == HairBend.BoneCount && Head.parent != null)
+            {
+                // A style baked to bend (HairBend): its lowest locks ride a copy of its placement on the neck, the rest the placement itself on the head.
+                _neckAnchor = new GameObject("HairNeckAnchor").transform;
+                _neckAnchor.SetParent(Head.parent, false);
+                var skinned = _worn.AddComponent<SkinnedMeshRenderer>();
+                skinned.sharedMesh = mesh;
+                skinned.bones = new[] { _worn.transform, _neckAnchor };
+                skinned.rootBone = _worn.transform;
+                skinned.localBounds = mesh.bounds;
+                renderer = skinned;
+            }
+            else
+            {
+                _worn.AddComponent<MeshFilter>().sharedMesh = mesh;
+                renderer = _worn.AddComponent<MeshRenderer>();
+            }
             renderer.sharedMaterial = HairMaterial;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
 
@@ -398,6 +428,24 @@ namespace CityX.Character
             _worn.transform.localPosition = fit.Position;
             _worn.transform.localRotation = Quaternion.Euler(fit.Euler);
             _worn.transform.localScale = fit.Scale;
+            PlaceNeckAnchor();
+        }
+
+        /// <summary>The neck's copy of the placement, where the head has it at rest, so a bending style sits exactly on its fit until the head moves off the neck.</summary>
+        private void PlaceNeckAnchor()
+        {
+            if (_neckAnchor != null)
+            {
+                _neckAnchor.localPosition = Head.localPosition + _worn.transform.localPosition;
+                _neckAnchor.localRotation = _worn.transform.localRotation;
+                _neckAnchor.localScale = _worn.transform.localScale;
+            }
+        }
+
+        /// <summary>Keeps up with the hair being dragged in the Scene view to place it.</summary>
+        private void LateUpdate()
+        {
+            PlaceNeckAnchor();
         }
 
         private Mesh MeshFor(string style)

@@ -197,6 +197,10 @@ namespace CityX.UIEditor
             {
                 FillWithCurl(baked, CharacterHair.Hyde, HydeCurlFrom, HydeCurlTo, HydeCurlTop, HydeCurlTurn);
             }
+            else if (bakedPath == KickHairBaked && EnsureFitSettings().TryGet(CharacterHair.KickHair, out CharacterHair.Fit kickFit))
+            {
+                HairBend.AddTo(baked, kickFit);
+            }
             AssetDatabase.CreateAsset(baked, bakedPath);
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: baked {bakedPath} -- bounds {baked.bounds.min} to {baked.bounds.max}");
