@@ -225,6 +225,37 @@ namespace CityX.Tests
             Assert.AreEqual(0, hits, "his cut followed a player who dashed round behind him");
         }
 
+        /// <summary>
+        /// Thrown to the ground in the middle of a cut, the cut is gone. His mind stops while he lies limp, and his sword's clock stopped
+        /// with it, mid-swing: once he was back on his feet the cut went on from where it had stopped, with no swing to be seen.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator KnockedDownInTheMiddleOfACutTheCutIsGone()
+        {
+            SwordsmanBrain brain = Build(seed: 424242);
+            _player.GetComponent<PlayerVitals>().InfiniteHealth = true;
+            _swordsman.transform.position = new Vector3(0.0f, 0.05f, 2.2f);   // the player in his reach
+            Physics.SyncTransforms();
+            SoulsSwordCombat his = brain.Combat;
+            Assert.IsNotNull(his, "the swordsman's sword did not equip");
+            SoulsAttack attack = null;
+            his.AttackStarted += a => { if (attack == null) attack = a; };
+            for (float clock = 0.0f; clock < 6.0f && attack == null; clock += Dt)
+            {
+                yield return null;
+            }
+            Assert.IsNotNull(attack, "setup: he never attacked a player standing in his reach");
+            Assert.AreNotEqual(SoulsPhase.Idle, his.Phase, "setup: his cut was over as it began");
+
+            _swordsman.GetComponent<PlayerVitals>().KnockDown(new Vector3(0.0f, 2.0f, 3.0f));
+            Assert.IsTrue(_swordsman.GetComponent<Ragdoll>().IsLimp, "setup: the knockdown did not throw him");
+            for (int i = 0; i < 5; i++)
+            {
+                yield return null;
+            }
+            Assert.AreEqual(SoulsPhase.Idle, his.Phase, "lying limp, his cut is still under way: it goes on when he is back on his feet");
+        }
+
         [UnityTest]
         public IEnumerator HeCanBeBeatenAndPaysXp()
         {

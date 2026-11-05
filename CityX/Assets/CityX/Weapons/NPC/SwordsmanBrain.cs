@@ -295,6 +295,7 @@ namespace CityX.Weapons
             // Knocked down (a finisher, Self Smite's burst): the ragdoll has him until he gets up, as the player's body does.
             if (_ragdoll != null && _ragdoll.IsLimp)
             {
+                _combat?.Interrupt();   // the cut he was in is gone: its clock stops with his mind, and it would go on from there once he was up
                 _ragdoll.Tick(deltaTime);
                 if (_ragdoll.CanStandUp)
                 {
