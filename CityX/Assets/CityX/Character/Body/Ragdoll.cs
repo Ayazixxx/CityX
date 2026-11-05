@@ -229,6 +229,10 @@ namespace CityX.Character
             {
                 velocity += _vitals.DeathImpulse;
             }
+            if (IsStandingUp)
+            {
+                AbandonStandingUp();   // killed while getting up: it falls again, it does not finish the clip on its feet
+            }
             Activate(velocity);
         }
 
@@ -698,6 +702,27 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// Lets go of a get-up under way (its clip's pace, its blend from the pose the body lay in): the body is as it was before it went
+        /// limp, for whoever takes it next (death throws it again, a respawn stands it up).
+        /// </summary>
+        private void AbandonStandingUp()
+        {
+            _standingUpElapsed = -1.0f;
+            _blendElapsed = -1.0f;
+            _snapshotBones = null;
+            _limp = false;
+            if (Animator != null)
+            {
+                Animator.speed = 1.0f;
+                // The GettingUp state has no exit of its own: left in it, the body would hold the clip's pose.
+                if (Animator.isActiveAndEnabled && Animator.HasState(0, Animator.StringToHash("Locomotion")))
+                {
+                    Animator.Play("Locomotion", 0);
+                }
+            }
+        }
+
         /// <summary>Stands the body back up, for respawn.</summary>
         public void Deactivate()
         {
@@ -705,7 +730,12 @@ namespace CityX.Character
             {
                 return;
             }
+            if (IsStandingUp)
+            {
+                AbandonStandingUp();
+            }
             _limp = false;
+            _restSeconds = 0.0f;
             _allowImmediateStandUp = false;
 
             SetKinematic(true);

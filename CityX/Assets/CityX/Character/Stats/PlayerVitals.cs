@@ -811,6 +811,10 @@ namespace CityX.Character
             {
                 Poise = Mathf.Min(PoiseCapacity, Poise + PoiseRegenPerSecond * poiseTime);
             }
+            if (IsDead)
+            {
+                _finisherRagdollRemaining = 0.0f;   // killed while knocked down: death has the body from here, and a corpse does not get up
+            }
             if (_finisherRagdollRemaining > 0.0f)
             {
                 _finisherRagdollRemaining -= deltaTime;
@@ -865,6 +869,7 @@ namespace CityX.Character
             _mana = MaxMana;
             _exhausted = false;
             _wasAirborne = false;
+            _finisherRagdollRemaining = 0.0f;
             HitstunRemaining = 0.0f;
             Poise = PoiseCapacity;
             HyperArmour = false;
