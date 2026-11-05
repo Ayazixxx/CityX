@@ -24,7 +24,6 @@ namespace CityX.Character
 
         private PlayerInputReader _reader;
         private ThirdPersonCamera _camera;
-        private bool _readerWasEnabled;
         private bool _cameraWasEnabled;
         private CursorLockMode _cursorWas;
 
@@ -45,7 +44,7 @@ namespace CityX.Character
                 TickWindow();
                 return;
             }
-            if (_reader == null || !_reader.enabled || !InteractKey.Tapped)
+            if (_reader == null || !_reader.TakesKeys || !InteractKey.Tapped)
             {
                 return;
             }
@@ -115,8 +114,7 @@ namespace CityX.Character
             container.Open();
             Current = container;
             List = new LootList(container.Items);
-            _readerWasEnabled = _reader != null && _reader.enabled;
-            if (_reader != null) _reader.enabled = false;
+            if (_reader != null) _reader.Hold(this);
             _camera = null;
             foreach (ThirdPersonCamera camera in FindObjectsByType<ThirdPersonCamera>(FindObjectsSortMode.None))
             {
@@ -138,7 +136,7 @@ namespace CityX.Character
             }
             Current = null;
             List = null;
-            if (_reader != null) _reader.enabled = _readerWasEnabled;
+            if (_reader != null) _reader.Release(this);
             if (_camera != null) _camera.enabled = _cameraWasEnabled;
             Cursor.lockState = _cursorWas;
             Cursor.visible = _cursorWas != CursorLockMode.Locked;

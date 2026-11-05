@@ -136,7 +136,7 @@ namespace CityX.UI
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            if (InputReader != null) InputReader.enabled = false;
+            if (InputReader != null) InputReader.Hold(this);
             if (OrbitCamera != null) OrbitCamera.enabled = false;
 
             // Recentred on the player every time it opens, so the map can
@@ -160,7 +160,7 @@ namespace CityX.UI
                 Current = Mode.Hidden;
             }
 
-            if (InputReader != null) InputReader.enabled = true;
+            if (InputReader != null) InputReader.Release(this);
             if (OrbitCamera != null) OrbitCamera.enabled = true;
 
             if (_wasCursorCaptured)

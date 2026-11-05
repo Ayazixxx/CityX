@@ -101,7 +101,7 @@ namespace CityX.Tests
             yield return null;
             yield return RightClick();
             Assert.IsTrue(menu.IsOpen, "right-clicking the wall with the can did not open the canvas");
-            Assert.IsFalse(reader.enabled, "the player should stand still while painting");
+            Assert.IsFalse(reader.TakesKeys, "the player should stand still while painting");
             Assert.AreEqual(3.0f, menu.Centre.z, 0.1f, "the canvas is not on the wall's face");
             Assert.Less(menu.Normal.z, -0.9f, "the wall faces the player: its outward side is toward -z");
 
@@ -117,7 +117,7 @@ namespace CityX.Tests
             yield return null;
 
             Assert.IsFalse(menu.IsOpen);
-            Assert.IsTrue(reader.enabled, "the player was not given the controls back");
+            Assert.IsTrue(reader.TakesKeys, "the player was not given the controls back");
             Assert.AreEqual(1, GraffitiWall.Count, "the piece did not go up");
             GraffitiPanel panel = Object.FindFirstObjectByType<GraffitiPanel>();
             Assert.IsNotNull(panel);

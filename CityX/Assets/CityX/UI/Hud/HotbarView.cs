@@ -286,7 +286,7 @@ namespace CityX.UI
         /// <summary>A slot whose key goes down flashes: the icon swells and settles back over <see cref="FlashSeconds"/>. Not while a menu has the keys.</summary>
         private void Flash(Keyboard keyboard, float deltaTime)
         {
-            bool keysAreThePlayers = _skills != null && _skills.GetComponent<PlayerInputReader>() is PlayerInputReader reader && reader.enabled;
+            bool keysAreThePlayers = _skills != null && _skills.GetComponent<PlayerInputReader>() is PlayerInputReader reader && reader.TakesKeys;
             for (int i = 0; i < Hotbar.SlotCount; i++)
             {
                 SlotGraphics slot = Slots[i];

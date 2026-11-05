@@ -146,7 +146,7 @@ namespace CityX.UI
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            if (InputReader != null) InputReader.enabled = false;
+            if (InputReader != null) InputReader.Hold(this);
             if (OrbitCamera != null) OrbitCamera.enabled = false;
 
             if (Input != null)
@@ -163,7 +163,7 @@ namespace CityX.UI
             if (Panel != null) Panel.SetActive(false);
             if (Input != null) Input.DeactivateInputField();
 
-            if (InputReader != null) InputReader.enabled = true;
+            if (InputReader != null) InputReader.Release(this);
             if (OrbitCamera != null) OrbitCamera.enabled = true;
 
             if (_wasCursorCaptured)

@@ -115,7 +115,7 @@ namespace CityX.UI
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            if (InputReader != null) InputReader.enabled = false;
+            if (InputReader != null) InputReader.Hold(this);
             if (OrbitCamera != null) OrbitCamera.enabled = false;
             if (MenuCamera != null && CameraTransform != null && Player != null)
             {
@@ -135,7 +135,7 @@ namespace CityX.UI
             // closed mid-ease leaves this component and ThirdPersonCamera
             // both writing to the camera transform on the very same frame.
             MenuCamera?.Stop();
-            if (InputReader != null) InputReader.enabled = true;
+            if (InputReader != null) InputReader.Release(this);
             if (OrbitCamera != null) OrbitCamera.enabled = true;
 
             if (_wasCursorCaptured)

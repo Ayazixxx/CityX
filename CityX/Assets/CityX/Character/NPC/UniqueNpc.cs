@@ -280,7 +280,7 @@ namespace CityX.Character
             // else (map, inventory, chat, another dialogue) -- see this
             // class's own doc comment on why that is one check rather than
             // an explicit guard against each panel by name.
-            if (_inputReader != null && !_inputReader.enabled)
+            if (_inputReader != null && !_inputReader.TakesKeys)
             {
                 return;
             }

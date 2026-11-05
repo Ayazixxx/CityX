@@ -108,7 +108,7 @@ namespace CityX.Tests
             yield return null;
 
             Assert.IsTrue(panel.IsOpen);
-            Assert.IsFalse(inputReader.enabled, "input should be disabled while the inventory is open");
+            Assert.IsFalse(inputReader.TakesKeys, "input should be disabled while the inventory is open");
             Assert.IsFalse(orbitCamera.enabled, "the orbit camera should be disabled while the inventory is open");
         }
 
@@ -126,7 +126,7 @@ namespace CityX.Tests
             yield return null;
 
             Assert.IsFalse(panel.IsOpen);
-            Assert.IsTrue(inputReader.enabled, "input should come back once the inventory closes");
+            Assert.IsTrue(inputReader.TakesKeys, "input should come back once the inventory closes");
             Assert.IsTrue(orbitCamera.enabled, "the orbit camera should come back once the inventory closes");
         }
 
@@ -139,14 +139,13 @@ namespace CityX.Tests
 
             panel.Open();
             yield return null;
-            inputReader.enabled = true; // simulate something else re-enabling it mid-session
             panel.Open();
             yield return null;
+            panel.Close();
+            yield return null;
 
-            // The guard at the top of Open() should have refused the second
-            // call rather than re-running it and stomping the flag back off
-            // in a way that would mask a real bug elsewhere.
-            Assert.IsTrue(inputReader.enabled);
+            // Opened twice and closed once, the keys are the player's again: the second Open held nothing more.
+            Assert.IsTrue(inputReader.TakesKeys);
         }
 
         [UnityTest]

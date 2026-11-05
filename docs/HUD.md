@@ -67,3 +67,13 @@ on a 1080p screen), white at 55% (`GunReticleView.NormalColour`, which colours i
 blocked, the hit marker's ticks round it as before). Its picture is a 32-pixel circle with mipmaps (`CircleSprite.Dot`,
 `UI/CrosshairDotTexture.asset`): the portrait's 256-pixel circle has none to shrink that far with. Built by `PlayerHudBuilder` with the
 scene. Test: `PlayerHudTests.TheCrosshairIsASmallWhiteDotYouCanSeeThrough`.
+
+## Menus hold the keys (2026-11-05)
+
+Every menu that takes the keys (chat, the console, the C menu and its pages, the inventory, the map, the redraw, an item's card, the loot
+window, the graffiti menu) holds the body's reader while it is open (`PlayerInputReader.Hold` / `Release`, PlayerInputReader.Holds.cs)
+instead of switching it off. Switched off, the reader stopped ticking the body too, so a menu opened in mid-air hung the body there;
+two menus did not know of each other, and closing one gave the keys back under the other; and a body whose reader was off counted as
+nobody's, so enemies stopped coming for a player reading a menu. Held, the body goes on falling and landing with no keys read; on a wall
+or a rope it stays as it is. What asked whether a menu has the keys asks `TakesKeys`. Tests: `MenusHoldTheKeysPlayTests`,
+`PlayerChatTests.ClosingOneMenuLeavesTheKeysWithTheOtherStillOpen`.

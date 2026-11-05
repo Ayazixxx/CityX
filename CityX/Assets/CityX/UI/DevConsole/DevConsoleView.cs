@@ -237,7 +237,7 @@ namespace CityX.UI
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            if (InputReader != null) InputReader.enabled = false;
+            if (InputReader != null) InputReader.Hold(this);
             if (OrbitCamera != null) OrbitCamera.enabled = false;
 
             // THE ANIMATOR IS NO LONGER DISABLED HERE -- Requested, after
@@ -330,7 +330,7 @@ namespace CityX.UI
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
-            if (InputReader != null) InputReader.enabled = true;
+            if (InputReader != null) InputReader.Release(this);
             if (OrbitCamera != null) OrbitCamera.enabled = true;
 
             // NOTHING TO DO WITH _playerAnimator HERE ANY MORE -- Open() no

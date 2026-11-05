@@ -225,7 +225,7 @@ namespace CityX.UI
             Refresh();
             if (_reader != null)
             {
-                _reader.enabled = false;   // the player stands still while painting, as with the other menus
+                _reader.Hold(this);   // the player stands still while painting, as with the other menus
             }
             Camera main = Camera.main;
             _cameraDriver = main != null ? main.GetComponent<ThirdPersonCamera>() : null;
@@ -267,7 +267,7 @@ namespace CityX.UI
             ClosedOnFrame = Time.frameCount;
             if (_reader != null)
             {
-                _reader.enabled = true;
+                _reader.Release(this);
             }
             if (_cameraDriver != null)
             {

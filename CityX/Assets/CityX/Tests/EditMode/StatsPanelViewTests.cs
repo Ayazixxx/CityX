@@ -83,7 +83,7 @@ namespace CityX.Tests
             _stats.Open();
 
             Assert.IsTrue(_stats.IsOpen);
-            Assert.IsFalse(_inputReader.enabled);
+            Assert.IsFalse(_inputReader.TakesKeys);
             Assert.IsFalse(_orbitCamera.enabled);
         }
 
@@ -94,7 +94,7 @@ namespace CityX.Tests
             _stats.Close();
 
             Assert.IsFalse(_stats.IsOpen);
-            Assert.IsTrue(_inputReader.enabled);
+            Assert.IsTrue(_inputReader.TakesKeys);
             Assert.IsTrue(_orbitCamera.enabled);
         }
 
@@ -106,7 +106,7 @@ namespace CityX.Tests
             _stats.Open();
 
             Assert.IsTrue(_stats.IsOpen);
-            Assert.IsFalse(_inputReader.enabled, "a redundant Open() must not disturb the already-disabled input");
+            Assert.IsFalse(_inputReader.TakesKeys, "a redundant Open() must not disturb the already-disabled input");
         }
 
         [Test]

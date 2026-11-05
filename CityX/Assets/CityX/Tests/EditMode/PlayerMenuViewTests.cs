@@ -76,7 +76,7 @@ namespace CityX.Tests
             _menu.Open();
 
             Assert.IsTrue(_menu.IsOpen);
-            Assert.IsFalse(_inputReader.enabled, "movement/combat input should be disabled while the menu is up");
+            Assert.IsFalse(_inputReader.TakesKeys, "movement/combat input should be disabled while the menu is up");
             Assert.IsFalse(_orbitCamera.enabled, "mouse-look should be disabled while the menu is up");
         }
 
@@ -152,7 +152,7 @@ namespace CityX.Tests
             _menu.Close();
 
             Assert.IsFalse(_menu.IsOpen);
-            Assert.IsTrue(_inputReader.enabled);
+            Assert.IsTrue(_inputReader.TakesKeys);
             Assert.IsTrue(_orbitCamera.enabled);
         }
 
@@ -188,7 +188,7 @@ namespace CityX.Tests
             _menu.Open();
 
             Assert.IsTrue(_menu.IsOpen);
-            Assert.IsFalse(_inputReader.enabled, "a redundant Open() must not disturb the already-disabled input");
+            Assert.IsFalse(_inputReader.TakesKeys, "a redundant Open() must not disturb the already-disabled input");
         }
     }
 }

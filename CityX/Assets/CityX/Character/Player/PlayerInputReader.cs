@@ -420,7 +420,7 @@ namespace CityX.Character
                 return;
             }
 
-            if ((_isDancing || _isBreakdancing) && RequestsDanceCancel(keyboard))
+            if ((_isDancing || _isBreakdancing) && !IsHeld && RequestsDanceCancel(keyboard))
             {
                 _isDancing = false;
                 _isBreakdancing = false;
@@ -471,7 +471,10 @@ namespace CityX.Character
                 }
                 else
                 {
-                    TickPushUps(keyboard, deltaTime);
+                    if (!IsHeld)
+                    {
+                        TickPushUps(keyboard, deltaTime);
+                    }
                     return;
                 }
             }
@@ -511,7 +514,7 @@ namespace CityX.Character
                 // StopThrustEffects just above) rather than once, so it also
                 // catches a jetpack that gets equipped mid-ragdoll.
                 EquippedFlightGear?.ResetTilt();
-                if (_grappleSwing != null && _grappleSwing.IsRoped)
+                if (_grappleSwing != null && _grappleSwing.IsRoped && !IsHeld)
                 {
                     TickRopedSwing(keyboard, deltaTime);   // the rope's controls while the body hangs limp from it (GrappleSwing.Rope.cs)
                 }
@@ -562,7 +565,7 @@ namespace CityX.Character
                         }
                     }
 
-                    if (_ragdoll.CanStandUp && keyboard.spaceKey.wasPressedThisFrame)
+                    if (_ragdoll.CanStandUp && !IsHeld && keyboard.spaceKey.wasPressedThisFrame)
                     {
                         _ragdoll.BeginStandingUp();
                     }
@@ -605,7 +608,7 @@ namespace CityX.Character
             // the camera.
             if (_arcaneBarrier != null && _arcaneBarrier.IsUp)
             {
-                _arcaneBarrier.Hold(_skills.Held(SkillCatalog.ArcaneBarrier, keyboard));
+                _arcaneBarrier.Hold(!IsHeld && _skills.Held(SkillCatalog.ArcaneBarrier, keyboard));
                 _locomotion.Tick(new LocomotionInput { YawDegrees = transform.eulerAngles.y }, deltaTime);
                 _audio?.SilenceFootsteps();
                 return;
@@ -644,6 +647,13 @@ namespace CityX.Character
             {
                 _vaulting.Tick(deltaTime);
                 _audio?.SilenceFootsteps();
+                return;
+            }
+
+            // A MENU HAS THE KEYS (PlayerInputReader.Holds.cs): the body goes on with none read.
+            if (IsHeld)
+            {
+                TickHeld(deltaTime);
                 return;
             }
 

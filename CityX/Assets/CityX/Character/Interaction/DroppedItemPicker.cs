@@ -28,7 +28,7 @@ namespace CityX.Character
 
         private void Update()
         {
-            if (_reader == null || !_reader.enabled)
+            if (_reader == null || !_reader.TakesKeys)
             {
                 return;
             }

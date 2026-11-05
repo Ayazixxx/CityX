@@ -153,7 +153,7 @@ namespace CityX.Tests
                 positions.Add(_cameraObject.transform.position);
             }
             Assert.IsTrue(_inspector.IsOpen, "F did not open the card");
-            Assert.IsFalse(_player.GetComponent<PlayerInputReader>().enabled, "the controls should be the card's while it is open");
+            Assert.IsFalse(_player.GetComponent<PlayerInputReader>().TakesKeys, "the controls should be the card's while it is open");
             float total = Vector3.Distance(start, _inspector.Shot.CameraPosition);
             Assert.Greater(total, 1.0f, "the camera should have somewhere to glide to");
             float largest = 0.0f;
@@ -179,7 +179,7 @@ namespace CityX.Tests
             for (int i = 0; i < 120 && _inspector.IsOpen; i++) yield return null;
             Assert.IsFalse(_inspector.IsOpen, "F did not close the card");
             Assert.Less(Vector3.Distance(_cameraObject.transform.position, start), 0.05f, "the camera did not glide back to where it was");
-            Assert.IsTrue(_player.GetComponent<PlayerInputReader>().enabled, "the controls were not given back");
+            Assert.IsTrue(_player.GetComponent<PlayerInputReader>().TakesKeys, "the controls were not given back");
             Assert.IsFalse(_card.Showing);
             yield return null;
             yield return null;

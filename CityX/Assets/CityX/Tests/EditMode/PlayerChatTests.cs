@@ -64,7 +64,7 @@ namespace CityX.Tests
             _chat.Open();
 
             Assert.IsTrue(_chat.IsOpen);
-            Assert.IsFalse(_inputReader.enabled);
+            Assert.IsFalse(_inputReader.TakesKeys);
             Assert.IsFalse(_orbitCamera.enabled);
         }
 
@@ -75,7 +75,7 @@ namespace CityX.Tests
             _chat.Close();
 
             Assert.IsFalse(_chat.IsOpen);
-            Assert.IsTrue(_inputReader.enabled);
+            Assert.IsTrue(_inputReader.TakesKeys);
             Assert.IsTrue(_orbitCamera.enabled);
         }
 
@@ -83,10 +83,30 @@ namespace CityX.Tests
         public void OpeningTwiceInARowDoesNothingExtra()
         {
             _chat.Open();
-            _inputReader.enabled = true; // simulate something else re-enabling it mid-session
             _chat.Open();
+            _chat.Close();
 
-            Assert.IsTrue(_inputReader.enabled, "the guard at the top of Open() should have refused the second call");
+            Assert.IsTrue(_inputReader.TakesKeys, "opened twice and closed once, the chat still holds the keys");
+        }
+
+        /// <summary>Two menus open at once: closing one gave the keys back under the other.</summary>
+        [Test]
+        public void ClosingOneMenuLeavesTheKeysWithTheOtherStillOpen()
+        {
+            var other = new GameObject("Other menu");
+            try
+            {
+                _chat.Open();
+                _inputReader.Hold(other);
+                _chat.Close();
+                Assert.IsFalse(_inputReader.TakesKeys, "the chat closing gave the keys back under a menu still open");
+                _inputReader.Release(other);
+                Assert.IsTrue(_inputReader.TakesKeys);
+            }
+            finally
+            {
+                Object.DestroyImmediate(other);
+            }
         }
 
         [TestCase("/claim")]

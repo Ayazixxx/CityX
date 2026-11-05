@@ -64,7 +64,6 @@ namespace CityX.Character
         private PlayerVitals _vitals;
         private Inventory _inventory;
         private ThirdPersonCamera _camera;
-        private bool _readerWasEnabled;
         private bool _cameraWasEnabled;
         private Vector3 _fromPosition;
         private Quaternion _fromRotation;
@@ -96,7 +95,7 @@ namespace CityX.Character
             Hovered = null;
             HoveredContainer = null;
             HoveredTarget = null;
-            if (_reader == null || !_reader.enabled || _picker == null)
+            if (_reader == null || !_reader.TakesKeys || _picker == null)
             {
                 return;
             }
@@ -161,8 +160,7 @@ namespace CityX.Character
             IsOpen = true;
             Closing = false;
             Progress = 0.0f;
-            _readerWasEnabled = _reader != null && _reader.enabled;
-            if (_reader != null) _reader.enabled = false;
+            if (_reader != null) _reader.Hold(this);
             if (_camera != null)
             {
                 _cameraWasEnabled = _camera.enabled;
@@ -293,7 +291,7 @@ namespace CityX.Character
             Closing = false;
             Current = null;
             Progress = 0.0f;
-            if (_reader != null) _reader.enabled = _readerWasEnabled;
+            if (_reader != null) _reader.Release(this);
             if (_camera != null) _camera.enabled = _cameraWasEnabled;
         }
     }

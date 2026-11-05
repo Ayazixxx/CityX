@@ -86,7 +86,7 @@ namespace CityX.Tests
             yield return null;
 
             Assert.IsTrue(starter.IsActive);
-            Assert.IsFalse(starter.InputReader.enabled, "movement should be disabled while redrawing");
+            Assert.IsFalse(starter.InputReader.TakesKeys, "movement should be disabled while redrawing");
 
             CharacterCreator creator = Object.FindFirstObjectByType<CharacterCreator>();
             Assert.IsNotNull(creator, "Begin() did not build a CharacterCreator");
@@ -126,7 +126,7 @@ namespace CityX.Tests
             overlays.SaveRedraw();
 
             Assert.IsFalse(starter.IsActive, "SAVE should close the session immediately");
-            Assert.IsTrue(starter.InputReader.enabled, "movement should come back after SAVE");
+            Assert.IsTrue(starter.InputReader.TakesKeys, "movement should come back after SAVE");
             Assert.IsTrue(_character.HasPaint, "the edited paint never reached CharacterSave");
         }
 
@@ -180,7 +180,7 @@ namespace CityX.Tests
             yield return null;
 
             Assert.IsFalse(starter.IsActive, "CANCEL with nothing painted should close immediately");
-            Assert.IsTrue(starter.InputReader.enabled);
+            Assert.IsTrue(starter.InputReader.TakesKeys);
             Assert.IsFalse(_character.HasPaint, "cancelling should never write anything back");
         }
 
