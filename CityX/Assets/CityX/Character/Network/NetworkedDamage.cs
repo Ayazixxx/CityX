@@ -25,8 +25,8 @@ namespace CityX.Character
     [RequireComponent(typeof(NetworkObject))]
     public sealed class NetworkedDamage : NetworkBehaviour, IRemoteDamageRelay
     {
-        /// <summary>The most one forwarded hit may do. A real hit is well under this; a forged huge one is refused.</summary>
-        public const float MaxHitDamage = 80.0f;
+        /// <summary>The most one forwarded hit may do. A real one is under this (a grenade does 110, and Melee Damage and Bloodrage raise a sword's); a forged huge one is cut down to it.</summary>
+        public const float MaxHitDamage = 320.0f;
 
         /// <summary>The farthest the attacker's body may be from the victim's, in metres: a bullet's range plus slack.</summary>
         public const float MaxRelayMetres = 90.0f;

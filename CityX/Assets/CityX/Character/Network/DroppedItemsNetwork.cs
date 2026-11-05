@@ -26,6 +26,15 @@ namespace CityX.Character
     public struct ItemTakeRequest : IBroadcast
     {
         public long Id;
+
+        /// <summary>Where it lies on the asker's machine: it may have fallen a long way from where it was let go.</summary>
+        public Vector3 At;
+    }
+
+    /// <summary>The server's word to one player that they may not have that item from where they stand.</summary>
+    public struct ItemTakeRefusedMessage : IBroadcast
+    {
+        public long Id;
     }
 
     /// <summary>The server's word that a dropped item was taken, and by which player.</summary>
@@ -68,6 +77,9 @@ namespace CityX.Character
 
         /// <summary>How far from where it was dropped a player's body may be to pick it up, metres (it tumbles, and lands a little differently on each machine).</summary>
         public const float TakeReachMetres = 12.0f;
+
+        /// <summary>How far along the ground from where it was let go an item may have come to rest, metres: it falls, it does not fly across town.</summary>
+        public const float FallDriftMetres = 30.0f;
 
         public const float MaxSpeed = 40.0f;
 
@@ -139,6 +151,7 @@ namespace CityX.Character
                     _manager.ClientManager.RegisterBroadcast<ItemDropMessage>(OnDropAtClient);
                     _manager.ClientManager.RegisterBroadcast<ItemTakenMessage>(OnTakenAtClient);
                     _manager.ClientManager.RegisterBroadcast<ItemDropStateMessage>(OnStateAtClient);
+                    _manager.ClientManager.RegisterBroadcast<ItemTakeRefusedMessage>(OnTakeRefusedAtClient);
                     Target.Relay = this;
                     _requested = false;   // asked for once the server has let this client in (below)
                 }
@@ -147,6 +160,7 @@ namespace CityX.Character
                     _manager.ClientManager.UnregisterBroadcast<ItemDropMessage>(OnDropAtClient);
                     _manager.ClientManager.UnregisterBroadcast<ItemTakenMessage>(OnTakenAtClient);
                     _manager.ClientManager.UnregisterBroadcast<ItemDropStateMessage>(OnStateAtClient);
+                    _manager.ClientManager.UnregisterBroadcast<ItemTakeRefusedMessage>(OnTakeRefusedAtClient);
                     if (ReferenceEquals(Target.Relay, this))
                     {
                         Target.Relay = null;
@@ -192,7 +206,8 @@ namespace CityX.Character
         {
             if (_manager != null && _manager.IsClientStarted)
             {
-                _manager.ClientManager.Broadcast(new ItemTakeRequest { Id = id });
+                DroppedItem shown = Target.Find(id);
+                _manager.ClientManager.Broadcast(new ItemTakeRequest { Id = id, At = shown != null ? shown.transform.position : Vector3.zero });
             }
         }
 
@@ -221,13 +236,27 @@ namespace CityX.Character
 
         private void OnTakeAtServer(NetworkConnection sender, ItemTakeRequest request, Channel channel)
         {
-            if (sender == null || !_lying.TryGetValue(request.Id, out ItemDropMessage drop) || !Near(sender, drop.Position, TakeReachMetres))
+            if (sender == null || !_lying.TryGetValue(request.Id, out ItemDropMessage drop))
             {
-                return;   // gone already (someone was first), or asked for from across the city
+                return;   // gone already: someone was first
+            }
+            bool nearWhereItFell = CouldHaveFallenTo(drop.Position, request.At) && Near(sender, request.At, TakeReachMetres);
+            if (!nearWhereItFell && !Near(sender, drop.Position, TakeReachMetres))
+            {
+                // Asked for from across the city. Told, or it stays "asked for" on their machine and they can never pick it up.
+                _manager.ServerManager.Broadcast(sender, new ItemTakeRefusedMessage { Id = request.Id });
+                return;
             }
             _lying.Remove(request.Id);
             _order.Remove(request.Id);
             _manager.ServerManager.Broadcast(new ItemTakenMessage { Id = request.Id, TakerClientId = sender.ClientId });
+        }
+
+        /// <summary>Whether an item let go at <paramref name="released"/> could have come to rest at <paramref name="at"/>: not above it, nor far off to one side.</summary>
+        public static bool CouldHaveFallenTo(Vector3 released, Vector3 at)
+        {
+            var along = new Vector2(at.x - released.x, at.z - released.z);
+            return WireChecks.Finite(at) && along.magnitude <= FallDriftMetres && at.y <= released.y + TakeReachMetres;
         }
 
         private void OnStateRequestAtServer(NetworkConnection sender, ItemDropStateRequest request, Channel channel)
@@ -269,6 +298,11 @@ namespace CityX.Character
             {
                 Target.Show(ToDrop(message));   // the dropper's own machine already shows it: a repeat changes nothing
             }
+        }
+
+        private void OnTakeRefusedAtClient(ItemTakeRefusedMessage message, Channel channel)
+        {
+            Target.TakeRefused(message.Id);
         }
 
         private void OnTakenAtClient(ItemTakenMessage message, Channel channel)

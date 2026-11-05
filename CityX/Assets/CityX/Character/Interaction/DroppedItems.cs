@@ -142,6 +142,12 @@ namespace CityX.Character
             Remove(id);
         }
 
+        /// <summary>The server's word that this machine's player may not have it from where they stand: it may be asked for again, nearer.</summary>
+        public void TakeRefused(long id)
+        {
+            _asked.Remove(id);
+        }
+
         /// <summary>Every drop recorded here, as it lies now (a shown one at its object's place, at rest), for a player who joins.</summary>
         public List<ItemDrop> Current()
         {

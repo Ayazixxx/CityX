@@ -139,6 +139,70 @@ namespace CityX.Tests
             ItemId = ItemRegistry.SpikeSword, Position = at, Rotation = Quaternion.identity, Velocity = new Vector3(0.6f, 1.5f, 0.0f), Spin = Vector3.forward * 4.0f,
         };
 
+        /// <summary>
+        /// A sword let go 30 m up (a player dies on a roof or a footbridge, or falling) lands in the street: it can be picked up by whoever stands by it where it landed, and whoever is
+        /// refused from too far off may ask again once nearer.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AnItemThatFellALongWayIsTakenWhereItLanded([Values(true, false)] bool standingByIt)
+        {
+#if UNITY_EDITOR
+            LogAssert.ignoreFailingMessages = true;
+            GameObject playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(NetworkedPlayerPrefabPath);
+            Assert.IsNotNull(playerPrefab, "no NetworkedPlayer.prefab -- run CityX/Rebuild Massing Scene first");
+            ushort port = _nextPort++;
+            (NetworkManager server, DroppedItems _, DroppedItemsNetwork _) = Machine("Fall Server");
+            Transport st = server.TransportManager.Transport;
+            st.SetPort(port);
+            st.SetServerBindAddress("127.0.0.1", IPAddressType.IPv4);
+            server.ServerManager.StartConnection(port);
+            yield return WaitUntil(() => server.IsServerStarted, "the server to start");
+            (NetworkManager a, DroppedItems onA, DroppedItemsNetwork netA) = Machine("Fall Client A");
+            (NetworkManager b, DroppedItems onB, DroppedItemsNetwork netB) = Machine("Fall Client B");
+            yield return Join(a, port);
+            yield return Join(b, port);
+
+            yield return WaitUntil(() => netA.StatesHeard > 0 && netB.StatesHeard > 0, "both players to be told what lies around");
+            Inventory bPockets = Pockets("B's inventory");
+
+            // (A's body starts to fall as soon as it appears: the sword goes at once, as it would from a body that dies up there.)
+            const float Height = 30.0f;
+            NetworkObject aBody = server.GetPooledInstantiated(playerPrefab, new Vector3(0.0f, Height, 0.0f), Quaternion.identity, asServer: true);
+            server.ServerManager.Spawn(aBody, AtServer(server, a));
+            NetworkObject bBody = server.GetPooledInstantiated(playerPrefab, new Vector3(standingByIt ? 3.0f : 60.0f, 0.5f, 0.0f), Quaternion.identity, asServer: true);
+            server.ServerManager.Spawn(bBody, AtServer(server, b));
+
+            DroppedItem item = onA.Drop(Sword(new Vector3(0.4f, Height, 0.3f)), shared: true);
+            Assert.IsNotNull(item, "the sword did not fall on the dropper's machine");
+            long id = item.Id;
+            yield return WaitUntil(() => onB.Has(id), "player B to see the sword");
+            yield return WaitUntil(() => onB.Find(id) != null && onB.Find(id).transform.position.y < 3.0f, "the sword to land on player B's machine");
+
+            Assert.IsTrue(onB.Take(id, bPockets), "player B could not ask for it");
+            if (standingByIt)
+            {
+                yield return WaitUntil(() => !onB.Has(id), "the sword to be given to the player standing by it");
+                Assert.IsTrue(bPockets.HasItem(ItemRegistry.SpikeSword), "the sword did not go into player B's inventory");
+            }
+            else
+            {
+                yield return WaitUntil(() => !onB.IsAskedFor(id), "player B to be told no, so they can ask again from nearer");
+                Assert.IsTrue(onB.Has(id), "refused, but the sword is gone");
+            }
+#else
+            yield break;
+#endif
+        }
+
+        [TestCase(0.0f, 30.0f, 0.0f, 0.5f, 0.0f, ExpectedResult = true)]
+        [TestCase(0.0f, 30.0f, 0.0f, 0.5f, 25.0f, ExpectedResult = true)]
+        [TestCase(0.0f, 30.0f, 0.0f, 0.5f, 200.0f, ExpectedResult = false)]
+        [TestCase(0.0f, 1.0f, 0.0f, 40.0f, 0.0f, ExpectedResult = false)]
+        public bool AnItemFallsItDoesNotFly(float fromX, float fromY, float fromZ, float toY, float toZ)
+        {
+            return DroppedItemsNetwork.CouldHaveFallenTo(new Vector3(fromX, fromY, fromZ), new Vector3(fromX, toY, toZ));
+        }
+
         [UnityTest]
         public IEnumerator ADroppedWeaponLiesOnEveryMachineAndOnlyThePlayerWhoPicksItUpFirstGetsIt()
         {
