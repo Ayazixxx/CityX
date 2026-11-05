@@ -68,7 +68,7 @@ asks for).
 
 ## 2026-11-05: the test was showing an empty street; lighter bodies tried
 
-**The crowd had been switched off.** The joining player's body has gained network parts since 2026-10-27 (ragdoll, fire, voice and more)
+**The crowd had been switched off.** The joining player's body has gained network parts since 2026-10-27
 that the test did not take off, and with no session to spawn it in, the body was switched off as soon as it woke: every crowd size cost
 about nothing and the pictures showed an empty pavement. The test now takes off every network part (`NetworkBehaviour`), not a list of
 them. It also has a quick mode for a before and after: `CITYX_CROWD_STEPS=25,50` times only those sizes and makes no video
