@@ -1,0 +1,39 @@
+# The night of 2026-11-05: what changed
+
+One commit per job, so any of them can be taken back on its own. Nothing is uploaded to GitHub. All numbers below are my first guesses unless they say otherwise. Tell me which feel wrong.
+
+## The Wraith
+
+Your Meshy model's head and body, your player's arms, a tail that wears away into gas. It floats about until it notices you, then comes up behind you and bites your neck with the recording you gave me, with blood at the neck.
+
+**Try:** `/spawn wraith`, then turn your back on it. Face it and it stops and circles you. Turn away and it comes in.
+
+**My guesses:** the bite does 30 and then 6 about twice a second for 1.9 seconds (about 50 of your 100). It sneaks at 3.2 m/s, and you walk at 4.
+
+**Known rough spot:** the join where its body meets the player's arms has a jagged edge, because the two meshes were cut apart. Tell me if it bothers you.
+
+## The slingshot's string
+
+Right click now only brings it up, with the bands slack and the pebble hanging between the prongs. Holding left click pulls them back to your cheek. The hand waits part way forward while you aim, since the arm can't reach the fork from there.
+
+**Try:** `/equip slingshot`, hold right click, then hold left click as well.
+
+## Character creator zoom
+
+The scroll wheel now zooms toward whatever the mouse is over: head, feet, a hand. Scrolling out always brings the whole body back to the middle. It also comes in closer than before. ReDraw has it too.
+
+**Try:** create a character, put the mouse on the feet and scroll in.
+
+## The boomerang
+
+The Terraria rules, using its real numbers scaled to our body size. It flies straight for half a second, then turns home. Anything it hits on the way out turns it straight back. On the way home it goes through walls and hits everyone it passes. Hits always push away from you. Only one can be out, and your hand is empty until you catch it.
+
+**Try:** `/equip boomerang`, then click. Throw it at a wall, at `/spawn swordsman`, and across a street with a building between you and it on the way home.
+
+**My guesses, not Terraria's:** turning back on a hit going out is from my memory of the game, because the wiki doesn't say. Aiming at what the crosshair is on, cracking a window it hits, and its size (70 cm tip to tip, so you can see it in the air) are mine.
+
+**First go:** the model is a stand-in drawn in code, and the throwing arm is code-posed rather than a Blender clip. Tell me if it looks stiff.
+
+## Stairs and playing with a friend
+
+Both were done earlier today and are already in `git log`. Nobody has tried joining a friend on two real PCs yet.

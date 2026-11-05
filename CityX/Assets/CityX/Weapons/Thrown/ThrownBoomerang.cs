@@ -1,0 +1,215 @@
+using System.Collections.Generic;
+using CityX.Character;
+using UnityEngine;
+
+namespace CityX.Weapons
+{
+    /// <summary>
+    /// A BOOMERANG IN THE AIR (docs/BOOMERANG.md). It flies its <see cref="BoomerangFlight"/> and sweeps its path each frame. Going out, the first thing
+    /// it meets, a person or a wall, turns it back. Coming back, it goes through walls and hits everyone it passes. Every hit pushes away from the
+    /// thrower, whichever way it is flying. Only the thrower's hurts; another player's copy flies the same way and hurts no one.
+    /// </summary>
+    public sealed class ThrownBoomerang : MonoBehaviour
+    {
+        /// <summary>How far the spinning disc is tipped from flat, degrees, up toward its way and over to its side, so that its spin reads from behind, the side and above.</summary>
+        public const float TiltDegrees = 55.0f;
+
+        public const float RollDegrees = 30.0f;
+
+        private const float WhirrVolume = 0.55f;
+        private const float HitVolume = 0.8f;
+
+        [Tooltip("What spins: the model, about its own flat axis. Set by BoomerangBuilder.")]
+        public Transform Spinner;
+
+        private readonly RaycastHit[] _hits = new RaycastHit[32];
+        private readonly Dictionary<IDamageable, float> _struckAt = new Dictionary<IDamageable, float>();
+
+        private BoomerangFlight _flight;
+        private GameObject _thrower;
+        private float _damage;
+        private float _penetration;
+        private float _spin;
+        private bool _done;
+
+        /// <summary>Another player's boomerang, shown here: it hurts no one.</summary>
+        public bool IsCopy { get; private set; }
+
+        public bool Returning => _flight != null && _flight.Returning;
+
+        /// <summary>Raised on the thrower's boomerang when something turned it back on its way out: whether that was a person.</summary>
+        public event System.Action<bool> TurnedBack;
+
+        /// <summary>Raised as it goes, caught or lost.</summary>
+        public event System.Action Gone;
+
+        public static ThrownBoomerang Spawn(GameObject prefab, Vector3 from, Vector3 way, float speed, GameObject thrower, float damage, float penetration, bool copy)
+        {
+            if (prefab == null)
+            {
+                return null;
+            }
+            Quaternion facing = Quaternion.LookRotation(way.sqrMagnitude > 1e-6f ? way : Vector3.forward, Vector3.up) * Quaternion.Euler(TiltDegrees, 0.0f, RollDegrees);
+            GameObject made = Instantiate(prefab, from, facing);
+            var boomerang = made.GetComponent<ThrownBoomerang>();
+            boomerang._flight = new BoomerangFlight(from, way, speed);
+            boomerang._thrower = thrower;
+            boomerang._damage = damage;
+            boomerang._penetration = penetration;
+            boomerang.IsCopy = copy;
+            boomerang.StartWhirr();
+            return boomerang;
+        }
+
+        private void Update()
+        {
+            if (_flight == null || _done)
+            {
+                return;
+            }
+            if (_thrower == null)
+            {
+                Finish();
+                return;
+            }
+            float deltaTime = Time.deltaTime;
+            Vector3 home = HomeOf(_thrower);
+            Vector3 before = _flight.Position;
+            _flight.Step(deltaTime, home);
+            if (!IsCopy)
+            {
+                Sweep(before, _flight.Position);
+            }
+            transform.position = _flight.Position;
+            _spin = Mathf.Repeat(_spin + BoomerangRules.SpinDegreesPerSecond * deltaTime, 360.0f);
+            if (Spinner != null)
+            {
+                Spinner.localRotation = Quaternion.AngleAxis(_spin, Vector3.up);
+            }
+            if (_flight.Arrived(home) || _flight.Lost(home))
+            {
+                Finish();
+            }
+        }
+
+        /// <summary>The owner says something turned it back on their screen: it turns back here too, and sounds it.</summary>
+        public void TurnBackFromNetwork(bool hitSomeone)
+        {
+            if (_flight != null && !_flight.Returning)
+            {
+                _flight.TurnBack();
+                Clack(transform.position, hitSomeone);
+            }
+        }
+
+        /// <summary>It is gone now, wherever it is.</summary>
+        public void Finish()
+        {
+            if (_done)
+            {
+                return;
+            }
+            _done = true;
+            Gone?.Invoke();
+            Destroy(gameObject);
+        }
+
+        private static Vector3 HomeOf(GameObject thrower)
+        {
+            var locomotion = thrower.GetComponent<PlayerLocomotion>();
+            float height = locomotion != null ? locomotion.WorldHeight : BodyRig.StandingHeight;
+            return thrower.transform.position + Vector3.up * (height * 0.6f);
+        }
+
+        private void Sweep(Vector3 from, Vector3 to)
+        {
+            Vector3 path = to - from;
+            float length = path.magnitude;
+            if (length < 1e-5f)
+            {
+                return;
+            }
+            bool returning = _flight.Returning;
+            int count = Physics.SphereCastNonAlloc(from, BoomerangRules.HitRadius, path / length, _hits, length, ~0, QueryTriggerInteraction.Ignore);
+            float nearest = float.MaxValue;
+            int first = -1;
+            IDamageable firstBody = null;
+            for (int i = 0; i < count; i++)
+            {
+                Collider touched = _hits[i].collider;
+                if (touched == null || touched.transform.IsChildOf(_thrower.transform) || touched.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+                IDamageable body = touched.GetComponentInParent<IDamageable>();
+                if (body != null && !body.IsAlive)
+                {
+                    continue;
+                }
+                if (returning)
+                {
+                    if (body != null)
+                    {
+                        Hit(body, PointOf(_hits[i], from));
+                    }
+                }
+                else if (_hits[i].distance < nearest)
+                {
+                    nearest = _hits[i].distance;
+                    first = i;
+                    firstBody = body;
+                }
+            }
+            if (first < 0)
+            {
+                return;
+            }
+
+            Vector3 point = PointOf(_hits[first], from);
+            if (firstBody != null)
+            {
+                Hit(firstBody, point);
+            }
+            else
+            {
+                var breakable = _hits[first].collider.GetComponentInParent<CityX.World.IBreakableSurface>();
+                breakable?.TakeBlow(point, path / length, CityX.World.BlowStrength.Light);
+                Clack(point, false);
+            }
+            _flight.TurnBack();
+            TurnedBack?.Invoke(firstBody != null);
+        }
+
+        /// <summary>A sweep that began already touching something says nothing of where: this frame's start is near enough.</summary>
+        private static Vector3 PointOf(in RaycastHit hit, Vector3 from) => hit.distance > 0.0f ? hit.point : from;
+
+        private void Hit(IDamageable body, Vector3 point)
+        {
+            if (_struckAt.TryGetValue(body, out float at) && _flight.Age - at < BoomerangRules.HitAgainSeconds)
+            {
+                return;
+            }
+            _struckAt[body] = _flight.Age;
+            DamageContext.Strike(body, _damage, _thrower.transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration, point, _thrower);
+            Clack(point, true);
+        }
+
+        private static void Clack(Vector3 at, bool onSomeone)
+        {
+            if (Application.isPlaying)
+            {
+                AudioSource.PlayClipAtPoint(onSomeone ? ArcherySounds.Thud : ArcherySounds.Knock, at, HitVolume);
+            }
+        }
+
+        private void StartWhirr()
+        {
+            var whirr = gameObject.AddComponent<AudioSource>();
+            whirr.clip = BoomerangSounds.Whirr;
+            whirr.loop = true;
+            whirr.spatialBlend = 1.0f;
+            whirr.volume = WhirrVolume;
+            whirr.Play();
+        }
+    }
+}

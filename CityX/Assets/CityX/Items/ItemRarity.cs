@@ -66,6 +66,7 @@ namespace CityX.Items
             [ItemRegistry.SpikeSword] = Rarity.Uncommon,
             [ItemRegistry.Parachute] = Rarity.Uncommon,
             [ItemRegistry.Grenade] = Rarity.Uncommon,
+            [ItemRegistry.WoodenBoomerang] = Rarity.Uncommon,
             [ItemRegistry.MidnightCoat] = Rarity.Rare,
             [ItemRegistry.FireballStaff] = Rarity.Rare,
             [ItemRegistry.IceShardStaff] = Rarity.Rare,

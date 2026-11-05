@@ -421,6 +421,10 @@ namespace CityX.UI
                 case "grenades":
                 case "frag":
                 case "nade": return ItemRegistry.Grenade;
+                case "boomerang":
+                case "woodenboomerang":
+                case "wooden_boomerang":
+                case "rang": return ItemRegistry.WoodenBoomerang;
                 case "spray":
                 case "spraycan":
                 case "spray_can":

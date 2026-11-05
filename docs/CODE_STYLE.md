@@ -63,7 +63,7 @@ conventions down and apply them every time.
    |---|---|
    | `View` | `Streaming` (chunk streaming and mesh buffers), `Skyline`, `Buildings` (`CityMeshBuilder` and its partials, facades), `Streets` (`CitySurfaceBuilder`, props), `Glass`, `Interactables` (doors, switches, benches, books, the radio), `Lighting` (day and night, room lights, haze), `Weather` (rain, lightning, thunder), `Water` (water surfaces, splashes, rising water), `Tools` (the fly camera, the frame benchmark) |
    | `UI` | `Hud`, `Menus`, `Map`, `Title`, `Creator` (the character creator and ReDraw), `DevConsole`; `UiKit` and `ButtonAction` at the root |
-   | `Weapons` | `Melee`, `Firearms`, `Spells`, `Gear` (jetpack, parachute, grapple, spray can, flashlight), `Archery`, `Explosives` (the grenade and its explosion), `NPC` (the enemies' minds); `GripMarker` at the root |
+   | `Weapons` | `Melee`, `Firearms`, `Spells`, `Gear` (jetpack, parachute, grapple, spray can, flashlight), `Archery`, `Explosives` (the grenade and its explosion), `Thrown` (the boomerang), `NPC` (the enemies' minds); `GripMarker` at the root |
 
    Move a script together with its `.meta` file (`git mv` both, or move it in the Unity editor). The `.meta` holds the GUID that prefabs
    and scenes use to find the script; lose it and every reference to the script breaks. Namespaces stay one per assembly

@@ -167,6 +167,9 @@ PrefabInstance:
       addedObject: {fileID: 3353174932153861613}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 3210543763614710909}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -179,7 +182,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2675897744950324260}
+      addedObject: {fileID: 282773967242038790}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -529,6 +532,8 @@ MonoBehaviour:
     Prefab: {fileID: 7081518439271566258, guid: 3fd511d6ab84f114191aca877a42e7fe, type: 3}
   - ItemId: grenade
     Prefab: {fileID: 8138500019268029943, guid: 33f3d1d7864fb9b45999c39649ec288a, type: 3}
+  - ItemId: woodenboomerang
+    Prefab: {fileID: 4401965656732072727, guid: 16e201c3fc0db5b4ea4ef7375a5455c4, type: 3}
   - ItemId: jerry_can
     Prefab: {fileID: 6009600437600694734, guid: 2b819f8fa5a05e940b5aab6407ad6175, type: 3}
   - ItemId: bow
@@ -976,6 +981,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GrenadeThrower
   ThrownPrefab: {fileID: 1739624149125597005, guid: 20e5fc36ab98e8a4d9b1000dedea1075, type: 3}
+--- !u!114 &3210543763614710909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f69961d06847c2f448baec0b8a2ca9f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BoomerangThrower
+  ThrownPrefab: {fileID: 1519676695660055740, guid: 913da964cad902f4cbec8ebd287893ec, type: 3}
 --- !u!114 &4178808262995625697
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1026,7 +1044,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &2675897744950324260
+--- !u!114 &282773967242038790
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

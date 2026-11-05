@@ -50,6 +50,9 @@ namespace CityX.Items
         public const string Bow = "bow";
         public const string Crossbow = "crossbow";
         public const string Slingshot = "slingshot";
+
+        /// <summary>Thrown and caught, as Terraria's (docs/BOOMERANG.md).</summary>
+        public const string WoodenBoomerang = "woodenboomerang";
         public const string FireballStaff = "fireball_staff";
         public const string IceShardStaff = "ice_shard_staff";
         public const string ArcaneBeamStaff = "arcane_beam_staff";
@@ -133,6 +136,7 @@ namespace CityX.Items
             [Crossbow] = new ItemDefinition(Crossbow, "Crossbow", "weapon", EquipSlots.Primary, 1),
             // The slingshot (2026-10-30, docs/SLINGSHOT.md): the starter ranged weapon, drawn as the bow is, quicker, flinging pebbles.
             [Slingshot] = new ItemDefinition(Slingshot, "Slingshot", "weapon", EquipSlots.Primary, 1),
+            [WoodenBoomerang] = new ItemDefinition(WoodenBoomerang, "Wooden Boomerang", "weapon", EquipSlots.Primary, 1),
             [FireballStaff] = new ItemDefinition(FireballStaff, "Fireball Staff", "weapon", EquipSlots.Primary, 1),
             [IceShardStaff] = new ItemDefinition(IceShardStaff, "Ice Shard Staff", "weapon", EquipSlots.Primary, 1),
             // The arcane beam and the healing beam (2026-10-29, docs/STAFFS.md, docs/HEALING.md): held, a beam; Mercy's staff without its boost.

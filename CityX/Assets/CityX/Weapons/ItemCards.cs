@@ -37,6 +37,7 @@ namespace CityX.Weapons
                 else if (prefab.GetComponent<StaffItem>() is StaffItem staff) Staff(card, staff);
                 else if (prefab.GetComponent<Flamethrower>() != null) FlamethrowerOf(card);
                 else if (prefab.GetComponent<GrenadeItem>() != null) Grenade(card);
+                else if (prefab.GetComponent<BoomerangItem>() != null) Boomerang(card);
                 else if (prefab.GetComponent<BottleWeapon>() != null) Bottle(card);
                 else if (prefab.GetComponent<FlightGear>() != null) Gear(card, "Flight gear", "On the back", "Space takes off and climbs; let go to hover; Ctrl sinks");
                 else if (prefab.GetComponent<Parachute>() != null) Gear(card, "Parachute", "On the back", "Opens in a fall and floats you down");
@@ -199,6 +200,17 @@ namespace CityX.Weapons
             card.Add("Radius", GrenadeRules.Radius, GrenadeRules.Radius.ToString("0.#") + " m");
             card.Add("Fuse", GrenadeRules.FuseSeconds.ToString("0.#") + " s");
             card.Note("Thrown; a stack of " + ItemRegistry.GrenadeStack);
+        }
+
+        private static void Boomerang(ItemCard card)
+        {
+            card.Kind = "Boomerang";
+            card.Hands = OneHand;
+            card.Style = "Archery and Throwing";
+            card.ScalesWith = MeleeDamageStat;
+            card.Add("Attack", BoomerangRules.Damage, BoomerangRules.Damage.ToString("0"));
+            card.Add("Range", BoomerangRules.Range, BoomerangRules.Range.ToString("0") + " m");
+            card.Note("Comes back, through walls, hitting everyone it passes");
         }
 
         private static void Bottle(ItemCard card)

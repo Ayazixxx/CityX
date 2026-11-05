@@ -95,6 +95,12 @@ namespace CityX.Tests
             Assert.AreEqual("Slingshot / Two Hands", slingshot.TypeLine);
             Assert.AreEqual(SlingshotRules.FullDamage, Row(slingshot, "Attack").Number, 1e-4f);
             Assert.IsFalse(Row(slingshot, "Draw").HigherIsBetter, "a quicker draw is the better one");
+
+            ItemCard boomerang = Card(ItemRegistry.WoodenBoomerang, "Boomerang");
+            Assert.AreEqual("Boomerang / One Hand", boomerang.TypeLine);
+            Assert.AreEqual(BoomerangRules.Damage, Row(boomerang, "Attack").Number, 1e-4f);
+            Assert.AreEqual(BoomerangRules.Range, Row(boomerang, "Range").Number, 1e-4f);
+            Assert.AreEqual(Rarity.Uncommon, ItemRarity.Of(ItemRegistry.WoodenBoomerang));
         }
 
         [Test]

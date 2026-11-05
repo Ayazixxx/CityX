@@ -896,6 +896,8 @@ namespace CityX.Character
             ApplyBarrierPose();
             // A bow in the left hand: the bow arm out along the aim, the string hand nocking and drawing (PlayerLocomotion.Bow.cs).
             ApplyBowPose();
+            // The arm's swing of a throw (PlayerLocomotion.Throw.cs).
+            ApplyThrowSwing();
             // The fingers close round whatever each hand holds (HandGrip), last: they hang off the posed hands.
             ApplyFingerGrips();
             if (IsSitting)
