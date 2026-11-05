@@ -143,7 +143,7 @@ namespace CityX.Weapons
                     continue;
                 }
                 bool wasAlive = target.IsAlive;
-                DamageContext.Strike(target, GrenadeRules.Damage * share, at, 0.6f, DamageKind.Physical, 0.0f, chest, source);
+                HitResponse response = DamageContext.Strike(target, GrenadeRules.Damage * share, at, 0.6f, DamageKind.Physical, 0.0f, chest, source);
                 hurt++;
                 PlayerVitals thrower = source != null ? source.GetComponent<PlayerVitals>() : null;
                 if (wasAlive && !target.IsAlive && thrower != null && target is IXpReward reward)
@@ -153,6 +153,10 @@ namespace CityX.Weapons
                 Vector3 flat = new Vector3(away.x, 0.0f, away.z);
                 Vector3 outward = flat.sqrMagnitude > 1e-4f ? flat.normalized : Vector3.forward;
                 Vector3 thrown = outward * GrenadeRules.ThrowAwaySpeed * share + Vector3.up * GrenadeRules.ThrowUpSpeed * share;
+                if (response != HitResponse.Landed)
+                {
+                    continue;   // dashed through it, or behind a barrier, a guard or a shield: a blast that never reached the body does not throw it
+                }
                 if (target.IsAlive && target is PlayerVitals vitals)
                 {
                     vitals.TriggerLaunchKnockdown(thrown);

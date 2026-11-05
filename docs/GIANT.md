@@ -29,6 +29,7 @@
 - Thrown limp in the middle of its crouch or its leap, it stands its 1.4 s once back on its feet and crouches again before the next leap
   (`GiantMind.KnockedDown`): its slam never comes without the tell. Its mind used to stay in the leap while it lay there, and it
   slammed the moment it stood (2026-11-05).
+- Its slam throws down only whom it hurts: not a player dashing through it, nor one behind a barrier, a guard or a shield (2026-11-05).
 - Its numbers are constants in `GiantRules`.
 
 ## Other players (docs/MULTIPLAYER_STATE.md)

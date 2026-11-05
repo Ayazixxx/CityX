@@ -44,8 +44,12 @@ namespace CityX.Weapons
                     continue;
                 }
                 Vector3 direction = away.sqrMagnitude > 1e-4f ? away.normalized : Vector3.forward;
-                DamageContext.Strike(target, GiantRules.SlamDamage * share, feet, 0.4f, DamageKind.Physical, 0.0f,
+                HitResponse response = DamageContext.Strike(target, GiantRules.SlamDamage * share, feet, 0.4f, DamageKind.Physical, 0.0f,
                     body.transform.position + Vector3.up, giant);
+                if (response != HitResponse.Landed)
+                {
+                    continue;   // dashed through it, or behind a barrier, a guard or a shield: a slam that never reached the body does not throw it
+                }
                 Vector3 throwVelocity = direction * GiantRules.SlamThrowSpeed * share + Vector3.up * GiantRules.SlamThrowUpSpeed * share;
                 if (target.IsAlive && target is PlayerVitals vitals)
                 {
