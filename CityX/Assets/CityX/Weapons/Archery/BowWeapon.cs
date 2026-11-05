@@ -58,6 +58,9 @@ namespace CityX.Weapons
 
         public const float TwangSeconds = 0.2f;
 
+        /// <summary>A slingshot's pouch hangs slack until the draw, and is in the hand by this share of the pull.</summary>
+        public const float PouchInHandByPull = 0.25f;
+
         public event System.Action<GunShot> ShotResolved;
 
         private PlayerLocomotion _locomotion;
@@ -305,12 +308,11 @@ namespace CityX.Weapons
             bool inHand = up && _reload <= 0.0f && _locomotion != null && _locomotion.BowArrowInHand;
             Vector3 hand = _locomotion != null ? transform.InverseTransformPoint(_locomotion.BowNock) : RestPoint;
 
+            bool slingshot = Profile.Style.Slingshot;
             Vector3 nock = RestPoint;
-            // A slingshot's pouch is held from the moment it is aimed (the hand already up by the cheek, PlayerLocomotion.Slingshot.cs); a bow's
-            // string only once it is drawn.
-            if (pull > 0.01f || (up && _reload <= 0.0f && Profile.Style.Slingshot))
+            if (pull > 0.01f)
             {
-                nock = hand;
+                nock = slingshot ? Vector3.Lerp(RestPoint, hand, Mathf.SmoothStep(0.0f, 1.0f, pull / PouchInHandByPull)) : hand;
             }
             else if (_twangLeft > 0.0f)
             {
@@ -333,7 +335,7 @@ namespace CityX.Weapons
                 }
                 if (inHand)
                 {
-                    NockedArrow.localPosition = hand;
+                    NockedArrow.localPosition = slingshot ? nock : hand;
                     NockedArrow.localRotation = Quaternion.identity;
                 }
             }

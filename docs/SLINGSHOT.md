@@ -38,9 +38,9 @@ leading, and the head turns back to look along the aim. The left arm is straight
 upright in the fist and leaning 30 degrees in toward the drawing hand. The pouch is held up by the right cheekbone, at an anchor just outside the
 head (0.85, 0, 0.75 head radii to the right, up and forward of its middle), the right hand pinching it with the fingers toward the fork and the
 palm to the cheek, the elbow low and back so the forearm rises to the face; the fork stands on the line from that anchor along the aim, as a
-shooter lines it up with the eye, which also keeps it clear of the head from the camera over the right shoulder. Aimed and undrawn, the hand rests
-90% of the way back (further forward, the arm, from the turned-back shoulder, straightened across the face); the draw pulls the rest, the bands
-following the hand from the moment it is aimed. On the loose the bands snap back and shiver, as the bow's string does, and the hand flicks off
+shooter lines it up with the eye, which also keeps it clear of the head from the camera over the right shoulder.
+
+Aiming alone leaves the bands slack (owner, 2026-11-05: "when you hold right click the animation stretches the string instead of it doing it only when you hold click"): the pouch and pebble hang between the prongs, and the hand waits 45% of the way back from the fork (`SlingshotRestPull`), since the arm cannot reach the fork from the turned-back shoulder. Holding left click draws: the pouch is in the hand within the first quarter of the pull (`BowWeapon.PouchInHandByPull`), and both go back to the cheek. On the loose the bands snap back and shiver, as the bow's string does, and the hand flicks off
 them. `SlingshotCapture` renders it from the side and from the game's own aiming camera (`slingshot-drawn-aim-view.png`: the player's view).
 
 ## The model (`ArcheryBuilder.BuildSlingshot`, `BuildPebble`)

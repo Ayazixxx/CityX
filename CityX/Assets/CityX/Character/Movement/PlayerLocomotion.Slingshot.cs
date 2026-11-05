@@ -28,9 +28,11 @@ namespace CityX.Character
         /// <summary>The fork arm's reach as a share of the arm's whole length: straight, a hair short of locked (0.97 still bent it 29 degrees).</summary>
         public const float SlingshotArmStraight = 0.995f;
 
-        /// <summary>Aimed but not drawn, the pouch hand rests this share of the way back from the fork to the anchor: up by the cheek, ready, as Bully's aim is (further
-        /// forward, the arm from the shoulder, turned back, straightened across the face).</summary>
-        public const float SlingshotRestPull = 0.9f;
+        /// <summary>
+        /// Aimed but not drawn, the pouch hand waits this share of the way back from the fork to the anchor, with the bands still slack: holding
+        /// the click is what pulls them (owner, 2026-11-05: "make it so the string goes back as you hold click not just when aiming in").
+        /// </summary>
+        public const float SlingshotRestPull = 0.45f;
 
         /// <summary>
         /// Which way the drawing elbow points: out to the right, this much back along the aim and this much up (down: the forearm rising from a low

@@ -146,6 +146,51 @@ namespace CityX.Tests
             Assert.Greater(Vector3.Distance(leftLower.position, head.position), headRadius, "the fork arm goes through the head");
         }
 
+        /// <summary>Owner, 2026-11-05: "when you hold right click the animation stretches the string ... make it so the string goes back as you hold click not just when aiming in".</summary>
+        [UnityTest]
+        public IEnumerator AimingLeavesTheBandsSlackAndOnlyHoldingTheClickPullsThem()
+        {
+            GameObject player = Body(Vector3.zero);
+            BowWeapon sling = Slingshot();
+            sling.OnEquip(player, ItemInstanceData.None);
+            Animator animator = player.GetComponentInChildren<Animator>();
+            Transform leftHand = animator.GetBoneTransform(HumanBodyBones.LeftHand), rightHand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+            Vector3 aim = player.transform.forward;
+            float Stretch() => Vector3.Distance(sling.String.GetPosition(1), sling.RestPoint);
+
+            yield return Hold(player, sling, false, true, 0.4f);
+            Assert.Greater(player.GetComponent<PlayerLocomotion>().BowRaise, 0.9f, "right click did not bring it up");
+            Assert.Less(Stretch(), 0.005f, "aiming alone stretches the bands");
+            Assert.Less(Vector3.Distance(sling.NockedArrow.localPosition, sling.RestPoint), 0.005f, "the pebble is not in the slack pouch");
+            float aimedBack = Vector3.Dot(leftHand.position - rightHand.position, aim);
+
+            // The arm waiting forward of the cheek must not lie through the head.
+            Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+            Transform rightLower = animator.GetBoneTransform(HumanBodyBones.RightLowerArm), rightUpper = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            float headRadius = FusedBodyShape.HeadRadius * player.GetComponent<PlayerLocomotion>().WorldHeight / BodyRig.StandingHeight;
+            Assert.Greater(DistanceToSegment(head.position, rightLower.position, rightHand.position), headRadius, "the waiting forearm goes through the head");
+            Assert.Greater(DistanceToSegment(head.position, rightUpper.position, rightLower.position), headRadius, "the waiting upper arm goes through the head");
+
+            yield return Hold(player, sling, true, true, SlingshotRules.FullDrawSeconds * 0.5f);
+            float halfWay = Stretch();
+            Assert.Greater(halfWay, 0.1f, "half a draw has not pulled the bands");
+
+            yield return Hold(player, sling, true, true, SlingshotRules.FullDrawSeconds * 0.5f + 0.3f);
+            Assert.Greater(Stretch(), halfWay + 0.1f, "the bands do not go on stretching as the click is held");
+            float drawnBack = Vector3.Dot(leftHand.position - rightHand.position, aim);
+            Assert.Greater(drawnBack, aimedBack + 0.15f, $"the hand did not draw back ({aimedBack:F2} m to {drawnBack:F2} m)");
+
+            yield return Hold(player, sling, false, true, SlingshotRules.ReloadSeconds + 0.1f);
+            Assert.Less(Stretch(), 0.005f, "the bands stay stretched after the shot");
+        }
+
+        private static float DistanceToSegment(Vector3 point, Vector3 a, Vector3 b)
+        {
+            Vector3 along = b - a;
+            float t = Mathf.Clamp01(Vector3.Dot(point - a, along) / Mathf.Max(1e-6f, along.sqrMagnitude));
+            return Vector3.Distance(point, a + along * t);
+        }
+
         [UnityTest]
         public IEnumerator AFullDrawHitsForFullDamageAndThePebbleDropsOffInsteadOfSticking()
         {
@@ -202,6 +247,10 @@ namespace CityX.Tests
             var copyArchery = copy.GetComponent<Archery>();
             archery.Fired += copyArchery.PlayRemote;
             var copyLocomotion = copy.GetComponent<PlayerLocomotion>();
+
+            yield return Hold(shooter, sling, false, true, 0.3f);
+            Assert.Greater(copyLocomotion.BowRaise, 0.9f, "the copy's slingshot does not come up with the aim");
+            Assert.Less(Vector3.Distance(copySling.String.GetPosition(1), copySling.RestPoint), 0.005f, "the shooter only aims, and the copy's bands stretch");
 
             yield return Hold(shooter, sling, true, true, 0.35f);
             Assert.Greater(copyLocomotion.BowRaise, 0.9f, "the copy's slingshot is not up");
