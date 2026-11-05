@@ -23,6 +23,71 @@ namespace CityX.Character
             if (_wraith != null)
             {
                 _wraith.Relay = this;
+                _wraith.PhaseChanged += OnPhaseChanged;
+                _wraith.Bled += OnBled;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_wraith != null)
+            {
+                _wraith.PhaseChanged -= OnPhaseChanged;
+                _wraith.Bled -= OnBled;
+            }
+        }
+
+        // ---- the owner's hunt: what it is doing and whose neck it is at, and each spurt of blood, on every screen ----
+
+        private void OnPhaseChanged(WraithPhase phase, PlayerVitals prey)
+        {
+            if (NetworkObject != null && IsSpawned && IsOwner)
+            {
+                SendPhaseToServer((byte)phase, prey != null ? prey.GetComponent<NetworkObject>() : null);
+            }
+        }
+
+        private void OnBled(Vector3 at)
+        {
+            if (NetworkObject != null && IsSpawned && IsOwner)
+            {
+                SendBloodToServer(at);
+            }
+        }
+
+        [ServerRpc(RequireOwnership = true)]
+        private void SendPhaseToServer(byte phase, NetworkObject prey)
+        {
+            if (phase <= (byte)WraithPhase.Recovering)
+            {
+                BroadcastPhase(phase, prey);
+            }
+        }
+
+        [ObserversRpc(ExcludeOwner = true)]
+        private void BroadcastPhase(byte phase, NetworkObject prey)
+        {
+            if (_wraith != null)
+            {
+                _wraith.ShowPhaseFromNetwork((WraithPhase)phase, prey != null ? prey.GetComponent<PlayerVitals>() : null);
+            }
+        }
+
+        [ServerRpc(RequireOwnership = true)]
+        private void SendBloodToServer(Vector3 at)
+        {
+            if (WireChecks.Finite(at))
+            {
+                BroadcastBlood(at);
+            }
+        }
+
+        [ObserversRpc(ExcludeOwner = true)]
+        private void BroadcastBlood(Vector3 at)
+        {
+            if (_wraith != null)
+            {
+                _wraith.ShowBloodFromNetwork(at);
             }
         }
 

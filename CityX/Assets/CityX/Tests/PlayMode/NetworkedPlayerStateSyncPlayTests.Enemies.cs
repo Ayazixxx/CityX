@@ -213,6 +213,32 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>Owner, 2026-11-05: the bite. The machine that runs the Wraith hunts and bites, the other player's copy plays it at the same neck, with its blood.</summary>
+        [UnityTest]
+        public IEnumerator AWraithsBiteShowsOnTheOtherPlayersCopyWithItsBlood()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            yield return StartEnemyNetworks();
+            Vector3 behind = _aOnA.transform.position - _aOnA.transform.forward * 4.0f + Vector3.up * WraithDrift.HoverHeight;
+            NetworkObject onA = null, onB = null;
+            yield return SpawnFromA("wraith", behind, (a, b) => { onA = a; onB = b; });
+            var real = onA.GetComponent<Wraith>();
+            var copy = onB.GetComponent<Wraith>();
+
+            yield return WaitUntil(() => real.Phase == WraithPhase.Biting, "the Wraith to reach a neck");
+            yield return WaitUntil(() => copy.Phase == WraithPhase.Biting, "the other player's copy to show the bite");
+            Assert.IsNotNull(copy.Prey, "the copy was not told whose neck");
+            Assert.AreEqual(real.Prey.GetComponent<NetworkObject>().ObjectId, copy.Prey.GetComponent<NetworkObject>().ObjectId, "the copy bites someone else");
+            yield return WaitUntil(() => copy.BloodShown > 0, "the blood to show on the other player's machine");
+            Assert.Greater(real.BloodShown, 0);
+            yield return WaitUntil(() => copy.Phase == WraithPhase.Thrown, "the copy to let go when its owner does");
+#else
+            Assert.Ignore("needs the editor to load the networked prefabs.");
+            yield break;
+#endif
+        }
+
         /// <summary>The giant (docs/GIANT.md): the other player's copy is as big as the owner's, and the slam the owner's giant lands heaves the ground on their screen too.</summary>
         [UnityTest]
         public IEnumerator AGiantsCopyIsAGiantAndItsSlamHeavesTheGroundOnTheOtherScreen()

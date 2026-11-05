@@ -59,8 +59,13 @@ namespace CityX.Tests
             BuildingShapeCapture.Shoot(camera, folder, "wraith-face-front", skull + wraith.Head.forward * 2.0f, skull);
             BuildingShapeCapture.Shoot(camera, folder, "wraith-face-threequarter",
                 skull + (wraith.Head.forward * 1.7f + wraith.Head.right * 1.0f) + Vector3.up * 0.3f, skull);
+            // Its tail wearing away into gas, close.
+            Vector3 tail = wraithObject.transform.position + Vector3.up * 0.7f;
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-tail-front", tail + wraithObject.transform.forward * 3.4f + Vector3.up * 0.2f, tail);
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-tail-side", tail + wraithObject.transform.right * 3.4f + Vector3.up * 0.2f, tail);
 
-            // Floating: eight moments over four seconds, the camera following it.
+            // Floating, with no one to hunt: eight moments over four seconds, the camera following it.
+            player.SetActive(false);
             for (int shot = 0; shot < 8; shot++)
             {
                 for (int i = 0; i < 30; i++)
@@ -70,6 +75,46 @@ namespace CityX.Tests
                 chest = wraithObject.transform.position + Vector3.up * 1.4f;
                 BuildingShapeCapture.Shoot(camera, folder, $"wraith-drift-{shot}", chest + new Vector3(4.5f, 1.0f, 4.5f), chest);
             }
+
+            // The bite: a player with their back to it, 6 m on.
+            Vector3 wraithAt = wraithObject.transform.position;
+            player.transform.SetPositionAndRotation(new Vector3(wraithAt.x, 0.05f, wraithAt.z + 6.0f), Quaternion.identity);
+            player.SetActive(true);
+            player.GetComponent<PlayerInputReader>().enabled = true;   // (a body with its reader off and no session is nobody's: nothing hunts it)
+            for (int i = 0; i < 900 && wraith.Phase != WraithPhase.Lunging; i++)
+            {
+                yield return null;
+            }
+            for (int i = 0; i < 16; i++)
+            {
+                yield return null;
+            }
+            Vector3 middle = (player.transform.position + wraithObject.transform.position) * 0.5f + Vector3.up * 1.4f;
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-lunge-side", middle + player.transform.right * 7.0f + Vector3.up * 0.6f, middle);
+            for (int i = 0; i < 900 && wraith.Phase != WraithPhase.Biting; i++)
+            {
+                yield return null;
+            }
+            for (int i = 0; i < 40; i++)
+            {
+                yield return null;
+            }
+            middle = (player.transform.position + wraithObject.transform.position) * 0.5f + Vector3.up * 1.6f;
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-bite-side", middle + player.transform.right * 6.0f + Vector3.up * 0.4f, middle);
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-bite-behind", middle - player.transform.forward * 6.0f + Vector3.up * 1.0f, middle);
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-bite-front", middle + player.transform.forward * 5.0f + player.transform.right * 2.0f + Vector3.up * 0.8f, middle);
+            Debug.Log($"CityX wraith bite: player health {player.GetComponent<PlayerVitals>().Health:0}, teeth to the neck {Vector3.Distance(wraith.Jaw.position, player.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Neck).position):0.00} m");
+            for (int i = 0; i < 900 && wraith.Phase != WraithPhase.Thrown; i++)
+            {
+                yield return null;
+            }
+            for (int i = 0; i < 20; i++)
+            {
+                yield return null;
+            }
+            middle = (player.transform.position + wraithObject.transform.position) * 0.5f + Vector3.up * 1.6f;
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-thrown-side", middle + player.transform.right * 7.0f + Vector3.up * 0.6f, middle);
+            player.SetActive(false);
 
             // Night: no sun, a near-black world; its own glow is the light.
             sun.intensity = 0.0f;

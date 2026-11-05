@@ -135,7 +135,7 @@ namespace CityX.UI
                     }
                     // At its hover height already: it eases onto it over the real ground from there.
                     PutDown("wraith", WraithPrefab, where + Vector3.up * WraithDrift.HoverHeight, facing);
-                    SpawnLog("spawned a Wraith -- it floats about; its sneaking up and its bite come later");
+                    SpawnLog("spawned a Wraith -- it floats about, and sneaks up behind whoever turns their back");
                     return true;
 
                 case "shoota":

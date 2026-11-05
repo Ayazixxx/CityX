@@ -1,11 +1,9 @@
 # The Wraith
 
-The first real enemy (the swordsman, the Shoota and the Crimson Claw are testers): a low-level ghost that floats about the streets. Owner,
-2026-10-26: "make a new enemy called "Wraith" its a low level enemies that dies very quickly but sneaks up on you and tries to bite you and
-does a lot of damage if successful. we will do the sneak up bite function later for now just make the wraith and try to animate his
-movement the best you can. make it so the top half of him is the same dimensions as the playermodel ... his legs wisp away into nothing
-like a ghost. he is also somewhat transparent and glowing because he is a ghost." Then: "dont make the toothy smile il model it myself in
-meshy and send you the head later just do plain no facial details head", and "make him float around".
+The first real enemy (the swordsman, the Shoota and the Crimson Claw are testers): a low-level ghost that floats about the streets, sneaks up behind a player and bites their neck. Owner,
+2026-10-26: "make a new enemy called "Wraith" its a low level enemies that dies very quickly but sneaks up on you and tries to bite you and does a lot of damage if successful".
+
+Owner, 2026-11-05, with their Meshy model and a Mixamo clip: "make the head replaced with this model's head, I also like the body of the model attached better but want it to whisp away into nothing towards the bottom of it. how can we get the bottom to whisp away almost in a gas like state like a ghost? also I want him to try to sneak up behind you and sink his teeth into your neck using the wraith neck bite.fbx animation. make blood effects where he bites". Then: "the model's arms are all fucked up because they are meshy generated" so use "the arms you have now that are the same as the playermodel".
 
 `/spawn wraith` puts one in front of you (`/spawn wraith 5` a row of them).
 
@@ -13,91 +11,67 @@ meshy and send you the head later just do plain no facial details head", and "ma
 
 | Piece | Where | What |
 |---|---|---|
-| Body | `Character/Editor/WraithBuilder.cs` (menu CityX > Rebuild Wraith, and with the scene) | the player's own fused body mesh cut off at the hips (`CutY` 0.75 m) with a vertex alpha (`BodyAlphaAt`): the torso solid from the chest (1.55 m) down to where it turns to smoke, nothing at the cut; the arms solid to just over the hands (1.05 m), hanging beside the smoke. The body's own bone weights, skinned to the player's skeleton put into its arms-down rest |
-| Head | the player's plain skull (`Head.asset`) under its own object "Head" on the head bone, with a "Face" on it | the face built in code from the owner's picture (below) |
-| Face | `WraithBuilder.BuildFace`: "Face" under the skull, holding "EyeLeft", "EyeRight" and "Jaw" > "Teeth" | two solid red eyes (radius 5.5 cm) sunk 2 cm into the skull, 21 cm out either side and 8.75 cm up from its centre; no mouth line (owner: "get rid of the black bar above the teeth"); one row of nine sharp white teeth rooted on a lip 6.25 cm below the centre, 44 degrees round either side, hanging down and leaning a little outward with their tips curled back in, the middle ones 32 cm long (to the chin), the end ones 18. Opaque and lit (CityX/Lit), so cel shaded and outlined like everything solid; no shadows. The teeth's roots stand just clear of the skull: inside it, the see-through skull drew over them and greyed them as if behind glass. Dead, the face shrinks away into the skull as the body fades |
-| Wisps | eight veils made in the builder, hung on the hips | from just off the torso's surface, each starting where the torso is already turning to smoke, 70% as solid as it is there (the highest at 1.4 m, every third one lower), billowing out a little, then twisting a third of a turn down and inward to a point just over the street; 38 cm wide at the top (overlapping), thin at the tip, fading out along their length and feathered to nothing at their sides (the shader, by uv.x; cut flat they showed as paper); the shader sways them |
-| Surface | `View/Shaders/CityXGhost.shader`, two materials (`WraithGhost`, `WraithWisps`) | see-through, brighter and more solid at the edges (Fresnel), smoke drifting up inside (value noise); where the vertex alpha is under 1 the surface is **eroded into streaks** (tall noise against a threshold that rises as the alpha falls, scrolling upward), so the torso and the veils fray into tendrils of smoke rather than fading evenly; white with the faintest cold cast; unlit, drawn after the cel look's black lines so nothing outlines it, no shadow; `_Fade` and `_Flash` set live |
+| Body | `Character/Editor/WraithBuilder.cs` (menu CityX > Rebuild Wraith, and with the scene), from `Character/WraithModel/PhantomMawBody.glb`, made by `SourceArt/WraithBody/wraith_body.py` | the owner's model cut from 228k triangles to 19k: its arms taken off at the sides of the torso, stood in the body's frame with its head the size and place of the player's. The head rides the head bone, the torso the spine, the tail the hips |
+| Arms | the same mesh | the player's own arms and hands, every triangle of the fused body wholly on them, with their own skinning. They are most of its 72k triangles |
+| Teeth | `wraith_body.py` cuts them off the model; hung under `Jaw` | solid white, opaque, on a see-through body. They and the eyes shrink away when it dies |
+| Eyes | `WraithBuilder`, in the model's sockets | solid red, as the owner asked on 2026-10-26 |
+| Surface | `View/Shaders/CityXGhost.shader` | see-through, brighter and more solid at the edges (Fresnel), smoke drifting up inside; unlit, drawn after the cel look's black lines so nothing outlines it, no shadow; `_Fade` and `_Flash` set live |
+| Gas | below | |
 | Glow | a point light at its chest | a pool of pale blue on the street at night |
 | Collider | a capsule, hips to the top of the head | what blows and bullets meet |
 
-### What the research said (2026-10-26, owner: "research how games do ghost like enemies like this")
+## Its tail turning to gas
 
-The first build faded the body evenly at the hips with twisted ribbons under it; the owner: "that just looks like a tornado sitting beneath
-him, make his body turn to wisps and fade away". No shipped game's ghost has a public breakdown, but the VFX community's recipe is
-consistent, and it is what the second build does:
+Three things together, and no thrown ribbons (the first build's: "that just looks like a tornado sitting beneath him"):
 
-- A **Fresnel rim** (brighter, more solid edges, see-through middle) is the base of every ghost shader ([godotshaders](https://godotshaders.com/shader/simple-fresnel-transparency/),
-  [polycount](https://polycount.com/discussion/comment/937472)).
-- A ghost's body **dissolves**: noise against a threshold, then alpha (Mirza Beig's [dissolve tutorial](https://mirzabeig.substack.com/p/unity-tutorial-dissolve-shader-part-1)),
-  run along a height so it erodes from the hips down (Daniel Ilett's [world-space-height dissolve](https://github.com/daniel-ilett/dissolve-urp)).
-  An even fade reads as a cut-off; erosion reads as smoke.
-- The trails are **sheets of smoke playing off the body's own shape** with scrolling, warped noise, not thin ribbons: thin ribbon
-  emitters were judged unconvincing ([realtimevfx, Sea of Thieves thread](https://realtimevfx.com/t/ue4-advice-on-how-to-achieve-sea-of-thieves-ghost-effect/15282),
-  [realtimevfx, smoke ribbons](https://realtimevfx.com/t/cigarette-smoke-trail-vfx-ue4-question/14370)).
-- Later options seen there: a screen-space afterimage trail (Sea of Thieves), drifting particles off the body (Skyrim's membrane and
-  particle shaders, [Creation Kit wiki](https://ck.uesp.net/wiki/EffectShader)).
+1. **The tail wears away.** The vertex alpha falls from solid at 1.15 m to nothing at 0.3 m, above the tail's tip at 0.13 m, so it has no visible end. The ghost shader does not fade it evenly: it eats into it with rising streaks of noise.
+2. **The tail writhes.** The shader's sway, growing to 14 cm at the tip.
+3. **Soft puffs come off it** (the `Gas` particles, the flamethrower's smoke puff): 30 a second, staying where they came off as it drifts, each growing as it thins to nothing.
 
-## How it moves (`Character/NPC/WraithDrift.cs`, pure)
+## The hunt (`Character/NPC/WraithHunt.cs`, pure; every number here is my first go)
 
-- It drifts toward a heading for 4-9 s at 1.5 m/s, then lingers 2-5 s, hanging in the air and turning to look somewhere new, then drifts
-  again. It turns through its headings at 45 degrees a second (a curving path) and its speed eases in and out (it glides). Past 45 m from
-  where it was born it heads home.
-- It hovers with its root 0.3 m over the real ground beneath it (a ray down each frame), so its hips are at 1.2 m and its head a little
-  over a player's, and bobs 12 cm up and down every 2.8 s.
+| Phase | What it does |
+|---|---|
+| Drifting | as below. It notices a player within 16 m, and loses one past 28 m |
+| Stalking | makes for a point 1.4 m behind them at 3.2 m/s while their body faces away (a player walks at 4). Within 60 degrees of their facing it is "seen": from far off it creeps at 1 m/s, within 5 m it goes round them at 1.8 m/s, and keeps off |
+| Lunging | from behind and within 2.4 m. Half a second, committed: a glint at its head and a hiss are the tell, and a dash or a step away beats it |
+| Biting | 30 damage as the teeth go in, then 6 every 0.45 s for 1.9 s (about 50 in all, of a player's 100), each a 0.4 s stun and a spurt of blood from the neck. It stays on the neck as they move. It can be killed off them |
+| Thrown | 0.77 s, flung back off them |
+| Recovering | 0.6 s, then it leaves them alone for 8 s |
+
+Reading which way a body faces is not reading its input (the owner's rule on fair enemies, `feedback_fair_enemies_no_input_reading`): it does not know where the camera looks.
+
+**The clip** (`Wraith Neck Bite.fbx`, by `SourceArt/WraithBite/wraith_bite.py` and `SourceArt/recorded_clip.py`, into `Resources/Wraith/WraithBiteMotion.json`) is played bone by bone over the drifting pose (`Wraith.Bite.cs`). It holds only the upper body, and the whole Wraith is moved so its teeth are on the neck, whatever the recording's reach, since a player stands 2.6 m tall and the clip's body 1.8 m. Its teeth go to the back right of the neck: both heads are as wide as the shoulders, so straight behind it sat half inside the prey's, and that is the side the game's camera looks past.
+
+**Blood:** `Gore.Blood` at the neck on every spurt, on top of the wound the blow itself shows on the victim. The Wraith itself still does not bleed (`IBloodless`).
+
+## How it moves when not hunting (`Character/NPC/WraithDrift.cs`, pure)
+
+- It drifts toward a heading for 4-9 s at 1.5 m/s, then lingers 2-5 s, hanging in the air and turning to look somewhere new, then drifts again. It turns through its headings at 45 degrees a second (a curving path) and its speed eases in and out. Past 45 m from where it was born it heads home.
+- It hovers with its root 0.3 m over the real ground beneath it (a ray down each frame), and bobs 12 cm up and down every 2.8 s.
 - `NpcSteering` steers it round walls, as the civilians are.
 
 ## How it holds itself (`Character/NPC/WraithPose.cs`, pure)
 
-No Animator and no clips: `Wraith.LateUpdate` sets every bone from a few slow sines over the body's rest, each a turn about the body's own
-axes.
-
-- The trunk leans 12 degrees into its drift and banks 6 degrees into a turn.
-- The arms hang and swing like pendulums (7 degrees either way, every 3.1 s), the two out of step, each joint lagging the one above it;
-  drifting, they trail 10 degrees back.
-- The head wanders idly, and turns to look at a player within 10 m (up to 70 degrees round, 35 up or down): the start of its sneaking up.
-- Hit, it jerks 15 degrees back and its arms fly up 25, settling over 0.9 s, and it flashes white.
+No Animator: `Wraith.LateUpdate` sets every bone from a few slow sines over the body's rest, each a turn about the body's own axes. The trunk leans 12 degrees into its drift and banks 6 into a turn; the arms hang and swing like pendulums, the two out of step; the head wanders idly, and turns to look at a player within 10 m. Hit, it jerks 15 degrees back and its arms fly up 25, settling over 0.9 s, and it flashes white.
 
 ## Fighting it (`Character/NPC/Wraith.cs`)
 
 - 18 health: one pistol round or two punches ("dies very quickly"). Killing it is worth 15 XP.
-- It does not bleed: `IBloodless`, a marker `MeleeAttacker` and the firearms check before spawning blood.
-- Dead, it fades away over 1.1 s, rising, and is gone.
-- Its sneaking up and its bite are not built yet (the owner: later).
-- Shared in a session (2026-10-27, `NetworkedWraith`): the machine that spawned it drifts it; on every other machine a copy follows it, posed
-  from how it moves; a blow on a copy is sent to the owner, and its health comes back, so it flinches and fades on every screen; the
-  player whose blow killed it gets its XP.
+- Dead, it fades away over 1.1 s, rising, and is gone; the gas stops.
+- **In a session** (`NetworkedWraith`): the machine that spawned it hunts and bites; on every other machine a copy follows it, posed from how it moves. The owner tells the copies the phase, whose neck it is at, and each spurt of blood. A blow on a copy is sent to the owner, and its health comes back. Whoever it bites takes the damage through their own copy (`NetworkedDamage`), so a bite on another player's body lands on their machine.
 
 ## Tests
 
-- `WraithDriftTests` (EditMode, pure): level unit headings turned no faster than it turns; drifts and lingers in turn, gliding between
-  them; home from far off; the bob; the same seed drifts the same way.
-- `WraithPoseTests` (EditMode, pure): the arms' swing, out of step, lagging down the arm; the lean and the trail; the bank; the look and its
-  limits; the flinch.
-- `WraithTests` (EditMode, the prefab): the body from the hips up fading at the cut with its skinning; the plain skull on the head bone;
-  the wisps from the hips to a point, swaying; every surface on the ghost shader, transparent, shadowless; two punches kill it, XP, no
-  blood; dead it fades and rises; posed, its arms hang.
-- `WraithPlayTests`: it hovers at its height and bobs; floats about and stays near home; turns its head to the player; killed it fades and
-  is gone; `/spawn wraith` through the real console puts one in the city.
-- `WraithCapture` (Explicit, `-Graphics`): by day beside the player, a strip of eight moments floating, by night, and hit.
-  `Logs/CityShots/wraith-*.png`.
-
-## The bite to come (owner: "they sink their teeth into the player ... plan for that")
-
-What is in place for it:
-
-- **The jaw pivot** (`Wraith.Jaw`): at the middle of the lip, on the skull's surface; the teeth hang under it in the skull's frame. A bite
-  swings the jaw (a turn about the skull's right axis: up to open, snapping down to close) and the pose can add a `Jaw` turn next to the
-  head's in `WraithPose.Result`.
-- **The head** is its own bone, already posed by `WraithPose` (it looks at the player): the lunge is a pitch and a push of the head and
-  spine toward the player over a few frames, the way the Crimson Claw's swing is phased (wind-up, a tell, the snap, recovery), with the
-  teeth's reach checked against the player's head during the snap.
-- **The face shrinks** with the fade, so a Wraith killed mid-bite leaves nothing behind.
-- Still to decide: a second (lower) row of teeth that appears for the bite, the sneak (quiet drift up behind the player, out of their
-  view), the damage ("a lot") and whether it latches on.
+- `WraithHuntTests` (EditMode, pure): it comes on behind a turned back and lunges; faced, it goes round and never lunges; a lunge that misses or is dashed through does nothing; a bite's damage; the wait after; losing someone who gets away; letting go of the dead.
+- `WraithDriftTests`, `WraithPoseTests` (EditMode, pure).
+- `WraithTests` (EditMode, the prefab): the model on the player's arms, worn away above its tip; the head on the head bone and the tail on the hips; the gas; the materials; the eyes and teeth; two punches kill it.
+- `WraithPlayTests`: it hovers and bobs; floats about; looks at the player; **sneaks up behind a real player and bites their neck, with blood**; **faced all the time it never bites**; a copy told of the bite plays it and does nothing of its own; killed it fades and is gone; `/spawn wraith` through the real console.
+- `NetworkedPlayerStateSyncPlayTests.AWraithsBiteShowsOnTheOtherPlayersCopyWithItsBlood`.
+- `WraithCapture` (Explicit, `-Graphics`): by day beside the player, its tail close, floating, the lunge and the bite from three sides, thrown off, by night, and hit. `Logs/CityShots/wraith-*.png`.
 
 ## Known
 
-- The body is the player's full 72k-triangle upper half, with no LOD: fine for a few, not a crowd.
-- Several spawned together each haunt their own way (the seed comes from where each is spawned) but know nothing of each other yet
-  (no `EnemyPack`: nothing to take turns at until the bite).
+- 72k triangles with no lighter version: fine for a few, not a crowd. The arms and hands are most of that, and could share the body's lighter versions when those exist.
+- Several hunt alone: they do not take turns (`EnemyPack`).
+- The owner's Meshy file is not in the project, only the cut-down `.glb`.

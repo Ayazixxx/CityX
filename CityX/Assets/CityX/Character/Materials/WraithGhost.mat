@@ -35,7 +35,7 @@ Material:
     - _Glow: 1.4
     - _RimAlpha: 0.9
     - _RimPower: 2.5
-    - _Sway: 0
+    - _Sway: 0.14
     - _SwaySpeed: 1.2
     m_Colors:
     - _BaseColor: {r: 0.88, g: 0.93, b: 0.98, a: 1}

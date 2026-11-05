@@ -3,12 +3,9 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// The Wraith (owner, 2026-10-26): a low-level ghost that floats about the streets. "the top half of him is the same dimensions as the
-    /// playermodel ... his legs wisp away into nothing like a ghost. he is also somewhat transparent and glowing": the player's own body
-    /// from the hips up, eroding into smoke where the legs would start, with veils of smoke trailing from it to a point, all on the ghost
-    /// surface (Shaders/CityXGhost); on its skull two solid red eyes and one row of sharp white teeth under a jaw pivot, placed from the
-    /// owner's picture (WraithBuilder). It "dies very quickly":
-    /// <see cref="MaxHealth"/> is one pistol round or two punches, and dead it fades away and rises. Its sneaking up and its bite come later.
+    /// The Wraith (owner, 2026-10-26): a low-level ghost that floats about the streets. Its head and body are the owner's model, on the player's own arms (2026-11-05), its tail
+    /// wearing away into gas, all on the ghost surface (Shaders/CityXGhost), with two solid red eyes and solid white teeth (WraithBuilder). It "dies very quickly":
+    /// <see cref="MaxHealth"/> is one pistol round or two punches, and dead it fades away and rises. It sneaks up behind a player and bites their neck (Wraith.Bite.cs).
     ///
     /// No CharacterController and no Animator: it hovers (WraithDrift: drift, linger, bob, a ground-relative hover height), steered round
     /// walls by NpcSteering, and poses its own bones every frame (WraithPose) over the body's rest.
@@ -19,7 +16,7 @@ namespace CityX.Character
     ///
     /// Tick is public and separate from Update, so a test drives it with its own time step.
     /// </summary>
-    public sealed class Wraith : MonoBehaviour, IDamageable, IHealthBar, IXpReward, IBloodless, IHostile
+    public sealed partial class Wraith : MonoBehaviour, IDamageable, IHealthBar, IXpReward, IBloodless, IHostile
     {
         /// <summary>Owner: "dies very quickly". One pistol round (20), two punches (10 each).</summary>
         public const float MaxHealth = 18.0f;
@@ -69,8 +66,11 @@ namespace CityX.Character
         [Tooltip("The eyes, the mouth and the teeth on the skull (solid, so they shrink away as the body fades).")]
         public Transform Face;
 
-        [Tooltip("The pivot the teeth hang from, at the middle of the lip: the bite to come swings it.")]
+        [Tooltip("The middle of its teeth: what goes on the prey's neck.")]
         public Transform Jaw;
+
+        [Tooltip("The gas coming off its tail.")]
+        public ParticleSystem Gas;
 
         [Tooltip("Seeds its drifting. 0: from where it is spawned, so several spawned together do not all go the same way.")]
         public int Seed;
@@ -104,6 +104,7 @@ namespace CityX.Character
         /// <summary>Where a hit on a copy is sent instead (NetworkedWraith); null outside a session.</summary>
         public IRemoteDamageRelay Relay;
 
+        private float _stalkSpeed;
         private Vector3 _lastPosition;
         private float _lastYaw;
         private bool _followed;
@@ -121,7 +122,7 @@ namespace CityX.Character
         /// <summary>How hurt it still shows, 1 the moment it is hit, 0 settled.</summary>
         public float Hurt => _hurt;
 
-        public float Speed => IsCopy ? _copySpeed : _drift != null ? _drift.Speed : 0.0f;
+        public float Speed => IsCopy ? _copySpeed : _hunt.Phase != WraithPhase.Drifting ? _stalkSpeed : _drift != null ? _drift.Speed : 0.0f;
         public bool IsLingering => _drift != null && _drift.IsLingering;
 
         private void Awake()
@@ -150,6 +151,7 @@ namespace CityX.Character
                 _restRotations[i] = _posed[i] != null ? _posed[i].localRotation : Quaternion.identity;
             }
             _hipsRest = Hips != null ? Hips.localPosition : Vector3.zero;
+            BindBite();
         }
 
         private void Update()
@@ -190,6 +192,14 @@ namespace CityX.Character
             if (IsCopy)
             {
                 FollowOwner(deltaTime);
+                FindPlayer(deltaTime);
+                _clipSeconds += deltaTime;
+                ShowLook();
+                return;
+            }
+
+            if (TickHunt(deltaTime))
+            {
                 FindPlayer(deltaTime);
                 ShowLook();
                 return;
@@ -333,6 +343,7 @@ namespace CityX.Character
                 bone.rotation = Quaternion.AngleAxis(turns[i].Pitch, transform.right) * Quaternion.AngleAxis(turns[i].Yaw, transform.up)
                     * Quaternion.AngleAxis(turns[i].Roll, transform.forward) * bone.rotation;
             }
+            ApplyBiteOver(Time.deltaTime);
         }
 
         /// <summary>Its fade and its flash onto every renderer, and its glow with them.</summary>
@@ -389,6 +400,10 @@ namespace CityX.Character
             if (MainCollision != null)
             {
                 MainCollision.enabled = false;
+            }
+            if (Gas != null)
+            {
+                Gas.Stop(true, ParticleSystemStopBehavior.StopEmitting);
             }
         }
     }

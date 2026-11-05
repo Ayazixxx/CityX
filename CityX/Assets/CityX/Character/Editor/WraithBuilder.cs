@@ -6,20 +6,16 @@ using UnityEngine;
 namespace CityX.CharacterEditor
 {
     /// <summary>
-    /// Builds Wraith.prefab (owner, 2026-10-26: "make a new enemy called "Wraith" ... the top half of him is the same dimensions as the
-    /// playermodel ... his legs wisp away into nothing like a ghost. he is also somewhat transparent and glowing"):
+    /// Builds Wraith.prefab. Owner, 2026-11-05, of their model: "make the head replaced with this model's head, I also like the body of the model attached better but want it to whisp away
+    /// into nothing towards the bottom of it", and "the model's arms are all fucked up ... use the arms you have now that are the same as the playermodel":
     ///
-    ///  * THE BODY is the player's own fused body mesh (FusedBody.asset) cut off at the hips: every triangle wholly above <see cref="CutY"/>,
-    ///    with a vertex alpha that is solid from <see cref="FadeTopY"/> down to nothing at the cut, so the cut edge and the tops of the thighs
-    ///    melt away rather than end. It keeps the body's own bone weights and bind poses, skinned to the player's skeleton
-    ///    (BodyRigBuilder.BuildSkeleton) put into the arms-down rest the body is bound in (BodyRig.RestBindMatrix), so the Wraith can pose it
-    ///    (WraithPose) without an Animator.
-    ///  * THE HEAD is the player's own skull (Head.asset) on the head bone, under its own name, so the owner's modelled head (its toothy
-    ///    grin, made in Meshy) can replace the mesh on that one object later.
-    ///  * THE WISPS are ribbons of smoke made here: from a ring round the hips, twisting down and inward to a point, wide at the top and thin
-    ///    at the tip, fading out along their length; the ghost shader sways them. They hang on the hips bone, so they go where the body does.
-    ///  * THE SURFACE is Shaders/CityXGhost on two materials: the body's and the head's, still; the wisps', swaying.
-    ///  * A point light glows from its chest, and a capsule collider stands in for its torso.
+    ///  * THE BODY is the owner's model (SourceArt/WraithBody: its Meshy arms taken off, stood in the body's frame with its head the size and place of the player's), joined to THE ARMS
+    ///    of the player's own fused body at the shoulders. All one mesh skinned to the player's skeleton (BodyRigBuilder.BuildSkeleton) put into the arms-down rest the body is bound in
+    ///    (BodyRig.RestBindMatrix), so the Wraith can pose it without an Animator.
+    ///  * THE GAS, three things: the tail's vertex alpha falls from <see cref="TailSolidY"/> to nothing at <see cref="TailGoneY"/>, above its tip, and the ghost shader wears the surface
+    ///    away into streaks where it does; the tail writhes (the shader's sway); and soft puffs come off it, drift and thin to nothing.
+    ///  * THE FACE: the model's teeth, cut off it as their own solid white mesh under <see cref="JawName"/>, and two solid red eyes in the model's sockets.
+    ///  * THE SURFACE is Shaders/CityXGhost. A point light glows from its chest, and a capsule collider stands in for its torso.
     ///
     /// Spawned only by /spawn wraith.
     /// </summary>
@@ -27,53 +23,34 @@ namespace CityX.CharacterEditor
     {
         public const string PrefabPath = "Assets/CityX/Character/Wraith.prefab";
         private const string BodyMeshPath = "Assets/CityX/Character/FusedBody.asset";
-        private const string HeadMeshPath = "Assets/CityX/Character/Head.asset";
+        public const string ModelPath = "Assets/CityX/Character/WraithModel/PhantomMawBody.glb";
         public const string WraithBodyPath = "Assets/CityX/Character/WraithBody.asset";
-        public const string WispsPath = "Assets/CityX/Character/WraithWisps.asset";
         private const string GhostMaterialPath = "Assets/CityX/Character/Materials/WraithGhost.mat";
-        private const string WispMaterialPath = "Assets/CityX/Character/Materials/WraithWisps.mat";
+        private const string GasMaterialPath = "Assets/CityX/Character/Materials/WraithGas.mat";
+        private const string SmokeMaterialPath = "Assets/CityX/Weapons/FlamethrowerSmoke.mat";
         public const string ShaderName = "CityX/Ghost";
 
-        /// <summary>The object the wisps hang on (under the hips bone) and the glow's.</summary>
-        public const string WispsName = "Wisps";
+        /// <summary>The gas's object (under the hips bone) and the glow's.</summary>
+        public const string GasName = "Gas";
         public const string GlowName = "Glow";
 
-        // THE FACE (owner, 2026-10-26: "glowing red eyes and 1 row of solid white sharp teeth ... try to place the teeth and the eyes in the
-        // exact or similar placement to the image", then "eyes dont need to glow just make them solid red"), measured off the owner's picture
-        // on a head of FusedBodyShape.HeadRadius: all in the skull's frame (its centre, facing +z). The parts hang under one "Face" object on
-        // the skull, the teeth under a "Jaw" pivot at the middle of the lip, for the bite to come: a bite swings the jaw and lunges the head.
+        // THE FACE, in the head's frame (its centre, facing +z): the parts hang under one "Face" object on the head bone, so they shrink away together when it dies.
         public const string FaceName = "Face";
         public const string EyeLeftName = "EyeLeft";
         public const string EyeRightName = "EyeRight";
         public const string JawName = "Jaw";
         public const string TeethName = "Teeth";
 
-        /// <summary>The eyes: this far out from the middle and up from the centre, this big, sunk this far into the skull.</summary>
-        public const float EyeOffsetX = 0.21f;
-        public const float EyeY = 0.0875f;
-        public const float EyeRadius = 0.055f;
-        public const float EyeSink = 0.02f;
+        /// <summary>The eyes, in the middle of the model's sockets (measured by wraith_body.py), filling them. "eyes dont need to glow just make them solid red" (owner, 2026-10-26).</summary>
+        public const float EyeOffsetX = 0.22f;
+        public const float EyeY = 0.067f;
+        public const float EyeZ = 0.205f;
+        public const float EyeRadius = 0.058f;
         private const int EyeLatitudes = 10;
         private const int EyeLongitudes = 16;
 
-        /// <summary>The lip the teeth hang from: this far below the centre, and the row's reach either side (degrees round the skull).</summary>
-        public const float LipY = -0.0625f;
-        public const float TeethHalfAngleDegrees = 44.0f;
-        public const int TeethCount = 9;
-        public const int ToothSides = 10;
-
-        /// <summary>
-        /// A tooth: its root's radius, how long the middle ones and the end ones are, and its root this far OUT of the skull's surface: sunk
-        /// in, the see-through skull drew over the roots and greyed them, as if behind glass.
-        /// </summary>
-        public const float ToothBaseRadius = 0.028f;
-        public const float ToothLengthMiddle = 0.32f;
-        public const float ToothLengthEnd = 0.18f;
-        public const float ToothSink = -0.004f;
-
-        /// <summary>A tooth hangs down leaning this much outward (along the skull's surface), its tip curled this far back in.</summary>
-        public const float ToothLean = 0.2f;
-        public const float ToothCurl = 0.03f;
+        /// <summary>The middle of the teeth: what goes on the prey's neck.</summary>
+        public static readonly Vector3 JawAt = new Vector3(0.0f, -0.20f, 0.27f);
 
         public static readonly Color EyeColour = new Color(0.78f, 0.04f, 0.05f);
         public static readonly Color ToothColour = new Color(0.96f, 0.96f, 0.94f);
@@ -85,52 +62,32 @@ namespace CityX.CharacterEditor
         public const string EyeMeshPath = "Assets/CityX/Character/WraithEye.asset";
         public const string TeethMeshPath = "Assets/CityX/Character/WraithTeeth.asset";
 
-        /// <summary>Nothing of the body below here (metres up a standing body): the pelvis's underside and the tops of the thighs go.</summary>
-        public const float CutY = 0.75f;
+        /// <summary>The model's body is whole above here, metres up a standing body, and worn away to nothing at the other, which is above the tip of its tail: no visible end.</summary>
+        public const float TailSolidY = 1.15f;
+        public const float TailGoneY = 0.3f;
 
-        /// <summary>
-        /// The torso is solid from here (the chest) down to where it starts to turn to smoke, gone at the cut; the arms, which hang beside
-        /// the smoke, stay solid further down, to just over the hands. The ghost shader erodes the surface into streaks between.
-        /// </summary>
-        public const float FadeTopTorsoY = 1.55f;
-        public const float FadeTopArmsY = 1.05f;
+        /// <summary>The tail writhes from here down to its tip, this far at the tip, metres.</summary>
+        public const float TailSwayTopY = 1.0f;
+        public const float TailTipY = 0.13f;
+        public const float TailSway = 0.14f;
 
-        /// <summary>How far out from the body's middle a point counts as the arms rather than the torso (blended between these).</summary>
-        public const float ArmsFromX = 0.27f;
-        public const float ArmsFullX = 0.42f;
-
-        // The wisps: veils of smoke the torso's surface comes apart into: how many, how finely each is cut along its length, where on the
-        // torso the highest starts (every third one lower), the torso's radius they start at, where their tips end, their width at the top
-        // (wider than their share of the torso, so they overlap) and the tip, how far round the body they twist on the way down, how long
-        // they stay wide before gathering to the point (the power the radius falls by) and how far they billow out first.
-        public const int WispCount = 8;
-        public const int WispSegments = 26;
-        public const float WispTopY = 1.4f;
-        public const float WispStartStep = 0.13f;
-        public const float WispTipY = -0.05f;
-        public const float WispTopRadius = 0.3f;
-        public const float WispTopWidth = 0.38f;
-        public const float WispTipWidth = 0.03f;
-        public const float WispTwistTurns = 0.35f;
-        public const float WispGather = 1.8f;
-        public const float WispBulge = 0.25f;
-
-        /// <summary>A veil starts this much as solid as the torso it grows out of: thinner smoke than the body, feathered at its sides.</summary>
-        public const float WispSolidShare = 0.7f;
-
-        /// <summary>The wisps' material sways their vertices this far (metres) at the tips; the body's not at all.</summary>
-        public const float WispSway = 0.07f;
-
-        // The wisps are thinner smoke than the body: less solid, a softer rim, a little less glow.
-        private const float WispAlpha = 0.45f;
-        private const float WispRimAlpha = 0.6f;
-        private const float WispGlow = 1.1f;
+        /// <summary>A point of the model this near the head's centre (shares of its radius) rides the head bone; the rest the spine above here and the hips below there, blended.</summary>
+        public const float HeadBoneWithin = 1.06f;
+        public const float SpineFullY = 1.45f;
+        public const float HipsFullY = 1.0f;
 
         // Its colour: white with the faintest cold cast (owner: "make him a little less blue make him whiter"), the rim barely brighter, the
         // smoke inside the body a little stronger than the shader's default.
         public static readonly Color BodyColour = new Color(0.88f, 0.93f, 0.98f);
         public static readonly Color RimColour = new Color(1.05f, 1.05f, 1.08f);
         private const float BodyFlow = 0.45f;
+
+        // The gas: soft puffs filling the tail's height, slow, growing as they thin.
+        private static readonly Vector3 GasCentre = new Vector3(0.0f, 0.62f, 0.02f);
+        private static readonly Vector3 GasSize = new Vector3(0.36f, 0.85f, 0.28f);
+        public const float GasPerSecond = 30.0f;
+        private const float GasPeakAlpha = 0.18f;
+        private const int GasMost = 110;
 
         public static readonly Color GlowColour = new Color(0.8f, 0.9f, 1.0f);
         public const float GlowRange = 6.0f;
@@ -144,11 +101,14 @@ namespace CityX.CharacterEditor
         [MenuItem("CityX/Rebuild Wraith")]
         public static GameObject Build()
         {
-            var body = AssetDatabase.LoadAssetAtPath<Mesh>(BodyMeshPath);
-            var head = AssetDatabase.LoadAssetAtPath<Mesh>(HeadMeshPath);
-            if (body == null || head == null)
+            var fused = AssetDatabase.LoadAssetAtPath<Mesh>(BodyMeshPath);
+            if (fused == null)
             {
-                Debug.LogError("CityX: no fused body or head mesh -- rebuild the player rig before the Wraith.");
+                Debug.LogError("CityX: no fused body mesh -- rebuild the player rig before the Wraith.");
+                return null;
+            }
+            if (!ModelMeshes(out Mesh model, out Matrix4x4 modelPlace, out Mesh modelTeeth, out Matrix4x4 teethPlace))
+            {
                 return null;
             }
 
@@ -156,25 +116,22 @@ namespace CityX.CharacterEditor
             try
             {
                 RestPose(named);
-                Material ghost = GhostMaterial(GhostMaterialPath, "WraithGhost", 0.0f, UnityEngine.Rendering.CullMode.Back);
+                Material ghost = GhostMaterial(GhostMaterialPath, "WraithGhost", TailSway, UnityEngine.Rendering.CullMode.Back);
                 ghost.SetFloat("_Flow", BodyFlow);
-                Material wisps = GhostMaterial(WispMaterialPath, "WraithWisps", WispSway, UnityEngine.Rendering.CullMode.Off);
-                wisps.SetFloat("_Alpha", WispAlpha);
-                wisps.SetFloat("_RimAlpha", WispRimAlpha);
-                wisps.SetFloat("_Glow", WispGlow);
-                wisps.SetFloat("_EdgeFeather", 1.0f);
 
                 List<HumanBodyBones> order = BodyRigBuilder.SkinBoneOrder();
-                var bones = new Transform[order.Count];
-                for (int i = 0; i < bones.Length; i++)
+                // The fused body's bones, and the head's after them: the player's head is a mesh of its own on its bone, so the fused body has none.
+                var bones = new Transform[order.Count + 1];
+                for (int i = 0; i < order.Count; i++)
                 {
                     bones[i] = named[NameOf(order[i])];
                 }
-                Mesh upper = SaveMesh(WraithBodyPath, UpperBody(body));
+                bones[order.Count] = named["head"];
+                Mesh body = SaveMesh(WraithBodyPath, WholeBody(fused, order, model, modelPlace, named["head"].worldToLocalMatrix));
                 var skin = new GameObject(BodySurface.SkinName);
                 skin.transform.SetParent(root.transform, false);
                 var skinRenderer = skin.AddComponent<SkinnedMeshRenderer>();
-                skinRenderer.sharedMesh = upper;
+                skinRenderer.sharedMesh = body;
                 skinRenderer.bones = bones;
                 skinRenderer.rootBone = named["hips"];
                 skinRenderer.sharedMaterial = ghost;
@@ -182,24 +139,8 @@ namespace CityX.CharacterEditor
                 skinRenderer.updateWhenOffscreen = true;
                 NoShadow(skinRenderer);
 
-                var skull = new GameObject(BodySurface.HeadName);
-                skull.transform.SetParent(named["head"], false);
-                skull.transform.localPosition = HeadMesh.CentreOnBone;
-                skull.AddComponent<MeshFilter>().sharedMesh = head;
-                MeshRenderer headRenderer = skull.AddComponent<MeshRenderer>();
-                headRenderer.sharedMaterial = ghost;
-                NoShadow(headRenderer);
-                Transform face = BuildFace(skull.transform, out Transform jaw);
-
-                // The wisps are made in the body's frame and hung on the hips, so their origin is the body's.
-                Mesh wispMesh = SaveMesh(WispsPath, Wisps());
-                var tails = new GameObject(WispsName);
-                tails.transform.SetParent(named["hips"], false);
-                tails.transform.localPosition = -named["hips"].localPosition;
-                tails.AddComponent<MeshFilter>().sharedMesh = wispMesh;
-                MeshRenderer wispRenderer = tails.AddComponent<MeshRenderer>();
-                wispRenderer.sharedMaterial = wisps;
-                NoShadow(wispRenderer);
+                Transform face = BuildFace(named["head"], modelTeeth, teethPlace, out Transform jaw);
+                ParticleSystem gas = BuildGas(named["hips"]);
 
                 var glowObject = new GameObject(GlowName);
                 glowObject.transform.SetParent(root.transform, false);
@@ -226,21 +167,54 @@ namespace CityX.CharacterEditor
                 wraith.ForearmRight = named["forearm_r"];
                 wraith.HandLeft = named["hand_l"];
                 wraith.HandRight = named["hand_r"];
-                wraith.Renderers = new Renderer[] { skinRenderer, headRenderer, wispRenderer };
+                wraith.Renderers = new Renderer[] { skinRenderer };
                 wraith.MainCollision = collider;
                 wraith.Glow = glow;
                 wraith.Face = face;
                 wraith.Jaw = jaw;
+                wraith.Gas = gas;
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();
-                Debug.Log($"CityX: the Wraith written to {PrefabPath} -- {upper.triangles.Length / 3} body triangles, {wispMesh.triangles.Length / 3} in the wisps");
+                Debug.Log($"CityX: the Wraith written to {PrefabPath} -- {body.triangles.Length / 3} body triangles");
                 return saved;
             }
             finally
             {
                 Object.DestroyImmediate(root);
             }
+        }
+
+        /// <summary>The model's two meshes, and where the file puts each in the body's frame.</summary>
+        private static bool ModelMeshes(out Mesh body, out Matrix4x4 bodyPlace, out Mesh teeth, out Matrix4x4 teethPlace)
+        {
+            body = teeth = null;
+            bodyPlace = teethPlace = Matrix4x4.identity;
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+            if (model == null)
+            {
+                Debug.LogError($"CityX: no {ModelPath} -- the Wraith has no body.");
+                return false;
+            }
+            foreach (MeshFilter filter in model.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (filter.name.Contains("Teeth"))
+                {
+                    teeth = filter.sharedMesh;
+                    teethPlace = filter.transform.localToWorldMatrix;
+                }
+                else
+                {
+                    body = filter.sharedMesh;
+                    bodyPlace = filter.transform.localToWorldMatrix;
+                }
+            }
+            if (body == null || teeth == null)
+            {
+                Debug.LogError($"CityX: {ModelPath} should hold a body and its teeth.");
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -272,142 +246,188 @@ namespace CityX.CharacterEditor
             throw new KeyNotFoundException($"CityX: the rig has no bone for {human}");
         }
 
-        /// <summary>The body from the hips up, fading out toward the cut, with the body's own skinning.</summary>
-        private static Mesh UpperBody(Mesh body)
-        {
-            Vector3[] vertices = body.vertices;
-            Vector3[] normals = body.normals;
-            Vector2[] uv = body.uv;
-            BoneWeight[] weights = body.boneWeights;
-            int[] triangles = body.triangles;
-
-            var remap = new int[vertices.Length];
-            for (int i = 0; i < remap.Length; i++)
-            {
-                remap[i] = -1;
-            }
-            var keptVertices = new List<Vector3>();
-            var keptNormals = new List<Vector3>();
-            var keptUv = new List<Vector2>();
-            var keptColours = new List<Color>();
-            var keptWeights = new List<BoneWeight>();
-            var keptTriangles = new List<int>();
-            for (int t = 0; t + 2 < triangles.Length; t += 3)
-            {
-                if (vertices[triangles[t]].y < CutY || vertices[triangles[t + 1]].y < CutY || vertices[triangles[t + 2]].y < CutY)
-                {
-                    continue;
-                }
-                for (int k = 0; k < 3; k++)
-                {
-                    int i = triangles[t + k];
-                    if (remap[i] < 0)
-                    {
-                        remap[i] = keptVertices.Count;
-                        keptVertices.Add(vertices[i]);
-                        keptNormals.Add(normals[i]);
-                        keptUv.Add(uv.Length > i ? uv[i] : Vector2.zero);
-                        keptColours.Add(new Color(1.0f, 1.0f, 1.0f, BodyAlphaAt(vertices[i])));
-                        keptWeights.Add(weights[i]);
-                    }
-                    keptTriangles.Add(remap[i]);
-                }
-            }
-
-            var mesh = new Mesh
-            {
-                name = "WraithBody",
-                indexFormat = keptVertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16,
-            };
-            mesh.SetVertices(keptVertices);
-            mesh.SetNormals(keptNormals);
-            mesh.SetUVs(0, keptUv);
-            mesh.SetColors(keptColours);
-            mesh.boneWeights = keptWeights.ToArray();
-            mesh.SetTriangles(keptTriangles, 0);
-            mesh.bindposes = body.bindposes;
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-
-        /// <summary>
-        /// How solid the body is at <paramref name="point"/> (its vertex alpha): solid above the chest, turning to smoke down to nothing at the
-        /// cut; the arms, out from the middle, solid down to just over the hands.
-        /// </summary>
-        public static float BodyAlphaAt(Vector3 point)
-        {
-            float arms = Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(ArmsFromX, ArmsFullX, Mathf.Abs(point.x)));
-            float top = Mathf.Lerp(FadeTopTorsoY, FadeTopArmsY, arms);
-            return Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(CutY, top, point.y));
-        }
-
-        /// <summary>
-        /// The smoke the torso comes apart into: veils from the torso's own surface, each starting where the body is already turning to smoke
-        /// (as solid there as the body is, so it grows out of it), billowing out a little, then twisting down and inward to a point; wide at
-        /// the top and thin at the tip, fading out down its length (vertex alpha, which the ghost shader erodes into streaks) and on its own
-        /// phase for the shader's sway (vertex colour r). Every third one starts lower and every second ends higher, so they do not all begin
-        /// and end together. uv.y is how far down a veil a point is, which the sway grows with.
-        /// </summary>
-        private static Mesh Wisps()
+        /// <summary>The player's arms with their own skinning, and the owner's model, skinned here: one mesh, on the fused body's bones.</summary>
+        private static Mesh WholeBody(Mesh fused, List<HumanBodyBones> order, Mesh model, Matrix4x4 modelPlace, Matrix4x4 headBind)
         {
             var vertices = new List<Vector3>();
             var normals = new List<Vector3>();
             var uv = new List<Vector2>();
             var colours = new List<Color>();
+            var weights = new List<BoneWeight>();
             var triangles = new List<int>();
-            for (int ribbon = 0; ribbon < WispCount; ribbon++)
+
+            // The arms, whole: every triangle of the fused body wholly on them.
+            Vector3[] fusedVertices = fused.vertices;
+            Vector3[] fusedNormals = fused.normals;
+            BoneWeight[] fusedWeights = fused.boneWeights;
+            int[] fusedTriangles = fused.triangles;
+            var remap = new int[fusedVertices.Length];
+            for (int i = 0; i < remap.Length; i++)
             {
-                float startAngle = ribbon * (2.0f * Mathf.PI / WispCount) + 0.37f * ribbon;
-                float topY = WispTopY - (ribbon % 3) * WispStartStep;
-                float tipY = WispTipY + (ribbon % 2) * 0.1f;
-                float topAlpha = BodyAlphaAt(new Vector3(0.0f, topY, 0.0f)) * WispSolidShare;
-                float phase = (float)ribbon / WispCount;
-                int first = vertices.Count;
-                for (int step = 0; step <= WispSegments; step++)
+                remap[i] = -1;
+            }
+            for (int t = 0; t + 2 < fusedTriangles.Length; t += 3)
+            {
+                if (!IsArmBone(order[fusedWeights[fusedTriangles[t]].boneIndex0]) || !IsArmBone(order[fusedWeights[fusedTriangles[t + 1]].boneIndex0])
+                    || !IsArmBone(order[fusedWeights[fusedTriangles[t + 2]].boneIndex0]))
                 {
-                    float s = (float)step / WispSegments;
-                    float angle = startAngle + s * WispTwistTurns * 2.0f * Mathf.PI;
-                    float radius = WispTopRadius * (1.0f + WispBulge * Mathf.Sin(s * Mathf.PI)) * (1.0f - Mathf.Pow(s, WispGather));
-                    float y = Mathf.Lerp(topY, tipY, s);
-                    var centre = new Vector3(Mathf.Cos(angle) * radius, y, Mathf.Sin(angle) * radius);
-                    var across = new Vector3(-Mathf.Sin(angle), 0.0f, Mathf.Cos(angle)) * (Mathf.Lerp(WispTopWidth, WispTipWidth, s) * 0.5f);
-                    var outward = new Vector3(Mathf.Cos(angle), 0.0f, Mathf.Sin(angle));
-                    float alpha = topAlpha * Mathf.Pow(1.0f - s, 1.3f);
-                    vertices.Add(centre - across);
-                    vertices.Add(centre + across);
-                    normals.Add(outward);
-                    normals.Add(outward);
-                    uv.Add(new Vector2(0.0f, s));
-                    uv.Add(new Vector2(1.0f, s));
-                    colours.Add(new Color(phase, 0.0f, 0.0f, alpha));
-                    colours.Add(new Color(phase, 0.0f, 0.0f, alpha));
-                    if (step > 0)
+                    continue;
+                }
+                for (int k = 0; k < 3; k++)
+                {
+                    int i = fusedTriangles[t + k];
+                    if (remap[i] < 0)
                     {
-                        int a = first + (step - 1) * 2;
-                        triangles.AddRange(new[] { a, a + 2, a + 1, a + 1, a + 2, a + 3 });
+                        remap[i] = vertices.Count;
+                        vertices.Add(fusedVertices[i]);
+                        normals.Add(fusedNormals[i]);
+                        uv.Add(Vector2.zero);
+                        colours.Add(Color.white);
+                        weights.Add(fusedWeights[i]);
                     }
+                    triangles.Add(remap[i]);
                 }
             }
-            var mesh = new Mesh { name = "WraithWisps" };
+
+            // The owner's model: its height decides how solid it is and how it sways.
+            int head = order.Count, spine = order.IndexOf(HumanBodyBones.Spine), hips = order.IndexOf(HumanBodyBones.Hips);
+            int offset = vertices.Count;
+            Vector3[] modelVertices = model.vertices;
+            Vector3[] modelNormals = model.normals;
+            for (int i = 0; i < modelVertices.Length; i++)
+            {
+                Vector3 at = modelPlace.MultiplyPoint3x4(modelVertices[i]);
+                vertices.Add(at);
+                normals.Add(modelNormals.Length > i ? modelPlace.MultiplyVector(modelNormals[i]).normalized : Vector3.up);
+                uv.Add(new Vector2(0.0f, TailSwayAt(at.y)));
+                colours.Add(new Color(1.0f, 1.0f, 1.0f, BodyAlphaAt(at.y)));
+                weights.Add(ModelWeight(at, head, spine, hips));
+            }
+            foreach (int index in model.triangles)
+            {
+                triangles.Add(offset + index);
+            }
+
+            var mesh = new Mesh
+            {
+                name = "WraithBody",
+                indexFormat = vertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16,
+            };
             mesh.SetVertices(vertices);
             mesh.SetNormals(normals);
             mesh.SetUVs(0, uv);
             mesh.SetColors(colours);
+            mesh.boneWeights = weights.ToArray();
             mesh.SetTriangles(triangles, 0);
+            var binds = new List<Matrix4x4>(fused.bindposes) { headBind };
+            mesh.bindposes = binds.ToArray();
             mesh.RecalculateBounds();
             return mesh;
         }
 
-        /// <summary>
-        /// The face on the skull: two solid red eyes sunk into it high and wide, and one row of
-        /// sharp white teeth hanging from it under a jaw pivot. The eyes and the teeth are opaque and lit (CityX/Lit, cel shaded and outlined
-        /// like everything solid), the teeth and the eyes gone with the body when it dies (Wraith shrinks the face away).
-        /// </summary>
-        private static Transform BuildFace(Transform skull, out Transform jaw)
+        private static bool IsArmBone(HumanBodyBones bone)
         {
-            float radius = FusedBodyShape.HeadRadius;
+            return bone == HumanBodyBones.LeftUpperArm || bone == HumanBodyBones.RightUpperArm || bone == HumanBodyBones.LeftLowerArm || bone == HumanBodyBones.RightLowerArm
+                || bone == HumanBodyBones.LeftHand || bone == HumanBodyBones.RightHand || (bone >= HumanBodyBones.LeftThumbProximal && bone < HumanBodyBones.LastBone);
+        }
+
+        private static BoneWeight ModelWeight(Vector3 at, int head, int spine, int hips)
+        {
+            if ((at - new Vector3(0.0f, BodyRig.HeadCentreY, 0.0f)).magnitude <= FusedBodyShape.HeadRadius * HeadBoneWithin)
+            {
+                return new BoneWeight { boneIndex0 = head, weight0 = 1.0f };
+            }
+            float upper = Mathf.InverseLerp(HipsFullY, SpineFullY, at.y);
+            return new BoneWeight { boneIndex0 = spine, weight0 = upper, boneIndex1 = hips, weight1 = 1.0f - upper };
+        }
+
+        /// <summary>How solid the model is at this height (its vertex alpha): whole above the tail, worn away to nothing above its tip.</summary>
+        public static float BodyAlphaAt(float y) => Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(TailGoneY, TailSolidY, y));
+
+        /// <summary>How much of the sway reaches this height (uv.y, as the ghost shader reads it).</summary>
+        public static float TailSwayAt(float y) => Mathf.InverseLerp(TailSwayTopY, TailTipY, y);
+
+        /// <summary>
+        /// Soft puffs coming off the tail, which is what reads as gas: in the world, so they stay where they came off as it drifts, slow, each growing as it thins to nothing. Thrown ribbons
+        /// were tried and rejected ("that just looks like a tornado sitting beneath him").
+        /// </summary>
+        private static ParticleSystem BuildGas(Transform hips)
+        {
+            var go = new GameObject(GasName);
+            go.transform.SetParent(hips, false);
+            go.transform.localPosition = GasCentre - hips.localPosition;
+            ParticleSystem particles = go.AddComponent<ParticleSystem>();
+
+            ParticleSystem.MainModule main = particles.main;
+            main.loop = true;
+            main.playOnAwake = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1.6f, 3.0f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.05f, 0.25f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.3f, 0.7f);
+            main.startRotation = new ParticleSystem.MinMaxCurve(0.0f, Mathf.PI * 2.0f);
+            main.startColor = new Color(BodyColour.r, BodyColour.g, BodyColour.b, 1.0f);
+            main.gravityModifier = -0.015f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = GasMost;
+
+            ParticleSystem.EmissionModule emission = particles.emission;
+            emission.rateOverTime = GasPerSecond;
+
+            ParticleSystem.ShapeModule shape = particles.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = GasSize;
+
+            ParticleSystem.ColorOverLifetimeModule fade = particles.colorOverLifetime;
+            fade.enabled = true;
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0.0f), new GradientColorKey(Color.white, 1.0f) },
+                new[] { new GradientAlphaKey(0.0f, 0.0f), new GradientAlphaKey(GasPeakAlpha, 0.25f), new GradientAlphaKey(0.0f, 1.0f) });
+            fade.color = new ParticleSystem.MinMaxGradient(gradient);
+
+            ParticleSystem.SizeOverLifetimeModule grow = particles.sizeOverLifetime;
+            grow.enabled = true;
+            grow.size = new ParticleSystem.MinMaxCurve(1.0f, AnimationCurve.Linear(0.0f, 0.7f, 1.0f, 1.6f));
+
+            ParticleSystem.NoiseModule noise = particles.noise;
+            noise.enabled = true;
+            noise.strength = 0.25f;
+            noise.frequency = 0.6f;
+
+            ParticleSystemRenderer renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = GasMaterial();
+            NoShadow(renderer);
+            return particles;
+        }
+
+        /// <summary>The flamethrower's smoke puff, as its own material: nothing else to keep.</summary>
+        private static Material GasMaterial()
+        {
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(GasMaterialPath);
+            if (material != null)
+            {
+                return material;
+            }
+            Material smoke = AssetDatabase.LoadAssetAtPath<Material>(SmokeMaterialPath);
+            if (smoke == null)
+            {
+                Debug.LogError($"CityX: no {SmokeMaterialPath} -- build the flamethrower before the Wraith.");
+                return null;
+            }
+            material = new Material(smoke) { name = "WraithGas" };
+            AssetDatabase.CreateAsset(material, GasMaterialPath);
+            return material;
+        }
+
+        /// <summary>
+        /// The face: two solid red eyes in the model's sockets, and the model's teeth under the point that goes on the prey's neck. Opaque and lit (CityX/Lit, cel shaded and outlined
+        /// like everything solid), gone with the body when it dies (Wraith shrinks the face away).
+        /// </summary>
+        private static Transform BuildFace(Transform head, Mesh modelTeeth, Matrix4x4 teethPlace, out Transform jaw)
+        {
             var face = new GameObject(FaceName);
-            face.transform.SetParent(skull, false);
+            face.transform.SetParent(head, false);
+            face.transform.localPosition = HeadMesh.CentreOnBone;
 
             Material eyeMaterial = SolidMaterial(EyeMaterialPath, "WraithEye", EyeColour, EyeSmoothness);
             Mesh eyeMesh = SaveMesh(EyeMeshPath, Sphere("WraithEye", EyeRadius, EyeLatitudes, EyeLongitudes));
@@ -415,21 +435,19 @@ namespace CityX.CharacterEditor
             {
                 var eye = new GameObject(name);
                 eye.transform.SetParent(face.transform, false);
-                eye.transform.localPosition = EyeCentre(side);
+                eye.transform.localPosition = new Vector3(side * EyeOffsetX, EyeY, EyeZ);
                 eye.AddComponent<MeshFilter>().sharedMesh = eyeMesh;
                 MeshRenderer renderer = eye.AddComponent<MeshRenderer>();
                 renderer.sharedMaterial = eyeMaterial;
                 NoShadow(renderer);
             }
 
-            // The jaw pivots at the middle of the lip, on the skull's surface; the teeth are made in the skull's frame and hung under it.
             var jawObject = new GameObject(JawName);
             jawObject.transform.SetParent(face.transform, false);
-            jawObject.transform.localPosition = new Vector3(0.0f, LipY, LipRadius(radius));
+            jawObject.transform.localPosition = JawAt;
             var teeth = new GameObject(TeethName);
             teeth.transform.SetParent(jawObject.transform, false);
-            teeth.transform.localPosition = -jawObject.transform.localPosition;
-            teeth.AddComponent<MeshFilter>().sharedMesh = SaveMesh(TeethMeshPath, Teeth(radius));
+            teeth.AddComponent<MeshFilter>().sharedMesh = SaveMesh(TeethMeshPath, TeethAtJaw(modelTeeth, teethPlace));
             MeshRenderer teethRenderer = teeth.AddComponent<MeshRenderer>();
             teethRenderer.sharedMaterial = SolidMaterial(ToothMaterialPath, "WraithTeeth", ToothColour, ToothSmoothness);
             NoShadow(teethRenderer);
@@ -438,68 +456,24 @@ namespace CityX.CharacterEditor
             return face.transform;
         }
 
-        /// <summary>Where an eye's centre sits in the skull's frame: on the surface at its offsets, sunk in by <see cref="EyeSink"/>.</summary>
-        public static Vector3 EyeCentre(float side)
+        /// <summary>The model's teeth, measured from the point they hang under.</summary>
+        private static Mesh TeethAtJaw(Mesh modelTeeth, Matrix4x4 place)
         {
-            float radius = FusedBodyShape.HeadRadius;
-            float x = side * EyeOffsetX;
-            var surface = new Vector3(x, EyeY, Mathf.Sqrt(radius * radius - x * x - EyeY * EyeY));
-            return surface * ((radius - EyeSink) / radius);
-        }
-
-        /// <summary>The radius of the skull's horizontal circle at the lip's height.</summary>
-        public static float LipRadius(float radius) => Mathf.Sqrt(radius * radius - LipY * LipY);
-
-        /// <summary>How long the tooth at <paramref name="share"/> of the way from the row's middle to its end is.</summary>
-        public static float ToothLength(float share) => ToothLengthEnd + (ToothLengthMiddle - ToothLengthEnd) * Mathf.Pow(1.0f - Mathf.Clamp01(share), 1.2f);
-
-        /// <summary>
-        /// One row of teeth hanging from the lip: each a cone rooted in the skull at its place round the row, hanging down and leaning a little
-        /// outward with the skull's surface, narrowing to a tip curled slightly back in; the middle ones long, the end ones short.
-        /// </summary>
-        private static Mesh Teeth(float radius)
-        {
-            var vertices = new List<Vector3>();
-            var triangles = new List<int>();
-            float ring = LipRadius(radius);
-            for (int tooth = 0; tooth < TeethCount; tooth++)
+            Vector3 origin = new Vector3(0.0f, BodyRig.HeadCentreY, 0.0f) + JawAt;
+            Vector3[] vertices = modelTeeth.vertices;
+            Vector3[] normals = modelTeeth.normals;
+            for (int i = 0; i < vertices.Length; i++)
             {
-                float along = TeethCount > 1 ? (float)tooth / (TeethCount - 1) : 0.5f;
-                float angle = Mathf.Lerp(-TeethHalfAngleDegrees, TeethHalfAngleDegrees, along) * Mathf.Deg2Rad;
-                float share = Mathf.Abs(along - 0.5f) * 2.0f;
-                var surface = new Vector3(Mathf.Sin(angle) * ring, LipY, Mathf.Cos(angle) * ring);
-                Vector3 outward = surface.normalized;
-                Vector3 root = surface * ((radius - ToothSink) / radius);
-                Vector3 hang = (Vector3.down + outward * ToothLean).normalized;
-                float length = ToothLength(share);
-                Vector3 tip = root + hang * length - outward * ToothCurl;
-                Vector3 across = Vector3.Cross(hang, outward).normalized;
-                Vector3 through = Vector3.Cross(across, hang).normalized;
-
-                int first = vertices.Count;
-                foreach ((float at, float width) in new[] { (0.0f, ToothBaseRadius), (0.55f, ToothBaseRadius * 0.5f) })
+                vertices[i] = place.MultiplyPoint3x4(vertices[i]) - origin;
+                if (normals.Length > i)
                 {
-                    Vector3 centre = Vector3.Lerp(root, tip, at);
-                    for (int side = 0; side < ToothSides; side++)
-                    {
-                        float round = side * (2.0f * Mathf.PI / ToothSides);
-                        vertices.Add(centre + (across * Mathf.Cos(round) + through * Mathf.Sin(round)) * width);
-                    }
-                }
-                vertices.Add(tip);
-                int mid = first + ToothSides;
-                int point = first + ToothSides * 2;
-                for (int side = 0; side < ToothSides; side++)
-                {
-                    int next = (side + 1) % ToothSides;
-                    triangles.AddRange(new[] { first + side, mid + side, first + next, first + next, mid + side, mid + next });
-                    triangles.AddRange(new[] { mid + side, point, mid + next });
+                    normals[i] = place.MultiplyVector(normals[i]).normalized;
                 }
             }
             var mesh = new Mesh { name = "WraithTeeth" };
             mesh.SetVertices(vertices);
-            mesh.SetTriangles(triangles, 0);
-            mesh.RecalculateNormals();
+            mesh.SetNormals(normals);
+            mesh.SetTriangles(modelTeeth.triangles, 0);
             mesh.RecalculateBounds();
             return mesh;
         }

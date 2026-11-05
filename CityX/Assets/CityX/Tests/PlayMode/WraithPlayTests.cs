@@ -138,6 +138,110 @@ namespace CityX.Tests
 #endif
         }
 
+        private PlayerVitals PlayerAt(Vector3 at, Quaternion facing)
+        {
+#if UNITY_EDITOR
+            _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"), at, facing);
+            return _player.GetComponent<PlayerVitals>();
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>Owner, 2026-11-05: "try to sneak up behind you and sink his teeth into your neck ... make blood effects where he bites".</summary>
+        [UnityTest]
+        public IEnumerator ItSneaksUpBehindAPlayerAndBitesTheirNeckDrawingBlood()
+        {
+            PlayerVitals vitals = PlayerAt(new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            Transform neck = _player.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Neck);
+            Wraith wraith = Spawn(new Vector3(0.0f, WraithDrift.HoverHeight, -9.0f));
+            float health = vitals.Health;
+            int blood = BloodBurst.Spawned;
+
+            bool stalked = false;
+            for (int i = 0; i < 900 && wraith.Phase != WraithPhase.Lunging; i++)
+            {
+                stalked |= wraith.Phase == WraithPhase.Stalking;
+                Assert.AreEqual(health, vitals.Health, "it hurt the player before it lunged");
+                yield return null;
+            }
+            Assert.IsTrue(stalked, "it did not stalk");
+            Assert.AreEqual(WraithPhase.Lunging, wraith.Phase, "it never lunged at a turned back");
+            Assert.Less(wraith.transform.position.z, _player.transform.position.z, "it did not come from behind");
+            Assert.AreEqual(health, vitals.Health, "it hurt the player before its teeth arrived");
+
+            for (int i = 0; i < 60 && wraith.Phase != WraithPhase.Biting; i++)
+            {
+                yield return null;
+            }
+            Assert.AreEqual(WraithPhase.Biting, wraith.Phase, "its lunge did not reach a player standing still");
+            for (int i = 0; i < 40; i++)
+            {
+                yield return null;
+            }
+            Assert.Less(Vector3.Distance(wraith.Jaw.position, neck.position), 0.5f, "its teeth are not on the neck");
+            Assert.LessOrEqual(vitals.Health, health - WraithHunt.SinkDamage + 1.0f, "the bite did no great harm");
+            Assert.Greater(BloodBurst.Spawned, blood, "no blood where it bit");
+            Assert.GreaterOrEqual(wraith.BloodShown, 1);
+
+            for (int i = 0; i < 200 && wraith.Phase == WraithPhase.Biting; i++)
+            {
+                yield return null;
+            }
+            Assert.AreEqual(WraithPhase.Thrown, wraith.Phase, "it never let go");
+        }
+
+        [UnityTest]
+        public IEnumerator FacedAllTheTimeItNeverBites()
+        {
+            PlayerVitals vitals = PlayerAt(new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            Wraith wraith = Spawn(new Vector3(0.0f, WraithDrift.HoverHeight, 7.0f));
+            float health = vitals.Health;
+            for (int i = 0; i < 360; i++)
+            {
+                Vector3 toward = wraith.transform.position - _player.transform.position;
+                toward.y = 0.0f;
+                _player.transform.rotation = Quaternion.LookRotation(toward.normalized, Vector3.up);
+                yield return null;
+                Assert.AreNotEqual(WraithPhase.Lunging, wraith.Phase, "it lunged at someone watching it");
+            }
+            Assert.AreEqual(health, vitals.Health, "it hurt someone watching it");
+            Assert.AreEqual(WraithPhase.Stalking, wraith.Phase, "it gave up on someone 7 m away");
+        }
+
+        /// <summary>Another player's machine: told the phase and the blood, the copy plays the recording, and its place stays its owner's.</summary>
+        [UnityTest]
+        public IEnumerator ACopyToldOfItsOwnersBitePlaysItWithNothingOfItsOwn()
+        {
+            PlayerVitals vitals = PlayerAt(new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            Wraith wraith = Spawn(new Vector3(0.0f, WraithDrift.HoverHeight, -1.0f));
+            wraith.IsCopy = true;
+            yield return null;
+            Vector3 place = wraith.transform.position;
+            Vector3 headBefore = wraith.transform.InverseTransformPoint(wraith.Head.position);
+            float health = vitals.Health;
+
+            wraith.ShowPhaseFromNetwork(WraithPhase.Biting, vitals);
+            int blood = BloodBurst.Spawned;
+            wraith.ShowBloodFromNetwork(wraith.Head.position);
+            for (int i = 0; i < 30; i++)
+            {
+                yield return null;
+            }
+            Assert.AreEqual(WraithPhase.Biting, wraith.Phase);
+            Assert.Greater(Vector3.Distance(wraith.transform.InverseTransformPoint(wraith.Head.position), headBefore), 0.2f, "the copy's body does not show the bite");
+            Assert.AreEqual(place, wraith.transform.position, "a copy moved itself");
+            Assert.AreEqual(health, vitals.Health, "a copy did damage of its own: its owner's machine does that");
+            Assert.Greater(BloodBurst.Spawned, blood, "no blood on the copy's machine");
+
+            wraith.ShowPhaseFromNetwork(WraithPhase.Drifting, null);
+            for (int i = 0; i < 30; i++)
+            {
+                yield return null;
+            }
+            Assert.Less(Vector3.Distance(wraith.transform.InverseTransformPoint(wraith.Head.position), headBefore), 0.2f, "the copy stayed in the bite");
+        }
+
         [UnityTest]
         public IEnumerator KilledItFadesAwayAndIsGone()
         {
