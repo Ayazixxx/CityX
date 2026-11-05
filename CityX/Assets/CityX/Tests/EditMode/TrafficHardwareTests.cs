@@ -328,5 +328,37 @@ namespace CityX.Tests
             }
             Assert.Greater(lines, 1000);
         }
+
+        /// <summary>The kerb goes round each corner in an arc (KerbCorners): the plan's sharp corner is out in the road, and what stood back from it stood in the road.</summary>
+        [Test]
+        public void NoPoleOrPostStandsInTheRoadARoundedCornerGivesUp()
+        {
+            foreach (JunctionControl control in new[] { JunctionControl.Signal, JunctionControl.StopMinor, JunctionControl.AllWayStop })
+            {
+                TrafficJunction junction = Nearest(j => j.Control == control && j.Legs.Length == Driven(j));
+                var structures = new List<Vertex>();
+                BuildAround(junction, new List<Lamp>(), structures);
+                int rounded = 0;
+                for (int c = 0; c < junction.Legs.Length; c++)
+                {
+                    if (!junction.HasCorner[c] || !KerbCorners.TryAt(World.Plan, junction.Corners[c], out KerbArc arc))
+                    {
+                        continue;
+                    }
+                    rounded++;
+                    foreach (Vertex vertex in structures)
+                    {
+                        var at = new Vec2(vertex.At.x, vertex.At.z);
+                        // A pole's or a post's foot: low, and near this corner. (An arm or a head may well hang out over the road.)
+                        if (!Same(vertex.Look, TrafficProps.Galvanised) || (at - arc.Corner).Length > arc.TangentLength + 1.0 || vertex.At.y - Ground(at) > 1.0f)
+                        {
+                            continue;
+                        }
+                        Assert.IsFalse(arc.GivesUp(at), $"node {junction.Node.Id} corner {c} ({control}): a pole or post stands in the road the rounded corner gives up");
+                    }
+                }
+                TestContext.WriteLine($"{control}: node {junction.Node.Id}, {rounded} rounded corners");
+            }
+        }
     }
 }

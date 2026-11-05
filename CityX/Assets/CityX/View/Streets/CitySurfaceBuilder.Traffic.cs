@@ -31,6 +31,9 @@ namespace CityX.View
         /// <summary>A sign's post and a light's pole stand this far behind the kerb (2 ft clear of the road).</summary>
         public const double SignFromKerb = 0.8;
 
+        /// <summary>A sign beside a rounded corner stands this far past the end of the arc, along the straight kerb, metres.</summary>
+        public const double SignPastArc = 0.3;
+
         public const double PoleFromKerb = 0.9;
 
         /// <summary>A post or pole keeps this clear of every kerb of its junction, metres.</summary>
@@ -188,6 +191,12 @@ namespace CityX.View
                 double line = StopLineAt(ctx.Plan, g, end);
                 double along = line >= 0.0 ? line + StopLineWidth * 0.5 : junction.Trims[i] + StopLineFromPlate;
                 Vec2 d = junction.Dirs[i];
+                // Where the kerb goes round the corner on the sign's side in an arc (KerbCorners), the sign stands where the straight kerb
+                // begins: nearer the junction it would be out in the road the arc gives up.
+                if (junction.HasCorner[i] && KerbCorners.TryAt(ctx.Plan, junction.Corners[i], out KerbArc arc))
+                {
+                    along = Math.Max(along, Vec2.Dot(arc.Corner - junction.Node.P, d) + arc.TangentLength + SignPastArc);
+                }
                 Vec2 at = junction.Node.P + d * along + d.Perp * (junction.HalfWidths[i] + SignFromKerb);
                 if (!Stands(ctx, junction, at, out Vector3 local))
                 {
@@ -297,9 +306,9 @@ namespace CityX.View
                     // The corner beside this end of the crossing: on the leg's left it is the corner after the leg, on its right the one before.
                     int corner = side > 0 ? i : (i + k - 1) % k;
                     Vec2 pole;
-                    if (junction.HasCorner[corner] && (CornerPole(junction, corner) - end).Length < CornerServesCrossing)
+                    if (junction.HasCorner[corner] && (CornerPole(ctx.Plan, junction, corner) - end).Length < CornerServesCrossing)
                     {
-                        pole = CornerPole(junction, corner);
+                        pole = CornerPole(ctx.Plan, junction, corner);
                         poles.CornerUsed[corner] = true;
                     }
                     else if (CanStand(ctx.Plan, junction, end))
@@ -319,7 +328,7 @@ namespace CityX.View
 
             for (int c = 0; c < k; c++)
             {
-                if (poles.CornerUsed[c] && Stands(ctx, junction, CornerPole(junction, c), out Vector3 local))
+                if (poles.CornerUsed[c] && Stands(ctx, junction, CornerPole(ctx.Plan, junction, c), out Vector3 local))
                 {
                     TrafficProps.AddPole(structures, local, poles.CornerArmed[c]);
                 }
@@ -333,9 +342,16 @@ namespace CityX.View
             }
         }
 
-        /// <summary>Where the pole at a kerb corner stands: back from the corner into the pavement.</summary>
-        private static Vec2 CornerPole(TrafficJunction junction, int corner)
+        /// <summary>
+        /// Where the pole at a kerb corner stands: back from the kerb into the pavement. Where the kerb goes round the corner in an arc
+        /// (KerbCorners) that is back from the arc's middle, not from the sharp corner the plan has, which is out in the road.
+        /// </summary>
+        private static Vec2 CornerPole(PlanWorld plan, TrafficJunction junction, int corner)
         {
+            if (KerbCorners.TryAt(plan, junction.Corners[corner], out KerbArc arc))
+            {
+                return arc.Apex + arc.Inward * PoleFromKerb;
+            }
             Vec2 inward = junction.Dirs[corner] + junction.Dirs[(corner + 1) % junction.Legs.Length];
             return junction.Corners[corner] + (inward.Length > 1e-6 ? inward.Normalized : junction.Dirs[corner].Perp) * PoleFromKerb;
         }
@@ -367,12 +383,12 @@ namespace CityX.View
                 {
                     continue;
                 }
-                Vec2 from = CornerPole(junction, c) - junction.Node.P;
+                Vec2 from = CornerPole(plan, junction, c) - junction.Node.P;
                 if (Vec2.Dot(from, travel) <= 0.0 || Vec2.Dot(from, right) <= 0.0)
                 {
                     continue;   // on the near side, or the other side of the road
                 }
-                double away = (CornerPole(junction, c) - wanted).Length;
+                double away = (CornerPole(plan, junction, c) - wanted).Length;
                 if (away < nearest)
                 {
                     nearest = away;
@@ -384,7 +400,7 @@ namespace CityX.View
             {
                 poles.CornerUsed[best] = true;
                 poles.CornerArmed[best] |= armed;
-                pole = CornerPole(junction, best);
+                pole = CornerPole(plan, junction, best);
                 return true;
             }
 

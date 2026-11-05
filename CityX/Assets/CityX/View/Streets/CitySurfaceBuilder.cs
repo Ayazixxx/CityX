@@ -76,14 +76,19 @@ namespace CityX.View
             var stairCuts = new List<Vec2[]>();
             List<StairLane> stairLanes = StairLanesHere(ctx, chunkX, chunkY, stairCuts);
             terrainCuts.AddRange(stairCuts);
+            // The kerb goes round each street corner in an arc (CitySurfaceBuilder.Corners.cs): between the plan's sharp corner and the arc the
+            // ground and the pavement are cut away, and the road's own surface is laid there.
+            List<Vec2[]> cornerCuts = CornerCuts(ctx, plan.BlocksIn(chunkX, chunkY));
+            terrainCuts.AddRange(cornerCuts);
             BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY), terrainCuts);
             List<Vec2[]> cuts = KerbCuts(ctx, chunkX, chunkY);
             List<Vec2[]> pavingCuts = cuts;
-            if (basements.Count > 0 || stairCuts.Count > 0)
+            if (basements.Count > 0 || stairCuts.Count > 0 || cornerCuts.Count > 0)
             {
                 pavingCuts = new List<Vec2[]>(cuts);
                 pavingCuts.AddRange(basements);
                 pavingCuts.AddRange(stairCuts);
+                pavingCuts.AddRange(cornerCuts);
             }
 
             foreach (int blockIndex in plan.BlocksIn(chunkX, chunkY))
@@ -91,6 +96,7 @@ namespace CityX.View
                 PlanBlock block = plan.Data.Blocks[blockIndex];
                 BuildPavement(ctx, block, blockIndex, pavement, far, pavingCuts);
                 BuildBlockPaving(ctx, block, blockIndex, pavement, step, pavingCuts);
+                BuildKerbCorners(ctx, block, ground, pavement);
                 if (block.Plaza && !far)
                 {
                     BuildOpenSpace(ctx, block, blockIndex, structures, lit);   // CitySurfaceBuilder.OpenSpace.cs: the block's role and its pieces
@@ -817,6 +823,8 @@ namespace CityX.View
                 Vec2 i0 = block.Inner[e], i1 = block.Inner[f];
                 Vec2 o0 = block.Outer[e], o1 = block.Outer[f];
                 double length = (i1 - i0).Length;
+                // The straight kerb runs between the arcs round the corners at the edge's two ends, where those are rounded.
+                KerbInsets(ctx, block, e, out double kerbFrom, out double kerbBack);
                 // Along a step street the steps close their own sides (CitySurfaceBuilder.StepStreets.cs): no kerb between its junction plates.
                 RoadEdge road = ctx.Plan.EdgeBetween(block.Poly[e], block.Poly[f]);
                 EdgeGeometry steps = road != null && StepStreets.Is(ctx.Plan, road) ? ctx.Plan.Geometry.Edges[road.Id] : null;
@@ -840,26 +848,22 @@ namespace CityX.View
                             Fan(ctx, buffer, part, (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight);
                         }
                     }
-                    buffer.Look = SurfaceLook.Pack(new Color32(214, 212, 206, 255), (int)WallMaterial.Concrete, 0.45f);
+                    buffer.Look = KerbLook;
 
                     // The kerb: a vertical face along the inner edge, from the road up to the pavement, facing the road -- not where a ramp crosses it,
                     // and not along a pedestrian street, whose setts lie flush with the pavement.
                     bool flush = PedestrianStreets.Along(ctx.Plan, block.Poly[e], block.Poly[f]);
-                    if (!flush && ClipSegment(ia, ib, ctx.Rect, out Vec2 ca, out Vec2 cb) && (cb - ca).Length > 0.02)
+                    double straightFrom = Math.Max(sa * length, kerbFrom), straightTo = Math.Min(sb * length, length - kerbBack);
+                    if (flush || straightTo - straightFrom < 0.02)
+                    {
+                        continue;
+                    }
+                    Vec2 along = (i1 - i0) * (1.0 / length);
+                    if (ClipSegment(i0 + along * straightFrom, i0 + along * straightTo, ctx.Rect, out Vec2 ca, out Vec2 cb) && (cb - ca).Length > 0.02)
                     foreach ((Vec2 ka, Vec2 kb) in OffTheSteps(OutsideCuts(ca, cb, cuts), steps))
                     {
                         if ((kb - ka).Length < 0.02) continue;
-                        Vec2 d = (ib - ia).Normalized;
-                        var normal = new Vector3((float)d.Y, 0.0f, (float)-d.X);   // to the right of the edge: toward the road
-                        double ya = ctx.Plan.GroundHeight(ka.X, ka.Y) + RoadLift;
-                        double yb = ctx.Plan.GroundHeight(kb.X, kb.Y) + RoadLift;
-                        Vector3 b0 = ctx.Local(ka.X, ya, ka.Y);
-                        Vector3 b1 = ctx.Local(kb.X, yb, kb.Y);
-                        Vector3 t1 = ctx.Local(kb.X, yb + KerbHeight, kb.Y);
-                        Vector3 t0 = ctx.Local(ka.X, ya + KerbHeight, ka.Y);
-                        float len = (float)(kb - ka).Length;
-                        buffer.AddQuad(b0, b1, t1, t0, normal,
-                            new Vector2(0.0f, 0.0f), new Vector2(len, 0.0f), new Vector2(len, KerbHeight), new Vector2(0.0f, KerbHeight));
+                        KerbFace(ctx, buffer, ka, kb);
                     }
                 }
                 if (!far)
