@@ -51,7 +51,6 @@ namespace CityX.Tests
             // wall (see that test's neighbour below) and coming up short.
             if (_player != null) Object.DestroyImmediate(_player);
             if (_ground != null) Object.DestroyImmediate(_ground);
-            PlayerLocomotion.FaceMovement = true;
         }
 
         /// <summary>
@@ -83,8 +82,8 @@ namespace CityX.Tests
 
         /// <summary>
         /// LOCKED ON (or aiming), THE BODY FACES THE CAMERA, NOT WHERE IT IS GOING: pushing the stick left with the camera pointing north moves
-        /// the body west while it still faces north, and the side-step plays. Out of a lock-on the body turns to where it goes (GTA style,
-        /// below).
+        /// the body west while it still faces north, and the side-step plays. Out of a lock-on this fixture's bare body, no player's, turns to where it
+        /// goes (below); a player's stays facing the camera (FreeMovementPlayTests).
         /// </summary>
         [UnityTest]
         public IEnumerator StrafingMovesSidewaysWithoutTurningTheBody()
@@ -171,8 +170,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// GTA STYLE (MovementTurn; owner, 2026-11-01): out of a lock-on, pushing left turns the body and it walks left, forward in its own
-        /// terms, so the walk plays and not a side-step.
+        /// A BRAIN'S BODY (MovementTurn): out of a lock-on, steering left turns the body and it walks left, forward in its own terms, so the walk plays and not a side-step.
         /// </summary>
         [UnityTest]
         public IEnumerator PushingLeftTurnsTheBodyAndItWalksThatWay()
@@ -187,49 +185,7 @@ namespace CityX.Tests
             Assert.Greater(_locomotion.LocalVelocity.y, 3.0f);
         }
 
-        /// <summary>W to W+A to A at a walk (owner, 2026-11-02: "it kind of snaps into place"): each change of keys turns the real body over several frames, with no jump.</summary>
-        [UnityTest]
-        public IEnumerator WToWPlusAToAAtAWalkTurnsSmoothly()
-        {
-            UseThePlayersBody();
-            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f }, 60);
-
-            foreach (Vector2 keys in new[] { new Vector2(-0.7071f, 0.7071f), new Vector2(-1.0f, 0.0f) })
-            {
-                float wanted = Mathf.Atan2(keys.x, keys.y) * Mathf.Rad2Deg;
-                var input = new LocomotionInput { Move = keys, YawDegrees = 0.0f };
-                int framesToNineTenths = 0;
-                float mostInAFrame = 0.0f;
-                float startOff = Mathf.Abs(Mathf.DeltaAngle(_player.transform.eulerAngles.y, wanted));
-                for (int i = 0; i < 60; i++)
-                {
-                    float before = _player.transform.eulerAngles.y;
-                    _locomotion.Tick(input, Step);
-                    mostInAFrame = Mathf.Max(mostInAFrame, Mathf.Abs(Mathf.DeltaAngle(before, _player.transform.eulerAngles.y)));
-                    if (framesToNineTenths == 0 && Mathf.Abs(Mathf.DeltaAngle(_player.transform.eulerAngles.y, wanted)) <= startOff * 0.1f)
-                    {
-                        framesToNineTenths = i + 1;
-                    }
-                    yield return null;
-                }
-                Assert.GreaterOrEqual(framesToNineTenths, 12, "the change of keys still snaps the body round");
-                Assert.Less(mostInAFrame, 5.0f, "a frame jumped");
-                Assert.AreEqual(0.0f, Mathf.DeltaAngle(_player.transform.eulerAngles.y, wanted), 1.0f, "it did not come round");
-            }
-        }
-
-        /// <summary>The player's body, eased: a reversal at a sprint still brakes, comes round and runs on the other way.</summary>
-        [UnityTest]
-        public IEnumerator ThePlayersBodyReversesAtASprintWithItsEasedTurn()
-        {
-            UseThePlayersBody();
-            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f, Sprint = true }, 60);
-            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, -1.0f), YawDegrees = 0.0f, Sprint = true }, 90);
-            Assert.AreEqual(180.0f, Mathf.Abs(Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y)), 1.0f, "it did not turn round");
-            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f, "it did not run on the other way");
-        }
-
-        /// <summary>A body no player drives keeps the steady rate: a brain steering for a spot circled it for ever when eased.</summary>
+        /// <summary>A body no player drives turns at a steady rate: a brain steering for a spot circled it for ever when eased.</summary>
         [UnityTest]
         public IEnumerator ABodyNoPlayerDrivesKeepsItsSharpTurn()
         {
@@ -308,17 +264,6 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
-        }
-
-        /// <summary>/movement classic: the old camera-facing movement, where the keys side-step, for comparing.</summary>
-        [UnityTest]
-        public IEnumerator ClassicMovementSideStepsWithoutTurning()
-        {
-            PlayerLocomotion.FaceMovement = false;
-            _player.transform.rotation = Quaternion.identity;
-            yield return Drive(new LocomotionInput { Move = new Vector2(-1.0f, 0.0f), YawDegrees = 0.0f }, 60);
-            Assert.AreEqual(0.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f, "classic movement turned the body");
-            Assert.Less(_locomotion.LocalVelocity.x, -1.0f, "classic movement did not side-step");
         }
 
         /// <summary>

@@ -15,23 +15,25 @@ back".
 - **Stride warping**: the steps stretched to the real speed (ours: PacedGait and the foot locks).
 - **Physics reactions** (GTA's and Red Dead's Euphoria): ours are the ragdolls and the hit reactions.
 
-## GTA-style facing (built 2026-11-01)
+## Free movement, as Skyrim's (2026-11-04)
 
-Out of an aim (right-click), a gun's fire, a cast (spell, staff, wand) or a lock-on (Tab), the body **turns toward where the keys point and goes
-where it faces** (`MovementTurn`, `PlayerLocomotion.FaceMovement`). Before, it always faced the camera while moving, so A, D and S side-stepped and
-back-stepped, and W+A blended a forward walk with a side-step.
+Owner, after playing GTA-style facing: "get rid of the gta style movement i dont think it works well i like our more free movement like minecraft", "the free movement like minecraft makes it feel a bit cheap and roblox like", "skyrims feels like a good example we should try to imitate", "i think its pretty similar to what we had before", "go ahead and make all of the improvements".
+
+A player's body **faces the camera as it moves**; the keys walk it forward, sideways and back, whatever is in hand. Standing still it does not follow the camera, and a blow turns it to the camera (`SetFacingOverride`).
 
 | | |
 |---|---|
-| Turn rate | at most 900 deg/s from a standstill, 600 at a walk, 300 at a sprint: a sprint curves round |
-| Turn ease | a turn builds and settles (`MovementTurn.Step`, eased over 0.07 s standing, 0.14 s walking, 0.2 s sprinting; nine tenths of a turn takes about twice that). W to W+A at a walk takes about 0.3 s. Owner, 2026-11-02: "it kind of snaps into place ... more smoothly rotate"; at one steady rate it took 0.08 s. Only bodies a player plays: enemies steering for a spot keep the steady rate, because eased a Shoota ran in a circle round his cover spot for ever (its lag settles at 90 degrees, too little to brake him; the steady rate falls behind until `SpeedShare` slows him enough to arrive) |
-| Sharp turns | a turn more than 60 deg off where the body faces brakes it, down to 35% of its speed at 160 deg and more: a reversal plants and turns instead of skating round |
-| Sprint | any way the keys point (the body faces it); still forward only while facing the camera |
-| Facing the camera | aiming, firing, casting, a staff or wand pointed, locked on: as before, side-steps and back-steps |
-| Ready to fight | a melee weapon in hand (sword, knife, bat, crowbar), or the fists still up after a punch: moving, the body faces the camera, so S back-steps and A and D side-step with no lock-on (owner, 2026-11-04: "it does a whole rotating walking animation instead of just walking backwards which is not what you want in a melee fight"). Standing still it does not follow the camera. Sprint held, it turns and runs as ever. Only a body someone plays (`PlayerLocomotion.ReadyToFight`) |
-| Compare | `/movement classic` brings back the old camera-facing movement, `/movement gta` this one |
+| Backward | 75% of a walk (`FreeMovement.BackwardSpeedShare`), less of a cut on a diagonal back. Before, the same speed as forward. The Animator is shown the full backward walk and the foot locks take up the difference: shown the real speed, the blend took in the idle and the feet slid at 2.6 m/s (`FootIkPlayTests`), and much slower than this the locks cannot hold. Skyrim's slower backward walk is from memory, not measured |
+| Sideways | a full walk, with the hips and legs turned on a diagonal (below) |
+| Sprint | forward only |
+| Weight | light: a walk in about 0.2 s, a stop in about 0.15 s (`MovementWeight` at `FreeMovement.PlayerFootScale`). Before, a walk in a fifteenth of a second |
+| Quick still | aiming, firing, casting, a lock-on, a blow, a dash, flight, the air |
 
-Other players see it as it is: the facing travels with the body's rotation and the walk with the animator's parameters.
+Both numbers are a first go, for the owner to feel. Other players see it as it is: the facing travels with the body's rotation and the walk with the animator's parameters.
+
+**A brain's body is different on purpose** (no `PlayerInputReader`): it turns toward where it steers and goes where it faces (`MovementTurn`: 900 deg/s at a stand, 600 at a walk, 300 at a sprint; a turn over 60 deg off brakes it, to 35% at 160 deg), with `MovementWeight`'s own numbers. Enemies have steered that way since 2026-11-01 and their brains are tuned to it. An eased turn left a Shoota running in a circle round his cover for ever, so it stays a steady rate.
+
+**GTA-style facing for the player** (2026-11-01 to 11-04) is gone: the eased turn, `/movement`, and a sprint in any direction. It is in the history at `ce2b643c` if it is ever wanted.
 
 ## Side-steps and diagonals (built 2026-11-01)
 
@@ -54,9 +56,9 @@ poses match frame for frame), so nothing was taken from it; its skinless copies 
 
 ## Weight (built 2026-11-02)
 
-Owner: "sure do movement weight". On foot and going where it faces (GTA style), speed builds and falls over a few steps (`MovementWeight`): 14 m/s per second speeding up (a walk in 0.3 s, a sprint from a stand in 0.55 s), 20 braking (a sprint stops in 0.38 s, about 1.4 m on). Before, every change took 60 m/s per second: a sprint in an eighth of a second, and a stop as sudden. Only speed along the way the body goes is slow: sideways drift is gripped away at 40, so a turn holds its line and does not slide as on ice. Wet ground scales all three down (`WetTraction`, as before), a giant's up, so it takes the same time.
+Owner: "sure do movement weight". On foot, speed builds and falls over a few steps (`MovementWeight`): 14 m/s per second speeding up (a walk in 0.3 s, a sprint from a stand in 0.55 s), 20 braking (a sprint stops in 0.38 s, about 1.4 m on); a player's are 1.3 times those since 2026-11-04. Before, every change took 60 m/s per second: a sprint in an eighth of a second, and a stop as sudden. Only speed along the way the body goes is slow: sideways drift is gripped away at 40, so a turn holds its line and does not slide as on ice. Wet ground scales all three down (`WetTraction`, as before), a giant's up, so it takes the same time.
 
-Left quick, at 60, on purpose: aiming, firing, casting, a lock-on, a blow (a fight needs to answer the keys at once), flight (its own inertia), the air, and `/movement classic`. `BodyLean` needed no change: it follows the measured motion, so the push off and the brace on a stop come by themselves. There are no start or stop clips yet: the strides simply grow and settle. Other players see it as it is, the movement travels with the body. The numbers are a first go, for the owner to feel.
+Left quick, at 60, on purpose: aiming, firing, casting, a lock-on, a blow (a fight needs to answer the keys at once), flight (its own inertia) and the air. `BodyLean` needed no change: it follows the measured motion, so the push off and the brace on a stop come by themselves. There are no start or stop clips yet: the strides simply grow and settle. Other players see it as it is, the movement travels with the body. The numbers are a first go, for the owner to feel.
 
 ## Next
 
@@ -66,6 +68,6 @@ Left quick, at 60, on purpose: aiming, firing, casting, a lock-on, a blow (a fig
 
 ## Tests
 
-`MovementTurnTests` (the rates and the braking), `MovementWeightTests` (the build-up, the stop, the grip), `PlayerLocomotionPlayTests` (pushing left turns and walks left; a sprint curves round and runs
-full speed any way; a reversal brakes; locked on still side-steps and backs up; classic mode side-steps). Renders: `MovementWeightCapture` (a start, a stop, a reversal), `StrafeCapture` (every
+`FreeMovementTests` and `FreeMovementPlayTests` (the player: S backs up with anything in hand and slower, side-steps, sprint forward only, the light weight), `MovementTurnTests` (a brain's rates and braking), `MovementWeightTests` (the build-up, the stop, the grip), `PlayerLocomotionPlayTests` (a brain's body: steering left turns and walks left; a sprint curves round and runs
+full speed any way; a reversal brakes; locked on still side-steps and backs up). Renders: `MovementWeightCapture` (a start, a stop, a reversal), `StrafeCapture` (every
 side-step and the diagonal, from the front).

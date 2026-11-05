@@ -69,25 +69,11 @@ namespace CityX.Character
         [Tooltip("How fast the body turns to face the camera while moving (camera-facing movement), in degrees per second.")]
         public float TurnDegreesPerSecond = 720.0f;
 
-        /// <summary>
-        /// GTA style (true, MovementTurn): out of an aim, a lock-on or a cast the body turns to where it goes. False: the old camera-facing
-        /// movement, where the keys side-step and back-step (/movement classic, to compare; owner, 2026-11-01).
-        /// </summary>
-        public static bool FaceMovement = true;
-
         /// <summary>The body faces the camera's yaw, whatever the keys: aiming, firing, casting (a spell, a staff or a wand), or locked on.</summary>
         private bool FacesTheCamera(LocomotionInput input) => AimsWithTheCamera(input) || input.LockedOn || _castPoseFraction > 0.0f;
 
         private bool AimsWithTheCamera(LocomotionInput input) =>
             input.Aiming || _gunFireHold > 0.0f || (StaffCasting && Staff != null) || WandPointing;
-
-        /// <summary>
-        /// READY TO FIGHT HAND TO HAND (owner, 2026-11-04: "you have to lock onto the enemy because if you dont and you press S to move backward it does a whole rotating walking
-        /// animation instead of just walking backwards which is not what you want in a melee fight"): a melee weapon in hand, or the fists still up after a punch. The keys back-step and
-        /// side-step, facing the camera as they do out of GTA style, without a lock-on. A sprint still turns and runs: away from a fight, or across town with a sword out. Only a body
-        /// someone plays: a brain steering for a spot goes where it faces.
-        /// </summary>
-        private bool ReadyToFight(LocomotionInput input) => _easesTurns && !input.Sprint && (HeldSword != null || _fistFrame.Active);
 
         /// <summary>
         /// How quickly horizontal speed catches up to its target, in
@@ -197,11 +183,8 @@ namespace CityX.Character
         /// <summary>The smoothed horizontal velocity HorizontalAcceleration eases toward its target -- see that field's own doc comment.</summary>
         private Vector3 _horizontalVelocity;
 
-        /// <summary>How fast the body is turning toward where it goes, degrees per second (MovementTurn.Step).</summary>
-        private float _turnVelocity;
-
-        /// <summary>Whether a player drives this body (it has a PlayerInputReader, which enemies do not), so its turns ease round.</summary>
-        private bool _easesTurns;
+        /// <summary>Whether a player drives this body (it has a PlayerInputReader, which enemies do not): it faces the camera as it moves, and a brain's body turns to where it steers.</summary>
+        private bool _played;
 
         /// <summary>Set every Tick from LocomotionInput.Aiming/AimPitchDegrees, applied later by ApplyGunAimPose.</summary>
         private bool _isAimingGun;
@@ -703,7 +686,7 @@ namespace CityX.Character
         {
             _controller = GetComponent<CharacterController>();
             CityX.World.GlassFracture.LetThrough(_controller);   // broken glass is walked through, not over
-            _easesTurns = GetComponent<PlayerInputReader>() != null;
+            _played = GetComponent<PlayerInputReader>() != null;
             _animator = GetComponentInChildren<Animator>();
             _hips = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Hips) : null;
             _spine = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Spine) : null;
@@ -1261,25 +1244,18 @@ namespace CityX.Character
             bool moving = direction.sqrMagnitude > 0.0001f;
             bool flying = input.FlightSpeed > 0.0f;
 
-            // GTA STYLE (MovementTurn): out of an aim, a lock-on or a cast the body turns toward the keys at a rate that falls with speed and
-            // goes where it faces, so it curves round instead of side-stepping; a sharp turn brakes it (below, on the speed).
-            bool facesMovement = FaceMovement && !FacesTheCamera(input) && !ReadyToFight(input) && !flying && !_facingOverride && _dashRemaining <= 0.0f;
+            // A PLAYER'S BODY FACES THE CAMERA AS IT MOVES, and the keys walk it forward, sideways and back, as Skyrim's does (FreeMovement). A brain's body turns toward where it
+            // steers and goes where it faces, at a rate that falls with speed; a sharp turn brakes it (MovementTurn, below on the speed).
+            bool onFoot = !FacesTheCamera(input) && !flying && !_facingOverride && _dashRemaining <= 0.0f;
+            bool facesMovement = onFoot && !_played;
             float turnOff = 0.0f;
             if (facesMovement && moving && !MovementRooted)
             {
                 Quaternion wanted = Quaternion.LookRotation(direction);
                 turnOff = Quaternion.Angle(transform.rotation, wanted);
                 float pace = _horizontalVelocity.magnitude / SizeSpeedFactor;
-                // Only a body someone plays eases round. A brain steering for a spot needs the steady rate, whose lag brakes it (SpeedShare): eased, it
-                // settled into a circle round the spot at a run and never arrived (a Shoota round his cover, ShootaPlayTests).
-                transform.rotation = _easesTurns
-                    ? Quaternion.Euler(0.0f, MovementTurn.Step(transform.eulerAngles.y, wanted.eulerAngles.y, ref _turnVelocity, pace, WalkSpeed, SprintSpeed, deltaTime), 0.0f)
-                    : Quaternion.RotateTowards(transform.rotation, wanted, MovementTurn.DegreesPerSecond(pace, WalkSpeed, SprintSpeed) * deltaTime);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, wanted, MovementTurn.DegreesPerSecond(pace, WalkSpeed, SprintSpeed) * deltaTime);
                 direction = transform.forward * direction.magnitude;
-            }
-            else
-            {
-                _turnVelocity = 0.0f;
             }
 
             // CROUCHING, Source's way (PlayerLocomotion.Crouch.cs): on the ground the body goes down over 0.4 s, in the air its feet come up.
@@ -1302,6 +1278,10 @@ namespace CityX.Character
             // of the walking rules below apply to it.
             float speed = flying ? input.FlightSpeed : sprinting ? SprintSpeed : WalkSpeed;
             speed *= MovementTurn.SpeedShare(turnOff);
+            if (_played && !flying)
+            {
+                speed *= FreeMovement.SpeedShare(input.Move);
+            }
 
             // AIMING DOWN SIGHTS SLOWS YOU (Fortnite, Gears, The Division all
             // do): you trade speed for a steady, zoomed aim. Not while
@@ -1383,10 +1363,11 @@ namespace CityX.Character
                 _horizontalVelocity = steered;
                 horizontal = steered;
             }
-            else if (facesMovement && !MovementRooted && (_controller.isGrounded || _steppingUp))
+            else if (onFoot && !MovementRooted && (_controller.isGrounded || _steppingUp))
             {
-                // On foot and going where it faces: speed builds and falls with the body's weight. An aim, a lock-on or a blow stays quick (below).
-                _horizontalVelocity = MovementWeight.Step(_horizontalVelocity, targetHorizontal, SizeSpeedFactor * WetTraction(), deltaTime);
+                // On foot: speed builds and falls with the body's weight, a player's a little lighter. An aim, a lock-on or a blow stays quick (below).
+                float footing = SizeSpeedFactor * WetTraction() * (_played ? FreeMovement.PlayerFootScale : 1.0f);
+                _horizontalVelocity = MovementWeight.Step(_horizontalVelocity, targetHorizontal, footing, deltaTime);
                 horizontal = _horizontalVelocity;
             }
             else
@@ -1596,6 +1577,12 @@ namespace CityX.Character
                 _animator.SetFloat(SpeedParameter, CurrentSpeed * ownPace);
                 // Only the nearest straight way: the hips are turned the rest after the Animator (PlayerLocomotion.Warp.cs).
                 Vector2 shown = _orientationWarp.Shown(LocalVelocity);
+                // The slower backward walk is shown as the full one and the foot locks take up the difference. Shown as it is, the blend took in the idle at its centre, whose long
+                // clip stretched the steps, and the planted feet slid at 2.6 m/s.
+                if (_played && !flying && _dashRemaining <= 0.0f)
+                {
+                    shown /= FreeMovement.SpeedShare(input.Move);
+                }
                 _animator.SetFloat(MoveXParameter, shown.x * ownPace);
                 _animator.SetFloat(MoveZParameter, shown.y * ownPace);
                 // A floating body treads water: the walk and idle, not the fall.

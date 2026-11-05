@@ -9,7 +9,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: the body's weight (MovementWeight, docs/MOVEMENT.md), seen from the side a tenth of a second apart: a sprint starting from a stand, a
-    /// sprint stopping, a sprint reversing, and a walk turning from W to W+A and from W to A. Written to Logs/CityShots/movement-weight-sheet.png, a row each;
+    /// sprint stopping, a sprint into a backward walk, and a walk going from W to W+A and from W to A. Written to Logs/CityShots/movement-weight-sheet.png, a row each;
     /// each row's speed@yaw is logged.
     /// Explicit; run by name with -Graphics: ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.MovementWeightCapture
     /// </summary>
@@ -41,7 +41,7 @@ namespace CityX.Tests
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
 
             Vector2 forward = Vector2.up, none = Vector2.zero, back = Vector2.down, forwardLeft = new Vector2(-0.7071f, 0.7071f), left = Vector2.left;
-            // The last two: a walk going from W to W+A, and from W to A (MovementTurn).
+            // The last two: a walk going from W to W+A, and from W to A.
             var rows = new (bool runUp, Vector2 move, bool sprint)[] { (false, forward, true), (true, none, true), (true, back, true), (true, forwardLeft, false), (true, left, false) };
             var sheet = new Texture2D(Cell * Columns, Cell * rows.Length, TextureFormat.RGB24, false);
             for (int row = 0; row < rows.Length; row++)
