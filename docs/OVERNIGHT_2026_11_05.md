@@ -94,7 +94,7 @@ The kerb now curves round every street corner, as it does on a real American str
 
 **Try:** walk to any junction and look at the corners; the top-down picture I sent shows it best.
 
-**Still to come for the streets:** streetlights (written, not yet in), concrete sidewalks with a proper kerb, and the things that stand along a street (hydrants, parking meters, a mailbox and bin at corners, dead street trees). No street-name signs, as you said.
+**The rest of the streets** came later the same day: see "American streets: lights, concrete and what stands at the kerb" below. No street-name signs, as you said.
 
 **For you:** `CityX/SourceArt/Wraith/WraithAsBuilt.obj` is the Wraith as the game builds it, arms attached, for you to smooth in Blender.
 
@@ -105,3 +105,39 @@ I added a test that puts every item in the game on the real player, holds and re
 ## Stairs and playing with a friend
 
 Both were done earlier today and are already in `git log`. Nobody has tried joining a friend on two real PCs yet.
+
+## American streets: lights, concrete and what stands at the kerb (late morning)
+
+- **Street lights** stand along every driven street: a tall pole on the pavement with its arm and lamp reaching over the road, alternating sides, about every 40 m. Only about one street in three has power. On those the lamps glow at night and the nearest ones throw a warm orange pool of light on the road. The rest stand dark with grey glass, which keeps the nights mostly black. The one-in-three share is my guess and easy to change.
+- **The sidewalk is concrete** now: big flags about 2 m square with dark joints, running square to each street. Before, the joints were a small slab pattern laid by the compass, so on most streets they ran at a slant.
+- **Along the kerb:** a bin, a blue mailbox and newspaper boxes at many corners, one fire hydrant per street, bare dead trees in iron grates along about one street in ten (rare, as you asked), and parking meters with white stall marks painted in the road along others. These replace the old random hydrant, bin and cabinet that could stand anywhere across the walk.
+- **Red kerb** either side of each hydrant, and no parking stall in it (picture sent).
+
+**Try:** walk any street by day, then type `/time midnight` and walk it again.
+
+**Still to come for the streets:** the gutter strip at the road's edge, yellow bumpy mats at the crossings, manholes and drains.
+
+## More bugs fixed
+
+- **A bow drawn when you got hit fired by itself.** If you were staggered or knocked down mid-draw, the bow stayed drawn and loosed the arrow the moment you got control back, even if you had let go. Now getting hit lets the draw down. Staff charges and the flamethrower stop the same way.
+- **A grenade at a Giant's feet did nothing.** The blast was measured to a point twelve metres up the Giant's body, out of range. A player grown with Grow had the same luck. Now the blast reaches a big body at its own height.
+- **Grenades and the Giant's slam knocked down people they never hurt.** A player dashing through the blast, or protected by an Arcane Barrier, a sword guard or a shield, took no damage but was still thrown to the ground. Now only those actually hurt are thrown.
+- **A Giant knocked out of its leap slammed the instant it stood up**, with no crouch to warn you. Now it stands a moment and crouches again before the next leap.
+- **Most spell kills gave no XP.** Only fists, swords, guns, arrows, grenades and Self Smite paid you for a kill. Kills by the wand's speck, the boomerang, the sword wave, acid rain, the staffs' beams and streams, and fire paid nothing. Now every kill pays whoever struck it, exactly once.
+
+**Try:** `/spawn giant`, throw a grenade at its feet, and watch its health bar.
+
+## Menus (early afternoon)
+
+- **Opening chat or any menu in mid-air froze you in the air** until you closed it. The menus switched the controls off, and with them the only thing that moves the body. Now a menu just holds the keys: you keep falling and land. Two menus open at once also no longer give the keys back too early, and enemies no longer ignore you while you read a menu.
+- **Escape on a menu page also paused the game.** Closing the stats, loadout, book, C menu or any other page with Escape opened the pause menu in the same press, sometimes with no cursor. Now Escape closes only the page.
+
+**Try:** jump, open chat in the air, and watch the body land. Open the C menu and press Escape.
+
+## Crowds (performance)
+
+- **The crowd test was broken**: it had been timing an empty street. The networked body it clones has gained parts since October that switched each clone off. Fixed: it measures real crowds again, and has a quick mode for before-and-after checks.
+- **Today's numbers on your laptop, in the editor:** 25 players add about 20 ms a frame, and 50 add about 42 ms.
+- **Lighter far-away bodies did not help, so I did not keep them.** I tried Unity's built-in lower-detail versions of the body (86,000 triangles down to 6,500). The crowd cost stayed the same within run-to-run noise. So what a body costs seems to be how many separate pieces are drawn (skin, head, hair, clothes, shoes, weapon, each drawn again for shadows), plus its scripts and posing, rather than how many triangles it has.
+- **The crowd's shadows are about a fifth of the cost** (50 players: 34 ms without them, 42 ms with).
+- **What would help next** (my suggestions): fewer separate pieces per body, no shadows from far-away bodies, and far-away bodies posed and animated less often. These are bigger changes worth deciding on together.
