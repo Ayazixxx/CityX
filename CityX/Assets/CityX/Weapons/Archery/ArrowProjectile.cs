@@ -248,7 +248,6 @@ namespace CityX.Weapons
             {
                 return;
             }
-            bool wasAlive = target.IsAlive;
             using (new DamageContext.BloodlessScope(blunt || DamageContext.Bloodless))
             {
                 DamageContext.Strike(target, damage, from, CombatTuning.HitstunSeconds * 0.5f, DamageKind.Physical, penetration, point, striker);
@@ -256,11 +255,6 @@ namespace CityX.Weapons
             if (burning)
             {
                 FireEnhancementAbility.Burn(target, point, striker);
-            }
-            PlayerVitals shooter = striker != null ? striker.GetComponent<PlayerVitals>() : null;
-            if (wasAlive && !target.IsAlive && shooter != null && target is IXpReward reward)
-            {
-                shooter.AddXp(reward.XpReward);
             }
         }
 

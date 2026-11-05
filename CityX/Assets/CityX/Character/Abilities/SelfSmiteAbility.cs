@@ -337,13 +337,7 @@ namespace CityX.Character
             // A spell: Spell Power makes it hurt more (2% a point), and the caster's Armor Penetration goes with it.
             float spellPower = PlayerVitals.SpellPowerOf(_vitals);
             float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-            HitResponse response = DamageContext.Strike(target, CombatTuning.DamageFor(baseDamage, spellPower), from, hitstun, DamageKind.Magic,
-                penetration, null, gameObject);
-            if (!target.IsAlive && target is IXpReward reward && _vitals != null)
-            {
-                _vitals.AddXp(reward.XpReward);
-            }
-            return response;
+            return DamageContext.Strike(target, CombatTuning.DamageFor(baseDamage, spellPower), from, hitstun, DamageKind.Magic, penetration, null, gameObject);
         }
     }
 }

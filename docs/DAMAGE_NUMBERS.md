@@ -29,6 +29,9 @@ white or maybe you will get some red if you do some big damage somehow like a he
   striker is named. Every weapon and spell names its wielder: the fists and the sword (`MeleeAttacker`, `SoulsSwordCombat`), the guns and
   the flamethrower, the thrown bottle, the fireball, ice shards, the sword wave, acid rain and Self Smite (the projectiles carry their caster).
   Poison does not show numbers.
+- A blow that kills pays its striker what the kill is worth (`IXpReward`), in the same place (`DamageContext.Strike`), once. Each weapon
+  used to pay for itself, and most spells never did: a kill by a speck, a boomerang, a sword wave, acid rain, a beam, a stream or fire
+  paid nothing (2026-11-05). A hit forwarded from another player's machine names no striker; that kill is credited by `EnemyNetwork`.
 - `UI/Hud/DamageNumberLook.cs`: the colour, size, pop, rise, fade and distance scale, as plain functions.
 - `UI/Hud/DamageNumbers.cs`: the view. Its own overlay canvas (sorting 30, under the HUD's 40; a canvas under the HUD's would take its
   sorting and fades), scaled like the HUD, labels pooled. `PlayerHudBuilder.AddToScene` adds it to the scene. It shows the blows of the

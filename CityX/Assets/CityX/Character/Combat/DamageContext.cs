@@ -204,7 +204,8 @@ namespace CityX.Character
 
         /// <summary>
         /// The same, saying who struck it: a blow that lands is then told to whoever shows it (<see cref="DamageDealt.Landed"/>, the damage
-        /// numbers). Every weapon and spell names its wielder; a hit forwarded from another player's machine names none.
+        /// numbers), and a blow that kills pays its striker what the kill is worth (<see cref="IXpReward"/>). Every weapon and spell names its
+        /// wielder; a hit forwarded from another player's machine names none (EnemyNetwork credits that kill instead).
         /// </summary>
         public static HitResponse Strike(IDamageable target, float amount, UnityEngine.Vector3 fromPosition, float hitstunSeconds,
             DamageKind kind, float penetration, UnityEngine.Vector3? contactPoint, UnityEngine.GameObject striker)
@@ -217,12 +218,21 @@ namespace CityX.Character
             {
                 return HitResponse.Ignored;   // one enemy's blow on another: they are on the same side (EnemyPack)
             }
+            bool wasAlive = target.IsAlive;
             HitResponse response;
             using (new Scope(kind, penetration, contactPoint))
             {
                 response = target.ApplyHit(amount, fromPosition, hitstunSeconds);
             }
             DamageDealt.Report(striker, target, amount, hitstunSeconds, kind, contactPoint, response);
+            if (wasAlive && !target.IsAlive && striker != null && target is IXpReward reward)
+            {
+                PlayerVitals killer = striker.GetComponentInParent<PlayerVitals>();
+                if (killer != null)
+                {
+                    killer.AddXp(reward.XpReward);
+                }
+            }
             return response;
         }
 

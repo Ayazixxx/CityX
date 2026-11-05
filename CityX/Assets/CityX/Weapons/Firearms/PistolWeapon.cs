@@ -1101,7 +1101,6 @@ namespace CityX.Weapons
                         float penetration = shooter != null ? shooter.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
                         float actualDamage = CombatTuning.DamageFor(Profile.Damage, firearmDamage) * GlassPenetration.DamageShare(panes);
                         // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
-                        bool wasAlive = damageable.IsAlive;
                         DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration, hit.point, wielder);
                         if (burning)
                         {
@@ -1109,12 +1108,6 @@ namespace CityX.Weapons
                         }
                         hitDamageable = true;
                         killed = !damageable.IsAlive;
-                        // A kill pays its XP, as a fist's or a sword's does (2026-10-15: a Shoota is worth some; a civilian always was). Once:
-                        // a round into a body already dead pays nothing.
-                        if (killed && wasAlive && shooter != null && damageable is IXpReward reward)
-                        {
-                            shooter.AddXp(reward.XpReward);
-                        }
                         if (!(damageable is PlayerVitals) && !(damageable is IBloodless))
                         {
                             BloodBurst.Spawn(hit.point, hit.point - origin, 0.6f);   // a body with vitals shows its own wound (HitImpactEffects)

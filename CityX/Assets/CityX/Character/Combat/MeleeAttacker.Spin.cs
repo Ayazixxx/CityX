@@ -605,11 +605,6 @@ namespace CityX.Character
                     launchable.Launch(away * AirSpinLaunchAway + Vector3.up * AirSpinLaunchUp);
                 }
 
-                if (!contact.Target.IsAlive && contact.Target is IXpReward xpSource)
-                {
-                    _vitals?.AddXp(xpSource.XpReward);
-                }
-
                 if (response == HitResponse.Blocked)
                 {
                     continue;
