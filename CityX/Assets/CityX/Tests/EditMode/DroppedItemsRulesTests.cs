@@ -67,6 +67,30 @@ namespace CityX.Tests
 
             ItemDrop plain = DroppedItemsNetwork.ToDrop(DroppedItemsNetwork.ToMessage(new ItemDrop { Id = 1L << 32, ItemId = ItemRegistry.SpikeSword }));
             Assert.IsFalse(plain.Data.HasDurability, "a sword arrived with a durability it never had");
+            Assert.IsTrue(plain.Data.IsEmpty, "a sword arrived with a state it never had");
+        }
+
+        /// <summary>A gun let go of and picked up again, by anyone on any machine, has the rounds it was dropped with: dropping it is no reload.</summary>
+        [Test]
+        public void ADroppedGunsRoundsSurviveTheTrip()
+        {
+            var drop = new ItemDrop
+            {
+                Id = (2L << 32) | 4, ItemId = ItemRegistry.Pistol, Data = new ItemInstanceData { HasAmmo = true, Magazine = 3, Reserve = 0 },
+                Position = new Vector3(1.0f, 2.0f, 3.0f), Rotation = Quaternion.identity,
+            };
+            ItemDropMessage message = DroppedItemsNetwork.ToMessage(drop);
+            Assert.IsTrue(DroppedItemsNetwork.Acceptable(message));
+            ItemDrop back = DroppedItemsNetwork.ToDrop(message);
+            Assert.IsTrue(back.Data.HasAmmo, "a gun arrived without its rounds: picked up, it would be full");
+            Assert.AreEqual(3, back.Data.Magazine);
+            Assert.AreEqual(0, back.Data.Reserve);
+            Assert.IsFalse(back.Data.HasDurability, "a gun arrived with a durability it never had");
+
+            message.Reserve = -40;
+            Assert.IsFalse(DroppedItemsNetwork.Acceptable(message), "a gun with fewer than no rounds was let through");
+            message.Reserve = DroppedItemsNetwork.MaxRounds + 1;
+            Assert.IsFalse(DroppedItemsNetwork.Acceptable(message), "a gun with more rounds than any carries was let through");
         }
 
         [Test]

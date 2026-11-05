@@ -4,6 +4,10 @@
 primary, the next secondary (holstered), a third replaces the one in hand. Only the weapon in hand exists as an object; the other is remembered (its ammo/durability)
 and rebuilt on draw through the normal OnEquip/OnUnequip. **Scroll wheel** swaps (`PlayerInputReader.TickCombat`, 0.25 s cooldown; not while carrying or aiming).
 The inventory panel shows PRIMARY / SECONDARY and a `>` on the one in hand.
+A gun's rounds are part of what is remembered since 2026-11-05 (`ItemInstanceData.HasAmmo`, `Magazine`, `Reserve`; `PistolWeapon.GetInstanceData`
+and `OnEquip`): before, only a bottle's cracks were, and a gun drawn again came with a full magazine and reserve, so scrolling away and back
+was a free, instant reload. A dropped gun carries its rounds too, between machines as well (`ItemDropMessage`). A gun nobody has held yet
+comes loaded. Not saved with the character: a new session starts with full guns. `GunAmmoKeptPlayTests`, `DroppedItemsRulesTests`.
 
 **Picked up straight into the hand** (2026-10-21, owner: "if you dont have any item in hand and you press E on weapon then it equips it automatically, starting
 with primary slot and if thats full then it goes in secondary"). Every pickup of a hand item goes through `Inventory.PickUp`: this covers a weapon's own E pickup

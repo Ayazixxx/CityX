@@ -529,6 +529,10 @@ namespace CityX.Weapons
                 transform.localScale = Vector3.one * _liveGripScale;
             }
             RememberPartRests();
+            if (instanceData.HasAmmo)
+            {
+                SetAmmo(instanceData.Magazine, instanceData.Reserve);   // the rounds it was put away with: a gun drawn again is not a gun reloaded
+            }
 
             _equipped = true;
             _wielder = player;
@@ -800,7 +804,7 @@ namespace CityX.Weapons
         {
         }
 
-        public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
+        public ItemInstanceData GetInstanceData() => new ItemInstanceData { HasAmmo = true, Magazine = MagazineAmmo, Reserve = ReserveAmmo };
 
         // ---- the reload ----
 

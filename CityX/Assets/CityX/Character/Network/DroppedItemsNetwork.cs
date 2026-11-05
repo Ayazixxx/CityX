@@ -10,12 +10,18 @@ using UnityEngine;
 
 namespace CityX.Character
 {
-    /// <summary>An item a player's body let go of, on its way between machines. Durability is -1 for an item that has none.</summary>
+    /// <summary>
+    /// An item a player's body let go of, on its way between machines. Durability is -1 for an item that has none; a gun's rounds go with
+    /// it (HasAmmo), so one dropped and picked up again is not reloaded.
+    /// </summary>
     public struct ItemDropMessage : IBroadcast
     {
         public long Id;
         public string ItemId;
         public int Durability;
+        public bool HasAmmo;
+        public int Magazine;
+        public int Reserve;
         public Vector3 Position;
         public Quaternion Rotation;
         public Vector3 Velocity;
@@ -55,6 +61,9 @@ namespace CityX.Character
         public long[] Id;
         public string[] ItemId;
         public int[] Durability;
+        public bool[] HasAmmo;
+        public int[] Magazine;
+        public int[] Reserve;
         public Vector3[] Position;
         public Quaternion[] Rotation;
     }
@@ -82,6 +91,9 @@ namespace CityX.Character
         public const float FallDriftMetres = 30.0f;
 
         public const float MaxSpeed = 40.0f;
+
+        /// <summary>The most rounds a dropped gun may say it has in its magazine, or spare: more than any gun carries.</summary>
+        public const int MaxRounds = 999;
 
         public const int MaxDropsPerSecond = 4;
 
@@ -268,7 +280,8 @@ namespace CityX.Character
             int n = _lying.Count;
             var state = new ItemDropStateMessage
             {
-                Id = new long[n], ItemId = new string[n], Durability = new int[n], Position = new Vector3[n], Rotation = new Quaternion[n],
+                Id = new long[n], ItemId = new string[n], Durability = new int[n], HasAmmo = new bool[n], Magazine = new int[n], Reserve = new int[n],
+                Position = new Vector3[n], Rotation = new Quaternion[n],
             };
             int i = 0;
             foreach (long id in _order)
@@ -282,6 +295,9 @@ namespace CityX.Character
                 state.Id[i] = id;
                 state.ItemId[i] = drop.ItemId;
                 state.Durability[i] = drop.Durability;
+                state.HasAmmo[i] = drop.HasAmmo;
+                state.Magazine[i] = drop.Magazine;
+                state.Reserve[i] = drop.Reserve;
                 state.Position[i] = shown != null ? shown.transform.position : drop.Position;
                 state.Rotation[i] = shown != null ? shown.transform.rotation : drop.Rotation;
                 i++;
@@ -318,12 +334,15 @@ namespace CityX.Character
             int n = state.Id == null ? 0 : state.Id.Length;
             n = Mathf.Min(n, Mathf.Min(state.ItemId?.Length ?? 0, Mathf.Min(state.Durability?.Length ?? 0,
                 Mathf.Min(state.Position?.Length ?? 0, state.Rotation?.Length ?? 0))));
+            n = Mathf.Min(n, Mathf.Min(state.HasAmmo?.Length ?? 0, Mathf.Min(state.Magazine?.Length ?? 0, state.Reserve?.Length ?? 0)));
             LastStateSize = n;
             for (int i = 0; i < n; i++)
             {
                 var message = new ItemDropMessage
                 {
-                    Id = state.Id[i], ItemId = state.ItemId[i], Durability = state.Durability[i], Position = state.Position[i], Rotation = state.Rotation[i],
+                    Id = state.Id[i], ItemId = state.ItemId[i], Durability = state.Durability[i],
+                    HasAmmo = state.HasAmmo[i], Magazine = state.Magazine[i], Reserve = state.Reserve[i],
+                    Position = state.Position[i], Rotation = state.Rotation[i],
                 };
                 if (Acceptable(message))
                 {
@@ -346,6 +365,10 @@ namespace CityX.Character
             {
                 return false;
             }
+            if (message.HasAmmo && (message.Magazine < 0 || message.Reserve < 0 || message.Magazine > MaxRounds || message.Reserve > MaxRounds))
+            {
+                return false;
+            }
             return message.Velocity.magnitude <= MaxSpeed && message.Spin.magnitude <= MaxSpeed && Mathf.Abs(message.Position.y) < 100000.0f;
         }
 
@@ -355,13 +378,18 @@ namespace CityX.Character
         public static ItemDropMessage ToMessage(ItemDrop drop) => new ItemDropMessage
         {
             Id = drop.Id, ItemId = drop.ItemId, Durability = drop.Data.HasDurability ? drop.Data.Durability : -1,
+            HasAmmo = drop.Data.HasAmmo, Magazine = drop.Data.Magazine, Reserve = drop.Data.Reserve,
             Position = drop.Position, Rotation = drop.Rotation, Velocity = drop.Velocity, Spin = drop.Spin,
         };
 
         public static ItemDrop ToDrop(ItemDropMessage message) => new ItemDrop
         {
             Id = message.Id, ItemId = message.ItemId,
-            Data = message.Durability >= 0 ? new ItemInstanceData { HasDurability = true, Durability = message.Durability } : ItemInstanceData.None,
+            Data = new ItemInstanceData
+            {
+                HasDurability = message.Durability >= 0, Durability = Mathf.Max(0, message.Durability),
+                HasAmmo = message.HasAmmo, Magazine = message.HasAmmo ? message.Magazine : 0, Reserve = message.HasAmmo ? message.Reserve : 0,
+            },
             Position = message.Position, Rotation = message.Rotation, Velocity = message.Velocity, Spin = message.Spin,
         };
 

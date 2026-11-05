@@ -5,15 +5,22 @@ namespace CityX.Items
     /// and re-equip. Ported from the "instance_data" dictionary
     /// items/item_registry.gd's inventory hands around -- most items carry
     /// none (Durability unused), the glass bottle is the one item this pass
-    /// that does.
+    /// that does. A gun carries its rounds: changing weapons puts its model
+    /// away and makes a new one when it is drawn again.
     /// </summary>
     public struct ItemInstanceData
     {
         public bool HasDurability;
         public int Durability;
 
+        /// <summary>A gun's rounds, in its magazine and spare, as it was put away or let go of.</summary>
+        public bool HasAmmo;
+
+        public int Magazine;
+        public int Reserve;
+
         public static readonly ItemInstanceData None = default;
 
-        public bool IsEmpty => !HasDurability;
+        public bool IsEmpty => !HasDurability && !HasAmmo;
     }
 }
