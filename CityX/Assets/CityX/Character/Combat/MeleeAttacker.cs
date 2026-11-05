@@ -528,7 +528,7 @@ namespace CityX.Character
                     continue;
                 }
                 float angle = Vector3.Angle(aim, toTarget);
-                if (angle < bestAngle)
+                if (angle < bestAngle && !BlowPath.IsWalled(origin, collider.ClosestPoint(origin), transform))   // nobody turns to a body they could not strike
                 {
                     bestAngle = angle;
                     yawDegrees = Mathf.Atan2(toTarget.x, toTarget.z) * Mathf.Rad2Deg;
@@ -605,7 +605,12 @@ namespace CityX.Character
                         continue;   // behind, or too far round the side
                     }
                 }
-                found.Add(new Contact(target, collider.ClosestPoint(origin)));
+                Vector3 point = collider.ClosestPoint(origin);
+                if (BlowPath.IsWalled(origin, point, transform))
+                {
+                    continue;   // in reach, but with a wall between
+                }
+                found.Add(new Contact(target, point));
             }
 
             return found;

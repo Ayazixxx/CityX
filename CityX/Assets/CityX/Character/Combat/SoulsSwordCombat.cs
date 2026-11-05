@@ -1153,6 +1153,9 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>Where this body's blows come from, for what stands in their way (BlowPath).</summary>
+        private Vector3 Chest => transform.position + Vector3.up * ((_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.6f);
+
         private void LandOnOverlaps(int count, Vector3 contactFrom)
         {
             for (int i = 0; i < count; i++)
@@ -1178,8 +1181,12 @@ namespace CityX.Character
                     continue;
                 }
 
-                _hitThisSwing.Add(target);
                 Vector3 point = collider.ClosestPoint(contactFrom);
+                if (BlowPath.IsWalled(Chest, point, transform))
+                {
+                    continue;   // in the blade's sweep with a wall between: not struck, and still to be struck if the blade comes round the wall to it
+                }
+                _hitThisSwing.Add(target);
                 LandOn(target, point);
             }
         }
