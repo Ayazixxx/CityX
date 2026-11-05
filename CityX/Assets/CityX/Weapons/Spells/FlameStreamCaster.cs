@@ -76,7 +76,7 @@ namespace CityX.Weapons
             Vector3 direction = PlayerInputReader.CrosshairDirection(from, eye, look, transform);
             if (burning && !IsBurning)
             {
-                Start(tip, from, direction);
+                StartTheStream(tip, from, direction);
             }
             else if (!burning && IsBurning)
             {
@@ -102,7 +102,7 @@ namespace CityX.Weapons
             Stop();
         }
 
-        private void Start(Transform tip, Vector3 from, Vector3 direction)
+        private void StartTheStream(Transform tip, Vector3 from, Vector3 direction)
         {
             IsBurning = true;
             _held = 0.0f;

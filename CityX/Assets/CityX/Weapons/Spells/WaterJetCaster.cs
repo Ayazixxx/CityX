@@ -71,7 +71,7 @@ namespace CityX.Weapons
             Vector3 direction = PlayerInputReader.CrosshairDirection(from, eye, look, transform);
             if (spraying && !IsSpraying)
             {
-                Start(tip, from, direction);
+                StartTheStream(tip, from, direction);
             }
             else if (!spraying && IsSpraying)
             {
@@ -97,7 +97,7 @@ namespace CityX.Weapons
             Stop();
         }
 
-        private void Start(Transform tip, Vector3 from, Vector3 direction)
+        private void StartTheStream(Transform tip, Vector3 from, Vector3 direction)
         {
             IsSpraying = true;
             _sprayed = 0.0f;
