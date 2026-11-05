@@ -124,5 +124,19 @@ namespace CityX.Tests
             yield return null;
             Assert.Greater(save.PlaytimeSeconds, before, "our own body counts no play");
         }
+
+        /// <summary>Quit To Title wrote nothing: what was earned since the last half-minute autosave (a level, a skill just bought) was gone on the next load.</summary>
+        [UnityTest]
+        public IEnumerator LeavingForTheTitleSavesWhatWasEarnedSinceTheLastAutosave()
+        {
+            Begin();
+            GameObject body = Body(anothers: false);
+            yield return null;
+            var identity = body.GetComponent<CharacterIdentity>();
+            Assert.IsTrue(identity.Write());   // an autosave has been
+            body.GetComponent<PlayerVitals>().AddXp(50);
+            CityX.UI.PauseMenuView.SaveTheCharacter();   // the first thing Quit To Title does
+            Assert.AreEqual(50, LocalServer.Characters.List(PlayerKey.Local)[0].Experience, "what was earned since the last autosave was not saved");
+        }
     }
 }

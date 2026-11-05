@@ -208,6 +208,18 @@ namespace CityX.UI
             if (PausePanel != null) PausePanel.SetActive(true);
         }
 
+        /// <summary>
+        /// What the character has earned is written before the world is left, and before the session is: the autosave comes only every
+        /// half minute (and stands still while this menu holds the clock), and once the session is gone there is no server to write to.
+        /// </summary>
+        public static void SaveTheCharacter()
+        {
+            if (CityX.Character.CharacterIdentity.Ours != null)
+            {
+                CityX.Character.CharacterIdentity.Ours.Write();
+            }
+        }
+
         private void QuitToTitle()
         {
             // Un-pause first -- loading a scene under a frozen timescale
@@ -215,6 +227,7 @@ namespace CityX.UI
             Time.timeScale = 1.0f;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            SaveTheCharacter();
             CityX.Net.NetworkBootstrap.LeaveSession();
             SceneManager.LoadScene(TitleScene);
         }
