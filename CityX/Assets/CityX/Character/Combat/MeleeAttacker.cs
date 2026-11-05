@@ -725,7 +725,8 @@ namespace CityX.Character
                 // through ApplyHit's own hitstunSeconds parameter. A no-op
                 // against anything that isn't a real PlayerVitals (a
                 // Civilian already ragdolls on any hit at all, unconditionally).
-                if (_currentStage.KnocksDown && contact.Target is PlayerVitals targetVitals)
+                // Only a blow that LANDED: one a held guard, a shield or a barrier soaked (Guarded) reached nobody.
+                if (_currentStage.KnocksDown && response == HitResponse.Landed && contact.Target is PlayerVitals targetVitals)
                 {
                     targetVitals.TriggerFinisherKnockdown(contact.Point - origin);
                 }
