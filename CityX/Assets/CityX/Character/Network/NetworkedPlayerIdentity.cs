@@ -123,6 +123,11 @@ namespace CityX.Character
                 {
                     _inputReader.enabled = false;
                 }
+                // ... and nobody's character: every body here would otherwise be this machine's own (CharacterIdentity.StandBy).
+                if (_identity != null)
+                {
+                    _identity.StandBy();
+                }
             }
         }
 
@@ -197,6 +202,10 @@ namespace CityX.Character
             if (_inputReader != null)
             {
                 _inputReader.enabled = IsOwner;
+            }
+            if (IsOwner && _identity != null)
+            {
+                _identity.BeOurs();
             }
         }
 

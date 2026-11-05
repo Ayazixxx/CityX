@@ -33,29 +33,82 @@ namespace CityX.Character
         private CharacterSave _character;
         private float _sinceSave;
         private bool _wroteOnce;
+        private bool _heldBack;
+        private bool _dressed;
 
         /// <summary>The character being played, or null when there is none.</summary>
         public CharacterSave Character => _character;
 
+        /// <summary>
+        /// The body on this machine that is the character being played: the one whose progress is saved. Null with no character, and in a
+        /// session until it is known which body is this machine's.
+        /// </summary>
+        public static CharacterIdentity Ours { get; private set; }
+
         private void Awake()
         {
             _vitals = GetComponent<PlayerVitals>();
+            if (!_heldBack)
+            {
+                Bind();
+            }
+        }
+
+        private void Bind()
+        {
             _character = PlaySession.Character;
             if (_character == null)
             {
                 return;
             }
-
+            Ours = this;
             Apply(_character);
         }
 
         /// <summary>
-        /// The clothes the character had on are put back on, after Awake has painted the body (painting recolours every renderer under it,
-        /// clothes too); from then on every change to what is worn is saved at once.
+        /// IN A SESSION EVERY PLAYER'S BODY IS ON EVERY MACHINE, and only one of them is the character chosen on this one. Until a body is
+        /// known to be this machine's (NetworkedPlayerIdentity) it is held back: not made that character, not dressed in their clothes,
+        /// counting no playtime, saving nothing. Left to itself each body here added its own seconds to the one save: with a friend near,
+        /// playtime ran double, the server refused the progress as impossible, and went on refusing it for the rest of the session.
         /// </summary>
+        public void StandBy()
+        {
+            _heldBack = true;
+            if (_inventory != null)
+            {
+                _inventory.EquipmentChanged -= SaveWhatIsWorn;
+            }
+            _character = null;
+            if (Ours == this)
+            {
+                Ours = null;
+            }
+        }
+
+        /// <summary>This machine's own body, now that the session has said so: it becomes the chosen character.</summary>
+        public void BeOurs()
+        {
+            if (!_heldBack)
+            {
+                return;
+            }
+            _heldBack = false;
+            Bind();
+            Dress();
+        }
+
         private void Start()
         {
-            if (_character == null)
+            Dress();
+        }
+
+        /// <summary>
+        /// The clothes the character had on are put back on, after the body has been painted (painting recolours every renderer under it,
+        /// clothes too); from then on every change to what is worn is saved at once.
+        /// </summary>
+        private void Dress()
+        {
+            if (_character == null || _dressed)
             {
                 return;
             }
@@ -64,6 +117,7 @@ namespace CityX.Character
             {
                 return;
             }
+            _dressed = true;
             PutOnClothes(_character);
             _inventory.EquipmentChanged += SaveWhatIsWorn;
         }
@@ -293,6 +347,10 @@ namespace CityX.Character
             if (_character != null && !_wroteOnce)
             {
                 Write();
+            }
+            if (Ours == this)
+            {
+                Ours = null;
             }
         }
     }
