@@ -131,7 +131,7 @@ namespace CityX.Weapons
                     continue;
                 }
                 Struck.Add(target);
-                Vector3 chest = body.transform.position + Vector3.up * 1.2f * body.transform.lossyScale.y;
+                Vector3 chest = NearestOfTheBody(body.transform, at);
                 if (Shielded(at, chest, body.transform))
                 {
                     continue;
@@ -164,6 +164,21 @@ namespace CityX.Weapons
             }
             return hurt;
         }
+
+        /// <summary>
+        /// Where a blast reaches a body: its chest, for a body of a person's size. A grown one (a Giant, a player under Grow) is reached
+        /// at the height of the blast, from chest height on a person up to its own chest: measured to a chest twelve metres up, a grenade
+        /// at a giant's feet was out of reach of it and did nothing.
+        /// </summary>
+        private static Vector3 NearestOfTheBody(Transform body, Vector3 at)
+        {
+            float scale = body.lossyScale.y;
+            float lowest = ChestHeight * Mathf.Min(1.0f, scale), highest = ChestHeight * scale;
+            return body.position + Vector3.up * Mathf.Clamp(at.y - body.position.y, lowest, highest);
+        }
+
+        /// <summary>A person's chest above their feet, metres (the 2.6 m body).</summary>
+        private const float ChestHeight = 1.2f;
 
         /// <summary>A wall (anything solid that is not the body itself nor another body) between the blast and the body's chest.</summary>
         private static bool Shielded(Vector3 at, Vector3 chest, Transform body)

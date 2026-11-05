@@ -32,7 +32,8 @@ fire's own research (docs/FIRE.md).
 - **In flight** (`ThrownGrenade`, `ThrownGrenade.prefab`): 0.45 kg, thrown at 17 m/s lifted 8 degrees (a lob), bounce 0.35, friction 0.8,
   never touching its thrower for its first 0.3 s; the fuse light blinking from 2 to 14 times a second with a little red light.
 - **The blast** (`Explosion.Blast`): 7.5 m; 110 damage at the middle (a kill), a quarter at the rim, none past it; nobody a wall stands in
-  front of; bodies it does not kill thrown down, away and up (11 m/s, 6 up, by how near); loose things pushed out to 1.4 times its reach;
+  front of; a body is reached at the blast's own height, from a person's chest up to its own (a grenade at a Giant's feet or a grown
+  player's hurts them: measured to a chest twelve metres up, it did nothing, 2026-11-05); bodies it does not kill thrown down, away and up (11 m/s, 6 up, by how near); loose things pushed out to 1.4 times its reach;
   gasoline in it lit; enough to kill outright bursts a body into gore (docs/DISMEMBERMENT.md: a blast has no edge); the thrower is paid
   the XP.
 - **The look** (`Explosion`, every machine): the flash (a light of 130 falling off over 0.35 s on a cubic, and a white-hot core for 0.12 s),
