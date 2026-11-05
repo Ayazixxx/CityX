@@ -179,6 +179,7 @@ namespace CityX.Character
         private PlayerVitals _vitals;
 
         private PlayerLocomotion _locomotion;
+        private Ragdoll _ragdoll;
 
         /// <summary>Raised when a swing actually connects with something.</summary>
         public event System.Action<IDamageable, float> Landed;
@@ -203,6 +204,20 @@ namespace CityX.Character
         {
             _vitals = GetComponent<PlayerVitals>();
             _locomotion = GetComponent<PlayerLocomotion>();
+            _ragdoll = GetComponent<Ragdoll>();
+        }
+
+        /// <summary>Staggered, lying limp or dead: in no state to land a blow or throw one.</summary>
+        private bool IsOutOfTheFight => (_vitals != null && (_vitals.IsDead || _vitals.IsStunned)) || (_ragdoll != null && _ragdoll.IsLimp);
+
+        /// <summary>Drops the swing under way before it lands, with any punch remembered behind it; the chain starts over. As the sword's does (SoulsSwordCombat).</summary>
+        public void Interrupt()
+        {
+            _swingRemaining = 0.0f;
+            _contactDone = true;
+            _bufferRemaining = 0.0f;
+            _windowRemaining = 0.0f;
+            _nextStage = 0;
         }
 
         /// <summary>
@@ -401,6 +416,14 @@ namespace CityX.Character
             if (_spinState != SpinState.None)
             {
                 TickSpin(deltaTime);
+                return;
+            }
+
+            // Hit in the middle of a swing: the swing is gone, and so is the punch waiting behind it. It must not land from a body that has
+            // been staggered, thrown to the ground or killed since it began.
+            if (IsOutOfTheFight && (_swingRemaining > 0.0f || _bufferRemaining > 0.0f))
+            {
+                Interrupt();
                 return;
             }
 
