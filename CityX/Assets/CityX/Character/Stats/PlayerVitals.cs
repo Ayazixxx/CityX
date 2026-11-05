@@ -214,6 +214,13 @@ namespace CityX.Character
 
         public bool IsStunned => HitstunRemaining > 0.0f;
 
+        /// <summary>
+        /// Whether a body is out of the fight: dead, staggered, or thrown limp. What it had started and not yet let go (a punch on its way,
+        /// a crescent still in the blade) does not go on.
+        /// </summary>
+        public static bool OutOfTheFight(PlayerVitals vitals, Ragdoll ragdoll) =>
+            (vitals != null && (vitals.IsDead || vitals.IsStunned)) || (ragdoll != null && ragdoll.IsLimp);
+
         // ---- POISE (2026-10-13, from the soulslike research: Dark Souls 3 turns poise on only inside attacks with hyper-armour) ----
 
         /// <summary>The poise pool: an attack with hyper-armour keeps going under blows until their poise damage has emptied it.</summary>

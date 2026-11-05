@@ -51,6 +51,10 @@ clips are now written into the ones already there (`ClipAsset.Store`, as the God
 Only a 0.3 m sphere at its CENTRE meets the world, swept along each fixed step and checked where it stands (`SwordWaveProjectile.WorldCheckRadius`), so the lower tip scraping the ground no longer
 ends it. `SwordWaveProjectilePlayTests` pins both (ground under the lower edge does not stop it; centre in the ground does; a wall does; middle, top tip and bottom tip all hurt).
 
+**Interrupted (2026-11-05):** a caster staggered, thrown down or killed in the 0.18 s before the crescent leaves the blade sends none
+(`PlayerVitals.OutOfTheFight`, shared with the fists' `MeleeAttacker`); the cooldown still runs, as for any move cut short. It used to fly from
+a body lying on the ground. Test: `SwordWaveInterruptedPlayTests`.
+
 ## Equipment slots (2026-10-15)
 
 One list of slot keys, `Items/EquipSlots` (helmet, mask, top, gloves, legs, shoes, back, hand_r, hand_l), which items register against (`ItemRegistry`) and both

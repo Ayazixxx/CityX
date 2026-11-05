@@ -208,7 +208,7 @@ namespace CityX.Character
         }
 
         /// <summary>Staggered, lying limp or dead: in no state to land a blow or throw one.</summary>
-        private bool IsOutOfTheFight => (_vitals != null && (_vitals.IsDead || _vitals.IsStunned)) || (_ragdoll != null && _ragdoll.IsLimp);
+        private bool IsOutOfTheFight => PlayerVitals.OutOfTheFight(_vitals, _ragdoll);
 
         /// <summary>Drops the swing under way before it lands, with any punch remembered behind it; the chain starts over. As the sword's does (SoulsSwordCombat).</summary>
         public void Interrupt()

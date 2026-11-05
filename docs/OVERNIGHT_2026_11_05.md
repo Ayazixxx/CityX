@@ -123,6 +123,7 @@ Both were done earlier today and are already in `git log`. Nobody has tried join
 - **A grenade at a Giant's feet did nothing.** The blast was measured to a point twelve metres up the Giant's body, out of range. A player grown with Grow had the same luck. Now the blast reaches a big body at its own height.
 - **Grenades and the Giant's slam knocked down people they never hurt.** A player dashing through the blast, or protected by an Arcane Barrier, a sword guard or a shield, took no damage but was still thrown to the ground. Now only those actually hurt are thrown.
 - **A Giant knocked out of its leap slammed the instant it stood up**, with no crouch to warn you. Now it stands a moment and crouches again before the next leap.
+- **The sword wave flew from a body lying on the ground.** If you were staggered, knocked down or killed in the split second after pressing 7, the crescent still left the blade. Now it doesn't.
 - **Most spell kills gave no XP.** Only fists, swords, guns, arrows, grenades and Self Smite paid you for a kill. Kills by the wand's speck, the boomerang, the sword wave, acid rain, the staffs' beams and streams, and fire paid nothing. Now every kill pays whoever struck it, exactly once.
 
 **Try:** `/spawn giant`, throw a grenade at its feet, and watch its health bar.

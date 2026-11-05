@@ -34,12 +34,14 @@ namespace CityX.Weapons
         private Vector3 _direction;
         private Collider[] _ignore;
         private PlayerVitals _vitals;
+        private Ragdoll _ragdoll;
 
         public bool CanCast => _cooldown <= 0.0f && _releaseIn < 0.0f && (_vitals == null || !_vitals.IsDead);
 
         private void Awake()
         {
             _vitals = GetComponent<PlayerVitals>();
+            _ragdoll = GetComponent<Ragdoll>();
         }
 
         public void Tick(float deltaTime)
@@ -50,6 +52,11 @@ namespace CityX.Weapons
             }
             if (_releaseIn >= 0.0f)
             {
+                if (PlayerVitals.OutOfTheFight(_vitals, _ragdoll))
+                {
+                    _releaseIn = -1.0f;   // staggered, thrown down or killed before the blade came through: the crescent never leaves it
+                    return;
+                }
                 _releaseIn -= deltaTime;
                 if (_releaseIn < 0.0f)
                 {
