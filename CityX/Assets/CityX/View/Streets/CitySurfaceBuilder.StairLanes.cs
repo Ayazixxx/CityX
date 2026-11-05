@@ -174,13 +174,18 @@ namespace CityX.View
             buffer.AddQuad(q1, qo1, qo2, q2, along, new Vector2(0, 0), new Vector2(0.22f, 0), new Vector2(0.22f, h), new Vector2(0, h));
         }
 
-        /// <summary>Whether a point on a block's pavement is in front of either end of the block's stairway (its furniture keeps clear).</summary>
-        private static bool BeforeStairway(Context ctx, PlanBlock block, Vec2 at)
+        /// <summary>Whether a point on the pavement is in front of either end of one of these stairways (what stands along a kerb keeps clear).</summary>
+        private static bool BeforeStairway(List<StairLane> stairways, Vec2 at)
         {
-            if (block.StairLane < 0) return false;
-            StairLane lane = ctx.Plan.Data.StairLanes[block.StairLane];
-            double reach = lane.Width * 0.5 + 1.5;
-            return (at - lane.A).Length < reach || (at - lane.B).Length < reach;
+            foreach (StairLane lane in stairways)
+            {
+                double reach = lane.Width * 0.5 + 1.5;
+                if ((at - lane.A).Length < reach || (at - lane.B).Length < reach)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>The top of the tread over a point along a stairway, <paramref name="s"/> metres from its low end.</summary>

@@ -94,7 +94,7 @@ namespace CityX.View
             foreach (int blockIndex in plan.BlocksIn(chunkX, chunkY))
             {
                 PlanBlock block = plan.Data.Blocks[blockIndex];
-                BuildPavement(ctx, block, blockIndex, pavement, far, pavingCuts);
+                BuildPavement(ctx, block, blockIndex, pavement, pavingCuts);
                 BuildBlockPaving(ctx, block, blockIndex, pavement, step, pavingCuts);
                 BuildKerbCorners(ctx, block, ground, pavement);
                 if (block.Plaza && !far)
@@ -111,6 +111,7 @@ namespace CityX.View
 
             var lamps = new List<StreetLamp>();
             var poweredLamps = new List<Vector3>();
+            var furnishings = new List<StreetFurnishing>();
             foreach (int edgeId in plan.EdgesIn(chunkX, chunkY))
             {
                 EdgeGeometry g = plan.Geometry.Edges[edgeId];
@@ -131,6 +132,7 @@ namespace CityX.View
                     BuildPaint(ctx, g, markings, laneDividers);
                     AddStreetBarricades(ctx, g, structures);
                     BuildStreetLights(ctx, g, structures, lit, pavingCuts, lamps, poweredLamps);   // CitySurfaceBuilder.StreetLights.cs
+                    BuildStreetFurniture(ctx, g, structures, pavingCuts, stairLanes, furnishings);   // CitySurfaceBuilder.StreetFurniture.cs
                     if (PedestrianStreets.Is(plan, g.Edge))
                     {
                         BuildPedestrianStreet(ctx, g, structures, lit);   // CitySurfaceBuilder.Pedestrian.cs: bollards across its ends, furniture down its middle
@@ -833,7 +835,7 @@ namespace CityX.View
             return false;
         }
 
-        private static void BuildPavement(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, bool far, List<Vec2[]> cuts)
+        private static void BuildPavement(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, List<Vec2[]> cuts)
         {
             if (block.Inner == null || block.Outer == null) return;
             Bounds(block.Poly, out double bx0, out double bz0, out double bx1, out double bz1);
@@ -889,10 +891,6 @@ namespace CityX.View
                         if ((kb - ka).Length < 0.02) continue;
                         KerbFace(ctx, buffer, ka, kb);
                     }
-                }
-                if (!far)
-                {
-                    AddSidewalkProps(ctx, block, e, buffer, cuts);
                 }
             }
         }
@@ -959,80 +957,6 @@ namespace CityX.View
             }
         }
 
-        private static readonly Color StreetBin = new Color(0.20f, 0.28f, 0.23f);
-        private static readonly Color StreetCabinet = new Color(0.55f, 0.57f, 0.58f);
-        private static readonly Color StreetHydrant = new Color(0.72f, 0.13f, 0.10f);
-
-        /// <summary>
-        /// The odd hydrant, bin and utility cabinet along a pavement: one candidate about every 36 m, clear of the corners, and not
-        /// every candidate used. Sized for the 2.6 m player (everything here is about 1.3x). NO LAMP POSTS: they were tried and removed.
-        /// </summary>
-        private static void AddSidewalkProps(Context ctx, PlanBlock block, int e, MeshBuffer buffer, List<Vec2[]> cuts)
-        {
-            int n = block.Poly.Count;
-            int f = (e + 1) % n;
-            Vec2 i0 = block.Inner[e], i1 = block.Inner[f];
-            Vec2 o0 = block.Outer[e], o1 = block.Outer[f];
-            double length = (i1 - i0).Length;
-            if (length < 18.0)
-            {
-                return;
-            }
-            Vec2 dir = (i1 - i0).Normalized;
-            int candidates = (int)(length / 36.0);
-            for (int k = 0; k <= candidates; k++)
-            {
-                float jitter = LatticeHash(e * 131 + k, block.Poly.Count, 47);
-                double along = 8.0 + (length - 16.0) * (candidates == 0 ? jitter : (k + jitter) / (candidates + 1.0));
-                if (along < 8.0 || along > length - 8.0)
-                {
-                    continue;
-                }
-                float pick = LatticeHash(e * 977 + k, 3, 53);
-                if (pick > 0.62f)
-                {
-                    continue;
-                }
-                double s = along / length;
-                Vec2 kerb = i0 + (i1 - i0) * s;
-                Vec2 outer = o0 + (o1 - o0) * s;
-                Vec2 at = kerb + (outer - kerb) * 0.30;
-                if (at.X < ctx.Rect.X0 || at.X >= ctx.Rect.X1 || at.Y < ctx.Rect.Z0 || at.Y >= ctx.Rect.Z1 || InCut(at, cuts) || BeforeStairway(ctx, block, at))
-                {
-                    continue;
-                }
-                double y = ctx.Plan.GroundHeight(at.X, at.Y) + RoadLift + KerbHeight;
-                Vector3 position = ctx.Local(at.X, y, at.Y);
-
-                // Built in its own frame, turned to the kerb, so it sits square to the pavement.
-                buffer.SetFrame(position, dir.X, dir.Y);
-                Color32 saved = buffer.Look;
-                if (pick < 0.20f)
-                {
-                    buffer.Look = SurfaceLook.Pack(StreetHydrant, (int)WallMaterial.Metal, 0.25f);
-                    buffer.AddBox(new Vector3(-0.2f, 0.0f, -0.2f), new Vector3(0.2f, 1.0f, 0.2f));
-                    buffer.AddBox(new Vector3(-0.17f, 1.0f, -0.17f), new Vector3(0.17f, 1.2f, 0.17f));
-                    buffer.AddBox(new Vector3(-0.3f, 0.55f, -0.1f), new Vector3(0.3f, 0.75f, 0.1f));
-                }
-                else if (pick < 0.46f)
-                {
-                    buffer.Look = SurfaceLook.Pack(StreetBin, (int)WallMaterial.Metal, 0.5f);
-                    buffer.AddBox(new Vector3(-0.42f, 0.0f, -0.42f), new Vector3(0.42f, 1.25f, 0.42f));
-                    buffer.Look = SurfaceLook.Pack(new Color(0.12f, 0.12f, 0.13f), (int)WallMaterial.Metal, 0.4f);
-                    buffer.AddBox(new Vector3(-0.47f, 1.25f, -0.47f), new Vector3(0.47f, 1.37f, 0.47f));
-                }
-                else
-                {
-                    buffer.Look = SurfaceLook.Pack(StreetCabinet, (int)WallMaterial.Metal, 0.55f);
-                    buffer.AddBox(new Vector3(-0.8f, 0.0f, -0.35f), new Vector3(0.8f, 1.8f, 0.35f));
-                    buffer.Look = SurfaceLook.Pack(new Color(0.30f, 0.31f, 0.32f), (int)WallMaterial.Metal, 0.5f);
-                    buffer.AddBox(new Vector3(-0.85f, 1.8f, -0.4f), new Vector3(0.85f, 1.9f, 0.4f));
-                }
-                buffer.Look = saved;
-                buffer.ClearFrame();
-            }
-        }
-
         // ---------------------------------------------------------------- paint
 
         private static void BuildPaint(Context ctx, EdgeGeometry g, MeshBuffer yellow, MeshBuffer white)
@@ -1054,6 +978,7 @@ namespace CityX.View
                 to = g.Length - stopAtB - StopLineWidth - 0.3;
             }
             PaintLanes(ctx, g, yellow, white, height, from, to, g.Edge.Class, false);
+            PaintStalls(ctx, g, white, height);   // CitySurfaceBuilder.StreetFurniture.cs
         }
 
         /// <summary>The lane paint of one road class between two distances along the road, at the heights a surface gives; an expressway's deck gets edge lines too.</summary>

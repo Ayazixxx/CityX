@@ -27,7 +27,7 @@ Real sizes are multiplied by 1.3 here, as everything is (the player is 2.6 m tal
    clipping into the ground") and asked for streetlights again with the streets for drivers on 2026-10-15: these must stand ON the
    pavement and look like the real thing.
 3. **The sidewalk as concrete** (the concrete built 2026-11-05): scored squares, a kerb and gutter band, yellow dome mats at the crossings, red kerb by the hydrants.
-4. **What stands in the furnishing zone**: American hydrants, parking meters and stall marks, a mailbox, newspaper boxes and a bin at
+4. **What stands in the furnishing zone** (built 2026-11-05 but for manholes and drains): American hydrants, parking meters and stall marks, a mailbox, newspaper boxes and a bin at
    corners, dead street trees in grated pits (nothing has grown on Terraplex 9 since the rapture), manholes and drains.
 
 Not built: street-name signs (owner, 2026-11-05: "we dont need street name signs yet btw not sure if im going to add that").
@@ -95,3 +95,23 @@ east the joints crossed the walk at a slant, and it read as a plaza's paving, no
   coordinates on the walks and behind them; the tile is two flags by two with a joint round each). Pictures: `TrafficCapture`
   (`streets-1-sidewalk*.png`, `streets-2-corner*.png`).
 - Not built yet: the gutter pan in the road, the yellow dome mats, red kerb by the hydrants.
+
+### What stands along the kerb (2026-11-05)
+
+- **The rule** is `World/StreetFurniture.Along` (pure): along every driven street on the ground, in the strip by the kerb (its middle
+  0.85 m in; a meter 0.45 m, a hydrant 0.6 m), never within 8 m of a junction, and never in a street light's pole or another thing's
+  place. The walk behind it is left clear.
+- **At a corner**, walking in from it: a bin, a blue mailbox, two or three newspaper boxes each in its own colour. Not every corner has
+  each (55%, 30% and 22% of them).
+- **One hydrant to a street**, near one of its ends: red, or yellow with green caps.
+- **Dead street trees** in grated pits, 11 m apart, along one street in ten (owner: "make the trees pretty uncommon"; nothing has grown since the rapture, what stood, stands).
+- **Parking meters** on 40% of street sides (never a boulevard), one at each stall line, and the stalls marked in the road with a white T,
+  8.6 m long and 2.4 m out from the kerb (22 ft and 8 ft at the city's 1.3 times life).
+- **A utility cabinet** on a quarter of the sides.
+- The shares are first guesses, mine, easy to change (`StreetFurniture`).
+- They replace the odd hydrant, bin and cabinet that stood by each side of a block wherever its candidate fell, across the walk.
+- Built by `CitySurfaceBuilder.StreetFurniture.cs` (with the stall marks) and `CityProps.StreetFurniture.cs`: boxes in the chunk's own
+  buffers, no extra draws, near chunks only. None stands where the pavement is cut away, at a stairway's mouth or on Old Guy's lot.
+- Tests: `StreetFurnitureTests` (where the rule stands each thing round the spawn; each is built standing on the pavement; a stall mark
+  in the road at each meter's line). Pictures: `TrafficCapture.RenderTheStreets` (`streets-2-corner.png` shows a corner's things).
+- Not built yet: manholes and drains, the gutter pan in the road, yellow dome mats at the crossings, red kerb beside the hydrants.
