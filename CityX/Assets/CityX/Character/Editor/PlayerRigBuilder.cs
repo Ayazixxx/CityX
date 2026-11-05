@@ -48,6 +48,8 @@ namespace CityX.CharacterEditor
             SwordCarryBaker.BakeAll();
             // The crouch, baked from those same clips crouched (AddCrouchLayer).
             CrouchBaker.BakeAll();
+            // The recorded stair clips, on this skeleton (AddStairLayers).
+            StairClipBaker.BakeAll();
             AnimationClip idle = GodotOrMixamo("idle", "idle");
             AnimationClip walk = GodotOrMixamo("walk", "walking");
             AnimationClip sprint = GodotOrMixamo("run", "sprint");
@@ -301,6 +303,8 @@ namespace CityX.CharacterEditor
             // wins the arms (and torso) while one is playing, and the scream carries on underneath.
             // The crouch (legs, hips, head) over the base, under the upper-body layers that take the torso for a swing or a scream.
             AddCrouchLayer(controller);
+            // The recorded stair clips likewise: a swing still takes the torso over them.
+            AddStairLayers(controller);
             AddScreamLayers(controller);
             AddSwordUpperBodyLayer(controller);
             AddCutsceneStates(root);
@@ -474,6 +478,76 @@ namespace CityX.CharacterEditor
                 state.speedParameterActive = true;
                 state.speedParameter = BodySizeAbility.StrideRateName;
             }
+        }
+
+        /// <summary>
+        /// THE RECORDED STAIR CLIPS (docs/STAIRS.md): one tree of the four, up or down by which way the body faces and walk or run by its pace, on two layers over the base, weighted
+        /// by PlayerLocomotion.ShowStairClip. Hips, spine and head on one; the arms on the other, off while a weapon's carry needs them. No legs: their ankles are StairSteps'. The clip's
+        /// time is the steps' phase, not the clock, so the body stays in time with the feet at any speed, and each child's offset lines its own left foot up with that phase.
+        /// </summary>
+        private static void AddStairLayers(AnimatorController controller)
+        {
+            controller.AddParameter(PlayerLocomotion.StairPhaseName, AnimatorControllerParameterType.Float);
+            controller.AddParameter(PlayerLocomotion.StairFacingName, AnimatorControllerParameterType.Float);
+            controller.AddParameter(PlayerLocomotion.StairRunName, AnimatorControllerParameterType.Float);
+            AnimationClip upWalk = StairClipBaker.Load(StairClipBaker.UpWalk);
+            AnimationClip upRun = StairClipBaker.Load(StairClipBaker.UpRun);
+            AnimationClip downWalk = StairClipBaker.Load(StairClipBaker.DownWalk);
+            AnimationClip downRun = StairClipBaker.Load(StairClipBaker.DownRun);
+            if (upWalk == null || upRun == null || downWalk == null || downRun == null)
+            {
+                Debug.LogWarning("CityX: no stair clips -- a stair will show the walk's upper body.");
+                return;
+            }
+
+            AnimatorControllerLayer body = AddStairLayer(controller, PlayerLocomotion.StairBodyLayerName, "Assets/CityX/Character/TorsoHeadMask.mask",
+                AvatarMaskBodyPart.Body, AvatarMaskBodyPart.Head);
+            int bodyIndex = controller.layers.Length - 1;
+            controller.CreateBlendTreeInController(PlayerLocomotion.StairStateName, out BlendTree tree, bodyIndex);
+            tree.blendType = BlendTreeType.FreeformCartesian2D;
+            tree.blendParameter = PlayerLocomotion.StairFacingName;
+            tree.blendParameterY = PlayerLocomotion.StairRunName;
+            tree.children = new[]
+            {
+                StairChild(upWalk, 1.0f, 0.0f, StairGait.UpWalkLeftLifts),
+                StairChild(upRun, 1.0f, 1.0f, StairGait.UpRunLeftLifts),
+                StairChild(downWalk, -1.0f, 0.0f, StairGait.DownWalkLeftLifts),
+                StairChild(downRun, -1.0f, 1.0f, StairGait.DownRunLeftLifts),
+            };
+            PlayStairTreeToThePhase(FindState(controller.layers[bodyIndex].stateMachine, PlayerLocomotion.StairStateName));
+
+            AddStairLayer(controller, PlayerLocomotion.StairArmsLayerName, "Assets/CityX/Character/ScreamArmsMask.mask",
+                AvatarMaskBodyPart.LeftArm, AvatarMaskBodyPart.RightArm, AvatarMaskBodyPart.LeftFingers, AvatarMaskBodyPart.RightFingers);
+            AnimatorStateMachine arms = controller.layers[controller.layers.Length - 1].stateMachine;
+            AnimatorState armsState = arms.AddState(PlayerLocomotion.StairStateName);
+            armsState.motion = tree;
+            arms.defaultState = armsState;
+            PlayStairTreeToThePhase(armsState);
+        }
+
+        private static AnimatorControllerLayer AddStairLayer(AnimatorController controller, string layerName, string maskPath, params AvatarMaskBodyPart[] parts)
+        {
+            AvatarMask mask = Mask(maskPath, parts);
+            controller.AddLayer(layerName);
+            AnimatorControllerLayer[] layers = controller.layers;
+            AnimatorControllerLayer layer = layers[layers.Length - 1];
+            layer.avatarMask = mask;
+            layer.blendingMode = AnimatorLayerBlendingMode.Override;
+            layer.defaultWeight = 0.0f;
+            layer.iKPass = false;
+            controller.layers = layers;
+            return layer;
+        }
+
+        private static void PlayStairTreeToThePhase(AnimatorState state)
+        {
+            state.timeParameterActive = true;
+            state.timeParameter = PlayerLocomotion.StairPhaseName;
+        }
+
+        private static ChildMotion StairChild(AnimationClip clip, float facing, float run, float leftLifts)
+        {
+            return new ChildMotion { motion = clip, position = new Vector2(facing, run), timeScale = 1.0f, cycleOffset = leftLifts };
         }
 
         /// <summary>Source's crouched speed: a third of the walk (CrouchHull.SpeedShare).</summary>

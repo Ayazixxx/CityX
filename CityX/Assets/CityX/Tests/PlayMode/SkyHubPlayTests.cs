@@ -95,7 +95,7 @@ namespace CityX.Tests
             Assert.Greater(radius, SkyHubPlan.StairInnerRadius, "the body left the stair inward");
             Assert.Less(radius, SkyHubPlan.StairOuterRadius, "the body left the stair outward");
             double s = (float)(Mathf.Atan2(p.z, p.x) * SkyHubPlan.StairMidRadius);
-            Assert.Greater(s, 15.0, "the body did not get far up the stair: it is stuck");
+            Assert.Greater(s, 6.0, "the body did not get far up the stair: it is stuck");   // at a stair's pace (StairGait)
             Assert.AreEqual(s * SkyHubPlan.Rise, p.y, 0.8, $"at {s:F1} m along the body is not on the stair");
         }
 
@@ -106,7 +106,7 @@ namespace CityX.Tests
             Physics.SyncTransforms();
             double top = Plan.HeightAt(SkyHubPlan.StairLength);
             GameObject body = Body(World(Plan, SkyHubPlan.StairLength - 12.0, 0.0, Plan.HeightAt(SkyHubPlan.StairLength - 12.0) + 0.1), Vector3.forward);
-            yield return WalkAlong(body, 5.0f);
+            yield return WalkAlong(body, 14.0f);   // 12 m at a stair's pace (StairGait)
             Assert.AreEqual((float)top, body.transform.position.y, 0.3f, "the stair's top is not level with its flat");
 
             // Off the stair's flat, inward, onto the island.

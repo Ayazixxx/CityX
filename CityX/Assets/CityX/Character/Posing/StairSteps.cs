@@ -4,11 +4,10 @@ namespace CityX.Character
 {
     /// <summary>
     /// THE FEET ON A STAIR (owner, 2026-11-03, of the walk clip's legs bent onto the steps: "this looks all fucked up ... look up how to do good stairs animations with IK";
-    /// docs/STAIRS.md). A clip made for flat ground cannot be warped onto stairs on legs this short: it swings a foot 0.6 m either way and kicks it up behind, and held to the
-    /// steps that folds the knee and curls the shin. So on a stair the clip keeps the arms and the legs are all IK, stepped like this (a working stair stepper's design, and
-    /// SwordFootwork's): each step is planned onto a real tread, the ball of the foot on it and the heel over the edge; the TRAILING foot goes next, once the body has gone far
-    /// enough past it; it goes in an arc that rises before it travels going up, and travels before it falls going down, so it clears the edges; a planted foot never moves, it
-    /// rolls up onto its ball as the body leaves it; and the hips come down only as far as the feet need.
+    /// docs/STAIRS.md). The recorded stair clips step 0.25 m on 0.90 m legs and our stairs want 0.36 m on 0.77 m, so no clip's feet land on our treads. So the ankles go where
+    /// this says, with the recording's timing and foot path (StairGait): each step is planned onto a real tread, the ball of the foot on it and the heel over the edge; the
+    /// TRAILING foot goes next, once the body has gone far enough along; a planted foot never moves; and the hips come down only as far as the feet need. The clips give the rest of
+    /// the body, in time with these steps (<see cref="Phase"/>).
     ///
     /// PURE: no scene, no bones. The foot IK hands in the body and a way to read the ground, and puts the ankles where this says: so a copy of another player's body steps too,
     /// with nothing sent.
@@ -21,28 +20,8 @@ namespace CityX.Character
         /// <summary>The legs are taken from the clip and given back over this long, seconds.</summary>
         public const float FadeSeconds = 0.12f;
 
-        /// <summary>How long a step is in the air at a walk and at a sprint, seconds. At these speeds, on these legs, it is a jog: both feet are off the ground for a moment.</summary>
-        public const float WalkStepSeconds = 0.2f;
-
-        public const float SprintStepSeconds = 0.17f;
-
-        /// <summary>The speeds those belong to, metres a second.</summary>
-        public const float WalkSpeed = 4.0f;
-
-        public const float SprintSpeed = 7.5f;
-
         /// <summary>Slower than this the body is standing: a planted foot stays planted.</summary>
         public const float StandingSpeed = 0.3f;
-
-        /// <summary>Where a step lands, the ball of the foot this far past the hips when it lands. Going down less: the leg reaches down as well as forward, and only so far.</summary>
-        public const float LandAheadGoingUp = 0.4f;
-
-        public const float LandAheadGoingDown = 0.25f;
-
-        /// <summary>The trailing foot sets off once the hips have gone this far past its ball. Going up the leg is soon straight; going down it soon folds behind the body.</summary>
-        public const float LiftBehindGoingUp = 0.15f;
-
-        public const float LiftBehindGoingDown = 0.12f;
 
         /// <summary>A planted ankle this far past what its leg can reach lifts at once, metres: held, it has left its tread.</summary>
         public const float OutOfReachBy = 0.01f;
@@ -56,21 +35,19 @@ namespace CityX.Character
         /// <summary>...or whatever the step, once it is this much further behind than it should have lifted, metres.</summary>
         public const float LiftAnywayPast = 0.1f;
 
-        /// <summary>How high the arc goes over the straight line between the treads, metres.</summary>
-        public const float ArcHeight = 0.1f;
+        /// <summary>A step lands an even step past the other foot if that is within this of where the hips want it, metres.</summary>
+        public const float EvenStepWithin = 0.2f;
 
-        /// <summary>How much of a step the height takes: going up it is done by then, going down it starts that much before the end.</summary>
-        public const float HeightShare = 0.8f;
+        /// <summary>A step with no rise in it (off the end of a flight) still lifts the foot this far, metres: the recorded path's height is a share of the rise.</summary>
+        public const float FlatStepArc = 0.1f;
+
+        /// <summary>A rise of this many metres or more clears its edges by itself.</summary>
+        public const float RiseNeedsNoArc = 0.3f;
 
         /// <summary>The most a planted foot rolls up onto its ball, degrees, and how far behind the hips it has fully (metres): a foot behind the body is on its toes.</summary>
         public const float MostRollDegrees = 50.0f;
 
         public const float FullRollBehind = 0.45f;
-
-        /// <summary>A foot coming down has its toes this far up going up and this far down going down, degrees: toes first down a stair.</summary>
-        public const float LandingPitchGoingUp = -8.0f;
-
-        public const float LandingPitchGoingDown = 30.0f;
 
         /// <summary>Going down, a planted foot this far ahead of the hips is on its toes by that much (metres).</summary>
         public const float ToesFirstAhead = 0.25f;
@@ -78,8 +55,11 @@ namespace CityX.Character
         /// <summary>How quickly a foot rolls, seconds.</summary>
         private const float RollSeconds = 0.04f;
 
-        /// <summary>The hips are always this low on a stair, metres, the legs a little bent, and at most this: the legs are only 0.77 m.</summary>
-        public const float LeastDrop = 0.06f;
+        /// <summary>The clips' phase follows the steps: a late or early step's difference is taken up over this long, seconds.</summary>
+        private const float PhaseCatchUpSeconds = 0.12f;
+
+        /// <summary>The hips are always this low on a stair, metres, and at most this: the legs are only 0.77 m. Going up the recording's leg all but straightens under the hips.</summary>
+        public const float LeastDrop = 0.02f;
 
         /// <summary>Going down lower: the leading leg reaches down to a tread below the hips' line.</summary>
         public const float LeastDropGoingDown = 0.1f;
@@ -180,9 +160,18 @@ namespace CityX.Character
         private float _weight;
         private bool _started;
         private float _drop;
+        private float _phase;
+        private float _phaseBehind;
+        private bool _backward;
 
         /// <summary>0 to 1: how much the legs are this stepper's rather than the clip's.</summary>
         public float Weight => _weight;
+
+        /// <summary>Where the two-step cycle is, 0 to 1: 0 as the left foot leaves its tread, 0.5 as the right does. The stair clips play to this.</summary>
+        public float Phase => _phase;
+
+        /// <summary>True while the body faces up the stair, whichever way it is going: backing down it is an up clip played in reverse.</summary>
+        public bool FacesUphill { get; private set; }
 
         /// <summary>How far the hips are down, metres.</summary>
         public float Drop => _drop;
@@ -233,6 +222,9 @@ namespace CityX.Character
                 StartAt(1, body.ClipRight, toes, body, ground);
             }
             bool up = body.Slope > 0.0f;
+            _backward = Vector3.Dot(body.Along, toes) < 0.0f;
+            FacesUphill = up != _backward;
+            StepPhase(body, deltaTime);
 
             for (int i = 0; i < 2; i++)
             {
@@ -287,6 +279,19 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>The cycle goes on with the body's travel, backward when it backs along the stair, and catches up with the feet when a step starts.</summary>
+        private void StepPhase(in Body body, float deltaTime)
+        {
+            if (body.Speed < StandingSpeed)
+            {
+                return;
+            }
+            float caughtUp = _phaseBehind * (1.0f - Mathf.Exp(-deltaTime / PhaseCatchUpSeconds));
+            _phaseBehind -= caughtUp;
+            float rate = body.Speed / StairGait.StrideMetres;
+            _phase = Mathf.Repeat(_phase + (_backward ? -rate : rate) * deltaTime + caughtUp, 1.0f);
+        }
+
         /// <summary>Where a flat foot's ankle is, its ball on <paramref name="ball"/>.</summary>
         public static Vector3 FlatAnkle(Vector3 ball, Vector3 toes, in Body body)
         {
@@ -311,12 +316,14 @@ namespace CityX.Character
                 if (ball.y - height > 0.06f)
                 {
                     // In the air when it was taken: it comes down from where it is.
+                    bool up = body.Slope > 0.0f;
+                    float seconds = StairGait.SwingSeconds(up, body.Speed);
                     _stepping[i] = true;
                     _progress[i] = 0.0f;
-                    _seconds[i] = WalkStepSeconds;
+                    _seconds[i] = seconds;
                     _from[i] = clipAnkle;
                     _fromPitch[i] = 0.0f;
-                    _to[i] = Landing(i, body, WalkStepSeconds, body.Slope > 0.0f, ground);
+                    _to[i] = Landing(i, body, seconds, up, ground);
                     StepsTaken++;
                     return;
                 }
@@ -333,7 +340,7 @@ namespace CityX.Character
             {
                 return;
             }
-            float liftAt = up ? LiftBehindGoingUp : LiftBehindGoingDown;
+            float liftAt = StairGait.LiftBehind(up, body.Speed);
             int best = -1;
             float furthest = float.MinValue;
             for (int i = 0; i < 2; i++)
@@ -363,7 +370,7 @@ namespace CityX.Character
             {
                 return;
             }
-            float seconds = Mathf.Lerp(WalkStepSeconds, SprintStepSeconds, Mathf.InverseLerp(WalkSpeed, SprintSpeed, body.Speed));
+            float seconds = StairGait.SwingSeconds(up, body.Speed);
             _stepping[best] = true;
             _progress[best] = 0.0f;
             _seconds[best] = seconds;
@@ -371,6 +378,10 @@ namespace CityX.Character
             _fromPitch[best] = _pitch[best];
             _to[best] = Landing(best, body, seconds, up, ground);
             StepsTaken++;
+
+            // Forward a foot leaving is where the clip lifts it. In reverse, where the clip would have set it down.
+            float clipAt = (best == 0 ? 0.0f : 0.5f) + (_backward ? StairGait.SwingShare(up, body.Speed) : 0.0f);
+            _phaseBehind = Mathf.DeltaAngle(_phase * 360.0f, clipAt * 360.0f) / 360.0f;
         }
 
         /// <summary>Where a step should land: past the hips as they will be when it lands, on its own side, on a tread and past the other foot.</summary>
@@ -378,10 +389,18 @@ namespace CityX.Character
         {
             Vector3 right = Quaternion.Euler(0.0f, body.Yaw, 0.0f) * Vector3.right;
             float side = i == 0 ? -1.0f : 1.0f;
-            float ahead = (up ? LandAheadGoingUp : LandAheadGoingDown) + body.Speed * seconds;
+            float ahead = StairGait.LandAhead(up, body.Speed) + body.Speed * seconds;
             Vector3 at = body.Centre + body.Along * ahead + right * (side * body.HalfWidth);
             int other = 1 - i;
-            float past = Vector3.Dot(at - (_stepping[other] ? _to[other] : _ball[other]), body.Along);
+            Vector3 otherFoot = _stepping[other] ? _to[other] : _ball[other];
+            // AN EVEN RHYTHM: one step past the other foot, as long as that is about where the hips want it. Left to the hips alone, each foot keeps its own stride, and two that
+            // started close together go on short step, long step, a limp.
+            float evenBy = StairGait.StrideMetres * 0.5f - Vector3.Dot(at - otherFoot, body.Along);
+            if (Mathf.Abs(evenBy) <= EvenStepWithin)
+            {
+                at += body.Along * evenBy;
+            }
+            float past = Vector3.Dot(at - otherFoot, body.Along);
             if (past < LeastStepPast)
             {
                 at += body.Along * (LeastStepPast - past);
@@ -430,7 +449,7 @@ namespace CityX.Character
             if (behind < 0.0f && body.Slope < 0.0f)
             {
                 // Going down the foot ahead stands on its toes, the leg nearly straight, and lowers its heel as the hips come over it.
-                roll = Mathf.Clamp01(-behind / ToesFirstAhead) * LandingPitchGoingDown;
+                roll = Mathf.Clamp01(-behind / ToesFirstAhead) * StairGait.LandingPitchGoingDown;
             }
             float reach = body.LegLength * ReachShare;
             Vector3 lowHip = hip + Vector3.down * _drop;
@@ -442,16 +461,16 @@ namespace CityX.Character
             return new Foot { Ankle = RolledAnkle(_ball[i], toes, _pitch[i], body), Pitch = _pitch[i], Toes = toes, Stepping = false, Ball = _ball[i] };
         }
 
-        /// <summary>A foot in the air: along the ground in an ease, and in height ahead of that going up, behind it going down; an arc over the straight line.</summary>
+        /// <summary>A foot in the air, on the recording's path (StairGait) from where it left to where it lands, its heel as the recording has it.</summary>
         private Foot InTheAir(int i, Vector3 toes, bool up, in Body body)
         {
             float p = Mathf.Clamp01(_progress[i]);
-            float s = Ease(p);
-            Vector3 to = FlatAnkle(_to[i], toes, body);
-            float heightShare = up ? Mathf.Clamp01(p / HeightShare) : Mathf.Clamp01((p - (1.0f - HeightShare)) / HeightShare);
-            Vector3 at = Vector3.Lerp(_from[i], to, s);
-            at.y = Mathf.Lerp(_from[i].y, to.y, Ease(heightShare)) + 4.0f * p * (1.0f - p) * ArcHeight;
-            float pitch = Mathf.Lerp(_fromPitch[i], up ? LandingPitchGoingUp : LandingPitchGoingDown, Ease(Mathf.Clamp01(p * 1.4f)));
+            StairGait.Swing(up, p, out float along, out float height, out float heel);
+            Vector3 to = RolledAnkle(_to[i], toes, StairGait.LandingPitch(up), body);
+            Vector3 at = Vector3.Lerp(_from[i], to, along);
+            float rise = Mathf.Abs(to.y - _from[i].y);
+            at.y = Mathf.LerpUnclamped(_from[i].y, to.y, height) + 4.0f * p * (1.0f - p) * FlatStepArc * (1.0f - Mathf.Clamp01(rise / RiseNeedsNoArc));
+            float pitch = Mathf.Lerp(_fromPitch[i], heel, Ease(Mathf.Clamp01(p * 3.0f)));
             _pitch[i] = pitch;
             return new Foot { Ankle = at, Pitch = pitch, Toes = toes, Stepping = true, Ball = _to[i] };
         }

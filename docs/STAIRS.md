@@ -13,6 +13,53 @@ Nobody animates a body from the capsule on stairs. No talk from a big studio tur
 - **The feet are stepped, not warped** ([a working stair stepper's design](https://github.com/niktaninic/IK-Foot-System/pull/1), the most useful thing found): treads are found by scanning, the trailing foot goes next, edge-clearing arcs, the body on a ramp through the tread centres and never above what the feet can reach, an analytic two-bone solve with limits on how far a knee folds. Ubisoft's IK Rig talk makes a [stair walk from a base walk by rules on IK targets](https://80.lv/articles/how-ubisoft-revolutionises-animation-in-games) too (the article gives no detail).
 - **Up and down differ** ([stair gait studies](https://johk.pl/?p=1864)): about 66% of a step on the ground going up and 60% going down, the knee bending more going up.
 
+## More research (2026-11-04)
+
+Owner, sending [a clip of an indie game's stairs and foot IK](https://x.com/marwdev/status/1958204952817586192): "make the stairs feel more like this", then "just research how to make foot ik + stairs look good". The clip: about three unhurried steps a second, each foot flat on its own tread, the upper body gliding with almost no bob.
+
+The best source found is Ubisoft's foot IK for Assassin's Creed, [GDC 2016, "Fitting the World"](https://media.gdcvault.com/gdc2016/Presentations/Roche_Clifford_Fitting%20the%20World.pdf) (slides read; the slides give rules and no numbers). Its aims are "Predictive is better than Reactive", "Preserve the original motion" and "Be less procedural-looking":
+
+- **Prediction per foot:** contacts are marked on every clip automatically (toe speed and height, and whether the pose could stand on the ground). So each moving foot knows how far off and how long until it lands.
+- **The foot's path:** "Foot forward comes from animations", "Height in anim is height above foot path", "Never let the foot go below foot path". The path is a line from where the foot left to where it will land. Paths are split at the opposite foot's contact.
+- **Clearing steps:** a capsule cast along the path finds the surfaces, and a convex hull over them gives a "Ground Envelope" for the feet only, so a foot cannot go through a riser. Very tall rises are flagged as invalid.
+- **The hips:** "Use slope from last to predicted position", "Hip height follows the slope". A support leg sets the height, which differs going up and down, and critical springs remove the bounce.
+- **Locks are not absolute:** "Don't fully lock the foot!". Locked: position held, free to rotate. Sliding: on the ground, free to slide a bit, when the difference from the clip is small, matching the clip's silhouette. Unlocked: when the difference is large, "Prefer smooth motion".
+- **Foot angle:** horizontal going up, parallel to the ground going down, limited because it pulls on the hips, and not at all when running. (Said of slopes.)
+- **Turning:** the body turns about a point near the planted foot, not its centre, so the feet do not twist under it.
+
+[Realtime Animation Tips, stepping stones](https://sites.google.com/view/realtime-animation-tips/tutorials/animation-stepping-stones): "IK alone isn't enough for stairs or steep hills": it recommends clips authored for a known slope, blended (up, down, two sideways), with foot IK on top, plus the same contact marking and hull. [Unreal's pose warping](https://dev.epicgames.com/documentation/unreal-engine/pose-warping-in-unreal-engine?lang=ja) changes the stride to match speed rather than the play rate.
+
+No source was found for how Red Dead 2's or The Last of Us's stairs work. The [Red Dead 2 talk](https://gdconf.com/news/learn-secrets-red-dead-redemption-2s-player-locomotion-gdc) exists, but only its listing was read.
+
+What this said about ours: `StairSteps` was the opposite of "preserve the original motion", since the legs were all procedural with no clip behind them, and a flight at 4 m/s was far quicker than the owner's reference. So: slow down on stairs, then recorded clips with these rules correcting them. Built, below.
+
+## The recorded clips (2026-11-05)
+
+Owner: "should we just use mixamo stairs animations". The four files are the owner's: Ascending Stairs, Running Up Stairs, Descending Stairs and Descending StairsRUN, on Mixamo's stock skeleton.
+
+Measured frame by frame in Blender:
+
+| | Up, walk | Up, run | Down, walk | Down, run |
+|---|---|---|---|---|
+| One loop, seconds | 1.37 | 0.60 | 0.93 | 0.40 |
+| Steps a second | 1.46 | 3.3 | 2.15 | 5 |
+| Slope the recording climbs | 43° | 42° | 48° | 46° |
+
+- **The up clips are clean loops.** The foot has one shape in the walk and the run: it rises first with the heel up about 45°, goes over the tread's edge about 10 cm clear, and comes down flat. It stays flat until it lifts, with the leg nearly straight over it.
+- **Both down clips are ruined below the floor line.** Mixamo holds the feet at floor height while the hips sink 0.49 m, so they end in a squat with the knees at 38°, and nothing below the floor survives. What is real in them is the upper body and the feet's travel along the ground. A time-reversed up clip is no fix: it walks backward down the stair.
+- **No clip's feet can land on our treads.** They step 0.25 m on 0.90 m legs; ours step 0.36 m on 0.77 m. So the ankles stay `StairSteps`', and what comes from the recording is the rest:
+
+What the game does now:
+
+- **The pace** (`StairGait`, `PlayerLocomotion.StairPaceShare`): a body keeps 27% of its walk and 25% of its sprint on a stair, about 1.08 and 1.9 m/s, eased over 0.25 s: about three steps a second at a walk, the owner's reference. Every body alike, so no enemy outruns a player up one. These numbers are my first go, and the sky hub's stair takes about 3.6 times as long on foot as it did.
+- **The feet's timing and path** (`StairGait.Swing`) are the recording's, in shares of the way from where the foot left to where it lands. Going down the heights are rebuilt from what survives: the first frames of each fall, and the hips' drop.
+- **The upper body** (`StairClipBaker`, `PlayerRigBuilder.AddStairLayers`): hips, spine and head on one layer and the arms on another, the arms only while nothing else needs them. The clip's time is `StairSteps.Phase`, not the clock, so the body keeps time with the feet at any speed, and a body backing along a stair plays its clip in reverse.
+- **Why baked, not imported** (`SourceArt/StairClips/stair_clips.py`): imported as a humanoid FBX, Unity's retargeting raised the arms from about 70° below level to about 25°. So the turns are copied onto our skeleton in Blender and read back as muscles, as `GodotMotionBaker` does for the walks. The FBX files are not in the project.
+
+Other players' copies do all of this with nothing sent: it is read from the body's own motion, like the feet.
+
+To change the clips: `blender --background --factory-startup --python CityX/SourceArt/StairClips/stair_clips.py -- <folder with the four files>`, then rebuild.
+
 ## What was wrong, measured
 
 `StairWalkCapture` (Explicit, `-Graphics`) walks and sprints the real body up and down 22 steps of 0.36 m treads and 0.227 m risers, renders `Logs/CityShots/stairs-sheet.png` and logs what a picture cannot show.
@@ -61,10 +108,8 @@ Tried and dropped, measured with `StairWalkCapture`: the walk clip held onto the
 ## Not done
 
 - **The soft bend at the knee.** The body is one smooth surface, and a bent leg curves rather than folds: it shows most going down. That is the mesh, not the steps.
-- **The speed.** A body still takes a flight at 4 m/s, about eleven treads a second, so the steps are quick and both feet leave the ground for a moment. Slowing on stairs would look calmer but change the feel: the owner's call.
-- **The arms** are still the walk clip's. A stair clip (Mixamo has them) could give them theirs.
 - Only tried on test stairs of the real size, in `StairWalkCapture` and `StairWalkPlayTests`; turning on a landing and short flights have no render yet.
 
 ## Tests
 
-`StairStepsTests` (a planted foot never moves, every landing on a tread with its uphill end clear, the feet take turns, standing still), `GroundGlideTests` (a flight is stairs, a ramp and a kerb are not), `FootPlantingTests`, `StairWalkPlayTests` (all four ways over a flight on the real body: knees open and forward, no jolts; back to the clip at the top; a jump from a flight, a kerb and a drop, nothing on the flat, a copy too), `FootIkPlayTests` (the ball of the real foot stays where it was planted).
+`StairGaitTests` (the foot's path, a foot's cycle adding up), `StairStepsTests` (a planted foot never moves, every landing on a tread with its uphill end clear, one tread a step, the clip's phase in time with the feet, the feet take turns, standing still), `GroundGlideTests` (a flight is stairs, a ramp and a kerb are not), `FootPlantingTests`, `StairWalkPlayTests` (all four ways over a flight on the real body: knees open and forward, no jolts; back to the clip at the top; a jump from a flight, a kerb and a drop, nothing on the flat, a copy too), `FootIkPlayTests` (the ball of the real foot stays where it was planted).

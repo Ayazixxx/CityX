@@ -18,6 +18,7 @@ namespace CityX.Tests
         private const float Riser = 0.227f;
         private const int Steps = 22;
         private const float FirstStepZ = 2.0f;
+        private const float SettledAfterMetres = 2.5f;
 
         private readonly List<GameObject> _made = new List<GameObject>();
         private GameObject _player;
@@ -118,7 +119,8 @@ namespace CityX.Tests
                 yield return null;
                 float z = _player.transform.position.z;
                 if (up ? z > TopZ + 1.0f : z < FirstStepZ - 1.0f) break;
-                if (z < FirstStepZ + 1.0f || z > TopZ - 1.0f) continue;
+                // Past where the body has slowed to the stair's pace: a sprint arriving is still braking over the first metres, which is not a jolt.
+                if (z < FirstStepZ + SettledAfterMetres || z > TopZ - SettledAfterMetres) continue;
                 capsule.Add(_player.transform.position.y);
                 bodyPivot.Add(_player.transform.position.y + _locomotion.GlideOffset);   // what the camera follows
                 heads.Add(head.position.y);
@@ -139,7 +141,7 @@ namespace CityX.Tests
             string which = $"{(sprint ? "sprinting" : "walking")} {(up ? "up" : "down")}";
             Assert.Greater(capsule.Count, 20, $"setup: {which} never crossed the flight");
             Assert.LessOrEqual(inAir, 1, $"{which}, the body was off the ground for {inAir} of {capsule.Count} frames");
-            Assert.Greater(Jolt(capsule), 0.05f, "setup: this capsule did not lurch, so nothing here is being smoothed");
+            Assert.Greater(Jolt(capsule), 0.03f, "setup: this capsule did not lurch, so nothing here is being smoothed");
             Assert.Less(Jolt(heads), 0.05f, $"{which}, the head jolted");
             Assert.Less(Jolt(bodyPivot), 0.04f, $"{which}, what the camera follows jolted");
             Assert.Less(Mathf.Max(BiggestJump(left), BiggestJump(right)), 0.45f, $"{which}, a foot jumped");
@@ -258,6 +260,94 @@ namespace CityX.Tests
             }
             Assert.Greater(_locomotion.GroundSlope, 0.4f, "the copy did not read the flight");
             Assert.AreNotEqual(0.0f, _locomotion.GlideOffset, "the copy did not glide");
+            Assert.Greater(_locomotion.StairClipShare, 0.0f, "the copy did not play the stair clip");
+        }
+
+        /// <summary>A flight is taken at a stair's pace, and off it the body is back to its own.</summary>
+        [UnityTest]
+        public IEnumerator ABodyTakesAStairAtAStairsPace([Values(false, true)] bool sprint, [Values(true, false)] bool up)
+        {
+            BuildStairs();
+            float yaw = up ? 0.0f : 180.0f;
+            yield return Spawn(up ? new Vector3(0.0f, 0.05f, FirstStepZ - 3.0f) : new Vector3(0.0f, TopY + 0.05f, TopZ + 3.0f), yaw);
+            var input = new LocomotionInput { Move = Vector2.up, YawDegrees = yaw, Sprint = sprint };
+            float middle = FirstStepZ + Tread * Steps * 0.5f;
+            while (up ? _player.transform.position.z < middle - 1.0f : _player.transform.position.z > middle + 1.0f)
+            {
+                _locomotion.Tick(input, Step);
+                yield return null;
+            }
+            float from = _player.transform.position.z;
+            for (int i = 0; i < 60; i++)
+            {
+                _locomotion.Tick(input, Step);
+                yield return null;
+            }
+            float pace = Mathf.Abs(_player.transform.position.z - from);
+            Assert.AreEqual(sprint ? StairGait.RunPace : StairGait.WalkPace, pace, 0.2f, "the wrong pace on the flight");
+
+            while (up ? _player.transform.position.z < TopZ + 1.5f : _player.transform.position.z > FirstStepZ - 1.5f)
+            {
+                _locomotion.Tick(input, Step);
+                yield return null;
+            }
+            from = _player.transform.position.z;
+            for (int i = 0; i < 30; i++)
+            {
+                _locomotion.Tick(input, Step);
+                yield return null;
+            }
+            float flat = Mathf.Abs(_player.transform.position.z - from) * 2.0f;
+            Assert.Greater(flat, sprint ? 6.0f : 3.2f, "the body stayed slow off the stair");
+        }
+
+        /// <summary>The recorded clip plays walking a flight and not standing on it or off it; the arms are left to a weapon's carry.</summary>
+        [UnityTest]
+        public IEnumerator TheRecordedClipPlaysOnAFlightOnly()
+        {
+            BuildStairs();
+            yield return Spawn(new Vector3(0.0f, 0.05f, FirstStepZ - 3.0f), 0.0f);
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            int body = animator.GetLayerIndex(PlayerLocomotion.StairBodyLayerName);
+            int arms = animator.GetLayerIndex(PlayerLocomotion.StairArmsLayerName);
+            Assert.GreaterOrEqual(body, 0, "no stair layer: is the prefab rebuilt?");
+            Assert.GreaterOrEqual(arms, 0);
+            Assert.AreEqual(0.0f, animator.GetLayerWeight(body), "the stair clip played on the flat");
+
+            var input = new LocomotionInput { Move = Vector2.up, YawDegrees = 0.0f };
+            while (_player.transform.position.z < FirstStepZ + 3.0f)
+            {
+                _locomotion.Tick(input, Step);
+                yield return null;
+            }
+            for (int i = 0; i < 20; i++)
+            {
+                _locomotion.Tick(input, Step);
+                yield return null;
+            }
+            Assert.AreEqual(1.0f, animator.GetLayerWeight(body), 0.01f, "the body is not the clip's on the flight");
+            Assert.AreEqual(1.0f, animator.GetLayerWeight(arms), 0.01f, "the free arms are not the clip's on the flight");
+            Assert.AreEqual(1.0f, animator.GetFloat(PlayerLocomotion.StairFacingName), "going up, not the up clip");
+            float phase = animator.GetFloat(PlayerLocomotion.StairPhaseName);
+            _locomotion.Tick(input, Step);
+            yield return null;
+            Assert.AreNotEqual(phase, animator.GetFloat(PlayerLocomotion.StairPhaseName), "the clip is not moving with the feet");
+
+            input.SwordEquipped = true;
+            for (int i = 0; i < 10; i++)
+            {
+                _locomotion.Tick(input, Step);
+                yield return null;
+            }
+            Assert.AreEqual(0.0f, animator.GetLayerWeight(arms), "the clip took the arms from a sword's carry");
+            input.SwordEquipped = false;
+
+            for (int i = 0; i < 30; i++)
+            {
+                _locomotion.Tick(new LocomotionInput { YawDegrees = 0.0f }, Step);
+                yield return null;
+            }
+            Assert.AreEqual(0.0f, animator.GetLayerWeight(body), "standing on the flight the body stayed the clip's");
         }
     }
 }

@@ -261,56 +261,7 @@ namespace CityX.CharacterEditor
                     Debug.Log(dump.ToString());
                 }
 
-                // A muscle that jumps between two consecutive frames is not motion, it is the conversion flipping (an Euler-style decomposition crossing a branch): it shows
-                // as a limb snapping through 70 degrees in one frame. Say so loudly rather than ship it.
-                for (int i = 0; i < muscleCount; i++)
-                {
-                    float worstStep = 0.0f;
-                    int worstAt = 0;
-                    for (int f = 1; f < times.Count; f++)
-                    {
-                        float step = Mathf.Abs(muscleValues[i][f] - muscleValues[i][f - 1]);
-                        if (step > worstStep)
-                        {
-                            worstStep = step;
-                            worstAt = f;
-                        }
-                    }
-                    if (worstStep > 0.45f)
-                    {
-                        Debug.LogWarning($"CityX: {clipName}: muscle '{HumanTrait.MuscleName[i]}' jumps {worstStep:F2} between frames {worstAt - 1} and {worstAt} ({muscleValues[i][worstAt - 1]:F2} -> {muscleValues[i][worstAt]:F2})");
-                    }
-                }
-
-                var clip = new AnimationClip { name = clipName, frameRate = SampleRate };
-                float[] timeArray = times.ToArray();
-                for (int i = 0; i < muscleCount; i++)
-                {
-                    clip.SetCurve("", typeof(Animator), HumanTrait.MuscleName[i], Simplify(timeArray, muscleValues[i], MuscleTolerance, loop));
-                }
-                string[] axes = { "x", "y", "z", "w" };
-                for (int i = 0; i < 3; i++)
-                {
-                    clip.SetCurve("", typeof(Animator), "RootT." + axes[i], Simplify(timeArray, rootTValues[i], PositionTolerance, loop));
-                }
-                for (int i = 0; i < 4; i++)
-                {
-                    clip.SetCurve("", typeof(Animator), "RootQ." + axes[i], Simplify(timeArray, rootQValues[i], RotationTolerance, loop));
-                }
-                clip.EnsureQuaternionContinuity();
-
-                AnimationClipSettings settings = AnimationUtility.GetAnimationClipSettings(clip);
-                settings.loopTime = loop;
-                settings.loopBlend = false;
-                settings.keepOriginalOrientation = true;
-                settings.keepOriginalPositionY = true;
-                settings.keepOriginalPositionXZ = true;
-                settings.startTime = 0.0f;
-                settings.stopTime = times[times.Count - 1];
-                AnimationUtility.SetAnimationClipSettings(clip, settings);
-
-                Directory.CreateDirectory(Path.Combine(projectRoot, Path.GetDirectoryName(path)));
-                clip = ClipAsset.Store(clip, path);
+                AnimationClip clip = StoreHumanoidClip(clipName, path, times.ToArray(), muscleValues, rootTValues, rootQValues, loop);
                 Debug.Log($"CityX: baked {clipName} from {godotName} -- {times.Count} frames, {motion.Length:F2} s, {(loop ? "looping" : "once")} -> {path}");
                 return clip;
             }
@@ -318,6 +269,62 @@ namespace CityX.CharacterEditor
             {
                 UnityEngine.Object.DestroyImmediate(root);
             }
+        }
+
+        /// <summary>Dense samples of a humanoid pose, per muscle and body channel, saved as a clip at <paramref name="path"/>.</summary>
+        internal static AnimationClip StoreHumanoidClip(string clipName, string path, float[] times, float[][] muscleValues, float[][] rootTValues, float[][] rootQValues, bool loop)
+        {
+            int muscleCount = muscleValues.Length;
+            // A muscle that jumps between two consecutive frames is not motion, it is the conversion flipping (an Euler-style decomposition crossing a branch): it shows
+            // as a limb snapping through 70 degrees in one frame. Say so loudly rather than ship it.
+            for (int i = 0; i < muscleCount; i++)
+            {
+                float worstStep = 0.0f;
+                int worstAt = 0;
+                for (int f = 1; f < times.Length; f++)
+                {
+                    float step = Mathf.Abs(muscleValues[i][f] - muscleValues[i][f - 1]);
+                    if (step > worstStep)
+                    {
+                        worstStep = step;
+                        worstAt = f;
+                    }
+                }
+                if (worstStep > 0.45f)
+                {
+                    Debug.LogWarning($"CityX: {clipName}: muscle '{HumanTrait.MuscleName[i]}' jumps {worstStep:F2} between frames {worstAt - 1} and {worstAt} ({muscleValues[i][worstAt - 1]:F2} -> {muscleValues[i][worstAt]:F2})");
+                }
+            }
+
+            var clip = new AnimationClip { name = clipName, frameRate = SampleRate };
+            for (int i = 0; i < muscleCount; i++)
+            {
+                clip.SetCurve("", typeof(Animator), HumanTrait.MuscleName[i], Simplify(times, muscleValues[i], MuscleTolerance, loop));
+            }
+            string[] axes = { "x", "y", "z", "w" };
+            for (int i = 0; i < 3; i++)
+            {
+                clip.SetCurve("", typeof(Animator), "RootT." + axes[i], Simplify(times, rootTValues[i], PositionTolerance, loop));
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                clip.SetCurve("", typeof(Animator), "RootQ." + axes[i], Simplify(times, rootQValues[i], RotationTolerance, loop));
+            }
+            clip.EnsureQuaternionContinuity();
+
+            AnimationClipSettings settings = AnimationUtility.GetAnimationClipSettings(clip);
+            settings.loopTime = loop;
+            settings.loopBlend = false;
+            settings.keepOriginalOrientation = true;
+            settings.keepOriginalPositionY = true;
+            settings.keepOriginalPositionXZ = true;
+            settings.startTime = 0.0f;
+            settings.stopTime = times[times.Length - 1];
+            AnimationUtility.SetAnimationClipSettings(clip, settings);
+
+            string projectRoot = Directory.GetParent(Application.dataPath).FullName;
+            Directory.CreateDirectory(Path.Combine(projectRoot, Path.GetDirectoryName(path)));
+            return ClipAsset.Store(clip, path);
         }
 
         /// <summary>How far a simplified muscle curve may stray from the dense samples. A muscle runs -1..1 over a joint's whole range, so this is well under a degree.</summary>

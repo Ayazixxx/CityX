@@ -140,6 +140,75 @@ namespace CityX.Character
                 _stairGround = StairGround;
             }
             _stairSteps.Step(deltaTime, wanted, body, _stairGround);
+            ShowStairClip(speed, deltaTime);
+        }
+
+        /// <summary>The Animator layers playing the recorded stair clips over the base (PlayerRigBuilder.AddStairLayers), and their state: the hips, spine and head, and the arms.</summary>
+        public const string StairBodyLayerName = "StairBody";
+
+        public const string StairArmsLayerName = "StairArms";
+
+        public const string StairStateName = "Stairs";
+
+        public const string StairPhaseName = "StairPhase";
+
+        public const string StairFacingName = "StairFacing";
+
+        public const string StairRunName = "StairRun";
+
+        private static readonly int StairPhaseParameter = Animator.StringToHash(StairPhaseName);
+        private static readonly int StairFacingParameter = Animator.StringToHash(StairFacingName);
+        private static readonly int StairRunParameter = Animator.StringToHash(StairRunName);
+
+        /// <summary>The clips come in and go over this long, seconds, and the body's pace changes over this long.</summary>
+        private const float StairClipFadeSeconds = 0.2f;
+
+        private const float StairPaceSeconds = 0.25f;
+
+        private int _stairBodyLayer = -2;
+        private int _stairArmsLayer = -2;
+        private float _stairClip;
+        private float _stairPace = 1.0f;
+
+        /// <summary>How much of the upper body is the stair clip's just now, 0 to 1, for tests and captures.</summary>
+        public float StairClipShare => _stairClip;
+
+        /// <summary>
+        /// THE RECORDED BODY ON A STAIR (owner, 2026-11-04: "should we just use mixamo stairs animations"): walking along one the hips, spine, head and free arms are the clip's, in time
+        /// with the feet. Read from the stepper in LateUpdate, like the feet, so a copy of another player's body plays it too with nothing sent.
+        /// </summary>
+        private void ShowStairClip(float speed, float deltaTime)
+        {
+            if (_stairBodyLayer == -2 && _animator.runtimeAnimatorController != null)
+            {
+                _stairBodyLayer = _animator.GetLayerIndex(StairBodyLayerName);
+                _stairArmsLayer = _animator.GetLayerIndex(StairArmsLayerName);
+            }
+            if (_stairBodyLayer < 0)
+            {
+                return;
+            }
+            float wanted = speed >= StairSteps.StandingSpeed ? _stairSteps.Weight : 0.0f;
+            _stairClip = Mathf.MoveTowards(_stairClip, wanted, deltaTime / StairClipFadeSeconds);
+            _animator.SetLayerWeight(_stairBodyLayer, _stairClip);
+            // The arms only when nothing is using them: a weapon's carry is the base layer's.
+            bool handsFree = !_animator.GetBool(SwordEquippedParameter) && !_animator.GetBool(Sword1HEquippedParameter) && !_animator.GetBool(GunEquippedParameter)
+                && !_animator.GetBool(AimingParameter) && !_animator.GetBool(ShieldRaisedParameter);
+            _animator.SetLayerWeight(_stairArmsLayer, handsFree ? _stairClip : 0.0f);
+            if (_stairClip > 0.0f)
+            {
+                _animator.SetFloat(StairPhaseParameter, _stairSteps.Phase);
+                _animator.SetFloat(StairFacingParameter, _stairSteps.FacesUphill ? 1.0f : -1.0f);
+                _animator.SetFloat(StairRunParameter, StairGait.RunShare(speed));
+            }
+        }
+
+        /// <summary>A body takes a stair at a stair's pace (the owner's reference clip: about three steps a second). Every body alike, so no enemy outruns a player up one.</summary>
+        private float StairPaceShare(bool sprinting, float deltaTime)
+        {
+            bool onStair = _glide.IsStairs && (_controller.isGrounded || _steppingUp) && !IsCrouching;
+            _stairPace = Mathf.MoveTowards(_stairPace, onStair ? StairGait.SpeedShare(sprinting) : 1.0f, deltaTime / StairPaceSeconds);
+            return _stairPace;
         }
 
         /// <summary>The share of the slope's effects in force, from none at a gentle ramp to all on a stair.</summary>
@@ -152,7 +221,8 @@ namespace CityX.Character
         private void ApplyStairTorso(float speed, float deltaTime)
         {
             float degrees = Mathf.Atan(_glide.Slope) * Mathf.Rad2Deg;
-            float wanted = degrees * (degrees > 0.0f ? TorsoUphillShare : TorsoDownhillShare) * SlopeShare * Mathf.Clamp01(speed);
+            // (The clip has its own lean while it plays.)
+            float wanted = degrees * (degrees > 0.0f ? TorsoUphillShare : TorsoDownhillShare) * SlopeShare * Mathf.Clamp01(speed) * (1.0f - _stairClip);
             _stairTorsoDegrees = Mathf.Lerp(_stairTorsoDegrees, wanted, 1.0f - Mathf.Exp(-deltaTime / TorsoBendSeconds));
             if (_spine != null && Mathf.Abs(_stairTorsoDegrees) > 0.01f)
             {

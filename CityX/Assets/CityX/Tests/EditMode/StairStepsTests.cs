@@ -13,6 +13,9 @@ namespace CityX.Tests
         private const float LegLength = 0.77f;
         private const float HipHeight = 0.9f;
 
+        /// <summary>The first steps find their rhythm and pull the clip's phase into time: it starts anywhere, and the feet start side by side.</summary>
+        private const int SettlingSteps = 6;
+
         private static float StairAt(float z) => z <= 0.0f ? 0.0f : Riser * (Mathf.Floor(z / Tread) + 1.0f);
 
         private static bool Ground(Vector3 at, out float height)
@@ -50,11 +53,11 @@ namespace CityX.Tests
         }
 
         /// <summary>Walks the flight, calling back each frame after the stepper has stepped.</summary>
-        private static StairSteps Walk(bool up, float speed, System.Action<StairSteps> eachFrame = null)
+        private static StairSteps Walk(bool up, float speed, System.Action<StairSteps> eachFrame = null, int frames = 180)
         {
             var steps = new StairSteps();
             float z = up ? 1.0f : 40.0f;
-            for (int frame = 0; frame < 90; frame++)
+            for (int frame = 0; frame < frames; frame++)
             {
                 z += (up ? speed : -speed) * Dt;
                 steps.Step(Dt, 1.0f, BodyAt(z, up, speed), Ground);
@@ -66,10 +69,12 @@ namespace CityX.Tests
             return steps;
         }
 
+        [TestCase(true, StairGait.WalkPace)]
+        [TestCase(false, StairGait.WalkPace)]
+        [TestCase(true, StairGait.RunPace)]
+        [TestCase(false, StairGait.RunPace)]
         [TestCase(true, 4.0f)]
         [TestCase(false, 4.0f)]
-        [TestCase(true, 7.5f)]
-        [TestCase(false, 7.5f)]
         public void APlantedFootNeverMoves(bool up, float speed)
         {
             var was = new Vector3?[2];
@@ -92,10 +97,12 @@ namespace CityX.Tests
             });
         }
 
+        [TestCase(true, StairGait.WalkPace)]
+        [TestCase(false, StairGait.WalkPace)]
+        [TestCase(true, StairGait.RunPace)]
+        [TestCase(false, StairGait.RunPace)]
         [TestCase(true, 4.0f)]
         [TestCase(false, 4.0f)]
-        [TestCase(true, 7.5f)]
-        [TestCase(false, 7.5f)]
         public void EveryStepLandsOnATreadWithTheFootsUphillEndClearOfTheRiser(bool up, float speed)
         {
             var wasStepping = new bool[2];
@@ -115,7 +122,68 @@ namespace CityX.Tests
                     wasStepping[i] = foot.Stepping;
                 }
             });
-            Assert.GreaterOrEqual(landings, 6, "it hardly stepped");
+            Assert.GreaterOrEqual(landings, speed <= StairGait.WalkPace ? 3 : 6, "it hardly stepped");
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void AtAStairsPaceEachStepTakesTheNextTread(bool up)
+        {
+            var wasStepping = new bool[2];
+            float last = float.NaN;
+            int checkedSteps = 0;
+            Walk(up, StairGait.WalkPace, steps =>
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    StairSteps.Foot foot = steps.Of(i);
+                    if (wasStepping[i] && !foot.Stepping)
+                    {
+                        if (!float.IsNaN(last))
+                        {
+                            checkedSteps++;
+                            Assert.AreEqual(Riser, Mathf.Abs(foot.Ball.y - last), 0.001f, "a step missed a tread or stayed on the same one");
+                        }
+                        last = foot.Ball.y;
+                    }
+                    wasStepping[i] = foot.Stepping;
+                }
+            }, frames: 240);
+            Assert.GreaterOrEqual(checkedSteps, 6);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TheClipsPhaseKeepsTimeWithTheFeet(bool up)
+        {
+            var wasStepping = new bool[2];
+            int checkedSteps = 0, seen = 0;
+            float? before = null;
+            Walk(up, StairGait.WalkPace, steps =>
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    bool stepping = steps.Of(i).Stepping;
+                    if (stepping && !wasStepping[i] && before.HasValue && ++seen > SettlingSteps)
+                    {
+                        // Where the cycle stood as this foot left: 0 for the left, a half for the right.
+                        float off = Mathf.Abs(Mathf.DeltaAngle(before.Value * 360.0f, (i == 0 ? 0.0f : 180.0f)));
+                        checkedSteps++;
+                        Assert.Less(off, 36.0f, $"the body was a tenth of a cycle out of time with foot {i}");
+                    }
+                    wasStepping[i] = stepping;
+                }
+                before = steps.Phase;
+            }, frames: 600);
+            Assert.GreaterOrEqual(checkedSteps, 6);
+        }
+
+        [TestCase(true, true)]
+        [TestCase(false, false)]
+        public void WhichWayTheBodyFacesIsRead(bool up, bool facesUphill)
+        {
+            StairSteps steps = Walk(up, StairGait.WalkPace);
+            Assert.AreEqual(facesUphill, steps.FacesUphill);
         }
 
         [TestCase(true)]
@@ -124,7 +192,7 @@ namespace CityX.Tests
         {
             var wasStepping = new bool[2];
             int last = -1, turns = 0;
-            Walk(up, 4.0f, steps =>
+            Walk(up, StairGait.RunPace, steps =>
             {
                 for (int i = 0; i < 2; i++)
                 {
@@ -142,20 +210,28 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void AFootLeftBehindRollsOntoItsBall()
+        public void AFootLeavingComesUpOnItsBallAndLandsFlat()
         {
-            float most = 0.0f;
-            Walk(true, 4.0f, steps =>
+            float most = 0.0f, flattest = float.MaxValue;
+            var wasStepping = new bool[2];
+            Walk(true, StairGait.WalkPace, steps =>
             {
                 for (int i = 0; i < 2; i++)
                 {
-                    if (!steps.Of(i).Stepping)
+                    StairSteps.Foot foot = steps.Of(i);
+                    if (foot.Stepping)
                     {
-                        most = Mathf.Max(most, steps.Of(i).Pitch);
+                        most = Mathf.Max(most, foot.Pitch);
                     }
+                    else if (wasStepping[i])
+                    {
+                        flattest = Mathf.Min(flattest, Mathf.Abs(foot.Pitch));
+                    }
+                    wasStepping[i] = foot.Stepping;
                 }
             });
-            Assert.Greater(most, 5.0f, "the heel never came up");
+            Assert.Greater(most, 30.0f, "the heel never came up");
+            Assert.Less(flattest, 5.0f, "going up a foot should land flat");
         }
 
         [Test]
@@ -202,7 +278,7 @@ namespace CityX.Tests
         [Test]
         public void TheHipsNeverDropFurtherThanTheLimit()
         {
-            Walk(false, 7.5f, steps => Assert.LessOrEqual(steps.Drop, StairSteps.MostDrop + 1e-4f));
+            Walk(false, StairGait.RunPace, steps => Assert.LessOrEqual(steps.Drop, StairSteps.MostDrop + 1e-4f));
         }
     }
 }

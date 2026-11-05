@@ -97,7 +97,9 @@ namespace CityX.Tests
                 int stepsAtStart = -1;
                 Transform[] shins = { animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg), animator.GetBoneTransform(HumanBodyBones.RightLowerLeg) };
                 Transform[] thighs = { animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg), animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) };
-                float firstZ = FirstStepZ + 1.0f, lastZ = TopZ - 1.0f;
+                // Past where the body has slowed to the stair's pace.
+                float firstZ = FirstStepZ + 2.5f, lastZ = TopZ - 2.5f;
+                int farFromPlant = 0;
                 var input = new LocomotionInput { Move = Vector2.up, YawDegrees = yaw, Sprint = sprint };
                 for (int frame = 0; frame < 900; frame++)
                 {
@@ -131,7 +133,9 @@ namespace CityX.Tests
                             // A planted foot the leg cannot reach has left its tread. (One in the air at the end of the leg is a trailing foot.)
                             if (!locomotion.StairSteps.Of(f).Stepping)
                             {
-                                worstMiss = Mathf.Max(worstMiss, Vector3.Distance(feet[f].position, locomotion.StairSteps.Of(f).Ankle));
+                                float miss = Vector3.Distance(feet[f].position, locomotion.StairSteps.Of(f).Ankle);
+                                worstMiss = Mathf.Max(worstMiss, miss);
+                                if (miss > 0.05f) farFromPlant++;
                             }
                             // The leg as the eye sees it: the knee's angle, whether it bends forward, whether the shin stays in the leg's plane.
                             Vector3 thighBone = thighs[f].position - shins[f].position, shinBone = feet[f].position - shins[f].position;
@@ -151,7 +155,7 @@ namespace CityX.Tests
                     line.Append($",{(locomotion.IsGrounded ? 1 : 0)},{locomotion.FootPlanting.TotalDrop:0.000},{locomotion.GroundSlope:0.00},{locomotion.GlideOffset:0.000}");
                     csv.AppendLine(line.ToString());
 
-                    if (column < Columns && frames > 20 && frames % (sprint ? 2 : 3) == 0)
+                    if (column < Columns && frames > 20 && frames % (sprint ? 3 : 6) == 0)
                     {
                         Texture2D cell = Render(camera, p + new Vector3(8.0f, 1.0f, 0.0f), p + Vector3.up * 1.0f);
                         sheet.SetPixels(column * Cell, (rows.Length - 1 - row) * Cell, Cell, Cell, cell.GetPixels());
@@ -172,7 +176,7 @@ namespace CityX.Tests
                 Debug.Log($"CityX stairs {name}: {frames} frames; jolt off a steady climb, cm in a frame: capsule {Jolt(capsuleY):0.0}, hips {Jolt(hipsY):0.0}, head {Jolt(headY):0.0}; " +
                     $"head wobble {Wobble(headY):0.0} cm rms; foot's biggest jump {Mathf.Max(BiggestJump(footY[0]), BiggestJump(footY[1])):0.0} cm; " +
                     $"foot frames in the stairs {inStairs}, buried {buried}, floating {floating}; not grounded {ungrounded}; stepper {stepperFrames / 2}/{frames} frames, {locomotion.StairSteps.StepsTaken - stepsAtStart} steps; " +
-                    $"worst IK miss {worstMiss * 100.0f:0.0} cm; knee tightest {tightestKnee:0} deg, under 70: {shutKnees}, bent backward: {backKnees}, foot sideways of hip {planeOff * 100.0f:0} cm");
+                    $"worst IK miss {worstMiss * 100.0f:0.0} cm, over 5 cm on {farFromPlant} foot frames; knee tightest {tightestKnee:0} deg, under 70: {shutKnees}, bent backward: {backKnees}, foot sideways of hip {planeOff * 100.0f:0} cm");
                 Object.Destroy(player);
                 yield return null;
             }

@@ -133,3 +133,21 @@ MonoBehaviour:
   - Tree: Crouched
     Move: {x: 0.94280905, y: -0.94280905}
     Stride: 1
+  - Tree: Stairs
+    Move: {x: 1, y: 1}
+    Stride: 1.12
+  - Tree: Stairs
+    Move: {x: -1, y: 0}
+    Stride: 1.12
+  - Tree: Stairs
+    Move: {x: -1, y: 1}
+    Stride: 1.12
+  - Tree: Stairs
+    Move: {x: 1, y: 1}
+    Stride: 1.12
+  - Tree: Stairs
+    Move: {x: -1, y: 0}
+    Stride: 1.12
+  - Tree: Stairs
+    Move: {x: -1, y: 1}
+    Stride: 1.12
