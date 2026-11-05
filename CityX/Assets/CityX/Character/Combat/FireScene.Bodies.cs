@@ -98,7 +98,7 @@ namespace CityX.Character
                     _out.Add(entry.Key);   // in the water: out
                     continue;
                 }
-                float rain = CurrentWeather.RainOn(feet + Vector3.up * 1.5f);
+                float rain = CurrentWeather.QuenchingOn(feet + Vector3.up * 1.5f);
                 burning.SecondsLeft -= deltaTime * (1.0f + rain * (FireRules.AfterburnSeconds / FireRules.RainDouseSeconds));
                 if (burning.SecondsLeft <= 0.0f)
                 {

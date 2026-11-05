@@ -34,6 +34,18 @@ The Terraria rules, using its real numbers scaled to our body size. It flies str
 
 **First go:** the model is a stand-in drawn in code, and the throwing arm is code-posed rather than a Blender clip. Tell me if it looks stiff.
 
+## Snow
+
+A new weather option. Flakes fall and drift on the wind, and none fall under roofs. Snow builds up in patches on whatever faces up, then melts when it stops. Deep snow slows every body by 15% and costs grip. Bodies leave footprints that fill back in after 45 seconds, with a crunch, and their breath shows. In a blizzard the sky greys and the fog closes in. Fire burns weaker in it.
+
+**Try:** `/weather deepsnow` for a blizzard over streets already buried, `/weather snow light` for a dusting, `/weather clear` to let it melt, `/weather dry` to end it at once.
+
+**Also changed:** `/weather` used to change only the machine it was typed on, and a friend had no rain at all. Now rain and snow are the same for every player. Nobody has tried that on two real PCs yet.
+
+**My guesses:** every number. Snow doesn't lie on the characters themselves; say if you want it to.
+
+**Known rough spot:** lane paint under deep snow shows as thin dashed lines, from the cel look's outlines.
+
 ## Stairs and playing with a friend
 
 Both were done earlier today and are already in `git log`. Nobody has tried joining a friend on two real PCs yet.

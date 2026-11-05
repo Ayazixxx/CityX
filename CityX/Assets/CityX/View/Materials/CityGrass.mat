@@ -24,7 +24,8 @@ Material:
   m_Shader: {fileID: 4800000, guid: 47084188093443e29494339571f53ef4, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - _CITYX_SNOW
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0

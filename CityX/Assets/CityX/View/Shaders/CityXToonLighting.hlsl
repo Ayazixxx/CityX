@@ -19,6 +19,7 @@
 // which lights everything flat and fully: the toon light never goes dark for want of a setting.
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+#include "CityXSnow.hlsl"
 
 // The sun or the moon. x: the light (N.L times its shadow, 0..1) at which a surface turns from its shade side to its lit side; y: half the
 // width of that edge; z: how much of the light the shade side gets; w: how much the lit side gets.
@@ -194,6 +195,9 @@ half4 CityXToonFragmentPBR(InputData inputData, SurfaceData surfaceData)
 // CityX/Lit's lighting: what its forward pass (URP's own LitForwardPass.hlsl) calls in place of UniversalFragmentPBR.
 half4 CityXLitFragment(InputData inputData, SurfaceData surfaceData)
 {
+#if defined(_CITYX_SNOW)
+    CityXApplySnow(surfaceData, inputData.positionWS, inputData.normalWS);
+#endif
 #if defined(CITYX_TOON)
     return CityXToonFragmentPBR(inputData, surfaceData);
 #else

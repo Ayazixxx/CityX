@@ -109,12 +109,30 @@ namespace CityX.Character
         /// </summary>
         private float WetTraction()
         {
-            if (_controller == null || !_controller.isGrounded ||
-                (!CurrentWeather.IsRaining && CurrentWeather.Wetness <= 0.0f))
+            if (_controller == null || !_controller.isGrounded)
             {
                 return 1.0f;
             }
-            return Weather.GroundTraction(CurrentWeather.SurfaceWetness(transform.position));
+            float traction = 1.0f;
+            if (CurrentWeather.IsRaining || CurrentWeather.Wetness > 0.0f)
+            {
+                traction = Weather.GroundTraction(CurrentWeather.SurfaceWetness(transform.position));
+            }
+            if (CurrentWeather.SnowCover > 0.0f)
+            {
+                traction *= SnowRules.Traction(CurrentWeather.SnowUnderfoot(transform.position));
+            }
+            return traction;
+        }
+
+        /// <summary>The share of its speed a body keeps through the snow under it (docs/SNOW.md): only on the ground.</summary>
+        private float SnowPace()
+        {
+            if (CurrentWeather.SnowCover <= 0.0f || _controller == null || !_controller.isGrounded)
+            {
+                return 1.0f;
+            }
+            return SnowRules.Pace(CurrentWeather.SnowUnderfoot(transform.position));
         }
 
         [Header("Scale")]
@@ -1313,6 +1331,7 @@ namespace CityX.Character
                 speed = WaterSpeed(speed);
                 speed *= CrouchSpeedFactor(_controller.isGrounded || _steppingUp);
                 speed *= StairPaceShare(sprinting, deltaTime);
+                speed *= SnowPace();
                 if (input.ShieldRaised && Shield != null)
                 {
                     speed *= ShieldMoveSpeedShare;

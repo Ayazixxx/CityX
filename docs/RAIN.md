@@ -107,6 +107,10 @@ second" silently becomes no time at all, and a photograph shows a soaked street
 with no ripples. `RainRealCityPlayTests` therefore uses no end-of-frame waits;
 `Camera.Render()` does not need one.
 
+## The same for every player (2026-11-05)
+
+`/weather` now goes through the server, so a change of rain or snow reaches every machine, and a joining player is told how it is. See docs/SNOW.md.
+
 ## Not built
 
 - Rain masking footsteps / stealth noise (no stealth system to hook into yet).

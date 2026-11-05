@@ -131,7 +131,7 @@ namespace CityX.Weapons
         /// <summary>One frame of the stream: everyone in its cone is in the fire, and burns a tick when their next is due.</summary>
         private void Burn(Vector3 from, Vector3 direction, float deltaTime)
         {
-            float flame = Weather.FlameStrength(CurrentWeather.RainOn(from));
+            float flame = Weather.FlameStrength(CurrentWeather.QuenchingOn(from));
             float reach = FlameStreamRules.ReachFor(flame);
             _flame?.Aim(from, direction, deltaTime);
             FireScene.IgniteAlongStream(from, direction, reach, transform, gameObject, ref _igniteDue, deltaTime);   // the ground catches (docs/FIRE.md)

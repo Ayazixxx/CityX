@@ -303,7 +303,7 @@ namespace CityX.Weapons
             // in the rain loses half its bite and a quarter of its reach in a
             // downpour; the same flamethrower under a roof or a highway deck
             // is unaffected (CurrentWeather.RainOn is zero under cover).
-            float flame = Weather.FlameStrength(CurrentWeather.RainOn(origin));
+            float flame = Weather.FlameStrength(CurrentWeather.QuenchingOn(origin));
             float reach = Range * (0.5f + 0.5f * flame);
             FireScene.IgniteAlongStream(origin, direction, reach, wielder != null ? wielder.transform : null, wielder, ref _igniteDue, deltaTime);
 

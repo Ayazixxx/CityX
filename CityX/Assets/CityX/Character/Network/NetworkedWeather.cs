@@ -1,0 +1,155 @@
+using CityX.World;
+using FishNet;
+using FishNet.Broadcast;
+using FishNet.Connection;
+using FishNet.Managing;
+using FishNet.Transporting;
+using UnityEngine;
+
+namespace CityX.Character
+{
+    /// <summary>A change of weather, sent to the server and from it to everyone; and the weather as it is, sent to a player who has just joined.</summary>
+    public struct WeatherMessage : IBroadcast
+    {
+        public float Rain;
+        public float Snow;
+
+        /// <summary>How much snow lies, if the message says; below 0 it does not.</summary>
+        public float Cover;
+
+        public bool Dry;
+    }
+
+    public struct WeatherStateRequest : IBroadcast
+    {
+    }
+
+    /// <summary>
+    /// THE WEATHER IS THE SAME FOR EVERYONE (docs/SNOW.md, docs/MULTIPLAYER_STATE.md): an order goes to the server, which keeps it and tells everyone, the giver too, so all
+    /// machines change together; a player who joins asks how it is. Before this, /weather changed only the machine it was typed on. Outside a session the order goes straight
+    /// to the weather (<see cref="CurrentWeather.Order"/>). What falls and lies is all that is sent: each flake and each print is every machine's own.
+    /// </summary>
+    public sealed class NetworkedWeather : MonoBehaviour, IWeatherRelay
+    {
+        /// <summary>The most orders from one player that are heeded, per second.</summary>
+        public const int MaxOrdersPerSecond = 4;
+
+        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
+        public NetworkManager Manager;
+
+        /// <summary>This machine's weather. Null: the game's (<see cref="CurrentWeather.Control"/>); a test gives each of its machines its own.</summary>
+        public IWeatherControl Target;
+
+        private readonly SenderRate _rate = new SenderRate(MaxOrdersPerSecond);
+        private NetworkManager _manager;
+        private WeatherMessage _kept;
+        private bool _serverHandlers;
+        private bool _clientHandlers;
+        private bool _asked;
+
+        private IWeatherControl Control => Target ?? CurrentWeather.Control;
+
+        private void Update()
+        {
+            if (_manager == null)
+            {
+                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
+                if (_manager == null)
+                {
+                    return;
+                }
+            }
+
+            bool server = _manager.IsServerStarted;
+            if (server != _serverHandlers)
+            {
+                if (server)
+                {
+                    _manager.ServerManager.RegisterBroadcast<WeatherMessage>(OnOrderAtServer);
+                    _manager.ServerManager.RegisterBroadcast<WeatherStateRequest>(OnStateRequestAtServer);
+                    WeatherOrder now = Control != null ? Control.Now : default;
+                    _kept = new WeatherMessage { Rain = now.Rain, Snow = now.Snow, Cover = -1.0f };
+                }
+                else
+                {
+                    _manager.ServerManager.UnregisterBroadcast<WeatherMessage>(OnOrderAtServer);
+                    _manager.ServerManager.UnregisterBroadcast<WeatherStateRequest>(OnStateRequestAtServer);
+                }
+                _serverHandlers = server;
+            }
+
+            bool client = _manager.IsClientStarted;
+            if (client != _clientHandlers)
+            {
+                if (client)
+                {
+                    _manager.ClientManager.RegisterBroadcast<WeatherMessage>(OnWeatherAtClient);
+                    if (Target == null)
+                    {
+                        CurrentWeather.Relay = this;
+                    }
+                    _asked = false;
+                }
+                else
+                {
+                    _manager.ClientManager.UnregisterBroadcast<WeatherMessage>(OnWeatherAtClient);
+                    LetGoOfRelay();
+                }
+                _clientHandlers = client;
+            }
+
+            if (_clientHandlers && !_asked && _manager.ClientManager.Connection != null && _manager.ClientManager.Connection.IsAuthenticated)
+            {
+                _asked = true;
+                _manager.ClientManager.Broadcast(new WeatherStateRequest());
+            }
+        }
+
+        private void OnDisable()
+        {
+            LetGoOfRelay();
+        }
+
+        private void LetGoOfRelay()
+        {
+            if (ReferenceEquals(CurrentWeather.Relay, this))
+            {
+                CurrentWeather.Relay = null;
+            }
+        }
+
+        public void Send(in WeatherOrder order)
+        {
+            if (_manager != null && _manager.IsClientStarted)
+            {
+                _manager.ClientManager.Broadcast(new WeatherMessage { Rain = order.Rain, Snow = order.Snow, Cover = order.Cover, Dry = order.Dry });
+            }
+        }
+
+        private void OnOrderAtServer(NetworkConnection sender, WeatherMessage message, Channel channel)
+        {
+            if (!_rate.Allow(sender.ClientId, Time.unscaledTime) || !InRange(message.Rain) || !InRange(message.Snow) || float.IsNaN(message.Cover) || message.Cover > 1.0f)
+            {
+                return;
+            }
+            _kept = message;
+            _manager.ServerManager.Broadcast(message);
+        }
+
+        private void OnStateRequestAtServer(NetworkConnection sender, WeatherStateRequest request, Channel channel)
+        {
+            // How much lies now, as the server's own weather has it, which an order given a while ago does not say.
+            WeatherMessage state = _kept;
+            state.Dry = false;
+            state.Cover = Control != null ? Control.Now.Cover : -1.0f;
+            _manager.ServerManager.Broadcast(sender, state);
+        }
+
+        private void OnWeatherAtClient(WeatherMessage message, Channel channel)
+        {
+            Control?.Apply(new WeatherOrder { Rain = message.Rain, Snow = message.Snow, Cover = message.Cover, Dry = message.Dry });
+        }
+
+        private static bool InRange(float value) => !float.IsNaN(value) && value >= 0.0f && value <= 1.0f;
+    }
+}

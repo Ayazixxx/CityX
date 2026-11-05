@@ -181,6 +181,8 @@ Shader "CityX/Lit"
 
             // Cel shading (CelShading.cs).
             #pragma multi_compile_fragment _ CITYX_TOON
+            // The city's own things take snow (CityXSnow.hlsl); the same shader on a body does not.
+            #pragma shader_feature_local_fragment _CITYX_SNOW
 
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "CityXToonLighting.hlsl"

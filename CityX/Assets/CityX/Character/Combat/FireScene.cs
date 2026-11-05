@@ -83,7 +83,7 @@ namespace CityX.Character
         private void Awake()
         {
             Instance = this;
-            _field = new FireField(new System.Random(), FloorUnder, point => CurrentWeather.RainOn(point), point => CurrentWater.DepthAt(point) > 0.05f);
+            _field = new FireField(new System.Random(), FloorUnder, point => CurrentWeather.QuenchingOn(point), point => CurrentWater.DepthAt(point) > 0.05f);
             _look = new FireLook(transform);
             FireMarks.Watch(_field);
         }

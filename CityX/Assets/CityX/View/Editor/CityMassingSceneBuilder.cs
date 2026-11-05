@@ -733,6 +733,19 @@ namespace CityX.ViewEditor
                 // back from RenderSettings at runtime.
                 rainEffect.ClearFogStart = RenderSettings.fogStartDistance;
                 rainEffect.ClearFogEnd = RenderSettings.fogEndDistance;
+
+                // Snow (2026-11-05, docs/SNOW.md), on the scene's root rather than the player as rain is, since the baked player is switched off on a friend's machine.
+                var snowObject = new GameObject("Snow");
+                SnowEffect snow = snowObject.AddComponent<SnowEffect>();
+                snow.FlakeMaterial = EnsureSnowfallMaterial();
+                snow.Rain = rainEffect;
+                snow.Cycle = cycle;
+                snow.Sun = sun;
+                snow.ClearFogStart = RenderSettings.fogStartDistance;
+                snow.ClearFogEnd = RenderSettings.fogEndDistance;
+                SnowTracks tracks = snowObject.AddComponent<SnowTracks>();
+                tracks.PrintMaterial = EnsureSnowPrintMaterial();
+                tracks.BreathMaterial = EnsureSplashMaterial();
             }
 
             // --- the dev console. Backtick opens it. Wired here rather than
@@ -892,6 +905,8 @@ namespace CityX.ViewEditor
             streamerObject.AddComponent<CityX.Character.TutorialHouseNetwork>();
             // Dropped items (2026-10-17): the weapon a player let go of when they died lies on every machine, and only one player gets it.
             streamerObject.AddComponent<CityX.Character.DroppedItemsNetwork>();
+            // The weather (2026-11-05): the same for every player, a joining one told how it is (docs/SNOW.md).
+            streamerObject.AddComponent<CityX.Character.NetworkedWeather>();
             // Enemies (2026-10-27): /spawn in a session asks the server, and every player sees and fights what it spawns.
             streamerObject.AddComponent<CityX.Character.EnemyNetwork>().Kinds = networkedEnemies;
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
@@ -1455,6 +1470,44 @@ namespace CityX.ViewEditor
         /// facing, so a curtain of rain would flicker as the camera turned. It
         /// is a pale streak; it should be that pale streak from everywhere.
         /// </summary>
+        private static Material EnsureSnowfallMaterial()
+        {
+            string path = $"{MaterialDirectory}/Snowfall.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("CityX/Snowfall"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+            return material;
+        }
+
+        /// <summary>A print in the snow: multiplied onto what is under it, so it reads dark by day and by night (View/Weather/SnowTracks.cs gives it its shape).</summary>
+        private static Material EnsureSnowPrintMaterial()
+        {
+            string path = $"{MaterialDirectory}/SnowPrint.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.SetFloat("_Surface", 1.0f);
+            material.SetFloat("_Blend", 3.0f);                // multiply
+            material.SetFloat("_ZWrite", 0.0f);
+            material.SetFloat("_Cull", 0.0f);
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.EnableKeyword("_ALPHAMODULATE_ON");
+            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.DstColor);
+            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
+            material.SetInt("_SrcBlendAlpha", (int)UnityEngine.Rendering.BlendMode.Zero);
+            material.SetInt("_DstBlendAlpha", (int)UnityEngine.Rendering.BlendMode.One);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         private static Material EnsureRainMaterial()
         {
             string path = $"{MaterialDirectory}/Raindrop.mat";
@@ -1814,6 +1867,7 @@ namespace CityX.ViewEditor
             material.SetColor("_BaseColor", colour);
             material.SetFloat("_Smoothness", 0.25f);
             material.SetFloat("_Metallic", 0.0f);
+            material.EnableKeyword(SnowKeyword);
             EditorUtility.SetDirty(material);
             return material;
         }
@@ -2210,6 +2264,9 @@ namespace CityX.ViewEditor
             return material;
         }
 
+        /// <summary>On the city's own CityX/Lit materials: they take snow (CityXSnow.hlsl). The same shader on a body does not.</summary>
+        private const string SnowKeyword = "_CITYX_SNOW";
+
         private static Material EnsureMaterial(string name, string textureName,
             float metresPerTile, float smoothness)
         {
@@ -2247,6 +2304,7 @@ namespace CityX.ViewEditor
             material.SetTextureScale("_BaseMap", new Vector2(tiling, tiling));
             material.SetFloat("_Smoothness", smoothness);
             material.SetFloat("_Metallic", 0.0f);
+            material.EnableKeyword(SnowKeyword);
 
             if (normal != null)
             {

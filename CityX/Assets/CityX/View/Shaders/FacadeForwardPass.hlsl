@@ -479,6 +479,10 @@ void FacadePassFragment(
     half3 normalTS;
     bool indoors;
     InitializeFacadeSurface(input, surfaceData, normalTS, indoors);
+    if (!indoors)
+    {
+        CityXApplySnow(surfaceData, input.positionWS, normalize(input.normalWS));
+    }
 
 #ifdef LOD_FADE_CROSSFADE
     LODFadeCrossFade(input.positionCS);

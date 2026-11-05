@@ -62,19 +62,38 @@ namespace CityX.View
         /// <summary>The first solid surface below (x, fromY) at (x, z), or NaN if there is none to find.</summary>
         public delegate float SurfaceCaster(float x, float z, float fromY);
 
-        private readonly float[] _height = new float[Cells * Cells];
-        private readonly int[] _keyX = new int[Cells * Cells];
-        private readonly int[] _keyZ = new int[Cells * Cells];
-        private readonly float[] _age = new float[Cells * Cells];
-        private readonly bool[] _valid = new bool[Cells * Cells];
+        private readonly float _cellSize;
+        private readonly int _cells;
+        private readonly float _maxAge;
+        private readonly int _agingBudget;
+        private readonly float[] _height;
+        private readonly int[] _keyX;
+        private readonly int[] _keyZ;
+        private readonly float[] _age;
+        private readonly bool[] _valid;
         private readonly SurfaceCaster _caster;
 
         /// <summary>Rays cast by the last refresh -- for tests and profiling.</summary>
         public int LastRefreshRays { get; private set; }
 
         public RainCover(SurfaceCaster caster)
+            : this(caster, CellSize, Cells, MaxAgeSeconds, AgingBudgetPerRefresh)
+        {
+        }
+
+        /// <summary>A map of another grain: snow's is finer, since a bare band along a wall shows on a white street (View/Weather/SnowEffect.cs).</summary>
+        public RainCover(SurfaceCaster caster, float cellSize, int cells, float maxAgeSeconds, int agingBudget)
         {
             _caster = caster;
+            _cellSize = cellSize;
+            _cells = cells;
+            _maxAge = maxAgeSeconds;
+            _agingBudget = agingBudget;
+            _height = new float[cells * cells];
+            _keyX = new int[cells * cells];
+            _keyZ = new int[cells * cells];
+            _age = new float[cells * cells];
+            _valid = new bool[cells * cells];
         }
 
         private static int Mod(int value, int modulus)
@@ -83,14 +102,14 @@ namespace CityX.View
             return r < 0 ? r + modulus : r;
         }
 
-        private static int Slot(int cellX, int cellZ)
+        private int Slot(int cellX, int cellZ)
         {
-            return Mod(cellZ, Cells) * Cells + Mod(cellX, Cells);
+            return Mod(cellZ, _cells) * _cells + Mod(cellX, _cells);
         }
 
-        private static int CellOf(float world)
+        private int CellOf(float world)
         {
-            return Mathf.FloorToInt(world / CellSize);
+            return Mathf.FloorToInt(world / _cellSize);
         }
 
         /// <summary>
@@ -103,13 +122,13 @@ namespace CityX.View
         {
             LastRefreshRays = 0;
             float skyY = Mathf.Max(SkyHeight, centre.y + 60.0f);
-            int firstX = CellOf(centre.x) - Cells / 2;
-            int firstZ = CellOf(centre.z) - Cells / 2;
+            int firstX = CellOf(centre.x) - _cells / 2;
+            int firstZ = CellOf(centre.z) - _cells / 2;
             int aged = 0;
 
-            for (int dz = 0; dz < Cells; dz++)
+            for (int dz = 0; dz < _cells; dz++)
             {
-                for (int dx = 0; dx < Cells; dx++)
+                for (int dx = 0; dx < _cells; dx++)
                 {
                     int cellX = firstX + dx;
                     int cellZ = firstZ + dz;
@@ -119,15 +138,15 @@ namespace CityX.View
                     if (!entering)
                     {
                         _age[slot] += deltaTime;
-                        if (_age[slot] < MaxAgeSeconds || aged >= AgingBudgetPerRefresh)
+                        if (_age[slot] < _maxAge || aged >= _agingBudget)
                         {
                             continue;
                         }
                         aged++;
                     }
 
-                    float x = (cellX + 0.5f) * CellSize;
-                    float z = (cellZ + 0.5f) * CellSize;
+                    float x = (cellX + 0.5f) * _cellSize;
+                    float z = (cellZ + 0.5f) * _cellSize;
                     _height[slot] = _caster(x, z, skyY);
                     _keyX[slot] = cellX;
                     _keyZ[slot] = cellZ;
@@ -151,6 +170,40 @@ namespace CityX.View
             return _height[slot];
         }
 
+        /// <summary>
+        /// Every cell's height into <paramref name="into"/>, <paramref name="nothing"/> where it knows of nothing, for a shader. A cell sits at its own coordinates modulo
+        /// the grid, so a repeating texture of these, at a uv of world metres over the grid's width, is the map in place however far the window has slid.
+        /// </summary>
+        public void CopyHeights(float[] into, float nothing)
+        {
+            for (int i = 0; i < into.Length && i < _height.Length; i++)
+            {
+                into[i] = _valid[i] && !float.IsNaN(_height[i]) ? _height[i] : nothing;
+            }
+        }
+
+        /// <summary>
+        /// Each cell at the lowest of itself and the eight round it, into <paramref name="into"/>. A ray straight down that lands on a roof says nothing of where its wall is within the
+        /// cell, so a street beside a wall reads as under cover, in steps along any wall that does not run with the grid. Worn back one cell, a roof covers nothing but what is
+        /// well under it, and the snow comes in a little under the edge of a wide deck, as it does.
+        /// </summary>
+        public static void WearEdges(float[] from, float[] into, int cells)
+        {
+            for (int z = 0; z < cells; z++)
+            {
+                int above = (z + cells - 1) % cells, below = (z + 1) % cells;
+                for (int x = 0; x < cells; x++)
+                {
+                    int left = (x + cells - 1) % cells, right = (x + 1) % cells;
+                    float low = Mathf.Min(from[z * cells + x], from[z * cells + left], from[z * cells + right]);
+                    low = Mathf.Min(low, from[above * cells + left], from[above * cells + x]);
+                    low = Mathf.Min(low, from[above * cells + right], from[below * cells + left]);
+                    low = Mathf.Min(low, from[below * cells + x], from[below * cells + right]);
+                    into[z * cells + x] = low;
+                }
+            }
+        }
+
         private bool TryCovered(int cellX, int cellZ, float pointY, out float covered)
         {
             int slot = Slot(cellX, cellZ);
@@ -172,8 +225,8 @@ namespace CityX.View
         /// </summary>
         public float Shelter(Vector3 worldPoint)
         {
-            float gx = worldPoint.x / CellSize - 0.5f;
-            float gz = worldPoint.z / CellSize - 0.5f;
+            float gx = worldPoint.x / _cellSize - 0.5f;
+            float gz = worldPoint.z / _cellSize - 0.5f;
             int x0 = Mathf.FloorToInt(gx);
             int z0 = Mathf.FloorToInt(gz);
             float fx = gx - x0;

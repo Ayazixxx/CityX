@@ -16,6 +16,21 @@ namespace CityX.UI
 {
     public sealed partial class DevConsoleView
     {
+        /// <summary>The weather's way in, which takes it to every machine in a session (docs/SNOW.md); a scene with only rain has its rain told directly.</summary>
+        private void GiveWeather(in WeatherOrder order)
+        {
+            if (CurrentWeather.Control != null)
+            {
+                CurrentWeather.Order(order);
+                return;
+            }
+            Rain.SetRain(order.Rain);
+            if (order.Dry)
+            {
+                Rain.Dry();
+            }
+        }
+
         private void Weather(string which, string strength)
         {
             if (Rain == null)
@@ -31,15 +46,28 @@ namespace CityX.UI
                         Log(DevCommands.UsageFor("weather"));
                         return;
                     }
-                    Rain.SetRain(intensity);
+                    GiveWeather(new WeatherOrder { Rain = intensity, Cover = -1.0f });
                     Log(intensity >= CityX.World.Weather.HeavyRain ? "raining" : $"raining ({intensity:0.00})");
                     return;
+                case "snow":
+                    if (!SnowRules.TryParseIntensity(strength, out float snow))
+                    {
+                        Log(DevCommands.UsageFor("weather"));
+                        return;
+                    }
+                    GiveWeather(new WeatherOrder { Snow = snow, Cover = -1.0f });
+                    Log($"snowing ({snow:0.00}) -- it builds up over a few minutes (/weather deepsnow for at once)");
+                    return;
+                case "deepsnow":
+                    GiveWeather(new WeatherOrder { Snow = SnowRules.Blizzard, Cover = 1.0f });
+                    Log("a blizzard, over streets already buried");
+                    return;
                 case "clear":
-                    Rain.SetRain(0.0f);
-                    Log("clear -- the streets dry out slowly (/weather dry for at once)");
+                    GiveWeather(new WeatherOrder { Cover = -1.0f });
+                    Log("clear -- the streets dry out and the snow melts slowly (/weather dry for at once)");
                     return;
                 case "dry":
-                    Rain.Dry();
+                    GiveWeather(new WeatherOrder { Cover = 0.0f, Dry = true });
                     Log("dry");
                     return;
                 case "lightning":
@@ -60,7 +88,8 @@ namespace CityX.UI
                 {
                     Vector3 at = (Vitals != null ? Vitals.transform.position : transform.position) + Vector3.up * 1.6f;
                     Log($"rain {Rain.Intensity:0.00} (asked {Rain.TargetIntensity:0.00}), wetness {Rain.Wetness:0.00}, " +
-                        $"cover over you {CurrentWeather.Shelter(at):0.00}, rain on you {CurrentWeather.RainOn(at):0.00}");
+                        $"cover over you {CurrentWeather.Shelter(at):0.00}, rain on you {CurrentWeather.RainOn(at):0.00}, " +
+                        $"snow falling {CurrentWeather.SnowFalling:0.00}, lying {CurrentWeather.SnowCover:0.00}");
                     return;
                 }
                 default:
