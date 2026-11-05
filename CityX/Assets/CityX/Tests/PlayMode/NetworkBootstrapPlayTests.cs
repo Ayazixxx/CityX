@@ -205,6 +205,24 @@ namespace CityX.Tests
             Assert.IsTrue(_networkManager.IsOffline, "something is still running after Shutdown()");
         }
 
+        /// <summary>
+        /// Going back to the title ends the session and takes the manager with it: left alive past the scene, it made the new title's own destroy itself, so Host and Join said
+        /// "No networking available", and the body stayed standing on the other players' screens.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator LeavingTheSessionEndsItAndFreesTheManagerForTheTitle()
+        {
+            _bootstrap.Begin(GameMode.HostedWorld, ArgsOnFreshPort());
+            yield return WaitUntil(() => _networkManager.IsHostStarted, "the host to come up");
+
+            NetworkManager manager = _networkManager;
+            NetworkBootstrap.LeaveSession();
+            yield return null;
+            yield return null;
+            Assert.IsTrue(_host == null, "the manager outlived the session, and would destroy the next title's");
+            Assert.IsTrue(manager == null, "the session's manager is still there");
+        }
+
         // --- helpers ---
 
         private static LaunchArgs ArgsOnFreshPort()

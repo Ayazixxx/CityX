@@ -215,6 +215,7 @@ namespace CityX.UI
             Time.timeScale = 1.0f;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            CityX.Net.NetworkBootstrap.LeaveSession();
             SceneManager.LoadScene(TitleScene);
         }
 

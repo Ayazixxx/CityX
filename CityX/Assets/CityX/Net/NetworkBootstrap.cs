@@ -186,6 +186,23 @@ namespace CityX.Net
             }
         }
 
+        /// <summary>
+        /// Ends the session this process is in, for going back to the title. The manager lives on past the scene (DontDestroyOnLoad), and left alive it made the new title's own destroy
+        /// itself, so Host and Join said "No networking available", the connection stayed open with the body standing on the other screens, and a solo game next found no body.
+        /// </summary>
+        public static void LeaveSession()
+        {
+            NetworkBootstrap bootstrap = FindAnyObjectByType<NetworkBootstrap>();
+            (CharacterSources.Current as System.IDisposable)?.Dispose();
+            CharacterSources.Current = null;
+            if (bootstrap == null || bootstrap.Mode == GameMode.Singleplayer)
+            {
+                return;
+            }
+            bootstrap.Shutdown();
+            Destroy(bootstrap.gameObject);
+        }
+
         private static bool HasModeArgument(string[] argv)
         {
             if (argv == null)

@@ -187,14 +187,29 @@ namespace CityX.Tests
 
             yield return WaitUntil(() => _hostManager.ServerManager.Clients.Count >= 2,
                 "the friend to connect to the host");
+            yield return WaitUntil(() => _friendManager.ClientManager.Connection != null && _friendManager.ClientManager.Connection.IsAuthenticated,
+                "the friend to be let in");
 
-            // NetworkedPlayerSpawner's own OnRemoteConnectionState handler
-            // and the spawn's own replication down to observers both take a
+            // Connected from the title screen, picking a character: nothing yet. A body spawned now lands in the title scene and is destroyed with it when the city loads.
+            float waitUntil = Time.realtimeSinceStartup + 1.0f;
+            while (Time.realtimeSinceStartup < waitUntil)
+            {
+                yield return null;
+            }
+            // (Inactive ones too: the friend's client shares this process, and switches the scene's network objects off until it is told about them.)
+            Assert.AreEqual(1, Object.FindObjectsByType<NetworkedPlayerIdentity>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length,
+                "the friend's body was spawned before their world had loaded");
+
+            // Said as often as it takes: one body for all of them.
+            _friendManager.ClientManager.Broadcast(new WorldLoadedMessage());
+            _friendManager.ClientManager.Broadcast(new WorldLoadedMessage());
+
+            // The spawn's own replication down to observers takes a
             // few real frames -- poll instead of guessing a fixed count.
             NetworkedPlayerIdentity[] identities = null;
             yield return WaitUntil(() =>
             {
-                identities = Object.FindObjectsByType<NetworkedPlayerIdentity>(FindObjectsSortMode.None);
+                identities = Object.FindObjectsByType<NetworkedPlayerIdentity>(FindObjectsInactive.Include, FindObjectsSortMode.None);
                 return identities.Length >= 2;
             }, "the friend's own clone to be spawned");
 
@@ -214,6 +229,23 @@ namespace CityX.Tests
             // The friend is out of the host's view radius here, so the host's client never starts this copy: it must be silent without being told.
             yield return WaitUntil(() => CityAmbienceBodiesPlayTests.LayersOfTheCity(clone.gameObject) == 0,
                 "the friend's copy to stop playing the city on the host's machine");
+
+            // Out of the host's view radius the host's client never starts this copy, so nothing ever told it whose it is: it must not obey the host's keys anyway.
+            Assert.IsFalse(clone.GetComponent<PlayerInputReader>().enabled, "a far friend's body obeys the host's keyboard");
+
+            // The screens this machine shows follow the body it plays, closed ones too.
+            CityX.Character.LocalPlayerBody.Claim(clone.gameObject);
+            var cloneVitals = clone.GetComponent<PlayerVitals>();
+            var cloneInput = clone.GetComponent<PlayerInputReader>();
+            var hud = Object.FindAnyObjectByType<CityX.UI.PlayerHud>(FindObjectsInactive.Include);
+            Assert.IsNotNull(hud, "the real scene has no HUD");
+            Assert.AreSame(cloneVitals, hud.Target, "the HUD still reads the baked body");
+            var inventory = Object.FindAnyObjectByType<CityX.UI.InventoryPanelView>(FindObjectsInactive.Include);
+            Assert.IsNotNull(inventory, "the real scene has no inventory screen");
+            Assert.AreSame(clone.GetComponent<Inventory>(), inventory.Inventory, "the inventory screen acts on the baked body's inventory");
+            Assert.AreSame(cloneInput, inventory.InputReader);
+            var stats = Object.FindAnyObjectByType<CityX.UI.StatsPanelView>(FindObjectsInactive.Include);
+            Assert.AreSame(cloneVitals, stats.Vitals, "the stats screen reads the baked body");
 #else
             yield break;
 #endif

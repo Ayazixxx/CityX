@@ -111,10 +111,18 @@ namespace CityX.Character
             {
                 GetComponent<NetworkObject>().SetIsNetworked(false);
             }
-            else if (_audio != null)
+            else
             {
-                // Silent until known to be ours: a host holds every player's body, and one beyond the view radius never gets OnStartClient to be told.
-                _audio.SetOwnBody(false);
+                // Silent and deaf until known to be ours: a host holds every player's body, and one beyond the view radius never gets OnStartClient to be told.
+                // Left on, the host's keys walked a far friend's body and cast its spells.
+                if (_audio != null)
+                {
+                    _audio.SetOwnBody(false);
+                }
+                if (_inputReader != null)
+                {
+                    _inputReader.enabled = false;
+                }
             }
         }
 
@@ -122,16 +130,13 @@ namespace CityX.Character
         {
             base.OnStartClient();
             TellAudioWhoseBodyThisIs();
+            TakeTheControlsIfOurs();
 
             // THE SKILL MENU AND THE BAR FOLLOW THE BODY THIS MACHINE CONTROLS:
             // somebody else's body gives the claim up, our own takes it.
             PlayerSkills skills = GetComponent<PlayerSkills>();
             if (!IsOwner)
             {
-                if (_inputReader != null)
-                {
-                    _inputReader.enabled = false;
-                }
                 if (skills != null && PlayerSkills.Local == skills)
                 {
                     PlayerSkills.Local = null;
@@ -167,6 +172,7 @@ namespace CityX.Character
                     Debug.LogWarning("CityX: no ThirdPersonCamera in the scene to retarget onto " +
                                      "this networked player -- they will have no camera.");
                 }
+                LocalPlayerBody.Claim(gameObject);
             }
 
             CharacterSave character = PlaySession.Character;
@@ -183,6 +189,15 @@ namespace CityX.Character
         {
             base.OnOwnershipClient(prevOwner);
             TellAudioWhoseBodyThisIs();
+            TakeTheControlsIfOurs();
+        }
+
+        private void TakeTheControlsIfOurs()
+        {
+            if (_inputReader != null)
+            {
+                _inputReader.enabled = IsOwner;
+            }
         }
 
         private void TellAudioWhoseBodyThisIs()

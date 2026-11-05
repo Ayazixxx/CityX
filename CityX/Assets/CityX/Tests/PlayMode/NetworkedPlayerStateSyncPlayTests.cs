@@ -152,6 +152,11 @@ namespace CityX.Tests
             Assert.AreEqual(_aOnA.ObjectId, _aOnB.ObjectId, "the two clients disagree about which body is player A's");
             Assert.AreEqual(_bOnA.ObjectId, _bOnB.ObjectId);
 
+            // A body takes the keyboard only on the machine that plays it, and that machine's screens follow it.
+            Assert.IsTrue(_aOnA.GetComponent<PlayerInputReader>().enabled, "player A's own body does not obey player A");
+            Assert.IsFalse(_aOnB.GetComponent<PlayerInputReader>().enabled, "player B's copy of player A obeys player B's keyboard");
+            Assert.IsTrue(LocalPlayerBody.Current == _aOnA.gameObject || LocalPlayerBody.Current == _bOnB.gameObject, "a joining player's body did not claim this machine's screens");
+
             // EVERY MACHINE OF THIS TEST SHARES ONE SCENE: the server's copy of each body and the other client's copy stand inside the real one.
             // A's real body walking into a ledge was shoved by its own copies' capsules -- now and then off its feet, which the copy then showed
             // as a fall (AStepUpOnOnePlayersBodyShowsOnTheCopyAsAStrideNotAFall, flaky in full runs). In a game each machine has its own scene;

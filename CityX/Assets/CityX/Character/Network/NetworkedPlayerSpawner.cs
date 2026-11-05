@@ -2,14 +2,21 @@ using System.Collections;
 using System.Collections.Generic;
 using CityX.Core;
 using CityX.Net;
+using FishNet.Broadcast;
 using FishNet.Connection;
 using FishNet.Managing;
 using FishNet.Object;
 using FishNet.Transporting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace CityX.Character
 {
+    /// <summary>A joining player saying the world has loaded on their machine: only now is there anywhere for their body to appear.</summary>
+    public struct WorldLoadedMessage : IBroadcast
+    {
+    }
+
     /// <summary>
     /// Turns a live FishNet session into more than one visible player.
     ///
@@ -32,8 +39,11 @@ namespace CityX.Character
     /// runs, the host's own local connection has very likely already reached
     /// ServerManager.Clients -- an event-only approach would miss it
     /// entirely. OnRemoteConnectionState is still subscribed afterward, for
-    /// whoever connects later (ordinarily a friend, joining once the host is
-    /// already in the game).
+    /// the host's own connection arriving later.
+    ///
+    /// A FRIEND'S BODY WAITS FOR THEIR WORLD. A friend connects from the title screen and only then picks a character and loads the city. Spawned on connecting, their body landed
+    /// in the title scene and was destroyed with it, with nothing telling the server, and they arrived in the city with no body and no controls. So a joining player's own copy of this
+    /// component says when their world has loaded (<see cref="WorldLoadedMessage"/>), over and over until they have a body, since the host may not be in the world yet.
     ///
     /// NOT YET HANDLED, DELIBERATELY: GameMode.DedicatedShard. A headless
     /// shard has no local client and therefore no baked-object owner to hand
@@ -57,14 +67,20 @@ namespace CityX.Character
         /// <summary>Metres, a point on a small circle around SpawnPoint -- mirrors main.gd's own NETWORK_SPAWN_RADIUS.</summary>
         public const float SpawnRadius = 2.0f;
 
+        /// <summary>How often a joining player says their world has loaded until they have a body, seconds.</summary>
+        public const float AnnounceEverySeconds = 1.0f;
+
+        private const string TitleScene = "Title";
+
         private NetworkManager _manager;
+        private bool _server;
+        private bool _client;
         private readonly HashSet<int> _handled = new HashSet<int>();
 
         private void Start()
         {
             var bootstrap = FindAnyObjectByType<NetworkBootstrap>();
-            if (bootstrap == null || bootstrap.Mode == GameMode.Singleplayer
-                || !GameModeInfo.RunsServer(bootstrap.Mode))
+            if (bootstrap == null || bootstrap.Mode == GameMode.Singleplayer)
             {
                 return;
             }
@@ -75,7 +91,47 @@ namespace CityX.Character
                 return;
             }
 
-            StartCoroutine(HandleAlreadyConnectedOnceLocalPlayerIsReady());
+            if (GameModeInfo.RunsServer(bootstrap.Mode))
+            {
+                _server = true;
+                _manager.ServerManager.RegisterBroadcast<WorldLoadedMessage>(OnWorldLoaded);
+                StartCoroutine(HandleAlreadyConnectedOnceLocalPlayerIsReady());
+            }
+            else
+            {
+                _client = true;
+                _manager.ClientManager.OnClientConnectionState += OnOwnConnectionState;
+                StartCoroutine(AnnounceWorldLoaded());
+            }
+        }
+
+        private IEnumerator AnnounceWorldLoaded()
+        {
+            var wait = new WaitForSecondsRealtime(AnnounceEverySeconds);
+            while (_manager != null && _manager.ClientManager.Started && _manager.ClientManager.Connection.FirstObject == null)
+            {
+                _manager.ClientManager.Broadcast(new WorldLoadedMessage());
+                yield return wait;
+            }
+        }
+
+        /// <summary>The host quit, or the line dropped: back to the title, where the session is ended and a new one can start. Left here the player stood in a city with no body and no word why.</summary>
+        private void OnOwnConnectionState(ClientConnectionStateArgs args)
+        {
+            if (args.ConnectionState != LocalConnectionState.Stopped)
+            {
+                return;
+            }
+            NetworkBootstrap.LeaveSession();
+            Time.timeScale = 1.0f;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            SceneManager.LoadScene(TitleScene);
+        }
+
+        private void OnWorldLoaded(NetworkConnection connection, WorldLoadedMessage message, Channel channel)
+        {
+            HandleConnection(connection);
         }
 
         /// <summary>
@@ -98,7 +154,10 @@ namespace CityX.Character
 
             foreach (NetworkConnection connection in _manager.ServerManager.Clients.Values)
             {
-                HandleConnection(connection);
+                if (connection == _manager.ClientManager.Connection)
+                {
+                    HandleConnection(connection);
+                }
             }
 
             _manager.ServerManager.OnRemoteConnectionState += OnRemoteConnectionState;
@@ -106,9 +165,18 @@ namespace CityX.Character
 
         private void OnDestroy()
         {
-            if (_manager != null)
+            if (_manager == null)
+            {
+                return;
+            }
+            if (_server)
             {
                 _manager.ServerManager.OnRemoteConnectionState -= OnRemoteConnectionState;
+                _manager.ServerManager.UnregisterBroadcast<WorldLoadedMessage>(OnWorldLoaded);
+            }
+            if (_client)
+            {
+                _manager.ClientManager.OnClientConnectionState -= OnOwnConnectionState;
             }
         }
 
@@ -116,7 +184,10 @@ namespace CityX.Character
         {
             if (args.ConnectionState == RemoteConnectionState.Started)
             {
-                HandleConnection(connection);
+                if (connection == _manager.ClientManager.Connection)
+                {
+                    HandleConnection(connection);
+                }
             }
             else
             {
