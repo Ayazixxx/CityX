@@ -71,6 +71,7 @@ namespace CityX.UI
 
         private void OnEnable()
         {
+            CityX.World.WorldMemory.Forget();   // the title screen is where one world ends and the next begins
             ShowIdlePrompt();
         }
 
