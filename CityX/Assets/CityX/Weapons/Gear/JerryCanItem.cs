@@ -96,6 +96,10 @@ namespace CityX.Weapons
             }
             _wearer = player.transform;
             _equipped = true;
+            if (instanceData.HasContents)
+            {
+                Litres = Mathf.Clamp(instanceData.Contents, 0.0f, FireRules.CanLitres);   // what it held when it was put away: a can taken out again is not a can refilled
+            }
             foreach (Collider c in GetComponentsInChildren<Collider>())
             {
                 c.enabled = false;
@@ -135,7 +139,7 @@ namespace CityX.Weapons
         {
         }
 
-        public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
+        public ItemInstanceData GetInstanceData() => new ItemInstanceData { HasContents = true, Contents = Litres };
 
         /// <summary>One frame held: pours while the trigger is down and there is gasoline left, onto the ground ahead of the spout.</summary>
         public void Tick(bool triggerHeld, Vector3 origin, Vector3 direction, GameObject wielder, float deltaTime)

@@ -94,6 +94,27 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ADroppedCansGasolineSurvivesTheTrip()
+        {
+            var drop = new ItemDrop
+            {
+                Id = (2L << 32) | 5, ItemId = ItemRegistry.JerryCan, Data = new ItemInstanceData { HasContents = true, Contents = 3.5f },
+                Position = new Vector3(1.0f, 2.0f, 3.0f), Rotation = Quaternion.identity,
+            };
+            ItemDropMessage message = DroppedItemsNetwork.ToMessage(drop);
+            Assert.IsTrue(DroppedItemsNetwork.Acceptable(message));
+            ItemDrop back = DroppedItemsNetwork.ToDrop(message);
+            Assert.IsTrue(back.Data.HasContents, "a can arrived without what was in it: picked up, it would be full");
+            Assert.AreEqual(3.5f, back.Data.Contents, 1e-6f);
+            Assert.IsFalse(back.Data.HasAmmo);
+
+            message.Contents = float.NaN;
+            Assert.IsFalse(DroppedItemsNetwork.Acceptable(message), "a can holding not-a-number was let through");
+            message.Contents = -1.0f;
+            Assert.IsFalse(DroppedItemsNetwork.Acceptable(message), "a can holding less than nothing was let through");
+        }
+
+        [Test]
         public void AnItemFitsWhenThereIsAStackWithRoomOrAnEmptySlot()
         {
             var go = new GameObject("Inventory");

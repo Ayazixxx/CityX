@@ -19,8 +19,13 @@ namespace CityX.Items
         public int Magazine;
         public int Reserve;
 
+        /// <summary>What is left in a thing that is used up, in its own measure (a jerry can's litres), as it was put away or let go of.</summary>
+        public bool HasContents;
+
+        public float Contents;
+
         public static readonly ItemInstanceData None = default;
 
-        public bool IsEmpty => !HasDurability && !HasAmmo;
+        public bool IsEmpty => !HasDurability && !HasAmmo && !HasContents;
     }
 }

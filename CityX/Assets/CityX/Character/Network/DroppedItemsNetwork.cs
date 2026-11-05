@@ -22,6 +22,8 @@ namespace CityX.Character
         public bool HasAmmo;
         public int Magazine;
         public int Reserve;
+        public bool HasContents;
+        public float Contents;
         public Vector3 Position;
         public Quaternion Rotation;
         public Vector3 Velocity;
@@ -64,6 +66,8 @@ namespace CityX.Character
         public bool[] HasAmmo;
         public int[] Magazine;
         public int[] Reserve;
+        public bool[] HasContents;
+        public float[] Contents;
         public Vector3[] Position;
         public Quaternion[] Rotation;
     }
@@ -94,6 +98,9 @@ namespace CityX.Character
 
         /// <summary>The most rounds a dropped gun may say it has in its magazine, or spare: more than any gun carries.</summary>
         public const int MaxRounds = 999;
+
+        /// <summary>The most a dropped thing may say is left in it (a jerry can holds 20 litres).</summary>
+        public const float MaxContents = 1000.0f;
 
         public const int MaxDropsPerSecond = 4;
 
@@ -281,7 +288,7 @@ namespace CityX.Character
             var state = new ItemDropStateMessage
             {
                 Id = new long[n], ItemId = new string[n], Durability = new int[n], HasAmmo = new bool[n], Magazine = new int[n], Reserve = new int[n],
-                Position = new Vector3[n], Rotation = new Quaternion[n],
+                HasContents = new bool[n], Contents = new float[n], Position = new Vector3[n], Rotation = new Quaternion[n],
             };
             int i = 0;
             foreach (long id in _order)
@@ -298,6 +305,8 @@ namespace CityX.Character
                 state.HasAmmo[i] = drop.HasAmmo;
                 state.Magazine[i] = drop.Magazine;
                 state.Reserve[i] = drop.Reserve;
+                state.HasContents[i] = drop.HasContents;
+                state.Contents[i] = drop.Contents;
                 state.Position[i] = shown != null ? shown.transform.position : drop.Position;
                 state.Rotation[i] = shown != null ? shown.transform.rotation : drop.Rotation;
                 i++;
@@ -335,6 +344,7 @@ namespace CityX.Character
             n = Mathf.Min(n, Mathf.Min(state.ItemId?.Length ?? 0, Mathf.Min(state.Durability?.Length ?? 0,
                 Mathf.Min(state.Position?.Length ?? 0, state.Rotation?.Length ?? 0))));
             n = Mathf.Min(n, Mathf.Min(state.HasAmmo?.Length ?? 0, Mathf.Min(state.Magazine?.Length ?? 0, state.Reserve?.Length ?? 0)));
+            n = Mathf.Min(n, Mathf.Min(state.HasContents?.Length ?? 0, state.Contents?.Length ?? 0));
             LastStateSize = n;
             for (int i = 0; i < n; i++)
             {
@@ -342,6 +352,7 @@ namespace CityX.Character
                 {
                     Id = state.Id[i], ItemId = state.ItemId[i], Durability = state.Durability[i],
                     HasAmmo = state.HasAmmo[i], Magazine = state.Magazine[i], Reserve = state.Reserve[i],
+                    HasContents = state.HasContents[i], Contents = state.Contents[i],
                     Position = state.Position[i], Rotation = state.Rotation[i],
                 };
                 if (Acceptable(message))
@@ -369,6 +380,10 @@ namespace CityX.Character
             {
                 return false;
             }
+            if (message.HasContents && !(message.Contents >= 0.0f && message.Contents <= MaxContents))
+            {
+                return false;   // (not-a-number fails both comparisons)
+            }
             return message.Velocity.magnitude <= MaxSpeed && message.Spin.magnitude <= MaxSpeed && Mathf.Abs(message.Position.y) < 100000.0f;
         }
 
@@ -379,6 +394,7 @@ namespace CityX.Character
         {
             Id = drop.Id, ItemId = drop.ItemId, Durability = drop.Data.HasDurability ? drop.Data.Durability : -1,
             HasAmmo = drop.Data.HasAmmo, Magazine = drop.Data.Magazine, Reserve = drop.Data.Reserve,
+            HasContents = drop.Data.HasContents, Contents = drop.Data.Contents,
             Position = drop.Position, Rotation = drop.Rotation, Velocity = drop.Velocity, Spin = drop.Spin,
         };
 
@@ -389,6 +405,7 @@ namespace CityX.Character
             {
                 HasDurability = message.Durability >= 0, Durability = Mathf.Max(0, message.Durability),
                 HasAmmo = message.HasAmmo, Magazine = message.HasAmmo ? message.Magazine : 0, Reserve = message.HasAmmo ? message.Reserve : 0,
+                HasContents = message.HasContents, Contents = message.HasContents ? message.Contents : 0.0f,
             },
             Position = message.Position, Rotation = message.Rotation, Velocity = message.Velocity, Spin = message.Spin,
         };
