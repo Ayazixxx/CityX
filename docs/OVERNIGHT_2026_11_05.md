@@ -79,9 +79,28 @@ Each of these was proven with a test that failed before the fix. Each is its own
 - **Punches and sword cuts went through walls.** Anyone within reach got hit, wall or no wall: through a thin wall, a closed door or a window. Now a blow needs a clear path from your chest to where it lands. Low things (a bench, a car bonnet) do not block it.
 - **A heavy punch knocked down someone who had blocked it.** If an Arcane Barrier, a held sword guard or a raised shield took the heavy punch, the body behind it was thrown to the ground anyway. Now only a heavy punch that actually lands knocks down. This is fixed for fights against enemies; between two players on different machines the same thing can still happen, and that is a separate fix.
 - **The swordsman's cut carried on after you knocked him down.** If you threw him to the ground mid-swing, his swing paused and then finished, invisibly, once he was back on his feet. Now a knockdown ends his cut.
+- **Playing with a friend stopped your character from saving.** Every player's body on your screen thought it was your character. Each one counted playtime into your save, so with a friend nearby the clock ran double, the server rejected the save as impossible, and it kept rejecting it for the rest of the session. The friend's body also wore your saved clothes on your screen. Now only your own body is your character. This could never show up before today, because a friend could not join at all.
+- **Quit To Title threw away up to half a minute of progress.** The game autosaves every 30 seconds and Quit To Title saved nothing, so a level, a skill just bought or points just spent could be gone when you came back. Now it saves first.
+- **Redrawing your character healed you and rolled you back.** Confirming a redraw put your whole save back on the body: full health, and your level, points and skills as they were at the last autosave. Now a redraw changes your look and nothing else, and saves it at once.
+- **The world remembered the last character.** Lights you switched on, balcony doors you opened and Old Guy's house (lit, planks and windows broken) stayed that way after you quit to the title, so a new character found the tutorial house already open. And if you played alone first and then joined a friend, you saw those changes and they did not. Now every new game starts clean.
+- **The jerry can refilled itself.** Same fault as the guns: put an empty can away, take it out, and it was full again. Now it keeps what is left in it, also when dropped.
 - **Swapping weapons reloaded your gun for free.** Scrolling to your other weapon and back gave the gun a full magazine and all its spare rounds, instantly. Now a gun keeps the rounds it had when you put it away, and when you drop it and pick it up again, for every player. A gun nobody has held yet still comes loaded. Rounds are not saved between sessions: guns start full when you launch the game.
 
 **Try:** `/spawn swordsman`, breathe poison on him (key 4) and watch his health while he stands in the cloud. Hold a staff's click until the mana is gone and keep holding: it should cut out, wait, then come back in one burst. Fire half a magazine, scroll to another weapon and back, and check the ammo count.
+
+## American streets: rounded corners (first piece)
+
+The kerb now curves round every street corner, as it does on a real American street, instead of meeting at a sharp point. The road fills the corner, and the traffic-light poles and STOP signs stand on the pavement behind the curve. Bigger roads get a wider curve.
+
+**Try:** walk to any junction and look at the corners; the top-down picture I sent shows it best.
+
+**Still to come for the streets:** streetlights (written, not yet in), concrete sidewalks with a proper kerb, and the things that stand along a street (hydrants, parking meters, a mailbox and bin at corners, dead street trees). No street-name signs, as you said.
+
+**For you:** `CityX/SourceArt/Wraith/WraithAsBuilt.obj` is the Wraith as the game builds it, arms attached, for you to smooth in Blender.
+
+## Checked and found clean
+
+I added a test that puts every item in the game on the real player, holds and releases its click, taps reload and right-click, puts it away, and then taps every spell key. Nothing threw an error.
 
 ## Stairs and playing with a friend
 
