@@ -23,7 +23,7 @@ Real sizes are multiplied by 1.3 here, as everything is (the player is 2.6 m tal
 ## What is built, in this order
 
 1. **Rounded corners.** The kerb turns each street corner in an arc; the asphalt fills the corner.
-2. **Street lights**, cobra-heads, lit at night. The owner had the first street lamps removed on 2026-09-04 ("they look bad and are
+2. **Street lights** (built 2026-11-05), cobra-heads, lit at night. The owner had the first street lamps removed on 2026-09-04 ("they look bad and are
    clipping into the ground") and asked for streetlights again with the streets for drivers on 2026-10-15: these must stand ON the
    pavement and look like the real thing.
 3. **The sidewalk as concrete**: scored squares, a kerb and gutter band, yellow dome mats at the crossings, red kerb by the hydrants.
@@ -58,3 +58,20 @@ world seed). What changed is what the chunks build at each corner.
   `TrafficCapture` (`traffic-4-above.png`).
 - Round the spawn (classic city, the tests' city) most kerb corners are rounded; the rest are bends, points, or beside streets that
   are walked.
+
+### Street lights (2026-11-05)
+
+- **The rule** is `World/StreetLights.Along` (pure): the lamps of one road, staggered from one side to the other, at most 44 m apart on
+  a street, 36 m on an arterial, 32 m on a boulevard (100 to 150 ft at the city's 1.3 times life; a street shorter than half that has one
+  lamp, at its middle), none within 13 m of a junction (the
+  corner's arc, its lights and its signs have that stretch). The pole stands on the pavement 0.75 m in from the kerb; the arm reaches
+  over the road. Only driven streets on the ground have them: not a bridge, a pedestrian street or a step street.
+- **Most are dead.** The city has little power and its nights are meant to be near black: a street in three has current for its lamps
+  (`StreetLights.Powered`, by the street), the rest stand dark with grey glass.
+- **The lamp** is `CityProps.AddStreetLight`: a base, a pole in two tapers, an arm rising to a cobra-head with its lens looking down.
+  A powered lens is drawn with the lit windows, so it glows by night by itself. Only the near version of a chunk stands its lamps.
+- **The light on the road** is real light lent to the nearest lamps (`View/Lighting/StreetLampDirector`): at dusk and by night up to
+  14 sodium-orange spot lights are stood under the powered lamps within 95 m of the eye, fading out toward the edge of that reach so
+  one changing hands is never seen. The chunks say where their powered lamps hang as they are built (`StreetLampSites`).
+- Tests: `StreetLightsTests`. Pictures: `TrafficCapture.RenderTheStreets` (`streets-3-*.png` by day, `streets-4-*.png` by night,
+  `streets-5-*.png` a street without power).

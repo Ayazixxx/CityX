@@ -591,6 +591,7 @@ namespace CityX.View
             BalconyDoorState.Shared.Changed += OnBalconyDoorChanged;
             // The glass other players break comes into this city's record (Character.GlassDamageNetwork).
             GlassDamage.Current = Damage;
+            StreetLampDirector.Ensure();   // the street lights' real light at night, lent to the nearest lamps
         }
 
         private void OnDisable()

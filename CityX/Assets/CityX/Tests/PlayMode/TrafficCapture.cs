@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using CityX.Character;
 using CityX.UI;
 using CityX.View;
@@ -13,8 +14,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: renders the traffic lights and STOP signs in the real city (docs/TRAFFIC_CONTROL.md) to Logs/CityShots/traffic-*.png: the lights at the spawn through
-    /// their cycle, from a driver's eye and a walker's, by night, flashing late at night, under snow; a side street's STOP sign; an all-way stop. Explicit; run by name
-    /// with -Graphics.
+    /// their cycle, from a driver's eye and a walker's, by night, flashing late at night, under snow; a side street's STOP sign; an all-way stop. And the street
+    /// itself (docs/AMERICAN_STREETS.md) to streets-*.png: its sidewalk, a corner, its street lights by day and by night. Explicit; run by name with -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class TrafficCapture
@@ -23,6 +24,11 @@ namespace CityX.Tests
         private Scene _scene;
         private double _clock;
         private CityScale _scaleBefore;
+        private DevConsoleView _console;
+        private PlayerVitals _player;
+        private Camera _camera;
+        private PlanWorld _plan;
+        private Vec2 _spawn;
 
         [UnityTearDown]
         public IEnumerator TearDown()
@@ -42,29 +48,12 @@ namespace CityX.Tests
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
-            LogAssert.ignoreFailingMessages = true;
-            Time.captureFramerate = 60;
-            // The game's own city, its roads wider than the classic city's the tests run on: the pictures are of what is played.
-            _scaleBefore = CityScale.Active;
-            CityScale.Active = CityScale.Default;
-            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(ScenePath, new LoadSceneParameters(LoadSceneMode.Additive));
-            yield return null;
-            yield return null;
-            _scene = SceneManager.GetSceneByPath(ScenePath);
-            SceneManager.SetActiveScene(_scene);
-
-            var console = Object.FindFirstObjectByType<DevConsoleView>();
-            var player = Object.FindFirstObjectByType<PlayerVitals>();
-            player.GetComponent<PlayerInputReader>().enabled = false;
-            var follow = Object.FindFirstObjectByType<ThirdPersonCamera>();
-            if (follow != null) follow.enabled = false;
-            Camera camera = Camera.main;
-            PlanWorld plan = CurrentWorld.Instance.Plan;
-            plan.TryFindSpawn(out double spawnX, out double spawnZ);
-            var spawn = new Vec2(spawnX, spawnZ);
-            SignalClock.Shared = () => _clock;
-            console.Submit("/time noon");
-            console.Cycle.Running = false;
+            yield return Open();
+            DevConsoleView console = _console;
+            PlayerVitals player = _player;
+            Camera camera = _camera;
+            PlanWorld plan = _plan;
+            Vec2 spawn = _spawn;
 
             TrafficJunction lights = Nearest(plan, spawn, j => j.Control == JunctionControl.Signal && j.ClassOf(true) >= RoadClass.Arterial);
             Assert.IsNotNull(lights, "no lights on a main road in this city");
@@ -153,6 +142,125 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        [UnityTest]
+        public IEnumerator RenderTheStreets()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            yield return Open();
+            var lamps = new List<StreetLamp>();
+            EdgeGeometry street = NearestStreet(_plan, _spawn, lamps, powered: true);
+            Assert.IsNotNull(street, "no street near the spawn with power for its lamps");
+            TestContext.WriteLine($"street {street.Edge.Id} ({street.Edge.Class}), {lamps.Count} lamps");
+            yield return Go(_console, _player, _camera, street.A + street.Dir * (street.Length * 0.5));
+
+            // The sidewalk from a walker's eye and from above, and the corner at the street's end.
+            Vec2 across = street.Dir.Perp;
+            double kerb = street.HalfWidth;
+            Vec2 walker = street.A + street.Dir * (street.TrimA + 12.0) + across * (kerb + 2.2);
+            Vector3 walkerEye = World(_plan, walker, 2.3), ahead = World(_plan, walker + street.Dir * 16.0 - across * 1.2, 0.4);
+            yield return Shoot(_camera, "streets-1-sidewalk", walkerEye, ahead);
+            Vec2 onTheKerb = street.A + street.Dir * (street.TrimA + 22.0) + across * (kerb + 1.0);
+            yield return Shoot(_camera, "streets-1-sidewalk-above", World(_plan, onTheKerb, 13.0) + new Vector3(0.6f, 0.0f, -0.6f), World(_plan, onTheKerb, 0.0));
+            Vec2 corner = street.A + street.Dir * street.TrimA + across * kerb;
+            yield return Shoot(_camera, "streets-2-corner", World(_plan, corner + street.Dir * 11.0 + across * 3.0, 2.3), World(_plan, corner, 0.3));
+            yield return Shoot(_camera, "streets-2-corner-above", World(_plan, corner, 20.0) + new Vector3(0.8f, 0.0f, -0.8f), World(_plan, corner, 0.0));
+
+            // The street lights: down the street, one close up, and from above; then the same by night; then a street with no power.
+            Vec2 driver = street.A + street.Dir * (street.TrimA + 3.0) + across * (kerb * 0.5);
+            Vector3 driverEye = World(_plan, driver, 2.3), down = World(_plan, street.A + street.Dir * (street.Length * 0.7), 5.0);
+            StreetLamp lamp = lamps[lamps.Count / 2];
+            Vector3 head = World(_plan, lamp.Head, lamp.Height - 0.8);
+            Vector3 nearLamp = World(_plan, lamp.At + lamp.Over * 7.0 + street.Dir * 6.0, 3.2);
+            Vector3 above = World(_plan, lamp.Head, 42.0) + new Vector3(1.0f, 0.0f, -1.0f);
+            yield return Shoot(_camera, "streets-3-lamps-day", driverEye, down);
+            yield return Shoot(_camera, "streets-3-lamp-near", nearLamp, head);
+            _console.Submit("/time midnight");
+            yield return null;
+            yield return null;
+            yield return ShootByLamplight(_camera, "streets-4-lamps-night", driverEye, down);
+            yield return ShootByLamplight(_camera, "streets-4-lamp-near-night", nearLamp, head);
+            yield return ShootByLamplight(_camera, "streets-4-lamps-night-above", above, World(_plan, lamp.At, 0.0));
+            yield return ShootByLamplight(_camera, "streets-4-sidewalk-night", walkerEye, ahead);
+
+            EdgeGeometry dark = NearestStreet(_plan, _spawn, lamps, powered: false);
+            if (dark != null)
+            {
+                yield return Go(_console, _player, _camera, dark.A + dark.Dir * (dark.Length * 0.5));
+                Vector3 darkEye = World(_plan, dark.A + dark.Dir * (dark.TrimA + 3.0) + dark.Dir.Perp * (dark.HalfWidth * 0.5), 2.3);
+                Vector3 darkDown = World(_plan, dark.A + dark.Dir * (dark.Length * 0.7), 5.0);
+                yield return ShootByLamplight(_camera, "streets-5-no-power-night", darkEye, darkDown);
+                _console.Submit("/time noon");
+                yield return null;
+                yield return null;
+                yield return Shoot(_camera, "streets-5-no-power-day", darkEye, darkDown);
+            }
+            _console.Submit("/time noon");
+#else
+            yield break;
+#endif
+        }
+
+#if UNITY_EDITOR
+        /// <summary>The game's own city at noon with its clock stopped, the player parked and the camera ours to place.</summary>
+        private IEnumerator Open()
+        {
+            LogAssert.ignoreFailingMessages = true;
+            Time.captureFramerate = 60;
+            // The game's own city, its roads wider than the classic city's the tests run on: the pictures are of what is played.
+            _scaleBefore = CityScale.Active;
+            CityScale.Active = CityScale.Default;
+            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(ScenePath, new LoadSceneParameters(LoadSceneMode.Additive));
+            yield return null;
+            yield return null;
+            _scene = SceneManager.GetSceneByPath(ScenePath);
+            SceneManager.SetActiveScene(_scene);
+
+            _console = Object.FindFirstObjectByType<DevConsoleView>();
+            _player = Object.FindFirstObjectByType<PlayerVitals>();
+            _player.GetComponent<PlayerInputReader>().enabled = false;
+            var follow = Object.FindFirstObjectByType<ThirdPersonCamera>();
+            if (follow != null) follow.enabled = false;
+            _camera = Camera.main;
+            _plan = CurrentWorld.Instance.Plan;
+            _plan.TryFindSpawn(out double spawnX, out double spawnZ);
+            _spawn = new Vec2(spawnX, spawnZ);
+            SignalClock.Shared = () => _clock;
+            _console.Submit("/time noon");
+            _console.Cycle.Running = false;
+        }
+#endif
+
+        /// <summary>The nearest street with at least three street lights, with power for them or without; its lamps are left in <paramref name="lamps"/>.</summary>
+        private static EdgeGeometry NearestStreet(PlanWorld plan, Vec2 from, List<StreetLamp> lamps, bool powered)
+        {
+            EdgeGeometry best = null;
+            double nearest = double.MaxValue;
+            foreach (EdgeGeometry g in plan.Geometry.Edges)
+            {
+                if (g == null || !StreetLights.Has(plan, g.Edge) || StreetLights.Powered(plan, g.Edge) != powered) continue;
+                lamps.Clear();
+                StreetLights.Along(plan, g, lamps);
+                double away = (g.A + g.Dir * (g.Length * 0.5) - from).Length;
+                if (lamps.Count >= 3 && away < nearest)
+                {
+                    nearest = away;
+                    best = g;
+                }
+            }
+            lamps.Clear();
+            if (best != null) StreetLights.Along(plan, best, lamps);
+            return best;
+        }
+
+        /// <summary>A picture by night: the street lights' real light is stood for this eye first (StreetLampDirector lends it to the nearest lamps).</summary>
+        private static IEnumerator ShootByLamplight(Camera camera, string name, Vector3 position, Vector3 lookAt)
+        {
+            camera.transform.position = position;
+            StreetLampDirector.Direct(position);
+            yield return Shoot(camera, name, position, lookAt);
         }
 
         private static TrafficJunction Nearest(PlanWorld plan, Vec2 from, System.Func<TrafficJunction, bool> wanted)

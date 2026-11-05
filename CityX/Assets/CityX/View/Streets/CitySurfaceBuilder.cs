@@ -109,6 +109,8 @@ namespace CityX.View
             BuildDriveways(ctx, drives, pavement);   // CitySurfaceBuilder.Garages.cs: the drives into the garages, over their cuts
             BuildStairLanes(ctx, stairLanes, pavement, far);
 
+            var lamps = new List<StreetLamp>();
+            var poweredLamps = new List<Vector3>();
             foreach (int edgeId in plan.EdgesIn(chunkX, chunkY))
             {
                 EdgeGeometry g = plan.Geometry.Edges[edgeId];
@@ -128,11 +130,17 @@ namespace CityX.View
                 {
                     BuildPaint(ctx, g, markings, laneDividers);
                     AddStreetBarricades(ctx, g, structures);
+                    BuildStreetLights(ctx, g, structures, lit, pavingCuts, lamps, poweredLamps);   // CitySurfaceBuilder.StreetLights.cs
                     if (PedestrianStreets.Is(plan, g.Edge))
                     {
                         BuildPedestrianStreet(ctx, g, structures, lit);   // CitySurfaceBuilder.Pedestrian.cs: bollards across its ends, furniture down its middle
                     }
                 }
+            }
+
+            if (!far)
+            {
+                StreetLampSites.Report(chunkX, chunkY, poweredLamps);   // for the real lights lent to the nearest lamps at night (StreetLampDirector)
             }
 
             foreach (int nodeId in plan.JunctionsIn(chunkX, chunkY))
