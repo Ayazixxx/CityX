@@ -65,3 +65,30 @@ would raise it, in order of size (my suggestions, not decisions):
 
 Not measured yet: what the network sends and the server's load with that many players (the other half of the crowd test GAME_DESIGN.md
 asks for).
+
+## 2026-11-05: the test was showing an empty street; lighter bodies tried
+
+**The crowd had been switched off.** The joining player's body has gained network parts since 2026-10-27 (ragdoll, fire, voice and more)
+that the test did not take off, and with no session to spawn it in, the body was switched off as soon as it woke: every crowd size cost
+about nothing and the pictures showed an empty pavement. The test now takes off every network part (`NetworkBehaviour`), not a list of
+them. It also has a quick mode for a before and after: `CITYX_CROWD_STEPS=25,50` times only those sizes and makes no video
+(`crowd-results-quick.txt`).
+
+Measured again (same laptop, in the editor, everyone running):
+
+| crowd | frame ms | over the empty street | drawing |
+|---|---|---|---|
+| 0 | 18.6 | - | 8.9 |
+| 25 | 39.1 | +20.5 | 18.4 |
+| 50 | 61.0 | +42.4 | 28.2 |
+
+**Lighter bodies far off made no difference here, and were not kept.** Unity's Mesh LOD gave the body four lighter copies (86k down to
+6.5k triangles; `MeshLodUtility.GenerateMeshLods` keeps the whole body's triangles and vertices as they are, so the garments' hidden-skin
+masks still fit, and the cut under clothes can be carried into each copy). 50 players then cost +39.9 ms against +42.4: within the noise
+between runs. At the distances a crowd stands at, a body's cost is not its triangles but its draws: about ten pieces (skin, head, hair,
+garments, shoes, weapon), each drawn for the picture and again for the sun's shadows, plus its scripts and posing.
+
+**The crowd's shadows** are about a fifth of it: with no shadows cast by the crowd, 50 players cost +33.7 ms (drawing 24.1 against 28.2).
+
+What would help next (my suggestions, not decisions): fewer pieces per body (the head, hair and shoes merged into the body's own draw),
+no shadow from a body past some distance, and far bodies posed and animated less often (`PlayerLocomotion.LateUpdate`, the animator).

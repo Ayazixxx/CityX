@@ -31,6 +31,8 @@ namespace CityX.Tests
     /// as the game overlaps it), in the editor (slower scripts than a built game): the absolute numbers are on the slow side; what each
     /// player ADDS is the useful part. Results to Logs/CityShots/crowd-results.txt, pictures crowd-*.png, the video crowd.mp4. Explicit; run
     /// by name with -Graphics: ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.CrowdCapture
+    ///
+    /// Quick, for a before and after: with CITYX_CROWD_STEPS set (say "25,50") only those sizes are timed, and no video is made.
     /// </summary>
     [Explicit("renders screenshots and a video; needs a graphics device")]
     public sealed class CrowdCapture
@@ -40,7 +42,28 @@ namespace CityX.Tests
         private const int Width = 1280, Height = 720;
 
         /// <summary>The crowd sizes tried, smallest first.</summary>
-        private static readonly int[] Steps = { 10, 25, 50, 75, 100, 150, 200, 300 };
+        private static readonly int[] AllSteps = { 10, 25, 50, 75, 100, 150, 200, 300 };
+
+        /// <summary>The sizes asked for in CITYX_CROWD_STEPS, else <see cref="AllSteps"/>.</summary>
+        private static int[] Steps
+        {
+            get
+            {
+                string asked = System.Environment.GetEnvironmentVariable("CITYX_CROWD_STEPS");
+                if (string.IsNullOrWhiteSpace(asked))
+                {
+                    return AllSteps;
+                }
+                var sizes = new List<int>();
+                foreach (string part in asked.Split(','))
+                {
+                    if (int.TryParse(part.Trim(), out int size) && size > 0) sizes.Add(size);
+                }
+                return sizes.Count > 0 ? sizes.ToArray() : AllSteps;
+            }
+        }
+
+        private static bool Quick => !string.IsNullOrWhiteSpace(System.Environment.GetEnvironmentVariable("CITYX_CROWD_STEPS"));
 
         /// <summary>More than this over the empty street (half a 60 fps frame) is laggy: fewer fight and cast.</summary>
         private const float LaggyExtraMs = 8.3f;
@@ -216,6 +239,13 @@ namespace CityX.Tests
                 }
             }
 
+            if (Quick)
+            {
+                File.WriteAllText(Path.Combine(_directory, "crowd-results-quick.txt"), report.ToString());
+                Debug.Log("CityX crowd results:\n" + report);
+                yield break;
+            }
+
             // The video: VideoCrowd of them, the starting mix -- some running, some fighting, some casting.
             while (_crowd.Count > VideoCrowd)
             {
@@ -385,13 +415,10 @@ namespace CityX.Tests
             asleep.SetActive(false);
             GameObject body = Object.Instantiate(prefab, at, Quaternion.Euler(0.0f, angle * Mathf.Rad2Deg, 0.0f), asleep.transform);
             body.name = $"Crowd {index} ({look.Name})";
+            // Every network part (the joining body gains more of them as features come; a list of them went stale and a newer part switched
+            // the whole body off with no session to spawn it in), then the observer and the object itself.
+            Strip<FishNet.Object.NetworkBehaviour>(body);
             Strip<FishNet.Observing.NetworkObserver>(body);
-            Strip<NetworkedAbilitySync>(body);
-            Strip<NetworkedAnimatorSync>(body);
-            Strip<NetworkedEquipmentSync>(body);
-            Strip<NetworkedDamage>(body);
-            Strip<NetworkedPlayerIdentity>(body);
-            Strip<FishNet.Component.Transforming.NetworkTransform>(body);
             Strip<FishNet.Object.NetworkObject>(body);
             Strip<PlayerInputReader>(body);   // only the real player reads the keyboard; CrowdMember drives this one
             Strip<PlayerVoiceCapture>(body);
