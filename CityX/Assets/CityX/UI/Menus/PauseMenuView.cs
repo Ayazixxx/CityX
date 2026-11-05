@@ -161,6 +161,13 @@ namespace CityX.UI
                 return;
             }
 
+            // Any other menu (the stats, the loadout, the book, the C menu, the inventory, the map, an item's card...) holds the keys while it is
+            // open and closes on Escape too: the press that closed it, whichever of the two read it first this frame, is not a pause.
+            if (PlayerInputReader.AnyHeld || PlayerInputReader.KeysGivenBackOnFrame == Time.frameCount)
+            {
+                return;
+            }
+
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
                 if (IsOpen)

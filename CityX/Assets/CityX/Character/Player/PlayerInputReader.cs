@@ -373,6 +373,7 @@ namespace CityX.Character
 
         private void OnDestroy()
         {
+            LetGoOfEveryHolder();
             if (_vitals != null)
             {
                 _vitals.Staggered -= OnStaggered;

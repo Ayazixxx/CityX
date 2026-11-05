@@ -77,3 +77,7 @@ two menus did not know of each other, and closing one gave the keys back under t
 nobody's, so enemies stopped coming for a player reading a menu. Held, the body goes on falling and landing with no keys read; on a wall
 or a rope it stays as it is. What asked whether a menu has the keys asks `TakesKeys`. Tests: `MenusHoldTheKeysPlayTests`,
 `PlayerChatTests.ClosingOneMenuLeavesTheKeysWithTheOtherStillOpen`.
+
+The Escape that closes a page is not also a pause (2026-11-05): the pause menu leaves Escape alone while a menu holds the keys
+(`PlayerInputReader.AnyHeld`) and in the frame one gives them back (`KeysGivenBackOnFrame`), whichever of the two read the press first.
+A menu destroyed while open lets go of the keys by itself. Test: `EscapeClosesOnlyTheMenuPlayTests`.
