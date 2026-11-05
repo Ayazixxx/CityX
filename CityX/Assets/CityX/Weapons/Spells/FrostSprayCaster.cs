@@ -34,7 +34,8 @@ namespace CityX.Weapons
         private PlayerLocomotion _locomotion;
         private FrostSpray _spray;
         private FrostSpray _remoteSpray;
-        private float _sinceTick;
+        private float _sinceTick = FrostRules.TickSeconds;   // the first tick lands at once
+        private StreamFeed _feed;
         private float _aimSendIn;
         private float _remoteLeft;
         private Vector3 _remoteDirection;
@@ -59,8 +60,7 @@ namespace CityX.Weapons
         public void TickStaff(bool held, Transform tip, Vector3 eye, Vector3 look, float deltaTime)
         {
             bool alive = _vitals == null || !_vitals.IsDead;
-            bool fed = _vitals == null || _vitals.TrySpendMana(held ? FrostRules.ManaPerSecond * deltaTime : 0.0f);
-            bool spraying = held && alive && fed;
+            bool spraying = held && alive && _feed.Draw(_vitals, FrostRules.ManaPerSecond, deltaTime);
             Vector3 from = tip != null ? tip.position : transform.position + Vector3.up * 1.8f;
             Vector3 direction = PlayerInputReader.CrosshairDirection(from, eye, look, transform);
             if (spraying && !IsSpraying)
@@ -73,6 +73,7 @@ namespace CityX.Weapons
             }
             if (!IsSpraying)
             {
+                SpellTicks.Rest(ref _sinceTick, deltaTime, FrostRules.TickSeconds);
                 return;
             }
             _locomotion?.HoldStaffOut();
@@ -94,7 +95,6 @@ namespace CityX.Weapons
         private void Begin(Transform tip, Vector3 from, Vector3 direction)
         {
             IsSpraying = true;
-            _sinceTick = FrostRules.TickSeconds;   // the first tick lands at once
             _aimSendIn = FrostRules.AimSendSeconds;
             if (_spray == null && tip != null)
             {

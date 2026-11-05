@@ -37,6 +37,14 @@ every shot paying mana. Built 2026-10-27, three of them, as the owner asked one 
 
 All the numbers but Shadow Flare's frames are mine. The staffs ignore the hotbar spells' ranks (the spell need not be learnt).
 
+**The held staffs on an empty bar, and tapped** (Water, Flame, Frost, Arcane Beam, Healing; 2026-11-05). A held staff that runs out of mana
+stays off until the mana to hold it for a second is back (`StreamFeed.RestartSeconds`, mine: 6 mana for the water staff, a second and a half
+of waiting), whether the click is kept down or pressed again; then it runs in one stretch until it is dry again. And a body's next tick
+keeps its beat through a release (`StreamTicks` for the jet and the fire, whose ticks are each body's own; `SpellTicks.Rest` for the
+beams and the frost, which have one clock). Before, mana trickling back started the stream again every few frames and every start landed
+a tick at once, so an empty staff hit several times as hard as a full one, harder the higher the frame rate; tapping the click did the same
+on a full bar for a frame's mana a tick. `HeldStreamTests` (EditMode), `HeldStreamManaPlayTests` (the five staffs on the real body).
+
 ## Other players
 
 Each staff's model is held by a copy (`ICosmeticMountable`, via `NetworkedEquipmentSync`). Its shots, charge and thrust are its spell's

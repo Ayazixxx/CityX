@@ -41,7 +41,8 @@ namespace CityX.Weapons
         private PlayerVitals _target;
         private PlayerVitals _remoteTarget;
         private float _outOfSight;
-        private float _sinceTick;
+        private float _sinceTick = HealingBeamRules.TickSeconds;   // the first tick lands at once
+        private StreamFeed _feed;
         private float _aimSendIn;
         private float _remoteLeft;
 
@@ -65,7 +66,7 @@ namespace CityX.Weapons
             bool alive = _vitals == null || !_vitals.IsDead;
             if (!held || !alive)
             {
-                Release();
+                LetGoFor(deltaTime);
                 return;
             }
             Vector3 from = tip != null ? tip.position : transform.position + Vector3.up * 1.8f;
@@ -73,17 +74,13 @@ namespace CityX.Weapons
             {
                 Release();
             }
-            if (_target == null)
+            if (_target == null && _feed.Ready(_vitals, HealingBeamRules.ManaPerSecond, deltaTime))
             {
                 Tie(Pick(eye, look), tip);
             }
-            if (_target == null)
+            if (_target == null || !_feed.Draw(_vitals, HealingBeamRules.ManaPerSecond, deltaTime))
             {
-                return;
-            }
-            if (_vitals != null && !_vitals.TrySpendMana(HealingBeamRules.ManaPerSecond * deltaTime))
-            {
-                Release();
+                LetGoFor(deltaTime);
                 return;
             }
             _locomotion?.HoldStaffOut();
@@ -138,7 +135,6 @@ namespace CityX.Weapons
             }
             _target = target;
             _outOfSight = 0.0f;
-            _sinceTick = HealingBeamRules.TickSeconds;   // the first tick lands at once
             _aimSendIn = HealingBeamRules.AimSendSeconds;
             if (_beam == null && tip != null)
             {
@@ -158,6 +154,13 @@ namespace CityX.Weapons
             Vector3 chest = ChestOf(_target);
             _outOfSight = InSight(eye, chest, _target.transform) ? 0.0f : _outOfSight + deltaTime;
             return HealingBeamRules.Holds(Vector3.Distance(transform.position, chest), _outOfSight);
+        }
+
+        /// <summary>A frame with the beam on no one: it is let go, and the clock to its next tick runs on.</summary>
+        private void LetGoFor(float deltaTime)
+        {
+            Release();
+            SpellTicks.Rest(ref _sinceTick, deltaTime, HealingBeamRules.TickSeconds);
         }
 
         private void Release()

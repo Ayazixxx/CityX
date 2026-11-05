@@ -16,5 +16,14 @@ namespace CityX.Weapons
             sinceTick -= due * tickSeconds;
             return due;
         }
+
+        /// <summary>
+        /// The same clock while the spell is off: it runs on, but no further than one tick. So a spell let go and started again lands its
+        /// first tick at once only when a tick's time has passed since its last, and tapping the click hits no oftener than holding it.
+        /// </summary>
+        public static void Rest(ref float sinceTick, float deltaTime, float tickSeconds)
+        {
+            sinceTick = Mathf.Min(sinceTick + Mathf.Max(0.0f, deltaTime), tickSeconds);
+        }
     }
 }

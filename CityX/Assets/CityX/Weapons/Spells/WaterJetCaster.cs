@@ -30,7 +30,8 @@ namespace CityX.Weapons
 
         public event System.Action<AbilityEvent> Fired;
 
-        private readonly Dictionary<IDamageable, float> _nextTick = new Dictionary<IDamageable, float>();
+        private readonly StreamTicks _ticks = new StreamTicks();
+        private StreamFeed _feed;
         private readonly List<IDamageable> _inStream = new List<IDamageable>();
         private static readonly RaycastHit[] HitBuffer = new RaycastHit[16];
         private PlayerVitals _vitals;
@@ -65,8 +66,7 @@ namespace CityX.Weapons
         public void TickStaff(bool held, Transform tip, Vector3 eye, Vector3 look, float deltaTime)
         {
             bool alive = _vitals == null || !_vitals.IsDead;
-            bool fed = _vitals == null || _vitals.TrySpendMana(held ? WaterJetRules.ManaPerSecond * deltaTime : 0.0f);
-            bool spraying = held && alive && fed;
+            bool spraying = held && alive && _feed.Draw(_vitals, WaterJetRules.ManaPerSecond, deltaTime);
             Vector3 from = tip != null ? tip.position : transform.position + Vector3.up * 1.8f;
             Vector3 direction = PlayerInputReader.CrosshairDirection(from, eye, look, transform);
             if (spraying && !IsSpraying)
@@ -102,7 +102,7 @@ namespace CityX.Weapons
             IsSpraying = true;
             _sprayed = 0.0f;
             _aimSendIn = WaterJetRules.AimSendSeconds;
-            _nextTick.Clear();
+            _ticks.Forget(Time.time);
             if (_jet == null && tip != null)
             {
                 _jet = WaterJet.Make(tip);
@@ -154,9 +154,8 @@ namespace CityX.Weapons
                 }
                 _inStream.Add(target);
                 FireScene.DouseBody(target);
-                if (!_nextTick.TryGetValue(target, out float next) || Time.time >= next)
+                if (_ticks.Due(target, Time.time, WaterJetRules.TickSeconds))
                 {
-                    _nextTick[target] = Time.time + WaterJetRules.TickSeconds;
                     using (DamageContext.WithoutBlood())   // water does not cut
                     {
                         DamageContext.Strike(target, tick, from, 0.0f, DamageKind.Magic, penetration, collider.bounds.center, gameObject);

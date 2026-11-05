@@ -36,7 +36,8 @@ namespace CityX.Weapons
         public GameObject FlamePrefab;
 
         private readonly List<IDamageable> _inStream = new List<IDamageable>();
-        private readonly Dictionary<IDamageable, float> _nextTick = new Dictionary<IDamageable, float>();
+        private readonly StreamTicks _ticks = new StreamTicks();
+        private StreamFeed _feed;
         private PlayerVitals _vitals;
         private PlayerLocomotion _locomotion;
         private FlameStreamLook _flame;
@@ -70,8 +71,7 @@ namespace CityX.Weapons
         public void TickStaff(bool held, Transform tip, Vector3 eye, Vector3 look, float deltaTime)
         {
             bool alive = _vitals == null || !_vitals.IsDead;
-            bool fed = _vitals == null || _vitals.TrySpendMana(held ? FlameStreamRules.ManaPerSecond * deltaTime : 0.0f);
-            bool burning = held && alive && fed;
+            bool burning = held && alive && _feed.Draw(_vitals, FlameStreamRules.ManaPerSecond, deltaTime);
             Vector3 from = tip != null ? tip.position : transform.position + Vector3.up * 1.8f;
             Vector3 direction = PlayerInputReader.CrosshairDirection(from, eye, look, transform);
             if (burning && !IsBurning)
@@ -107,7 +107,7 @@ namespace CityX.Weapons
             IsBurning = true;
             _held = 0.0f;
             _aimSendIn = FlameStreamRules.AimSendSeconds;
-            _nextTick.Clear();
+            _ticks.Forget(Time.time);
             if (_flame == null)
             {
                 _flame = MakeFlame(tip);
@@ -155,9 +155,8 @@ namespace CityX.Weapons
                     continue;
                 }
                 _inStream.Add(target);
-                if (!_nextTick.TryGetValue(target, out float next) || Time.time >= next)
+                if (_ticks.Due(target, Time.time, FlameStreamRules.TickSeconds))
                 {
-                    _nextTick[target] = Time.time + FlameStreamRules.TickSeconds;
                     using (DamageContext.WithoutBlood())   // fire does not cut
                     {
                         DamageContext.Strike(target, tick, from, 0.0f, DamageKind.Magic, penetration, collider.bounds.center, gameObject);

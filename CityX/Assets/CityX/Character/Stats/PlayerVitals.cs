@@ -752,16 +752,23 @@ namespace CityX.Character
         /// <summary>Spends mana on a spell (a held focus's share of it, <see cref="SpellFocus"/>): false, and nothing spent, when there is not enough.</summary>
         public bool TrySpendMana(float amount)
         {
-            if (SpellFocus != null)
-            {
-                amount *= SpellFocus.ManaCostFactor;
-            }
-            if (amount < 0.0f || _mana < amount)
+            if (!HasMana(amount))
             {
                 return false;
             }
-            _mana -= amount;
+            _mana -= ManaCostOf(amount);
             return true;
+        }
+
+        /// <summary>Whether there is the mana for a spell of this cost (a held focus's share of it). Nothing is spent.</summary>
+        public bool HasMana(float amount)
+        {
+            return amount >= 0.0f && _mana >= ManaCostOf(amount);
+        }
+
+        private float ManaCostOf(float amount)
+        {
+            return SpellFocus != null ? amount * SpellFocus.ManaCostFactor : amount;
         }
 
         /// <summary>Mana comes back over time, but not while dead. Call once per frame (PlayerInputReader does).</summary>

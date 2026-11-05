@@ -36,7 +36,8 @@ namespace CityX.Weapons
         private StaffBeam _beam;
         private StaffBeam _remoteBeam;
         private float _aimSendIn;
-        private float _sinceTick;
+        private float _sinceTick = ArcaneBeamRules.TickSeconds;   // the first tick lands at once
+        private StreamFeed _feed;
         private float _remoteLeft;
         private Vector3 _remoteDirection;
 
@@ -61,8 +62,7 @@ namespace CityX.Weapons
         public void TickStaff(bool held, Transform tip, Vector3 eye, Vector3 look, float deltaTime)
         {
             bool alive = _vitals == null || !_vitals.IsDead;
-            bool fed = _vitals == null || _vitals.TrySpendMana(held ? ArcaneBeamRules.ManaPerSecond * deltaTime : 0.0f);
-            bool beaming = held && alive && fed;
+            bool beaming = held && alive && _feed.Draw(_vitals, ArcaneBeamRules.ManaPerSecond, deltaTime);
             Vector3 from = tip != null ? tip.position : transform.position + Vector3.up * 1.8f;
             Vector3 direction = PlayerInputReader.CrosshairDirection(from, eye, look, transform);
             if (beaming && !IsBeaming)
@@ -75,6 +75,7 @@ namespace CityX.Weapons
             }
             if (!IsBeaming)
             {
+                SpellTicks.Rest(ref _sinceTick, deltaTime, ArcaneBeamRules.TickSeconds);
                 return;
             }
             _locomotion?.HoldStaffOut();
@@ -96,7 +97,6 @@ namespace CityX.Weapons
         {
             IsBeaming = true;
             _aimSendIn = ArcaneBeamRules.AimSendSeconds;
-            _sinceTick = ArcaneBeamRules.TickSeconds;   // the first tick lands at once
             if (_beam == null && tip != null)
             {
                 _beam = StaffBeam.Make(tip, StaffBeam.Arcane);
