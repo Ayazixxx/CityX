@@ -116,7 +116,7 @@ static const float2 kTileMetres[12] =
     float2(1.6, 1.6),       // tile
     float2(3.2, 3.2),       // spandrel
     float2(3.0, 3.0),       // roof
-    float2(3.2, 3.2),       // paving
+    float2(4.0, 4.0),       // paving
     float2(6.0, 6.0),       // asphalt
     float2(5.0, 5.0),       // earth
     float2(2.0, 2.0)        // setts

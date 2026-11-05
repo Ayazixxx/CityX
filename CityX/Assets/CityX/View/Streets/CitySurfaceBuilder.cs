@@ -329,6 +329,15 @@ namespace CityX.View
         /// </summary>
         private static void Fan(Context ctx, MeshBuffer buffer, IList<Vec2> poly, Func<double, double, double> heightAt, bool up = true)
         {
+            Fan(ctx, buffer, poly, heightAt, null, up);
+        }
+
+        /// <summary>
+        /// ... its texture laid in a paving's own frame where one is given (World/Sidewalks): the pattern runs by that frame, the same from
+        /// every chunk, and not by the world's north and east.
+        /// </summary>
+        private static void Fan(Context ctx, MeshBuffer buffer, IList<Vec2> poly, Func<double, double, double> heightAt, PavingFrame? frame, bool up = true)
+        {
             int n = poly.Count;
             if (n < 3) return;
             var pts = new Vector3[n];
@@ -343,12 +352,12 @@ namespace CityX.View
                 normal.Normalize();
                 if (up && normal.y < 0.0f) normal = -normal;
                 if (!up && normal.y > 0.0f) normal = -normal;
-                buffer.AddTriangle(pts[0], pts[i], pts[i + 1], normal,
-                    new Vector2((float)poly[0].X, (float)poly[0].Y),
-                    new Vector2((float)poly[i].X, (float)poly[i].Y),
-                    new Vector2((float)poly[i + 1].X, (float)poly[i + 1].Y));
+                buffer.AddTriangle(pts[0], pts[i], pts[i + 1], normal, TextureAt(frame, poly[0]), TextureAt(frame, poly[i]), TextureAt(frame, poly[i + 1]));
             }
         }
+
+        private static Vector2 TextureAt(PavingFrame? frame, Vec2 point) =>
+            frame.HasValue ? PatternAt(frame.Value, point) : new Vector2((float)point.X, (float)point.Y);
 
         // ---------------------------------------------------------------- looks of the ground
 
@@ -424,7 +433,7 @@ namespace CityX.View
             return SurfaceLook.Pack(new Color(tone, tone, tone), SurfaceLook.Asphalt, wear);
         }
 
-        /// <summary>The pavement beside a road: concrete slabs, or granite setts in some streets.</summary>
+        /// <summary>The pavement beside a road: poured concrete, a little lighter or darker from one stretch to the next.</summary>
         private static Color32 PavingLook(RoadClass roadClass, int salt)
         {
             float h = LatticeHash(salt, (int)roadClass, 11);
@@ -686,6 +695,10 @@ namespace CityX.View
             double s = (r.X1 - r.X0) / n;
             buffer.Look = BlockPavingLook(ctx.Plan, block, blockIndex);
             Func<double, double, double> height = (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight;
+            // An ordinary block's sidewalks are laid each in its own street's frame, and what lies behind them along the block's longest side
+            // (CitySurfaceBuilder.Sidewalks.cs); a plaza's ground and a mall's car park are one surface from kerb to kerb, laid that way too.
+            List<Sidewalk> walks = block.Plaza || block.Mall ? NoSidewalks : SidewalksOf(block);
+            PavingFrame behind = Sidewalks.Behind(block);
             int[] t = block.InnerTriangles;
             for (int k = 0; k + 2 < t.Length; k += 3)
             {
@@ -708,13 +721,15 @@ namespace CityX.View
                             // onto the street the paving is cut away under it.
                             foreach (List<Vec2> part in Subtract(piece, cuts))
                             {
-                                Fan(ctx, buffer, part, height);
+                                LayPaving(ctx, buffer, part, height, walks, behind);
                             }
                         }
                     }
                 }
             }
         }
+
+        private static readonly List<Sidewalk> NoSidewalks = new List<Sidewalk>();
 
         /// <summary>A clipped piece of paving smaller than this (square metres) is a sliver of float noise, not ground: not drawn.</summary>
         private const double SliverArea = 1e-4;
@@ -836,6 +851,7 @@ namespace CityX.View
                 // Along a step street the steps close their own sides (CitySurfaceBuilder.StepStreets.cs): no kerb between its junction plates.
                 RoadEdge road = ctx.Plan.EdgeBetween(block.Poly[e], block.Poly[f]);
                 EdgeGeometry steps = road != null && StepStreets.Is(ctx.Plan, road) ? ctx.Plan.Geometry.Edges[road.Id] : null;
+                PavingFrame? walk = Sidewalks.TryAlong(block, e, out _, out PavingFrame laid) ? laid : (PavingFrame?)null;
                 int pieces = Math.Max(1, (int)Math.Ceiling(length / PieceLength));
                 for (int p = 0; p < pieces; p++)
                 {
@@ -853,7 +869,7 @@ namespace CityX.View
                         buffer.Look = PavingLook(block.EdgeClass[e], e);
                         foreach (List<Vec2> part in Subtract(Clip(quad, ctx.Rect), cuts))
                         {
-                            Fan(ctx, buffer, part, (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight);
+                            Fan(ctx, buffer, part, (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight, walk);
                         }
                     }
                     buffer.Look = KerbLook;

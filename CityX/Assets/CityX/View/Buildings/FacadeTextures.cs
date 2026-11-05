@@ -1,4 +1,5 @@
 using System;
+using CityX.World;
 using UnityEngine;
 
 namespace CityX.View
@@ -27,9 +28,9 @@ namespace CityX.View
             { "concrete", "brick", "plaster", "metal", "stone", "tile", "spandrel", "roof", "paving", "asphalt", "earth", "setts" };
 
         /// <summary>What a tile covers, in metres, across and up. Brick is not square: nine bricks across, twenty-eight courses up.</summary>
-        public static readonly float[] TileMetresX = { 4.0f, 2.025f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 3.2f, 6.0f, 5.0f, 2.0f };
+        public static readonly float[] TileMetresX = { 4.0f, 2.025f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 4.0f, 6.0f, 5.0f, 2.0f };
 
-        public static readonly float[] TileMetresY = { 4.0f, 2.1f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 3.2f, 6.0f, 5.0f, 2.0f };
+        public static readonly float[] TileMetresY = { 4.0f, 2.1f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 4.0f, 6.0f, 5.0f, 2.0f };
 
         /// <summary>How strongly relief becomes slope in the normal map, per slice.</summary>
         private static readonly float[] NormalStrength = { 1.0f, 1.3f, 0.8f, 1.1f, 0.9f, 1.0f, 0.6f, 1.2f, 1.0f, 1.0f, 1.2f, 1.1f };
@@ -377,42 +378,46 @@ namespace CityX.View
         }
 
         /// <summary>
-        /// Concrete paving slabs, 0.8 m square (a 0.6 m slab at this world's scale) with a dirty joint: each slab its own tone, a little worn
-        /// at the edges, stained in patches, the odd chip and the odd dark spot of chewing gum.
+        /// An American sidewalk (docs/AMERICAN_STREETS.md): concrete poured in place and scored into flags (Sidewalks.FlagMetres square),
+        /// one flag barely a shade off the next (it is one pour, not slabs laid one by one). The tooled joints are darker and a hair
+        /// lower, with a margin troweled smooth beside them; between the margins the broom's lines run across the walk (up the tile: a
+        /// sidewalk is laid with its kerb along the tile's foot). Stained in patches, the odd dark spot of chewing gum.
         /// </summary>
         private static void Paving(float u, float v, int px, int py, float tx, float ty,
             out float r, out float g, out float b, out float s, out float h)
         {
-            const int count = 4;
+            int count = Mathf.RoundToInt(tx / (float)Sidewalks.FlagMetres);
             float cu = u * count;
             float cv = v * count;
             int su = FloorMod(Mathf.FloorToInt(cu), count);
             int sv = FloorMod(Mathf.FloorToInt(cv), count);
             float fu = cu - Mathf.Floor(cu);
             float fv = cv - Mathf.Floor(cv);
-            float slab = tx / count;
-            float d = Mathf.Min(Mathf.Min(fu, 1.0f - fu) * slab, Mathf.Min(fv, 1.0f - fv) * slab);
-            float joint = 1.0f - Smooth(0.003f, 0.0075f, d);
-            float edgeWear = 1.0f - Smooth(0.0f, 0.06f, d);
+            float flag = tx / count;
+            float d = Mathf.Min(Mathf.Min(fu, 1.0f - fu) * flag, Mathf.Min(fv, 1.0f - fv) * flag);
+            float joint = 1.0f - Smooth(0.006f, 0.016f, d);
+            float margin = 1.0f - Smooth(0.03f, 0.07f, d);
 
             float hs = Hash(su, sv, 211);
             float grain = Hash(px, py, 213);
             float coarse = Hash(px / 2, py / 2, 215);
+            float broom = (Hash(px, py / 6, 221) - 0.5f) * (1.0f - margin);
             float stain = Fbm(u, v, 3, 3, 4, 217);
-            float tone = 0.56f + (hs - 0.5f) * 0.10f + (grain - 0.5f) * 0.05f + (coarse - 0.5f) * 0.04f - Mathf.Max(0.0f, stain - 0.55f) * 0.18f;
-            tone -= edgeWear * 0.04f;
+            float tone = 0.60f + (hs - 0.5f) * 0.03f + (grain - 0.5f) * 0.04f + (coarse - 0.5f) * 0.03f + broom * 0.035f
+                         - Mathf.Max(0.0f, stain - 0.55f) * 0.16f;
+            tone += margin * 0.015f;
             float gum = Dots(u, v, 36, 0.03f, 0.30f, 219);
             r = tone * 1.0f;
-            g = tone * 0.99f;
-            b = tone * 0.96f;
-            r = Mathf.Lerp(r, 0.20f, joint);
-            g = Mathf.Lerp(g, 0.19f, joint);
-            b = Mathf.Lerp(b, 0.18f, joint);
+            g = tone * 0.995f;
+            b = tone * 0.97f;
+            r = Mathf.Lerp(r, 0.24f, joint);
+            g = Mathf.Lerp(g, 0.23f, joint);
+            b = Mathf.Lerp(b, 0.22f, joint);
             r *= 1.0f - 0.5f * gum;
             g *= 1.0f - 0.5f * gum;
             b *= 1.0f - 0.5f * gum;
-            s = Mathf.Lerp(0.14f + (hs - 0.5f) * 0.06f, 0.05f, joint);
-            h = -3.0f * joint + (hs - 0.5f) * 0.8f + (grain - 0.5f) * 0.5f;
+            s = Mathf.Lerp(0.12f + margin * 0.05f, 0.05f, joint);
+            h = -4.0f * joint + broom * 0.7f + (grain - 0.5f) * 0.4f;
         }
 
         /// <summary>Road asphalt: dark, with coarse aggregate showing through, lighter patched repairs and long thin cracks.</summary>

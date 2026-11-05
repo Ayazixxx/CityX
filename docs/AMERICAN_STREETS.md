@@ -26,7 +26,7 @@ Real sizes are multiplied by 1.3 here, as everything is (the player is 2.6 m tal
 2. **Street lights** (built 2026-11-05), cobra-heads, lit at night. The owner had the first street lamps removed on 2026-09-04 ("they look bad and are
    clipping into the ground") and asked for streetlights again with the streets for drivers on 2026-10-15: these must stand ON the
    pavement and look like the real thing.
-3. **The sidewalk as concrete**: scored squares, a kerb and gutter band, yellow dome mats at the crossings, red kerb by the hydrants.
+3. **The sidewalk as concrete** (the concrete built 2026-11-05): scored squares, a kerb and gutter band, yellow dome mats at the crossings, red kerb by the hydrants.
 4. **What stands in the furnishing zone**: American hydrants, parking meters and stall marks, a mailbox, newspaper boxes and a bin at
    corners, dead street trees in grated pits (nothing has grown on Terraplex 9 since the rapture), manholes and drains.
 
@@ -75,3 +75,23 @@ world seed). What changed is what the chunks build at each corner.
   one changing hands is never seen. The chunks say where their powered lamps hang as they are built (`StreetLampSites`).
 - Tests: `StreetLightsTests`. Pictures: `TrafficCapture.RenderTheStreets` (`streets-3-*.png` by day, `streets-4-*.png` by night,
   `streets-5-*.png` a street without power).
+
+### The sidewalk's concrete (2026-11-05)
+
+The pavement was slabs 0.8 m square, each its own tone, laid by the world's own north and east: on any street not running due north or
+east the joints crossed the walk at a slant, and it read as a plaza's paving, not a sidewalk. Now:
+
+- **The surface** is poured concrete scored into flags 2 m square (5 ft at the city's 1.3 times life): one tone from flag to flag, the
+  tooled joints dark with a smooth margin beside them, the broom's lines across the walk between (`FacadeTextures.Paving`; the atlases
+  are baked from it by `CityX/Regenerate Facade Textures`). The same slice is the mall's floor, the plazas' and the sky hub's paving.
+- **The joints run square to the street.** `World/Sidewalks.TryAlong` (pure) gives each side of a block its own frame: rows along the
+  kerb, the first joint 0.2 m in from the kerb's face (so the kerb reads as a stone of its own), and the rows fitted so the last joint
+  is the back of the walk. What lies behind the sidewalks is laid along the block's longest side (`Sidewalks.Behind`), and so is a
+  plaza's ground.
+- **How it is built**: `CitySurfaceBuilder.Sidewalks.cs`. The block's paving is still one surface cut on the ground's grid; each piece
+  of it is split along the sidewalks' strips (`Split`, the same cut `Subtract` makes) and each part is given its own frame's texture
+  coordinates. No geometry moved: only where the pattern lies.
+- Tests: `SidewalkPavingTests` (the frame's joints on every side of every block round the spawn; the built paving carries its frame's
+  coordinates on the walks and behind them; the tile is two flags by two with a joint round each). Pictures: `TrafficCapture`
+  (`streets-1-sidewalk*.png`, `streets-2-corner*.png`).
+- Not built yet: the gutter pan in the road, the yellow dome mats, red kerb by the hydrants.

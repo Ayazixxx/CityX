@@ -288,10 +288,7 @@ namespace CityX.View
             return cuts;
         }
 
-        /// <summary>
-        /// A convex piece of pavement with every kerb cut taken out of it: the pieces left, each convex. Each cut is convex: what lies outside it is
-        /// the union of the parts beyond each of its edges, taken one edge at a time from what is still inside the ones before.
-        /// </summary>
+        /// <summary>A convex piece of pavement with every kerb cut taken out of it: the pieces left, each convex. Each cut is convex (Split).</summary>
         private static List<List<Vec2>> Subtract(List<Vec2> piece, List<Vec2[]> cuts)
         {
             var pieces = new List<List<Vec2>> { piece };
@@ -308,17 +305,7 @@ namespace CityX.View
                         next.Add(p);
                         continue;
                     }
-                    bool ccw = PlanMath.SignedArea(cut) > 0.0;
-                    List<Vec2> remaining = p;
-                    for (int e = 0; e < cut.Length && remaining.Count >= 3; e++)
-                    {
-                        Vec2 a = cut[e], b = cut[(e + 1) % cut.Length];
-                        Vec2 inward = (b - a).Perp * (ccw ? 1.0 : -1.0);   // toward the inside of the cut
-                        List<Vec2> outside = ClipHalf(remaining, a, -inward);
-                        if (outside.Count >= 3 && Math.Abs(PlanMath.SignedArea(outside)) > SliverArea) next.Add(outside);
-                        remaining = ClipHalf(remaining, a, inward);
-                    }
-                    // What is left inside every edge is inside the cut: dropped.
+                    Split(p, cut, next);   // what is inside the cut is dropped
                 }
                 pieces = next;
             }
