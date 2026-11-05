@@ -81,3 +81,23 @@ or a rope it stays as it is. What asked whether a menu has the keys asks `TakesK
 The Escape that closes a page is not also a pause (2026-11-05): the pause menu leaves Escape alone while a menu holds the keys
 (`PlayerInputReader.AnyHeld`) and in the frame one gives them back (`KeysGivenBackOnFrame`), whichever of the two read the press first.
 A menu destroyed while open lets go of the keys by itself. Test: `EscapeClosesOnlyTheMenuPlayTests`.
+
+## The C menu goes round to the front (2026-11-05)
+
+Owner: "improve upon the spin of the "C" menu just make it spin around clockwise forward smoothly. improve upon those icons on the "C" menu
+as well but keep the same idea".
+
+- **The spin**: the camera used to slide in a straight line from behind the player to the menu's shot in front (through the body) and turn
+  whichever way was shorter. Now it goes round the player on a circle, always clockwise seen from above (`PlayerMenuCameraMath.Spin`), its
+  distance and height easing from the third-person camera's to the shot's (4 m in front, 1.6 m up), facing the player all the way; the
+  third-person camera's aim past the shoulder fades out as it goes. It sets off and stops softly (smootherstep, `Smooth`), and the further
+  round it goes the longer it takes, at an even pace: 0.25 s plus 1 s for a whole turn, so from straight behind (half a turn) 0.75 s, at most
+  1.25 s (`SpinSeconds`, `PlayerMenuCamera.EaseSeconds`).
+- **The icons**: the same eight pictures, drawn finer (128 pixels at 16 samples each, was 64 at 9): the exclamation, a person (a round head
+  with a gap above the shoulders), two people, a map pin (a teardrop with a hole), the vest, the chart, the star, the bag. They are drawn when
+  the menu wakes (`MenuIconImage`, all at once in `PlayerMenuView.Awake`, the fly-out's hidden ones too, so the first press of C does not
+  wait for them), so no texture is saved in the scene. ReDraw's brush is still ToolIcons' own.
+- Tests: `PlayerMenuSpinTests` (from behind at four facings: clockwise all the way, never nearer than 4 m, facing the player in the second
+  half, exactly on the shot at the end; no jolt at either end, longer the further round; every icon drawn with clear corners, the pin's hole,
+  the person's neck). Pictures: `PlayerMenuCapture` (Explicit, -Graphics) renders `Logs/CityShots/cmenu-spin-*.png` every 0.15 s of the
+  spin, then `cmenu.png` and `cmenu-player.png` (the Player fly-out open).

@@ -66,6 +66,11 @@ namespace CityX.UI
             if (PlayerButton != null) PlayerButton.onClick.AddListener(OnPlayerClicked);
             if (SocialButton != null) SocialButton.onClick.AddListener(OnSocialClicked);
             if (MapButton != null) MapButton.onClick.AddListener(OnMapClicked);
+            // Every icon drawn now, as the city loads, the fly-out's hidden ones too: drawn on the first press of C, they held the frame.
+            foreach (MenuIconImage icon in GetComponentsInChildren<MenuIconImage>(true))
+            {
+                icon.Draw();
+            }
             Close();
         }
 

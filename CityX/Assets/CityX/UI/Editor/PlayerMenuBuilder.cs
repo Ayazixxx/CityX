@@ -230,9 +230,8 @@ namespace CityX.UIEditor
         }
 
         /// <summary>
-        /// One icon image sized square inside its parent. "brush" reuses
-        /// ToolIcons directly rather than MenuIcons -- see MenuIcons' own
-        /// doc comment on why ReDraw's icon is the exception.
+        /// One icon image sized square inside its parent. Its picture is drawn when the menu wakes (MenuIconImage), so no texture is
+        /// saved inside the scene.
         /// </summary>
         private static Image MakeIcon(Transform parent, string kind, float size)
         {
@@ -245,15 +244,11 @@ namespace CityX.UIEditor
             rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(size, size);
 
-            Texture2D texture = kind == "brush" ? ToolIcons.Build("brush") : MenuIcons.Build(kind);
-            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
-                new Vector2(0.5f, 0.5f), texture.width);
-
             Image image = go.AddComponent<Image>();
-            image.sprite = sprite;
             image.color = IconColour;
             image.raycastTarget = false;
             image.preserveAspect = true;
+            go.AddComponent<MenuIconImage>().Kind = kind;
             return image;
         }
     }
