@@ -109,6 +109,19 @@ namespace CityX.Weapons
             return intent;
         }
 
+        /// <summary>
+        /// Its body has been thrown to the ground. A crouch or a leap it was in the middle of is over: left as it was (nothing ticks the mind
+        /// of a limp body), it "came down" the moment it stood again, and slammed with no crouch to see. It stands a moment instead, as
+        /// after a slam, and goes for the player again.
+        /// </summary>
+        public void KnockedDown()
+        {
+            if (Current == Phase.Crouch || Current == Phase.Airborne)
+            {
+                Enter(Phase.Recover);
+            }
+        }
+
         private void Enter(Phase phase)
         {
             Current = phase;

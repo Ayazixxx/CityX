@@ -109,5 +109,36 @@ namespace CityX.Tests
             Assert.IsTrue(player.GetComponent<Ragdoll>().IsLimp || playerVitals.IsDead, "the slam did not throw the player down");
             Assert.AreEqual(giantVitals.MaxHealth, giantVitals.Health, 1e-3f, "the giant's own slam hurt it");
         }
+
+        /// <summary>
+        /// Thrown limp in the middle of its leap, its mind stayed in the leap while it lay there: the moment it was back on its feet it
+        /// "landed", and the slam came with no crouch to see and run from.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator KnockedOutOfItsLeapItDoesNotSlamUntilItHasCrouchedAgain()
+        {
+            Player(Vector3.zero);
+            GameObject giant = Spawn("Assets/CityX/Character/Giant.prefab", new Vector3(0.0f, 0.0f, 20.0f), 180.0f);
+            var brain = giant.GetComponent<GiantBrain>();
+            var ragdoll = giant.GetComponent<Ragdoll>();
+            var locomotion = giant.GetComponent<PlayerLocomotion>();
+            yield return Wait(15.0f, () => brain.Mind.Current == GiantMind.Phase.Airborne && !locomotion.IsGrounded);
+            Assert.AreEqual(GiantMind.Phase.Airborne, brain.Mind.Current, "setup: the giant never leapt");
+            Assert.AreEqual(0, brain.Slams, "setup: the giant had already come down");
+
+            giant.GetComponent<PlayerVitals>().TriggerLaunchKnockdown(Vector3.up * 2.0f);
+            yield return null;
+            Assert.IsTrue(ragdoll.IsLimp, "setup: the giant was not thrown limp");
+            yield return Wait(20.0f, () => !ragdoll.IsLimp);
+            Assert.IsFalse(ragdoll.IsLimp, "setup: the giant never stood up again");
+
+            bool crouched = false;
+            yield return Wait(8.0f, () =>
+            {
+                crouched |= brain.Mind.Current == GiantMind.Phase.Crouch;
+                return brain.Slams > 0;
+            });
+            Assert.IsTrue(brain.Slams == 0 || crouched, "back on its feet, the giant slammed without crouching first");
+        }
     }
 }

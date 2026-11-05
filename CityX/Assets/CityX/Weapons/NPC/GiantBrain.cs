@@ -114,6 +114,7 @@ namespace CityX.Weapons
             }
             if (_ragdoll != null && _ragdoll.IsLimp)
             {
+                Mind.KnockedDown();
                 _ragdoll.Tick(deltaTime);
                 if (_ragdoll.CanStandUp)
                 {

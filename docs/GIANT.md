@@ -26,6 +26,9 @@
 | 5 | **Stands** 1.4 s, then goes after the player again; 5 s from one slam to the next | after a slam |
 
 - Never hurts itself, nor a packmate (`EnemyPack.AreAllies`: not thrown either).
+- Thrown limp in the middle of its crouch or its leap, it stands its 1.4 s once back on its feet and crouches again before the next leap
+  (`GiantMind.KnockedDown`): its slam never comes without the tell. Its mind used to stay in the leap while it lay there, and it
+  slammed the moment it stood (2026-11-05).
 - Its numbers are constants in `GiantRules`.
 
 ## Other players (docs/MULTIPLAYER_STATE.md)
@@ -38,7 +41,7 @@ the owner's machine and reach other players through their copies (`NetworkedDama
 ## Tests
 
 `GiantMindTests` (the phases, the tell's length, the cooldown, the slam's share), `GiantPlayTests` (the size and health, the stride, the leap
-and the slam on a real player that spares the giant), `NetworkedPlayerStateSyncPlayTests.Enemies` (the copy is a giant and shows the slam);
+and the slam on a real player that spares the giant; knocked out of its leap, no slam until it has crouched again), `NetworkedPlayerStateSyncPlayTests.Enemies` (the copy is a giant and shows the slam);
 pictures `GiantCapture` (`giant-*.png`).
 
 ## Not yet

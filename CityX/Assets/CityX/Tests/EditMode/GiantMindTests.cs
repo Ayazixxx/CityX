@@ -64,6 +64,31 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void KnockedOutOfItsLeapItStandsAMomentAndDoesNotSlamOnLanding()
+        {
+            var mind = new GiantMind();
+            Tick(mind, 20.0f);
+            Tick(mind, 20.0f);
+            for (float t = 0.0f; t < GiantRules.CrouchSeconds + Step; t += Step) Tick(mind, 20.0f);
+            Tick(mind, 20.0f, grounded: false);
+            Assert.AreEqual(GiantMind.Phase.Airborne, mind.Current, "setup: it is not in its leap");
+
+            mind.KnockedDown();
+            GiantMind.Intent intent = Tick(mind, 20.0f, grounded: true);
+            Assert.IsFalse(intent.Slam, "knocked out of the air, it slammed as it stood up");
+            Assert.AreEqual(GiantMind.Phase.Recover, mind.Current);
+            for (float t = 0.0f; t < GiantRules.RecoverSeconds + Step; t += Step) intent = Tick(mind, 20.0f);
+            intent = Tick(mind, 20.0f);
+            Assert.AreEqual(GiantMind.Phase.Crouch, mind.Current, "it does not go for the player again: crouch first, then leap");
+
+            // Thrown down while walking, it walks on.
+            var walking = new GiantMind();
+            Tick(walking, 80.0f);
+            walking.KnockedDown();
+            Assert.AreEqual(GiantMind.Phase.Approach, walking.Current);
+        }
+
+        [Test]
         public void TheSlamHurtsMostAtItsMiddleAndNothingPastItsRim()
         {
             Assert.AreEqual(1.0f, GiantRules.SlamShare(0.0f), 1e-4f);
