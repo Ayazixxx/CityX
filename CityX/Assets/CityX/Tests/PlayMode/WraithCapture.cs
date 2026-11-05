@@ -128,6 +128,37 @@ namespace CityX.Tests
             BuildingShapeCapture.Shoot(camera, folder, "wraith-night-threequarter", chest + new Vector3(4.5f, 1.0f, 4.5f), chest);
             BuildingShapeCapture.Shoot(camera, folder, "wraith-night-close", chest + new Vector3(2.0f, 0.6f, 2.4f), chest);
 
+            // Its eyes as the game draws them: through the game's own grade (the bloom that takes their glow, the tonemap), by night and by day.
+            var grade = new GameObject("Grade").AddComponent<UnityEngine.Rendering.Volume>();
+            grade.isGlobal = true;
+            grade.sharedProfile = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.VolumeProfile>("Assets/CityX/View/Materials/CityGrade.asset");
+            camera.allowHDR = true;
+            var cameraData = camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+            cameraData.renderPostProcessing = true;
+            skull = wraith.Head.position;
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-eyes-night", skull + wraith.Head.forward * 2.6f + wraith.Head.right * 0.9f, skull);
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-eyes-night-far", skull + wraith.Head.forward * 9.0f + Vector3.up * 0.4f, skull);
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-eyes-night-side", skull + wraith.Head.right * 2.6f, skull);
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-eyes-night-behind", skull - wraith.Head.forward * 2.6f + wraith.Head.right * 0.9f, skull);
+            sun.intensity = 1.3f;
+            camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
+            ground.GetComponent<Renderer>().material.color = new Color(0.32f, 0.33f, 0.36f);
+            for (int i = 0; i < 10; i++)
+            {
+                yield return null;
+            }
+            skull = wraith.Head.position;
+            BuildingShapeCapture.Shoot(camera, folder, "wraith-eyes-day", skull + wraith.Head.forward * 2.6f + wraith.Head.right * 0.9f, skull);
+            cameraData.renderPostProcessing = false;
+            Object.Destroy(grade.gameObject);
+            sun.intensity = 0.0f;
+            camera.backgroundColor = new Color(0.02f, 0.02f, 0.03f);
+            ground.GetComponent<Renderer>().material.color = new Color(0.08f, 0.08f, 0.09f);
+            for (int i = 0; i < 10; i++)
+            {
+                yield return null;
+            }
+
             // Hit: the flash and the flinch, a few frames in.
             ((IDamageable)wraith).ApplyHit(CombatTuning.PunchDamage, chest + Vector3.forward, CombatTuning.HitstunSeconds);
             for (int i = 0; i < 4; i++)

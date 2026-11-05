@@ -159,9 +159,9 @@ namespace CityX.Tests
             Assert.AreEqual(1, wraith.Renderers.Length, "its fade and flash do not reach its body");
         }
 
-        /// <summary>Owner, 2026-10-26: "eyes dont need to glow just make them solid red"; 2026-11-05: the model's head. The eyes sit in its sockets, the teeth are its own, solid white.</summary>
+        /// <summary>Owner, 2026-11-05: "make the eyes on the wraith glowing red". The eyes sit in the model's sockets; the teeth are its own, solid white.</summary>
         [Test]
-        public void ItHasSolidRedEyesInTheModelsSocketsAndItsTeethSolidWhite()
+        public void ItHasGlowingRedEyesInTheModelsSocketsAndItsTeethSolidWhite()
         {
             Wraith wraith = Prefab().GetComponent<Wraith>();
             Assert.IsNotNull(wraith.Face, "it has no face");
@@ -173,7 +173,12 @@ namespace CityX.Tests
                 Assert.AreEqual(side * WraithBuilder.EyeOffsetX, eye.localPosition.x, 1e-3f, $"{name} is not out to its side");
                 Assert.Greater(eye.localPosition.z, 0.0f, $"{name} looks backward");
                 Material material = eye.GetComponent<MeshRenderer>().sharedMaterial;
-                Assert.Less(Vector4.Distance(WraithBuilder.EyeColour, material.GetColor("_BaseColor")), 0.01f, $"{name} is not solid red");
+                Assert.Less(Vector4.Distance(WraithBuilder.EyeColour, material.GetColor("_BaseColor")), 0.01f, $"{name} is not red");
+                Assert.IsTrue(material.IsKeywordEnabled("_EMISSION"), $"{name} does not glow");
+                Color glow = material.GetColor("_EmissionColor");
+                Assert.Greater(glow.r, 2.0f, $"{name} glows no brighter than white: the bloom will not take it");
+                Assert.Greater(glow.r, glow.g * 8.0f, $"{name} does not glow red");
+                Assert.Greater(glow.r, glow.b * 8.0f, $"{name} does not glow red");
             }
             Assert.IsNotNull(wraith.Jaw, "it has no point to put on a neck");
             Transform teeth = wraith.Jaw.Find(WraithBuilder.TeethName);

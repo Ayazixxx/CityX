@@ -4,7 +4,7 @@ namespace CityX.Character
 {
     /// <summary>
     /// The Wraith (owner, 2026-10-26): a low-level ghost that floats about the streets. Its head and body are the owner's model, on the player's own arms (2026-11-05), its tail
-    /// wearing away into gas, all on the ghost surface (Shaders/CityXGhost), with two solid red eyes and solid white teeth (WraithBuilder). It "dies very quickly":
+    /// wearing away into gas, all on the ghost surface (Shaders/CityXGhost), with two glowing red eyes and solid white teeth (WraithBuilder). It "dies very quickly":
     /// <see cref="MaxHealth"/> is one pistol round or two punches, and dead it fades away and rises. It sneaks up behind a player and bites their neck (Wraith.Bite.cs).
     ///
     /// No CharacterController and no Animator: it hovers (WraithDrift: drift, linger, bob, a ground-relative hover height), steered round

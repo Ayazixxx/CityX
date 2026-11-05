@@ -14,7 +14,7 @@ namespace CityX.CharacterEditor
     ///    (BodyRig.RestBindMatrix), so the Wraith can pose it without an Animator.
     ///  * THE GAS, three things: the tail's vertex alpha falls from <see cref="TailSolidY"/> to nothing at <see cref="TailGoneY"/>, above its tip, and the ghost shader wears the surface
     ///    away into streaks where it does; the tail writhes (the shader's sway); and soft puffs come off it, drift and thin to nothing.
-    ///  * THE FACE: the model's teeth, cut off it as their own solid white mesh under <see cref="JawName"/>, and two solid red eyes in the model's sockets.
+    ///  * THE FACE: the model's teeth, cut off it as their own solid white mesh under <see cref="JawName"/>, and two glowing red eyes in the model's sockets.
     ///  * THE SURFACE is Shaders/CityXGhost. A point light glows from its chest, and a capsule collider stands in for its torso.
     ///
     /// Spawned only by /spawn wraith.
@@ -41,11 +41,17 @@ namespace CityX.CharacterEditor
         public const string JawName = "Jaw";
         public const string TeethName = "Teeth";
 
-        /// <summary>The eyes, in the middle of the model's sockets (measured by wraith_body.py), filling them. "eyes dont need to glow just make them solid red" (owner, 2026-10-26).</summary>
+        /// <summary>The eyes, in the middle of the model's sockets (measured by wraith_body.py), filling them. They glow (owner, 2026-11-05: "make the eyes on the wraith glowing red").</summary>
         public const float EyeOffsetX = 0.22f;
         public const float EyeY = 0.067f;
         public const float EyeZ = 0.205f;
         public const float EyeRadius = 0.058f;
+        /// <summary>
+        /// What the eyes give off: red alone, far past white, so the game's bloom spreads it into the glow round them. Not their own colour
+        /// made brighter, whose little green and blue come up with it and turn the eyes pink.
+        /// </summary>
+        public static readonly Color EyeGlowColour = new Color(6.0f, 0.0f, 0.04f);
+
         private const int EyeLatitudes = 10;
         private const int EyeLongitudes = 16;
 
@@ -420,7 +426,7 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>
-        /// The face: two solid red eyes in the model's sockets, and the model's teeth under the point that goes on the prey's neck. Opaque and lit (CityX/Lit, cel shaded and outlined
+        /// The face: two glowing red eyes in the model's sockets, and the model's teeth under the point that goes on the prey's neck. Opaque and lit (CityX/Lit, cel shaded and outlined
         /// like everything solid), gone with the body when it dies (Wraith shrinks the face away).
         /// </summary>
         private static Transform BuildFace(Transform head, Mesh modelTeeth, Matrix4x4 teethPlace, out Transform jaw)
@@ -430,6 +436,10 @@ namespace CityX.CharacterEditor
             face.transform.localPosition = HeadMesh.CentreOnBone;
 
             Material eyeMaterial = SolidMaterial(EyeMaterialPath, "WraithEye", EyeColour, EyeSmoothness);
+            eyeMaterial.EnableKeyword("_EMISSION");
+            eyeMaterial.SetColor("_EmissionColor", EyeGlowColour);
+            eyeMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;   // with none, the keyword is dropped as the material is saved
+            EditorUtility.SetDirty(eyeMaterial);
             Mesh eyeMesh = SaveMesh(EyeMeshPath, Sphere("WraithEye", EyeRadius, EyeLatitudes, EyeLongitudes));
             foreach ((string name, float side) in new[] { (EyeLeftName, -1.0f), (EyeRightName, 1.0f) })
             {
