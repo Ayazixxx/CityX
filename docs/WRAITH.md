@@ -20,6 +20,16 @@ Owner, 2026-11-05, with their Meshy model and a Mixamo clip: "make the head repl
 | Glow | a point light at its chest | a pool of pale blue on the street at night |
 | Collider | a capsule, hips to the top of the head | what blows and bullets meet |
 
+## Mending the body by hand
+
+Owner, 2026-11-05: "the lines around the arms and neck are a bit jagged ... you can tell its two models stitched together", and they will
+mend it themselves. The model in the project has no arms (the player's are put on by `WraithBuilder`), so the joins exist only in what
+the builder makes. `CityX > Export Wraith For Mending` (`Character/Editor/WraithExport.cs`; in batch: `-executeMethod
+CityX.CharacterEditor.WraithExport.Export`) writes that as `CityX/SourceArt/Wraith/WraithAsBuilt.obj`: an object `Body` (head, torso,
+tail and arms, 36k vertices) and `Teeth` (for reference), in metres, Y up, as Blender's OBJ import takes them. The file is not
+committed. Not built yet: taking a mended mesh back (its skin weights and the tail's fade would be copied over from the built mesh by
+nearest point).
+
 ## Its tail turning to gas
 
 Three things together, and no thrown ribbons (the first build's: "that just looks like a tornado sitting beneath him"):
