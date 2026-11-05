@@ -214,7 +214,7 @@ namespace CityX.Tests
 
             // Only the air under the deck, which may be low: a drop over it is not under it.
             float underHeight = Mathf.Min(6.0f, RainCover.CastFromSky(deckX, deckZ, 450.0f) - deckGround - 0.5f);
-            int under = rain.CountLiveDropsIn(new Bounds(new Vector3(deckX, deckGround + underHeight * 0.5f, deckZ), new Vector3(4.0f, underHeight, 4.0f)));
+            var underBox = new Bounds(new Vector3(deckX, deckGround + underHeight * 0.5f, deckZ), new Vector3(4.0f, underHeight, 4.0f));
 
             // The open beside it: a 14 m square of open sky inside the rain box round the player, well clear of this deck. Found, not assumed:
             // an elevated expressway (2026-10-12) can run along the same river and shelter the spot a fixed offset would land on.
@@ -248,8 +248,15 @@ namespace CityX.Tests
             TestContext.WriteLine($"the open square's shelter, summed over 5 points: {bestShelter:0.00}");
             // (Up to 4 of 5: by tall buildings the cover map shades open ground, and what matters is the count of drops falling there, below.)
             Assert.Less(bestShelter, 4.0f, "no open sky anywhere beside the bridge to compare with");
-            int open = rain.CountLiveDropsIn(new Bounds(
-                new Vector3(openCentre.x, GroundAt(openCentre.x, openCentre.z) + 8.0f, openCentre.z), new Vector3(14.0f, 16.0f, 14.0f)));
+            var openBox = new Bounds(new Vector3(openCentre.x, GroundAt(openCentre.x, openCentre.z) + 8.0f, openCentre.z), new Vector3(14.0f, 16.0f, 14.0f));
+            // Added up over half a second: one frame's count in a square this small is a handful of drops, and by chance it fell short of the bar in full runs.
+            int under = 0, open = 0;
+            for (int frame = 0; frame < 30; frame++)
+            {
+                under += rain.CountLiveDropsIn(underBox);
+                open += rain.CountLiveDropsIn(openBox);
+                yield return null;
+            }
             TestContext.WriteLine($"drops under the bridge: {under}; in the open beside it: {open}");
             Assert.AreEqual(0, under, "rain fell under the bridge deck");
             Assert.Greater(open, 10, "rain should fall in the open beside the deck");
