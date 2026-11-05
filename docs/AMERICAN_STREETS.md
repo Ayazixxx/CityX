@@ -26,7 +26,7 @@ Real sizes are multiplied by 1.3 here, as everything is (the player is 2.6 m tal
 2. **Street lights** (built 2026-11-05), cobra-heads, lit at night. The owner had the first street lamps removed on 2026-09-04 ("they look bad and are
    clipping into the ground") and asked for streetlights again with the streets for drivers on 2026-10-15: these must stand ON the
    pavement and look like the real thing.
-3. **The sidewalk as concrete** (the concrete built 2026-11-05): scored squares, a kerb and gutter band, yellow dome mats at the crossings, red kerb by the hydrants.
+3. **The sidewalk as concrete** (the concrete and the red kerb built 2026-11-05): scored squares, a kerb and gutter band, yellow dome mats at the crossings, red kerb by the hydrants.
 4. **What stands in the furnishing zone** (built 2026-11-05 but for manholes and drains): American hydrants, parking meters and stall marks, a mailbox, newspaper boxes and a bin at
    corners, dead street trees in grated pits (nothing has grown on Terraplex 9 since the rapture), manholes and drains.
 
@@ -94,7 +94,7 @@ east the joints crossed the walk at a slant, and it read as a plaza's paving, no
 - Tests: `SidewalkPavingTests` (the frame's joints on every side of every block round the spawn; the built paving carries its frame's
   coordinates on the walks and behind them; the tile is two flags by two with a joint round each). Pictures: `TrafficCapture`
   (`streets-1-sidewalk*.png`, `streets-2-corner*.png`).
-- Not built yet: the gutter pan in the road, the yellow dome mats, red kerb by the hydrants.
+- Not built yet: the gutter pan in the road, the yellow dome mats.
 
 ### What stands along the kerb (2026-11-05)
 
@@ -114,4 +114,11 @@ east the joints crossed the walk at a slant, and it read as a plaza's paving, no
   buffers, no extra draws, near chunks only. None stands where the pavement is cut away, at a stairway's mouth or on Old Guy's lot.
 - Tests: `StreetFurnitureTests` (where the rule stands each thing round the spawn; each is built standing on the pavement; a stall mark
   in the road at each meter's line). Pictures: `TrafficCapture.RenderTheStreets` (`streets-2-corner.png` shows a corner's things).
-- Not built yet: manholes and drains, the gutter pan in the road, yellow dome mats at the crossings, red kerb beside the hydrants.
+- Not built yet: manholes and drains, the gutter pan in the road, yellow dome mats at the crossings.
+
+### Red kerb by the hydrants (2026-11-05)
+
+The kerb is painted red 5.9 m either way of each hydrant (15 ft at the city's 1.3 times life), its face and the front of its top
+(`CitySurfaceBuilder.PaintRedKerb`, thin quads standing proud of the kerb, in pieces that follow the ground), and the parking stalls on
+that side keep to the rest of the street (`StreetFurniture.TryHydrant`, `StallLines`). Test:
+`StreetFurnitureTests.TheKerbByAHydrantIsRedAndNobodyParksThere`. Picture: `streets-6-hydrant.png`.

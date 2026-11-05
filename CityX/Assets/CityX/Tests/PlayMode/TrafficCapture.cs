@@ -185,6 +185,25 @@ namespace CityX.Tests
             yield return ShootByLamplight(_camera, "streets-4-lamps-night-above", above, World(_plan, lamp.At, 0.0));
             yield return ShootByLamplight(_camera, "streets-4-sidewalk-night", walkerEye, ahead);
 
+            // A hydrant and its red kerb, by day.
+            _console.Submit("/time noon");
+            yield return null;
+            var things = new List<StreetFurnishing>();
+            StreetFurniture.Along(_plan, street, things);
+            foreach (StreetFurnishing thing in things)
+            {
+                if (thing.Kind != StreetFurnitureKind.Hydrant)
+                {
+                    continue;
+                }
+                Vector3 hydrant = World(_plan, thing.At, 0.6);
+                Vector3 eye = World(_plan, thing.At + thing.ToRoad * 4.5 + thing.Along * 5.5, 2.4);
+                yield return Shoot(_camera, "streets-6-hydrant", eye, hydrant);
+                break;
+            }
+            _console.Submit("/time midnight");
+            yield return null;
+
             EdgeGeometry dark = NearestStreet(_plan, _spawn, lamps, powered: false);
             if (dark != null)
             {

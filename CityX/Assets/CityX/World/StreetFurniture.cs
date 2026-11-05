@@ -69,6 +69,9 @@ namespace CityX.World
 
         public const double StallDepth = 2.4;
 
+        /// <summary>The kerb is painted red this far either way of a hydrant, and nobody parks there, metres (15 ft x 1.3).</summary>
+        public const double RedKerbEach = 5.9;
+
         /// <summary>A side of a street shorter than this between its corners' clear stretches has nothing standing along it, metres.</summary>
         public const double ShortestFurnished = 6.0;
 
@@ -113,6 +116,18 @@ namespace CityX.World
             {
                 return;
             }
+            // No stall reaches into the red kerb by a hydrant: it stands near one end of its side, and the stalls keep to the rest.
+            if (TryHydrant(plan, g, side, out double hydrantAt))
+            {
+                if (hydrantAt - from < to - hydrantAt)
+                {
+                    from = Math.Max(from, hydrantAt + RedKerbEach);
+                }
+                else
+                {
+                    to = Math.Min(to, hydrantAt - RedKerbEach);
+                }
+            }
             int stalls = (int)Math.Floor((to - from - 2.0) / StallLength);
             if (stalls < 1)
             {
@@ -123,6 +138,18 @@ namespace CityX.World
             {
                 into.Add(first + k * StallLength);
             }
+        }
+
+        /// <summary>Where a side of a street has its hydrant, along the road from its A end: one to a street, near one of its ends.</summary>
+        public static bool TryHydrant(PlanWorld plan, EdgeGeometry g, int side, out double along)
+        {
+            along = 0.0;
+            if (!TryStretch(plan, g, out double from, out double to) || (Unit(plan, g.Edge, 4) < 0.5) != (side > 0) || to - from < 24.0)
+            {
+                return false;
+            }
+            along = Unit(plan, g.Edge, 5) < 0.5 ? from + 7.5 : to - 7.5;
+            return true;
         }
 
         /// <summary>Everything standing along one road's two sidewalks, added to <paramref name="into"/>.</summary>
@@ -159,11 +186,9 @@ namespace CityX.World
                 }
 
                 // One hydrant to a street, near one end, on one side.
-                bool hydrantHere = (Unit(plan, g.Edge, 4) < 0.5) == (side > 0);
-                if (hydrantHere && to - from >= 24.0)
+                if (TryHydrant(plan, g, side, out double hydrantAt))
                 {
-                    double at = Unit(plan, g.Edge, 5) < 0.5 ? from + 7.5 : to - 7.5;
-                    Stand(g, into, taken, aside, StreetFurnitureKind.Hydrant, at, HydrantFromKerb, salt + 30, Clear);
+                    Stand(g, into, taken, aside, StreetFurnitureKind.Hydrant, hydrantAt, HydrantFromKerb, salt + 30, Clear);
                 }
 
                 if (Unit(plan, g.Edge, salt + 40) < CabinetShare)

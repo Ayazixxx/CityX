@@ -149,6 +149,55 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>The kerb by a hydrant is painted red either way of it, and no parking stall reaches into it.</summary>
+        [Test]
+        public void TheKerbByAHydrantIsRedAndNobodyParksThere()
+        {
+            PlanWorld plan = SpawnStreets.Plan;
+            var things = new List<StreetFurnishing>();
+            var lines = new List<double>();
+            int painted = 0;
+            foreach (EdgeGeometry g in SpawnStreets.Roads(ReachChunks))
+            {
+                things.Clear();
+                StreetFurniture.Along(plan, g, things);
+                foreach (StreetFurnishing hydrant in things)
+                {
+                    if (hydrant.Kind != StreetFurnitureKind.Hydrant)
+                    {
+                        continue;
+                    }
+                    double along = Vec2.Dot(hydrant.At - g.A, g.Dir);
+                    int side = System.Math.Sign(Vec2.Dot(hydrant.At - g.A, g.Dir.Perp));
+                    lines.Clear();
+                    StreetFurniture.StallLines(plan, g, side, lines);
+                    foreach (double line in lines)
+                    {
+                        Assert.GreaterOrEqual(System.Math.Abs(line - along), StreetFurniture.RedKerbEach - 1e-6,
+                            $"road {g.Edge.Id}: a parking stall reaches into the red kerb by its hydrant");
+                    }
+                    if (painted >= 4 || plan.OnTutorialLot(hydrant.At.X, hydrant.At.Y, 1.0))
+                    {
+                        continue;
+                    }
+                    // A metre either way of the hydrant, on the kerb's face: red paint, in the chunk that holds that point.
+                    foreach (double offset in new[] { -1.0, 1.0 })
+                    {
+                        Vec2 kerb = g.A + g.Dir * (along + offset) - hydrant.ToRoad * g.HalfWidth;
+                        SpawnStreets.Surface built = SpawnStreets.BuildAt(kerb);
+                        bool red = false;
+                        for (int i = 0; i < built.Structures.Vertices.Count && !red; i++)
+                        {
+                            red = built.Structures.Colors[i].Equals(CitySurfaceBuilder.RedKerbLook) && (built.InTheWorld(built.Structures.Vertices[i]) - kerb).Length < 1.2;
+                        }
+                        Assert.IsTrue(red, $"road {g.Edge.Id}: the kerb {offset:+0;-0} m from its hydrant is not red");
+                    }
+                    painted++;
+                }
+            }
+            Assert.GreaterOrEqual(painted, 2, "hardly a hydrant near the spawn was looked at");
+        }
+
         [Test]
         public void AMeteredSideHasAStallMarkedInTheRoadAtEachMetersLine()
         {
