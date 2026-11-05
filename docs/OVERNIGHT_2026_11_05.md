@@ -60,6 +60,29 @@ The lights run on real timings: a 90 second cycle on main roads and 60 on side s
 
 **Not done yet:** the other half of what you asked, making the streets and sidewalks themselves feel American. That is its own job.
 
+## The Wraith's glowing red eyes
+
+Its eyes now give off their own red light. They stay bright red in the dark instead of going dim with the rest of it, and the game's bloom spreads a glow off them. You can pick the eyes out from across a street at night.
+
+**Try:** `/time midnight`, then `/spawn wraith` and look it in the face. Then `/time noon` for the day look.
+
+**Tried and dropped:** a red haze breathing round each eye. It showed beside the head but never on the ghost's own white face, so it looked like a mistake, and I took it out rather than keep fiddling. Say if you want the glow bigger or smaller: it is one number.
+
+## Bugs fixed
+
+Each of these was proven with a test that failed before the fix. Each is its own commit, so any one can be undone alone.
+
+- **Poison gas did nothing while you stood in it.** The cloud re-poisons whoever is inside five times a second, and each new dose restarted the half-second countdown to the next hurt, so it never came. You only started losing health once you walked out. Now it hurts from the start: 3 health a second in the gas, and 10 more seconds after you leave, as it was meant to.
+- **An empty staff hit harder than a full one.** With no mana and the click held, the Water, Flame, Frost, Arcane Beam and Healing staffs switched on again every few frames as mana trickled back, and every switch-on landed a hit at once. Measured: the Arcane Beam landed about 24 hits a second on an empty bar against 5 on a full one. Tapping the click fast did the same on a full bar, nearly for free. Now a staff that runs dry stays off until it has a second's worth of mana back, then runs in one stretch, and tapping hits no faster than holding. **My guess:** the one second. On the water staff that is a second and a half of waiting.
+- **A dead body could stand back up.** If you were killed while knocked down, the knockdown's timer still ran out and the corpse got to its feet. If you were killed while getting up, the corpse finished getting up. And respawning after either left every animation playing at the get-up's fast pace. Now a dead body stays down, one killed while getting up falls again, and a respawn starts clean.
+- **A punch landed after you had already been hit out of it.** A punch that was on its way still landed if you were staggered, knocked to the ground or even killed before it connected, and a second punch you had queued up went off in the middle of your stagger. Now getting hit cancels your punch, the same as it already did for a sword swing. This cuts both ways: an enemy's punch is cancelled when you hit him first.
+- **Punches and sword cuts went through walls.** Anyone within reach got hit, wall or no wall: through a thin wall, a closed door or a window. Now a blow needs a clear path from your chest to where it lands. Low things (a bench, a car bonnet) do not block it.
+- **A heavy punch knocked down someone who had blocked it.** If an Arcane Barrier, a held sword guard or a raised shield took the heavy punch, the body behind it was thrown to the ground anyway. Now only a heavy punch that actually lands knocks down. This is fixed for fights against enemies; between two players on different machines the same thing can still happen, and that is a separate fix.
+- **The swordsman's cut carried on after you knocked him down.** If you threw him to the ground mid-swing, his swing paused and then finished, invisibly, once he was back on his feet. Now a knockdown ends his cut.
+- **Swapping weapons reloaded your gun for free.** Scrolling to your other weapon and back gave the gun a full magazine and all its spare rounds, instantly. Now a gun keeps the rounds it had when you put it away, and when you drop it and pick it up again, for every player. A gun nobody has held yet still comes loaded. Rounds are not saved between sessions: guns start full when you launch the game.
+
+**Try:** `/spawn swordsman`, breathe poison on him (key 4) and watch his health while he stands in the cloud. Hold a staff's click until the mana is gone and keep holding: it should cut out, wait, then come back in one burst. Fire half a magazine, scroll to another weapon and back, and check the ammo count.
+
 ## Stairs and playing with a friend
 
 Both were done earlier today and are already in `git log`. Nobody has tried joining a friend on two real PCs yet.
