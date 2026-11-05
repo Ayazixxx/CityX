@@ -183,6 +183,19 @@ namespace CityX.Character
             // before the skill tree keeps everything it could already use).
             PlayerSkills.On(gameObject).Load(character);
 
+            ApplyLook(character);
+        }
+
+        /// <summary>
+        /// A save's appearance alone put on this body: hair, and paint or skin colour. What a redraw changes. Nothing the character has
+        /// earned is touched and nothing is refilled.
+        /// </summary>
+        public void ApplyLook(CharacterSave character)
+        {
+            if (character == null)
+            {
+                return;
+            }
             var hair = GetComponentInChildren<CharacterHair>(includeInactive: true);
             if (hair != null)
             {

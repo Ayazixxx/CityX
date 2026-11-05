@@ -138,5 +138,24 @@ namespace CityX.Tests
             CityX.UI.PauseMenuView.SaveTheCharacter();   // the first thing Quit To Title does
             Assert.AreEqual(50, LocalServer.Characters.List(PlayerKey.Local)[0].Experience, "what was earned since the last autosave was not saved");
         }
+
+        /// <summary>A redraw put the SAVE back on the body, look and all: its level and points as old as the last autosave, and every bar refilled.</summary>
+        [UnityTest]
+        public IEnumerator PuttingANewLookOnHealsNothingAndUndoesNothingEarned()
+        {
+            CharacterSave save = Begin();
+            GameObject body = Body(anothers: false);
+            yield return null;
+            var identity = body.GetComponent<CharacterIdentity>();
+            var vitals = body.GetComponent<PlayerVitals>();
+            vitals.AddXp(50);
+            vitals.TakeDamage(40.0f);
+            float health = vitals.Health;
+
+            save.HairColour = Color.red;
+            identity.ApplyLook(save);   // what confirming a redraw does (PlayerRedrawStarter)
+            Assert.AreEqual(50, vitals.Experience, "a new look undid what had been earned");
+            Assert.AreEqual(health, vitals.Health, 0.01f, "a new look healed the body");
+        }
     }
 }
