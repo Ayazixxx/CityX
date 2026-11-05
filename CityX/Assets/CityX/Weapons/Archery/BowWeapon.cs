@@ -102,7 +102,7 @@ namespace CityX.Weapons
             _archery = player.GetComponent<Archery>();
         }
 
-        public void OnUnequip(GameObject player)
+        public void LetDown()
         {
             if (_drawing)
             {
@@ -115,6 +115,11 @@ namespace CityX.Weapons
                 _up = false;
                 _archery?.TellLowered();
             }
+        }
+
+        public void OnUnequip(GameObject player)
+        {
+            LetDown();
             var input = player != null ? player.GetComponent<PlayerInputReader>() : null;
             if (input != null && ReferenceEquals(input.EquippedGun, this))
             {

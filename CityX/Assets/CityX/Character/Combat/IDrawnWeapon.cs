@@ -15,5 +15,8 @@ namespace CityX.Character
 
         /// <summary>How far drawn, 0 (not at all) to 1 (fully).</summary>
         float DrawShare { get; }
+
+        /// <summary>The draw let down with no shot: whoever held it has been staggered, thrown down or killed.</summary>
+        void LetDown();
     }
 }

@@ -356,6 +356,21 @@ namespace CityX.Character
             _melee?.InterruptSpinCharge();
         }
 
+        /// <summary>
+        /// THE BODY IS OUT OF ITS OWNER'S HANDS (thrown limp, dead, staggered): what a held click was doing is let go of. Nothing that reads
+        /// the click is reached while that lasts, so a bow half drawn stayed drawn and loosed its arrow by itself the moment control came
+        /// back, and a staff's jet, a charge or a flame went on with nobody holding it.
+        /// </summary>
+        private void LetGoOfTheTrigger(float deltaTime)
+        {
+            if (EquippedGun is IDrawnWeapon drawn)
+            {
+                drawn.LetDown();
+            }
+            EquippedStaff?.CancelCharge(gameObject);
+            EquippedFlamethrower?.Tick(false, transform.position, transform.forward, gameObject, deltaTime);
+        }
+
         private void OnDestroy()
         {
             if (_vitals != null)
@@ -470,6 +485,7 @@ namespace CityX.Character
                 // these early returns: they are loops, so they do not run out
                 // on their own, and a corpse walking on the spot is audible.
                 _audio?.SilenceFootsteps();
+                LetGoOfTheTrigger(deltaTime);
 
                 // SAME REASONING, FOR THE JETPACK -- Bug report:
                 // "when your using jetpack and crash into a surface and
@@ -560,6 +576,7 @@ namespace CityX.Character
                 // body with no input rather than stopping it dead in the air.
                 _locomotion.Tick(default, deltaTime);
                 _audio?.SilenceFootsteps();
+                LetGoOfTheTrigger(deltaTime);
                 return;
             }
 
@@ -570,6 +587,7 @@ namespace CityX.Character
             {
                 _locomotion.Tick(default, deltaTime);
                 _audio?.SilenceFootsteps();
+                LetGoOfTheTrigger(deltaTime);
                 return;
             }
 
