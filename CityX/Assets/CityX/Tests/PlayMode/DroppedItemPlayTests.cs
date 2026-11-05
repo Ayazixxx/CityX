@@ -81,6 +81,21 @@ namespace CityX.Tests
             return inventory;
         }
 
+        /// <summary>Slower than this, metres a second, a drop is at rest.</summary>
+        private const float AtRest = 0.25f;
+
+        /// <summary>
+        /// At least <paramref name="atLeast"/> seconds, then until the drop is at rest, at most <paramref name="atMost"/>: flung from a dying
+        /// hand, the sword was once still sliding at three seconds in a busy full run, and came to rest in time on its own.
+        /// </summary>
+        private static IEnumerator UntilAtRest(DroppedItem item, float atLeast, float atMost)
+        {
+            for (float t = 0.0f; t < atMost && (t < atLeast || item.Body.linearVelocity.magnitude >= AtRest); t += Time.deltaTime)
+            {
+                yield return null;
+            }
+        }
+
         private static IEnumerator Seconds(float seconds)
         {
             for (float t = 0.0f; t < seconds; t += Time.deltaTime)
@@ -107,7 +122,7 @@ namespace CityX.Tests
             Bounds lying = item.Solid.bounds;
             Assert.Less(lying.min.y, 0.15f, $"the {what} is not lying on the ground (its lowest point {lying.min.y:0.00} m up)");
             Assert.Greater(lying.min.y, -0.1f, $"the {what} sank into the ground");
-            Assert.Less(item.Body.linearVelocity.magnitude, 0.25f, $"the {what} never came to rest");
+            Assert.Less(item.Body.linearVelocity.magnitude, AtRest, $"the {what} never came to rest");
             Vector3 away = item.Centre - droppedNear;
             away.y = 0.0f;
             // Flung from a dying hand it tumbles and slides 3 to 4.5 m on the flat before it rests (4.1 and 4.3 m seen on 2026-10-31): near, not far.
@@ -137,7 +152,7 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(dropped.transform.position, hand), 0.4f, "the sword did not start in the dead player's hand");
             Assert.Less(dropped.Id, 0L, "with no session the drop is this machine's alone");
 
-            yield return Seconds(3.0f);
+            yield return UntilAtRest(dropped, 3.0f, 6.0f);
             AssertLyingOnTheGround(dropped, player.transform.position, "sword");
 
             // Another player walks up to it, looks at it and presses E.
