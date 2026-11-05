@@ -219,6 +219,37 @@ namespace CityX.Tests
             Assert.AreEqual(0, elsewhere, "clicking the forearm painted somewhere other than the arm");
         }
 
+        /// <summary>Owner, 2026-11-05: "can you make it zoom into wherever you mouse is hovering? so you can zoom into the head or feet or anywhere".</summary>
+        [UnityTest]
+        public IEnumerator ScrollingZoomsTowardWhatTheMouseIsOverAndOutBringsTheWholeBodyBack(
+            [Values(HumanBodyBones.Head, HumanBodyBones.LeftFoot, HumanBodyBones.RightHand)] HumanBodyBones part)
+        {
+            yield return null;
+            Vector3 home = _camera.transform.localPosition;
+            Transform bone = _creator.GetComponentInChildren<Animator>(true).GetBoneTransform(part);
+            Assert.IsNotNull(bone);
+            Vector3 world = bone.position;
+            Vector2 before = _camera.WorldToScreenPoint(world);
+            float distanceBefore = Vector3.Distance(_camera.transform.position, world);
+
+            for (int i = 0; i < 12; i++)
+            {
+                _creator.ZoomAt(before, closer: true);
+            }
+            Vector2 after = _camera.WorldToScreenPoint(world);
+            Assert.Less(Vector2.Distance(before, after), 0.03f * Screen.height, $"zooming in moved the {part} away from under the mouse");
+            Assert.Less(Vector3.Distance(_camera.transform.position, world), distanceBefore * 0.5f, $"it did not come in on the {part}");
+
+            for (int i = 0; i < 12; i++)
+            {
+                _creator.ZoomAt(new Vector2(Screen.width * 0.9f, Screen.height * 0.9f), closer: false);
+            }
+            Vector3 back = _camera.transform.localPosition;
+            Assert.AreEqual(home.x, back.x, 1e-3f, "zoomed out, the camera is off the middle");
+            Assert.AreEqual(home.y, back.y, 1e-3f, "zoomed out, the camera is off the middle");
+            Assert.GreaterOrEqual(back.z, home.z, "twelve notches out did not bring it back out");
+        }
+
         /// <summary>
         /// Saves Logs/CityShots/brush-sizes.png: taps of sizes 1 to 8 across the chest, a wavy size-1 and size-3 line, a stroke down the
         /// outstretched arm, and the brush ring. Run with a graphics device and look at it.
@@ -227,8 +258,8 @@ namespace CityX.Tests
         public IEnumerator BrushCapture()
         {
             _creator.Colour = new Color(0.1f, 0.1f, 0.12f);
-            // As close as the creator lets the camera come, as a player painting detail would be.
-            for (int i = 0; i < 30; i++)
+            // Close, as a player painting detail would be.
+            for (int i = 0; i < 7; i++)
             {
                 _creator.Zoom(-CharacterCreator.ZoomStep);
             }

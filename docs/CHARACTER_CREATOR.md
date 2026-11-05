@@ -42,6 +42,10 @@ The creator shows the body in a T-pose, but the mesh is modelled arms-down (`Bod
 
 A ring the size of the brush follows the cursor on the body (`ShowBrushRing`). It is dark over light paint and light over dark paint, and sits on the body's layer because the creator's camera sees nothing else. Paint tools such as Meccha Chameleon's paint mode show the brush this way. `[` and `]` step the size, and the slider follows (`CreatorControls.Update`).
 
+## Zooming toward the mouse (2026-11-05)
+
+Owner: "scrolling in and out only zooms into the center of the playermodel but can you make it zoom into wherever you mouse is hovering? so you can zoom into the head or feet or anywhere you want to focus". A notch of the wheel moves the camera 15% of the way along the line through what the mouse is over (`CreatorZoom`, `CharacterCreator.ZoomAt`), which leaves that point where it is on the screen. Off the body it uses the upright plane through the body's middle. The camera now comes as close as 0.9 m from the body's middle (was 1.5 m, where the whole body nearly fitted the view), and 45 cm from what it is zooming at. The further in it is, the further off the middle it may be; back at its starting distance it is back in the middle, so zooming out always brings the whole body back. `Zoom` stays as a straight zoom for controllers later. ReDraw has the same zoom, being the same creator. Tests: `CreatorZoomTests`, `CharacterCreatorPlayTests.ScrollingZoomsTowardWhatTheMouseIsOverAndOutBringsTheWholeBodyBack`.
+
 ## Tests
 
 - `BodyPaintTests`: round on a 7:1 stretched surface, size 1 is a dot, equal size steps, an unbroken stroke, no paint through to the back, hidden shared texels, mirror, old saves, and save size.

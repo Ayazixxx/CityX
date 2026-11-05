@@ -78,7 +78,8 @@ namespace CityX.Character
         /// </summary>
         public const float PaintStepPixels = 2.0f;
 
-        public const float MinimumCameraDistance = 1.5f;
+        /// <summary>From the body's middle: close enough for the head (0.4 m in front of it) to fill the view.</summary>
+        public const float MinimumCameraDistance = 0.9f;
 
         public const float MaximumCameraDistance = 8.0f;
 
@@ -90,6 +91,7 @@ namespace CityX.Character
         private float _yaw;
         private float _pitch;
         private Vector2 _lastPaintScreenPosition;
+        private Vector3? _cameraHome;
 
         public BodyPaint Paint => _paint;
 
@@ -205,13 +207,13 @@ namespace CityX.Character
                 return;
             }
 
+            Vector2 position = mouse.position.ReadValue();
+
             float scroll = mouse.scroll.ReadValue().y;
             if (Mathf.Abs(scroll) > 0.01f)
             {
-                Zoom(scroll > 0.0f ? -ZoomStep : ZoomStep);
+                ZoomAt(position, scroll > 0.0f);
             }
-
-            Vector2 position = mouse.position.ReadValue();
 
             // [ and ] step the brush size, as in most paint programs, without reaching for the slider.
             Keyboard keyboard = Keyboard.current;
@@ -323,6 +325,7 @@ namespace CityX.Character
             return events != null && events.IsPointerOverGameObject();
         }
 
+        /// <summary>Straight in or out (negative is in), with no mouse to zoom toward.</summary>
         public void Zoom(float step)
         {
             if (Camera == null)
@@ -330,17 +333,57 @@ namespace CityX.Character
                 return;
             }
             Vector3 local = Camera.transform.localPosition;
-            local.z = Mathf.Clamp(
-                local.z + (local.z < 0.0f ? -step : step),
-                -MaximumCameraDistance, MaximumCameraDistance);
+            local.z += local.z < 0.0f ? -step : step;
+            Camera.transform.localPosition = CreatorZoom.Kept(local, CameraHome, MinimumCameraDistance, MaximumCameraDistance);
+        }
 
-            // Held off the body by at least the near limit whichever side it
-            // sits on, so zooming in cannot end up inside the head.
-            if (Mathf.Abs(local.z) < MinimumCameraDistance)
+        /// <summary>One notch in or out, keeping what is under <paramref name="screenPosition"/> under it (CreatorZoom).</summary>
+        public void ZoomAt(Vector2 screenPosition, bool closer)
+        {
+            if (Camera == null)
             {
-                local.z = Mathf.Sign(local.z == 0.0f ? -1.0f : local.z) * MinimumCameraDistance;
+                return;
             }
-            Camera.transform.localPosition = local;
+            Vector3 home = CameraHome;
+            Transform view = Camera.transform;
+            view.localPosition = CreatorZoom.Step(view.localPosition, FocusUnder(screenPosition), closer, home, MinimumCameraDistance, MaximumCameraDistance);
+        }
+
+        private Vector3 CameraHome
+        {
+            get
+            {
+                _cameraHome ??= Camera.transform.localPosition;
+                return _cameraHome.Value;
+            }
+        }
+
+        /// <summary>What a screen point is over, in the camera's parent's space: the body or head, or else the upright plane through the body's middle.</summary>
+        private Vector3 FocusUnder(Vector2 screenPosition)
+        {
+            Ray ray = Camera.ScreenPointToRay(screenPosition);
+            Transform stage = Camera.transform.parent;
+            float nearest = RayLength;
+            bool found = false;
+            Vector3 point = default;
+            foreach (Collider part in new Collider[] { BodyCollider, HeadCollider })
+            {
+                if (part != null && part.Raycast(ray, out RaycastHit hit, nearest))
+                {
+                    nearest = hit.distance;
+                    point = hit.point;
+                    found = true;
+                }
+            }
+            if (found)
+            {
+                return stage != null ? stage.InverseTransformPoint(point) : point;
+            }
+
+            Vector3 from = stage != null ? stage.InverseTransformPoint(ray.origin) : ray.origin;
+            Vector3 way = stage != null ? stage.InverseTransformDirection(ray.direction) : ray.direction;
+            float along = Mathf.Abs(way.z) > 1e-4f ? -from.z / way.z : -1.0f;
+            return along > 0.0f ? from + way * along : from + way;
         }
 
         /// <summary>
