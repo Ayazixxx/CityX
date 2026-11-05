@@ -46,6 +46,20 @@ A new weather option. Flakes fall and drift on the wind, and none fall under roo
 
 **Known rough spot:** lane paint under deep snow shows as thin dashed lines, from the cel look's outlines.
 
+## Traffic lights and STOP signs
+
+Every junction in the city is now governed the way American cities do it. Where two main roads meet there are traffic lights. Where a side street meets a main road, the side street has a STOP sign and the main road never stops, except at some crossings that get lights, kept a few blocks apart. Where two side streets cross: lights in the densest core, an all-way stop (a sign on every corner, with an ALL WAY plate) where it is busy, a STOP on one street elsewhere, and nothing on the quietest corners. In your city that is 254 junctions with lights out of 1,834, which is about what a real American city has.
+
+The lights run on real timings: a 90 second cycle on main roads and 60 on side streets, 3 to 4 seconds of yellow, a second or two of all-red, the main road getting the longer green. Lights down one road are offset so a car at the road's speed meets green after green. Walk signals show the white walking figure, then a flashing orange hand, then a steady hand. Late at night the smaller junctions switch to flashing yellow and red, as they do in real towns.
+
+**Try:** you spawn at a set of lights. Stand there for a minute and a half and watch one full cycle. Walk a block or two in any direction to find STOP signs. `/time midnight` shows the flashing.
+
+**Every player sees the same light at the same moment.** Nobody has tried it on two real PCs yet.
+
+**My guesses:** how busy a place must be for lights or an all-way stop. Nothing drives yet, and civilians do not wait for the walk signal: the lights are part of the street, not yet rules for anyone.
+
+**Not done yet:** the other half of what you asked, making the streets and sidewalks themselves feel American. That is its own job.
+
 ## Stairs and playing with a friend
 
 Both were done earlier today and are already in `git log`. Nobody has tried joining a friend on two real PCs yet.

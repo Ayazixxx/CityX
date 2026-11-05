@@ -3,6 +3,12 @@ public static class Program
     public static int Main(string[] args)
     {
         // dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [pixels] [out.png] [centreX centreZ viewHalf]
+        if (args.Length > 0 && args[0] == "traffic")
+        {
+            // traffic [seed] [out.png]: which junctions have lights and STOP signs, counted and drawn (docs/TRAFFIC_CONTROL.md).
+            TrafficMap.Run(args.Length > 1 ? int.Parse(args[1]) : 95998845, args.Length > 2 ? args[2] : "traffic.png");
+            return 0;
+        }
         if (args.Length > 0 && args[0] == "site")
         {
             var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 95998845);

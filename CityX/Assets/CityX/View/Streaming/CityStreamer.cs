@@ -159,6 +159,9 @@ namespace CityX.View
         [Tooltip("The short guardrail along a street-level drop.")]
         public Material GuardRailMaterial;
 
+        [Tooltip("The traffic lights' lamps (Shaders/CityXSignalLamp.shader). Made from the shader at run time if the scene does not set it.")]
+        public Material SignalLampMaterial;
+
         [Header("Open blocks")]
         [Tooltip("Lawns and tree canopies in parks -- see CityMeshBuilder.AddOpenBlockSurface. Leave empty to skip them.")]
         public Material GrassMaterial;
@@ -240,6 +243,9 @@ namespace CityX.View
             public readonly MeshBuffer Markings = new MeshBuffer();
             public readonly MeshBuffer LaneDividers = new MeshBuffer();
             public readonly MeshBuffer GuardRail = new MeshBuffer();
+
+            /// <summary>The traffic lights' lamps (docs/TRAFFIC_CONTROL.md), built near only.</summary>
+            public readonly SignalLampBuffer SignalLamps = new SignalLampBuffer();
 
             /// <summary>The powered rooms' lights (CityMeshBuilder.RoomGlow), built near only.</summary>
             public readonly List<CityMeshBuilder.RoomGlow> RoomGlows = new List<CityMeshBuilder.RoomGlow>();
@@ -396,6 +402,7 @@ namespace CityX.View
             payload.Markings.Reset();
             payload.LaneDividers.Reset();
             payload.GuardRail.Reset();
+            payload.SignalLamps.Reset();
             payload.RoomGlows.Clear();
             lock (_freePayloads)
             {
@@ -1105,7 +1112,7 @@ namespace CityX.View
                     far ? null : payload.CrackedGlass, Damage,
                     far ? null : payload.CrackedOpenings, far ? null : payload.Markings, payload.GuardRail,
                     far ? null : payload.LaneDividers, far ? null : payload.CrackDecals,
-                    includeSurface: true, far: far, roomGlows: far ? null : payload.RoomGlows);
+                    includeSurface: true, far: far, roomGlows: far ? null : payload.RoomGlows, signalLamps: far ? null : payload.SignalLamps);
 
                 // Road, pavement, concrete and glass go into one mesh as submeshes rather than separate objects: same vertex buffer, same
                 // transform, one cull. The ground, the pavement and the walls are one material now (the facade shader reads what each surface is
@@ -1201,6 +1208,7 @@ namespace CityX.View
                 AddCrackDecals(go, key);
                 AddMarkings(go, key);
                 AddGuardRail(go, key);
+                AddSignalLamps(go, key);
                 AddDoor(go, key);
                 AddEntranceLamps(go, key);
                 AddInteriorVolume(go, key);
@@ -1209,7 +1217,7 @@ namespace CityX.View
             else
             {
                 dressing.Enqueue(() => Dressed(payload, () => { AddCrackedGlass(go, key); AddCrackDecals(go, key); }));
-                dressing.Enqueue(() => Dressed(payload, () => { AddMarkings(go, key); AddGuardRail(go, key); }));
+                dressing.Enqueue(() => Dressed(payload, () => { AddMarkings(go, key); AddGuardRail(go, key); AddSignalLamps(go, key); }));
                 dressing.Enqueue(() => AddDoor(go, key));
                 dressing.Enqueue(() => AddEntranceLamps(go, key));
                 dressing.Enqueue(() => AddInteriorVolume(go, key));
@@ -1261,6 +1269,47 @@ namespace CityX.View
             collider.sharedMesh = mesh;
         }
 
+
+        /// <summary>The name of the object that draws a chunk's traffic lights' lamps.</summary>
+        public const string SignalLampsName = "signal-lamps";
+
+        /// <summary>
+        /// The lamps of the chunk's traffic lights (docs/TRAFFIC_CONTROL.md): one mesh, lit by its shader from the shared clock. No collider: the heads they
+        /// sit on are in the chunk's own mesh.
+        /// </summary>
+        private void AddSignalLamps(GameObject chunk, Vector2Int key)
+        {
+            SignalLampBuffer lamps = _current.SignalLamps;
+            if (lamps.IsEmpty)
+            {
+                return;
+            }
+            if (SignalLampMaterial == null)
+            {
+                Shader shader = Shader.Find("CityX/SignalLamp");
+                if (shader == null)
+                {
+                    return;
+                }
+                SignalLampMaterial = new Material(shader) { name = "SignalLamp (runtime)" };
+            }
+            SignalLampDriver.Ensure();
+
+            var go = new GameObject(SignalLampsName);
+            go.transform.SetParent(chunk.transform, false);
+            var mesh = new Mesh { name = $"{SignalLampsName}-{key.x}-{key.y}" };
+            mesh.SetVertices(lamps.Vertices);
+            mesh.SetUVs(0, lamps.Cycle);
+            mesh.SetUVs(1, lamps.Window);
+            mesh.SetColors(lamps.Colors);
+            mesh.SetTriangles(lamps.Triangles, 0);
+            mesh.RecalculateBounds();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = SignalLampMaterial;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
 
         /// <summary>
         /// The "you are inside this building" trigger, which is what makes the

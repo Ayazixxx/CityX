@@ -50,7 +50,7 @@ namespace CityX.View
 
         public static void Build(CityWorld world, int chunkX, int chunkY, Vector3 origin,
             MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures, MeshBuffer markings,
-            MeshBuffer laneDividers, MeshBuffer guardRail, bool far, MeshBuffer lit = null)
+            MeshBuffer laneDividers, MeshBuffer guardRail, bool far, MeshBuffer lit = null, SignalLampBuffer signalLamps = null)
         {
             PlanWorld plan = world.Plan;
             double size = PlanWorld.ChunkSize;
@@ -137,6 +137,11 @@ namespace CityX.View
                 {
                     BuildPlate(ctx, j, ground, step);
                 }
+            }
+
+            if (!far)
+            {
+                BuildTrafficControl(ctx, chunkX, chunkY, structures, signalLamps);   // CitySurfaceBuilder.Traffic.cs: STOP signs, and lights where there are lamps to light
             }
 
             // The expressways over it all: decks, ramps and connectors, piers, signs (yellow paint is the "markings" buffer, white the dividers).
@@ -900,8 +905,8 @@ namespace CityX.View
         // ---------------------------------------------------------------- crossings and street furniture
 
         /// <summary>
-        /// Zebra crossings at the mouth of most side streets: bars along the road, spaced across it, just beyond the junction. Not on a
-        /// highway, and not at every one (a city with a crossing at every corner looks like a diagram).
+        /// Zebra crossings: bars along the road, spaced across it, just beyond the junction. At every leg of a junction with lights, at most other
+        /// corners, and never across the street that runs free past a side street's STOP sign (HasCrossing, CitySurfaceBuilder.Traffic.cs).
         /// </summary>
         private static void Crossings(Context ctx, EdgeGeometry g, MeshBuffer white, Func<double, double, double> height)
         {
@@ -911,17 +916,13 @@ namespace CityX.View
             }
             for (int end = 0; end < 2; end++)
             {
+                if (!HasCrossing(ctx.Plan, g, end))
+                {
+                    continue;
+                }
                 double trim = end == 0 ? g.TrimA : g.TrimB;
-                if (trim < 1.0 || LatticeHash(g.Edge.Id, end, 41) > 0.7f)
-                {
-                    continue;
-                }
-                double ta = end == 0 ? trim + 0.6 : g.Length - trim - 3.9;
-                double tb = ta + 3.3;
-                if (tb > g.Length - 0.5 || ta < 0.5)
-                {
-                    continue;
-                }
+                double ta = end == 0 ? trim + CrossingFrom : g.Length - trim - CrossingTo;
+                double tb = ta + CrossingTo - CrossingFrom;
                 double span = g.HalfWidth - 0.9;
                 for (double s = -span; s + 0.7 <= span; s += 1.4)
                 {
@@ -1011,7 +1012,20 @@ namespace CityX.View
             if (PedestrianStreets.Is(ctx.Plan, g.Edge)) return;   // no lanes, no crossings: nothing drives here
             Func<double, double, double> height = RoadHeight(ctx, g);
             Crossings(ctx, g, white, height);
-            PaintLanes(ctx, g, yellow, white, height, g.TrimA + 1.5, g.Length - g.TrimB - 1.5, g.Edge.Class, false);
+            // The lanes' paint runs from stop line to stop line, where traffic is stopped at an end.
+            double from = g.TrimA + 1.5, to = g.Length - g.TrimB - 1.5;
+            double stopAtA = StopLineAt(ctx.Plan, g, 0), stopAtB = StopLineAt(ctx.Plan, g, 1);
+            if (stopAtA >= 0.0)
+            {
+                StopLine(ctx, g, white, height, stopAtA, 0);
+                from = stopAtA + StopLineWidth + 0.3;
+            }
+            if (stopAtB >= 0.0)
+            {
+                StopLine(ctx, g, white, height, stopAtB, 1);
+                to = g.Length - stopAtB - StopLineWidth - 0.3;
+            }
+            PaintLanes(ctx, g, yellow, white, height, from, to, g.Edge.Class, false);
         }
 
         /// <summary>The lane paint of one road class between two distances along the road, at the heights a surface gives; an expressway's deck gets edge lines too.</summary>

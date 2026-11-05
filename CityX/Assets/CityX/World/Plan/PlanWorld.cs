@@ -53,6 +53,9 @@ namespace CityX.World.Plan
         /// <summary>The height from which a building is a landmark: the streamer keeps the (distant version of the) chunk that builds one in view much further out.</summary>
         public const double LandmarkHeight = 150.0;
 
+        /// <summary>Which junctions have traffic lights, which STOP signs, and the lights' timing (docs/TRAFFIC_CONTROL.md).</summary>
+        public readonly TrafficPlan Traffic;
+
         /// <summary>The chunks that build a landmark, each once.</summary>
         public readonly List<(int X, int Y)> LandmarkChunks = new List<(int X, int Y)>();
 
@@ -106,6 +109,7 @@ namespace CityX.World.Plan
                 IndexBuildings();
             }
             IndexAll();
+            Traffic = TrafficPlan.Build(this);
         }
 
         /// <summary>

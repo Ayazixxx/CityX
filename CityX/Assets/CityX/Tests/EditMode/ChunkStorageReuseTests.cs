@@ -121,7 +121,8 @@ namespace CityX.Tests
             var origin = new Vector3(chunk.x * CityLayout.ChunkSize, 0.0f, chunk.y * CityLayout.ChunkSize);
             CityMeshBuilder.BuildChunk(world, chunk.x, chunk.y, origin, b[0], b[1], b[2], b[4], b[3],
                 new MeshBuffer(), new GlassDamage(), new List<CityMeshBuilder.CrackedOpening>(), new MeshBuffer(), new MeshBuffer(),
-                new MeshBuffer(), new MeshBuffer(), includeSurface: true, far: false, roomGlows: new List<CityMeshBuilder.RoomGlow>());
+                new MeshBuffer(), new MeshBuffer(), includeSurface: true, far: false, roomGlows: new List<CityMeshBuilder.RoomGlow>(),
+                signalLamps: new SignalLampBuffer());   // as the streamer gives it: without lamps to light, no traffic lights are stood
             ChunkMeshData data = ChunkMeshData.Combine(new[] { new[] { b[0], b[1], b[2] }, new[] { b[3] }, new[] { b[4] } });
             var mesh = new Mesh();
             _made.Add(mesh);

@@ -907,6 +907,8 @@ namespace CityX.ViewEditor
             streamerObject.AddComponent<CityX.Character.DroppedItemsNetwork>();
             // The weather (2026-11-05): the same for every player, a joining one told how it is (docs/SNOW.md).
             streamerObject.AddComponent<CityX.Character.NetworkedWeather>();
+            // The traffic lights' clock (2026-11-05): the session's own, so every player sees the same light (docs/TRAFFIC_CONTROL.md).
+            streamerObject.AddComponent<CityX.Character.NetworkedSignalClock>();
             // Enemies (2026-10-27): /spawn in a session asks the server, and every player sees and fights what it spawns.
             streamerObject.AddComponent<CityX.Character.EnemyNetwork>().Kinds = networkedEnemies;
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
@@ -916,6 +918,7 @@ namespace CityX.ViewEditor
             streamer.DoorMaterial = door;
             streamer.DoorHandleMaterial = doorHandle;
             streamer.GuardRailMaterial = guardRail;
+            streamer.SignalLampMaterial = EnsureSignalLampMaterial();
             streamer.BenchMaterial = benchWood;
             streamer.BookMaterial = bookStand;
             streamer.GrassMaterial = grass;
@@ -1470,6 +1473,19 @@ namespace CityX.ViewEditor
         /// facing, so a curtain of rain would flicker as the camera turned. It
         /// is a pale streak; it should be that pale streak from everywhere.
         /// </summary>
+        /// <summary>The traffic lights' lamps: everything it needs rides on the lamps' mesh, so the material is the shader alone.</summary>
+        private static Material EnsureSignalLampMaterial()
+        {
+            string path = $"{MaterialDirectory}/SignalLamp.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("CityX/SignalLamp"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+            return material;
+        }
+
         private static Material EnsureSnowfallMaterial()
         {
             string path = $"{MaterialDirectory}/Snowfall.mat";

@@ -38,7 +38,8 @@ namespace CityX.View
             MeshBuffer crackedGlass = null, GlassDamage damage = null,
             List<CrackedOpening> crackedOpenings = null, MeshBuffer markings = null,
             MeshBuffer guardRail = null, MeshBuffer laneDividers = null,
-            MeshBuffer crackDecals = null, bool includeSurface = true, bool far = false, List<RoomGlow> roomGlows = null)
+            MeshBuffer crackDecals = null, bool includeSurface = true, bool far = false, List<RoomGlow> roomGlows = null,
+            SignalLampBuffer signalLamps = null)
         {
             // includeSurface false builds the BUILDINGS alone -- no terrain, road, pavement or paint. The title screen bakes a row of
             // real generated buildings that stand on a plane of its own.
@@ -48,7 +49,7 @@ namespace CityX.View
             if (includeSurface)
             {
                 CitySurfaceBuilder.Build(world, chunkX, chunkY, origin, ground, flatConcrete, structures,
-                    markings, laneDividers, guardRail, far, litGlass);   // the lit glass for the open spaces' lights
+                    markings, laneDividers, guardRail, far, litGlass, signalLamps);   // the lit glass for the open spaces' lights
             }
 
             List<int> owned = world.BuildingsOwnedBy(chunkX, chunkY);
