@@ -10,6 +10,9 @@ what it touches. Lasts 10 s for now (details to be tuned together), drain rate c
   a body's 100**, in half-second ticks of 1.5 (`PoisonEffect`). Strength scales the rate like any damage. It is a quick-to-tune pair of constants
   (`PoisonEffect.DefaultDamagePerSecond`, `DefaultSeconds`).
   - Standing in the gas tops the clock back up; being poisoned again **restarts** it, never stacks, so you stay poisoned until 10 s after you leave.
+    The ticks keep their beat through a new dose (2026-11-05): a dose used to start the half-second tick over, and with the cloud dosing
+    five times a second none ever landed while a body stood in the gas, only once it had left
+    (`PoisonGasPlayTests.StandingInTheCloudHurtsFromTheStartNotOnlyAfterLeavingIt`).
   - **Never affects the caster** (their colliders are skipped).
   - A player takes it quietly (`IPoisonable.TakePoison`: no flinch, no block, no i-frames); anything else takes each tick as a zero-stun hit.
     Poison can kill. Victims show a few rising purple bubbles that go when it ends.

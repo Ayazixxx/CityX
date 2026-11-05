@@ -128,6 +128,42 @@ namespace CityX.Tests
             Assert.AreEqual(6.0f * 3.0f + 30.0f, victim.TotalDamageTaken, 0.01f, "the second dose is another ten seconds, not double speed");
         }
 
+        /// <summary>
+        /// The gas hurts while you stand in it. The cloud doses whoever is in it five times a second, and a dose that started the half-second
+        /// tick over meant none ever landed until the body left the cloud.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator StandingInTheCloudHurtsFromTheStartNotOnlyAfterLeavingIt()
+        {
+            SparringDummy victim = Dummy(new Vector3(0.5f, 1.0f, 0.0f));
+            PoisonGasCloud cloud = Cloud(new Vector3(0.0f, 1.0f, 0.0f));
+            const float Stood = 3.0f;
+            for (float t = 0.0f; t < Stood; t += Step)
+            {
+                cloud.Tick(Step);
+                var poisoned = victim.GetComponent<PoisonEffect>();
+                if (poisoned != null)
+                {
+                    poisoned.Tick(Step);
+                }
+            }
+            float tick = PoisonEffect.DefaultDamagePerSecond * PoisonEffect.TickSeconds;
+            Assert.AreEqual(PoisonEffect.DefaultDamagePerSecond * Stood, victim.TotalDamageTaken, tick * 1.5f,
+                "three seconds in the gas should have cost three seconds of poison");
+
+            // And it is still a full dose from the last breath: ten seconds more once out of the gas, no more and no less.
+            var poison = victim.GetComponent<PoisonEffect>();
+            Assert.AreEqual(PoisonEffect.DefaultSeconds, poison.Remaining, PoisonGasCloud.CheckSeconds + Step, "the dose is not kept topped up while it stands in the gas");
+            float atLeaving = victim.TotalDamageTaken;
+            float owed = poison.Remaining;
+            Object.Destroy(cloud.gameObject);
+            yield return null;
+            Run(poison, 20.0f);
+            yield return null;
+            Assert.AreEqual(PoisonEffect.DefaultDamagePerSecond * owed, victim.TotalDamageTaken - atLeaving, tick * 1.5f, "out of the gas, what was left of the dose should run its course");
+            Assert.IsNull(victim.GetComponent<PoisonEffect>(), "the poison should end by itself");
+        }
+
         [UnityTest]
         public IEnumerator TheCloudNeverPoisonsWhoeverBlewIt()
         {

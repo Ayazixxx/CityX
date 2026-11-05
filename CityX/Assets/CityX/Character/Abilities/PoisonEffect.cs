@@ -8,7 +8,7 @@ namespace CityX.Character
     /// out or the victim dies.
     ///
     /// DOES NOT STACK: being poisoned again while poisoned restarts the clock (and keeps the stronger rate); standing in a cloud keeps it topped
-    /// up, so you stay poisoned until ten seconds after you leave, never "twice as poisoned".
+    /// up, so you stay poisoned until ten seconds after you leave, never "twice as poisoned". The ticks keep their beat through a new dose.
     ///
     /// Plain health loss: a target that implements IPoisonable takes it quietly (a player does not flinch every tick); any other IDamageable takes
     /// each tick as a zero-stun hit. The total is exactly DamagePerSecond x Seconds, tick by tick, however the frames fall.
@@ -40,6 +40,7 @@ namespace CityX.Character
 
         private IDamageable _target;
         private GameObject _vfx;
+        private float _towardTick;
 
         /// <summary>
         /// Poisons <paramref name="victim"/> (the GameObject carrying its IDamageable): starts the effect, or restarts it if it is already
@@ -64,6 +65,10 @@ namespace CityX.Character
             }
             effect._target = target;
             effect.DamagePerSecond = Mathf.Max(effect.IsActive ? effect.DamagePerSecond : 0.0f, damagePerSecond);
+            // A cloud doses whoever stands in it several times between two ticks: the time already gone toward the next tick is kept, or
+            // none would land until the body left the cloud.
+            float sinceTick = effect.Elapsed + effect._towardTick - effect.TicksDone * TickSeconds;
+            effect._towardTick = effect.IsActive ? Mathf.Clamp(sinceTick, 0.0f, TickSeconds) : 0.0f;
             effect.Seconds = Mathf.Max(0.01f, seconds);
             effect.Elapsed = 0.0f;
             effect.TicksDone = 0;
@@ -96,7 +101,7 @@ namespace CityX.Character
                 return;
             }
             Elapsed += deltaTime;
-            float counted = Mathf.Min(Elapsed, Seconds);
+            float counted = Mathf.Min(Elapsed, Seconds) + _towardTick;
             int due = Mathf.FloorToInt(counted / TickSeconds + 1e-4f);
             while (TicksDone < due)
             {
