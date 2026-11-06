@@ -1,0 +1,513 @@
+<title>CityX Idea Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: a street-sign header, then a wall of idea cards in a wrapping grid; cel-shaded cards (ink outline, hard offset shadow) like the game's own look. */
+:root {
+  --bg: #e6e9ee;          /* concrete */
+  --card: #ffffff;
+  --ink: #15181e;          /* the cel outline */
+  --muted: #565d6b;
+  --line: #c9ced8;
+  --lamp: #f0a30a;         /* sodium street lamp */
+  --lamp-ink: #2a1c00;
+  --spray: #c8226f;        /* graffiti magenta */
+  --yes: #1f8a4c;
+  --later: #b26a00;
+  --no: #8a8f99;
+  --shadow: #15181e;
+  --display: "Bungee", "Arial Black", Impact, sans-serif;
+  --body: "Barlow", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --label: "Barlow Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101318; --card: #191d25; --ink: #eceff4; --muted: #a3aab8; --line: #2c3240;
+    --lamp: #f5ad1b; --lamp-ink: #241800; --spray: #ff4f9b; --yes: #3fc47a; --later: #f0a63a; --no: #7d8492; --shadow: #000000;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101318; --card: #191d25; --ink: #eceff4; --muted: #a3aab8; --line: #2c3240;
+  --lamp: #f5ad1b; --lamp-ink: #241800; --spray: #ff4f9b; --yes: #3fc47a; --later: #f0a63a; --no: #7d8492; --shadow: #000000;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+header.sign { background: var(--lamp); color: var(--lamp-ink); border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--shadow); padding: 18px 20px; display: grid; gap: 8px; }
+header.sign h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 5vw, 44px); line-height: 1.05; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+header.sign p { margin: 0; max-width: 70ch; font-weight: 500; }
+.tally { display: flex; flex-wrap: wrap; gap: 8px; font-family: var(--label); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 14px; }
+.tally span { background: var(--card); color: var(--ink); border: 2px solid var(--ink); padding: 2px 10px; }
+.note { font-size: 13px; color: var(--muted); }
+.agree { background: var(--card); border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--spray); padding: 16px 18px; display: grid; gap: 8px; }
+.agree h2 { margin: 0; font-family: var(--label); font-weight: 700; font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--spray); }
+.agree ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 80ch; }
+.controls { display: grid; gap: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 8px; border-bottom: 2px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row .lbl { font-family: var(--label); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 13px; color: var(--muted); margin-right: 4px; }
+button.chip { font-family: var(--label); font-weight: 600; font-size: 15px; letter-spacing: 0.03em; background: var(--card); color: var(--ink); border: 2px solid var(--ink); padding: 3px 11px; cursor: pointer; border-radius: 0; }
+button.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+button.chip:focus-visible, button.pick:focus-visible, summary:focus-visible { outline: 3px solid var(--spray); outline-offset: 2px; }
+section.group { display: grid; gap: 12px; }
+section.group > h2 { margin: 6px 0 0; font-family: var(--display); font-weight: 400; font-size: 24px; letter-spacing: 0.01em; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+section.group > h2 small { font-family: var(--body); font-size: 14px; color: var(--muted); font-weight: 500; }
+section.group > p.intro { margin: 0; max-width: 80ch; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+article.idea { background: var(--card); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--shadow); padding: 12px 14px 12px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+article.idea[data-pick="yes"] { box-shadow: 4px 4px 0 var(--yes); }
+article.idea[data-pick="later"] { box-shadow: 4px 4px 0 var(--later); }
+article.idea[data-pick="no"] { opacity: 0.55; }
+.idea h3 { margin: 0; font-family: var(--label); font-weight: 700; font-size: 19px; line-height: 1.2; letter-spacing: 0.01em; text-wrap: balance; display: flex; gap: 8px; justify-content: space-between; align-items: start; }
+.size { flex: none; font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: 0.06em; border: 2px solid var(--ink); padding: 0 6px; line-height: 1.4; }
+.from { font-size: 13px; color: var(--muted); }
+.idea p { margin: 0; }
+.builds { font-size: 13px; color: var(--muted); }
+.builds b { color: var(--ink); font-weight: 600; }
+.picks { display: flex; gap: 6px; margin-top: 4px; }
+button.pick { flex: 1; font-family: var(--label); font-weight: 700; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 0; background: transparent; color: var(--ink); border: 2px solid var(--line); cursor: pointer; border-radius: 0; }
+button.pick:hover { border-color: var(--ink); }
+button.pick[data-v="yes"][aria-pressed="true"] { background: var(--yes); border-color: var(--yes); color: #fff; }
+button.pick[data-v="later"][aria-pressed="true"] { background: var(--later); border-color: var(--later); color: #fff; }
+button.pick[data-v="no"][aria-pressed="true"] { background: var(--no); border-color: var(--no); color: #fff; }
+.picks[hidden] { display: none; }
+.table-wrap { overflow-x: auto; border: 2px solid var(--ink); background: var(--card); box-shadow: 4px 4px 0 var(--shadow); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--label); text-transform: uppercase; letter-spacing: 0.05em; font-size: 13px; }
+details.sources { background: var(--card); border: 2px solid var(--line); padding: 8px 12px; }
+details.sources summary { cursor: pointer; font-family: var(--label); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: 14px; }
+details.sources ul { margin: 8px 0 0; padding-left: 18px; columns: 2 280px; column-gap: 24px; font-size: 13px; }
+details.sources li { break-inside: avoid; margin-bottom: 4px; }
+a { color: var(--spray); text-underline-offset: 2px; }
+.empty { color: var(--muted); font-style: italic; }
+@media (prefers-reduced-motion: no-preference) { article.idea { transition: box-shadow 0.15s, opacity 0.15s; } }
+</style>
+
+<div class="wrap">
+  <header class="sign">
+    <h1>CityX Idea Board</h1>
+    <p>Ideas for spells, skills, weapons, items, systems, enemies and bosses, from research across about sixty games on 5 November 2026, plus modern game-dev techniques. Every idea says what it builds on in your game already. Tap <b>Yes</b>, <b>Later</b> or <b>No</b> on any card. Your picks are saved here, and I can read them back to plan the work.</p>
+    <div class="tally" id="tally" aria-live="polite"><span>Yes 0</span><span>Later 0</span><span>No 0</span><span>Unpicked 0</span></div>
+    <div class="note" id="status"></div>
+  </header>
+
+  <section class="agree" aria-labelledby="agree-h">
+    <h2 id="agree-h">Where three separate researchers agreed</h2>
+    <ol>
+      <li><b>Power is territory.</b> All three picked it as their top idea without seeing each other's. Your rule that a claimed building needs power becomes the main loop: fix substations, feed them, light the streets, and the dark keeps night hunters out. The light switches, the power grid hook and the claim rule are already in the game.</li>
+      <li><b>Death needs a floor or a way back.</b> One suggests keeping your three best items in an account vault, the other that your lost gear rises as a Wraith of you that friends can beat to get it all back.</li>
+      <li><b>Elements that react.</b> Wet plus shock, frozen plus a heavy hit, gas plus fire. The fire grid already proves the multiplayer pattern, so each new spell becomes a setup or a trigger and the trees multiply.</li>
+    </ol>
+  </section>
+
+  <div class="controls">
+    <div class="row" id="sectionChips" role="group" aria-label="Show section"><span class="lbl">Show</span></div>
+    <div class="row" id="pickChips" role="group" aria-label="Filter by pick"><span class="lbl">Picks</span></div>
+    <div class="row" id="sizeChips" role="group" aria-label="Filter by size"><span class="lbl">Size</span></div>
+  </div>
+
+  <div id="board"></div>
+
+  <details class="sources" id="allSources">
+    <summary>Sources (about 120 links)</summary>
+    <ul id="sourceList"></ul>
+  </details>
+  <p class="note">S = a few days, M = one to two weeks, L = several weeks. Most game facts come from fan wikis and guides, and every number in an idea is a first guess. A few references came from memory and were not checked: Hades duo boons, Frozone, Control, Apex, Overwatch, Okami, Jet Set Radio, Sunset Overdrive, Half-Life 2, Bloodborne, Titanfall 2, Just Cause, Naruto Storm, Kingsman, Captain America, Half-Life's barnacle, Alan Wake's birds, Elden Ring's Yura and S.T.A.L.K.E.R.'s A-Life. X (Twitter) needs your sign-in in the app's browser, so the techniques section comes from the open web for now.</p>
+</div>
+
+<script>
+const SECTIONS = [
+  { id: "spells", name: "Spells", note: "Six element reactions, twelve spells and three new schools." },
+  { id: "skills", name: "Skills", note: "Moves and skill-tree stars." },
+  { id: "weapons", name: "Weapons", note: "Twelve weapons and four ways to modify them." },
+  { id: "items", name: "Items", note: "Things to find, carry and use." },
+  { id: "systems", name: "Systems", note: "What gives players a reason to go somewhere tonight." },
+  { id: "enemies", name: "Enemies", note: "Each enemy tests one habit and has at least two answers." },
+  { id: "bosses", name: "Bosses", note: "Every boss has a posture bar: parries and heavy hits fill it, and when it is full the boss kneels for a free critical hit." },
+  { id: "ai", name: "Encounters and AI", note: "How fights are paced and how enemies think." },
+  { id: "bets", name: "Big bets", note: "Larger ideas that tie many systems together." },
+  { id: "tech", name: "Techniques", note: "Modern ways to build it faster and run it smoother." },
+];
+
+const REACTIONS = [
+  ["Wet + shock", "1.5x damage, arcs to wet bodies within 3 m; a shocked puddle jolts everyone standing in it", "Genshin, Divinity OS2", "Dry off with fire"],
+  ["Wet + cold", "Chill builds twice as fast; frosted puddles turn to slippery ice for 10 s", "Magicka", "Stay dry"],
+  ["Frozen + heavy hit", "Shatter: bonus damage and a knockdown; a body killed while frozen breaks into ice chunks", "Genshin", "No refreeze for 1.5 s (already in the game)"],
+  ["Fire + water", "Steam: blocks sight and scalds; shocked steam stuns", "Divinity OS2", "Walk out of it"],
+  ["Gas + flame or spark", "Poison Breath's cloud explodes, the caster's own too", "Divinity OS2", "The cloud is visible"],
+  ["Acid + armour or glass", "Armour down for 10 s; windows crack", "Warframe", "Stay under a roof"],
+];
+
+// [id, section, size, title, from, what it does, builds on]
+const IDEAS = [
+  ["sp-combust", "spells", "S", "Combust", "Destiny", "Snap your fingers: every fire you lit within 25 m flares at once, and burning bodies take all their remaining burn in one hit.", "the fire grid"],
+  ["sp-cloudburst", "spells", "S", "Cloudburst", "Genshin Impact", "A 20 m rain cloud for 15 s that soaks everyone, puts out fires and makes the ground slick. The setup for every combo.", "Acid Rain's storm"],
+  ["sp-geyser", "spells", "M", "Hydrant Geyser", "inFAMOUS", "A fire hydrant erupts and launches whoever stands on it, leaving a puddle. Online, the event only has to name the hydrant.", "hydrants, water puddles"],
+  ["sp-frostbridge", "spells", "M", "Frost Bridge", "Frozone, Breath of the Wild", "An ice walkway to where you aim, 30 m long for 12 s, between towers; aimed at water it makes a pillar. Fire or a heavy hit breaks it. Anyone can cross.", "frost, walkable floors"],
+  ["sp-swarm", "spells", "M", "Devouring Swarm", "Dishonored", "Rats pour from the nearest drain, chase and poison a target; fire kills them.", "poison (drains are not built yet)"],
+  ["sp-arclash", "spells", "S", "Arc Lash", "Destiny's Jolt", "A bolt that jumps to three more targets within 6 m, or 12 m between wet ones.", "Self Smite's lightning"],
+  ["sp-boltstep", "spells", "M", "Bolt Step", "Dishonored's Blink", "Turn into lightning and land on a metal pole within 25 m that you can see. A flash step that never goes through walls and lands where everyone can read it.", "street lamp and signal positions"],
+  ["sp-blackout", "spells", "M", "Blackout", "inFAMOUS", "Cast at a lamp, signal or fuse box: the power dies 40 m around for 20 s and sparks fall into puddles. The dark becomes cover.", "city power"],
+  ["sp-coin", "spells", "S", "Arcane Coin", "Ultrakill", "Toss a coin; a shot or spell that hits it ricochets, harder, to the nearest enemy. Coins chain.", "bullet deflection (never at allies)"],
+  ["sp-telekinesis", "spells", "L", "Telekinesis", "Control, Saints Row IV", "Lift and throw a bench, a bin, a weapon or a limp body; with nothing loose, rip up the pavement.", "carrying, ragdolls (others must see carried things first)"],
+  ["sp-scaldfog", "spells", "S", "Scald Fog", "Divinity OS2", "A bank of steam that hides everyone inside and scalds; shocked, it stuns.", "the gas cloud"],
+  ["sp-echo", "spells", "M", "Echo", "Apex Legends' Mirage", "An afterimage replays your last two seconds of moves. Harmless bait.", "copies already replay moves by name"],
+  ["sp-techno", "spells", "M", "New school: Technomancer", "inFAMOUS", "The Rapture left the city's machines running and you talk to them. Drain: a lit lamp or sign gives you mana and stays dark a minute. Override: a traffic light shoots your target. Restore: power a dead building.", "lights, traffic lights, claims"],
+  ["sp-sigil", "spells", "M", "New school: Sigil", "Skyrim, Okami, Jet Set Radio", "Painted glyphs become real; new ones are found as words on walls in deep zones. Ward (a doorway enemies can't cross), Snare (a floor mark that roots), Beacon (an anchor for Bolt Step and portals).", "graffiti already syncs"],
+  ["sp-remnant", "spells", "M", "New school: Remnant", "Overwatch's Tracer", "The memories the fallen lost. Echo; Recall (back to where you were 3 s ago); Haunt (nearby players' last 10 s shown as ghost trails, for bounty hunting).", "move replays"],
+
+  ["sk-subst", "skills", "S", "Substitution", "Naruto Storm", "Staggered mid-combo, tap dash: a bin takes the next blow and you appear 6 m away. Costs mana, 15 s cooldown. A combo escape.", "dash"],
+  ["sk-supersprint", "skills", "M", "Super Sprint", "Saints Row IV, Prototype", "Hold sprint to wind up past the speed cap, scattering props, and run straight up walls. Your 'fast running later'.", "sprint, wall stick"],
+  ["sk-grind", "skills", "M", "Grind", "Jet Set Radio, Sunset Overdrive", "Slide along railings, parapets and highway barriers in a shower of sparks. Needs one strong pose.", "the city knows where every rail is"],
+  ["sk-meteor", "skills", "S", "Meteor Drop", "Dark Souls plunge", "Crouch in the air to dive; the landing is a shockwave sized by the fall, with no fall damage.", "Self Smite's burst"],
+  ["sk-yank", "skills", "S", "Grapple Yank", "Just Cause", "Hook a person or a prop and pull it to you, or pull yourself to it.", "the grapple"],
+  ["sk-flow", "skills", "S", "Flow", "Titanfall 2, Ultrakill, Spider-Man", "Moving without stopping builds speed and charges your next strike; repeating one move earns less.", "movement"],
+  ["sk-guardcounter", "skills", "S", "Guard Counter", "Elden Ring", "Straight after a block, a fast heavy attack that staggers.", "the guard"],
+  ["sk-switch", "skills", "S", "Switch Strike", "Devil May Cry 5", "Swap weapons right after a hit and the new weapon's first attack comes out instantly.", "weapon swap"],
+  ["sk-duo", "skills", "S", "Duo stars", "Hades", "Stars between two trees. Storm Front (Hydro + Electro): lightning hits the wettest body in your Cloudburst. Fumigate (Pyro + Plague): casting fire lights your gas.", "Steam's hybrid slot"],
+  ["sk-mods", "skills", "S", "Modifier stars", "Path of Exile", "Wildfire Dash (your dash leaves fire), Contagion (poison jumps on when its host dies), Caltrops (stuck ice shards chill whoever passes).", "existing skills"],
+
+  ["wp-stop", "weapons", "S", "STOP Sign", "Sifu, Dead Rising", "Pulled from a street corner. Two-handed; its heavy is a flat slap that throws people, and its face stops bullets while held.", "greatsword moves, the new stop signs"],
+  ["wp-manhole", "weapons", "M", "Manhole Cover", "Captain America", "A thrown discus that bounces off two walls; the open hole leads into the sewers.", "the boomerang (manholes not built yet)"],
+  ["wp-umbrella", "weapons", "M", "Umbrella", "Kingsman", "Closed, a rapier. Open, a guard and a personal roof: dry in rain, safe from Acid Rain, and it slows your fall.", "the parachute"],
+  ["wp-molotov", "weapons", "S", "Molotov", "", "A bottle plus gasoline: shatters into a burning pool.", "the bottle, the gas can"],
+  ["wp-extinguisher", "weapons", "S", "Fire Extinguisher", "", "Sprays a cloud that blinds, douses and chills; doubles as a club; bursts when shot.", "the water jet, the grenade"],
+  ["wp-tube", "weapons", "S", "Fluorescent Tube", "", "Pulled from an office ceiling: lights a black room, shocks, and bursts into glass.", "room lights, glass"],
+  ["wp-nailgun", "weapons", "S", "Nail Gun", "Half-Life 2", "Rapid nails; a kill pins the ragdoll to the wall.", "Ice Shards' sticking"],
+  ["wp-handcannon", "weapons", "M", "Hand Cannon", "Bloodborne", "Goes in the shield slot: one heavy shot. Hit an enemy during its wind-up and it staggers open for a critical.", "shield slot, attack phases"],
+  ["wp-sledge", "weapons", "S", "Sledgehammer", "Monster Hunter", "Slow and two-handed: the specialist for Shatter and guard breaks.", "greatsword moves"],
+  ["wp-taser", "weapons", "S", "Taser", "", "Darts on wires build up shock, jolt a wet target at once, and reel it in.", "the grapple rope"],
+  ["wp-candle", "weapons", "S", "Roman Candle", "", "Eight slow fireballs in an arc that light gasoline and dark streets.", "the fireball"],
+  ["wp-soaker", "weapons", "S", "Super Soaker", "", "A toy: no damage, soaks at range, puts out fires, and is deadly next to an Electromancer. Could sit in Old Guy's basement boxes.", "the water staff"],
+  ["wp-recipes", "weapons", "M", "Combo recipes", "Dead Rising 2, Tears of the Kingdom", "Recipes found on posters: bat + nails = Nail Bat, bat + wire = Wire Bat (both on your list already), bottle + gasoline = Molotov.", "the rarity list"],
+  ["wp-infusion", "weapons", "M", "Infusions", "Elden Ring affinities", "A weapon permanently builds one status, and that element's boosts raise it.", "status meters"],
+  ["wp-rounds", "weapons", "S", "Elemental rounds", "Warframe", "Fire, frost or shock ammunition for the guns.", "firearms"],
+  ["wp-arts", "weapons", "M", "Weapon arts as sockets", "Elden Ring, Lies of P", "Move a weapon art between weapons: Stab Dash on the crowbar, for example.", "Stab Dash"],
+
+  ["it-glow", "items", "S", "Glow sticks and road flares", "DayZ, GTA", "Light you throw. Sticks glow for minutes in team colours as breadcrumbs for friends; a flare burns red and lights gasoline. Both give you away too.", "the grenade throw, fire"],
+  ["it-cells", "items", "M", "Charge cells", "Metro 2033", "Money and power in one: spend a cell, or run a flashlight, the jetpack, a laser weapon or a claim on it. Keep cheap cells common.", "flashlight, jetpack"],
+  ["it-flask", "items", "M", "Ichor flask", "Dark Souls' Estus", "A few sips of healing, refilled at your bed or in a lit building; drinking leaves you open.", "the bed (needs a drinking clip)"],
+  ["it-smoke", "items", "S", "Smoke and firecrackers", "Rust, Dying Light", "Smoke hides an escape or a revive; firecracker noise lures enemies, and players, away.", "the grenade"],
+  ["it-walkie", "items", "S", "Walkie-talkie", "DayZ", "Faction radio before factions exist: a numbered channel heard for kilometres; anyone who finds yours can listen in.", "proximity voice"],
+  ["it-nvg", "items", "M", "Night-vision goggles", "Tarkov, DayZ", "The black city in green, but any light blinds you. Nights stay black for everyone else, who see your lenses glow.", "the helmet slot"],
+  ["it-zipline", "items", "M", "Zipline kit", "Dying Light 2, Far Cry", "A cable fired roof to roof that anyone can ride for 5 minutes: your escape, or their ambush.", "the grapple rope"],
+  ["it-skates", "items", "L", "Inline skates", "Jet Set Radio", "Fast on flat streets; grind kerbs, railings and footbridges.", "the shoe slot (needs full-body clips)"],
+  ["it-map", "items", "S", "Town map", "Project Zomboid", "Found in bus shelters and stations; reveals a few kilometres of streets.", "the map's explored areas"],
+  ["it-lock", "items", "M", "Lockbox, padlock, bolt cutters", "Rust, DayZ", "Lock a claim's door or box; cutters take 20 loud seconds.", "containers, claims"],
+  ["it-planks", "items", "M", "Hammer and planks", "Project Zomboid", "Board up a claim's windows and doors; the boards break like Old Guy's planks. Fills existing holes, so it is not building.", "breakable planks"],
+  ["it-glowwear", "items", "S", "Glow wear", "", "The rarest cosmetics glow (neon trims, LED soles): prestige that shows you from blocks away at night.", "wearables"],
+  ["it-stencils", "items", "S", "Stencils and glow paint", "Jet Set Radio's Graffiti Souls", "Hidden on hard-to-reach roofs; each unlocks a ready-made tag sprayed in a second. Glow paint costs a cell and shows at night.", "the spray can"],
+  ["it-heaps", "items", "S", "Rapture heaps", "your own lore", "The Rapture took the people, not their clothes: heaps on pavements, in cars and at desks, with pockets to search.", "containers"],
+  ["it-shards", "items", "S", "Memory shards", "Destiny's lore cards, RuneScape's collection log", "Lost memories in dangerous places. Each gives lore plus a title or cosmetic, never power; a log tracks what you found.", "the inspect card, the book menu"],
+
+  ["sy-fixers", "systems", "L", "Fixers and contracts", "Cyberpunk 2077 gigs, EVE courier contracts", "NPC fixers give short jobs: clear, fetch, haul, escort, tag, or kill a red name. Players can post jobs too, with the server holding the reward. Vary the jobs: Cyberpunk's were panned as the same few enemy types.", "karma; fills in the planned quests and bounties"],
+  ["sy-craft", "systems", "M", "Combo crafting", "Dead Rising 2, Rust's recycler", "Junk breaks down into parts. Recipe cards hide in drawers; without one you make a weaker version. Gives a third bat a use.", "the rarity list"],
+  ["sy-floor", "systems", "S", "A floor under death", "RuneScape, Tarkov", "Your three best items go to an account vault instead of the street (none for red names). The next character re-gears from it. This would soften your 'items drop' rule.", "the death and karma rules"],
+  ["sy-night", "systems", "S", "Night pays", "Dying Light", "Double XP and better loot at night; Wraiths hunt by light and sound.", "day and night, the Wraith"],
+  ["sy-heat", "systems", "M", "Heat", "GTA's wanted stars, Jet Set Radio's police", "Gunfire, explosions and broken glass raise a district's heat; the leftover machines answer in waves.", "enemy sync"],
+  ["sy-warnings", "systems", "S", "Building warnings", "Deep Rock Galactic", "A building can roll one warning (flooded basement, wraith nest, gas-soaked floor) and pays more XP for it. Deep Rock pays 15 to 30% more.", "the planned building stories, the world seed"],
+  ["sy-clues", "systems", "M", "Clue trails", "RuneScape treasure trails, Sea of Thieves riddles", "A note describes a real spot ('the red kerb by the hydrant under the double footbridge'); each step leads on to a casket.", "the seed's own streets"],
+  ["sy-rested", "systems", "S", "Rested at home", "Valheim", "Resting at your bed gives a buff; the furniture you carried home sets how long it lasts.", "the bed, carrying"],
+  ["sy-routes", "systems", "M", "Player-made routes", "Mirror's Edge Catalyst", "Plant a start and a finish on any roofs; others race your ghost on a leaderboard.", "climbing, dash"],
+  ["sy-weather", "systems", "S", "Weather with teeth", "Breath of the Wild, Red Dead 2", "Snow footprints can be tracked, rain puts out fire and sets you up for lightning, storms strike high flyers.", "rain, snow, fire, flight"],
+  ["sy-hotwire", "systems", "M", "Hotwiring", "GTA, DayZ", "Parked cars run on a cell and gas: the fastest way home, but loud, with headlights seen for blocks.", "the Mustang, the gas can (cars need syncing first)"],
+  ["sy-projects", "systems", "M", "Claim projects", "New World", "Members pool cells and parts into upgrades for their claim: lights, a stall, a turret.", "claims"],
+  ["sy-marked", "systems", "S", "The Marked", "GTA's Hunt the Beast", "A volunteer gets a buff and a prize for surviving 5 minutes while shown on every map; killing them costs no karma.", "the map, karma"],
+  ["sy-radio", "systems", "S", "Pirate radio", "Jet Set Radio's Professor K", "A DJ reads the server's news: claims, wars, events, the reddest names.", "chat, the boombox"],
+
+  ["en-commuters", "enemies", "S", "Commuters", "Ghostwire: Tokyo", "Faceless office-worker spirits walking their old commutes; a raised umbrella is their guard. Tell: the umbrella dips with a glint. Answer: go round, heavy attack, fire.", "civilian walk, guard stance"],
+  ["en-bloater", "enemies", "S", "Bloater", "Left 4 Dead's Boomer", "A swollen body that bursts into poison gas. Tell: a second of swelling and gurgling. Answer: pop it at range, or light the gas among its friends.", "the poison cloud, the grenade blast"],
+  ["en-riot", "enemies", "M", "Riot Line", "Arkham, Halo", "Three shields side by side with a gunner firing through the gaps; bullets glance off. Answer: heavy attacks, go over or round them, gasoline under them.", "shield, bullet deflection, Shoota"],
+  ["en-livewire", "enemies", "S", "Live Wire", "Arkham's stun batons", "A lineman with a live cable; blocking it shocks you, worse when wet. Tell: a red warning and crackle. Answer: dash behind him; a water jet shorts him out.", "swordsman's brain, Self Smite, wetness"],
+  ["en-mourner", "enemies", "M", "Mourner", "Doom's Arch-vile", "Pulls the ghost out of a fresh corpse: that body in smoke becomes a new Wraith. Tell: a 2 s rising wail. Answer: kill him first, interrupt him, or burn and cut up corpses.", "Wraith shader, corpses, dismemberment"],
+  ["en-nightrunners", "enemies", "L", "Nightrunners", "Dying Light's Volatiles", "Night-only rooftop chasers that use your own vault, climb and wall stick; a howl brings more. Answer: a lit room (they won't enter), torchlight in the face, outclimb them.", "the climbing code"],
+  ["en-spotter", "enemies", "S", "Spotter", "Halo's Jackal snipers", "A drone or rooftop marksman: a red laser through the fog, held 1.5 s, then the shot. Answer: break line of sight, grapple in, hide in gas.", "Shoota's aim and cover"],
+  ["en-stillones", "enemies", "S", "Still Ones", "Lethal Company's Coil-head", "Mall mannequins and roof gargoyles that move only while no light is on them, snapping between still poses. Answer: one player holds a light while the others smash. No animation needed.", "still poses, torches, room lights"],
+  ["en-wireworm", "enemies", "L", "Wireworm", "Half-Life's barnacle, Left 4 Dead's Smoker", "A segmented machine living in the cables over footbridges; it drops a line and hoists a player. Answer: cut the line, shoot the head; friends free you faster than struggling.", "dismemberment, rope drawing"],
+  ["en-seraphs", "enemies", "M", "Seraphs", "Monster Hunter dives, Halo's Banshees", "The Demiurge's angels, on the player's own wings, hunting the fallen. Tell: wings fold, a glint, then a straight dive. Answer: sidestep and punish the pull-out.", "wings, the flight model"],
+  ["en-hush", "enemies", "M", "Hush", "Death Stranding's BTs, Lethal Company", "Blind; hunts by sound (sprints, splashes, shots, voice chat) and lunges at where the sound was. Answer: crouch, go quiet, throw a bottle as a lure, backstab.", "crouch, wading, voice"],
+  ["en-drowner", "enemies", "M", "Drowner", "Left 4 Dead's pinners, Ghostwire's kappa", "Lies in knee-deep water and drags a player under. Tell: bubbles closing in. Answer: dash as it rises, a friend pulls you out, freeze the water.", "wading, ragdoll pull, frost"],
+  ["en-squatters", "enemies", "M", "Squatter Crew", "F.E.A.R., Bloodborne", "A gang holding a building: barricades, lit gasoline, grenades to flush you out, shouted plans. Kill the boss and some beg.", "Shoota, cover, grenade, jerry can"],
+  ["en-synth", "enemies", "S", "Synth", "Doom Eternal's Marauder", "An android duelist with your full kit; three hits of one element raise a visible shell against it for 10 s. Tell: its visor flashes before each swing.", "swordsman's brain, Arcane Barrier"],
+  ["en-moths", "enemies", "S", "Moths", "Alan Wake's birds, reversed", "Drawn to light (torches, fire, lit windows); they blind you and nibble. Answer: light off, burn them, dive into water.", "particles, a damage area"],
+
+  ["bo-giant2", "bosses", "S", "Giant, phase two", "Left 4 Dead's Tank, Elden Ring", "Below half health it rips up a car or lamppost: thrown cars with a red tell and a long-held swing.", "the Giant, traffic cars, 1 or 2 Blender clips"],
+  ["bo-hunter", "bosses", "M", "The Hunter", "Warframe's Stalker, Resident Evil 2's Mr. X", "The Demiurge's hunter, with sword, gun, grapple and dash. Comes for boss-killers and god-tier holders. Tell: powered lamps die one by one toward you, heavy footsteps.", "swordsman and Shoota brains"],
+  ["bo-floorwalker", "bosses", "M", "Floorwalker", "Metro", "A giant mannequin hunting a dark mall atrium while 2 to 4 players restore power fuse box by fuse box; lit sections freeze it.", "Still Ones, fuse box, room lights"],
+  ["bo-overflow", "bosses", "L", "The Overflow", "Monster Hunter, Sekiro", "A creature in a flooding cistern: the water level is the phase. Dry, it vents gas (fire makes blasts); flooded, its arcs shock anyone wet.", "the flood timeline, wetness, poison, frost"],
+  ["bo-switchboard", "bosses", "L", "Switchboard (raid)", "Destiny's Vault of Glass", "A leftover AI in a dead power-station tower, fought floor by floor by 4 to 8 players: hold fuse levers, break relays together, carry its mark away from wet players. Winning brings the district's power back.", "Still Ones, fuse boxes, wetness"],
+  ["bo-parade", "bosses", "L", "Night Parade (world boss)", "Ghostwire's Hyakki Yako, Guild Wars 2", "A procession of spirits down a boulevard at night: drums heard blocks away, lamps dying as it passes, a giant lantern-bearer at its heart. If it reaches its shrine the district blacks out until dawn.", "the Giant, the Wraith shader, Commuters"],
+
+  ["ai-director", "ai", "M", "Night Director", "Left 4 Dead, Alien: Isolation", "Tracks how intense things are for each player: build-up, a short peak, then 30 to 45 s of quiet. Spawns out of sight, never in lit rooms.", "attack turns, enemy spawning"],
+  ["ai-lightnoise", "ai", "M", "Light and noise", "Metro, Hunt: Showdown", "The light on you sets how far you can be seen. Noise carries (sprints, shots, glass, car alarms) and alerts nearby players too.", "torches, room lights and voice already sync"],
+  ["ai-factions", "ai", "M", "Factions at war", "S.T.A.L.K.E.R.", "Spirits, monsters, machines and gangs fight each other; stray hits start feuds; players can lure one into another.", "the enemy pack"],
+  ["ai-nests", "ai", "M", "Nests and alert levels", "Dying Light 2, Destiny", "Nests sit in unclaimed buildings. Disturbing one raises the block's alert from 1 to 4; killing its heart clears the building for claiming. Refills daily.", "the world seed, claims"],
+  ["ai-events", "ai", "M", "Public events", "Destiny, Guild Wars 2", "Repair-robot convoys (your idea) to raid or defend, blackouts, meteor crashes.", "enemy sync"],
+  ["ai-karma", "ai", "S", "Karma hunters", "Elden Ring's Yura", "NPC bounty hunters stalk dark-red players, so karma matters in PvE too.", "the Hunter's brain"],
+
+  ["bt-grid", "bets", "L", "The Grid: light is territory", "Albion, Rust, Dying Light 2, Project Zomboid, inFAMOUS", "Repair a district's substation with a fuse puzzle and feed it cells. Its lamps, rooms, traffic lights and stations come back; trains stop only at powered stations. Claims pay upkeep in cells; unpaid, the lights go out and the claim can be raided. Big cells are carried by hand and the carrier shows on every map. At night, any roof shows who holds the city.", "the power grid hook, room lights, carrying, the claim rule"],
+  ["bt-chemistry", "bets", "L", "City Chemistry", "Breath of the Wild, Divinity OS2, Magicka", "Grow the gasoline fire grid into one grid for every surface (water, ice, oil, acid, shocked water) plus clouds and body states, all run by the reaction table. Every spell and weapon becomes a setup or a trigger.", "the fire grid"],
+  ["bt-deathwalks", "bets", "M", "Your death walks", "Hollow Knight's Shade, Dark Souls", "A dead character's dropped gear rises as a Wraith of that character, holding its weapon. Friends or your next character beat it to get everything back; rivals can too.", "the Wraith, dropped items"],
+  ["bt-rapture", "bets", "L", "Rapture events", "Destiny, Sea of Thieves, DayZ, Fortnite", "A pillar of light marks a block: a building rises into the sky with its loot and enemies and you have 10 minutes to get out, a crashed pod with guards, a meteor carrying a god-tier spell. Once or twice a year a scripted event changes the map for good.", "enemy sync, the planned god-tier events"],
+  ["bt-tagwars", "bets", "M", "Tag Wars", "Jet Set Radio, New World", "Big walls and billboards are tag spots; a faction's tag earns influence over the block, which colours the map and gives first claim on its buildings. Rivals spray over or wash off; tags fade unless refreshed.", "graffiti already syncs"],
+  ["bt-domains", "bets", "L", "Domains", "Jujutsu Kaisen", "Each tree's top star: a 20 m sphere that rewrites the rules inside for 10 s (Pyro: gasoline floor; Cryo: ice; Electro: metal arcs). Answers: a small bubble the rules miss, and the higher rank wins a clash.", "after City Chemistry"],
+  ["bt-onebrain", "bets", "L", "One brain, any loadout", "F.E.A.R., Control's Hiss", "The brain decides what to do (close in, keep range, guard, flee); the loadout decides how, as the swordsman and Shoota already work. Every new item becomes an enemy that is already synced.", "swordsman, Shoota"],
+
+  ["te-vat", "tech", "M", "Baked-animation crowds", "Unity Animation Instancing, VAT bakers", "Far bodies drawn from animation baked into textures and skinned on the graphics card, so hundreds cost little. Near bodies stay real.", "the crowd test (about 0.65 ms a player now)"],
+  ["te-animlod", "tech", "S", "Animation by distance", "Animancer's update-rate sample", "Bodies far away update their animation less often, with one manager spreading the work so frames don't spike.", "Animator, the crowd test"],
+  ["te-resident", "tech", "S", "GPU Resident Drawer", "Unity 6 URP", "Unity 6 can batch ordinary city meshes on the graphics card, made for big scenes with many shared meshes like a city. Needs Forward+; does nothing for skinned bodies.", "the chunk streaming"],
+  ["te-stp", "tech", "S", "STP upscaling", "Unity 6 URP", "Render at about 70% resolution and let Unity's own upscaler fill in the rest. Uses temporal anti-aliasing.", "the render settings"],
+  ["te-impostors", "tech", "M", "Impostors for far buildings", "Unity Pixyz docs, MegaCity", "Far buildings replaced by baked camera-facing cards. Unity's own table: 800 copies of a 140k-triangle mesh went from 62.5 ms to 4 ms.", "the far-chunk merge"],
+  ["te-mm", "tech", "L", "Motion matching", "JLPM22 MotionMatching (free, Unity 6)", "Animation picks the best frame from a library each moment, for smooth turns and stops. Needs a large motion library, so it comes later.", "the Godot and Blender clips"],
+  ["te-activeragdoll", "tech", "M", "Active ragdolls", "Euphoria, EA Frostbite", "An animated ghost body drives a physics body with muscles, so hits push the body for real and it recovers. About 5 or 6 at once on PC.", "the grapple ragdoll, get-up clips"],
+  ["te-lagcomp", "tech", "M", "Lag compensation", "FishNet collider rollback", "The server puts hitboxes back to what the shooter saw, then checks the hit. FishNet has it (the raycast part needs Pro).", "FishNet"],
+  ["te-hybridai", "tech", "M", "Hybrid enemy brains", "F.E.A.R., XCOM, indie postmortems", "A shared squad blackboard for teamwork, utility scores or plans for choices, simple state machines to act them out.", "the enemy pack"],
+  ["te-wfc", "tech", "L", "Graph-based wave function collapse", "2025 write-up", "Generates neighbourhoods, then building interiors, then furniture, each fitting the one above. A possible next step for interiors.", "the building interiors"],
+  ["te-aistack", "tech", "S", "AI tools as a stack", "2026 tool guides", "Indie teams use several AI tools together: a coding assistant, Meshy for models, Move.ai for motion capture from ordinary video. Generated work still needs cleanup.", "Meshy, Blender"],
+];
+
+const SOURCES = [
+  ["Breath of the Wild chemistry", "https://gamesbeat.com/the-legend-of-zelda-breath-of-the-wild-makes-chemistry-just-as-important-as-physics/"],
+  ["Magicka combinations", "https://www.gameskinny.com/tips/complete-magicka-2-master-spell-combination-guide/"],
+  ["Divinity OS2 surfaces", "https://www.gamepressure.com/originalsinii/environmental-effects-and-combinations/zea274"],
+  ["Divinity OS2 clouds", "https://www.gamepressure.com/originalsinii/clouds-and-combinations/zfa275"],
+  ["Genshin: Shattered", "https://genshin-impact.fandom.com/wiki/Shattered"],
+  ["Destiny 2 subclass verbs", "https://www.bungie.net/7/en/News/article/51678"],
+  ["Elden Ring status effects", "https://eldenring.wiki.gg/wiki/Status_Effects"],
+  ["Elden Ring affinities", "https://eldenring.wiki.gg/wiki/Affinities"],
+  ["Elden Ring Ashes of War", "https://eldenring.wiki.gg/wiki/Ash_of_War"],
+  ["Sekiro combat", "https://sekiroshadowsdietwice.wiki.fextralife.com/Combat"],
+  ["Sekiro posture", "https://samurai-gamers.com/sekiro-shadows-die-twice/posture-system/"],
+  ["Risk of Rain 2 proc coefficient", "https://riskofrain2.wiki.gg/wiki/Proc_Coefficient"],
+  ["Ultrakill coins", "https://ultrakill.wiki.gg/wiki/Coins"],
+  ["Devil May Cry 5 styles", "https://twinfinite.net/guides/devil-may-cry-5-raise-style-rank-how-what/"],
+  ["Monster Hunter weapons", "https://game8.co/articles/featured/the-history-of-monster-hunter-weapons"],
+  ["Lies of P Fable Arts", "https://liesofp.wiki.fextralife.com/Fable+Arts"],
+  ["Hades aspects", "https://www.rpgsite.net/feature/10254-hades-infernal-arms-weapon-aspects-guideevery-weapon-aspect-and-upgrade-unlock"],
+  ["Path of Exile supports", "https://www.poewiki.net/wiki/Support"],
+  ["Dishonored's Blink", "https://www.gamesradar.com/dishonoreds-defining-power-was-last-minute-call"],
+  ["inFAMOUS Second Son", "https://en.wikipedia.org/wiki/Infamous_Second_Son"],
+  ["Spider-Man traversal (GDC)", "https://gdcvault.com/play/1026084/Concrete-Jungle-Gym-Building-Traversal"],
+  ["Tears of the Kingdom Fuse", "https://www.gonintendo.com/contents/21435-zelda-tears-of-the-kingdom-devs-on-their-intent-behind-the-fuse-and-ultrahand"],
+  ["Dead Rising 2 combo cards", "https://www.gamesradar.com/dead-rising-2-combo-card-weapon-guide/"],
+  ["Skyrim Words of Power", "https://en.m.uesp.net/wiki/Skyrim:Word_of_Power"],
+  ["Jujutsu Kaisen domains", "https://sportskeeda.com/anime/what-is-domain-expansion-in-jujutsu-kaisen"],
+  ["Warframe damage types", "https://wiki.warframe.com/w/Damage_type"],
+  ["Dying Light night", "https://dyinglight.wiki.gg/wiki/Night"],
+  ["Dying Light safe zones", "https://dyinglight.wiki.gg/wiki/Safe_Zone"],
+  ["Dying Light 2 metro", "https://www.gamesradar.com/dying-light-2-fast-travel-metro-stations"],
+  ["Albion: gear as consumable", "https://mein-mmo.de/en/8-year-old-mmorpg-from-berlin-is-successful-while-the-larger-competition-is-disappointing-now-it-reveals-the-secret,1517698/"],
+  ["Albion power cores", "https://www.altchar.com/game-news/hq-hideouts-are-albions-newest-feature-to-help-smaller-player-groups-aqSpk0U5XZei"],
+  ["Rust tool cupboard", "https://wiki.facepunch.com/rust/The_Tool_Cupboard"],
+  ["Rust upkeep", "https://www.corrosionhour.com/rust-upkeep-building-guide/"],
+  ["RuneScape kept on death", "https://oldschool.runescape.wiki/w/Items_Kept_on_Death"],
+  ["RuneScape treasure trails", "https://oldschool.runescape.wiki/w/Treasure_Trails"],
+  ["Tarkov secure containers", "https://afkgaming.com/esports/guide/everything-about-secure-containers-in-escape-from-tarkov"],
+  ["Sea of Thieves world events", "https://seaofthieves.wiki.gg/wiki/World_Events"],
+  ["Hunt: Showdown modes", "https://huntshowdown.fandom.com/wiki/Game_Modes"],
+  ["Metro bullet economy", "https://techraptor.net/gaming/features/metro-series-bullet-economy"],
+  ["Valheim rested", "https://mobalytics.gg/gamebase/guides/valheim-comfort-rested-guide"],
+  ["EVE courier contracts", "https://wiki.eveuniversity.org/Moving_your_items"],
+  ["Deep Rock Galactic warnings", "https://deeprockgalactic.wiki.gg/wiki/Warning"],
+  ["New World settlements", "https://www.newworld.com/en-us/news/articles/making-your-mark-on-aternum-settlements-and-governance"],
+  ["Mirror's Edge Catalyst social play", "https://ea.com/news/dev-diary-social-play"],
+  ["Jet Set Radio Graffiti Souls", "https://jetsetradio.fandom.com/wiki/Graffiti_Souls"],
+  ["Project Zomboid generators", "https://pzfans.com/how-to-find-use-and-repair-generator-in-project-zomboid/"],
+  ["GTA Online freemode events", "https://support.rockstargames.com/articles/1Wgw74PudBdSjUrRC6tCKW/freemode-events-information-for-gta-online-on-ps4-xbox-one-and-pc"],
+  ["DayZ helicopter crashes", "https://xgamingserver.com/blog/dayz-helicopter-crash-sites-guide/"],
+  ["Destiny public events", "https://destinypedia.com/Public_Event"],
+  ["Fortnite's Astronomical", "https://www.pcgamer.com/travis-scotts-fortnite-show-had-a-record-breaking-number-of-players"],
+  ["Left 4 Dead director (GDC 2009)", "https://cdn.fastly.steamstatic.com/apps/valve/2009/GDC2009_ReplayableCooperativeGameDesign_Left4Dead.pdf"],
+  ["Alien: Isolation AI", "https://www.gamedeveloper.com/design/the-perfect-organism-the-ai-of-alien-isolation"],
+  ["F.E.A.R. planning AI (GDC 2006)", "https://gdcvault.com/play/1013282/Three-States-and-a-Plan"],
+  ["Halo AI (GDC 2002)", "https://www.halo.bungie.org/misc/gdc.2002.haloai/talk.html?page=6"],
+  ["Halo 3 encounter design", "https://www.gamedeveloper.com/design/combat-evolved-the-encounter-design-of-halo-3"],
+  ["Doom Eternal combat design", "https://www.gamedeveloper.com/design/q-a-evolving-the-combat-design-of-id-software-s-i-doom-eternal-i-"],
+  ["Readability in action RPGs", "https://www.gamedeveloper.com/game-platforms/designing-for-difficulty-readability-in-arpgs"],
+  ["Arkham enemy types", "https://www.gamerguides.com/batman-arkham-knight/guide/gameplay-basics/basics/enemy-types"],
+  ["Nightreign scaling", "https://gamingbolt.com/?p=611928"],
+  ["Monster Hunter tells", "https://nintendolife.com/news/2015/02/monster_hunter_4_ultimate_director_discusses_monster_design_and_animation"],
+  ["Metro: light and librarians", "https://www.shamusyoung.com/twentysidedtale/?p=21553"],
+  ["Ghostwire: Tokyo Visitors", "https://bethesda.net/en-US/news/ghostwire-tokyo-visitors-and-yokai-guide"],
+  ["Ghostwire: Hyakki Yako", "https://www.ginx.tv/en/find-hyakki-yako-parades"],
+  ["Destiny's Vault of Glass", "https://kotaku.com/q-a-the-lead-designer-of-destinys-vault-of-glass-1647227058"],
+  ["Guild Wars 2 world bosses", "https://www.guildwars2.com/en/news/the-megaserver-system-world-bosses-and-events/"],
+  ["Warframe's Stalker", "https://wiki.warframe.com/Shadow_Stalker"],
+  ["Resident Evil 2's Mr. X", "https://www.pcgamer.com/resident-evil-2s-director-talks-mr-xs-ai-scary-footsteps-and-the-dmx-mod"],
+  ["Hunt: Showdown sound", "https://www.pcgamer.com/lets-hear-it-for-hunt-showdowns-incredible-sound-design"],
+  ["Lethal Company monsters", "https://www.pcgamesn.com/lethal-company/monsters"],
+  ["Death Stranding stealth", "https://www.pcgamer.com/death-stranding-is-a-deceptively-good-stealth-game"],
+  ["Hollow Knight's Shade", "https://hollowknight.wiki/w/Shade"],
+  ["Nemesis system patent (avoid copying)", "https://kotaku.com/after-years-of-trying-wb-games-successfully-patented-s-1846213089"],
+  ["Encounter design (Level Design Book)", "https://book.leveldesignbook.com/process/combat/encounter"],
+  ["Unity Animation Instancing", "https://blog.unity.com/engine-platform/animation-instancing-for-skinnedmeshrenderer"],
+  ["Free Unity VAT baker", "https://80.lv/articles/free-tool-for-baking-vertex-animation-textures-directly-in-unity"],
+  ["Animancer update rate", "https://kybernetik.com.au/animancer/docs/samples/fine-control/update-rate"],
+  ["Animation LOD guide", "https://mocaponline.com/blogs/mocap-news/animation-lod-performance-guide"],
+  ["Unity GPU Resident Drawer", "https://docs.unity3d.com/6000.3/Documentation/Manual/urp/gpu-resident-drawer.html"],
+  ["Unity GPU occlusion culling", "https://docs.unity3d.com/6000.4/Documentation/Manual/urp/gpu-culling.html"],
+  ["Unity STP upscaler", "https://docs.unity3d.com/Manual/urp/stp/stp-upscaler.html"],
+  ["Unity impostors", "https://docs.unity3d.com/Packages/com.unity.pixyz.unity-sdk@4.0/manual/features/impostors.html"],
+  ["MegaCity HLOD + impostors", "https://discussions.unity.com/t/hlod-streaming-octahedral-impostors-using-megacity-subscenes/742223"],
+  ["Motion matching for Unity", "https://github.com/JLPM22/MotionMatching"],
+  ["Active ragdoll system", "https://80.lv/articles/make-your-characters-feel-alive-with-this-self-balancing-active-ragdoll-system"],
+  ["Animating active ragdolls", "https://gamedeveloper.com/design/8-tips-for-animating-active-ragdolls"],
+  ["FishNet lag compensation", "https://fish-networking.gitbook.io/docs/guides/features/lag-compensation"],
+  ["Indie AI: behaviour trees to utility AI", "https://gamedeveloper.com/programming/indie-ai-programming-from-behaviour-trees-to-utility-ai"],
+  ["Graph-based wave function collapse", "https://logan169.github.io/2025/01/18/Graph-Based-WFC.html"],
+  ["AI tools for game development (2026)", "https://summerengine.com/blog/best-ai-tools-game-development"],
+];
+
+const PICKS = ["yes", "later", "no"];
+const state = { section: "all", pick: "all", size: "all", picks: {}, canPick: false };
+let db = null;
+const pending = new Set();
+
+function el(tag, attrs, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") node.className = v;
+    else if (k === "text") node.textContent = v;
+    else node.setAttribute(k, v);
+  }
+  for (const kid of kids) if (kid != null) node.append(kid);
+  return node;
+}
+
+function chips(holder, options, key) {
+  for (const [value, label] of options) {
+    const b = el("button", { class: "chip", type: "button", "data-value": value, "aria-pressed": String(state[key] === value), text: label });
+    b.addEventListener("click", () => {
+      state[key] = value;
+      for (const other of holder.querySelectorAll("button.chip")) other.setAttribute("aria-pressed", String(other.dataset.value === value));
+      render();
+    });
+    holder.append(b);
+  }
+}
+
+function card(idea) {
+  const [id, , size, title, from, what, builds] = idea;
+  const pick = state.picks[id] || "";
+  const art = el("article", { class: "idea", id: "idea-" + id, "data-pick": pick });
+  art.append(el("h3", {}, el("span", { text: title }), el("span", { class: "size", title: { S: "a few days", M: "one to two weeks", L: "several weeks" }[size], text: size })));
+  if (from) art.append(el("div", { class: "from", text: "From " + from }));
+  art.append(el("p", { text: what }));
+  if (builds) art.append(el("div", { class: "builds" }, el("b", { text: "Builds on " }), builds));
+  const row = el("div", { class: "picks", role: "group", "aria-label": "Pick " + title });
+  row.hidden = !state.canPick;
+  for (const v of PICKS) {
+    const b = el("button", { class: "pick", type: "button", "data-v": v, "aria-pressed": String(pick === v), text: v === "yes" ? "Yes" : v === "later" ? "Later" : "No" });
+    b.addEventListener("click", () => choose(id, v));
+    row.append(b);
+  }
+  art.append(row);
+  return art;
+}
+
+function visible(idea) {
+  const [id, section, size] = idea;
+  if (state.section !== "all" && section !== state.section) return false;
+  if (state.size !== "all" && size !== state.size) return false;
+  const pick = state.picks[id] || "none";
+  if (state.pick !== "all" && pick !== state.pick) return false;
+  return true;
+}
+
+function render() {
+  const board = document.getElementById("board");
+  board.replaceChildren();
+  for (const sec of SECTIONS) {
+    if (state.section !== "all" && state.section !== sec.id) continue;
+    const ideas = IDEAS.filter(i => i[1] === sec.id && visible(i));
+    const group = el("section", { class: "group", id: "sec-" + sec.id });
+    group.append(el("h2", {}, sec.name, el("small", { text: ideas.length + (ideas.length === 1 ? " idea" : " ideas") })));
+    group.append(el("p", { class: "intro", text: sec.note }));
+    if (sec.id === "spells" && state.pick === "all" && state.size === "all") {
+      const table = el("table", {});
+      table.append(el("thead", {}, el("tr", {}, el("th", { text: "Reaction" }), el("th", { text: "What happens" }), el("th", { text: "From" }), el("th", { text: "The answer" }))));
+      const body = el("tbody", {});
+      for (const r of REACTIONS) body.append(el("tr", {}, ...r.map(c => el("td", { text: c }))));
+      table.append(body);
+      group.append(el("div", { class: "table-wrap" }, table));
+    }
+    const grid = el("div", { class: "grid" });
+    for (const idea of ideas) grid.append(card(idea));
+    if (ideas.length === 0) grid.append(el("p", { class: "empty", text: "Nothing here with these filters." }));
+    group.append(grid);
+    board.append(group);
+  }
+  tally();
+}
+
+function tally() {
+  const counts = { yes: 0, later: 0, no: 0 };
+  for (const i of IDEAS) { const p = state.picks[i[0]]; if (p && counts[p] !== undefined) counts[p]++; }
+  const unpicked = IDEAS.length - counts.yes - counts.later - counts.no;
+  document.getElementById("tally").replaceChildren(
+    el("span", { text: "Yes " + counts.yes }), el("span", { text: "Later " + counts.later }),
+    el("span", { text: "No " + counts.no }), el("span", { text: "Unpicked " + unpicked }));
+}
+
+async function choose(id, value) {
+  if (!db || pending.has(id)) return;
+  const before = state.picks[id];
+  const next = before === value ? undefined : value;
+  pending.add(id);
+  if (next) state.picks[id] = next; else delete state.picks[id];
+  render();
+  try {
+    const ref = db.collection("picks").doc(id);
+    if (next) await ref.set({ pick: next, title: IDEAS.find(i => i[0] === id)[3] });
+    else await ref.delete();
+    setStatus("");
+  } catch (e) {
+    if (before) state.picks[id] = before; else delete state.picks[id];
+    render();
+    setStatus(e && e.code === "quota_exceeded" ? "The board is full and could not save that pick." : "That pick did not save. Try again in a moment.");
+  } finally {
+    pending.delete(id);
+  }
+}
+
+function setStatus(text) { document.getElementById("status").textContent = text; }
+
+function start() {
+  chips(document.getElementById("sectionChips"), [["all", "All"], ...SECTIONS.map(s => [s.id, s.name])], "section");
+  chips(document.getElementById("pickChips"), [["all", "All"], ["none", "Unpicked"], ["yes", "Yes"], ["later", "Later"], ["no", "No"]], "pick");
+  chips(document.getElementById("sizeChips"), [["all", "Any"], ["S", "S"], ["M", "M"], ["L", "L"]], "size");
+  const list = document.getElementById("sourceList");
+  for (const [name, url] of SOURCES) list.append(el("li", {}, el("a", { href: url, target: "_blank", rel: "noopener", text: name })));
+  document.querySelector("#allSources summary").textContent = "Sources (" + SOURCES.length + " links)";
+  render();
+  setStatus("Loading your saved picks...");
+  connect();
+}
+
+async function connect() {
+  try {
+    db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+  } catch (e) { db = null; }
+  if (!db) { setStatus("Picks are saved only when this page is open on claude.ai while signed in. You can still read every idea."); return; }
+  state.canPick = true;
+  render();
+  const timer = setTimeout(() => setStatus("Your saved picks can't be reached yet. New picks will save once they can."), 10000);
+  db.collection("picks").onSnapshot(snap => {
+    if (!snap.metadata.fromCache) { clearTimeout(timer); setStatus(""); }
+    const picks = {};
+    for (const d of snap.docs) { const v = d.data(); if (v && PICKS.includes(v.pick)) picks[d.id] = v.pick; }
+    for (const id of pending) if (state.picks[id]) picks[id] = state.picks[id]; else delete picks[id];
+    state.picks = picks;
+    render();
+  }, err => {
+    clearTimeout(timer);
+    setStatus(err && err.code === "revoked" ? "" : "Your saved picks can't be shown right now.");
+  });
+}
+
+start();
+</script>
