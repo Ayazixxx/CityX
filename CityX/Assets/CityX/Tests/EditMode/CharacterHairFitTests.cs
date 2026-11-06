@@ -421,37 +421,5 @@ namespace CityX.Tests
                 Assert.IsNotNull(meshes[i], $"\"{CharacterHair.ValidStyles[i + 1]}\" has no mesh wired");
             }
         }
-
-        // ---- the button row ----
-
-        [TestCase(2)]
-        [TestCase(3)]
-        [TestCase(4)]
-        [TestCase(5)]
-        [TestCase(6)]
-        [TestCase(8)]
-        public void TheHairButtonsFitTheColumnAndNeverOverlap(int count)
-        {
-            float width = UI.HairButtonRow.ButtonWidth(count);
-            float halfColumn = UI.HairButtonRow.Available * 0.5f;
-
-            for (int i = 0; i < count; i++)
-            {
-                float centre = UI.HairButtonRow.CentreX(i, count);
-                Assert.LessOrEqual(Mathf.Abs(centre) + width * 0.5f, halfColumn + 0.001f, $"{count} buttons: button {i} hangs off the panel");
-                if (i > 0 && i % UI.HairButtonRow.PerRow != 0)   // a new row starts back at the left
-                {
-                    float gap = centre - UI.HairButtonRow.CentreX(i - 1, count) - width;
-                    Assert.GreaterOrEqual(gap, 0.0f, $"{count} buttons: buttons {i - 1} and {i} overlap");
-                }
-            }
-        }
-
-        [Test]
-        public void ThreeHairButtonsKeepTheirOldWidth()
-        {
-            Assert.AreEqual(58.0f, UI.HairButtonRow.ButtonWidth(3), 1.0f);
-            Assert.Less(UI.HairButtonRow.ButtonWidth(4), UI.HairButtonRow.ButtonWidth(3));
-        }
     }
 }

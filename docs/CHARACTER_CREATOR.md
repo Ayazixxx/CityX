@@ -105,3 +105,21 @@ six saved, the back pair in shadow, the next one on the right and brought in by 
 `TitleScreenWiringTests.TheCharacterListDeletesFromABinInTheCardsCornerAndStandsFive` (no DELETE button, the bin's place and action, five
 anchors in screen order, the silhouette material). Picture: `CharacterSelectCapture` (`Logs/CityShots/select-*.png`, the menu on its own in
 `select-*-menu.png`).
+
+## Tabs: PAINT, HAIR, FACE (2026-11-05)
+
+Owner: "try to improve upon the UI of the character creation, I think later im going to have a bunch of premade mouths, eyes, eyebrows, etc., for people who dont want to draw. so improve upon that menu start planning for that, make a hair tab on the menus too and make it so it generate an icon of a plain white playermodel wearing the hairstyle instead of selecting a button with the name of the hairstyle".
+
+- **Three tabs** under the heading of the left column, now 232 units wide (`CreatorTabs`, `ButtonAction.Kind.CreatorTab`). One page shows at a time. A page is hidden by its CanvasGroup, never switched off, so every button on it stays wired. The action bar (ENTER THE CITY / BACK, ReDraw's SAVE / CANCEL) stays under every tab. Both creators get the same tabs, as both are built from `CreatorKit`.
+- **PAINT** holds the paint tools as before, 38 units lower (`CreatorKit.PaintPageDrop`).
+- **HAIR** shows each hairstyle as a picture of a plain white head wearing it, four to a row in a grid that scrolls past four rows (`HairPage`, `CreatorPageKit`). The worn style's tile is framed in gold (`HairStyleTiles`). The hair colour (square, swatches, hue, preview) sits under the styles and hides while bald. The right-hand hair cards are gone (`HairColourPanel` and `HairButtonRow` deleted).
+- **The pictures** are baked by CityX/Bake Hair Icons (`HairIconBaker`, batch: `CityX.UIEditor.HairIconBaker.RebuildAndBake`) into `UI/Resources/HairIcons/{style}.png`. It uses the creator's own camera, lights and cel lines, one framing for every style fitted to the largest, a 3/4 view from the key light's side, brown hair and 128 px. A new hairstyle needs a rebake and a title rebuild; until then its tile shows its short name.
+- **FACE** is the page for the premade parts to come (`FacePage`, `FacePartChips`): chips for EYES, BROWS, MOUTH, NOSE and EXTRAS, each with a grid of parts. None exist yet, so each grid says so, and a note points to the PAINT tab. Parts are data in `FacePartCatalog` (`Character/Resources/FacePartCatalog.asset` when made). Adding one shows it in ReDraw at once, and in the title screen's creator after a title rebuild.
+- **Paint only on PAINT** (`CharacterCreator.PaintEnabled`): on HAIR and FACE a drag on the body turns it and no brush ring shows, so looking at a hairstyle from every side never leaves a stray dot.
+- **The wheel over the panel scrolls it** and no longer zooms the body.
+
+### Premade face parts: the plan
+
+The full plan, with what the code does now and what is proposed, is `docs/FACE_PARTS_PLAN.md`. In short: a part is a front-view picture of the whole head, saved on the character as an id, a colour and a small up, size and spacing. It is drawn as a layer over the paint when the head's texture is uploaded, so the paint stays separate and a part can be swapped. Other players build it from the ids, under 200 bytes a face. Before it can work: the server must keep the face when it saves a character, a ReDraw must reach other players (today none does), and the four places that dress a worn body's paint should share one helper.
+
+Tests: `CreatorTabsPlayTests` (each tab its own page, painting only on PAINT, the ring, the wheel over the grid), `CharacterCreatorPlayTests` (each hair tile its own style, on screen and uncovered, the gold frame, the colour card, the swatches), `RedrawRealInputPlayTests` (ReDraw's tabs and tiles by mouse), `TitleScreenWiringTests` (tabs and pages wired, each tool on its own page), `HairIconTests`. Pictures: `TitleScreenCapture.RebuildAndCaptureSelect` (`creator.png`, `creator-hair.png`, `creator-face.png`).

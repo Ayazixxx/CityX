@@ -199,6 +199,12 @@ namespace CityX.Character
         /// </summary>
         public bool InputBlocked;
 
+        /// <summary>
+        /// Off while the creator's HAIR or FACE tab is up (CreatorTabs): a press on the body then turns it, as one beside it does, and no
+        /// brush ring shows, so turning the head round to look at a hairstyle never leaves a stray dot of paint.
+        /// </summary>
+        public bool PaintEnabled = true;
+
         private void Update()
         {
             Mouse mouse = Mouse.current;
@@ -209,8 +215,9 @@ namespace CityX.Character
 
             Vector2 position = mouse.position.ReadValue();
 
+            // Not over the panel: there the wheel scrolls the hairstyle pictures, and zooming the body as well made the list unusable.
             float scroll = mouse.scroll.ReadValue().y;
-            if (Mathf.Abs(scroll) > 0.01f)
+            if (Mathf.Abs(scroll) > 0.01f && !OverInterface())
             {
                 ZoomAt(position, scroll > 0.0f);
             }
@@ -346,7 +353,7 @@ namespace CityX.Character
             }
             Vector3 home = CameraHome;
             Transform view = Camera.transform;
-            view.localPosition = CreatorZoom.Step(view.localPosition, FocusUnder(screenPosition), closer, home, MinimumCameraDistance, MaximumCameraDistance);
+            view.localPosition = CreatorZoom.Step(view.localPosition, CreatorZoom.UpAndDownOnly(FocusUnder(screenPosition), home), closer, home, MinimumCameraDistance, MaximumCameraDistance);
         }
 
         private Vector3 CameraHome
@@ -397,6 +404,11 @@ namespace CityX.Character
         /// </summary>
         public void PressAt(Vector2 screenPosition)
         {
+            if (!PaintEnabled)
+            {
+                _rotating = true;
+                return;
+            }
             if (!Raycast(screenPosition, out Vector3 local, out int triangle))
             {
                 _rotating = true;
@@ -563,7 +575,7 @@ namespace CityX.Character
             Vector3 at = Vector3.zero;
             int face = -1;
             Vector3 up = Vector3.up;
-            bool show = Current == Tool.Brush && !_rotating && !InputBlocked && _paint != null && !OverInterface()
+            bool show = PaintEnabled && Current == Tool.Brush && !_rotating && !InputBlocked && _paint != null && !OverInterface()
                         && Raycast(screenPosition, out at, out face)
                         && _paint.TryNormalOf(face, out up);
             if (!show)

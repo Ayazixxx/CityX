@@ -89,7 +89,6 @@ namespace CityX.UI
                     new Vector2(0.0f, 16.0f), new Vector2(172.0f, 32.0f),
                     ButtonAction.Kind.CreatorTryBack, creator, null, overlays);
             });
-            HairColourPanel.Build(root.transform, creator);
             BuildDiscardPrompt(root.transform, overlays);
 
             UiKit.EnsureEventSystem();

@@ -140,6 +140,9 @@ namespace CityX.Tests
             yield return Open(withHud: true);
             CharacterCreator creator = Object.FindFirstObjectByType<CharacterCreator>();
             CreatorControls controls = Object.FindFirstObjectByType<CreatorControls>();
+            CreatorTabs tabs = Object.FindFirstObjectByType<CreatorTabs>();
+            Assert.IsNotNull(tabs, "ReDraw has no tabs");
+            Assert.AreEqual(CreatorTabs.Paint, tabs.Current, "ReDraw does not open on the PAINT tab, where these tools are");
 
             yield return Click("BucketButton");
             Assert.AreEqual(CharacterCreator.Tool.Bucket, creator.Current, "the bucket button does nothing");
@@ -175,7 +178,9 @@ namespace CityX.Tests
             yield return Click("RedoButton");
             Assert.IsFalse(creator.CanRedo, "the redo button does nothing");
 
-            // A hairstyle button.
+            // A hairstyle's tile, on the HAIR tab.
+            yield return Click("HairTab");
+            Assert.AreEqual(CreatorTabs.Hair, tabs.Current, "the HAIR tab does not come up by mouse");
             ButtonAction style = null;
             foreach (ButtonAction action in Object.FindFirstObjectByType<CreatorOverlays>().GetComponentsInChildren<ButtonAction>(true))
             {

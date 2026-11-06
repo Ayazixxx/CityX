@@ -19,13 +19,25 @@ namespace CityX.UI
         /// <summary>An unlit button. CreatorControls lights the active ones.</summary>
         public static readonly Color Idle = new Color(0.11f, 0.12f, 0.15f, 0.95f);
 
+        /// <summary>Hints, and the captions of the tabs that are not up.</summary>
+        public static readonly Color Hint = new Color(0.62f, 0.64f, 0.70f, 1.0f);
+
         /// <summary>
         /// The panel down the left, in canvas units. The canvas is 1152x648, so
-        /// the whole stack below has to fit above the action bar at the bottom
-        /// -- it grew past it once already and the two ended up drawn over each
-        /// other, hiding UNDO and REDO completely.
+        /// every page under the tabs has to fit above the action bar at the
+        /// bottom -- the stack grew past it once already and the two ended up
+        /// drawn over each other, hiding UNDO and REDO completely. Wide enough
+        /// for four hairstyle pictures in a row (HairPage).
         /// </summary>
-        public const float ColumnWidth = 200.0f;
+        public const float ColumnWidth = 232.0f;
+
+        /// <summary>The PAINT / HAIR / FACE tabs, under the heading (CreatorTabs).</summary>
+        public const float TabStripY = -58.0f;
+
+        /// <summary>How much lower the PAINT page sits than the column's top: its tools were laid out before there were tabs.</summary>
+        public const float PaintPageDrop = 38.0f;
+
+        private const float TabWidth = 72.0f, TabHeight = 26.0f, TabPitch = 76.0f;
 
         public const float ActionBarHeight = 88.0f;
 
@@ -87,10 +99,11 @@ namespace CityX.UI
         // --- the tool column ---
 
         /// <summary>
-        /// The tool column down the left -- the tools, the colour square and palette, the brush size, mirror and eraser, undo and redo,
-        /// the hint -- with the opaque bar pinned to its bottom, on which <paramref name="addActions"/> puts the creator's own two
-        /// buttons (it is handed the column). <paramref name="buttonOverlays"/> goes on mirror, eraser, undo and redo (ReDraw's do
-        /// carry it, the title screen's do not).
+        /// The tool column down the left: the heading, then the PAINT / HAIR / FACE tabs (CreatorTabs) over their pages -- PAINT the
+        /// tools, the colour square and palette, the brush size, mirror and eraser, undo and redo, the hint; HAIR the styles and their
+        /// colour (HairPage); FACE the premade parts to come (FacePage) -- and under every tab the opaque bar pinned to the bottom, on
+        /// which <paramref name="addActions"/> puts the creator's own two buttons (it is handed the column).
+        /// <paramref name="buttonOverlays"/> goes on mirror, eraser, undo and redo (ReDraw's do carry it, the title screen's do not).
         /// </summary>
         public static void BuildToolColumn(Transform parent, CharacterCreator creator, string heading,
             CreatorOverlays buttonOverlays, System.Action<Transform> addActions)
@@ -115,6 +128,90 @@ namespace CityX.UI
 
             MakeLabel(t, "Heading", heading, 20, Gold, At(-24.0f), 24.0f);
 
+            // Every page is built in full, whichever is up: a page is hidden by its CanvasGroup, never switched off, so each button and
+            // picker on it has woken and wired itself (ButtonAction, CreatorControls, HairColourControls).
+            CreatorTabs tabs = column.AddComponent<CreatorTabs>();
+            tabs.Creator = creator;
+            Transform paint = MakePage(t, "PaintPage", PaintPageDrop, out CanvasGroup paintPage);
+            Transform hair = MakePage(t, "HairPage", 0.0f, out CanvasGroup hairPage);
+            Transform face = MakePage(t, "FacePage", 0.0f, out CanvasGroup facePage);
+            tabs.Pages = new[] { paintPage, hairPage, facePage };
+            MakeTabStrip(t, tabs, creator);
+
+            BuildPaintPage(paint, creator, controls, buttonOverlays);
+            HairPage.Build(hair, creator);
+            FacePage.Build(face, creator);
+            // Here as well as on waking: the title screen's creator is saved by the editor, where nothing wakes.
+            tabs.Show(CreatorTabs.Paint);
+
+            // Pinned to the bottom rather than following the stack, so it stays
+            // put as tools are added above it -- ON ITS OWN OPAQUE BAR, because
+            // the stack grew past it once already and the two ended up drawn
+            // over each other.
+            var bar = new GameObject("ActionBar", typeof(RectTransform));
+            var barRect = (RectTransform)bar.transform;
+            barRect.SetParent(t, false);
+            barRect.anchorMin = new Vector2(0.0f, 0.0f);
+            barRect.anchorMax = new Vector2(1.0f, 0.0f);
+            barRect.pivot = new Vector2(0.5f, 0.0f);
+            barRect.anchoredPosition = Vector2.zero;
+            barRect.sizeDelta = new Vector2(0.0f, ActionBarHeight);
+            bar.AddComponent<Image>().color = new Color(0.04f, 0.05f, 0.07f, 1.0f);
+
+            // Built AFTER the bar and therefore drawn over it, which is the
+            // whole point -- built before it, they were the ones underneath.
+            addActions(t);
+        }
+
+        /// <summary>
+        /// One tab's page: the whole column, <paramref name="drop"/> lower, shown and hidden by its CanvasGroup (CreatorTabs).
+        /// </summary>
+        private static Transform MakePage(Transform column, string name, float drop, out CanvasGroup group)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(column, false);
+            UiKit.Stretch(rect);
+            rect.offsetMin = new Vector2(0.0f, -drop);
+            rect.offsetMax = new Vector2(0.0f, -drop);
+            group = go.AddComponent<CanvasGroup>();
+            return go.transform;
+        }
+
+        /// <summary>PAINT, HAIR and FACE in a row under the heading, each with its caption and the gold line under the one that is up.</summary>
+        private static void MakeTabStrip(Transform column, CreatorTabs tabs, CharacterCreator creator)
+        {
+            string[] names = { "PaintTab", "HairTab", "FaceTab" };
+            string[] captions = { "PAINT", "HAIR", "FACE" };
+            var labels = new Text[names.Length];
+            var underlines = new Image[names.Length];
+            for (int i = 0; i < names.Length; i++)
+            {
+                Image tab = MakeButton(column, names[i], string.Empty, Gold,
+                    new Vector2((i - 1) * TabPitch, TabStripY), new Vector2(TabWidth, TabHeight),
+                    ButtonAction.Kind.CreatorTab, creator, value: i);
+                tab.GetComponent<ButtonAction>().Tabs = tabs;
+                labels[i] = Caption(tab.transform, captions[i], 13, Hint);
+
+                var line = new GameObject("Underline", typeof(RectTransform));
+                var lineRect = (RectTransform)line.transform;
+                lineRect.SetParent(tab.transform, false);
+                lineRect.anchorMin = new Vector2(0.0f, 0.0f);
+                lineRect.anchorMax = new Vector2(1.0f, 0.0f);
+                lineRect.pivot = new Vector2(0.5f, 0.0f);
+                lineRect.anchoredPosition = Vector2.zero;
+                lineRect.sizeDelta = new Vector2(0.0f, 2.0f);
+                underlines[i] = line.AddComponent<Image>();
+                underlines[i].color = Gold;
+                underlines[i].raycastTarget = false;
+            }
+            tabs.Labels = labels;
+            tabs.Underlines = underlines;
+        }
+
+        /// <summary>The PAINT tab's page: everything the column held before it had tabs.</summary>
+        private static void BuildPaintPage(Transform t, CharacterCreator creator, CreatorControls controls, CreatorOverlays buttonOverlays)
+        {
             MakeToolRow(t, creator, controls);
 
             MakeLabel(t, "PaletteLabel", "COLOUR", 13, Paper, At(-94.0f), 18.0f);
@@ -125,7 +222,7 @@ namespace CityX.UI
             // SHAPE_HSV_RECTANGLE popup: a saturation/value square for
             // whatever hue is selected, plus a separate hue strip -- this is
             // that shape, not the hue/saturation wheel it replaced.
-            controls.SVSquare = MakeSquare(t, At(-166.0f), 128.0f);
+            controls.SVSquare = MakeSquare(t, "SVSquare", At(-166.0f), 128.0f);
 
             controls.Hue = MakeHueSlider(t, "HueSlider", At(-244.0f), 150.0f);
             controls.Preview = MakeSwatch(t, "Preview", At(-266.0f),
@@ -154,33 +251,12 @@ namespace CityX.UI
             controls.UndoButton = t.Find("UndoButton").GetComponent<Button>();
             controls.RedoButton = t.Find("RedoButton").GetComponent<Button>();
 
-            // The hairstyle buttons are on the hair colour card, on the right (HairColourPanel): here, the third row hid under the bar.
-
             MakeLabel(t, "HintLabel",
                 "Drag the body to paint it.\nDrag anywhere else to turn it.\nScroll to zoom.",
-                10, new Color(0.62f, 0.64f, 0.70f),
-                At(-480.0f), 40.0f);
-
-            // Pinned to the bottom rather than following the stack, so it stays
-            // put as tools are added above it -- ON ITS OWN OPAQUE BAR, because
-            // the stack grew past it once already and the two ended up drawn
-            // over each other.
-            var bar = new GameObject("ActionBar", typeof(RectTransform));
-            var barRect = (RectTransform)bar.transform;
-            barRect.SetParent(t, false);
-            barRect.anchorMin = new Vector2(0.0f, 0.0f);
-            barRect.anchorMax = new Vector2(1.0f, 0.0f);
-            barRect.pivot = new Vector2(0.5f, 0.0f);
-            barRect.anchoredPosition = Vector2.zero;
-            barRect.sizeDelta = new Vector2(0.0f, ActionBarHeight);
-            bar.AddComponent<Image>().color = new Color(0.04f, 0.05f, 0.07f, 1.0f);
-
-            // Built AFTER the bar and therefore drawn over it, which is the
-            // whole point -- built before it, they were the ones underneath.
-            addActions(t);
+                10, Hint, At(-480.0f), 40.0f);
         }
 
-        /// <summary>Centred in the column, this far down from its top.</summary>
+        /// <summary>Centred in the column or page, this far down from its top.</summary>
         private static Vector2 At(float y) => new Vector2(0.0f, y);
 
         /// <summary>
@@ -224,9 +300,10 @@ namespace CityX.UI
             controls.ToolIconImages = icons;
         }
 
-        private static RawImage MakeSquare(Transform parent, Vector2 position, float size)
+        /// <summary>A saturation/value square for the hue a slider picks (CreatorControls, HairColourControls).</summary>
+        public static RawImage MakeSquare(Transform parent, string name, Vector2 position, float size)
         {
-            var go = new GameObject("SVSquare", typeof(RectTransform));
+            var go = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)go.transform;
             rect.SetParent(parent, false);
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
@@ -245,7 +322,7 @@ namespace CityX.UI
         /// is what a hue slider actually shows, so the fill is left
         /// invisible and only the background carries the strip.
         /// </summary>
-        private static Slider MakeHueSlider(Transform parent, string name, Vector2 position,
+        public static Slider MakeHueSlider(Transform parent, string name, Vector2 position,
             float width)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -288,7 +365,8 @@ namespace CityX.UI
             return slider;
         }
 
-        private static Image MakeSwatch(Transform parent, string name, Vector2 position,
+        /// <summary>A flat colour that takes no clicks: a picker's preview.</summary>
+        public static Image MakeSwatch(Transform parent, string name, Vector2 position,
             Vector2 size, Color colour)
         {
             var go = new GameObject(name, typeof(RectTransform));

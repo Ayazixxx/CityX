@@ -47,9 +47,6 @@ namespace CityX.UIEditor
                     new Vector2(0.0f, 16.0f), new Vector2(172.0f, 32.0f),
                     ButtonAction.Kind.CreatorTryBack, creator, title, overlays);
             });
-            // Down the right, where there is room -- the left column is full. Shown only while the
-            // character has hair.
-            HairColourPanel.Build(panel.transform, creator);
             BuildNamePrompt(panel.transform, overlays);
             BuildDiscardPrompt(panel.transform, overlays);
             return panel;

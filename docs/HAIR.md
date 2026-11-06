@@ -10,18 +10,20 @@
   `SetStyle` ignores a name that is not in the list, so they load **bald** until
   they pick again. A save file stores the string, so a style's name never
   changes once shipped.
-- **The selector**: the creator has one button per style (BALD / BOB), built from
-  `ValidStyles`, so a new style gets its button with no builder edit. The buttons
-  share one row and narrow to fit the 200-unit column (`HairButtonRow`); past
-  five or six styles that wants to become a picker. The same list is wired onto
-  the character list's carousel heads, the player in the world and the in-game
-  redraw creator (`HairAssets.StyleMeshes`, which walks `ValidStyles`, so the
-  lists cannot drift out of order).
-- **The colour**: any colour. A card down the **right** of the creator (the left
-  column is full) with a saturation/value square, a hue strip, a preview and 12
-  hair-coloured swatches (`HairColourPanel`, `HairColourControls`). It only
-  appears while the character has hair. The colour is kept while bald and worn by
-  whichever style comes next.
+- **The selector**: the creator's HAIR tab shows one picture per style, a plain
+  white head wearing it, built from `ValidStyles` (`HairPage`), so a new style
+  gets its tile with no builder edit. Four to a row; past four rows the grid
+  scrolls. The worn style's tile is framed in gold (`HairStyleTiles`). The
+  pictures are baked into `UI/Resources/HairIcons/` by CityX/Bake Hair Icons
+  (`HairIconBaker`): a NEW STYLE NEEDS A REBAKE, and until then its tile shows its
+  short label. The same list is wired onto the character list's carousel heads,
+  the player in the world and the in-game redraw creator
+  (`HairAssets.StyleMeshes`, which walks `ValidStyles`, so the lists cannot drift
+  out of order).
+- **The colour**: any colour. Under the styles on the HAIR tab: a
+  saturation/value square, 12 hair-coloured swatches, a hue strip and a preview
+  (`HairPage`, `HairColourControls`). It only appears while the character has
+  hair. The colour is kept while bald and worn by whichever style comes next.
 - **The automatic fit**: `CharacterHair.FitToHead` scales the mesh so it is
   `WidthOverHead` (1.12x) the head's width, stands its top `CrownLift` above the
   crown and centres it on the head. It only needs the mesh's bounds.
@@ -121,8 +123,10 @@ ONLY in the real game, fine everywhere else) is a confusing one to hit by surpri
 
 - `CharacterHairFitTests` (EditMode): the fit's maths, saved-vs-automatic
   precedence, the baked mesh's size and placement, every style having a label
-  and a mesh, the button row fitting the column, removed styles loading bald,
-  and the colour (default, any colour, worn mesh only, kept while bald, opaque).
+  and a mesh, removed styles loading bald, and the colour (default, any colour,
+  worn mesh only, kept while bald, opaque).
+- `HairIconTests` (EditMode): every style has its picture, 128 px, none blank,
+  no two the same, the bald one unlike every haired one.
 - `CharacterSaveTests` (EditMode): hair colour round trip, old saves, repair.
 - `TitleScreenWiringTests` (EditMode): every colour swatch is wired to a picker.
 - `CharacterCreatorPlayTests` (PlayMode): Hair1 on the real head, each button

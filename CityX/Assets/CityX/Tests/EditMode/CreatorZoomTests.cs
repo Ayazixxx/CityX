@@ -14,6 +14,20 @@ namespace CityX.Tests
 
         private static Vector3 Out(Vector3 camera, Vector3 focus) => CreatorZoom.Step(camera, focus, false, Home, Nearest, Farthest);
 
+        [Test]
+        public void ZoomingAtAPointOffToASideOnlyRisesSinksAndComesIn()
+        {
+            Vector3 hand = new Vector3(1.3f, 2.2f, 0.0f);
+            Vector3 camera = Home;
+            for (int i = 0; i < 12; i++)
+            {
+                camera = In(camera, CreatorZoom.UpAndDownOnly(hand, Home));
+            }
+            Assert.AreEqual(Home.x, camera.x, 1e-4f, "the camera slid off to the side");
+            Assert.Greater(camera.y, Home.y, "it did not rise toward a point above");
+            Assert.Less(camera.z, Home.z, "it did not come in");
+        }
+
         [TestCase(0.0f, 0.1f, 0.0f, TestName = "The feet")]
         [TestCase(0.0f, 2.5f, 0.3f, TestName = "The head")]
         [TestCase(1.25f, 1.9f, 0.0f, TestName = "A hand")]

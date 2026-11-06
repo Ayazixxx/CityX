@@ -78,6 +78,12 @@ namespace CityX.Tests
         /// </summary>
         private static bool IsRowTemplate(GameObject button)
         {
+            // The FACE tab's category chips light a page of this screen only, wired at runtime by their row (FacePartChips), as nothing is saved by them.
+            FacePartChips chips = button.GetComponentInParent<FacePartChips>(true);
+            if (chips != null && System.Array.IndexOf(chips.Chips, button.GetComponent<Button>()) >= 0)
+            {
+                return true;
+            }
             for (Transform t = button.transform; t != null; t = t.parent)
             {
                 if (t.name == "RowTemplate")
@@ -225,6 +231,10 @@ namespace CityX.Tests
                         Require(unwired, go, action.HairControls, "a HairColourControls");
                         break;
 
+                    case ButtonAction.Kind.CreatorTab:
+                        Require(unwired, go, action.Tabs, "a CreatorTabs");
+                        break;
+
                     default:
                         Require(unwired, go, action.Creator, "a CharacterCreator");
                         break;
@@ -310,6 +320,96 @@ namespace CityX.Tests
 
             Assert.IsNotNull(controls.UndoButton, "undo cannot be greyed out");
             Assert.IsNotNull(controls.RedoButton, "redo cannot be greyed out");
+        }
+
+        /// <summary>The creator's own object called <paramref name="name"/>, on its panel (several panels have a BackButton).</summary>
+        private Transform OnTheCreator(string name)
+        {
+            var tabs = Find<CreatorTabs>();
+            Assert.IsNotNull(tabs, "the creator has no tabs -- rebuild the title screen");
+            Transform found = Core.TransformSearch.FindDeep(tabs.transform, name);
+            Assert.IsNotNull(found, $"the creator's panel has no {name}");
+            return found;
+        }
+
+        /// <summary>
+        /// The creator's PAINT, HAIR and FACE tabs: each a button that puts up its own page, the pages on the creator's panel and SAVED SWITCHED
+        /// ON. A page is hidden by its CanvasGroup, never switched off: one saved off would wake with its buttons unwired the first time its tab
+        /// came up (ButtonAction wires itself in Awake). No tab sits on a page, or it would go with it.
+        /// </summary>
+        [Test]
+        public void TheCreatorHasPaintHairAndFaceTabsEachWiredToItsOwnPage()
+        {
+            var tabs = Find<CreatorTabs>();
+            Assert.IsNotNull(tabs, "the creator has no tabs -- rebuild the title screen");
+            Assert.AreSame(Find<CharacterCreator>(), tabs.Creator, "the tabs cannot switch the painting on the creator's body off");
+            Assert.IsNotNull(tabs.Pages, "the tabs have no pages");
+            Assert.AreEqual(3, tabs.Pages.Length, "expected a PAINT, a HAIR and a FACE page");
+            CollectionAssert.AllItemsAreNotNull(tabs.Pages, "a page is missing");
+
+            foreach ((int index, string tab, string page) in new[]
+            {
+                (CreatorTabs.Paint, "PaintTab", "PaintPage"),
+                (CreatorTabs.Hair, "HairTab", "HairPage"),
+                (CreatorTabs.Face, "FaceTab", "FacePage"),
+            })
+            {
+                CanvasGroup group = tabs.Pages[index];
+                Assert.AreEqual(page, group.name, $"{tab} puts up {group.name}");
+                Assert.IsTrue(group.transform.IsChildOf(tabs.transform), $"{page} is not on the creator's panel");
+                Assert.IsTrue(group.gameObject.activeSelf, $"{page} is saved switched off: its buttons would wake up dead");
+
+                var action = OnTheCreator(tab).GetComponent<ButtonAction>();
+                Assert.IsNotNull(action, $"{tab} has no ButtonAction");
+                Assert.AreEqual(ButtonAction.Kind.CreatorTab, action.Action, $"{tab} does not change the tab");
+                Assert.AreEqual(index, action.Value, $"{tab} puts up another page");
+                Assert.AreSame(tabs, action.Tabs, $"{tab} is not wired to the creator's tabs");
+                foreach (CanvasGroup other in tabs.Pages)
+                {
+                    Assert.IsFalse(action.transform.IsChildOf(other.transform), $"{tab} is on {other.name}: it would go when that page does");
+                }
+            }
+        }
+
+        /// <summary>
+        /// What was the whole column is the PAINT page, the hair colour is on the HAIR page, and ENTER THE CITY and BACK stay on the column
+        /// itself, outside every page, so they are there whichever tab is up.
+        /// </summary>
+        [Test]
+        public void EachToolSitsOnItsOwnTabsPageAndTheActionBarUnderThemAll()
+        {
+            var tabs = Find<CreatorTabs>();
+            Assert.IsNotNull(tabs, "the creator has no tabs -- rebuild the title screen");
+            Transform paint = OnTheCreator("PaintPage");
+            Transform hair = OnTheCreator("HairPage");
+
+            var controls = Find<CreatorControls>();
+            Assert.IsNotNull(controls, "the creator has no CreatorControls");
+            var paintTools = new List<Component>
+            {
+                controls.SVSquare, controls.Hue, controls.BrushSize, controls.Preview,
+                controls.MirrorButton, controls.EraserButton, controls.UndoButton, controls.RedoButton,
+            };
+            paintTools.AddRange(controls.ToolButtons);
+            foreach (Component tool in paintTools)
+            {
+                Assert.IsNotNull(tool, "a paint tool is not wired (TheCreatorsControlsAreWired says which)");
+                Assert.IsTrue(tool.transform.IsChildOf(paint), $"{tool.name} is not on the PAINT page");
+            }
+            Assert.IsNotNull(Core.TransformSearch.FindDeep(paint, "Swatch0"), "the palette is not on the PAINT page");
+
+            var picker = Find<HairColourControls>();
+            Assert.IsNotNull(picker, "the creator has no hair colour picker");
+            Assert.IsTrue(picker.transform.IsChildOf(hair), "the hair colour is not on the HAIR page");
+
+            foreach (string name in new[] { "EnterCityButton", "BackButton" })
+            {
+                Transform button = OnTheCreator(name);
+                foreach (CanvasGroup page in tabs.Pages)
+                {
+                    Assert.IsFalse(button.IsChildOf(page.transform), $"{name} is on {page.name}: it would go when another tab comes up");
+                }
+            }
         }
 
         /// <summary>
@@ -456,7 +556,7 @@ namespace CityX.Tests
                 "the title's row of buildings is not the kept, baked one");
         }
 
-        /// <summary>Every hairstyle, HYDE included, has its button in the title's creator.</summary>
+        /// <summary>Every hairstyle, HYDE included, has its tile on the title creator's HAIR tab, and the tile picks that style.</summary>
         [Test]
         public void EveryHairstyleHasAButtonInTheCreator()
         {
@@ -470,9 +570,15 @@ namespace CityX.Tests
             {
                 Assert.IsNotNull(hair.StyleMeshes[i], $"the creator's head has no mesh for \"{CharacterHair.ValidStyles[i + 1]}\"");
             }
-            foreach (string style in CharacterHair.ValidStyles)
+            Transform hairPage = OnTheCreator("HairPage");
+            for (int i = 0; i < CharacterHair.ValidStyles.Length; i++)
             {
-                Assert.IsTrue(Everything().Any(go => go.name == $"Hair{style}Button"), $"the creator has no button for \"{style}\"");
+                string style = CharacterHair.ValidStyles[i];
+                Transform tile = Core.TransformSearch.FindDeep(hairPage, $"Hair{style}Button");
+                Assert.IsNotNull(tile, $"the creator's HAIR tab has no button for \"{style}\"");
+                var action = tile.GetComponent<ButtonAction>();
+                Assert.IsTrue(action != null && action.Action == ButtonAction.Kind.CreatorHair && action.Value == i,
+                    $"the \"{style}\" button does not pick \"{style}\"");
             }
         }
 

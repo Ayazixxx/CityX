@@ -233,6 +233,7 @@ namespace CityX.UIEditor
             Shoot("character-create", TitleScreen.Panel.CharacterSelect, seedCharacters: true,
                 CharacterSelect.Mode.Creating);
             Shoot("creator", TitleScreen.Panel.Creator, seedCharacters: false);
+            Shoot("creator-face", TitleScreen.Panel.Creator, seedCharacters: false, creatorTab: CreatorTabs.Face);
             // The hairstyle is the one thing on this screen with no default --
             // a character starts bald -- so without asking for it the shot
             // says nothing about whether the mesh lands on the head or halfway
@@ -240,13 +241,13 @@ namespace CityX.UIEditor
             // Dyed blue, not the default: the shot also says whether the colour picker reaches the
             // hair, and a default-coloured head cannot tell that from a picker wired to nothing.
             Shoot("creator-hair", TitleScreen.Panel.Creator, seedCharacters: false,
-                hairStyle: Character.CharacterHair.Hair1, hairColour: new Color(0.20f, 0.40f, 0.85f));
+                hairStyle: Character.CharacterHair.Hair1, hairColour: new Color(0.20f, 0.40f, 0.85f), creatorTab: CreatorTabs.Hair);
         }
 
         private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,
             CharacterSelect.Mode selectMode = CharacterSelect.Mode.List,
             string hairStyle = null, bool showIdlePrompt = false, string headView = null,
-            Color? hairColour = null)
+            Color? hairColour = null, int creatorTab = CreatorTabs.Paint)
         {
             string outputDirectory = Path.Combine(
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
@@ -356,6 +357,17 @@ namespace CityX.UIEditor
                                 picker.Refresh();
                             }
                         }
+                        // A tab is put up by a press in the game, and the worn style's tile lit by an Update: neither happens here.
+                        CreatorTabs tabs = Object.FindFirstObjectByType<CreatorTabs>(FindObjectsInactive.Include);
+                        if (tabs != null)
+                        {
+                            tabs.Show(creatorTab);
+                        }
+                        HairStyleTiles tiles = Object.FindFirstObjectByType<HairStyleTiles>(FindObjectsInactive.Include);
+                        if (tiles != null)
+                        {
+                            tiles.Refresh();
+                        }
                         if (creator.Camera != null)
                         {
                             shotCamera = creator.Camera;
@@ -405,6 +417,8 @@ namespace CityX.UIEditor
                     canvas.renderMode = RenderMode.ScreenSpaceCamera;
                     canvas.worldCamera = shotCamera;
                     canvas.planeDistance = 1.0f;
+                    // The city's haze is a full-screen pass: it lay over the panel's lower half, which in the game draws over everything.
+                    View.CityHaze.Clear();
 
                     // The interface is built on the DEFAULT layer, and the
                     // creator's camera renders only its own -- so the first

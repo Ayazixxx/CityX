@@ -1,11 +1,14 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using CityX.Character;
 using CityX.UI;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 
 namespace CityX.Tests
 {
@@ -26,7 +29,7 @@ namespace CityX.Tests
     /// </summary>
     public class CharacterCreatorPlayTests
     {
-        private const string ScenePath = "Assets/CityX/Scenes/Title.unity";
+        internal const string ScenePath ="Assets/CityX/Scenes/Title.unity";
 
         private CharacterCreator _creator;
         private Camera _camera;
@@ -61,7 +64,7 @@ namespace CityX.Tests
         /// pass on their own failed only in a full run, which is the worst
         /// kind of failure to be handed.
         /// </summary>
-        private static IEnumerator LoadTitle()
+        internal static IEnumerator LoadTitle()
         {
 #if UNITY_EDITOR
             UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(
@@ -83,15 +86,37 @@ namespace CityX.Tests
             }
         }
 
+        private Vector2 ChestOnScreen() => ChestOnScreen(_creator);
+
         /// <summary>
         /// The point on screen where the body's chest is. Taken from the rig
         /// rather than guessed, so it stays right if the framing changes.
         /// </summary>
-        private Vector2 ChestOnScreen()
+        internal static Vector2 ChestOnScreen(CharacterCreator creator)
         {
-            Vector3 chest = _creator.BodyCollider.transform.TransformPoint(
-                _creator.BodyCollider.sharedMesh.bounds.center);
-            return _camera.WorldToScreenPoint(chest);
+            Vector3 chest = creator.BodyCollider.transform.TransformPoint(
+                creator.BodyCollider.sharedMesh.bounds.center);
+            return creator.Camera.WorldToScreenPoint(chest);
+        }
+
+        /// <summary>Where the middle of a part of the interface is on the screen, in pixels.</summary>
+        internal static Vector2 ScreenCentre(RectTransform rect)
+        {
+            var corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            Canvas canvas = rect.GetComponentInParent<Canvas>().rootCanvas;
+            Camera uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            return RectTransformUtility.WorldToScreenPoint(uiCamera, (corners[0] + corners[2]) * 0.5f);
+        }
+
+        /// <summary>The front-most part of the interface at a screen point, the one a click there reaches; null where there is none.</summary>
+        internal static GameObject InterfaceAt(Vector2 screen)
+        {
+            EventSystem events = EventSystem.current;
+            Assert.IsNotNull(events, "no event system to click with");
+            var hits = new List<RaycastResult>();
+            events.RaycastAll(new PointerEventData(events) { position = screen }, hits);
+            return hits.Count > 0 ? hits[0].gameObject : null;
         }
 
         /// <summary>
@@ -237,7 +262,9 @@ namespace CityX.Tests
                 _creator.ZoomAt(before, closer: true);
             }
             Vector2 after = _camera.WorldToScreenPoint(world);
-            Assert.Less(Vector2.Distance(before, after), 0.03f * Screen.height, $"zooming in moved the {part} away from under the mouse");
+            // Up and down only (owner, 2026-11-05): the part stays at the mouse's height, and the camera on the body's middle line across.
+            Assert.Less(Mathf.Abs(before.y - after.y), 0.03f * Screen.height, $"zooming in moved the {part} up or down away from the mouse");
+            Assert.AreEqual(home.x, _camera.transform.localPosition.x, 1e-3f, $"zooming at the {part} slid the camera off to the side");
             Assert.Less(Vector3.Distance(_camera.transform.position, world), distanceBefore * 0.5f, $"it did not come in on the {part}");
 
             for (int i = 0; i < 12; i++)
@@ -599,26 +626,42 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>The title scene's button called <paramref name="name"/>, whichever tab is up: a page is hidden, never switched off.</summary>
+        private static Button SceneButton(string name)
+        {
+            foreach (Button candidate in Resources.FindObjectsOfTypeAll<Button>())
+            {
+                if (candidate.gameObject.name == name && candidate.gameObject.scene.IsValid() && candidate.gameObject.activeInHierarchy)
+                {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Puts the HAIR tab up through its own button: the hairstyles and the hair colour are on its page.</summary>
+        private static IEnumerator ShowTheHairTab()
+        {
+            Button tab = SceneButton("HairTab");
+            Assert.IsNotNull(tab, "the creator has no HAIR tab");
+            tab.onClick.Invoke();
+            yield return null;
+            Assert.AreEqual(CreatorTabs.Hair, Object.FindFirstObjectByType<CreatorTabs>().Current, "the HAIR tab did not come up");
+        }
+
         /// <summary>
-        /// The creator's hair buttons -- the "select hairstyle" function -- each put their own style
-        /// on. Pressed through the real button, so a button wired to the wrong index shows up.
+        /// The HAIR tab's tiles -- the "select hairstyle" function -- each put their own style
+        /// on. Pressed through the real button, so a tile wired to the wrong index shows up.
         /// </summary>
         [UnityTest]
         public IEnumerator EachHairButtonPutsItsOwnStyleOnTheHead()
         {
+            yield return ShowTheHairTab();
             CharacterHair hair = _creator.Hair;
 
             foreach (string style in CharacterHair.ValidStyles)
             {
-                UnityEngine.UI.Button button = null;
-                foreach (UnityEngine.UI.Button candidate in Resources.FindObjectsOfTypeAll<UnityEngine.UI.Button>())
-                {
-                    if (candidate.gameObject.name == "Hair" + style + "Button" && candidate.gameObject.scene.IsValid())
-                    {
-                        button = candidate;
-                        break;
-                    }
-                }
+                Button button = SceneButton("Hair" + style + "Button");
                 Assert.IsNotNull(button, $"there is no hair button for \"{style}\"");
 
                 button.onClick.Invoke();
@@ -637,44 +680,77 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>The tile of the style the head wears is framed in gold and no other: on the HAIR tab, that is what says which style is on.</summary>
+        [UnityTest]
+        public IEnumerator OnlyTheWornStylesTileIsFramedInGold()
+        {
+            yield return ShowTheHairTab();
+            string last = CharacterHair.ValidStyles[CharacterHair.ValidStyles.Length - 1];
+            foreach (string worn in new[] { CharacterHair.Hair1, last, CharacterHair.None })
+            {
+                _creator.SetHairStyle(worn);
+                yield return null;
+                foreach (string style in CharacterHair.ValidStyles)
+                {
+                    Image frame = SceneButton("Hair" + style + "Button").GetComponent<Image>();
+                    Assert.AreEqual(style == worn ? HairStyleTiles.Worn : HairStyleTiles.Idle, frame.color,
+                        $"wearing \"{worn}\", the \"{style}\" tile is {(style == worn ? "not framed" : "framed as well")}");
+                }
+            }
+        }
+
         /// <summary>
-        /// Every hair button can be SEEN AND CLICKED, bald or not (owner, 2026-10-13: "i dont see the hyde hairstyle in the character creator"
-        /// -- its row sat under the left column's opaque bottom bar). A UI raycast at the button's centre must land on that very button.
+        /// On the HAIR tab every hair button can be SEEN AND CLICKED, bald or with hair (owner, 2026-10-13: "i dont see the hyde hairstyle in the
+        /// character creator" -- its row sat under the left column's opaque bottom bar). Scrolled into view where the grid has to scroll to it,
+        /// a UI raycast at the button's centre must land on that very button.
         /// </summary>
         [UnityTest]
         public IEnumerator EveryHairButtonIsOnScreenAndNothingCoversIt()
         {
-            _creator.SetHairStyle(CharacterHair.None);
-            yield return null;
-            yield return null;
-            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-            Assert.IsNotNull(eventSystem, "no event system to click with");
-            foreach (string style in CharacterHair.ValidStyles)
+            yield return ShowTheHairTab();
+            // With hair, the colour card comes up on the same page.
+            foreach (string worn in new[] { CharacterHair.None, CharacterHair.Hair1 })
             {
-                UnityEngine.UI.Button button = null;
-                foreach (UnityEngine.UI.Button candidate in Resources.FindObjectsOfTypeAll<UnityEngine.UI.Button>())
+                _creator.SetHairStyle(worn);
+                yield return null;
+                yield return null;
+                foreach (string style in CharacterHair.ValidStyles)
                 {
-                    if (candidate.gameObject.name == "Hair" + style + "Button" && candidate.gameObject.scene.IsValid() && candidate.gameObject.activeInHierarchy)
-                    {
-                        button = candidate;
-                        break;
-                    }
+                    Button button = SceneButton("Hair" + style + "Button");
+                    Assert.IsNotNull(button, $"there is no visible hair button for \"{style}\"");
+                    var rect = (RectTransform)button.transform;
+                    yield return ScrollIntoView(rect);
+                    Vector2 centre = ScreenCentre(rect);
+                    Assert.IsTrue(centre.x > 0 && centre.x < Screen.width && centre.y > 0 && centre.y < Screen.height,
+                        $"the \"{style}\" button is off screen at {centre}");
+                    GameObject top = InterfaceAt(centre);
+                    Assert.IsNotNull(top, $"nothing at all under the \"{style}\" button");
+                    Assert.IsTrue(top.transform.IsChildOf(button.transform),
+                        $"wearing \"{worn}\", the \"{style}\" button is covered by {top.name}");
                 }
-                Assert.IsNotNull(button, $"there is no visible hair button for \"{style}\"");
-                var corners = new Vector3[4];
-                ((RectTransform)button.transform).GetWorldCorners(corners);
-                Canvas canvas = button.GetComponentInParent<Canvas>().rootCanvas;
-                Camera uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-                Vector2 centre = RectTransformUtility.WorldToScreenPoint(uiCamera, (corners[0] + corners[2]) * 0.5f);
-                Assert.IsTrue(centre.x > 0 && centre.x < Screen.width && centre.y > 0 && centre.y < Screen.height,
-                    $"the \"{style}\" button is off screen at {centre}");
-                var data = new UnityEngine.EventSystems.PointerEventData(eventSystem) { position = centre };
-                var hits = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
-                eventSystem.RaycastAll(data, hits);
-                Assert.IsNotEmpty(hits, $"nothing at all under the \"{style}\" button");
-                Assert.IsTrue(hits[0].gameObject.transform.IsChildOf(button.transform),
-                    $"the \"{style}\" button is covered by {hits[0].gameObject.name}");
             }
+        }
+
+        /// <summary>
+        /// Scrolls the grid <paramref name="item"/> sits in until the item is inside the grid's window, and lets the grid settle: one that
+        /// cannot scroll that far clamps itself back, and the test says so.
+        /// </summary>
+        private static IEnumerator ScrollIntoView(RectTransform item)
+        {
+            ScrollRect scroll = item.GetComponentInParent<ScrollRect>();
+            if (scroll == null)
+            {
+                yield break;
+            }
+            RectTransform window = scroll.viewport != null ? scroll.viewport : (RectTransform)scroll.transform;
+            Bounds placed = RectTransformUtility.CalculateRelativeRectTransformBounds(window, item);
+            Vector2 at = scroll.content.anchoredPosition;
+            at.y += Mathf.Max(0.0f, window.rect.yMin - placed.min.y) - Mathf.Max(0.0f, placed.max.y - window.rect.yMax);
+            scroll.content.anchoredPosition = at;
+            yield return null;
+            placed = RectTransformUtility.CalculateRelativeRectTransformBounds(window, item);
+            Assert.IsTrue(placed.min.y >= window.rect.yMin - 0.5f && placed.max.y <= window.rect.yMax + 0.5f,
+                $"{item.name} cannot be scrolled into view");
         }
 
         private static Color WornColour(CharacterHair hair)
@@ -688,6 +764,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator TheHairColourCardAppearsOnlyWhileTheCharacterHasHair()
         {
+            yield return ShowTheHairTab();
             var picker = Object.FindFirstObjectByType<HairColourControls>(FindObjectsInactive.Include);
             Assert.IsNotNull(picker, "the creator has no hair colour picker");
 
@@ -706,22 +783,23 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator EveryHairSwatchDyesTheHairItsOwnColour()
         {
+            yield return ShowTheHairTab();
             _creator.SetHairStyle(CharacterHair.Hair1);
             yield return null;
 
-            var swatches = new System.Collections.Generic.List<UnityEngine.UI.Button>();
-            foreach (UnityEngine.UI.Button candidate in Resources.FindObjectsOfTypeAll<UnityEngine.UI.Button>())
+            var swatches = new List<Button>();
+            foreach (Button candidate in Resources.FindObjectsOfTypeAll<Button>())
             {
                 if (candidate.gameObject.name.StartsWith("HairSwatch") && candidate.gameObject.scene.IsValid())
                 {
                     swatches.Add(candidate);
                 }
             }
-            Assert.AreEqual(HairColourPanel.Swatches.Length, swatches.Count, "a hair colour swatch is missing");
+            Assert.AreEqual(HairPage.Swatches.Length, swatches.Count, "a hair colour swatch is missing");
 
-            foreach (UnityEngine.UI.Button swatch in swatches)
+            foreach (Button swatch in swatches)
             {
-                Color wanted = swatch.GetComponent<UnityEngine.UI.Image>().color;
+                Color wanted = swatch.GetComponent<Image>().color;
                 swatch.onClick.Invoke();
                 yield return null;
 
@@ -736,6 +814,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator ThePickerReachesAnyColourAndDyesTheHairWithIt()
         {
+            yield return ShowTheHairTab();
             _creator.SetHairStyle(CharacterHair.Hair1);
             yield return null;
 
@@ -746,7 +825,7 @@ namespace CityX.Tests
             // A click in the middle of the square: half saturation, half value.
             var square = (RectTransform)picker.transform;
             Vector2 middle = RectTransformUtility.WorldToScreenPoint(null, square.position);
-            picker.OnPointerClick(new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current)
+            picker.OnPointerClick(new PointerEventData(EventSystem.current)
             {
                 position = middle,
             });

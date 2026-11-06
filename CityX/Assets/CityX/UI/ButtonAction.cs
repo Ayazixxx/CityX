@@ -102,6 +102,9 @@ namespace CityX.UI
             /// <summary>The settings screen's frame-rate cap: the previous / next choice. Appended, so no saved value moves.</summary>
             SettingsFpsPrevious,
             SettingsFpsNext,
+
+            /// <summary>One of the creator's PAINT / HAIR / FACE tabs: puts page Value up. Needs Tabs. Appended, so no saved value moves.</summary>
+            CreatorTab,
         }
 
         public Kind Action;
@@ -121,6 +124,9 @@ namespace CityX.UI
 
         [Tooltip("So a hair colour swatch moves the hair colour picker with it.")]
         public HairColourControls HairControls;
+
+        [Tooltip("The creator's tabs, for a tab button.")]
+        public CreatorTabs Tabs;
 
         [Tooltip("The name prompt and the discard check, for the buttons that raise them.")]
         public CreatorOverlays Overlays;
@@ -277,6 +283,13 @@ namespace CityX.UI
                     else if (Creator != null)
                     {
                         Creator.SetHairColour(Colour);
+                    }
+                    break;
+
+                case Kind.CreatorTab:
+                    if (Tabs != null)
+                    {
+                        Tabs.Show(Value);
                     }
                     break;
 
