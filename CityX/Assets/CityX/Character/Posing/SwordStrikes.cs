@@ -726,10 +726,10 @@ namespace CityX.Character
                 }
                 case SwordStrikeKind.Slam2H:
                 {
-                    // The slam: high overhead leaning back, the longest hold of any attack, then down the middle with a long step and the hips
+                    // The slam: high overhead leaning back (the hands above the brow and in front of it: over the head the handle ran through it), the longest hold of any attack, then down the middle with a long step and the hips
                     // sinking hard, the tip scraping the floor. It stops dead on purpose: it hits the ground.
                     CutPlane cut = Overhead;
-                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.25f, 2.42f, -0.12f), cut, -150.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.12f, 2.50f, 0.38f), cut, -140.0f,
                         elbow: 0.50f, twist: 5.0f, hips: 0.0f, lean: -12.0f, tilt: 0.0f, drop: 0.06f, lead: -1.0f, depth: 0.40f);
                     Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.12f, 1.55f, 0.76f), cut, 24.0f,
                         elbow: 0.25f, twist: -5.0f, hips: -5.0f, lean: 20.0f, tilt: 0.0f, drop: 0.18f, lead: -1.0f, depth: 0.75f, reach: 1.0f),
@@ -740,10 +740,10 @@ namespace CityX.Character
                 }
                 case SwordStrikeKind.Smash2H:
                 {
-                    // THE HAMMER'S SMASH: both hands raised straight up over the head, the hammer's head back behind it, then straight down the
+                    // THE HAMMER'S SMASH: both hands raised above the brow, a little right of it and in front (over the head the handle ran through it), the hammer's head back behind, then straight down the
                     // middle onto whatever is in front, the hips sinking and the body bending over the blow. A light: no long hold.
                     CutPlane cut = Overhead;
-                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.16f, 2.30f, -0.04f), cut, -140.0f,
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.22f, 2.52f, 0.30f), cut, -140.0f,
                         elbow: 0.50f, twist: 5.0f, hips: 0.0f, lean: -8.0f, tilt: 0.0f, drop: 0.05f, lead: -1.0f, depth: 0.40f);
                     Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.10f, 1.52f, 0.72f), cut, 22.0f,
                         elbow: 0.25f, twist: -5.0f, hips: -5.0f, lean: 18.0f, tilt: 0.0f, drop: 0.16f, lead: -1.0f, depth: 0.70f, reach: 1.0f),

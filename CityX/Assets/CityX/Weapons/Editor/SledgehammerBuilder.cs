@@ -18,12 +18,12 @@ namespace CityX.WeaponsEditor
         private const string Folder = "Assets/CityX/Weapons/Sledgehammer";
 
         /// <summary>The handle's ends below and above the root, metres: the right fist sits 0.10 below the root and the left 0.30 (SwordWeapon's hold).</summary>
-        public const float HandleBottom = -0.42f, HandleTop = 0.98f;
+        public const float HandleBottom = -0.42f, HandleTop = 1.28f;
 
         public const float HandleRadius = 0.024f;
 
         /// <summary>The head: its length across the handle, its half-thickness, and where its middle sits on the handle.</summary>
-        public const float HeadLength = 0.40f, HeadRadius = 0.08f, HeadMiddle = 0.92f;
+        public const float HeadLength = 0.40f, HeadRadius = 0.08f, HeadMiddle = 1.22f;
 
         /// <summary>How far the head's top stands above the root: the reach the hits sweep to.</summary>
         public const float Reach = HeadMiddle + HeadRadius;

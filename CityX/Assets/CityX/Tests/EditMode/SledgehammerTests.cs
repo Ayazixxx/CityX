@@ -84,7 +84,38 @@ namespace CityX.Tests
             Assert.Greater(windup.y, 2.0f, "the hammer is not raised overhead before it comes down");
             Assert.Less(contact.y, windup.y - 0.5f, "it does not come down");
             Assert.Less(Mathf.Abs(contact.x), 0.25f, "it does not come down the middle");
-            Assert.Greater(contact.z, windup.z + 0.4f, "it does not come down in front");
+            Assert.Greater(contact.z, windup.z, "it does not come forward as it comes down");
+            Assert.Greater(contact.z, 0.6f, "it does not land out in front of the body");
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-06, of the smash's wind-up: "looks like its clipping through the head". The overhead moves (the smash, and the heavy
+        /// it shares with the greatsword) raise the hands above the brow and in front of it, so the handle passes over the head.
+        /// </summary>
+        [TestCase(SwordStrikeKind.Smash2H)]
+        [TestCase(SwordStrikeKind.Slam2H)]
+        public void TheOverheadHandleStaysOutOfTheHead(SwordStrikeKind kind)
+        {
+            var headCentre = new Vector3(0.0f, BodyRig.HeadCentreY, 0.0f);
+            SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(kind);
+            const int Samples = 40;
+            for (int i = 0; i <= Samples; i++)
+            {
+                float t = timing.Contact / timing.Total * i / Samples;
+                SwordFrame frame = SwordStrikes.Evaluate(kind, t);
+                Vector3 hand = SwordStrikes.HandPoint(frame);
+                Vector3 butt = hand + frame.Blade * WeaponsEditor.SledgehammerBuilder.HandleBottom;
+                Vector3 top = hand + frame.Blade * WeaponsEditor.SledgehammerBuilder.HandleTop;
+                float clear = DistanceToSegment(headCentre, butt, top);
+                Assert.Greater(clear, FusedBodyShape.HeadRadius, $"at {t:F2} of {kind} the handle passes {clear:F2} m from the head's middle, inside the head (the hand at {hand}, the handle along {frame.Blade})");
+            }
+        }
+
+        private static float DistanceToSegment(Vector3 point, Vector3 a, Vector3 b)
+        {
+            Vector3 ab = b - a;
+            float along = Mathf.Clamp01(Vector3.Dot(point - a, ab) / ab.sqrMagnitude);
+            return Vector3.Distance(point, a + ab * along);
         }
 
         [Test]
