@@ -20,21 +20,6 @@ namespace CityX.CharacterEditor
     {
         private const string Directory = "Assets/CityX/Character/Materials";
 
-        /// <summary>
-        /// No shine at all on skin (owner, 2026-10-09: "get rid of the shinyness that is appearing on the character and the hair"). Even a
-        /// little gloss (it was 0.12) shows as a sheen on a dark body under a lamp at night, so: no gloss and no specular highlights. The sky's
-        /// reflection stays on, so rain (PlayerWetness raises the gloss) still makes a soaked body glisten in daylight.
-        /// </summary>
-        public static void MakeMatte(Material material)
-        {
-            material.SetFloat("_Smoothness", 0.0f);
-            if (material.HasProperty("_SpecularHighlights"))
-            {
-                material.SetFloat("_SpecularHighlights", 0.0f);
-            }
-            material.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
-        }
-
         public static readonly Color PlayerColour = new Color(0.72f, 0.60f, 0.52f);
 
         /// <summary>
@@ -59,7 +44,7 @@ namespace CityX.CharacterEditor
             material.shader = shader;   // a skin made before the cel look was on URP's own Lit
 
             material.SetColor("_BaseColor", colour);
-            MakeMatte(material);
+            Core.LitShader.MakeMatte(material);
             material.SetFloat("_Metallic", 0.0f);
             EditorUtility.SetDirty(material);
             return material;
@@ -115,7 +100,7 @@ namespace CityX.CharacterEditor
             }
             material.mainTexture = savedAtlas;
             material.SetColor("_BaseColor", Color.white);
-            MakeMatte(material);
+            Core.LitShader.MakeMatte(material);
             material.SetFloat("_Metallic", 0.0f);
             EditorUtility.SetDirty(material);
             return material;

@@ -93,28 +93,6 @@ namespace CityX.Character
             }
         }
 
-        private static float ShineOf(GoreAnatomy.Tissue tissue)
-        {
-            switch (tissue)
-            {
-                case GoreAnatomy.Tissue.Bone:
-                case GoreAnatomy.Tissue.Tooth:
-                    return 0.3f;
-                case GoreAnatomy.Tissue.Fat:
-                    return 0.5f;
-                case GoreAnatomy.Tissue.EyeWhite:
-                case GoreAnatomy.Tissue.Iris:
-                case GoreAnatomy.Tissue.Pupil:
-                    return 0.9f;
-                case GoreAnatomy.Tissue.Meat:
-                case GoreAnatomy.Tissue.Marrow:
-                case GoreAnatomy.Tissue.Brain:
-                    return 0.72f;
-                default:
-                    return 0.82f;
-            }
-        }
-
         /// <summary>The material of a tissue (made once; an iris has one per colour).</summary>
         public static Material MaterialOf(GoreAnatomy.Tissue tissue, int variant = 0)
         {
@@ -123,7 +101,7 @@ namespace CityX.Character
             {
                 return material;
             }
-            material = Lit("Gore" + tissue + (variant > 0 ? variant.ToString() : ""), ColourOf(tissue, variant), ShineOf(tissue));
+            material = Matte("Gore" + tissue + (variant > 0 ? variant.ToString() : ""), ColourOf(tissue, variant));
             Materials[(tissue, variant)] = material;
             return material;
         }
@@ -387,13 +365,17 @@ namespace CityX.Character
 
         private static Material TrailMaterial() => _trail != null ? _trail : _trail = BloodSplats.AlphaBlended("GoreTrail");
 
-        private static Material CollarMaterial() => _collar != null ? _collar : _collar = Lit("GoreCollar", Collar, 0.85f);
+        private static Material CollarMaterial() => _collar != null ? _collar : _collar = Matte("GoreCollar", Collar);
 
-        private static Material Lit(string name, Color colour, float smoothness)
+        /// <summary>
+        /// Matte, as the skin is (LitShader.MakeMatte): glossy, a piece lying in the sun or under a lamp caught it as a pinpoint thousands of
+        /// times brighter than white, which the bloom spread into a flashlight's glare (owner, 2026-11-06: "bright flashing lights").
+        /// </summary>
+        private static Material Matte(string name, Color colour)
         {
             var material = new Material(CityX.Core.LitShader.Find()) { name = name };
             material.SetColor("_BaseColor", colour);
-            material.SetFloat("_Smoothness", smoothness);
+            CityX.Core.LitShader.MakeMatte(material);
             return material;
         }
     }

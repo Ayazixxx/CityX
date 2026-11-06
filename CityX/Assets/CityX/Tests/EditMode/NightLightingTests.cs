@@ -328,7 +328,7 @@ namespace CityX.Tests
             try
             {
                 material.SetFloat("_Smoothness", 0.5f);
-                CityX.CharacterEditor.CharacterSkin.MakeMatte(material);
+                CityX.Core.LitShader.MakeMatte(material);
                 Assert.AreEqual(0.0f, material.GetFloat("_Smoothness"), 1e-4f);
                 Assert.IsTrue(material.IsKeywordEnabled("_SPECULARHIGHLIGHTS_OFF"));
             }

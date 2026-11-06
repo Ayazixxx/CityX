@@ -29,6 +29,9 @@ namespace CityX.ViewEditor
     /// </summary>
     public static class CityMassingSceneBuilder
     {
+        /// <summary>The brightest a pixel counts as to the bloom, in multiples of white (see where the bloom is set up).</summary>
+        public const float BloomClamp = 10.0f;
+
         private const string SceneDirectory = "Assets/CityX/Scenes";
         private const string ScenePath = SceneDirectory + "/CityMassing.unity";
         private const string MaterialDirectory = "Assets/CityX/View/Materials";
@@ -1340,6 +1343,11 @@ namespace CityX.ViewEditor
             bloom.intensity.value = 0.5f;
             bloom.scatter.overrideState = true;
             bloom.scatter.value = 0.65f;
+            // CAPPED: no pixel blooms as if brighter than BloomClamp times white. Unity's default cap is 65472, and one glossy pinpoint in the
+            // sun (a piece of gore) bloomed into a glare the size of a flashlight's beam (owner, 2026-11-06). Every glow meant to bloom is well
+            // under it: a lit window is 2.4, the Wraith's glow 3.
+            bloom.clamp.overrideState = true;
+            bloom.clamp.value = BloomClamp;
 
             // Vignette and a touch of chromatic aberration, new -- same
             // "read as a modern AAA reference" ask Bloom's own comment

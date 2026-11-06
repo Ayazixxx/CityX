@@ -272,7 +272,7 @@ namespace CityX.UIEditor
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (existing != null)
             {
-                MakeHairMatte(existing);
+                CityX.Core.LitShader.MakeMatte(existing);
                 EditorUtility.SetDirty(existing);
                 return existing;
             }
@@ -289,26 +289,9 @@ namespace CityX.UIEditor
             {
                 material.SetColor("_Color", CharacterHair.HairColour);
             }
-            MakeHairMatte(material);
+            CityX.Core.LitShader.MakeMatte(material);
             AssetDatabase.CreateAsset(material, path);
             return material;
-        }
-
-        /// <summary>
-        /// No shine on hair (owner, 2026-10-09: "get rid of the shinyness that is appearing on the character and the hair"): it had character.gd's
-        /// gloss of 0.4, which caught every lamp at night. No gloss and no specular highlights, the same as the skin (CharacterSkin.MakeMatte).
-        /// </summary>
-        private static void MakeHairMatte(Material material)
-        {
-            if (material.HasProperty("_Smoothness"))
-            {
-                material.SetFloat("_Smoothness", 0.0f);
-            }
-            if (material.HasProperty("_SpecularHighlights"))
-            {
-                material.SetFloat("_SpecularHighlights", 0.0f);
-            }
-            material.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
         }
 
         /// <summary>
