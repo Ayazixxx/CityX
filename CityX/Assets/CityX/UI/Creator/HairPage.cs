@@ -83,6 +83,7 @@ namespace CityX.UI
             int count = CharacterHair.ValidStyles.Length;
             Transform tiles = CreatorPageKit.MakeTileWindow(page, "HairStyleGrid", GridTopY, count);
             var frames = new Image[count];
+            var tints = new RawImage[count];
             for (int i = 0; i < count; i++)
             {
                 string style = CharacterHair.ValidStyles[i];
@@ -99,11 +100,14 @@ namespace CityX.UI
                 wiring.Value = i;
                 // No picture baked for a style yet (CityX/Bake Hair Icons): its short name, so it can still be picked.
                 CreatorPageKit.ShowPicture(frame.transform, HairIcons.For(style), CharacterHair.LabelFor(style));
+                // The hair over the picture, in the hair colour (HairStyleTiles).
+                tints[i] = CreatorPageKit.AddLayer(frame.transform, "HairTint", HairIcons.HairOf(style));
                 frames[i] = frame;
             }
             HairStyleTiles selection = tiles.parent.gameObject.AddComponent<HairStyleTiles>();
             selection.Creator = creator;
             selection.Frames = frames;
+            selection.Tints = tints;
         }
 
         private static void MakeSwatchButton(Transform parent, int index, Vector2 position, Color colour, CharacterCreator creator,

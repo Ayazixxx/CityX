@@ -60,9 +60,13 @@ namespace CityX.UIEditor
         private const float OutlineReferenceHeight = 1080.0f;
 
         /// <summary>One hair colour for every picture: HairPage's brown swatch.</summary>
-        private static readonly Color IconHairColour = new Color(0.32f, 0.20f, 0.10f);
+        /// <summary>A pixel is hair where the white-haired and black-haired pictures differ by more than this (brightness, 0 to 1).</summary>
+        private const float HairDifference = 0.04f;
 
         public static string PathFor(string style) => IconFolder + "/" + style + ".png";
+
+        /// <summary>Where the hair layer of <paramref name="style"/> is written (none for the bald head).</summary>
+        public static string HairPathFor(string style) => IconFolder + "/" + style + HairIcons.HairSuffix + ".png";
 
         [MenuItem("CityX/Bake Hair Icons")]
         public static void Bake()
@@ -98,7 +102,6 @@ namespace CityX.UIEditor
             creator.Initialise();
             // Arms at the sides (owner, 2026-11-05: "have the arms down to his side"): the creator's T-pose put them across every picture.
             StillPose.ArmsDown(creator.transform);
-            creator.SetHairColour(IconHairColour);
 
             Camera camera = creator.Camera;
             camera.fieldOfView = FieldOfView;
@@ -119,7 +122,11 @@ namespace CityX.UIEditor
 
             foreach (string style in CharacterHair.ValidStyles)
             {
-                Import(PathFor(style));
+                Import(PathFor(style), seeThrough: false);
+                if (style != CharacterHair.None)
+                {
+                    Import(HairPathFor(style), seeThrough: true);
+                }
             }
             RemoveStale();
             Debug.Log($"CityX: {CharacterHair.ValidStyles.Length} hair icons baked into {IconFolder}, framed alike on the head and every style " +
@@ -192,6 +199,45 @@ namespace CityX.UIEditor
             return new Pose(box.center + toCamera * distance, rotation);
         }
 
+        /// <summary>The camera's picture, halved a step at a time (each bilinear blit averaging 2x2 blocks) down to the pixel art's size.</summary>
+        private static Color[] Shoot(Camera camera, RenderTexture shot, RenderTexture half, RenderTexture quarter, RenderTexture small)
+        {
+            camera.Render();
+            Graphics.Blit(shot, half);
+            Graphics.Blit(half, quarter);
+            Graphics.Blit(quarter, small);
+            RenderTexture.active = small;
+            var read = new Texture2D(Pixels, Pixels, TextureFormat.RGBA32, false);
+            read.ReadPixels(new Rect(0, 0, Pixels, Pixels), 0, 0);
+            Color[] colours = read.GetPixels();
+            for (int i = 0; i < colours.Length; i++)
+            {
+                colours[i].a = 1.0f;
+            }
+            Object.DestroyImmediate(read);
+            return colours;
+        }
+
+        /// <summary>The hair alone: the white-haired picture where it differs from the black-haired one, see-through everywhere else.</summary>
+        public static Color[] HairLayer(Color[] white, Color[] black)
+        {
+            var layer = new Color[white.Length];
+            for (int i = 0; i < white.Length; i++)
+            {
+                Color difference = white[i] - black[i];
+                bool hair = difference.grayscale > HairDifference;
+                layer[i] = hair ? new Color(white[i].r, white[i].g, white[i].b, 1.0f) : Color.clear;
+            }
+            return layer;
+        }
+
+        /// <summary><paramref name="pixels"/> blown up into <paramref name="picture"/> in hard blocks and written as a PNG at <paramref name="path"/>.</summary>
+        private static void Write(Texture2D pixels, Texture2D picture, string path)
+        {
+            Blocky(pixels, picture);
+            File.WriteAllBytes(OnDisk(path), picture.EncodeToPNG());
+        }
+
         /// <summary>Each of <paramref name="pixels"/> as a square block of <paramref name="picture"/>, unblended.</summary>
         public static void Blocky(Texture2D pixels, Texture2D picture)
         {
@@ -217,8 +263,9 @@ namespace CityX.UIEditor
             var small = new RenderTexture(Pixels, Pixels, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
             var half = new RenderTexture(RenderSize / 2, RenderSize / 2, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
             var quarter = new RenderTexture(RenderSize / 4, RenderSize / 4, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
-            var pixels = new Texture2D(Pixels, Pixels, TextureFormat.RGB24, false);
-            var picture = new Texture2D(HairIcons.Size, HairIcons.Size, TextureFormat.RGB24, false);
+            var pixels = new Texture2D(Pixels, Pixels, TextureFormat.RGBA32, false);
+            var hairPixels = new Texture2D(Pixels, Pixels, TextureFormat.RGBA32, false);
+            var picture = new Texture2D(HairIcons.Size, HairIcons.Size, TextureFormat.RGBA32, false);
             RenderTexture previous = RenderTexture.active;
             bool asyncShaders = ShaderUtil.allowAsyncCompilation;
             bool celLook = View.CelShading.Enabled;
@@ -233,18 +280,22 @@ namespace CityX.UIEditor
                 foreach (string style in CharacterHair.ValidStyles)
                 {
                     creator.SetHairStyle(style);
-                    camera.Render();
-                    // Halved a step at a time, so each bilinear blit averages 2x2 blocks, down to the pixel art's size.
-                    Graphics.Blit(shot, half);
-                    Graphics.Blit(half, quarter);
-                    Graphics.Blit(quarter, small);
-                    RenderTexture.active = small;
-                    pixels.ReadPixels(new Rect(0, 0, Pixels, Pixels), 0, 0);
+                    // The hair white, then black: the black picture is the base, and where the two differ is the hair, its white shading a layer
+                    // the tile tints with the hair colour.
+                    creator.SetHairColour(Color.white);
+                    Color[] white = Shoot(camera, shot, half, quarter, small);
+                    creator.SetHairColour(Color.black);
+                    Color[] black = Shoot(camera, shot, half, quarter, small);
+                    pixels.SetPixels(black);
                     pixels.Apply();
-                    Blocky(pixels, picture);
-                    string path = PathFor(style);
-                    File.WriteAllBytes(OnDisk(path), picture.EncodeToPNG());
-                    Debug.Log($"CityX: hair icon \"{style}\" written to {path}");
+                    Write(pixels, picture, PathFor(style));
+                    if (style != CharacterHair.None)
+                    {
+                        hairPixels.SetPixels(HairLayer(white, black));
+                        hairPixels.Apply();
+                        Write(hairPixels, picture, HairPathFor(style));
+                    }
+                    Debug.Log($"CityX: hair icon \"{style}\" written to {PathFor(style)}");
                 }
             }
             finally
@@ -263,6 +314,7 @@ namespace CityX.UIEditor
                 Object.DestroyImmediate(half);
                 Object.DestroyImmediate(quarter);
                 Object.DestroyImmediate(pixels);
+                Object.DestroyImmediate(hairPixels);
                 Object.DestroyImmediate(picture);
             }
         }
@@ -279,8 +331,8 @@ namespace CityX.UIEditor
             }
         }
 
-        /// <summary>Imported as the tab draws it: opaque, sharp at its own size (no mipmaps, no compression), not repeated past its edge.</summary>
-        private static void Import(string path)
+        /// <summary>Imported as the tab draws it: sharp at its own size (no mipmaps, no compression), not repeated past its edge; a hair layer see-through.</summary>
+        private static void Import(string path, bool seeThrough)
         {
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
             if (!(AssetImporter.GetAtPath(path) is TextureImporter importer))
@@ -295,7 +347,7 @@ namespace CityX.UIEditor
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.isReadable = false;
             importer.maxTextureSize = HairIcons.Size;
-            importer.alphaIsTransparency = false;
+            importer.alphaIsTransparency = seeThrough;
             importer.SaveAndReimport();
         }
 
@@ -304,11 +356,13 @@ namespace CityX.UIEditor
         {
             foreach (string file in Directory.GetFiles(OnDisk(IconFolder), "*.png"))
             {
-                string style = Path.GetFileNameWithoutExtension(file);
+                string name = Path.GetFileNameWithoutExtension(file);
+                string style = name.EndsWith(HairIcons.HairSuffix) ? name.Substring(0, name.Length - HairIcons.HairSuffix.Length) : name;
                 if (Array.IndexOf(CharacterHair.ValidStyles, style) < 0)
                 {
-                    AssetDatabase.DeleteAsset(PathFor(style));
-                    Debug.Log($"CityX: removed {PathFor(style)}: there is no \"{style}\" style any more.");
+                    string asset = IconFolder + "/" + name + ".png";
+                    AssetDatabase.DeleteAsset(asset);
+                    Debug.Log($"CityX: removed {asset}: there is no \"{style}\" style any more.");
                 }
             }
         }

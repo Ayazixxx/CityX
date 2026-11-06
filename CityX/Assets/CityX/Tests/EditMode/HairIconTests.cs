@@ -125,6 +125,50 @@ namespace CityX.Tests
         }
 
         /// <summary>A style's picture decoded from its file's own bytes, checked for size.</summary>
+        /// <summary>Every haired style has its hair as a layer of its own, part see-through, so the tab can tint it; the bald head has none.</summary>
+        [Test]
+        public void EveryHairstyleHasItsHairAsALayerToTint()
+        {
+            foreach (string style in CharacterHair.ValidStyles)
+            {
+                if (style == CharacterHair.None)
+                {
+                    Assert.IsNull(HairIcons.HairOf(style), "the bald head has a hair layer");
+                    continue;
+                }
+                Assert.IsNotNull(HairIcons.HairOf(style), $"\"{style}\" has no hair layer for the creator to tint");
+                string path = HairIconBaker.HairPathFor(style);
+                var texture = new Texture2D(2, 2);
+                try
+                {
+                    Assert.IsTrue(texture.LoadImage(File.ReadAllBytes(OnDisk(path))), $"{path} is not a picture");
+                    int hair = 0, clear = 0;
+                    foreach (Color32 pixel in texture.GetPixels32())
+                    {
+                        hair += pixel.a > 200 ? 1 : 0;
+                        clear += pixel.a < 50 ? 1 : 0;
+                    }
+                    Assert.Greater(hair, 0, $"\"{style}\"'s hair layer has no hair in it");
+                    Assert.Greater(clear, texture.width * texture.height / 2, $"\"{style}\"'s hair layer covers more than its hair");
+                }
+                finally
+                {
+                    Object.DestroyImmediate(texture);
+                }
+            }
+        }
+
+        [Test]
+        public void TheHairIsWhereTheWhiteAndBlackPicturesDiffer()
+        {
+            Color[] white = { Color.white, new Color(0.3f, 0.3f, 0.3f), new Color(0.12f, 0.13f, 0.16f) };
+            Color[] black = { Color.black, Color.black, new Color(0.12f, 0.13f, 0.16f) };
+            Color[] layer = HairIconBaker.HairLayer(white, black);
+            Assert.AreEqual(1.0f, layer[0].a, "lit hair is not in the layer");
+            Assert.AreEqual(1.0f, layer[1].a, "shaded hair is not in the layer");
+            Assert.AreEqual(0.0f, layer[2].a, "the backdrop is in the layer");
+        }
+
         private static Color32[] Pixels(string style)
         {
             string path = HairIconBaker.PathFor(style);

@@ -96,15 +96,26 @@ namespace CityX.UI
                 CreatorKit.Caption(tile, label, 11, CreatorKit.Paper);
                 return;
             }
-            var go = new GameObject("Icon", typeof(RectTransform));
+            AddLayer(tile, "Icon", icon);
+        }
+
+        /// <summary>A picture laid on a tile inside its frame, over what is already there; null when there is no <paramref name="texture"/>.</summary>
+        public static RawImage AddLayer(Transform tile, string name, Texture texture)
+        {
+            if (texture == null)
+            {
+                return null;
+            }
+            var go = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)go.transform;
             rect.SetParent(tile, false);
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(TileSize - 6.0f, TileSize - 6.0f);
             RawImage picture = go.AddComponent<RawImage>();
-            picture.texture = icon;
+            picture.texture = texture;
             picture.raycastTarget = false;   // a press belongs to the tile under it
+            return picture;
         }
 
         /// <summary>The hint at the foot of a page where a drag on the body turns it rather than paints it.</summary>

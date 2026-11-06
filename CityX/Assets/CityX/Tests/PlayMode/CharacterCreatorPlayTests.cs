@@ -680,6 +680,32 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>Every hairstyle picture's hair takes the hair colour as it is picked (owner, 2026-11-05: "make the icons change color as you change hair color").</summary>
+        [UnityTest]
+        public IEnumerator TheHairstylePicturesTakeTheHairColour()
+        {
+            yield return ShowTheHairTab();
+            foreach (Color colour in new[] { Color.red, HairPage.Swatches[2] })
+            {
+                _creator.SetHairColour(colour);
+                yield return null;
+                int tinted = 0;
+                foreach (string style in CharacterHair.ValidStyles)
+                {
+                    Transform tint = SceneButton("Hair" + style + "Button").transform.Find("HairTint");
+                    if (style == CharacterHair.None)
+                    {
+                        Assert.IsNull(tint, "the bald head's picture has hair to tint");
+                        continue;
+                    }
+                    Assert.IsNotNull(tint, $"\"{style}\"'s picture has no hair layer: rebake the icons and rebuild the title");
+                    Assert.AreEqual(colour, tint.GetComponent<RawImage>().color, $"\"{style}\"'s hair is not the colour picked");
+                    tinted++;
+                }
+                Assert.Greater(tinted, 0);
+            }
+        }
+
         /// <summary>The tile of the style the head wears is framed in gold and no other: on the HAIR tab, that is what says which style is on.</summary>
         [UnityTest]
         public IEnumerator OnlyTheWornStylesTileIsFramedInGold()
