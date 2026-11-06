@@ -375,6 +375,9 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   opens an appraisal card beside it in the world (the owner's Sword Art Online screenshot), the camera gliding in so it reads. The card lists what
   the item is and how it is held, its style, its damage, speed, fire rate, range, mana and the like, what stat raises it, and green or red arrows
   against the item in hand. No durability (owner, 2026-10-30), no level line, and no armour on clothes until armour is designed (owner, 2026-10-31).
+  Owner, 2026-11-06, on how a sledgehammer should differ from a sword: "there should certainly be stronger armor than others". So worn armour will
+  differ in strength; how (ratings, tiers, what each piece adds) is still to be designed. Owner, same day: heavy armour does NOT slow you down,
+  and carrying a lot does not either: "an annoying system we should avoid things that are annoying like carrying a lot of items slowing you down".
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
 - **An import pipeline** (drop a model in a folder → cleaned, small, gripped, iconed item with stats in a settings file) and **random rolls** (one model, many versions) make hundreds to thousands of items realistic.
