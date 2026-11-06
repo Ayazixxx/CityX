@@ -56,6 +56,30 @@ piece that opens has its parts), `LootingPlayTests` (the real body opens Old Guy
 bathroom cabinet behind a wall is never in reach but is from in front of it; the bat is in a crate in the cellar), `OldGuysHousePlanTests` (what is inside
 is real items, in parts the pieces have). `OldGuysHouseCapture` renders `house-loot-kitchen.png`, `house-loot-bedroom.png` and `house-loot-window.png`.
 
+## Bodies (2026-11-06)
+
+Owner, 2026-11-06: "i want enemies to be lootable like skyrim how you can grab the armor and weapons off of them".
+
+- **A fallen enemy wearing something can be searched like a drawer.** It might wear a helmet, a hat, shoes or a shield. Look at the body and tap E. The loot window opens with the enemy's name ("Swordsman") and lists what it wears. Taking a piece puts it in the inventory and takes it off the body: the Knight Helmet leaves the swordsman's head.
+- **The weapon in its hand** already falls to the ground when it dies (docs/DROPPED_ITEMS.md), so it is picked up there and not listed.
+- **Not loot:**
+  - A player's own fallen body. Their gear is theirs, and death's rules are in docs/GAME_DESIGN.md.
+  - A body wearing nothing. It gets no prompt.
+- **How:**
+  - `Character/Interaction/CorpseLoot` is on every body made from the player's (PlayerRigBuilder), so it is on every enemy.
+  - At death it lists the body's worn pieces. Each piece is an `Items.IWornItem`, which every `GroundWearable` is.
+  - It puts a `LootContainer` of the new kind `Body` on the hips, so the container follows the ragdoll and never moves the bone itself.
+  - `LootContainer.Taken` tells it which piece to take off.
+- **In a session** (`Character/Network/NetworkedCorpseLoot`, on every networked enemy):
+  - The take is asked of the server.
+  - The server gives each piece to the first player to ask. It checks that the item is known, not taken yet, still worn by its own copy of the body, and that the asker is within 12 m.
+  - It tells every machine, so the piece comes off every copy of the body and goes into the taker's inventory alone.
+  - The message is buffered, so a later arrival finds the body as it is now.
+
+Tests: `CorpseLootPlayTests` (the swordsman's helmet listed, in reach from beside him, taken into the inventory and off his head; a player's body and a bare body are not loot), `NetworkedPlayerStateSyncPlayTests.AFallenEnemysHelmetIsTakenOnceAndComesOffOnEveryScreen` (real sockets). Pictures: `CorpseLootCapture` (`corpse-loot-window.png`, `corpse-loot-taken.png`).
+
+Next (queued, owner 2026-11-06, docs/ARMOUR.md): armour on a part makes it harder to cut off, and a part that comes off anyway drops its armour as the real item.
+
 ## The prompt
 
 Since 2026-10-31 a container looked at in reach names itself under the crosshair with `[E] Search`, as an item lying in the open names itself with

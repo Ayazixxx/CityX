@@ -48,10 +48,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 7267797664901752777, guid: b4cd4ede02928e54ab6fa268d89e6f31, type: 3}
-      propertyPath: m_Controller
-      value: 
-      objectReference: {fileID: 9100000, guid: c0808131d916ea540becd941709dc711, type: 2}
     - target: {fileID: 8962985399929221737, guid: b4cd4ede02928e54ab6fa268d89e6f31, type: 3}
       propertyPath: m_Name
       value: NetworkedGiant
@@ -75,6 +71,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8962985399929221737, guid: b4cd4ede02928e54ab6fa268d89e6f31, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8011720076844006798}
+    - targetCorrespondingSourceObject: {fileID: 8962985399929221737, guid: b4cd4ede02928e54ab6fa268d89e6f31, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8222438060499288537}
     - targetCorrespondingSourceObject: {fileID: 8962985399929221737, guid: b4cd4ede02928e54ab6fa268d89e6f31, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2860634022880840550}
@@ -239,6 +238,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b49f346341d53fb49a9e963a6f7f34b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedAbilitySync
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 4683980520028218970}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &8222438060499288537
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3793714840934458722}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8ce2c927a3a9264f84fff61cf7a73b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedCorpseLoot
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 4683980520028218970}
   _networkObjectCache: {fileID: 0}

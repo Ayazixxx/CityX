@@ -12,10 +12,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: NetworkedShoota
       objectReference: {fileID: 0}
-    - target: {fileID: 4970044339763382852, guid: 48b39a0dc46d08f4dbe97ab56234c75a, type: 3}
-      propertyPath: m_Controller
-      value: 
-      objectReference: {fileID: 9100000, guid: c0808131d916ea540becd941709dc711, type: 2}
     - target: {fileID: 5196297612313405596, guid: 48b39a0dc46d08f4dbe97ab56234c75a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -75,6 +71,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 982096521476428653, guid: 48b39a0dc46d08f4dbe97ab56234c75a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7578372184768294155}
+    - targetCorrespondingSourceObject: {fileID: 982096521476428653, guid: 48b39a0dc46d08f4dbe97ab56234c75a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 479291717587929960}
     - targetCorrespondingSourceObject: {fileID: 982096521476428653, guid: 48b39a0dc46d08f4dbe97ab56234c75a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7442159223719552750}
@@ -250,6 +249,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b49f346341d53fb49a9e963a6f7f34b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedAbilitySync
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 8894164601322433176}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &479291717587929960
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5988140700145932867}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8ce2c927a3a9264f84fff61cf7a73b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedCorpseLoot
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 8894164601322433176}
   _networkObjectCache: {fileID: 0}

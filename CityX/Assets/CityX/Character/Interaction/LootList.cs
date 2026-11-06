@@ -27,6 +27,7 @@ namespace CityX.Character
         /// <summary>Picks out the next (+1) or previous (-1) item, round from the last to the first.</summary>
         public void Move(int step)
         {
+            Clamp();
             if (_items.Count == 0)
             {
                 Selected = 0;
@@ -38,6 +39,7 @@ namespace CityX.Character
         /// <summary>Hands the picked item to <paramref name="give"/>; it leaves the container only if it was taken (a full inventory keeps it there).</summary>
         public bool TakeSelected(Func<string, bool> give)
         {
+            Clamp();   // the list can shrink under the window (a fallen body's gear taken by another player, CorpseLoot)
             if (IsEmpty || !give(_items[Selected]))
             {
                 return false;

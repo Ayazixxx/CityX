@@ -160,7 +160,13 @@ namespace CityX.Character
         private bool Give(string itemId)
         {
             var inventory = GetComponent<Inventory>();
-            return inventory != null && inventory.CanPickUp(itemId) && inventory.PickUp(itemId);
+            CorpseLoot body = Current != null ? Current.GetComponentInParent<CorpseLoot>() : null;
+            bool given = body != null ? body.Give(itemId, inventory) : inventory != null && inventory.CanPickUp(itemId) && inventory.PickUp(itemId);
+            if (given)
+            {
+                Current.NotifyTaken(itemId);
+            }
+            return given;
         }
 
         private void TickWindow()

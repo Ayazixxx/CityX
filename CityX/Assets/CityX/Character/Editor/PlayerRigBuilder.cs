@@ -1843,6 +1843,8 @@ namespace CityX.CharacterEditor
 
                 // After the ragdoll, so a death throws the body down before it is taken apart (docs/DISMEMBERMENT.md).
                 root.AddComponent<Dismemberer>();
+                // A fallen body that is not a player's can be searched for what it wears (docs/LOOTING.md, bodies): every enemy made from this body.
+                root.AddComponent<CorpseLoot>();
                 // How cold the body is: a frost blow slows it and, full, freezes it (docs/FROST.md).
                 root.AddComponent<Chill>();
 

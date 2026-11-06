@@ -187,6 +187,7 @@ GameObject:
   - component: {fileID: 7736892794210974606}
   - component: {fileID: 2726555814569877422}
   - component: {fileID: 3470629957468762846}
+  - component: {fileID: 4865977802344827310}
   - component: {fileID: 9109706068966747414}
   - component: {fileID: 6867019828852058954}
   m_Layer: 0
@@ -349,6 +350,8 @@ MonoBehaviour:
   AirSpinMoveFraction: 0.5
   AirSpinLaunchUp: 9
   AirSpinLaunchAway: 3
+  SpinCarryMetres: 1.1
+  AirSpinCarryLift: 4
   SpinSlashMaterial: {fileID: 2100000, guid: 2b060d6e4d0b57746a498c94c7b4830b, type: 2}
   Range: 2.5
   OriginHeightFraction: 0.68
@@ -456,6 +459,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bdabdc880adbfa44b96ea1f5d93b5a03, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.Dismemberer
+--- !u!114 &4865977802344827310
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 982096521476428653}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4989e05f7de3e94ea182f698e7e9b49, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.CorpseLoot
 --- !u!114 &9109706068966747414
 MonoBehaviour:
   m_ObjectHideFlags: 0

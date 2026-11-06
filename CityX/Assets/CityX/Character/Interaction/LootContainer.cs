@@ -63,8 +63,20 @@ namespace CityX.Character
             IsOpen = false;
         }
 
+        /// <summary>Raised with each item a player takes out of it (a body's gear then comes off the body, CorpseLoot).</summary>
+        public event System.Action<string> Taken;
+
+        public void NotifyTaken(string itemId)
+        {
+            Taken?.Invoke(itemId);
+        }
+
         private void Update()
         {
+            if (Kind == ContainerKind.Body)
+            {
+                return;   // it sits on a ragdoll's bone, which is the physics' to move
+            }
             float target = IsOpen ? 1.0f : 0.0f;
             if (Mathf.Approximately(Open01, target))
             {

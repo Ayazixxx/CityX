@@ -185,6 +185,42 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// A fallen enemy's gear is taken once, by whoever asks first (docs/LOOTING.md, bodies): B takes the swordsman's helmet off B's copy of
+        /// his body, it goes into B's inventory, and it comes off A's body too, where A can no longer take it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AFallenEnemysHelmetIsTakenOnceAndComesOffOnEveryScreen()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            yield return StartEnemyNetworks();
+            NetworkObject onA = null, onB = null;
+            yield return SpawnFromA("swordsman", new Vector3(0.0f, 0.0f, 4.0f), (a, b) => { onA = a; onB = b; });
+            onA.GetComponent<SwordsmanBrain>().enabled = false;
+            onA.GetComponent<PlayerVitals>().TakeDamage(10000.0f);
+            var lootOnA = onA.GetComponent<CorpseLoot>();
+            var lootOnB = onB.GetComponent<CorpseLoot>();
+            yield return WaitUntil(() => lootOnA.Container != null && lootOnB.Container != null, "the swordsman's body to be searchable on both machines");
+            Assert.IsTrue(lootOnB.Offers(Items.ItemRegistry.KnightHelmet), "B's copy of his body does not list his helmet");
+
+            var bInventory = _bOnB.GetComponent<Inventory>();
+            var aInventory = _aOnA.GetComponent<Inventory>();
+            Assert.IsFalse(lootOnB.Give(Items.ItemRegistry.KnightHelmet, bInventory), "in a session the take should be asked of the server, not given at once");
+            yield return WaitUntil(() => bInventory.HasItem(Items.ItemRegistry.KnightHelmet)
+                || bInventory.EquippedItemId(Items.EquipSlots.Helmet) == Items.ItemRegistry.KnightHelmet, "the helmet to go into B's inventory");
+            yield return WaitUntil(() => !lootOnA.Offers(Items.ItemRegistry.KnightHelmet), "the helmet to come off A's view of the body");
+            yield return null;
+            Assert.AreEqual(0, onA.GetComponentsInChildren<CityX.Wearables.KnightHelmet>().Length, "A still sees the helmet on the body");
+            Assert.AreEqual(0, onB.GetComponentsInChildren<CityX.Wearables.KnightHelmet>().Length, "B still sees the helmet on the body");
+            Assert.IsFalse(lootOnA.Give(Items.ItemRegistry.KnightHelmet, aInventory), "A could take the helmet B already has");
+            Assert.IsFalse(aInventory.HasItem(Items.ItemRegistry.KnightHelmet), "the helmet went to both players");
+#else
+            Assert.Ignore("needs the editor to load the networked prefabs.");
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator AWraithIsHurtThroughItsCopyAndFadesOnEveryMachine()
         {

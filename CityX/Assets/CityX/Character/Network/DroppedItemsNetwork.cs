@@ -410,7 +410,8 @@ namespace CityX.Character
             Position = message.Position, Rotation = message.Rotation, Velocity = message.Velocity, Spin = message.Spin,
         };
 
-        private static bool Near(NetworkConnection sender, Vector3 point, float metres)
+        /// <summary>Whether any body <paramref name="sender"/> owns is within <paramref name="metres"/> of <paramref name="point"/>.</summary>
+        public static bool Near(NetworkConnection sender, Vector3 point, float metres)
         {
             foreach (NetworkObject owned in sender.Objects)
             {

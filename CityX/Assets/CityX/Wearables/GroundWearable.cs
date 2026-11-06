@@ -9,9 +9,13 @@ namespace CityX.Wearables
     /// goes into the inventory and the model on the ground goes. Worn, it stops looking for a player (<see cref="MarkEquipped"/>).
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public abstract class GroundWearable : MonoBehaviour
+    public abstract class GroundWearable : MonoBehaviour, IWornItem
     {
         public const float InteractRange = 2.5f;
+
+        string IWornItem.WornItemId => ItemId;
+
+        bool IWornItem.IsWorn => Equipped;
 
         private SphereCollider _pickupTrigger;
         private Transform _nearbyPlayer;

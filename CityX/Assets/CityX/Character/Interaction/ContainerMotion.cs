@@ -18,6 +18,9 @@ namespace CityX.Character
 
         /// <summary>A door hinged along its bottom edge (an oven's).</summary>
         Flap,
+
+        /// <summary>A fallen body searched for what it wears (CorpseLoot): nothing on it opens or moves.</summary>
+        Body,
     }
 
     /// <summary>

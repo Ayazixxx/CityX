@@ -63,6 +63,7 @@ namespace CityX.CharacterEditor
                 root.AddComponent<NetworkedAnimatorSync>();
                 root.AddComponent<NetworkedDamage>();
                 root.AddComponent<NetworkedAbilitySync>();   // what the body does that is drawn in code (a turned-aside bullet's streak)
+                root.AddComponent<NetworkedCorpseLoot>();    // its gear taken off it once, on every screen (docs/LOOTING.md, bodies)
                 NetworkedPlayerWiring.AddRagdollSync(root);   // a fallen enemy lies the same on every screen
                 var enemy = root.AddComponent<NetworkedEnemy>();
                 var brainComponent = root.GetComponent(brain) as Behaviour;

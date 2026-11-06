@@ -2408,6 +2408,7 @@ GameObject:
   - component: {fileID: 5092774740799806781}
   - component: {fileID: 1783639418050803174}
   - component: {fileID: 4753343734241151643}
+  - component: {fileID: 5155305836565123739}
   - component: {fileID: 3697076358038643212}
   - component: {fileID: 4230536320211725702}
   m_Layer: 0
@@ -2704,6 +2705,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bdabdc880adbfa44b96ea1f5d93b5a03, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.Dismemberer
+--- !u!114 &5155305836565123739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8412405609517267180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4989e05f7de3e94ea182f698e7e9b49, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.CorpseLoot
 --- !u!114 &3697076358038643212
 MonoBehaviour:
   m_ObjectHideFlags: 0
