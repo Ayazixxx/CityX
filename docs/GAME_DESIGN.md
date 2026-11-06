@@ -378,6 +378,9 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   Owner, 2026-11-06, on how a sledgehammer should differ from a sword: "there should certainly be stronger armor than others". So worn armour will
   differ in strength; how (ratings, tiers, what each piece adds) is still to be designed. Owner, same day: heavy armour does NOT slow you down,
   and carrying a lot does not either: "an annoying system we should avoid things that are annoying like carrying a lot of items slowing you down".
+  Owner, same day: enemies LOOTABLE like Skyrim's ("grab the armor and weapons off of them"); with dismemberment, "probably having armor makes
+  you harder to be dismembered and if you do still get dismembered badly we could have the armor just come off the body and turn into its
+  object form".
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
 - **An import pipeline** (drop a model in a folder → cleaned, small, gripped, iconed item with stats in a settings file) and **random rolls** (one model, many versions) make hundreds to thousands of items realistic.
