@@ -46,7 +46,7 @@ MonoBehaviour:
   - Style: dreads
     Fit:
       Position: {x: -0.016, y: -0.978, z: -0.04}
-      Euler: {x: 0, y: 0, z: 0}
+      Euler: {x: -0, y: 2.7199962, z: 0}
       Scale: {x: 1.5, y: 1.5, z: 1.5}
   - Style: hyde
     Fit:
@@ -58,3 +58,8 @@ MonoBehaviour:
       Position: {x: 0, y: -2.27, z: 0}
       Euler: {x: 0, y: 0, z: 0}
       Scale: {x: 1, y: 1, z: 1}
+  - Style: idkneedswork
+    Fit:
+      Position: {x: 0, y: -2.26, z: 0.01}
+      Euler: {x: -0, y: 0, z: 0}
+      Scale: {x: 0.99, y: 0.99, z: 0.99}
