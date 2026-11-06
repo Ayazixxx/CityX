@@ -8,15 +8,15 @@ namespace CityX.Character
     /// A body taken apart (docs/DISMEMBERMENT.md): by the blow that killed it, when it did way more than the body had left, and by blows on
     /// its corpse, each part coming off once the blows on it add up to what it can take. <see cref="DismemberRules"/> decides; this shows it:
     /// a cut part is cut out of every skinned mesh on the body (<see cref="MeshSevering"/>) and flies off as a piece of its own with what rides
-    /// its bones, a burst part is gone in a spray of chunks and blood, a burst torso takes all that is left. The body keeps a bleeding stump.
-    /// Revived, it is whole again.
+    /// its bones; a burst part breaks into pieces of itself with what was inside it, and a burst torso takes all that is left (Dismemberer.Burst.cs).
+    /// The body keeps a bleeding stump. Revived, it is whole again.
     ///
     /// Decided where the body is (the owner's machine, or the only one; a blow on another player's copy of a corpse is forwarded there as any
     /// blow is); other players' copies are told what went, where and which way, and that it is whole again on revival
     /// (<see cref="IReplicatedAbility"/>).
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class Dismemberer : MonoBehaviour, IReplicatedAbility
+    public sealed partial class Dismemberer : MonoBehaviour, IReplicatedAbility
     {
         public const string Id = "dismemberment";
 
@@ -32,15 +32,6 @@ namespace CityX.Character
         public const float ArmMass = 3.0f;
         public const float LegMass = 8.0f;
 
-        /// <summary>How many chunks a burst throws, and how big they are, m: a head, a limb, the whole body.</summary>
-        public const int HeadGibs = 9;
-
-        public const int LimbGibs = 7;
-        public const int BodyGibs = 24;
-        public const float HeadGibSize = 0.13f;
-        public const float LimbGibSize = 0.12f;
-        public const float BodyGibSize = 0.16f;
-
         /// <summary>
         /// A stump's radius when the cut has no edge to measure, m: the head (a mesh of its own, sitting on the shoulders, so the skin is not
         /// cut at all) and a limb of a body without a skin of its own.
@@ -55,6 +46,14 @@ namespace CityX.Character
         /// </summary>
         public const float CutBodyMass = 0.1f;
 
+        /// <summary>
+        /// And held from spinning, rad/s and its damping: weightless and with nothing to collide with, a cut-off arm's bones spun at 46 turns a second, sweeping
+        /// whatever light rode the hand round like a strobe (owner, 2026-11-05: "flashing lights ... like a flashlight type brightness").
+        /// </summary>
+        public const float CutBodyMostSpin = 20.0f;
+
+        public const float CutBodyAngularDamping = 5.0f;
+
         string IReplicatedAbility.AbilityId => Id;
 
         public event System.Action<AbilityEvent> Fired;
@@ -65,7 +64,10 @@ namespace CityX.Character
         private readonly List<(SkinnedMeshRenderer renderer, Mesh whole, Mesh kept)> _cut = new List<(SkinnedMeshRenderer, Mesh, Mesh)>();
         private readonly List<Renderer> _hidden = new List<Renderer>();
         private readonly List<Collider> _collidersOff = new List<Collider>();
-        private readonly List<(Rigidbody body, float mass)> _lightened = new List<(Rigidbody, float)>();
+        private readonly List<(Rigidbody body, float mass, float damping, float mostSpin)> _lightened = new List<(Rigidbody, float, float, float)>();
+
+        /// <summary>Lights riding a part that is gone (a flashlight's beam, a burning blade's glow), off until the body is whole again.</summary>
+        private readonly List<Light> _lightsOff = new List<Light>();
         private readonly List<GameObject> _stumps = new List<GameObject>();
         private const int Parts = (int)BodyPart.RightLowerLeg + 1;
         private readonly bool[] _gone = new bool[Parts];
@@ -77,7 +79,7 @@ namespace CityX.Character
 
         public BodyPart LastPart { get; private set; }
 
-        /// <summary>The cut-off part flying off after the last cut (null after a burst), and how many chunks bursts have thrown.</summary>
+        /// <summary>The cut-off part flying off after the last cut (null after a burst), and how many pieces bursts have thrown.</summary>
         public GameObject LastPiece { get; private set; }
 
         public int GibsThrown { get; private set; }
@@ -210,9 +212,11 @@ namespace CityX.Character
             Vector3 away = point - from;
             away.y = 0.0f;
             away = away.sqrMagnitude > 1e-4f ? away.normalized : -transform.forward;
-            if (Show(what, part, away))
+            int seed = Random.Range(1, SeedRange);
+            if (Show(what, part, away, seed))
             {
-                Fired?.Invoke(new AbilityEvent((int)what, point, away, 0.0f, 0.0f, (int)part));
+                // The seed goes with it, so every screen throws the same pieces.
+                Fired?.Invoke(new AbilityEvent((int)what, point, away, seed, 0.0f, (int)part));
             }
         }
 
@@ -230,7 +234,7 @@ namespace CityX.Character
                 return;
             }
             Vector3 away = evt.Direction.sqrMagnitude > 1e-6f ? evt.Direction.normalized : -transform.forward;
-            Show((Dismemberment)evt.Kind, (BodyPart)evt.N, away);
+            Show((Dismemberment)evt.Kind, (BodyPart)evt.N, away, SeedOf(evt.A));
         }
 
         private Vector3? Bone(HumanBodyBones bone)
@@ -245,10 +249,10 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Takes <paramref name="part"/> off this body, cut clean or burst (the torso: all that is left), thrown along <paramref name="away"/>.
-        /// False when it is already gone.
+        /// Takes <paramref name="part"/> off this body, cut clean or burst (the torso: all that is left), thrown along <paramref name="away"/>;
+        /// the same <paramref name="seed"/> throws the same pieces. False when it is already gone.
         /// </summary>
-        public bool Show(Dismemberment what, BodyPart part, Vector3 away)
+        public bool Show(Dismemberment what, BodyPart part, Vector3 away, int seed = 0)
         {
             if (what == Dismemberment.None || !Has(part) || _animator == null)
             {
@@ -257,7 +261,7 @@ namespace CityX.Character
             if (part == BodyPart.Torso)
             {
                 Gone(part, Dismemberment.Burst);
-                BurstWhole(away);
+                BurstWhole(away, seed);
                 return true;
             }
             Transform root = _animator.GetBoneTransform(DismemberRules.RootOf(part));
@@ -270,6 +274,7 @@ namespace CityX.Character
             GameObject piece = what == Dismemberment.Sever ? new GameObject($"{part} (cut off)") : null;
             var made = new List<Mesh>();
             var pieceBounds = new Bounds(root.position, Vector3.zero);
+            var sources = new List<Gore.Source>();
 
             // The skin and the clothes skinned on the body: the triangles those bones carry come out (and, for a cut, fly off as the piece).
             Vector3 cutCentre = root.position;
@@ -299,12 +304,14 @@ namespace CityX.Character
                 }
                 else
                 {
+                    sources.Add(SourceOf(skin, cut.Piece, skin.transform.position, skin.transform.rotation, Vector3.one, LayerOf(skin)));
                     Destroy(cut.Piece);
                 }
             }
 
-            // What rides those bones (the skull, hair, a hat): a still copy goes with a cut-off part, the original is hidden. Something held in
-            // a cut-off hand stays: the death drops it.
+            // What rides those bones (the skull, hair, a hat): a still copy goes with a cut-off part; a burst breaks the skull and hair with the
+            // part and knocks anything else off whole. The original is hidden. Something held in a cut-off hand stays: the death drops it.
+            int knocked = 0;
             foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
             {
                 if (!renderer.enabled || !IsSolid(renderer) || HeldInHand(renderer.transform))
@@ -314,6 +321,10 @@ namespace CityX.Character
                 if (piece != null)
                 {
                     pieceBounds.Encapsulate(Freeze(renderer, piece.transform, made));
+                }
+                else
+                {
+                    knocked += BreakOrKnockOff(renderer, sources, away);
                 }
                 renderer.enabled = false;
                 _hidden.Add(renderer);
@@ -327,20 +338,20 @@ namespace CityX.Character
                 cutCentre = NearestSkinPoint(root.position) ?? root.position;
                 cutRadius = part == BodyPart.Head ? HeadStumpRadius : FallbackStumpRadius;
             }
-            _stumps.Add(Gore.Stump(root.parent, cutCentre, outward, cutRadius));
+            _stumps.Add(Gore.Stump(root.parent, cutCentre, outward, cutRadius, broken: piece == null && part != BodyPart.Head));
             Gore.Blood(cutCentre, away, part == BodyPart.Head ? 2.0f : 1.4f, transform);
 
             if (piece != null)
             {
                 Gore.Stump(piece.transform, cutCentre, -outward, cutRadius);
-                Launch(piece, pieceBounds, part, away, made);
+                Launch(piece, pieceBounds, MassOf(part), away, Vector3.zero, made);
                 LastPiece = piece;
                 return true;
             }
             LastPiece = null;
             Vector3 middle = DismemberRules.Segment(part, Bone, out Vector3 start, out Vector3 end) ? (start + end) * 0.5f : cutCentre;
-            bool head = part == BodyPart.Head;
-            GibsThrown += Gore.Gibs(middle, away, head ? HeadGibs : LimbGibs, head ? HeadGibSize : LimbGibSize, BodyColliders());
+            GibsThrown += knocked + Gore.Burst(sources, GoreAnatomy.BitsOf(part), middle, away, BodyScale, part == BodyPart.Head ? HeadChunks : LimbChunks,
+                seed, Gore.PartSmears, BodyColliders(), Carried());
             return true;
         }
 
@@ -357,28 +368,6 @@ namespace CityX.Character
             }
             Last = what;
             LastPart = part;
-        }
-
-        /// <summary>
-        /// The whole body bursts: every part of it hidden, a heap of chunks thrown out from the chest, blood everywhere. The hidden ragdoll keeps
-        /// its colliders, so it still lies on the floor (what follows the body, the camera, finds it there).
-        /// </summary>
-        private void BurstWhole(Vector3 away)
-        {
-            Vector3 chest = Chest();
-            foreach (Renderer renderer in GetComponentsInChildren<Renderer>(true))
-            {
-                if (!renderer.enabled || !IsSolid(renderer) || HeldInHand(renderer.transform))
-                {
-                    continue;
-                }
-                renderer.enabled = false;
-                _hidden.Add(renderer);
-            }
-            LastPiece = null;
-            GibsThrown += Gore.Gibs(chest, away, BodyGibs, BodyGibSize, BodyColliders());
-            Gore.Blood(chest, away, 3.0f, transform);
-            Gore.Blood(chest + Vector3.down * 0.6f, -away, 2.0f, transform);
         }
 
         /// <summary>
@@ -416,13 +405,23 @@ namespace CityX.Character
             _collidersOff.Clear();
             for (int i = _lightened.Count - 1; i >= 0; i--)
             {
-                (Rigidbody body, float mass) = _lightened[i];
+                (Rigidbody body, float mass, float damping, float mostSpin) = _lightened[i];
                 if (body != null)
                 {
                     body.mass = mass;
+                    body.angularDamping = damping;
+                    body.maxAngularVelocity = mostSpin;
                 }
             }
             _lightened.Clear();
+            foreach (Light light in _lightsOff)
+            {
+                if (light != null)
+                {
+                    light.enabled = true;
+                }
+            }
+            _lightsOff.Clear();
             System.Array.Clear(_gone, 0, _gone.Length);
             System.Array.Clear(_corpseDamage, 0, _corpseDamage.Length);
             _goneCount = 0;
@@ -588,18 +587,41 @@ namespace CityX.Character
             }
             foreach (Rigidbody body in root.GetComponentsInChildren<Rigidbody>(true))
             {
-                _lightened.Add((body, body.mass));
-                body.mass = CutBodyMass;
+                Calm(body, CutBodyMass);
+            }
+            SwitchOffLights(root);
+        }
+
+        /// <summary>Held from spinning (and given <paramref name="mass"/>) while its part is gone; as it was again on revival.</summary>
+        private void Calm(Rigidbody body, float mass)
+        {
+            _lightened.Add((body, body.mass, body.angularDamping, body.maxAngularVelocity));
+            body.mass = mass;
+            body.angularDamping = CutBodyAngularDamping;
+            body.maxAngularVelocity = CutBodyMostSpin;
+        }
+
+        /// <summary>Every light under <paramref name="root"/> off with the part it rides.</summary>
+        private void SwitchOffLights(Transform root)
+        {
+            foreach (Light light in root.GetComponentsInChildren<Light>(true))
+            {
+                if (light.enabled)
+                {
+                    light.enabled = false;
+                    _lightsOff.Add(light);
+                }
             }
         }
 
         private Collider[] BodyColliders() => GetComponentsInChildren<Collider>(true);
 
         /// <summary>
-        /// A cut-off part leaves: a body with a box round it, the blow's push on top of the body's own speed, a tumble; it never knocks into
-        /// the body it came off. It lies a while, then shrinks away with the meshes made for it.
+        /// A part leaves (cut off, blown off, knocked off): a body of <paramref name="mass"/> with a box round it, the blow's push and
+        /// <paramref name="push"/> on top of the body's own speed, a tumble; it never knocks into the body it came off, and smears the ground
+        /// where it lands. It lies a while, then shrinks away with the meshes made for it.
         /// </summary>
-        private void Launch(GameObject piece, Bounds bounds, BodyPart part, Vector3 away, List<Mesh> made)
+        private void Launch(GameObject piece, Bounds bounds, float mass, Vector3 away, Vector3 push, List<Mesh> made)
         {
             Transform pieceTransform = piece.transform;
             var children = new List<Transform>();
@@ -619,17 +641,16 @@ namespace CityX.Character
             var box = piece.AddComponent<BoxCollider>();
             box.size = Vector3.Max(bounds.size, Vector3.one * 0.08f);
             var body = piece.AddComponent<Rigidbody>();
-            body.mass = part == BodyPart.Head ? HeadMass : part >= BodyPart.LeftUpperLeg ? LegMass : ArmMass;
+            body.mass = mass;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            Ragdoll ragdoll = GetComponent<Ragdoll>();
-            Vector3 carried = ragdoll != null && ragdoll.Torso != null && !ragdoll.Torso.isKinematic ? ragdoll.Torso.linearVelocity : Vector3.zero;
-            body.linearVelocity = carried + away * PieceSpeed + Vector3.up * PieceUpSpeed;
+            body.linearVelocity = Carried() + away * PieceSpeed + Vector3.up * PieceUpSpeed + push;
             body.angularVelocity = Random.onUnitSphere * PieceSpin;
             foreach (Collider collider in BodyColliders())
             {
                 Physics.IgnoreCollision(box, collider, true);
             }
+            piece.AddComponent<GoreChunk>().Bind(new GoreChunk.Smears(1), BodyScale);
             piece.AddComponent<Debris>().Own(made);
         }
     }

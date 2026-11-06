@@ -41,6 +41,9 @@ namespace CityX.Character
         /// <summary>How many wounds have been marked (for tests).</summary>
         public static int Marked { get; private set; }
 
+        /// <summary>How many pieces of gore have smeared where they landed (for tests).</summary>
+        public static int Dropped { get; private set; }
+
         /// <summary>
         /// Marks a wound at <paramref name="point"/>, the blow having gone <paramref name="away"/> (from the striker through the body): the
         /// floor under the wound, the floor where the spray lands, and a wall behind within reach. <paramref name="strength"/> as the burst's.
@@ -75,6 +78,17 @@ namespace CityX.Character
             {
                 Place(wall.point, wall.normal, (0.4f + 0.25f * (float)random.NextDouble()) * Mathf.Sqrt(strength), 1.3f, Vector3.up, random);
             }
+        }
+
+        /// <summary>
+        /// One smear where a piece of gore came down: at <paramref name="point"/> on a surface facing <paramref name="normal"/>,
+        /// <paramref name="size"/> across, drawn out the way it was going (<paramref name="along"/>).
+        /// </summary>
+        public static void Drop(Vector3 point, Vector3 normal, float size, Vector3 along)
+        {
+            Dropped++;
+            var random = new System.Random(unchecked((int)(Time.frameCount * 7919 + point.x * 131.0f + point.z * 17.0f)));
+            Place(point, normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.up, size, 1.4f, along, random);
         }
 
         /// <summary>Takes every splat away (a test, a new fight).</summary>

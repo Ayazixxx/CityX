@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// stump stays), anything else's bursts it into gore, a bare kill or a jet of water takes nothing, a burst on the chest takes the whole body,
     /// revived the body is whole, and another player's copy told of it is taken apart, and made whole, the same way.
     /// </summary>
-    public sealed class DismembermentPlayTests
+    public sealed partial class DismembermentPlayTests
     {
         private const float Step = 1.0f / 60.0f;
         private readonly List<GameObject> _made = new List<GameObject>();

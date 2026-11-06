@@ -82,3 +82,15 @@ revived). Pictures: `DismembermentCapture` (Logs/CityShots/dismember-*.png, with
 Cutting a body in half at the waist; cutting up a part already cut off (the pieces on the ground are not struck); gore decals on the
 stump's skin; a sound of its own; gibbing on a long fall; spells other than the sword's wave on a corpse; dismembering an NPC that does not
 use the fused body.
+
+## Chunks made of the body (2026-11-05)
+
+Owner: "try to improve upon the dismemberment "chunks" that explode from the body upon destruction, try to make them more human like". Research (Half-Life, Quake, TF2, Fallout, Left 4 Dead 2, Dead Island 2, MadWorld) said: recognisable pieces, each the person's own skin or clothes outside, red meat round a white bone at the cut, a ragged edge rather than a clean one.
+
+- **The body's own surface breaks up** (`GoreShatter`): a burst part's skin, clothes, skull and hair are cut into pieces of a size, each closed behind with a line of fat, the meat round its torn edge and the inside. Clothes over skin get a back of their own.
+- **What was inside comes out** (`GoreAnatomy`, `GoreMeshes`): a head throws its eyes, jaw, teeth and skull shards; a trunk its ribs, spine, heart, lungs, liver and guts; a limb its own bone. A whole body also throws its head and the end of each limb whole, each with a stump (`Dismemberer.Burst.cs`).
+- **They fly, land and rest** (`GoreChunk`): a few leave a smear where they land, they come to rest and stop being simulated. At most `Debris.MaxLive` pieces are out at once, the oldest going first.
+- **The same on every screen**: the burst's seed goes in the replicated event. It is kept within what the server accepts (`Dismemberer.SeedRange` = `NetworkedAbilitySync.MaxSpeedOrDuration`): a larger one made the server refuse the cut, and other players never saw a head come off.
+- **No strobing light**: a cut-off part's bones stay on the body, weightless and without colliders, so it can be whole again when revived. They spun at up to 46 turns a second and swept any light riding them, a flashlight's beam or a burning blade, round like a strobe (owner: "a bunch of flashing lights ... like a flashlight type brightness"). They are now held from spinning (`CutBodyMostSpin`, `CutBodyAngularDamping`), the hidden ragdoll a whole burst leaves too, and every light on a part that is gone is off until revival.
+
+Tests: `GoreShatterTests`, `GoreAnatomyTests` (closed pieces, sizes, no broken corner or normal), `DismembermentPlayTests.Pieces.cs` (each part's pieces, the same seed the same pieces, landing and resting, every piece where numbers are, no light shining and no bone spinning after a burst). Pictures: `DismembermentCapture` (`dismember-*-burst*.png`).

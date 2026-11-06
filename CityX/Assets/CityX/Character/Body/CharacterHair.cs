@@ -28,6 +28,9 @@ namespace CityX.Character
     /// </summary>
     public sealed class CharacterHair : MonoBehaviour
     {
+        /// <summary>The worn hair's object, under the head bone (a burst head breaks it with the skull).</summary>
+        public const string WornName = "Hair";
+
         public const string None = "none";
         public const string Hair1 = "hair1";
         public const string Danny = "danny";
@@ -381,7 +384,7 @@ namespace CityX.Character
                 return;
             }
 
-            _worn = new GameObject("Hair");
+            _worn = new GameObject(WornName);
             _worn.transform.SetParent(Head, false);
             _worn.layer = Head.gameObject.layer;
 

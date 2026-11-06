@@ -8,8 +8,9 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: renders dismemberment (docs/DISMEMBERMENT.md) to Logs/CityShots/dismember-*.png -- a sword through the neck, a sword
-    /// through an arm and a leg, a blunt blow bursting a head, and a blunt blow bursting a whole body, each a moment after and once it has
-    /// all landed; and a corpse hacked at (head burst, arm cut, shin shot off). Explicit; run by name with -Graphics:
+    /// through an arm and a leg, a blunt blow bursting a head, a forearm and a whole body, each a moment after and once it has all landed (a
+    /// burst's pieces close up too, and how long the blow took is logged); and a corpse hacked at (head burst, arm cut, shin shot off).
+    /// Explicit; run by name with -Graphics:
     /// ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.DismembermentCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -45,6 +46,7 @@ namespace CityX.Tests
                 ("arm-cut", HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, 0.5f, true),
                 ("leg-cut", HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot, 0.4f, true),
                 ("head-burst", HumanBodyBones.Neck, HumanBodyBones.Head, 1.4f, false),
+                ("forearm-burst", HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand, 0.5f, false),
                 ("body-burst", HumanBodyBones.Hips, HumanBodyBones.Neck, 0.6f, false),
             };
             float x = 0.0f;
@@ -63,10 +65,12 @@ namespace CityX.Tests
                 Animator animator = body.GetComponentInChildren<Animator>();
                 Vector3 at = Vector3.Lerp(animator.GetBoneTransform(from).position, animator.GetBoneTransform(to).position, share);
                 vitals.TakeDamage(vitals.Health - 10.0f);
+                var watch = System.Diagnostics.Stopwatch.StartNew();
                 using (DamageContext.Cutting(edged))
                 {
                     DamageContext.Strike(vitals, 90.0f, at + new Vector3(1.0f, 0.0f, -1.5f), 0.0f, DamageKind.Physical, 1.0f, at);
                 }
+                Debug.Log($"CityX dismember capture: {name}: the blow took {watch.Elapsed.TotalMilliseconds:F1} ms");
                 for (int i = 0; i < 9; i++)
                 {
                     yield return null;
@@ -78,6 +82,11 @@ namespace CityX.Tests
                     yield return null;
                 }
                 yield return ArcaneOrbCapture.ShootFacing(camera, $"dismember-{name}-landed", look + new Vector3(2.5f, 2.5f, -3.5f), look + Vector3.down * 1.0f);
+                if (!edged)
+                {
+                    Vector3 pieces = PiecesAround(body.transform.position);
+                    yield return ArcaneOrbCapture.ShootFacing(camera, $"dismember-{name}-pieces", pieces + new Vector3(1.0f, 1.3f, -1.4f), pieces);
+                }
                 Debug.Log($"CityX dismember capture: {name}: {body.GetComponent<Dismemberer>().Last} {body.GetComponent<Dismemberer>().LastPart}");
                 x += 12.0f;
             }
@@ -136,6 +145,23 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        /// <summary>The middle of the gore lying within a few metres of a body (each case's body stands 12 m from the next).</summary>
+        private static Vector3 PiecesAround(Vector3 body)
+        {
+            Vector3 sum = Vector3.zero;
+            int count = 0;
+            foreach (GoreChunk piece in Object.FindObjectsByType<GoreChunk>(FindObjectsSortMode.None))
+            {
+                Vector3 at = piece.transform.position;
+                if (Mathf.Abs(at.x - body.x) < 5.5f && Mathf.Abs(at.z - body.z) < 5.5f)
+                {
+                    sum += at;
+                    count++;
+                }
+            }
+            return count > 0 ? sum / count : body;
         }
     }
 }

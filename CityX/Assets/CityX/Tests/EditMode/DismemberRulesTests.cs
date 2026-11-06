@@ -163,5 +163,25 @@ namespace CityX.Tests
             Assert.Greater(cut.Radius, 0.0f);
             Assert.IsNull(MeshSevering.Split(strip, strip, new bool[strip.vertexCount]), "nothing goes: no cut");
         }
+
+        [Test]
+        public void AMeshIsCarvedIntoItsPartsAtOnce()
+        {
+            // Rows 0 and 1 in group 0, row 2 in group 1, rows 3 and 4 in group 2; group 3 has nothing.
+            Mesh strip = Strip();
+            var groupOf = new int[strip.vertexCount];
+            for (int v = 0; v < groupOf.Length; v++)
+            {
+                int row = v / 2;
+                groupOf[v] = row <= 1 ? 0 : row == 2 ? 1 : 2;
+            }
+            MeshSevering.Carving carving = MeshSevering.Carve(strip, strip, groupOf, 4);
+            Assert.AreEqual(3 * 3, carving.Pieces[0].triangles.Length, "the bottom quad and half the next, whose corners are mostly in group 0");
+            Assert.AreEqual(2 * 3, carving.Pieces[1].triangles.Length);
+            Assert.AreEqual(3 * 3, carving.Pieces[2].triangles.Length);
+            Assert.IsNull(carving.Pieces[3], "a group with no triangle has no piece");
+            Assert.AreEqual(2.0f, carving.Centres[1].y, 0.6f, "the middle group's cut runs round its own rows");
+            Assert.Greater(carving.Radii[1], 0.0f);
+        }
     }
 }
