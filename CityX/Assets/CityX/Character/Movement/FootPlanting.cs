@@ -95,6 +95,9 @@ namespace CityX.Character
         /// <summary>The ground under a foot may be at most this much ABOVE the floor to be stood on (higher is a wall, not a step).</summary>
         public const float MaxFootRaise = 0.45f;
 
+        /// <summary>Going down a stair at a walk's or a run's pace a foot is raised at most this, metres: about a riser.</summary>
+        public const float MaxFootRaiseGoingDownQuickly = 0.2f;
+
         /// <summary>How quickly the hips follow a drop (fast, so a foot does not hover over a step) and come back up.</summary>
         public const float HipDropDownSeconds = 0.04f;
 
@@ -229,12 +232,15 @@ namespace CityX.Character
         /// Going along a slope of this rise per metre (0 on the flat): the hips are held higher, and a foot may be on ground further above or below the floor, which a long stride
         /// on a stair reaches: past the limit, it was left to the clip, in and out of the steps, a jump of up to 72 cm in a frame.
         /// </summary>
-        public void FitToSlope(float slope)
+        /// <paramref name="longStrides"/> off (a stair taken at a walk's or a run's pace, the legs the clip's): the feet keep the flat ground's reach, and going down a foot
+        /// is raised no more than a riser: the foot behind, over the treads above, lifted to them, folded its knee shut like a tail.
+        public void FitToSlope(float slope, bool longStrides = true)
         {
             float steep = Mathf.Abs(slope);
             HipDropLimit = Mathf.Lerp(MaxHipDrop, slope > 0.0f ? MaxHipDropOnSlope : MaxHipDropGoingDown, Mathf.InverseLerp(SlopeStartsLimiting, SlopeLimitsFully, steep));
-            FootRaiseLimit = MaxFootRaise + steep * FootRaisePerSlope;
-            FootLowerLimit = MaxHipDrop + LowestFootPastDrop + steep * FootRaisePerSlope;
+            float reach = longStrides ? steep * FootRaisePerSlope : 0.0f;
+            FootRaiseLimit = longStrides || slope >= -SlopeStartsLimiting ? MaxFootRaise + reach : MaxFootRaiseGoingDownQuickly;
+            FootLowerLimit = MaxHipDrop + LowestFootPastDrop + reach;
         }
 
         /// <summary>Where the ground should be probed for a foot: where the foot really is, under its lock while it is held and on the way back from it to the clip's ankle after.</summary>

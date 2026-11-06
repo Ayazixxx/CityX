@@ -1330,7 +1330,6 @@ namespace CityX.Character
                 speed *= PlayerVitals.SpeedOf(_statsVitals, StatId.MovementSpeed);
                 speed = WaterSpeed(speed);
                 speed *= CrouchSpeedFactor(_controller.isGrounded || _steppingUp);
-                speed *= StairPaceShare(sprinting, deltaTime);
                 speed *= SnowPace();
                 if (input.ShieldRaised && Shield != null)
                 {

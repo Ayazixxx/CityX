@@ -9,15 +9,17 @@ namespace CityX.Character
     /// </summary>
     public static class StairGait
     {
-        /// <summary>The share of a body's walking and sprinting speed it keeps on a stair: about three unhurried steps a second at a walk, on 0.36 m treads.</summary>
-        public const float WalkSpeedShare = 0.27f;
-
-        public const float SprintSpeedShare = 0.25f;
-
         /// <summary>The pace of a walk and a run on a stair, metres a second: the gait is read between them.</summary>
         public const float WalkPace = 1.08f;
 
         public const float RunPace = 1.9f;
+
+        /// <summary>
+        /// Faster than this the legs are the walk and run clips' over the gliding body, the feet set on the steps by the foot IK, not stepped tread by tread: a stair does not
+        /// slow anyone, like a stair in Minecraft (owner, 2026-11-05: "why is it so slow make it normal speed", "just minecraft stairs + foot IK"). Only a body slowed by
+        /// snow or water steps them.
+        /// </summary>
+        public const float MostSteppedSpeed = RunPace + 0.3f;
 
         /// <summary>One step on each tread: a whole cycle, left foot and right, covers two 0.36 m treads.</summary>
         public const float StrideMetres = 0.72f;
@@ -67,9 +69,6 @@ namespace CityX.Character
         private static readonly float[] DownAlong = { 0.0f, 0.31f, 0.69f, 0.89f, 0.93f, 1.0f, 1.0f, 1.0f };
         private static readonly float[] DownHeight = { 0.0f, 0.08f, 0.19f, 0.30f, 0.42f, 0.58f, 0.80f, 1.0f };
         private static readonly float[] DownHeel = { 0.0f, 20.0f, LandingPitchGoingDown, LandingPitchGoingDown, LandingPitchGoingDown, LandingPitchGoingDown, LandingPitchGoingDown, LandingPitchGoingDown };
-
-        /// <summary>The share of its speed a body keeps on a stair.</summary>
-        public static float SpeedShare(bool sprinting) => sprinting ? SprintSpeedShare : WalkSpeedShare;
 
         /// <summary>0 at a walk's pace, 1 at a run's and beyond.</summary>
         public static float RunShare(float speed) => Mathf.InverseLerp(WalkPace, RunPace, speed);

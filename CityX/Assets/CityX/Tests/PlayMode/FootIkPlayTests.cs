@@ -136,6 +136,8 @@ namespace CityX.Tests
             }
             Physics.SyncTransforms();
             PlayerLocomotion locomotion = Spawn(new Vector3(0.0f, 0.05f, 0.0f));
+            // Slowed to a stair's walk (as snow or water does): only then are the legs stepped tread by tread; at a body's own walk they are the clip's.
+            locomotion.WalkSpeed = StairGait.WalkPace;
             yield return null;
             yield return null;
 

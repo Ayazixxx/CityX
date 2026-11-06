@@ -110,12 +110,13 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// One frame of the stair's feet: on a stair, on the ground, going forward or back and not in a sword fight or a crouch, they are StairSteps' (the legs all IK, SolveLeg).
+        /// One frame of the stair's feet: on a stair, on the ground, no faster than a stair's run (faster, the legs are the walk's or run's and the foot IK sets the feet on the steps), going forward or back and not in a sword fight or a crouch, they are StairSteps' (the legs all IK, SolveLeg).
         /// </summary>
         private void StepStairFeet(bool active, float footwork, Vector3 heading, float speed, float yaw, float floorY, float soleOffset, float deltaTime)
         {
             bool forwardOrBack = heading == Vector3.zero || Mathf.Abs(Vector3.Dot(heading, transform.forward)) >= StairStepsLeastForwardShare;
-            float wanted = active && _glide.IsStairs && footwork <= 0.01f && forwardOrBack && !IsCrouching && !IsImpactFrozen ? 1.0f : 0.0f;
+            float wanted = active && _glide.IsStairs && footwork <= 0.01f && forwardOrBack && !IsCrouching && !IsImpactFrozen
+                && speed <= StairGait.MostSteppedSpeed ? 1.0f : 0.0f;
             Vector3 hips = 0.5f * (_leftUpperLeg.position + _rightUpperLeg.position);
             var body = new StairSteps.Body
             {
@@ -160,15 +161,12 @@ namespace CityX.Character
         private static readonly int StairFacingParameter = Animator.StringToHash(StairFacingName);
         private static readonly int StairRunParameter = Animator.StringToHash(StairRunName);
 
-        /// <summary>The clips come in and go over this long, seconds, and the body's pace changes over this long.</summary>
+        /// <summary>The clips come in and go over this long, seconds.</summary>
         private const float StairClipFadeSeconds = 0.2f;
-
-        private const float StairPaceSeconds = 0.25f;
 
         private int _stairBodyLayer = -2;
         private int _stairArmsLayer = -2;
         private float _stairClip;
-        private float _stairPace = 1.0f;
 
         /// <summary>How much of the upper body is the stair clip's just now, 0 to 1, for tests and captures.</summary>
         public float StairClipShare => _stairClip;
@@ -201,14 +199,6 @@ namespace CityX.Character
                 _animator.SetFloat(StairFacingParameter, _stairSteps.FacesUphill ? 1.0f : -1.0f);
                 _animator.SetFloat(StairRunParameter, StairGait.RunShare(speed));
             }
-        }
-
-        /// <summary>A body takes a stair at a stair's pace (the owner's reference clip: about three steps a second). Every body alike, so no enemy outruns a player up one.</summary>
-        private float StairPaceShare(bool sprinting, float deltaTime)
-        {
-            bool onStair = _glide.IsStairs && (_controller.isGrounded || _steppingUp) && !IsCrouching;
-            _stairPace = Mathf.MoveTowards(_stairPace, onStair ? StairGait.SpeedShare(sprinting) : 1.0f, deltaTime / StairPaceSeconds);
-            return _stairPace;
         }
 
         /// <summary>The share of the slope's effects in force, from none at a gentle ramp to all on a stair.</summary>

@@ -57,6 +57,13 @@ namespace CityX.Tests
             Physics.SyncTransforms();
         }
 
+        /// <summary>A body slowed to a stair's own walk and run (by snow, water or a crouch-free slow walk), where the legs step tread by tread and the recorded clip plays.</summary>
+        private void SlowToAStairsPace()
+        {
+            _locomotion.WalkSpeed = StairGait.WalkPace;
+            _locomotion.SprintSpeed = StairGait.RunPace;
+        }
+
         private IEnumerator Spawn(Vector3 at, float yaw)
         {
 #if UNITY_EDITOR
@@ -99,6 +106,7 @@ namespace CityX.Tests
             BuildStairs();
             float yaw = up ? 0.0f : 180.0f;
             yield return Spawn(up ? new Vector3(0.0f, 0.05f, FirstStepZ - 3.0f) : new Vector3(0.0f, TopY + 0.05f, TopZ + 3.0f), yaw);
+            SlowToAStairsPace();
             Animator animator = _player.GetComponentInChildren<Animator>();
             Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
             Transform[] feet = { animator.GetBoneTransform(HumanBodyBones.LeftFoot), animator.GetBoneTransform(HumanBodyBones.RightFoot) };
@@ -157,6 +165,7 @@ namespace CityX.Tests
         {
             BuildStairs();
             yield return Spawn(new Vector3(0.0f, 0.05f, FirstStepZ - 3.0f), 0.0f);
+            SlowToAStairsPace();
             var input = new LocomotionInput { Move = Vector2.up, YawDegrees = 0.0f };
             bool had = false;
             while (_player.transform.position.z < TopZ + 3.0f)
@@ -252,7 +261,7 @@ namespace CityX.Tests
             float z = FirstStepZ + 2.0f;
             for (int i = 0; i < 40; i++)
             {
-                z += 4.0f * Step;
+                z += StairGait.WalkPace * Step;
                 animator.SetBool("Grounded", true);
                 float capsule = Riser * (Mathf.Floor((z - FirstStepZ) / Tread) + 1.0f) + 0.08f;
                 _player.transform.position = new Vector3(0.0f, capsule, z);
@@ -263,9 +272,12 @@ namespace CityX.Tests
             Assert.Greater(_locomotion.StairClipShare, 0.0f, "the copy did not play the stair clip");
         }
 
-        /// <summary>A flight is taken at a stair's pace, and off it the body is back to its own.</summary>
+        /// <summary>
+        /// A stair does not slow a body (owner, 2026-11-05: "the stairs feel horrendous now why is it so slow make it normal speed"): it keeps its own walk and sprint, and at
+        /// those the legs are the walk and run clips', not stepped tread by tread.
+        /// </summary>
         [UnityTest]
-        public IEnumerator ABodyTakesAStairAtAStairsPace([Values(false, true)] bool sprint, [Values(true, false)] bool up)
+        public IEnumerator ABodyKeepsItsOwnPaceOnAStair([Values(false, true)] bool sprint, [Values(true, false)] bool up)
         {
             BuildStairs();
             float yaw = up ? 0.0f : 180.0f;
@@ -277,14 +289,29 @@ namespace CityX.Tests
                 _locomotion.Tick(input, Step);
                 yield return null;
             }
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            Transform[] thighs = { animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg), animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) };
+            Transform[] shins = { animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg), animator.GetBoneTransform(HumanBodyBones.RightLowerLeg) };
+            Transform[] feet = { animator.GetBoneTransform(HumanBodyBones.LeftFoot), animator.GetBoneTransform(HumanBodyBones.RightFoot) };
+            float tightestKnee = 180.0f;
+            int held = 0;
             float from = _player.transform.position.z;
             for (int i = 0; i < 60; i++)
             {
                 _locomotion.Tick(input, Step);
                 yield return null;
+                for (int f = 0; f < 2; f++)
+                {
+                    tightestKnee = Mathf.Min(tightestKnee, Vector3.Angle(thighs[f].position - shins[f].position, feet[f].position - shins[f].position));
+                    held += _locomotion.FootPlanting.IsLocked(f) && Mathf.Abs(_locomotion.GroundSlope) > 0.3f ? 1 : 0;
+                }
             }
             float pace = Mathf.Abs(_player.transform.position.z - from);
-            Assert.AreEqual(sprint ? StairGait.RunPace : StairGait.WalkPace, pace, 0.2f, "the wrong pace on the flight");
+            Assert.AreEqual(0, held, "at speed a foot was held on a tread");
+            // The run's own stride bends a knee to about 60 degrees; a foot reaching for a tread far below folded it shut behind the body.
+            Assert.GreaterOrEqual(tightestKnee, 45.0f, "a knee folded shut taking the stair at speed");
+            Assert.AreEqual(sprint ? _locomotion.SprintSpeed : _locomotion.WalkSpeed, pace, 0.4f, "the stair slowed the body");
+            Assert.AreEqual(0.0f, _locomotion.StairSteps.Weight, "at a walk's or a sprint's pace the legs were still stepped tread by tread");
 
             while (up ? _player.transform.position.z < TopZ + 1.5f : _player.transform.position.z > FirstStepZ - 1.5f)
             {
@@ -307,6 +334,7 @@ namespace CityX.Tests
         {
             BuildStairs();
             yield return Spawn(new Vector3(0.0f, 0.05f, FirstStepZ - 3.0f), 0.0f);
+            SlowToAStairsPace();
             Animator animator = _player.GetComponentInChildren<Animator>();
             int body = animator.GetLayerIndex(PlayerLocomotion.StairBodyLayerName);
             int arms = animator.GetLayerIndex(PlayerLocomotion.StairArmsLayerName);

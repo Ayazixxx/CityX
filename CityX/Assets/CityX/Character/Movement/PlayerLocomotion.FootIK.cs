@@ -139,7 +139,7 @@ namespace CityX.Character
             // THE BODY GLIDES OVER THE STEPS (PlayerLocomotion.Stairs.cs): drawn from the blurred ground, not the capsule, before anything is measured from it.
             StepGlide(position, moved, deltaTime, placeable && !_footIkWasInAir);
             root.localPosition += Vector3.up * _glide.Offset;
-            _feet.FitToSlope(_glide.Slope);
+            _feet.FitToSlope(_glide.Slope, _stairSteps.Weight > 0.0f);
 
             // The stride for this gait (GaitStrides), from the Animator's own blend position: a copy of another player's body has the same.
             float strideTarget = 1.0f;
@@ -230,7 +230,10 @@ namespace CityX.Character
             _footIkWasInAir = inAir;
 
             // (The footwork plants its own feet: the planting's locks stand aside while it has them.)
-            bool releaseLocks = (Mathf.Abs(yawDelta) > ReleaseLocksYawDegreesPerFrame && speed < ReleaseLocksBelowSpeed) || footwork > 0.01f;
+            // ON A STAIR NO MOVING FOOT IS HELD, only set on the step under it (owner, 2026-11-05: "just minecraft stairs + foot IK"): one held on a tread while the body
+            // sprinted on down the flight bent its leg up behind the body like a tail.
+            bool releaseLocks = (Mathf.Abs(yawDelta) > ReleaseLocksYawDegreesPerFrame && speed < ReleaseLocksBelowSpeed) || footwork > 0.01f
+                || (_glide.IsStairs && speed > StairGait.MostSteppedSpeed);
             _feet.Step(deltaTime, active, left, right, floorY, soleOffset, releaseLocks, moved / deltaTime);
             StepStairFeet(active, footwork, heading, speed, yaw, floorY, soleOffset, deltaTime);
 
