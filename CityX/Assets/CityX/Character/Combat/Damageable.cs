@@ -64,6 +64,26 @@ namespace CityX.Character
         void Launch(Vector3 velocity);
     }
 
+    /// <summary>Throwing a struck body limp, whatever it is.</summary>
+    public static class Throws
+    {
+        /// <summary>
+        /// <paramref name="target"/> thrown at <paramref name="velocity"/>: a player's body knocked down limp (sent to its owner when it is another
+        /// player's copy), anything else that can be thrown (a civilian) launched.
+        /// </summary>
+        public static void Limp(IDamageable target, Vector3 velocity)
+        {
+            if (target is PlayerVitals vitals)
+            {
+                vitals.TriggerLaunchKnockdown(velocity);
+            }
+            else if (target is ILaunchable launchable)
+            {
+                launchable.Launch(velocity);
+            }
+        }
+    }
+
     /// <summary>
     /// Optional add-on for something IDamageable that takes poison as plain damage over time, WITHOUT the reactions a blow causes (no flinch, no
     /// hit sound, no blocking, no invulnerability frames): a poisoned player coughing and flinching every half second would be a different

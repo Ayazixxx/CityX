@@ -146,3 +146,15 @@ combat sword is held straight out past the thumb, so its blade pointed almost st
 - Tests: `SwordSpinMoveTests` measures the blade in the thrust grip (between 3 degrees down and 25 up on every hit frame of the ground spin);
   `SwordSpinRealInputPlayTests` checks the blade along the arm and level or up in the real game with both swords. `SwordSpinCapture` films both swords
   (`spin-*.png`, `spin-1h-*.png`) with the sword hand close up on frames 13, 20 and 33.
+
+## Four blows that carry the target, and a level blade (2026-11-05)
+
+Owner: "make the sword spin attack do 3 hits like smash bros or however many smash bros has. also smash bros' has an effect where it like sucks the opponent in ... research Links up special spin attack ... toon link, young link, and link", then "make it hit 4 times so 4 times the damage number pops up", "the fourth one only sends them knocked back and ragdolled for the in air version not on ground", and "hold the sword more horizontally ... mostly horizontally and very slightly tilted upward".
+
+- **What Smash does** (SmashWiki, Ultimate): Toon Link's and Young Link's ground spin lands about ten 1% hits that pull the target in and carry it round, then a 3% launch; Link's is one big hit; all three in the air land eight alternating hits and a launch.
+- **Four blows now** (`SwordSpinMove.GroundPulses`, `AirPulses`, `Pulses`), a damage number each. Ground: frames 7, 15, 26 and 38, one as the blade comes round in front each turn, a quarter of the old clean hit each (14% together, before charge), none a launch. Air: frames 8, 16 and 31 with the blade ahead, and the fourth at 48 (36% together, as the eight and the launch were). The split is mine.
+- **Carried along** (`MeleeAttacker.CarryAlong`): every blow but the air spin's last draws what it lands on in to `SpinCarryMetres` (1.1 m) of the spinner by the next blow, lifted at `AirSpinCarryLift` (4 m/s) or the spinner's own climb in the air. A player's body is drawn on its owner's machine (`PlayerVitals.TriggerPull`, `IRemoteDamageRelay.TryRelayPull`, `NetworkedDamage`, clamped there to 4 m, 1 s, 12 m/s), as a knockdown is; a civilian is thrown gently.
+- **The air spin's last blow throws limp**: knocked back and ragdolled (`Throws.Limp`, the one rule the grenade and the giant's slam now share). Before, it launched only civilians: players and enemies were never thrown.
+- **The blade level**: the air spin's axis no longer tips (`spin_pose.py`: `AIR_TILT` 0, no tilt swing), so the blade stays at about 8 degrees up all the way round instead of swinging from 16 down to 31 up; the ground spin's was already about 3 degrees.
+
+Tests: `SwordSpinMoveTests` (the four blows, their frames and damage, the blade ahead on each), `SwordSpinRealInputPlayTests` (four blows on the ground drawing the target in and throwing nothing, a pull moving a body, the air spin's last blow throwing up, the blade nearly level through every blow, ground and air).

@@ -23,6 +23,12 @@ namespace CityX.Character
         /// </summary>
         bool TryRelayKnockdown(Vector3 velocity);
 
+        /// <summary>
+        /// True (and the pull was sent on) when this body is another player's copy: a sword spin's blow draws the real body along
+        /// <paramref name="direction"/> by <paramref name="metres"/> over <paramref name="seconds"/>, lifted at <paramref name="lift"/> metres a second.
+        /// </summary>
+        bool TryRelayPull(Vector3 direction, float metres, float seconds, float lift);
+
         /// <summary>A heal on another player's copy, sent to its owner (docs/HEALING.md); false on the owner's own body.</summary>
         bool TryRelayHeal(float amount);
     }

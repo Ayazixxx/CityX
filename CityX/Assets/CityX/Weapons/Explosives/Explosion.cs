@@ -151,13 +151,9 @@ namespace CityX.Weapons
                 {
                     continue;   // dashed through it, or behind a barrier, a guard or a shield: a blast that never reached the body does not throw it
                 }
-                if (target.IsAlive && target is PlayerVitals vitals)
+                if (target.IsAlive)
                 {
-                    vitals.TriggerLaunchKnockdown(thrown);
-                }
-                else if (target.IsAlive && target is ILaunchable launchable)
-                {
-                    launchable.Launch(thrown);
+                    Throws.Limp(target, thrown);
                 }
             }
             return hurt;

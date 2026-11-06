@@ -187,6 +187,45 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>The farthest, longest and highest a forwarded pull may draw a body: metres, seconds, metres a second.</summary>
+        public const float MaxPullMetres = 4.0f, MaxPullSeconds = 1.0f, MaxPullLift = 12.0f;
+
+        public bool TryRelayPull(Vector3 direction, float metres, float seconds, float lift)
+        {
+            if (!IsCopy)
+            {
+                return false;
+            }
+            if (_vitals != null && _vitals.IsDead)
+            {
+                return true;
+            }
+            SendPullToServer(direction, metres, seconds, lift);
+            return true;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void SendPullToServer(Vector3 direction, float metres, float seconds, float lift, NetworkConnection sender = null)
+        {
+            if (!Allowed(sender, 1.0f) || !WireChecks.Finite(direction) || !WireChecks.Finite(new Vector3(metres, seconds, lift)))
+            {
+                return;
+            }
+            if (Owner.IsValid)
+            {
+                ApplyPullOnOwner(Owner, direction, metres, seconds, lift);
+            }
+        }
+
+        [TargetRpc]
+        private void ApplyPullOnOwner(NetworkConnection target, Vector3 direction, float metres, float seconds, float lift)
+        {
+            if (_vitals != null && WireChecks.Finite(direction))
+            {
+                _vitals.Pull(direction, Mathf.Clamp(metres, 0.0f, MaxPullMetres), Mathf.Clamp(seconds, 0.05f, MaxPullSeconds), Mathf.Clamp(lift, 0.0f, MaxPullLift));
+            }
+        }
+
         /// <summary>The farthest a forwarded hit's contact point may be from the body it struck, metres; one further is dropped (the wound goes on the near side).</summary>
         public const float MaxContactMetres = 6.0f;
 

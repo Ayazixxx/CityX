@@ -462,36 +462,35 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// LINK'S GROUND SPIN: one hit on each target, worth the most when it connects at the very start (Smash: the clean hit, 14%, a
-        /// light swing being 10%). The fake sword is worth 20 here, so the clean hit is 20 x 1.4.
+        /// FOUR BLOWS (owner, 2026-11-05: "make it hit 4 times so 4 times the damage number pops up"), one each turn, together what Link's one
+        /// clean hit was (14%, a light swing being 10%). The fake sword is worth 20 here, so the four together are 20 x 1.4.
         /// </summary>
         [Test]
-        public void TheGroundSpinHitsATargetOnceAtItsCleanHitDamage()
+        public void TheGroundSpinHitsATargetFourTimes()
         {
             _attacker.EquippedWeapon = new FakeSwordWeapon();
             Assert.IsTrue(_attacker.TrySpinAttack());
             Step(_attacker.SpinAttackSeconds + 0.05f);
 
-            Assert.AreEqual(1, _dummy.TimesHit, "a ground spin hits each target once, not once a frame");
-            Assert.AreEqual(20.0f * 1.4f, _dummy.TotalDamageTaken, 0.01f, "the clean hit of the first frames: 14% against a light swing's 10%");
+            Assert.AreEqual(4, _dummy.TimesHit, "a ground spin lands four blows, not one and not one a frame");
+            Assert.AreEqual(20.0f * 1.4f, _dummy.TotalDamageTaken, 0.01f, "the four together are the old clean hit");
         }
 
-        /// <summary>The first frames are the strongest and it fades to half: something that walks into reach late is hit for the weakest band.</summary>
+        /// <summary>Something that walks into reach late is hit only by the blows still to come.</summary>
         [Test]
-        public void ATargetThatArrivesLateIsHitForLess()
+        public void ATargetThatArrivesLateIsHitOnlyByTheBlowsLeft()
         {
             _attacker.EquippedWeapon = new FakeSwordWeapon();
             _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 8.0f);   // far out of reach to begin with
             Physics.SyncTransforms();
             Assert.IsTrue(_attacker.TrySpinAttack());
-            Step(0.41f);   // frame 24-25: into the "latest" band
+            Step(0.41f);   // frame 24-25: past the first two blows (frames 7 and 15)
 
             _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 1.5f);
             Physics.SyncTransforms();
             Step(_attacker.SpinAttackSeconds);
 
-            Assert.AreEqual(1, _dummy.TimesHit);
-            Assert.AreEqual(20.0f * 0.7f, _dummy.TotalDamageTaken, 0.01f, "arriving in the last band is worth 7%, half the clean hit");
+            Assert.AreEqual(2, _dummy.TimesHit, "arriving after two blows, it takes the last two");
         }
 
         /// <summary>Holding the key charges it, up to a second, for 1 + 0.6 x charge: a full second is 1.6x.</summary>
@@ -509,7 +508,7 @@ namespace CityX.Tests
             Assert.IsTrue(_attacker.IsSpinTurning || _dummy.TimesHit > 0, "a full charge should release by itself");
             Step(_attacker.SpinAttackSeconds);
 
-            Assert.AreEqual(1, _dummy.TimesHit);
+            Assert.AreEqual(4, _dummy.TimesHit);
             Assert.AreEqual(20.0f * 1.4f * 1.6f, _dummy.TotalDamageTaken, 0.05f);
         }
 
@@ -608,7 +607,7 @@ namespace CityX.Tests
 
             Assert.IsTrue(_attacker.TrySpinAttack());
             Step(_attacker.SpinAttackSeconds + 0.05f);
-            Assert.AreEqual(1, _dummy.TimesHit);
+            Assert.Greater(_dummy.TimesHit, 0, "the blade did not reach it");
         }
 
         [Test]

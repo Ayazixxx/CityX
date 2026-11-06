@@ -216,6 +216,8 @@ namespace CityX.Tests
                 return true;
             }
 
+            public bool TryRelayPull(Vector3 direction, float metres, float seconds, float lift) => true;
+
             public bool TryRelayHeal(float amount) => true;
         }
 

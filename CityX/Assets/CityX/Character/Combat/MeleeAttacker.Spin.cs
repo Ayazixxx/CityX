@@ -55,6 +55,12 @@ namespace CityX.Character
 
         public float AirSpinLaunchAway = 3.0f;
 
+        [Tooltip("How near a blow that is not the last draws its target in, metres from the spinner: carried along at the blade, not into the body.")]
+        public float SpinCarryMetres = 1.1f;
+
+        [Tooltip("The air spin's blows lift what they hit at least this fast, metres a second, so it climbs with the spinner instead of dropping away.")]
+        public float AirSpinCarryLift = 4.0f;
+
         [Tooltip("The light trailing from the blade as it spins (the sword spin's streak material, shared with Octaslash). Empty draws none.")]
         public Material SpinSlashMaterial;
 
@@ -75,7 +81,6 @@ namespace CityX.Character
         private float _landingLagRemaining;
         private float _spinCooldownRemaining;
         private bool _airSpinUsed;
-        private readonly HashSet<IDamageable> _spinHit = new HashSet<IDamageable>();
 
         private BakedMotion _spinMotion;
         private BakedPose _spinPose;
@@ -184,7 +189,6 @@ namespace CityX.Character
             _spinKind = kind;
             _spinTime = SwordSpinMove.StartSeconds(kind, chargeSeconds);
             _nextPulse = 0;
-            _spinHit.Clear();
             _spinChargeMultiplier = SwordSpinMove.ChargeMultiplier(chargeSeconds);
             _currentStage = SpinAttackStage;
             if (!wasCharging)
@@ -271,7 +275,6 @@ namespace CityX.Character
                 return;
             }
 
-            float before = _spinTime;
             _spinTime += deltaTime;
             ShowSpin(_spinKind, _spinTime, deltaTime);
 
@@ -291,13 +294,6 @@ namespace CityX.Character
                     }
                 }
 
-                var pulses = SwordSpinMove.AirPulses;
-                while (_nextPulse < pulses.Length && _spinTime >= pulses[_nextPulse].Time)
-                {
-                    LandSpinBlow(pulses[_nextPulse].DamageScale, pulses[_nextPulse].Final, oncePerTarget: false);
-                    _nextPulse++;
-                }
-
                 // Coming down before the animation is over costs the landing lag.
                 if (_locomotion != null && _spinTime > 0.15f && _locomotion.IsGrounded && _locomotion.VerticalVelocity <= 0.0f
                     && _spinTime < SwordSpinMove.AirCommitSeconds)
@@ -311,11 +307,14 @@ namespace CityX.Character
                     return;
                 }
             }
-            else if (_spinTime >= SwordSpinMove.GroundHitStart && before <= SwordSpinMove.GroundHitEnd)
+
+            SpinPulse[] pulses = SwordSpinMove.Pulses(_spinKind);
+            while (_spinState == SpinState.Turning && _nextPulse < pulses.Length && _spinTime >= pulses[_nextPulse].Time)
             {
-                // Every frame of the window: each target is hit once, by whatever the blow is worth at the moment it first connects.
-                float sampled = Mathf.Clamp(_spinTime, SwordSpinMove.GroundHitStart, SwordSpinMove.GroundHitEnd);
-                LandSpinBlow(SwordSpinMove.GroundDamageScale(sampled) * _spinChargeMultiplier, false, oncePerTarget: true);
+                float untilNext = _nextPulse + 1 < pulses.Length ? pulses[_nextPulse + 1].Time - pulses[_nextPulse].Time : 0.2f;
+                float charge = _spinKind == SpinKind.Ground ? _spinChargeMultiplier : 1.0f;
+                LandSpinBlow(pulses[_nextPulse].DamageScale * charge, pulses[_nextPulse].Final, untilNext);
+                _nextPulse++;
             }
 
             if (_spinTime >= SwordSpinMove.CommitSeconds(_spinKind))
@@ -564,9 +563,9 @@ namespace CityX.Character
         /// arc. No combo, glass or block bookkeeping: TrySpinAttack already guaranteed a sword.
         /// </summary>
         /// <param name="scale">Multiplier on the sword's damage for this blow (SwordSpinMove's table, with the charge folded in).</param>
-        /// <param name="final">The aerial spin's last blow: launches whatever can be launched.</param>
-        /// <param name="oncePerTarget">The ground spin hits each target only once (the first frame it connects is what sets the damage).</param>
-        private void LandSpinBlow(float scale, bool final, bool oncePerTarget)
+        /// <param name="final">The aerial spin's last blow: knocks back and throws limp whatever it lands on.</param>
+        /// <param name="carrySeconds">Any other blow draws what it lands on along with the spinner over this long, until the next blow.</param>
+        private void LandSpinBlow(float scale, bool final, float carrySeconds)
         {
             // The sword can be unequipped while the spin it started is still running.
             if (EquippedWeapon == null || scale <= 0.0f)
@@ -580,29 +579,25 @@ namespace CityX.Character
             Vector3 origin = SwingOrigin();
             foreach (Contact contact in ContactsInReach(fullCircle: true, reach: SpinReachMetres))
             {
-                if (oncePerTarget && _spinHit.Contains(contact.Target))
-                {
-                    continue;
-                }
                 HitResponse response = Strike(contact.Target, damage, CombatTuning.HitstunSeconds, contact.Point);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
                 }
-                if (oncePerTarget)
-                {
-                    _spinHit.Add(contact.Target);
-                }
 
                 Landed?.Invoke(contact.Target, damage);
                 connected = true;
 
-                if (final && contact.Target.IsAlive && contact.Target is ILaunchable launchable)
+                if (response == HitResponse.Landed && contact.Target.IsAlive)
                 {
-                    Vector3 away = contact.Point - transform.position;
-                    away.y = 0.0f;
-                    away = away.sqrMagnitude > 1e-4f ? away.normalized : transform.forward;
-                    launchable.Launch(away * AirSpinLaunchAway + Vector3.up * AirSpinLaunchUp);
+                    if (final)
+                    {
+                        Throws.Limp(contact.Target, AwayFrom(contact.Point) * AirSpinLaunchAway + Vector3.up * AirSpinLaunchUp);
+                    }
+                    else
+                    {
+                        CarryAlong(contact, carrySeconds);
+                    }
                 }
 
                 if (response == HitResponse.Blocked)
@@ -620,6 +615,42 @@ namespace CityX.Character
             {
                 PlayImpact();
                 EquippedWeapon?.RegisterLandedMeleeHit();
+            }
+        }
+
+        /// <summary>Flat, from the spinner out through <paramref name="point"/>.</summary>
+        private Vector3 AwayFrom(Vector3 point)
+        {
+            Vector3 away = point - transform.position;
+            away.y = 0.0f;
+            return away.sqrMagnitude > 1e-4f ? away.normalized : transform.forward;
+        }
+
+        /// <summary>
+        /// A blow that is not the last draws its target along with the spin (Smash's Toon and Young Link: the spin carries them): in to
+        /// SpinCarryMetres of the spinner over <paramref name="seconds"/>, and in the air lifted with the climb. A player's body is drawn on its
+        /// owner's machine (PlayerVitals.TriggerPull); a civilian is thrown gently there.
+        /// </summary>
+        private void CarryAlong(Contact contact, float seconds)
+        {
+            Transform target = (contact.Target as Component)?.transform;
+            if (target == null)
+            {
+                return;
+            }
+            Vector3 offset = target.position - transform.position;
+            offset.y = 0.0f;
+            float metres = Mathf.Max(0.0f, offset.magnitude - SpinCarryMetres);
+            float lift = _spinKind == SpinKind.Air ? Mathf.Max(AirSpinCarryLift, _locomotion != null ? _locomotion.VerticalVelocity : 0.0f) : 0.0f;
+            Vector3 inward = offset.sqrMagnitude > 1e-4f ? -offset.normalized : -transform.forward;
+            seconds = Mathf.Max(seconds, 0.05f);
+            if (contact.Target is PlayerVitals vitals)
+            {
+                vitals.TriggerPull(inward, metres, seconds, lift);
+            }
+            else if (contact.Target is ILaunchable launchable)
+            {
+                launchable.Launch(inward * (metres / seconds) + Vector3.up * lift);
             }
         }
     }

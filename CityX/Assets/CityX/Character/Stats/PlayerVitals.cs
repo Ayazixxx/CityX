@@ -520,6 +520,43 @@ namespace CityX.Character
             KnockDown(velocity);
         }
 
+        /// <summary>
+        /// A sword spin's blow drawing this body along with the spinner: <paramref name="metres"/> along <paramref name="direction"/> over
+        /// <paramref name="seconds"/> (walls still stop it), lifted at <paramref name="lift"/> metres a second in the air. On another player's
+        /// copy it is sent to the owner, whose body is the real one.
+        /// </summary>
+        public void TriggerPull(Vector3 direction, float metres, float seconds, float lift)
+        {
+            if (IsDead)
+            {
+                return;
+            }
+            if (Relay != null && Relay.TryRelayPull(direction, metres, seconds, lift))
+            {
+                return;
+            }
+            Pull(direction, metres, seconds, lift);
+        }
+
+        /// <summary>The pull here only (what a forwarded pull does on the owner's machine). A limp body is the ragdoll's, not the walker's.</summary>
+        public void Pull(Vector3 direction, float metres, float seconds, float lift)
+        {
+            if (IsDead || (_ragdoll != null && _ragdoll.IsLimp))
+            {
+                return;
+            }
+            var locomotion = GetComponent<PlayerLocomotion>();
+            if (locomotion == null)
+            {
+                return;
+            }
+            locomotion.Shove(direction, metres, seconds);
+            if (lift > 0.0f && locomotion.VerticalVelocity < lift)
+            {
+                locomotion.SetVerticalVelocity(lift);
+            }
+        }
+
         /// <summary>Throws this body limp, here only (what a forwarded knockdown does on the owner's machine).</summary>
         public void KnockDown(Vector3 velocity)
         {

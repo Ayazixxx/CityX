@@ -119,6 +119,8 @@ namespace CityX.Character
 
         public bool TryRelayKnockdown(Vector3 velocity) => false;
 
+        public bool TryRelayPull(Vector3 direction, float metres, float seconds, float lift) => false;
+
         public bool TryRelayHeal(float amount) => false;
 
         [ServerRpc(RequireOwnership = false)]

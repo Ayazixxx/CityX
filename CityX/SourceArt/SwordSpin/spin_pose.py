@@ -43,8 +43,10 @@ GROUND_YAW = [(0, 0.0), (2, -8.0), (4, -35.0), (5, -25.0), (6, 35.0), (7, 90.0),
 AIR_YAW = [(0, -90.0), (3, -100.0), (5, -75.0), (6, -10.0), (7, 45.0), (8.5, 90.0), (12.5, 270.0), (16.5, 450.0), (19.5, 630.0),
            (22.5, 810.0), (26.5, 990.0), (31.5, 1170.0), (38.5, 1350.0), (48, 1530.0), (60, 1650.0), (75, 1745.0), (92, 1800.0)]
 
-# The air spin's axis tips forward this far (the blade passes low in front and high behind), easing in and out with the spin.
-AIR_TILT = 12.0
+# The air spin's axis tips forward this far (the blade passing low in front and high behind, as in Smash), easing in and out with the spin.
+# Level since the owner, 2026-11-05: "hold the sword more horizontally when doing the spin ... mostly horizontally and very slightly tilted
+# upward" (tipped, the blade swung from 16 degrees down to 31 up).
+AIR_TILT = 0.0
 
 
 def pchip(keys, x):
@@ -210,7 +212,7 @@ def air_wound():
 
 
 def air_spin(frame, yaw_deg):
-    P = spin_pose(frame, tilt_swing=0.22, yaw_deg=yaw_deg)
+    P = spin_pose(frame, yaw_deg=yaw_deg)   # no tilt swing: the blade stays level all the way round (owner, 2026-11-05)
     P["hips"] = (0.0, 0.95, 0.0)
     P["body"] = rot(p=-2)
     P.update(legs_tucked())

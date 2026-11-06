@@ -26,23 +26,22 @@ namespace CityX.Tests
             Assert.AreEqual(74.0f * Frame, SwordSpinMove.CommitSeconds(SpinKind.Ground), 1e-5f);
         }
 
+        /// <summary>Owner, 2026-11-05: "make it hit 4 times so 4 times the damage number pops up"; on the ground the fourth is a plain blow.</summary>
         [Test]
-        public void TheGroundSpinHurtsFromFrame7ToFrame39()
+        public void TheGroundSpinHitsFourTimesOnceATurnAndNeverThrows()
         {
-            Assert.AreEqual(0.0f, SwordSpinMove.GroundDamageScale(6.0f * Frame), "before the first hit frame");
-            Assert.Greater(SwordSpinMove.GroundDamageScale(7.0f * Frame), 0.0f, "frame 7 is the first");
-            Assert.Greater(SwordSpinMove.GroundDamageScale(39.0f * Frame), 0.0f, "frame 39 is the last");
-            Assert.AreEqual(0.0f, SwordSpinMove.GroundDamageScale(40.0f * Frame), "after the last");
-        }
-
-        [Test]
-        public void TheGroundSpinFadesFrom14To7InFourBands()
-        {
-            // clean 7-8: 14%, mid 9-13: 12%, late 14-23: 9%, latest 24-39: 7%
-            foreach (int frame in new[] { 7, 8 }) Assert.AreEqual(1.4f, SwordSpinMove.GroundDamageScale(frame * Frame), 1e-4f, $"frame {frame}");
-            foreach (int frame in new[] { 9, 11, 13 }) Assert.AreEqual(1.2f, SwordSpinMove.GroundDamageScale(frame * Frame), 1e-4f, $"frame {frame}");
-            foreach (int frame in new[] { 14, 18, 23 }) Assert.AreEqual(0.9f, SwordSpinMove.GroundDamageScale(frame * Frame), 1e-4f, $"frame {frame}");
-            foreach (int frame in new[] { 24, 30, 39 }) Assert.AreEqual(0.7f, SwordSpinMove.GroundDamageScale(frame * Frame), 1e-4f, $"frame {frame}");
+            var pulses = SwordSpinMove.GroundPulses;
+            int[] frames = { 7, 15, 26, 38 };
+            Assert.AreEqual(frames.Length, pulses.Length, "four blows");
+            float total = 0.0f;
+            for (int i = 0; i < frames.Length; i++)
+            {
+                Assert.AreEqual(frames[i] * Frame, pulses[i].Time, 1e-5f, $"blow {i}");
+                Assert.IsFalse(pulses[i].Final, $"ground blow {i} throws: on the ground none does");
+                total += pulses[i].DamageScale;
+            }
+            Assert.AreEqual(1.4f, total, 1e-4f, "the four together are not what its one clean hit was");
+            Assert.AreSame(pulses, SwordSpinMove.Pulses(SpinKind.Ground));
         }
 
         [Test]
@@ -54,23 +53,20 @@ namespace CityX.Tests
             Assert.AreEqual(1.6f, SwordSpinMove.ChargeMultiplier(120.0f * Frame), 1e-5f, "charge past the maximum counts for nothing");
         }
 
+        /// <summary>Owner, 2026-11-05: four blows; in the air the fourth knocks back and throws limp.</summary>
         [Test]
-        public void TheAirSpinHitsEightTimesThenLaunches()
+        public void TheAirSpinHitsFourTimesAndTheLastThrows()
         {
             var pulses = SwordSpinMove.AirPulses;
-            Assert.AreEqual(9, pulses.Length, "eight spin blows and the last");
-            int[] frames = { 8, 12, 16, 19, 22, 26, 31, 38, 48 };
+            int[] frames = { 8, 16, 31, 48 };
+            Assert.AreEqual(frames.Length, pulses.Length, "four blows");
             for (int i = 0; i < frames.Length; i++)
             {
                 Assert.AreEqual(frames[i] * Frame, pulses[i].Time, 1e-5f, $"blow {i}");
                 Assert.AreEqual(i == frames.Length - 1, pulses[i].Final, $"blow {i} final");
             }
-            // Front 4%, back 2%, alternating.
-            for (int i = 0; i < 8; i++)
-            {
-                Assert.AreEqual(i % 2 == 0 ? 0.4f : 0.2f, pulses[i].DamageScale, 1e-5f, $"blow {i}");
-            }
-            Assert.Greater(pulses[8].DamageScale, pulses[0].DamageScale, "the launching blow is the strong one");
+            Assert.Greater(pulses[3].DamageScale, pulses[0].DamageScale, "the throwing blow is the strong one");
+            Assert.AreSame(pulses, SwordSpinMove.Pulses(SpinKind.Air));
         }
 
         [Test]
@@ -98,7 +94,7 @@ namespace CityX.Tests
             Assert.AreEqual(2.0f * Frame, SwordSpinMove.StartSeconds(SpinKind.Ground, 2.0f * Frame), 1e-5f, "a short charge has wound up that far");
             Assert.AreEqual(SwordSpinMove.ChargeFrameSeconds, SwordSpinMove.StartSeconds(SpinKind.Ground, 1.0f), 1e-5f);
             Assert.AreEqual(0.0f, SwordSpinMove.StartSeconds(SpinKind.Air, 1.0f), 1e-5f, "the air spin is never charged");
-            Assert.AreEqual(3.0f * Frame, SwordSpinMove.GroundHitStart - SwordSpinMove.ChargeFrameSeconds, 1e-5f,
+            Assert.AreEqual(3.0f * Frame, SwordSpinMove.GroundPulses[0].Time - SwordSpinMove.ChargeFrameSeconds, 1e-5f,
                 "a charge let go lands its first blow three frames later");
         }
 
@@ -179,9 +175,9 @@ namespace CityX.Tests
         {
             BakedMotion motion = Motion();
             int start = motion.SegmentStart(SwordSpinMove.GroundSegment);
-            int first = FrameOf(SwordSpinMove.GroundHitStart);
-            Assert.Greater(BladeOn(motion, start + first).z, 0.8f, "the first, strongest blow does not cut straight ahead");
-            for (int f = first; f <= FrameOf(SwordSpinMove.GroundHitEnd); f++)
+            int first = FrameOf(SwordSpinMove.GroundPulses[0].Time);
+            Assert.Greater(BladeOn(motion, start + first).z, 0.8f, "the first blow does not cut straight ahead");
+            for (int f = first; f <= FrameOf(SwordSpinMove.GroundPulses[SwordSpinMove.GroundPulses.Length - 1].Time); f++)
             {
                 var world = BakedMotionPoses.WorldTurns(motion, start + f);
                 var joints = BakedMotionPoses.Joints(motion, start + f, world);
@@ -225,14 +221,7 @@ namespace CityX.Tests
             {
                 int frame = FrameOf(pulses[i].Time);
                 float ahead = BladeOn(motion, start + frame).z;
-                if (i % 2 == 0)
-                {
-                    Assert.Greater(ahead, 0.7f, $"blow {i} (frame {frame}) is a front one, but the blade is not ahead");
-                }
-                else
-                {
-                    Assert.Less(ahead, -0.7f, $"blow {i} (frame {frame}) is a back one, but the blade is not behind");
-                }
+                Assert.Greater(ahead, 0.7f, $"blow {i} (frame {frame}) lands with the blade ahead, but it is not ahead");
             }
             Assert.Less(BladeOn(motion, start + 45).y, 0.0f, "the launching cut does not start low");
             Assert.Greater(BladeOn(motion, start + 51).y, 0.8f, "the launching cut does not end overhead");

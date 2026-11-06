@@ -51,13 +51,9 @@ namespace CityX.Weapons
                     continue;   // dashed through it, or behind a barrier, a guard or a shield: a slam that never reached the body does not throw it
                 }
                 Vector3 throwVelocity = direction * GiantRules.SlamThrowSpeed * share + Vector3.up * GiantRules.SlamThrowUpSpeed * share;
-                if (target.IsAlive && target is PlayerVitals vitals)
+                if (target.IsAlive)
                 {
-                    vitals.TriggerLaunchKnockdown(throwVelocity);
-                }
-                else if (target.IsAlive && target is ILaunchable launchable)
-                {
-                    launchable.Launch(throwVelocity);
+                    Throws.Limp(target, throwVelocity);
                 }
             }
             Show(feet, scale);

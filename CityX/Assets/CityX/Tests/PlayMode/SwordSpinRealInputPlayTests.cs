@@ -58,6 +58,11 @@ namespace CityX.Tests
             public Vector3 LeftHandOffset;
             public bool Sampled;
 
+            /// <summary>While set, the lowest and highest the blade has pointed, as its rise (the up part of its direction).</summary>
+            public bool Recording;
+            public float LowestRise = float.MaxValue, HighestRise = float.MinValue;
+            public float HighestAt;
+
             private void LateUpdate()
             {
                 // The chest's own right: the body turns inside the spin's animation, its transform does not.
@@ -65,6 +70,15 @@ namespace CityX.Tests
                 Along = (Blade.BladeTipWorld - Blade.BladeBaseWorld).normalized;
                 LeftHandOffset = LeftHand.position - Chest.position;
                 Sampled = true;
+                if (Recording)
+                {
+                    LowestRise = Mathf.Min(LowestRise, Along.y);
+                    if (Along.y > HighestRise)
+                    {
+                        HighestRise = Along.y;
+                        HighestAt = Time.time;
+                    }
+                }
             }
         }
 
@@ -275,8 +289,56 @@ namespace CityX.Tests
             Assert.Less(Vector3.Angle(probe.Along, probe.Right), 30.0f,
                 $"the blade points {Vector3.Angle(probe.Along, probe.Right):0} degrees off straight out to the chest's right " +
                 $"(spun for {_melee.SpinElapsedSeconds:0.00}s, kind {_melee.CurrentSpinKind})");
-            Assert.That(probe.Along.y, Is.InRange(-0.08f, 0.45f), $"the blade should be swept level or a little up, not {probe.Along.y:0.00}");
+            // Owner, 2026-11-05: "hold the sword more horizontally ... mostly horizontally and very slightly tilted upward" (it rose up to 27 degrees).
+            Assert.That(probe.Along.y, Is.InRange(0.0f, 0.12f), $"the blade should be nearly level, a little up, not {probe.Along.y:0.00} ({Mathf.Asin(Mathf.Clamp(probe.Along.y, -1f, 1f)) * Mathf.Rad2Deg:0} degrees)");
             Assert.Less(Vector3.Dot(probe.LeftHandOffset, probe.Right), -0.2f, "the free arm should be out the other side for balance");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-05: "hold the sword more horizontally when doing the spin right now its angled too upward, I want it to be mostly
+        /// horizontally and very slightly tilted upward": every frame its blows can land on, ground and air, the blade near level.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ThroughEveryBlowTheBladeIsNearlyLevel([Values(false, true)] bool inTheAir)
+        {
+#if UNITY_EDITOR
+            yield return LoadSceneWithASword();
+            if (inTheAir)
+            {
+                yield return JumpToHeight(_vitals.transform.position.y, 0.6f);
+            }
+            Animator animator = _vitals.GetComponentInChildren<Animator>();
+            var probe = _vitals.gameObject.AddComponent<PoseProbe>();
+            probe.Blade = _melee.EquippedWeapon as ISwordBlade;
+            probe.LeftHand = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            probe.Chest = animator.GetBoneTransform(HumanBodyBones.Spine);
+            SpinPulse[] pulses = SwordSpinMove.Pulses(inTheAir ? SpinKind.Air : SpinKind.Ground);
+
+            Press(_keyboard.digit2Key);
+            yield return null;
+            Release(_keyboard.digit2Key);
+            float started = Time.time;
+            int blowsBeforeTheThrow = pulses[pulses.Length - 1].Final ? pulses.Length - 1 : pulses.Length;
+            float until = pulses[blowsBeforeTheThrow - 1].Time + SwordSpinMove.Frames(2.0f);
+            while (Time.time - started < pulses[0].Time)
+            {
+                yield return null;
+            }
+            probe.Recording = true;
+            while (Time.time - started < until)
+            {
+                yield return null;
+            }
+            probe.Recording = false;
+            float highest = Mathf.Asin(Mathf.Clamp(probe.HighestRise, -1f, 1f)) * Mathf.Rad2Deg;
+            float lowest = Mathf.Asin(Mathf.Clamp(probe.LowestRise, -1f, 1f)) * Mathf.Rad2Deg;
+            Debug.Log($"CityX spin blade ({(inTheAir ? "air" : "ground")}): {lowest:0.0} to {highest:0.0} degrees, highest {probe.HighestAt - started:0.00} s in");
+            Assert.That(highest, Is.LessThanOrEqualTo(10.0f), $"the blade rose to {highest:0} degrees, {probe.HighestAt - started:0.00} s into the spin");
+            // A moment's dip as the arm swings out into the first turn, never a blade pointing down.
+            Assert.That(lowest, Is.GreaterThanOrEqualTo(-6.0f), $"the blade dipped to {lowest:0} degrees");
 #else
             yield break;
 #endif
@@ -335,6 +397,48 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Owner, 2026-11-05: four blows, four damage numbers, the target carried along with the spin (Smash's Toon Link), and on the ground
+        /// the fourth a plain blow: every blow draws the target in toward the spinner, none throws it up.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheGroundSpinHitsFourTimesDrawingTheTargetInAndThrowsNothing()
+        {
+#if UNITY_EDITOR
+            yield return LoadSceneWithASword();
+            Vector3 at = _vitals.transform.position;
+            Target beside = Dummy(at + new Vector3(2.0f, 1.2f, 0.0f));
+
+            Press(_keyboard.digit2Key);
+            yield return null;
+            Release(_keyboard.digit2Key);
+            yield return Seconds(1.6f);
+
+            Assert.AreEqual(4, beside.Hits, "the ground spin should land four blows");
+            Assert.AreEqual(4, beside.Launches, "each blow should draw the target along");
+            Assert.Less(beside.LastLaunch.x, 0.0f, "the blows push the target away instead of drawing it in");
+            Assert.AreEqual(0.0f, beside.LastLaunch.y, 1e-4f, "a ground spin's blow threw the target up");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>A body drawn by a spin's blow moves that far toward the spinner, through its own controller (walls still stop it).</summary>
+        [UnityTest]
+        public IEnumerator APullDrawsABodyAlong()
+        {
+#if UNITY_EDITOR
+            yield return LoadSceneWithASword();
+            Vector3 before = _vitals.transform.position;
+            _vitals.TriggerPull(Vector3.right, 1.5f, 0.3f, 0.0f);
+            yield return Seconds(0.6f);
+            float moved = _vitals.transform.position.x - before.x;
+            Assert.That(moved, Is.InRange(1.0f, 2.0f), $"pulled 1.5 m, the body moved {moved:0.00} m");
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator TheAirSpinHitsSeveralTimesAndItsLastBlowThrowsTargetsUp()
         {
@@ -356,7 +460,7 @@ namespace CityX.Tests
 
             Assert.GreaterOrEqual(beside.Hits, 3, $"the target beside the body was hit {beside.Hits} time(s): a multi-hit spin hits more than that");
             Assert.GreaterOrEqual(above.Hits, 1, "the target at the top of the climb was never reached");
-            Assert.AreEqual(1, above.Launches, "the last blow should throw it, once");
+            Assert.GreaterOrEqual(above.Launches, 1, "the last blow did not throw it");
             Assert.Greater(above.LastLaunch.y, 5.0f, "thrown upward");
 #else
             yield break;
