@@ -374,9 +374,9 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
 - **Looking at an item (built 2026-10-31, docs/ITEM_INSPECT.md):** its name under the crosshair with `[E] Take  [F] Inspect`, as Skyrim does; F
   opens an appraisal card beside it in the world (the owner's Sword Art Online screenshot), the camera gliding in so it reads. The card lists what
   the item is and how it is held, its style, its damage, speed, fire rate, range, mana and the like, what stat raises it, and green or red arrows
-  against the item in hand. No durability (owner, 2026-10-30), no level line, and no armour on clothes until armour is designed (owner, 2026-10-31).
+  against the item in hand. No durability (owner, 2026-10-30), no level line; clothes show no armour, armour pieces their tier and rating (docs/ARMOUR.md).
   Owner, 2026-11-06, on how a sledgehammer should differ from a sword: "there should certainly be stronger armor than others". So worn armour will
-  differ in strength; how (ratings, tiers, what each piece adds) is still to be designed. Owner, same day: heavy armour does NOT slow you down,
+  differ in strength. Built 2026-11-06 on my suggestion, which the owner said go to (docs/ARMOUR.md): Light, Medium and Heavy pieces add a rating by slot, a full heavy set stops about 40%, and armour never stops more than half of a player's blow or two thirds of an enemy's; the sledgehammer ignores 35% of armour. Owner, same day: heavy armour does NOT slow you down,
   and carrying a lot does not either: "an annoying system we should avoid things that are annoying like carrying a lot of items slowing you down".
   Owner, same day: enemies LOOTABLE like Skyrim's ("grab the armor and weapons off of them"); with dismemberment, "probably having armor makes
   you harder to be dismembered and if you do still get dismembered badly we could have the armor just come off the body and turn into its

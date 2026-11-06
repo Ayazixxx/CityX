@@ -131,7 +131,7 @@ namespace CityX.Tests
         {
             ItemCard shirt = ItemCards.Describe(ItemRegistry.TShirt, null);
             Assert.AreEqual("Top / Worn", shirt.TypeLine);
-            Assert.AreEqual(0, shirt.Rows.Count, "clothes have no numbers until armour is designed");
+            Assert.AreEqual(0, shirt.Rows.Count, "a T-shirt is clothing: no armour line (docs/ARMOUR.md)");
             Assert.AreEqual("Headwear / Worn", ItemCards.Describe(ItemRegistry.KnightHelmet, null).TypeLine);
             Assert.AreEqual("Shoes / Worn", ItemCards.Describe(ItemRegistry.WhiteSneaker, null).TypeLine);
             Assert.AreEqual("Shield / Worn", ItemCards.Describe(ItemRegistry.RoundShield, null).TypeLine);

@@ -628,8 +628,8 @@ namespace CityX.Character
         /// <summary>How fast this body's swings run: Melee Speed (1 plus its share; 1 with no vitals). The poses and other players' copies follow it.</summary>
         public float SwingSpeed => PlayerVitals.SpeedOf(_vitals, StatId.MeleeSpeed);
 
-        /// <summary>How much of a target's armour and block chance this body's blows ignore (its Armor Penetration stat, 2026-10-14).</summary>
-        private float Penetration => _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
+        /// <summary>How much of a target's armour and block chance this body's blows ignore: its Armor Penetration stat (2026-10-14), and a hammer's weight (ArmourRules.HammerPierce).</summary>
+        private float Penetration => ArmourRules.Combine(_vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, ArmourRules.PierceOf(EquippedWeapon));
 
         /// <summary>The melee damage multiplier from Bloodrage (1 when it is not running or this body has none).</summary>
         public float BloodrageFactor

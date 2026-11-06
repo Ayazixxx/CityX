@@ -89,6 +89,31 @@ namespace CityX.Character
         /// <summary>Opens a scope in which blows land as heavy ones (or not).</summary>
         public static HeavyBlowScope LandingHeavily(bool heavy) => new HeavyBlowScope(heavy);
 
+        /// <summary>
+        /// A player struck the blow: armour stops less of it (ArmourRules.PlayerBlowCap). <see cref="Strike"/> says so from its striker; a
+        /// blow forwarded from another player's machine names no striker and brings this with it (NetworkedDamage).
+        /// </summary>
+        public static bool ByPlayer { get; private set; }
+
+        /// <summary>Opens a scope in which blows are a player's (or not).</summary>
+        public static ByPlayerScope StruckByPlayer(bool byPlayer) => new ByPlayerScope(byPlayer);
+
+        public readonly struct ByPlayerScope : IDisposable
+        {
+            private readonly bool _before;
+
+            public ByPlayerScope(bool byPlayer)
+            {
+                _before = ByPlayer;
+                ByPlayer = byPlayer;
+            }
+
+            public void Dispose()
+            {
+                ByPlayer = _before;
+            }
+        }
+
         public readonly struct HeavyBlowScope : IDisposable
         {
             private readonly bool _before;
@@ -221,6 +246,7 @@ namespace CityX.Character
             bool wasAlive = target.IsAlive;
             HitResponse response;
             using (new Scope(kind, penetration, contactPoint))
+            using (StruckByPlayer(striker != null ? PlayerBodies.IsPlayer(BodyOf(striker)) : ByPlayer))
             {
                 response = target.ApplyHit(amount, fromPosition, hitstunSeconds);
             }
@@ -234,6 +260,13 @@ namespace CityX.Character
                 }
             }
             return response;
+        }
+
+        /// <summary>The body a striker belongs to: the one with stats above it (a weapon's wielder), or the striker itself.</summary>
+        private static UnityEngine.GameObject BodyOf(UnityEngine.GameObject striker)
+        {
+            PlayerVitals vitals = striker.GetComponentInParent<PlayerVitals>();
+            return vitals != null ? vitals.gameObject : striker;
         }
 
         /// <summary>The penetration of a body's blows: its Armor Penetration stat, or none for a body without stats.</summary>

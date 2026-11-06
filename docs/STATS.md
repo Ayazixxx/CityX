@@ -33,7 +33,7 @@ and every cap are mine, first values to tune (`Character/Stats/StatCatalog.cs`).
 | Movement Speed | +1% | +40% | walking and running (capped: the city has to stream in ahead of you) |
 | Flight Speed | +1% | +50% | flying with the wings or the jetpack: every speed (climb, sink, cruise, Shift) scaled (`FlightGear.SpeedScale`; 2026-10-28) |
 | Vehicle Handling | +2% | +100% | **not in the game yet** (the cars are to be redone) |
-| Armor | +5 armour | - | **new**: stops rating/(rating + 100) of melee blows and bullets (100 armour: half), never all |
+| Armor | +5 armour | - | **new**: stops rating/(rating + 100) of melee blows and bullets (100 armour: half), never all; worn armour adds to the rating, and no more than half of a player's blow or two thirds of anything else's is ever stopped (docs/ARMOUR.md, 2026-11-06) |
 | Magic Resistance | +5 resistance | - | **new**: the same against spells, poison included |
 | Stability | +3% | 75% | **new**: that chance to shrug off a blow that would stagger (no hitstun, nothing cut short); a deeper poise pool in a hyper-armoured swing; a cheaper guard to hold (harder to break) |
 | Block Chance | +2% | 70% (80% in all) | **new**: while blocking, a chance to stop a blow outright -- no damage, no stamina, a bullet glances off with sparks and a ting and flies off somewhere safe (docs/BULLET_DEFLECTION.md). Everyone starts at 10% (the owner: "it starts at a lower chance and lets you upgrade it") |

@@ -463,6 +463,20 @@ namespace CityX.Character
             return ids;
         }
 
+        /// <summary>The armour rating of everything worn (Items.ArmourRatings): clothes add nothing, armour by its slot and tier.</summary>
+        public float ArmourRating
+        {
+            get
+            {
+                float rating = 0.0f;
+                foreach (string itemId in _equipment.Values)
+                {
+                    rating += ArmourRatings.RatingOf(itemId);
+                }
+                return rating;
+            }
+        }
+
         /// <summary>The ids of the clothes worn (ItemDefinition.IsWearable), by slot: what a character's save keeps on them.</summary>
         public System.Collections.Generic.List<string> WornClothingIds()
         {

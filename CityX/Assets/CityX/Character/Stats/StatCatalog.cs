@@ -110,7 +110,7 @@ namespace CityX.Character
                 case StatUnit.Percent:
                     return $"+{effect * 100.0f:0.#}% {Noun}";
                 case StatUnit.Rating:
-                    return $"{effect:0.#} {Noun} ({StatCatalog.RatingReduction(effect) * 100.0f:0.#}% less damage)";
+                    return $"{effect:0.#} {Noun} ({Mathf.Min(StatCatalog.RatingReduction(effect), ArmourRules.OtherBlowCap) * 100.0f:0.#}% less damage)";   // never past the cap (ArmourRules)
                 default:
                     return $"+{effect:0.##} {Noun}";
             }

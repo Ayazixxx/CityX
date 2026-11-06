@@ -517,6 +517,35 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Armour stops at most half of a player's blow and two thirds of anything else's (docs/ARMOUR.md): the hit forwarded from A's machine
+        /// says a player struck it, so B's real body takes it under the player cap.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator APlayersBlowThroughTheRelayIsCappedAsAPlayersBlow()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            var realVitals = _bOnB.GetComponent<PlayerVitals>();
+            var copyVitals = _bOnA.GetComponent<PlayerVitals>();
+            realVitals.Stats[StatId.Armor] = 200;   // 1000 armour: 91% uncapped
+            realVitals.Revive();
+
+            float before = realVitals.Health;
+            DamageContext.Strike(copyVitals, 20.0f, _aOnA.transform.position, 0.0f, DamageKind.Physical, 0.0f, null, _aOnA.gameObject);
+            yield return WaitUntil(() => realVitals.Health < before - 1.0f, "player A's blow to reach B's real body");
+            Assert.AreEqual(before - 20.0f * (1.0f - ArmourRules.PlayerBlowCap), realVitals.Health, 0.5f, "B's armour stopped more than a player's cap");
+
+            before = realVitals.Health;
+            DamageContext.Strike(copyVitals, 20.0f, _aOnA.transform.position, 0.0f, DamageKind.Physical, 0.0f, null, null);
+            yield return WaitUntil(() => realVitals.Health < before - 1.0f, "a blow nobody struck to reach B's real body");
+            Assert.AreEqual(before - 20.0f * (1.0f - ArmourRules.OtherBlowCap), realVitals.Health, 0.5f, "a blow no player struck was capped as a player's");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator AHitOnAnotherPlayersCopyLandsOnThatPlayersRealBody()
         {

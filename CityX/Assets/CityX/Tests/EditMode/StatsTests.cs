@@ -163,15 +163,15 @@ namespace CityX.Tests
         {
             PlayerVitals vitals = MakeVitals();
             vitals.Stats[StatId.Armor] = 20;            // 100 armour: half
-            vitals.Stats[StatId.MagicResistance] = 60;  // 300: three quarters
+            vitals.Stats[StatId.MagicResistance] = 30;  // 150: three fifths (under the cap, ArmourRules)
 
             Assert.AreEqual(10.0f, Hit(vitals, 20.0f, DamageKind.Physical, 0.0f), 1e-3f);
             Assert.AreEqual(10.0f, Hit(vitals, 20.0f, DamageKind.Bullet, 0.0f), 1e-3f);
-            Assert.AreEqual(5.0f, Hit(vitals, 20.0f, DamageKind.Magic, 0.0f), 1e-3f);
+            Assert.AreEqual(8.0f, Hit(vitals, 20.0f, DamageKind.Magic, 0.0f), 1e-3f);
 
             float before = vitals.Health;
             vitals.TakePoison(8.0f);
-            Assert.AreEqual(2.0f, before - vitals.Health, 1e-3f, "poison is a spell's");
+            Assert.AreEqual(3.2f, before - vitals.Health, 1e-3f, "poison is a spell's");
 
             // Armour penetration ignores a share of the armour: half of 100 leaves 50, which stops a third.
             Assert.AreEqual(20.0f * (1.0f - 50.0f / 150.0f), Hit(vitals, 20.0f, DamageKind.Physical, 0.5f), 1e-3f);

@@ -296,12 +296,30 @@ namespace CityX.Character
         /// <summary>The whole chance to stop a blow outright while blocking: everyone's <see cref="StatCatalog.BaseBlockChance"/> plus Block Chance.</summary>
         public float BlockChance => StatCatalog.BaseBlockChance + Stats.Effect(StatId.BlockChance);
 
-        /// <summary>The share of a blow of this kind that armour (physical, bullets) or magic resistance (spells) stops, after the attacker's penetration.</summary>
+        /// <summary>
+        /// The share of a blow of this kind that armour (physical, bullets: the Armor stat and the worn gear) or magic resistance (spells) stops,
+        /// after the attacker's penetration, capped by who struck it (ArmourRules: a player's blow, DamageContext.ByPlayer, is capped lower).
+        /// </summary>
         public float ResistanceTo(DamageKind kind, float penetration)
         {
-            float rating = kind == DamageKind.Magic ? Stats.Effect(StatId.MagicResistance) : Stats.Effect(StatId.Armor);
-            return StatCatalog.RatingReduction(rating * (1.0f - Mathf.Clamp01(penetration)));
+            float rating = kind == DamageKind.Magic ? Stats.Effect(StatId.MagicResistance) : Stats.Effect(StatId.Armor) + GearArmour;
+            return ArmourRules.Reduction(rating, penetration, DamageContext.ByPlayer);
         }
+
+        /// <summary>The armour rating of what this body wears (Items.ArmourRatings), added to the Armor stat against blows and bullets.</summary>
+        public float GearArmour
+        {
+            get
+            {
+                if (_inventory == null)
+                {
+                    _inventory = GetComponent<Inventory>();
+                }
+                return _inventory != null ? _inventory.ArmourRating : 0.0f;
+            }
+        }
+
+        private Inventory _inventory;
 
         // ---- THE PARRY: a held guard that catches a blow in its first instant ----
 

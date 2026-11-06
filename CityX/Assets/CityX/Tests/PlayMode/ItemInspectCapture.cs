@@ -11,7 +11,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: renders the prompt under the crosshair for a knife on a crate, the camera half-way through its glide, and the open
-    /// appraisal card (docs/ITEM_INSPECT.md) to Logs/CityShots/inspect-*.png. Run with -Graphics and look at the pictures.
+    /// appraisal card (docs/ITEM_INSPECT.md), then the Knight Helmet's card (its armour), to Logs/CityShots/inspect-*.png. Run with -Graphics and look at the pictures.
     /// </summary>
     public sealed class ItemInspectCapture
     {
@@ -48,6 +48,7 @@ namespace CityX.Tests
             inventory.ItemPrefabs = new[]
             {
                 new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.KitchenKnife, Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/KitchenKnife.prefab") },
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.KnightHelmet, Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/KnightHelmet.prefab") },
             };
             var cameraObject = new GameObject("Camera") { tag = "MainCamera" };
             made.Add(cameraObject);
@@ -85,6 +86,22 @@ namespace CityX.Tests
             Shoot(camera, "inspect-glide");
             for (int i = 0; i < 40; i++) yield return null;
             Shoot(camera, "inspect-card");
+
+            // Armour's card (docs/ARMOUR.md): the Knight Helmet in the knife's place, its tier and rating.
+            inspector.Close();
+            DroppedItems.Shared.Clear();
+            DroppedItem helmet = DroppedItems.Shared.Drop(new ItemDrop
+            {
+                ItemId = ItemRegistry.KnightHelmet,
+                Data = ItemInstanceData.None,
+                Position = new Vector3(0.0f, 1.2f, 2.2f),
+                Rotation = Quaternion.Euler(0.0f, 180.0f, 0.0f),
+                Placed = true,
+            }, false);
+            for (int i = 0; i < 40; i++) yield return null;
+            inspector.Open(helmet);
+            for (int i = 0; i < 55; i++) yield return null;
+            Shoot(camera, "inspect-card-armour");
 
             Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             DroppedItems.Shared.Clear();

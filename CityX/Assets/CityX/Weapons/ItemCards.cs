@@ -7,7 +7,7 @@ namespace CityX.Weapons
     /// <summary>
     /// FILLS AN ITEM'S CARD (Items.ItemCard, docs/ITEM_INSPECT.md) from what its prefab is: the sword's own blade settings, the gun's profile,
     /// the bow's draw, which staff it is and the rules that staff shoots by. Every number is the one the weapon fights with, read from the same
-    /// constant or field, so the card can never say one thing and the blow do another. Clothes get their slot and no numbers (armour later).
+    /// constant or field, so the card can never say one thing and the blow do another. Clothes get their slot; armour its tier and rating (docs/ARMOUR.md).
     /// </summary>
     public static class ItemCards
     {
@@ -27,6 +27,7 @@ namespace CityX.Weapons
             if (known && (definition.IsWearable || definition.EquipSlot == EquipSlots.Shield))
             {
                 WornOn(card, definition.EquipSlot);
+                Armour(card);
                 return card;
             }
             if (prefab != null)
@@ -63,6 +64,10 @@ namespace CityX.Weapons
             card.Add("Attack", sword.GetMeleeDamage(), sword.GetMeleeDamage().ToString("0.#"));
             card.Add("Speed", knife ? KnifeRules.SwingSpeed : 1.0f, knife ? "Quick (x" + KnifeRules.SwingSpeed.ToString("0.0") + ")" : "Normal");
             card.Add("Reach", knife ? KnifeRules.ReachShare : 1.0f, knife ? Mathf.RoundToInt(KnifeRules.ReachShare * 100.0f) + "%" : "Full");
+            if (sword.IsHammer)
+            {
+                card.Note("Ignores " + Mathf.RoundToInt(ArmourRules.HammerPierce * 100.0f) + "% of armour");
+            }
             if (oneHanded)
             {
                 card.Note("Backstab x" + Backstab.MultiplierFor(knife).ToString("0.#") + " from behind");
@@ -229,6 +234,19 @@ namespace CityX.Weapons
             card.Kind = kind;
             card.Hands = hands;
             card.Note(note);
+        }
+
+        /// <summary>A piece of armour's tier and rating, and the share of a blow the rating alone stops (clothes: nothing to say).</summary>
+        private static void Armour(ItemCard card)
+        {
+            ArmourTier tier = ArmourRatings.TierOf(card.ItemId);
+            float rating = ArmourRatings.RatingOf(card.ItemId);
+            if (tier == ArmourTier.None || rating <= 0.0f)
+            {
+                return;
+            }
+            card.Style = ArmourRatings.NameOf(tier);
+            card.Add("Armour", rating, rating.ToString("0.#") + " (stops " + Mathf.RoundToInt(StatCatalog.RatingReduction(rating) * 100.0f) + "%)");
         }
 
         private static void WornOn(ItemCard card, string slot)

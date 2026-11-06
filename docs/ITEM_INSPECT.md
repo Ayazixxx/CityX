@@ -35,7 +35,7 @@ Decided from docs/GAME_DESIGN.md (the styles table, the 24 stats, the staffs and
 | Staffs and the wand | Staff (Two Hands) / Wand (One Hand) | Casts (the spell), Attack (a shot, or a second for a held stream), Fire rate, Mana (a shot or a second; "Free" for the speck), Heals for the healing staff | Magic Weapons; scales with Spell Power; the wand's +5% damage and 10% less mana, frost's freeze, the jet's knockdown |
 | Flamethrower, grenade, bottle | their own | Attack, Range or Radius, Fuse | Special / Explosives / Improvised |
 | Jetpack, wings, parachute, grapple, spray can, flashlight, gas can | Flight gear, Parachute, Grapple, Tool, One Hand or On the back | none | one line on what it does |
-| Clothes, hats, shoes, the shield | Top / Legs / Shoes / Headwear / Shield, Worn | none yet | Clothing (armour comes later, the owner's call) |
+| Clothes, hats, shoes, the shield | Top / Legs / Shoes / Headwear / Shield, Worn | armour pieces: Armour, the rating and the share it stops (docs/ARMOUR.md, 2026-11-06) | Clothing, or the armour's tier (Heavy Armour) |
 
 Every number is read from the same constant or prefab field the weapon fights with (`Weapons/ItemCards.cs`): the sword's own blade settings
 (`SwordWeapon`), the gun's `FirearmProfile`, the bow's `DrawnProfile`, each staff's rules (`FlameStreamRules`, `ArcaneOrbRules`, ...), so the
@@ -75,5 +75,5 @@ half-way and the open card to `Logs/CityShots/inspect-*.png`.
 
 ## Not done
 
-Icons (the owner draws them; the initial stands in). Armour lines on clothes. A gamepad's buttons. Inspecting from the inventory and the loot
+Icons (the owner draws them; the initial stands in). A gamepad's buttons. Inspecting from the inventory and the loot
 window (the card is only for items lying in the world for now). The thumbnail of the item's model in the round mark.
