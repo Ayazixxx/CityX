@@ -76,3 +76,14 @@ in the stance with `SwordFootwork`. All procedural, so other players' copies sho
 **One-handed chain built 2026-11-04 (`SOULSLIKE_COMBAT.md`): slash, backhand, diagonal finisher.** Still to do: the heavy's place in it, a steer at the nearest enemy, the two-handed sword.
 
 The same treatment for the one-handed sword (3 lights into a heavy, full-body, feet planted, a roll-catching delay on the heavy), with a steer at the nearest enemy, then the two-handed sword, then one system for every melee weapon. Owner's picks: Dark Souls pacing with combos.
+
+## The sledgehammer (2026-11-06)
+
+Owner, 2026-11-05: "make a sledgehammer (two handed) and its still a 3 hit combo but the third one he smashes it straight down vertically. make a low effort model i will replace later", then "use hand ik for the grip".
+
+- **A two-handed blunt weapon on the greatsword's moves** (`ItemRegistry.Sledgehammer`, `SwordWeapon` with `OneHanded` off and `Hammer` on). The same forehand and backhand, guard, dash and heavy slam, and the two-handed hold, the left hand set on the grip by hand IK as on every two-handed weapon.
+- **Its third light is the overhead smash** (`SwordStrikeKind.Smash2H`, `SoulsSwordCombat.HammerLight3`, "sword2h_smash"): both hands straight up over the head, then down the middle onto whatever is in front, the hips sinking. A light, landing 0.34 s after the click, with a longer recovery than the diagonal; 1.45x damage, 0.75 s stun, 40 poise: my numbers. The greatsword keeps its diagonal.
+- **The stand-in model** (`SledgehammerBuilder`, rebuilt with the scene): a turned wooden handle 1.4 m long and an octagonal steel head across its top, in the greatsword's frame. Replace the model with a real one and keep the frame: the handle down the root's -Y, the head's top `Reach` above it.
+- Equipped with /equip sledgehammer (or sledge, hammer); Common, my placement (not on GAME_DESIGN's rarity list); its card says "Hammer".
+
+Tests: `SledgehammerTests` (two-handed, blunt, a handle and a head, the third light the smash and the greatsword's still the diagonal, straight down the middle, listed and carded, built for other players' copies, the console names), `SwordStrikesTests` (every strike, the smash among them), `SoulsCombatRhythmTests` (the backhand holds the victim until the smash lands). Pictures: `SwordStrikeCapture` (`strike-hammer-*.png`, `grip-hammer.png`).

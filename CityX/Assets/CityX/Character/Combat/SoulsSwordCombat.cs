@@ -172,6 +172,9 @@ namespace CityX.Character
         /// <summary>True for a knife (one-handed too): the knife's quicker, lighter attacks, its reach and guard, its backstab (KnifeRules).</summary>
         bool IsKnife => false;
 
+        /// <summary>True for a hammer (two-handed): the two-handed attacks, but the light chain ends in an overhead smash straight down.</summary>
+        bool IsHammer => false;
+
         /// <summary>
         /// Holds the sword in the thrust grip at <paramref name="weight"/> (the handle in the fist, turned so the blade leans out toward the
         /// fingertips), and as it is otherwise held at 0. PlayerLocomotion does it while the stab dash's or the spin's pose holds the body (BakedPose.ThrustGrip).
@@ -248,6 +251,9 @@ namespace CityX.Character
         public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.45f, 22.0f, 1.00f, 0.50f, 0.25f, 25.0f, false);
         public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.45f, 22.0f, 1.05f, 0.58f, 0.25f, 25.0f, false);   // longer: the finisher after it winds up for 0.31 s
         public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.50f, 26.0f, 1.30f, 0.70f, 0.35f, 30.0f, false);
+
+        /// <summary>A hammer's third light: straight down overhead (owner, 2026-11-05), a little heavier than the diagonal it replaces. My numbers.</summary>
+        public SoulsAttack HammerLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Smash2H, 0.50f, 28.0f, 1.45f, 0.75f, 0.30f, 40.0f, false);
 
         [Header("Two-handed heavy (held left click)")]
         public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.55f, 40.0f, 2.00f, 1.00f, 0.50f, 60.0f, true);
@@ -441,6 +447,7 @@ namespace CityX.Character
         private bool _equipped;
         private bool _oneHanded;
         private bool _knife;
+        private bool _hammer;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
         private PlayerAnimationDriver _driver;
@@ -493,7 +500,7 @@ namespace CityX.Character
             {
                 return index == 0 ? OneHandLight1 : (index == 1 ? OneHandLight2 : OneHandLight3);
             }
-            return index == 0 ? Light1 : (index == 1 ? Light2 : Light3);
+            return index == 0 ? Light1 : (index == 1 ? Light2 : (_hammer ? HammerLight3 : Light3));
         }
 
         /// <summary>How many lights the chain runs through before it starts again: three, ending in the finisher; a knife's two, back and forth.</summary>
@@ -567,6 +574,7 @@ namespace CityX.Character
             _sword = sword;
             _oneHanded = sword != null && (sword.IsOneHanded || sword.IsKnife);
             _knife = sword != null && sword.IsKnife;
+            _hammer = sword != null && sword.IsHammer;
             _equipped = true;
             if (_vitals != null)
             {

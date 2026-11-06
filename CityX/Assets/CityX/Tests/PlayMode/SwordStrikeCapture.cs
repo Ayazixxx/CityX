@@ -55,6 +55,7 @@ namespace CityX.Tests
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
                 ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
                 ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
+                ("hammer", "Assets/CityX/Weapons/Sledgehammer.prefab"),
                 ("knife", "Assets/CityX/Weapons/KitchenKnife.prefab"),
             })
             {
@@ -268,6 +269,7 @@ namespace CityX.Tests
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
                 ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
                 ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
+                ("hammer", "Assets/CityX/Weapons/Sledgehammer.prefab"),
                 ("knife", "Assets/CityX/Weapons/KitchenKnife.prefab"),
             })
             {

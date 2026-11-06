@@ -32,6 +32,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.CombatSword, "Assets/CityX/Weapons/CombatSword.prefab"),
             (ItemRegistry.MetalCrowbar, "Assets/CityX/Weapons/MetalCrowbar.prefab"),
             (ItemRegistry.BaseballBat, "Assets/CityX/Weapons/BaseballBat.prefab"),
+            (ItemRegistry.Sledgehammer, "Assets/CityX/Weapons/Sledgehammer.prefab"),
             (ItemRegistry.KitchenKnife, "Assets/CityX/Weapons/KitchenKnife.prefab"),
             (ItemRegistry.ButterKnife, "Assets/CityX/Weapons/ButterKnife.prefab"),
             (ItemRegistry.Flamethrower, "Assets/CityX/Weapons/Flamethrower.prefab"),

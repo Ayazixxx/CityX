@@ -79,6 +79,7 @@ namespace CityX.Weapons
             {
                 case ItemRegistry.MetalCrowbar: return "Crowbar";
                 case ItemRegistry.BaseballBat: return "Bat";
+                case ItemRegistry.Sledgehammer: return "Hammer";
                 case ItemRegistry.CombatSword: return "Sword";
                 case ItemRegistry.SpikeSword: return "Greatsword";
                 default: return oneHanded ? "Blade" : "Greatsword";

@@ -85,6 +85,13 @@ namespace CityX.Weapons
 
         public bool IsKnife => _knife;
 
+        /// <summary>A HAMMER (the sledgehammer): the two-handed moves, but its third light smashes straight down overhead (SwordStrikeKind.Smash2H).</summary>
+        [SerializeField] private bool _hammer;
+
+        public bool Hammer { get => _hammer; set => _hammer = value; }
+
+        public bool IsHammer => _hammer;
+
         /// <summary>A DULL knife (the butter knife): the knife's moves, but its blows land as <see cref="KnifeRules.DullDamage"/>.</summary>
         [SerializeField] private bool _dull;
 

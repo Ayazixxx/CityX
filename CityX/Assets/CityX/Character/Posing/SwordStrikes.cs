@@ -31,6 +31,9 @@ namespace CityX.Character
 
         /// <summary>One-handed: the last of the three lights, a big diagonal from over the right shoulder down to the lower left, the whole body stepping through it.</summary>
         Finisher1H,
+
+        /// <summary>Two-handed, a hammer's third light: raised overhead and smashed straight down the middle (owner, 2026-11-05, the sledgehammer).</summary>
+        Smash2H,
     }
 
     /// <summary>
@@ -139,6 +142,7 @@ namespace CityX.Character
         public const string Reverse2HName = "sword2h_reverse";
         public const string Sweep2HName = "sword2h_sweep";
         public const string Slam2HName = "sword2h_slam";
+        public const string Smash2HName = "sword2h_smash";
 
         /// <summary>The held guard poses, played as states so another player's copy raises the same guard.</summary>
         public const string Guard1HName = "sword1h_guard";
@@ -174,6 +178,7 @@ namespace CityX.Character
         {
             SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Thrust1H, SwordStrikeKind.Overhead1H,
             SwordStrikeKind.Cut2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Slam2H, SwordStrikeKind.Finisher1H,
+            SwordStrikeKind.Smash2H,
         };
 
         public static bool TryGet(string animation, out SwordStrikeKind kind)
@@ -189,6 +194,7 @@ namespace CityX.Character
                 case Reverse2HName: kind = SwordStrikeKind.Reverse2H; return true;
                 case Sweep2HName: kind = SwordStrikeKind.Sweep2H; return true;
                 case Slam2HName: kind = SwordStrikeKind.Slam2H; return true;
+                case Smash2HName: kind = SwordStrikeKind.Smash2H; return true;
                 default: kind = SwordStrikeKind.Slash1H; return false;
             }
         }
@@ -216,6 +222,7 @@ namespace CityX.Character
                 case SwordStrikeKind.Cut2H: return Cut2HName;
                 case SwordStrikeKind.Reverse2H: return Reverse2HName;
                 case SwordStrikeKind.Sweep2H: return Sweep2HName;
+                case SwordStrikeKind.Smash2H: return Smash2HName;
                 default: return Slam2HName;
             }
         }
@@ -278,6 +285,8 @@ namespace CityX.Character
                 case SwordStrikeKind.Cut2H: return new StrikeTiming(0.20f, 0.07f, 0.15f, 0.115f, 0.07f, 0.25f);
                 case SwordStrikeKind.Reverse2H: return new StrikeTiming(0.15f, 0.05f, 0.13f, 0.12f, 0.05f, 0.20f);
                 case SwordStrikeKind.Sweep2H: return new StrikeTiming(0.16f, 0.05f, 0.13f, 0.12f, 0.05f, 0.21f);
+                // A light, so no long hold, but with a hammer's weight: a higher wind-up than the diagonal, and a longer recovery once it lands.
+                case SwordStrikeKind.Smash2H: return new StrikeTiming(0.18f, 0.04f, 0.12f, 0.11f, 0.08f, 0.30f);
                 default: return new StrikeTiming(0.38f, 0.30f, 0.16f, 0.13f, 0.18f, 0.35f);
             }
         }
@@ -653,7 +662,7 @@ namespace CityX.Character
             };
         }
 
-        private static readonly Key[][] Cache = new Key[9][];
+        private static readonly Key[][] Cache = new Key[10][];
 
         private static Key[] KeysFor(SwordStrikeKind kind)
         {
@@ -727,6 +736,20 @@ namespace CityX.Character
                         new Vector3(0.15f, 2.45f, 0.45f), 0.0f);
                     Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.12f, 1.36f, 0.66f), cut, 27.0f,
                         elbow: 0.30f, twist: -5.0f, hips: -5.0f, lean: 24.0f, tilt: 0.0f, drop: 0.20f, lead: -1.0f, depth: 0.75f, reach: 0.6f);
+                    return Assemble(kind, ready2, windup, contact, follow);
+                }
+                case SwordStrikeKind.Smash2H:
+                {
+                    // THE HAMMER'S SMASH: both hands raised straight up over the head, the hammer's head back behind it, then straight down the
+                    // middle onto whatever is in front, the hips sinking and the body bending over the blow. A light: no long hold.
+                    CutPlane cut = Overhead;
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.16f, 2.30f, -0.04f), cut, -140.0f,
+                        elbow: 0.50f, twist: 5.0f, hips: 0.0f, lean: -8.0f, tilt: 0.0f, drop: 0.05f, lead: -1.0f, depth: 0.40f);
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.10f, 1.52f, 0.72f), cut, 22.0f,
+                        elbow: 0.25f, twist: -5.0f, hips: -5.0f, lean: 18.0f, tilt: 0.0f, drop: 0.16f, lead: -1.0f, depth: 0.70f, reach: 1.0f),
+                        new Vector3(0.12f, 2.35f, 0.42f), 0.0f);
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.10f, 1.38f, 0.64f), cut, 26.0f,
+                        elbow: 0.30f, twist: -5.0f, hips: -5.0f, lean: 22.0f, tilt: 0.0f, drop: 0.18f, lead: -1.0f, depth: 0.70f, reach: 0.6f);
                     return Assemble(kind, ready2, windup, contact, follow);
                 }
                 case SwordStrikeKind.Slash1H:

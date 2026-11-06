@@ -35,6 +35,7 @@ namespace CityX.Items
         public const string CombatSword = "combat_sword";
         public const string MetalCrowbar = "metal_crowbar";
         public const string BaseballBat = "baseball_bat";
+        public const string Sledgehammer = "sledgehammer";
         public const string KitchenKnife = "kitchen_knife";
         public const string ButterKnife = "butter_knife";
         public const string Flamethrower = "flamethrower";
@@ -107,6 +108,8 @@ namespace CityX.Items
             [CombatSword] = new ItemDefinition(CombatSword, "Combat Sword", "weapon", EquipSlots.Primary, 1),
             [MetalCrowbar] = new ItemDefinition(MetalCrowbar, "Metal Crowbar", "weapon", EquipSlots.Primary, 1),
             [BaseballBat] = new ItemDefinition(BaseballBat, "Baseball Bat", "weapon", EquipSlots.Primary, 1),
+            // Two-handed and blunt: the greatsword's moves, with an overhead smash for its third light (owner, 2026-11-05).
+            [Sledgehammer] = new ItemDefinition(Sledgehammer, "Sledgehammer", "weapon", EquipSlots.Primary, 1),
             // A knife: one-handed, quicker and lighter than the sword, with the biggest backstab (docs/KNIFE.md, KnifeRules).
             [KitchenKnife] = new ItemDefinition(KitchenKnife, "Kitchen Knife", "weapon", EquipSlots.Primary, 1),
             // A dull knife: the kitchen knife's moves, softer blows, no edge.

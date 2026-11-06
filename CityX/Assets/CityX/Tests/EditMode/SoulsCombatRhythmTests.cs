@@ -102,6 +102,10 @@ namespace CityX.Tests
             Assert.LessOrEqual(free1, 0.12f, $"free for {free1:0.00} s between the forehand and the backhand");
             Assert.GreaterOrEqual(free2, 0.0f);
             Assert.LessOrEqual(free2, 0.12f, $"free for {free2:0.00} s between the backhand and the finisher");
+            // The sledgehammer's smash in the finisher's place (owner, 2026-11-05): the backhand still holds the victim until it lands.
+            float free3 = FreeBeforeTheNextCut(_combat.Light2, _combat.HammerLight3);
+            Assert.GreaterOrEqual(free3, 0.0f, "the backhand lets go before the hammer's smash can land");
+            Assert.LessOrEqual(free3, 0.12f, $"free for {free3:0.00} s between the backhand and the hammer's smash");
         }
 
         [Test]

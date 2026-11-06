@@ -2570,6 +2570,8 @@ MonoBehaviour:
   AirSpinMoveFraction: 0.5
   AirSpinLaunchUp: 9
   AirSpinLaunchAway: 3
+  SpinCarryMetres: 1.1
+  AirSpinCarryLift: 4
   SpinSlashMaterial: {fileID: 2100000, guid: 2b060d6e4d0b57746a498c94c7b4830b, type: 2}
   Range: 2.5
   OriginHeightFraction: 0.68

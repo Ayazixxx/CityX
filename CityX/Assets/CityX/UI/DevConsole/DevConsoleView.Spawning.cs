@@ -361,6 +361,9 @@ namespace CityX.UI
                 case "bat":
                 case "baseballbat":
                 case "baseball_bat": return ItemRegistry.BaseballBat;
+                case "sledge":
+                case "hammer":
+                case "sledgehammer": return ItemRegistry.Sledgehammer;
                 case "flamethrower": return ItemRegistry.Flamethrower;
                 case "staff":
                 case "arcane":
