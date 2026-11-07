@@ -115,6 +115,8 @@ east the joints crossed the walk at a slant, and it read as a plaza's paving, no
 - Tests: `StreetFurnitureTests` (where the rule stands each thing round the spawn; each is built standing on the pavement; a stall mark
   in the road at each meter's line). Pictures: `TrafficCapture.RenderTheStreets` (`streets-2-corner.png` shows a corner's things).
 - Not built yet: manholes and drains, the gutter pan in the road, yellow dome mats at the crossings.
+- **Owner, 2026-11-06: "we should save street gutters and manholes to be apart of when we build the sewers".** So the gutter pan, the
+  storm drains and the manholes wait for the Sewers (docs/GAME_DESIGN.md) and are built with them, as the street's side of what lies below.
 
 ### Red kerb by the hydrants (2026-11-05)
 
