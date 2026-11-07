@@ -72,6 +72,27 @@ namespace CityX.Tests
             for (int i = 0; i < 5; i++) yield return null;
             yield return Shoot(camera, "corpse-loot-taken", body + new Vector3(-2.2f, 2.6f, -3.0f), body);
 
+            // Another swordsman's head cut off with his helmet on (docs/ARMOUR.md): the helmet falls off as its item, to be picked up.
+            DroppedItems.Shared.Clear();
+            DroppedItems.Shared.PrefabFor = id => id == Items.ItemRegistry.KnightHelmet
+                ? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/KnightHelmet.prefab") : null;
+            var second = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Swordsman.prefab"),
+                new Vector3(6.0f, 0.05f, 3.0f), Quaternion.Euler(0.0f, 180.0f, 0.0f));
+            made.Add(second);
+            second.GetComponent<SwordsmanBrain>().enabled = false;
+            for (int i = 0; i < 3; i++) yield return null;
+            Animator animator = second.GetComponentInChildren<Animator>();
+            Vector3 neck = animator.GetBoneTransform(HumanBodyBones.Neck).position;
+            Vector3 head = Vector3.LerpUnclamped(neck, animator.GetBoneTransform(HumanBodyBones.Head).position, 1.4f);
+            using (DamageContext.Cutting(true))
+            {
+                DamageContext.Strike(second.GetComponent<PlayerVitals>(), 10000.0f, head + Vector3.left * 1.5f, 0.0f, DamageKind.Physical, 1.0f, head);
+            }
+            for (int i = 0; i < 90; i++) yield return null;
+            yield return Shoot(camera, "corpse-helmet-popped", new Vector3(3.0f, 3.2f, -1.5f), new Vector3(7.0f, 0.3f, 3.0f));
+            DroppedItems.Shared.Clear();
+            DroppedItems.Shared.PrefabFor = Inventory.FindPrefab;
+
             Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             foreach (GameObject go in made) if (go != null) Object.Destroy(go);
 #else

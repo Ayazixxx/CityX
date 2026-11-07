@@ -46,8 +46,21 @@ Owner, 2026-11-06:
 - `StatsTests` keeps the stat's own rule under the caps.
 - Picture: `ItemInspectCapture` (`inspect-card-armour.png`).
 
-## Next (queued, owner 2026-11-06)
+## Armour and dismemberment (built 2026-11-06)
 
-- Enemies wear and drop gear, and a dead body opens a loot view.
-- Armour on a part makes it harder to cut off.
-- A part that comes off anyway drops its armour as the real item.
+Owner: "probably having armor makes you harder to be dismembered and if you do still get dismembered badly we could have the armor just come off the body and turn into its object form".
+
+- **Armour holds a part on** (`DismemberRules.ArmouredFactor`, `Covers`; `Dismemberer.ArmourOn`).
+  - A part under armour needs 1 + 2 x the armour's tier share more to come off: three times as much under heavy armour, about 1.7 times under light. My numbers.
+  - This applies to both a killing blow's overkill and the blows a corpse's part takes.
+  - What each slot covers: a helmet the head; a top the torso and upper arms; gloves the forearms; legs the legs; shoes the shins.
+- **Gear on a part that comes off anyway falls off as the item** (`Dismemberer.PopWornOff`):
+  - This applies to anything worn, not only armour.
+  - It does not go with the part as a still copy or burst with it. It lies there as the real item, for anyone to pick up.
+  - The machine that decides the body drops it, for everyone in a session (DroppedItems). Every copy of the body takes it off.
+  - It leaves the body's loot list.
+  - A player's own gear stays theirs.
+
+## Looting fallen enemies (built 2026-11-06)
+
+docs/LOOTING.md, Bodies.

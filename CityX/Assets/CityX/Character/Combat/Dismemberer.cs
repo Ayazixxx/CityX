@@ -169,8 +169,8 @@ namespace CityX.Character
             {
                 return;
             }
-            Dismemberment what = DismemberRules.Decide(blow, maxHealth);
             BodyPart part = PartHit(blow, out Vector3 point);
+            Dismemberment what = DismemberRules.Decide(blow, maxHealth, ArmourOn(part));
             if (what == Dismemberment.None)
             {
                 _corpseDamage[(int)part] += Mathf.Max(0.0f, blow.Overkill);
@@ -192,7 +192,7 @@ namespace CityX.Character
             }
             BodyPart part = PartHit(blow, out Vector3 point);
             _corpseDamage[(int)part] += Mathf.Max(0.0f, blow.Damage);
-            if (_corpseDamage[(int)part] >= DismemberRules.Toughness(part, maxHealth))
+            if (_corpseDamage[(int)part] >= DismemberRules.Toughness(part, maxHealth, ArmourOn(part)))
             {
                 Take(blow.Edged && part != BodyPart.Torso ? Dismemberment.Sever : Dismemberment.Burst, part, point, blow.From);
             }
@@ -260,6 +260,7 @@ namespace CityX.Character
             }
             if (part == BodyPart.Torso)
             {
+                PopWornOff(transform, away);
                 Gone(part, Dismemberment.Burst);
                 BurstWhole(away, seed);
                 return true;
@@ -269,6 +270,7 @@ namespace CityX.Character
             {
                 return false;
             }
+            PopWornOff(root, away);
             Gone(part, what);
             var going = new HashSet<Transform>(root.GetComponentsInChildren<Transform>(true));
             GameObject piece = what == Dismemberment.Sever ? new GameObject($"{part} (cut off)") : null;

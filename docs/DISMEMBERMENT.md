@@ -57,6 +57,10 @@ as well".
 - Chunks and cut-off parts lie 60 s, then shrink away over 3 s, taking the meshes made for them (`Debris`). Revived, the body is whole
   (`Restore`).
 
+## Armour (2026-11-06)
+
+A part under armour takes more to come off (three times under heavy armour), and what is worn on a part that comes off falls to the ground as the item itself (docs/ARMOUR.md).
+
 ## Other players
 
 Decided on the machine where the body is (the owner's; a civilian's, the machine it lives on). `Dismemberer` is an `IReplicatedAbility`:

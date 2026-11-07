@@ -93,21 +93,45 @@ namespace CityX.Character
             return Mathf.Max(MinOverkill, Mathf.Max(0.0f, healthLeft), OverkillShareOfMaxHealth * Mathf.Max(0.0f, maxHealth));
         }
 
-        /// <summary>What a killing blow does to a living body.</summary>
-        public static Dismemberment Decide(Blow blow, float maxHealth)
+        /// <summary>
+        /// ARMOUR HOLDS A PART ON (owner, 2026-11-06: "probably having armor makes you harder to be dismembered", docs/ARMOUR.md): a part under
+        /// armour needs this much more, times the armour's tier share (Items.ArmourRatings: a heavy piece 1, so three times as much; a light
+        /// one 0.35, about 1.7 times). My numbers.
+        /// </summary>
+        public const float ArmourToughnessBonus = 2.0f;
+
+        /// <summary>What a part under armour of <paramref name="armourShare"/> (0 bare, 1 heavy) multiplies what it takes to come off by.</summary>
+        public static float ArmouredFactor(float armourShare) => 1.0f + ArmourToughnessBonus * Mathf.Clamp01(armourShare);
+
+        /// <summary>Whether a piece worn in <paramref name="slot"/> covers <paramref name="part"/>: a helmet the head, a top the torso and upper arms, gloves the forearms, legs the legs, shoes the shins.</summary>
+        public static bool Covers(string slot, BodyPart part)
         {
-            if (blow.Bloodless || float.IsNaN(blow.Overkill) || blow.Overkill < OverkillNeeded(blow.HealthLeft, maxHealth))
+            switch (slot)
+            {
+                case Items.EquipSlots.Helmet: return part == BodyPart.Head;
+                case Items.EquipSlots.Torso: return part == BodyPart.Torso || part == BodyPart.LeftUpperArm || part == BodyPart.RightUpperArm;
+                case Items.EquipSlots.Gloves: return part == BodyPart.LeftLowerArm || part == BodyPart.RightLowerArm;
+                case Items.EquipSlots.Legs: return part == BodyPart.LeftUpperLeg || part == BodyPart.RightUpperLeg || part == BodyPart.LeftLowerLeg || part == BodyPart.RightLowerLeg;
+                case Items.EquipSlots.Shoes: return part == BodyPart.LeftLowerLeg || part == BodyPart.RightLowerLeg;
+                default: return false;
+            }
+        }
+
+        /// <summary>What a killing blow does to a living body, the part it hit under armour of <paramref name="armourShare"/> (0 bare).</summary>
+        public static Dismemberment Decide(Blow blow, float maxHealth, float armourShare = 0.0f)
+        {
+            if (blow.Bloodless || float.IsNaN(blow.Overkill) || blow.Overkill < OverkillNeeded(blow.HealthLeft, maxHealth) * ArmouredFactor(armourShare))
             {
                 return Dismemberment.None;
             }
             return blow.Edged ? Dismemberment.Sever : Dismemberment.Burst;
         }
 
-        /// <summary>How much damage a part of a corpse takes, all told, before it comes off.</summary>
-        public static float Toughness(BodyPart part, float maxHealth)
+        /// <summary>How much damage a part of a corpse takes, all told, before it comes off (under armour of <paramref name="armourShare"/>, more).</summary>
+        public static float Toughness(BodyPart part, float maxHealth, float armourShare = 0.0f)
         {
             float share = part == BodyPart.Head ? HeadToughness : part == BodyPart.Torso ? TorsoToughness : LimbToughness;
-            return Mathf.Max(MinOverkill, share * Mathf.Max(0.0f, maxHealth));
+            return Mathf.Max(MinOverkill, share * Mathf.Max(0.0f, maxHealth)) * ArmouredFactor(armourShare);
         }
 
         /// <summary>Taking <paramref name="taken"/> off takes <paramref name="part"/> with it: itself, an upper limb its lower half, the torso everything.</summary>

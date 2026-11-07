@@ -188,6 +188,57 @@ namespace CityX.Tests
             Assert.AreEqual(BodyPart.Head, other.GetComponent<Dismemberer>().LastPart, "a blow of 70 on a body with 30 left did not take its head");
         }
 
+        /// <summary>The Knight Helmet on <paramref name="body"/>'s head, worn as the swordsman wears it.</summary>
+        private GameObject PutOnHelmet(GameObject body)
+        {
+#if UNITY_EDITOR
+            var helmet = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/KnightHelmet.prefab"));
+            _made.Add(helmet);
+            helmet.GetComponent<CityX.Items.IEquippableItem>().OnEquip(body, CityX.Items.ItemInstanceData.None);
+            return helmet;
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-06: "probably having armor makes you harder to be dismembered and if you do still get dismembered badly we could have
+        /// the armor just come off the body and turn into its object form" (docs/ARMOUR.md). A heavy helmet makes the head take three times as
+        /// much; a blow past that takes the head, and the helmet falls off as the item, for anyone to pick up.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AHelmetHoldsTheHeadOnAndFallsOffAsItsItemWhenTheHeadGoesAnyway()
+        {
+            DroppedItems.Shared.Clear();
+            GameObject body = Body(Vector3.zero);
+            PutOnHelmet(body);
+            yield return Stand(body);
+            var dismemberer = body.GetComponent<Dismemberer>();
+            Assert.AreEqual(1.0f, dismemberer.ArmourOn(BodyPart.Head), 1e-4f, "the Knight Helmet is not heavy armour on the head");
+            Assert.AreEqual(0.0f, dismemberer.ArmourOn(BodyPart.RightLowerArm), 1e-4f, "a helmet covers an arm");
+            // 70 on 30 takes a bare head (AKillingBlowMustDoDoubleWhatWasLeft); under the helmet it stays on.
+            Kill(body, BonePoint(body, HumanBodyBones.Neck, HumanBodyBones.Head, 1.4f), 40.0f, edged: true, healthLeft: 30.0f);
+            Assert.IsTrue(dismemberer.IsWhole, "a blow that takes a bare head took a helmeted one");
+            Assert.AreEqual(1, body.GetComponentsInChildren<CityX.Wearables.KnightHelmet>().Length);
+
+            GameObject other = Body(new Vector3(6.0f, 0.0f, 0.0f));
+            PutOnHelmet(other);
+            yield return Stand(other);
+            var otherDismemberer = other.GetComponent<Dismemberer>();
+            Kill(other, BonePoint(other, HumanBodyBones.Neck, HumanBodyBones.Head, 1.4f), 100.0f, edged: true, healthLeft: 30.0f);
+            Assert.AreEqual(BodyPart.Head, otherDismemberer.LastPart, "a blow past three times what was needed did not take the helmeted head");
+            Assert.AreEqual(1, otherDismemberer.PiecesPoppedOff, "the helmet did not come off as its item");
+            yield return null;
+            Assert.AreEqual(0, other.GetComponentsInChildren<CityX.Wearables.KnightHelmet>().Length, "the helmet is still on the body");
+            bool dropped = false;
+            foreach (ItemDrop drop in DroppedItems.Shared.Current())
+            {
+                dropped |= drop.ItemId == CityX.Items.ItemRegistry.KnightHelmet;
+            }
+            Assert.IsTrue(dropped, "the helmet is not lying there to be picked up");
+            DroppedItems.Shared.Clear();
+        }
+
         [UnityTest]
         public IEnumerator HittingACorpseTakesItApartPartByPart()
         {

@@ -221,6 +221,45 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// An enemy's head taken off with its helmet on (docs/ARMOUR.md): the helmet falls off as its item from the owner's body, and comes off
+        /// B's copy of the body too, which drops nothing of its own.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AnEnemysHelmetComesOffEveryCopyWithItsHead()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            yield return StartEnemyNetworks();
+            NetworkObject onA = null, onB = null;
+            yield return SpawnFromA("swordsman", new Vector3(0.0f, 0.0f, 4.0f), (a, b) => { onA = a; onB = b; });
+            onA.GetComponent<SwordsmanBrain>().enabled = false;
+            yield return null;
+            Animator animator = onA.GetComponentInChildren<Animator>();
+            Vector3 neck = animator.GetBoneTransform(HumanBodyBones.Neck).position;
+            Vector3 head = Vector3.LerpUnclamped(neck, animator.GetBoneTransform(HumanBodyBones.Head).position, 1.4f);   // in the head, past where it meets the neck
+            var vitals = onA.GetComponent<PlayerVitals>();
+            vitals.EndBlock();   // his brain ran a few frames before it was stopped: a guard it raised would catch the blow
+            using (DamageContext.Cutting(true))
+            {
+                DamageContext.Strike(vitals, 10000.0f, head + Vector3.back * 1.5f, 0.0f, DamageKind.Physical, 1.0f, head);
+            }
+            Assert.IsTrue(vitals.IsDead, "setup: the blow did not kill him");
+            var ownerCut = onA.GetComponent<Dismemberer>();
+            var copyCut = onB.GetComponent<Dismemberer>();
+            Assert.AreEqual(CityX.Character.BodyPart.Head, ownerCut.LastPart, "the blow did not take the swordsman's head");
+            Assert.AreEqual(1, ownerCut.PiecesPoppedOff, "his helmet did not come off as its item");
+            yield return WaitUntil(() => copyCut.LastPart == CityX.Character.BodyPart.Head, "B's copy to lose its head");
+            yield return null;
+            Assert.AreEqual(1, copyCut.PiecesPoppedOff, "B's copy kept the helmet");
+            Assert.AreEqual(0, onA.GetComponentsInChildren<CityX.Wearables.KnightHelmet>().Length, "the helmet is still on A's body");
+            Assert.AreEqual(0, onB.GetComponentsInChildren<CityX.Wearables.KnightHelmet>().Length, "the helmet is still on B's copy");
+#else
+            Assert.Ignore("needs the editor to load the networked prefabs.");
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator AWraithIsHurtThroughItsCopyAndFadesOnEveryMachine()
         {

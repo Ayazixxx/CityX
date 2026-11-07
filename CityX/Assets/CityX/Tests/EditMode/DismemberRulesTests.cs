@@ -70,6 +70,32 @@ namespace CityX.Tests
             Assert.IsTrue(DismemberRules.Takes(BodyPart.Torso, BodyPart.RightLowerLeg), "the torso burst left a leg");
         }
 
+        /// <summary>Armour holds a part on (owner, 2026-11-06, docs/ARMOUR.md): heavy three times as hard to take, light about 1.7.</summary>
+        [Test]
+        public void ArmourMakesAPartHarderToTakeOff()
+        {
+            Assert.AreEqual(3.0f, DismemberRules.ArmouredFactor(1.0f), 1e-4f);
+            Assert.AreEqual(1.0f, DismemberRules.ArmouredFactor(0.0f), 1e-4f);
+            Assert.AreEqual(60.0f, DismemberRules.Toughness(BodyPart.Head, 100.0f, 1.0f), 1e-4f, "a heavy helmet's head");
+            Assert.AreEqual(Dismemberment.Sever, DismemberRules.Decide(Killing(20.0f, 20.0f, edged: true), 100.0f), "setup: double cuts bare");
+            Assert.AreEqual(Dismemberment.None, DismemberRules.Decide(Killing(20.0f, 20.0f, edged: true), 100.0f, 1.0f), "double cut through heavy armour");
+            Assert.AreEqual(Dismemberment.Sever, DismemberRules.Decide(Killing(20.0f, 60.0f, edged: true), 100.0f, 1.0f), "three times did not cut through heavy armour");
+            float light = DismemberRules.ArmouredFactor(Items.ArmourRatings.LightShare);
+            Assert.That(light, Is.InRange(1.5f, 2.0f));
+        }
+
+        [Test]
+        public void EachSlotCoversItsParts()
+        {
+            Assert.IsTrue(DismemberRules.Covers(Items.EquipSlots.Helmet, BodyPart.Head));
+            Assert.IsFalse(DismemberRules.Covers(Items.EquipSlots.Helmet, BodyPart.Torso));
+            Assert.IsTrue(DismemberRules.Covers(Items.EquipSlots.Torso, BodyPart.LeftUpperArm));
+            Assert.IsTrue(DismemberRules.Covers(Items.EquipSlots.Gloves, BodyPart.RightLowerArm));
+            Assert.IsTrue(DismemberRules.Covers(Items.EquipSlots.Legs, BodyPart.LeftLowerLeg));
+            Assert.IsTrue(DismemberRules.Covers(Items.EquipSlots.Shoes, BodyPart.RightLowerLeg));
+            Assert.IsFalse(DismemberRules.Covers(Items.EquipSlots.Back, BodyPart.Torso), "a jetpack is no armour");
+        }
+
         [Test]
         public void TheBlowIsReadFromWhatItsStrikerSaid()
         {

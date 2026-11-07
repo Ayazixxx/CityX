@@ -141,6 +141,16 @@ namespace CityX.Character
             TakeOff(itemId);
         }
 
+        /// <summary>A piece no longer on the body by any take (it fell off with the part it was on, Dismemberer): off the list, here.</summary>
+        public void Lose(string itemId)
+        {
+            _gone.Add(itemId);
+            if (Container != null)
+            {
+                Container.Items.Remove(itemId);
+            }
+        }
+
         private void OnTaken(string itemId)
         {
             TakeOff(itemId);
