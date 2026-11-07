@@ -46,7 +46,11 @@ as well".
   bones take over (`MeshSevering`; the body keeps every vertex and its weights, so it still follows the skeleton). Those triangles, baked in
   the pose the body is in, fly off as one piece (a rigid body with a box round it), with what rides the bones (the skull, hair, a hat) as
   still copies. Something held in a cut-off hand stays where it is: the death drops it as it always did. The body keeps a stump at the cut
-  (a wet red cap the width of the cut, with a nub of bone) that spurts blood for 3.5 s; the piece has one too. The head is a mesh of its own
+  (a wet red cap the width of the cut, with a nub of bone) that spurts blood for 3.5 s; the piece has one too. The cap is 6% wider than the
+  limb there and its dark ring of blood 10% wider again (`Gore.CapOverLimb`, `CollarOverCap`): the limb's radius is the mean distance of the
+  cut's corners from its middle measured across the way the part came off, since the cut zigzags along the limb between rows of corners
+  (counted straight, with a 20% margin on top, the cap came out 1.3 to 1.7 times the limb's width; owner, 2026-11-07: "way larger than the
+  circumference of the limb"). Close up, the skin's torn edge shows round the cap, most at the shoulder. The head is a mesh of its own
   sitting on the shoulders (this body has no neck to cut), so taking it off cuts no skin: its stump goes on the skin where the head met it,
   the top of the shoulders (the first render had it floating at the head's pivot, a quarter of a metre up).
 - **A burst**: the part's triangles and riders are gone, and a spray of chunks (lumpy flesh and dark flesh, every fourth a shard of bone)
@@ -74,12 +78,14 @@ pose, a moment behind a body still falling: a blow then can land on the part nex
 
 `DismemberRulesTests` (EditMode: only a killing blow of double what was left; edge cuts, else bursts, water takes nothing; what each part
 of a corpse takes and what it takes with it; the nearest part still on; an edge on the torso cuts at the nearest joint still on; a skinned
-strip cut where its bones take over; the blow read from the striker's scope). `DismembermentPlayTests` (a blade's overkill cuts the forearm
+strip cut where its bones take over; a tube's cut as wide as the tube however long its triangles; the blow read from the striker's scope). `DismembermentPlayTests` (a blade's overkill cuts the forearm
 off and it flies, with a stump; a blunt one bursts the head; a bare kill or water takes nothing; 50 on a body on 30 takes nothing, 70 takes
 the head; a corpse hacked at part by part, head, forearm, arm, then the rest; a civilian too; a chest burst takes the body, and revived it is
-whole; a copy told of a cut is cut the same way and made whole with its owner). `NetworkedPlayerStateSyncPlayTests` (over real sockets: a
+whole; a copy told of a cut is cut the same way and made whole with its owner; a cut-off forearm's, arm's, shin's and leg's cap
+as wide as the limb at its open edge). `NetworkedPlayerStateSyncPlayTests` (over real sockets: a
 sword's overkill on A takes the same head off on B's copy, B hacking at the corpse takes the forearm off on both, both whole after A is
-revived). Pictures: `DismembermentCapture` (Logs/CityShots/dismember-*.png, with a corpse hacked at).
+revived). Pictures: `DismembermentCapture` (Logs/CityShots/dismember-*.png, with a corpse hacked at, and both ends of each cut close up:
+`dismember-*-piece-end.png`, `-body-end.png`).
 
 ## Not yet
 

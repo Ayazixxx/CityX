@@ -7,13 +7,13 @@ namespace CityX.Character
     /// A skinned mesh cut in two by its bones (docs/DISMEMBERMENT.md), with no scene: every vertex goes with the bone that moves it most, every
     /// triangle with the side most of its corners went to, so the cut runs where the cut-off bones take over. What stays is the same skinned
     /// mesh without those triangles (same vertices, same weights), so it keeps following the skeleton; what goes is a plain mesh of them in the
-    /// pose the body is in now (from a baked copy), compacted to the vertices it uses. The cut's middle and radius, from the corners along its
+    /// pose the body is in now (from a baked copy), compacted to the vertices it uses. The cut's middle and radius, from the corners on its
     /// edge, size the stump. <see cref="Carve"/> cuts a mesh into any number of pieces the same way at once (a whole body bursting).
     /// </summary>
     public static class MeshSevering
     {
-        /// <summary>The stump's radius over the edge's mean distance from the middle: a little more, so the cap covers the hole.</summary>
-        public const float CapCover = 1.2f;
+        private const byte Kept = 1;
+        private const byte Piece = 2;
 
         public sealed class Cut
         {
@@ -23,7 +23,10 @@ namespace CityX.Character
             /// <summary>The cut-off triangles, baked in the pose the body was in, in the renderer's space; null when nothing went.</summary>
             public Mesh Piece;
 
-            /// <summary>The middle of the cut and how far its edge reaches from it, in the renderer's space; radius 0 when the cut has no edge.</summary>
+            /// <summary>
+            /// The middle of the cut and the limb's mean radius there (across the way it came off), in the renderer's space; radius 0 when the cut
+            /// has no edge.
+            /// </summary>
             public Vector3 Centre;
 
             public float Radius;
@@ -65,14 +68,15 @@ namespace CityX.Character
 
         /// <summary>
         /// Cuts <paramref name="shared"/> where <paramref name="going"/> says, the piece taken from <paramref name="baked"/> (the same mesh baked
-        /// in its current pose: SkinnedMeshRenderer.BakeMesh). Returns null when no triangle goes.
+        /// in its current pose: SkinnedMeshRenderer.BakeMesh). The cut's radius is measured across <paramref name="axis"/>, the way the part comes
+        /// off in the mesh's space (zero: every way). Returns null when no triangle goes.
         /// </summary>
-        public static Cut Split(Mesh shared, Mesh baked, bool[] going)
+        public static Cut Split(Mesh shared, Mesh baked, bool[] going, Vector3 axis)
         {
             int subMeshes = shared.subMeshCount;
             var keptTriangles = new List<int>[subMeshes];
             var pieceTriangles = new List<int>[subMeshes];
-            var edge = new HashSet<int>();
+            var side = new byte[shared.vertexCount];   // which sides' triangles use the corner: 1 kept, 2 the piece, 3 both (on the cut)
             int removed = 0;
             for (int s = 0; s < subMeshes; s++)
             {
@@ -82,21 +86,16 @@ namespace CityX.Character
                 for (int t = 0; t < triangles.Length; t += 3)
                 {
                     int a = triangles[t], b = triangles[t + 1], c = triangles[t + 2];
-                    int count = (going[a] ? 1 : 0) + (going[b] ? 1 : 0) + (going[c] ? 1 : 0);
-                    List<int> into = count >= 2 ? pieceTriangles[s] : keptTriangles[s];
+                    bool goes = (going[a] ? 1 : 0) + (going[b] ? 1 : 0) + (going[c] ? 1 : 0) >= 2;
+                    List<int> into = goes ? pieceTriangles[s] : keptTriangles[s];
                     into.Add(a);
                     into.Add(b);
                     into.Add(c);
-                    if (count >= 2)
-                    {
-                        removed++;
-                    }
-                    if (count == 1 || count == 2)
-                    {
-                        edge.Add(a);
-                        edge.Add(b);
-                        edge.Add(c);
-                    }
+                    byte by = goes ? Piece : Kept;
+                    side[a] |= by;
+                    side[b] |= by;
+                    side[c] |= by;
+                    removed += goes ? 1 : 0;
                 }
             }
             if (removed == 0)
@@ -112,8 +111,16 @@ namespace CityX.Character
             }
             kept.RecalculateBounds();
 
+            var edge = new List<int>();
+            for (int v = 0; v < side.Length; v++)
+            {
+                if (side[v] == (Kept | Piece))
+                {
+                    edge.Add(v);
+                }
+            }
             Vector3[] positions = baked.vertices;
-            EdgeCircle(positions, edge, out Vector3 centre, out float radius);
+            EdgeCircle(positions, edge, axis, out Vector3 centre, out float radius);
             return new Cut
             {
                 Kept = kept,
@@ -127,13 +134,13 @@ namespace CityX.Character
         /// <summary>
         /// Cuts <paramref name="shared"/> into <paramref name="groups"/> pieces at once by <paramref name="groupOf"/> (each vertex's group): a
         /// triangle goes with the group most of its corners are in, or its first corner's when all three differ. Each piece is baked from
-        /// <paramref name="baked"/> as <see cref="Split"/>'s is, and each group's cut measured from the corners along its edges with the others.
+        /// <paramref name="baked"/> as <see cref="Split"/>'s is, and each group's cut measured from the corners it shares with the others, across
+        /// its own way off (<paramref name="axes"/>, in the mesh's space; null or zero: every way).
         /// </summary>
-        public static Carving Carve(Mesh shared, Mesh baked, int[] groupOf, int groups)
+        public static Carving Carve(Mesh shared, Mesh baked, int[] groupOf, int groups, Vector3[] axes = null)
         {
             int subMeshes = shared.subMeshCount;
             var pieceTriangles = new List<int>[groups][];
-            var edges = new HashSet<int>[groups];
             for (int g = 0; g < groups; g++)
             {
                 pieceTriangles[g] = new List<int>[subMeshes];
@@ -141,9 +148,14 @@ namespace CityX.Character
                 {
                     pieceTriangles[g][s] = new List<int>();
                 }
-                edges[g] = new HashSet<int>();
             }
             var counted = new int[groups];
+            var firstGroup = new int[shared.vertexCount];   // the group of the first triangle to use the corner (-1: none yet)
+            var onCut = new bool[shared.vertexCount];       // used by triangles of two groups
+            for (int v = 0; v < firstGroup.Length; v++)
+            {
+                firstGroup[v] = -1;
+            }
             for (int s = 0; s < subMeshes; s++)
             {
                 int[] triangles = shared.GetTriangles(s);
@@ -157,15 +169,9 @@ namespace CityX.Character
                     into.Add(b);
                     into.Add(c);
                     counted[g]++;
-                    if (ga != gb || gb != gc)
-                    {
-                        foreach (int h in new[] { ga, gb, gc })
-                        {
-                            edges[h].Add(a);
-                            edges[h].Add(b);
-                            edges[h].Add(c);
-                        }
-                    }
+                    UsedBy(a, g, firstGroup, onCut);
+                    UsedBy(b, g, firstGroup, onCut);
+                    UsedBy(c, g, firstGroup, onCut);
                 }
             }
 
@@ -173,6 +179,7 @@ namespace CityX.Character
             Vector3[] normals = baked.normals;
             Vector2[] uvs = shared.uv;
             var carving = new Carving { Pieces = new Mesh[groups], Centres = new Vector3[groups], Radii = new float[groups] };
+            var edge = new HashSet<int>();
             for (int g = 0; g < groups; g++)
             {
                 if (counted[g] == 0)
@@ -180,9 +187,33 @@ namespace CityX.Character
                     continue;
                 }
                 carving.Pieces[g] = Compact(shared, positions, normals, uvs, pieceTriangles[g], $"{shared.name} (piece {g})");
-                EdgeCircle(positions, edges[g], out carving.Centres[g], out carving.Radii[g]);
+                edge.Clear();
+                foreach (List<int> triangles in pieceTriangles[g])
+                {
+                    foreach (int v in triangles)
+                    {
+                        if (onCut[v])
+                        {
+                            edge.Add(v);
+                        }
+                    }
+                }
+                Vector3 axis = axes != null && g < axes.Length ? axes[g] : Vector3.zero;
+                EdgeCircle(positions, edge, axis, out carving.Centres[g], out carving.Radii[g]);
             }
             return carving;
+        }
+
+        private static void UsedBy(int corner, int group, int[] firstGroup, bool[] onCut)
+        {
+            if (firstGroup[corner] < 0)
+            {
+                firstGroup[corner] = group;
+            }
+            else if (firstGroup[corner] != group)
+            {
+                onCut[corner] = true;
+            }
         }
 
         /// <summary>A plain mesh of the given triangles, its corners taken from the baked pose and compacted to the ones it uses.</summary>
@@ -224,8 +255,12 @@ namespace CityX.Character
             return piece;
         }
 
-        /// <summary>The middle of a cut's edge corners and the stump radius that covers them (0 with no edge).</summary>
-        private static void EdgeCircle(Vector3[] positions, HashSet<int> edge, out Vector3 centre, out float radius)
+        /// <summary>
+        /// The middle of a cut's edge corners and their mean distance from it across <paramref name="axis"/> (0 with no edge): the limb's
+        /// radius where it was cut. Across the axis, because the edge zigzags along the limb between rows of corners, and a plain distance
+        /// counted that zigzag in (a stump's cap came out a third to three quarters wider than the limb).
+        /// </summary>
+        private static void EdgeCircle(Vector3[] positions, ICollection<int> edge, Vector3 axis, out Vector3 centre, out float radius)
         {
             centre = Vector3.zero;
             radius = 0.0f;
@@ -240,9 +275,9 @@ namespace CityX.Character
             centre /= edge.Count;
             foreach (int index in edge)
             {
-                radius += Vector3.Distance(positions[index], centre);
+                radius += Vector3.ProjectOnPlane(positions[index] - centre, axis).magnitude;
             }
-            radius = radius / edge.Count * CapCover;
+            radius /= edge.Count;
         }
     }
 }

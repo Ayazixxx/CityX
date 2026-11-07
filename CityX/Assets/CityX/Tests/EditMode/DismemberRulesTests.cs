@@ -177,7 +177,7 @@ namespace CityX.Tests
         {
             Mesh strip = Strip();
             bool[] going = MeshSevering.Going(strip.boneWeights, new HashSet<int> { 1 });
-            MeshSevering.Cut cut = MeshSevering.Split(strip, strip, going);
+            MeshSevering.Cut cut = MeshSevering.Split(strip, strip, going, Vector3.up);
             Assert.IsNotNull(cut);
             Assert.AreEqual(8, strip.triangles.Length / 3, "setup");
             Assert.AreEqual(3, cut.RemovedTriangles, "the top quad and the half of the next whose corners are mostly on the cut-off bone");
@@ -187,7 +187,7 @@ namespace CityX.Tests
             Assert.AreEqual(strip.vertexCount, cut.Kept.vertexCount, "what stays keeps every vertex, so it keeps its skinning");
             Assert.AreEqual(2.5f, cut.Centre.y, 0.6f, "the cut runs where the bones take over");
             Assert.Greater(cut.Radius, 0.0f);
-            Assert.IsNull(MeshSevering.Split(strip, strip, new bool[strip.vertexCount]), "nothing goes: no cut");
+            Assert.IsNull(MeshSevering.Split(strip, strip, new bool[strip.vertexCount], Vector3.up), "nothing goes: no cut");
         }
 
         [Test]
@@ -208,6 +208,61 @@ namespace CityX.Tests
             Assert.IsNull(carving.Pieces[3], "a group with no triangle has no piece");
             Assert.AreEqual(2.0f, carving.Centres[1].y, 0.6f, "the middle group's cut runs round its own rows");
             Assert.Greater(carving.Radii[1], 0.0f);
+        }
+
+        /// <summary>
+        /// A limb's cut is measured across the limb: the stump's cap is as wide as the limb, however long the triangles the cut zigzags along
+        /// (owner, 2026-11-07: the cap was "way larger than the circumference of the limb").
+        /// </summary>
+        [Test]
+        public void ACutIsAsWideAsTheLimbHoweverLongItsTriangles()
+        {
+            const float radius = 0.08f;
+            const float rowSpacing = 0.15f;   // nearly twice the radius: a plain distance from the middle came out 1.4x the radius
+            Mesh tube = Tube(radius, rowSpacing);
+            MeshSevering.Cut cut = MeshSevering.Split(tube, tube, MeshSevering.Going(tube.boneWeights, new HashSet<int> { 1 }), Vector3.up);
+            Assert.AreEqual(radius, cut.Radius, radius * 0.02f, "the cut's radius is not the limb's");
+            Assert.AreEqual(2.5f * rowSpacing, cut.Centre.y, rowSpacing * 0.5f, "the cut is not where the bones take over");
+
+            var groupOf = new int[tube.vertexCount];
+            for (int v = 0; v < groupOf.Length; v++)
+            {
+                groupOf[v] = tube.boneWeights[v].boneIndex0;
+            }
+            MeshSevering.Carving carving = MeshSevering.Carve(tube, tube, groupOf, 2, new[] { Vector3.zero, Vector3.up });
+            Assert.AreEqual(radius, carving.Radii[1], radius * 0.02f, "a carved piece's cut is not as wide as the limb");
+        }
+
+        /// <summary>A closed tube up the y axis, five rows of twelve corners, the bottom three rows on bone 0 and the top two on bone 1.</summary>
+        private static Mesh Tube(float radius, float rowSpacing)
+        {
+            const int around = 12;
+            var vertices = new List<Vector3>();
+            var weights = new List<BoneWeight>();
+            for (int row = 0; row <= 4; row++)
+            {
+                for (int i = 0; i < around; i++)
+                {
+                    float angle = i * Mathf.PI * 2.0f / around;
+                    vertices.Add(new Vector3(Mathf.Cos(angle) * radius, row * rowSpacing, Mathf.Sin(angle) * radius));
+                    weights.Add(new BoneWeight { boneIndex0 = row >= 3 ? 1 : 0, weight0 = 1.0f });
+                }
+            }
+            var triangles = new List<int>();
+            for (int row = 0; row < 4; row++)
+            {
+                for (int i = 0; i < around; i++)
+                {
+                    int a = row * around + i, b = row * around + (i + 1) % around, c = a + around, d = b + around;
+                    triangles.AddRange(new[] { a, c, b, b, c, d });
+                }
+            }
+            var mesh = new Mesh();
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.boneWeights = weights.ToArray();
+            return mesh;
         }
     }
 }

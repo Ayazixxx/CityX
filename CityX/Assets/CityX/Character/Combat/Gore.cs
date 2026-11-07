@@ -48,6 +48,15 @@ namespace CityX.Character
         public const float BrokenBoneWidth = 0.28f;
         public static readonly Color Collar = new Color(0.42f, 0.02f, 0.025f);
 
+        /// <summary>
+        /// A stump's red cap's radius over the limb's where it was cut: just past the skin, enough to hide the cut's ragged edge and no more
+        /// (owner, 2026-11-07: the cap was "way larger than the circumference of the limb").
+        /// </summary>
+        public const float CapOverLimb = 1.06f;
+
+        /// <summary>The dark ring of blood on the skin round the cap: its width over the cap's.</summary>
+        public const float CollarOverCap = 1.1f;
+
         private static readonly Dictionary<(GoreAnatomy.Tissue, int), Material> Materials = new Dictionary<(GoreAnatomy.Tissue, int), Material>();
         private static Material _trail;
         private static Material _collar;
@@ -244,9 +253,10 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// A stump over a cut: a wet red cap <paramref name="radius"/> across at <paramref name="at"/>, facing <paramref name="outward"/>, a disc
-        /// of bone in it, a ring of dark blood round it on the skin, riding <paramref name="parent"/> (the bone above the cut, or the cut-off
-        /// part), spurting for a few seconds. After a burst (<paramref name="broken"/>) the bone sticks out of it, broken.
+        /// A stump over a cut: a wet red cap as wide as the limb (<paramref name="radius"/>: the limb's there) at <paramref name="at"/>, facing
+        /// <paramref name="outward"/>, a disc of bone in it, a ring of dark blood round it on the skin, riding <paramref name="parent"/> (the bone
+        /// above the cut, or the cut-off part), spurting for a few seconds. After a burst (<paramref name="broken"/>) the bone sticks out of it,
+        /// broken.
         /// </summary>
         public static GameObject Stump(Transform parent, Vector3 at, Vector3 outward, float radius, bool broken = false)
         {
@@ -255,8 +265,9 @@ namespace CityX.Character
             stump.transform.SetPositionAndRotation(at, Quaternion.FromToRotation(Vector3.up, axis));
             stump.transform.SetParent(parent, true);
 
-            float across = radius * 2.2f;
-            Ball(stump.transform, "Collar", new Vector3(0.0f, -radius * 0.25f, 0.0f), new Vector3(across * 1.22f, radius * 0.5f, across * 1.22f), CollarMaterial());
+            float across = 2.0f * radius * CapOverLimb;
+            float collar = across * CollarOverCap;
+            Ball(stump.transform, "Collar", new Vector3(0.0f, -radius * 0.25f, 0.0f), new Vector3(collar, radius * 0.5f, collar), CollarMaterial());
             Ball(stump.transform, "Cap", Vector3.zero, new Vector3(across, radius * 0.9f, across), MaterialOf(GoreAnatomy.Tissue.Meat));
             Ball(stump.transform, "Bone", Vector3.up * radius * 0.3f, new Vector3(radius * 0.7f, radius * 0.5f, radius * 0.7f), MaterialOf(GoreAnatomy.Tissue.Bone));
             if (broken)

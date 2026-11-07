@@ -82,7 +82,22 @@ namespace CityX.Tests
                     yield return null;
                 }
                 yield return ArcaneOrbCapture.ShootFacing(camera, $"dismember-{name}-landed", look + new Vector3(2.5f, 2.5f, -3.5f), look + Vector3.down * 1.0f);
-                if (!edged)
+                if (edged)
+                {
+                    // Close on the two ends of the cut: the cut-off piece's and the body's.
+                    GameObject piece = body.GetComponent<Dismemberer>().LastPiece;
+                    Transform pieceStump = piece != null ? piece.transform.Find("Stump") : null;
+                    if (pieceStump != null)
+                    {
+                        yield return ShootStump(camera, $"dismember-{name}-piece-end", pieceStump);
+                    }
+                    StumpBleed bodyStump = body.GetComponentInChildren<StumpBleed>();
+                    if (bodyStump != null)
+                    {
+                        yield return ShootStump(camera, $"dismember-{name}-body-end", bodyStump.transform);
+                    }
+                }
+                else
                 {
                     Vector3 pieces = PiecesAround(body.transform.position);
                     yield return ArcaneOrbCapture.ShootFacing(camera, $"dismember-{name}-pieces", pieces + new Vector3(1.0f, 1.3f, -1.4f), pieces);
@@ -145,6 +160,18 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        /// <summary>A stump from 0.8 m, facing its cap from above it (from the side when it faces the ground).</summary>
+        private static IEnumerator ShootStump(Camera camera, string name, Transform stump)
+        {
+            Vector3 from = stump.up + Vector3.up * 0.6f;
+            if (from.y < 0.2f)
+            {
+                from = new Vector3(stump.up.x, 0.3f, stump.up.z) + Vector3.back * 0.5f;
+            }
+            Vector3 cap = stump.position;
+            yield return ArcaneOrbCapture.ShootFacing(camera, name, cap + from.normalized * 0.8f, cap);
         }
 
         /// <summary>The middle of the gore lying within a few metres of a body (each case's body stands 12 m from the next).</summary>

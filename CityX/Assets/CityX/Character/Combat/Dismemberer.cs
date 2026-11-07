@@ -279,6 +279,7 @@ namespace CityX.Character
             var sources = new List<Gore.Source>();
 
             // The skin and the clothes skinned on the body: the triangles those bones carry come out (and, for a cut, fly off as the piece).
+            Vector3 outward = (root.position - root.parent.position).normalized;
             Vector3 cutCentre = root.position;
             float cutRadius = 0.0f;
             foreach (SkinnedMeshRenderer skin in GetComponentsInChildren<SkinnedMeshRenderer>(true))
@@ -287,7 +288,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                MeshSevering.Cut cut = CutFrom(skin, going);
+                MeshSevering.Cut cut = CutFrom(skin, going, Quaternion.Inverse(skin.transform.rotation) * outward);
                 if (cut == null)
                 {
                     continue;
@@ -333,7 +334,6 @@ namespace CityX.Character
             }
 
             LetGoOfBones(root);
-            Vector3 outward = (root.position - root.parent.position).normalized;
             if (cutRadius <= 0.0f)
             {
                 // The skin was not cut (the head sits on the shoulders as a mesh of its own): the stump goes on the skin where it met the part.
@@ -439,7 +439,11 @@ namespace CityX.Character
             LastPiece = null;
         }
 
-        private static MeshSevering.Cut CutFrom(SkinnedMeshRenderer skin, HashSet<Transform> going)
+        /// <summary>
+        /// <paramref name="skin"/> cut where <paramref name="going"/>'s bones take over (null when they carry none of it), its radius measured
+        /// across <paramref name="axis"/> (the way the part comes off, in the renderer's space).
+        /// </summary>
+        private static MeshSevering.Cut CutFrom(SkinnedMeshRenderer skin, HashSet<Transform> going, Vector3 axis)
         {
             Transform[] bones = skin.bones;
             var cutOff = new HashSet<int>();
@@ -461,7 +465,7 @@ namespace CityX.Character
             }
             var baked = new Mesh();
             skin.BakeMesh(baked, true);
-            MeshSevering.Cut cut = MeshSevering.Split(skin.sharedMesh, baked, MeshSevering.Going(weights, cutOff));
+            MeshSevering.Cut cut = MeshSevering.Split(skin.sharedMesh, baked, MeshSevering.Going(weights, cutOff), axis);
             Destroy(baked);
             return cut;
         }

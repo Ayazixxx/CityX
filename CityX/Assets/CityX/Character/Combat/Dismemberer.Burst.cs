@@ -238,13 +238,16 @@ namespace CityX.Character
             var made = new List<Mesh>[groups];
             var cutCentre = new Vector3[groups];
             var cutRadius = new float[groups];
+            var outwardOf = new Vector3[groups];   // the way each piece comes off (zero: it cannot)
             for (int g = 1; g < groups; g++)
             {
                 pieces[g] = new GameObject($"{flying[g - 1]} (blown off)");
                 Transform root = _animator.GetBoneTransform(DismemberRules.RootOf(flying[g - 1]));
                 bounds[g] = new Bounds(root != null ? root.position : chest, Vector3.zero);
                 made[g] = new List<Mesh>();
+                outwardOf[g] = root != null && root.parent != null ? (root.position - root.parent.position).normalized : Vector3.zero;
             }
+            var axes = new Vector3[groups];
 
             // The skin and the clothes: carved once into the groups, in the pose the body is in.
             var sources = new List<Gore.Source>();
@@ -271,9 +274,14 @@ namespace CityX.Character
                     int bone = MeshSevering.Heaviest(weights[v]);
                     groupOf[v] = bone >= 0 && bone < groupOfBone.Length ? groupOfBone[bone] : 0;
                 }
+                Quaternion intoSkin = Quaternion.Inverse(skin.transform.rotation);
+                for (int g = 1; g < groups; g++)
+                {
+                    axes[g] = intoSkin * outwardOf[g];
+                }
                 var baked = new Mesh();
                 skin.BakeMesh(baked, true);
-                MeshSevering.Carving carving = MeshSevering.Carve(skin.sharedMesh, baked, groupOf, groups);
+                MeshSevering.Carving carving = MeshSevering.Carve(skin.sharedMesh, baked, groupOf, groups, axes);
                 Destroy(baked);
                 Transform at = skin.transform;
                 for (int g = 0; g < groups; g++)
@@ -339,13 +347,12 @@ namespace CityX.Character
                     Destroy(pieces[g]);
                     continue;
                 }
-                Vector3 outward = (root.position - root.parent.position).normalized;
                 if (cutRadius[g] <= 0.0f)
                 {
                     cutCentre[g] = NearestSkinPoint(root.position) ?? root.position;
                     cutRadius[g] = part == BodyPart.Head ? HeadStumpRadius : FallbackStumpRadius;
                 }
-                Gore.Stump(pieces[g].transform, cutCentre[g], -outward, cutRadius[g]);
+                Gore.Stump(pieces[g].transform, cutCentre[g], -outwardOf[g], cutRadius[g]);
                 Vector3 push = bounds[g].center - chest;
                 Launch(pieces[g], bounds[g], MassOf(part), away, (push.sqrMagnitude > 1e-6f ? push.normalized : Vector3.up) * BlownSpeed, made[g]);
                 thrown++;
