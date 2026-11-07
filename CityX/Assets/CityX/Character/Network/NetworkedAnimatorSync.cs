@@ -435,6 +435,10 @@ namespace CityX.Character
             bool crouching, bool shieldRaised, bool aiming, bool swordEquipped, bool sword1HEquipped, bool gunEquipped, bool jetpackThrusting,
             bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase)
         {
+            if (!WireChecks.Finite(new Vector3(speed, moveX, moveZ)))
+            {
+                return;   // a broken number set on every copy's Animator would freeze its blend (bug hunt M14)
+            }
             BroadcastState(speed, moveX, moveZ, grounded, crouching, shieldRaised, aiming,
                 swordEquipped, sword1HEquipped, gunEquipped, jetpackThrusting, dancing, breakdancing, chargingJump, pushUpPhase);
         }

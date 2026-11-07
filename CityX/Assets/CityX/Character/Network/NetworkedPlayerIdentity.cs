@@ -217,9 +217,30 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// The most a body's paint may be on the wire. Saved paint is 1-15 KB (2026-11-06); the server keeps the last one for every player who
+        /// joins, so one of any size was a way to make every joiner download it (bug hunt M14).
+        /// </summary>
+        public const int MaxPaintBytes = 1 << 20;
+
+        /// <summary>A look as the server passes it on: a name no longer than a character's may be, a hairstyle the game has, real colours, paint of a sane size.</summary>
+        public static bool AppearanceIsSane(string characterName, Color skin, string hairStyle, Color hairColour, byte[] paint)
+        {
+            return (characterName == null || characterName.Length <= CharacterSave.MaximumNameLength)
+                && (string.IsNullOrEmpty(hairStyle) || System.Array.IndexOf(CharacterHair.ValidStyles, hairStyle) >= 0)
+                && IsColour(skin) && IsColour(hairColour)
+                && (paint == null || paint.Length <= MaxPaintBytes);
+        }
+
+        private static bool IsColour(Color c) => WireChecks.Finite(new Vector3(c.r, c.g, c.b)) && !float.IsNaN(c.a) && !float.IsInfinity(c.a);
+
         [ServerRpc(RequireOwnership = true)]
         private void SendAppearanceToServer(string characterName, Color skin, string hairStyle, Color hairColour, byte[] paint)
         {
+            if (!AppearanceIsSane(characterName, skin, hairStyle, hairColour, paint))
+            {
+                return;
+            }
             BroadcastAppearance(characterName, skin, hairStyle, hairColour, paint);
         }
 
