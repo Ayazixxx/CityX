@@ -15,8 +15,17 @@ namespace CityX.Wearables
             Back,
         }
 
+        /// <summary>The T-Shirt's cotton: white, a little off.</summary>
+        public static readonly Color WhiteCotton = new Color(0.92f, 0.92f, 0.9f);
+
+        /// <summary>The black shirts' cotton: not quite black, so the folds and the lighting still read on it.</summary>
+        public static readonly Color BlackCotton = new Color(0.05f, 0.05f, 0.055f);
+
         [Tooltip("The picture: a PNG with a transparent background.")]
         public Texture2D Logo;
+
+        [Tooltip("The shirt's cotton the picture is printed on.")]
+        public Color Cotton = WhiteCotton;
 
         [Tooltip("Cover the whole shirt with the picture, repeated edge to edge (an all-over print such as camo), instead of printing it once. " +
                  "Width, turn and the cm across and up then size, turn and slide the pattern.")]

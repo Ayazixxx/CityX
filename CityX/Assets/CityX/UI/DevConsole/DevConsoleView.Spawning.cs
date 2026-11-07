@@ -323,6 +323,9 @@ namespace CityX.UI
                 case "blacktshirt":
                 case "blackshirt":
                 case "black_t_shirt": return ItemRegistry.BlackTShirt;
+                case "cityxshirt":
+                case "cityx_shirt":
+                case "cityx": return ItemRegistry.CityXShirt;
                 case "longsleeve":
                 case "long_sleeve":
                 case "longsleeveshirt":

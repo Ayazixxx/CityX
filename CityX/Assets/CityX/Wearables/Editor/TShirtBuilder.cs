@@ -26,6 +26,8 @@ namespace CityX.WearablesEditor
         public const string RedCamoPrefabPath = WearablesFolder + "/RedCamoTShirt.prefab";
         public const string RedCamoPrintPath = PrintsFolder + "/RedCamoPrint.asset";
         public const string BlackPrefabPath = WearablesFolder + "/BlackTShirt.prefab";
+        public const string CityXPrefabPath = WearablesFolder + "/CityXTShirt.prefab";
+        public const string CityXPrintPath = PrintsFolder + "/CityXPrint.asset";
 
         /// <summary>The long-sleeved shirt: its own mesh (tshirt_build.py --long-sleeves), in white and in black.</summary>
         public const string LongSleevePrefabPath = WearablesFolder + "/LongSleeveTShirt.prefab";
@@ -37,12 +39,14 @@ namespace CityX.WearablesEditor
         private const string FoldedSourcePath = "Assets/CityX/Wearables/Models/TShirtFolded.glb";
         private const string FoldedMeshPath = "Assets/CityX/Wearables/TShirtFoldedMesh.asset";
 
-        /// <summary>Cotton: white, a little off, and matte.</summary>
-        private static readonly Color Cotton = new Color(0.92f, 0.92f, 0.9f);
+        /// <summary>Cotton, white and black, matte.</summary>
+        private static readonly Color Cotton = ShirtPrint.WhiteCotton;
+        private static readonly Color BlackCotton = ShirtPrint.BlackCotton;
         private const float FabricSmoothness = 0.1f;
 
-        /// <summary>Black cotton: not quite black, so the folds and the lighting still read on it.</summary>
-        private static readonly Color BlackCotton = new Color(0.05f, 0.05f, 0.055f);
+        /// <summary>Where a new print starts on the chest: the size and height the owner gave the Blood Raven logo.</summary>
+        private const float StartWidthCm = 86.5f;
+        private const float StartUpCm = 0.85f;
 
         /// <summary>
         /// The body never drawn under the shirt: the torso and the upper arms, but what shows outside it (Shown). Hidden only where the shirt
@@ -217,11 +221,15 @@ namespace CityX.WearablesEditor
         [MenuItem("CityX/Rebuild Red Camo T-Shirt")]
         public static GameObject BuildRedCamo() => BuildPrinted("RedCamo", ItemRegistry.RedCamoTShirt, coverTheWholeShirt: true);
 
+        /// <summary>The cityXshirt (owner, 2026-11-07): the game's own logo on the T-Shirt in black cotton.</summary>
+        [MenuItem("CityX/Rebuild cityXshirt")]
+        public static GameObject BuildCityX() => BuildPrinted("CityX", ItemRegistry.CityXShirt, coverTheWholeShirt: false, ShirtPrint.BlackCotton);
+
         /// <summary>
         /// A printed shirt named <paramref name="name"/>: its picture Prints/&lt;name&gt;.png, placed by its print Prints/&lt;name&gt;Print.asset
-        /// (made the first time, all over the shirt or once on the chest), on &lt;name&gt;TShirt.prefab.
+        /// (made the first time, all over the shirt or once on the chest, on <paramref name="cotton"/> or white), on &lt;name&gt;TShirt.prefab.
         /// </summary>
-        private static GameObject BuildPrinted(string name, string itemId, bool coverTheWholeShirt)
+        private static GameObject BuildPrinted(string name, string itemId, bool coverTheWholeShirt, Color? cotton = null)
         {
             Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
             if (mesh == null)
@@ -235,6 +243,12 @@ namespace CityX.WearablesEditor
             {
                 print = ScriptableObject.CreateInstance<ShirtPrint>();
                 print.CoverTheWholeShirt = coverTheWholeShirt;
+                print.Cotton = cotton ?? Cotton;
+                if (!coverTheWholeShirt)
+                {
+                    print.WidthCm = StartWidthCm;
+                    print.UpCm = StartUpCm;
+                }
                 AssetDatabase.CreateAsset(print, printPath);
             }
             if (print.Logo == null)
@@ -249,11 +263,11 @@ namespace CityX.WearablesEditor
             return Save(mesh, material, $"{WearablesFolder}/{name}TShirt.prefab", $"{name}TShirt", itemId, AlwaysHidden);
         }
 
-        /// <summary>Prints <paramref name="print"/> on the T-Shirt's texture, in the shirt's cotton.</summary>
+        /// <summary>Prints <paramref name="print"/> on the T-Shirt's texture, in its cotton.</summary>
         public static Texture2D Print(ShirtPrint print)
         {
             var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
-            return mesh != null ? ShirtPrintBaker.Bake(print, mesh, Cotton) : null;
+            return mesh != null ? ShirtPrintBaker.Bake(print, mesh, print.Cotton) : null;
         }
 
         /// <summary>Selects the Blood Raven print, whose Inspector places the logo.</summary>
@@ -261,6 +275,14 @@ namespace CityX.WearablesEditor
         public static void SelectBloodRavenPrint()
         {
             Selection.activeObject = AssetDatabase.LoadAssetAtPath<ShirtPrint>(BloodRavenPrintPath);
+            EditorGUIUtility.PingObject(Selection.activeObject);
+        }
+
+        /// <summary>Selects the cityXshirt's print, whose Inspector places the logo.</summary>
+        [MenuItem("CityX/Place the cityXshirt Logo")]
+        public static void SelectCityXPrint()
+        {
+            Selection.activeObject = AssetDatabase.LoadAssetAtPath<ShirtPrint>(CityXPrintPath);
             EditorGUIUtility.PingObject(Selection.activeObject);
         }
 

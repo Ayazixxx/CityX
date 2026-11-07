@@ -144,3 +144,21 @@ white cotton) and `black_long_sleeve_t_shirt` ("Black Long Sleeve T-Shirt", the 
 each cuff (`SleeveCuff`, as at the T-Shirt's short cuffs). On the ground it lies as the T-Shirt's folded model. In every item list.
 Tests: `TShirtTests` and `TShirtPlayTests` run for both shirts (the long one's sleeves end just above the wrist, not over the hand),
 `BlackTShirtTests` for both black ones; `TShirtCapture` shoots `tshirt-longsleeve-*.png` and `tshirt-longsleeveblack-*.png`.
+
+## The cityXshirt (2026-11-07)
+
+Owner: "put this on a black shirt as an item called "cityXshirt"" (the game's graffiti logo, `Prints/CityX.png`, 1365 x 768 with a clear
+background), then "make it adjustable so i can place it how i want and then give you the chords". Item `cityx_shirt`, shown as "cityXshirt";
+`/equip cityxshirt` (also `cityx`, `cityx_shirt`) or `/spawn cityxshirt`. In every item list (scene player, networked player, select screen).
+
+A print can now be on black: `ShirtPrint.Cotton` is the cloth the picture is printed on (white for the Blood Raven and camo shirts, as before;
+`ShirtPrint.BlackCotton` here, the Black T-Shirt's colour). A new print starts where the owner put the Blood Raven logo: 86.5 cm wide,
+0.85 cm above the middle of the chest. The logo's letters are black, so on the black shirt their red outlines, the pink strokes and the
+white lettering are what shows.
+
+**Placing it:** menu **CityX > Place the cityXshirt Logo** selects `Wearables/Prints/CityXPrint.asset`; its fields are the Blood Raven print's
+(Side, Right Cm, Up Cm, Width Cm, Rotation Degrees, and Cotton). In Play mode with the shirt on (`/equip cityxshirt`), the worn shirt is
+printed again a moment after a number stops changing. The numbers are saved in the asset.
+
+Tests: `CityXShirtTests` (its item and name, the T-Shirt's mesh and hiding, black cotton, the logo where its print says); `TShirtCapture`
+shoots `tshirt-cityx-*.png`.
