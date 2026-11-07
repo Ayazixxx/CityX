@@ -246,6 +246,28 @@ namespace CityX.Tests
             Assert.AreSame(cloneInput, inventory.InputReader);
             var stats = Object.FindAnyObjectByType<CityX.UI.StatsPanelView>(FindObjectsInactive.Include);
             Assert.AreSame(cloneVitals, stats.Vitals, "the stats screen reads the baked body");
+
+            // What the friend does with their own hands acts from their own body (bug hunt N5, 2026-11-05): ReDraw repaints it, hold-E
+            // carries from it, and the loot window, the inspect card and the prompt show what IT looks at, not the host's body.
+            Assert.AreSame(clone.gameObject, LocalPlayerBody.Find(), "this machine's body is not the one it claimed");
+            var redraw = Object.FindAnyObjectByType<CityX.UI.PlayerRedrawStarter>(FindObjectsInactive.Include);
+            Assert.IsNotNull(redraw, "the real scene has no ReDraw");
+            Assert.AreSame(clone.gameObject, redraw.Body, "ReDraw would repaint the baked body");
+            var carry = clone.GetComponent<GrabCarry>();
+            Assert.IsNotNull(carry, "the friend's body cannot carry anything: rebuild the networked player");
+            Assert.IsNotNull(carry.Eye, "the friend's carry has no camera to look from");
+            var crate = new GameObject("Crate").AddComponent<LootContainer>();
+            crate.Kind = ContainerKind.Body;
+            crate.Label = "The friend's crate";
+            crate.transform.position = clone.transform.position + clone.transform.forward;   // in reach, or the window closes itself
+            crate.Items = new System.Collections.Generic.List<string> { CityX.Items.ItemRegistry.TShirt };
+            var lootWindow = Object.FindAnyObjectByType<CityX.UI.LootWindowView>(FindObjectsInactive.Include);
+            Assert.IsNotNull(lootWindow, "the real scene has no loot window");
+            var searcher = clone.GetComponent<LootSearcher>();
+            searcher.Search(crate);
+            yield return WaitUntil(() => lootWindow.Showing, "the loot window to show what the friend's body opened");
+            searcher.CloseWindow();
+            Object.Destroy(crate.gameObject);
 #else
             yield break;
 #endif

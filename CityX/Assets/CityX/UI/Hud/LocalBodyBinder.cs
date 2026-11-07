@@ -87,6 +87,14 @@ namespace CityX.UI
             foreach (PlayerRedrawStarter starter in All<PlayerRedrawStarter>())
             {
                 starter.InputReader = reader;
+                starter.Body = body;
+            }
+            // Hold E to carry: the body's own, looking from this machine's camera as the baked player's does.
+            var carry = body.GetComponent<GrabCarry>();
+            ThirdPersonCamera camera = Object.FindFirstObjectByType<ThirdPersonCamera>();
+            if (carry != null && camera != null)
+            {
+                carry.Eye = camera.transform;
             }
             foreach (PlayerChat chat in All<PlayerChat>())
             {

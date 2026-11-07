@@ -41,9 +41,15 @@ namespace CityX.UI
         /// <summary>The session open on this machine, if one is: the HUD steps aside for it (MenuHudFade).</summary>
         public static PlayerRedrawStarter Active { get; private set; }
 
+        /// <summary>The body ReDraw repaints: the one this sits on, or the clone a joining player plays (LocalBodyBinder).</summary>
+        public GameObject Body;
+
         private void Awake()
         {
-            _identity = GetComponent<CharacterIdentity>();
+            if (Body == null)
+            {
+                Body = gameObject;
+            }
         }
 
         public void Begin()
@@ -52,6 +58,7 @@ namespace CityX.UI
             {
                 return;
             }
+            _identity = Body != null ? Body.GetComponent<CharacterIdentity>() : null;
             CharacterSave character = _identity != null ? _identity.Character : null;
             if (character == null)
             {
@@ -68,7 +75,7 @@ namespace CityX.UI
             if (InputReader != null) InputReader.Hold(this);
             if (OrbitCamera != null) OrbitCamera.enabled = false;
 
-            _overlay = RedrawCreatorRuntime.Build(gameObject, HairMeshes, HairMaterial, OnConfirm, OnCancel);
+            _overlay = RedrawCreatorRuntime.Build(Body, HairMeshes, HairMaterial, OnConfirm, OnCancel);
             Active = this;
             Seed(character);
         }

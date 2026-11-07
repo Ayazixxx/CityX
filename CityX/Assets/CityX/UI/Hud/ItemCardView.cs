@@ -135,13 +135,10 @@ namespace CityX.UI
 
         private void Update()
         {
-            if (_inspector == null && Time.unscaledTime >= _nextLook)
+            if (Time.unscaledTime >= _nextLook && (_inspector == null || !_inspector.IsOpen))
             {
                 _nextLook = Time.unscaledTime + 0.5f;
-                foreach (ItemInspector inspector in FindObjectsByType<ItemInspector>(FindObjectsSortMode.None))
-                {
-                    if (inspector.GetComponent<PlayerInputReader>() != null) _inspector = inspector;
-                }
+                _inspector = LocalPlayerBody.Find<ItemInspector>();   // this machine's body, which changes when a friend's clone is claimed
             }
             bool show = _inspector != null && _inspector.IsOpen;
             if (_sheet.activeSelf != show) _sheet.SetActive(show);

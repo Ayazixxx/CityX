@@ -102,7 +102,11 @@ namespace CityX.CharacterEditor
             return entries.ToArray();
         }
 
-        public static void AddSharedState(GameObject body, bool addInventory)
+        /// <summary>
+        /// What every player's body needs in a session. <paramref name="addOwnParts"/>: also what the scene builder gives the baked player by
+        /// hand (the inventory, hold-E carry), for the clone a joining player plays.
+        /// </summary>
+        public static void AddSharedState(GameObject body, bool addOwnParts)
         {
             TuneTransform(body.GetComponent<NetworkTransform>());
             if (body.GetComponent<NetworkedEquipmentSync>() == null)
@@ -123,9 +127,15 @@ namespace CityX.CharacterEditor
             {
                 body.AddComponent<NetworkedVoice>();
             }
-            if (addInventory && body.GetComponent<Inventory>() == null)
+            if (addOwnParts && body.GetComponent<Inventory>() == null)
             {
                 body.AddComponent<Inventory>().ItemPrefabs = ItemPrefabEntries();
+            }
+            // Hold E to carry, as the baked player can (the scene builder gives it that one): the camera it looks from is given when this
+            // machine claims the body (LocalBodyBinder).
+            if (addOwnParts && body.GetComponent<GrabCarry>() == null)
+            {
+                body.AddComponent<GrabCarry>().Vitals = body.GetComponent<PlayerVitals>();
             }
         }
 

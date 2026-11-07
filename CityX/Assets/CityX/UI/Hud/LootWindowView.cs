@@ -97,13 +97,10 @@ namespace CityX.UI
 
         private void Update()
         {
-            if (_searcher == null && Time.unscaledTime >= _nextLook)
+            if (Time.unscaledTime >= _nextLook && (_searcher == null || _searcher.Current == null))
             {
                 _nextLook = Time.unscaledTime + 0.5f;
-                foreach (LootSearcher searcher in FindObjectsByType<LootSearcher>(FindObjectsSortMode.None))
-                {
-                    if (searcher.GetComponent<PlayerInputReader>() != null) _searcher = searcher;
-                }
+                _searcher = LocalPlayerBody.Find<LootSearcher>();   // this machine's body, which changes when a friend's clone is claimed
             }
             bool show = _searcher != null && _searcher.Current != null;
             if (_panel.activeSelf != show) _panel.SetActive(show);
