@@ -169,5 +169,53 @@ namespace CityX.Tests
             yield break;
 #endif
         }
+
+        /// <summary>
+        /// A friend joining someone else's world with a new character (bug hunt N2, 2026-11-06): the starter sits on the scene's baked body,
+        /// which on their machine is the host's. The entrance waits for the friend's own body to be claimed and plays on it; the host's body is
+        /// left alone, its input not switched on for the friend's keys.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AJoiningFriendsEntrancePlaysOnTheirOwnBodyNotTheHosts()
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            GameObject host = Object.Instantiate(prefab, Vector3.zero, Quaternion.identity);
+            GameObject friend = Object.Instantiate(prefab, new Vector3(10.0f, 0.0f, 0.0f), Quaternion.identity);
+            var cameraObject = new GameObject("Camera", typeof(Camera));
+            try
+            {
+                var hostReader = host.GetComponent<PlayerInputReader>();
+                hostReader.enabled = false;   // the host's copy on the friend's machine
+                var thirdPersonCamera = cameraObject.AddComponent<ThirdPersonCamera>();
+                var starter = host.AddComponent<IntroCutsceneStarter>();
+                starter.Controller = host.GetComponent<CharacterController>();
+                starter.InputReader = hostReader;
+                starter.Animator = host.GetComponentInChildren<Animator>();
+                starter.Locomotion = host.GetComponent<PlayerLocomotion>();
+                starter.OrbitCamera = thirdPersonCamera;
+                starter.CameraTransform = cameraObject.transform;
+                yield return null;
+
+                starter.PlayOnClaimedBody();
+                Assert.IsNull(host.GetComponent<IntroCutscene>(), "the entrance started on the host's body before the friend's was claimed");
+                LocalPlayerBody.Claim(friend);
+                Assert.IsNotNull(friend.GetComponent<IntroCutscene>(), "the friend's own body got no entrance");
+                Assert.IsNull(host.GetComponent<IntroCutscene>(), "the entrance played on the host's body");
+                Assert.AreSame(friend.GetComponent<PlayerInputReader>(), starter.InputReader, "the entrance would hand the controls back to the host's body");
+                Assert.IsFalse(hostReader.enabled, "the host's copy obeys the friend's keys");
+            }
+            finally
+            {
+                LocalPlayerBody.Claim(null);
+                Object.Destroy(host);
+                Object.Destroy(friend);
+                Object.Destroy(cameraObject);
+            }
+#else
+            Assert.Ignore("needs the editor to load the player prefab.");
+            yield break;
+#endif
+        }
     }
 }

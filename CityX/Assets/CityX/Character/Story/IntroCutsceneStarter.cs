@@ -29,6 +29,10 @@ namespace CityX.Character
     /// "Cleared once used") -- a scene reload or a death/respawn must never
     /// replay this, and a missing wiring reference should fail by silently
     /// skipping the entrance rather than by replaying it forever.
+    ///
+    /// A FRIEND JOINING SOMEONE ELSE'S WORLD (bug hunt N2, 2026-11-06): this sits on the scene's baked body, which on their machine is the
+    /// host's. Their own body is spawned later and claimed (LocalPlayerBody), and the entrance waits for it and plays on it: before, it played
+    /// on the host's body and then switched that body's input back on, so the friend's keys drove the host's copy.
     /// </summary>
     public sealed class IntroCutsceneStarter : MonoBehaviour
     {
@@ -61,6 +65,54 @@ namespace CityX.Character
             }
             PlaySession.IsNewCharacter = false;
 
+            if (JoiningSomeoneElsesWorld())
+            {
+                PlayOnClaimedBody();
+                return;
+            }
+            Play(gameObject);
+        }
+
+        /// <summary>The entrance on the body this machine plays once it is claimed (now, if it already is), not on this one. Public for a test.</summary>
+        public void PlayOnClaimedBody()
+        {
+            if (LocalPlayerBody.Current != null)
+            {
+                OnBodyClaimed(LocalPlayerBody.Current);
+                return;
+            }
+            LocalPlayerBody.Changed += OnBodyClaimed;
+        }
+
+        /// <summary>A client of a session this machine does not host: the scene's baked body here is the host's.</summary>
+        private static bool JoiningSomeoneElsesWorld()
+        {
+            FishNet.Managing.NetworkManager manager = FishNet.InstanceFinder.NetworkManager;
+            return manager != null && manager.IsClientStarted && !manager.IsServerStarted;
+        }
+
+        private void OnBodyClaimed(GameObject body)
+        {
+            if (body == null)
+            {
+                return;
+            }
+            LocalPlayerBody.Changed -= OnBodyClaimed;
+            Controller = body.GetComponent<CharacterController>();
+            InputReader = body.GetComponent<PlayerInputReader>();
+            Animator = body.GetComponentInChildren<Animator>();
+            Locomotion = body.GetComponent<PlayerLocomotion>();
+            Play(body);
+        }
+
+        private void OnDestroy()
+        {
+            LocalPlayerBody.Changed -= OnBodyClaimed;
+        }
+
+        /// <summary>The entrance on <paramref name="body"/>: this machine's own.</summary>
+        private void Play(GameObject body)
+        {
             if (OrbitCamera == null || InputReader == null || CameraTransform == null
                 || Animator == null)
             {
@@ -72,7 +124,7 @@ namespace CityX.Character
             InputReader.enabled = false;
             OrbitCamera.enabled = false;
 
-            _cutscene = gameObject.AddComponent<IntroCutscene>();
+            _cutscene = body.AddComponent<IntroCutscene>();
             _cutscene.RuinsMusic = RuinsMusic;
             _cutscene.GroundImpactSound = GroundImpactSound;
             _cutscene.Finished += OnFinished;
