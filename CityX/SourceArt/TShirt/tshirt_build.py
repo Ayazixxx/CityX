@@ -434,11 +434,11 @@ def in_sleeve(p, planes):
 
 
 def sew_sleeve(bm, top, side, original, cuff, plane):
-    """Makes a sleeve: a tube of rings from the armhole (top: its points in order once round the arm) down to the cuff (cuff: points along
-    Meshy's cuff edge), each point as far off the arm's axis as the original shirt's sleeve is there (read with a ray out from the axis), or,
-    where it had none (inside the arm, where its cloth crossed to the ribs), SLEEVE_WALL off the arm's skin; the rings' distances evened
-    round them, eased in from the armhole's own over the top SLEEVE_EASE of the sleeve; the edge rolled under at the cuff. Returns the new
-    points and faces."""
+    """Makes a sleeve: a tube of rings from the armhole (top: its points in order once round the arm) down to the hem (cuff: a ring square
+    to the arm), each point as far off the arm's axis as the original shirt's sleeve is there (read with a ray out from the axis); below
+    where Meshy's sleeve ended, a short sleeve's last ring as read carried on down; where it had none (inside the arm, where its cloth
+    crossed to the ribs), SLEEVE_WALL off the arm's skin; the rings' distances evened round them, eased in from the armhole's own over the
+    top SLEEVE_EASE of the sleeve; the edge rolled under at the hem. Returns the new points and faces."""
     to_frame, from_frame = sleeve_frame(side)
     axis = (HANDS[side] - SHOULDERS[side]) / np.linalg.norm(HANDS[side] - SHOULDERS[side])
     point, normal = plane
@@ -470,6 +470,7 @@ def sew_sleeve(bm, top, side, original, cuff, plane):
         rings = np.concatenate([shoulder, arm]) / length
     grid = [list(top)]
     made = []
+    carried = None   # a short sleeve's last ring as read, carried on down to the hem where Meshy's sleeve has ended (its outside, 6 cm higher)
     for s in rings:
         along = rim[:, 1] + (cuff_at - rim[:, 1]) * s
         off = np.empty(len(rim))
@@ -480,9 +481,13 @@ def sew_sleeve(bm, top, side, original, cuff, plane):
             facing_ribs = abs(turn[j]) < np.pi / 2.0 and along[j] > 0.0
             if hit is not None and not facing_ribs and (np.array(hit[:]) - point) @ normal > 0.0:
                 off[j] = distance
+            elif carried is not None and not facing_ribs:
+                off[j] = carried[j]
             else:
                 skin = tree.ray_cast(origin, direction, 0.5)[3]
                 off[j] = (skin if skin is not None else ARM_R) + SLEEVE_WALL
+        if not LONG:
+            carried = off.copy()
         for _ in range(SLEEVE_ROUNDING):
             off = 0.5 * off + 0.25 * (np.roll(off, 1) + np.roll(off, -1))
         ease = smoothstep(np.full(len(rim), s), 0.0, SLEEVE_EASE)
@@ -723,9 +728,10 @@ shirt.data.update()
 # out, with a gap under the arm and the armhole at the armpit, and lay clean game meshes over the sculpted ones; so here, on each side:
 #   - the armhole: a flat plane through the armpit's crease (where the arm's skin meets the ribs') and the shoulder's top, so its seam over
 #     the shoulder is straight; under the arm, the crease itself;
-#   - the sleeve is taken away and made again as a tube from the armhole to the cuff, its shape read off Meshy's sleeve (each point as far off
-#     the arm's axis as Meshy's cloth is there), and where Meshy had no sleeve, inside the arm, SLEEVE_WALL off the arm's skin; its edge
-#     rolled under at the cuff;
+#   - the sleeve is taken away and made again as a tube from the armhole to the hem, its shape read off Meshy's sleeve (each point as far off
+#     the arm's axis as Meshy's cloth is there), and where Meshy had no sleeve, inside the arm, SLEEVE_WALL off the arm's skin; the hem a
+#     ring square to the arm where most of Meshy's cuff edge is (following the edge, the hem curled 6 cm up the outside of the arm: owner,
+#     2026-11-07, "like make it not curl up right there"), the sleeve's outside carried straight down to it; its edge rolled under;
 #   - the shirt's side under the arm, from the crease down to SIDE_LOW, SIDE_SPREAD round either way, is made again too: new cloth in the
 #     torso's own round frame, carrying on the cloth round it.
 bm = bmesh.new()
@@ -734,10 +740,10 @@ original = BVHTree.FromBMesh(bm)   # the sleeves' shape is read off the shirt as
 co = np.array([v.co[:] for v in bm.verts])
 cuffs = {side: np.array([v.co[:] for e in min(openings(bm), key=lambda loop: np.linalg.norm(
     np.mean([v.co[:] for e in loop for v in e.verts], 0) - HANDS[side])) for v in e.verts]) for side in SHOULDERS}
-if LONG:   # the cuff a ring round the forearm just above the wrist, square to the arm
-    for side in SHOULDERS:
-        from_sleeve = sleeve_frame(side)[1]
-        cuffs[side] = np.array([from_sleeve(u, LONG_CUFF, ARM_R) for u in np.linspace(-np.pi, np.pi, 48, endpoint=False) * SLEEVE_ROUND])
+for side in SHOULDERS:   # the hem a ring square to the arm: round the forearm just above the wrist, or where most of Meshy's cuff edge is
+    to_sleeve, from_sleeve = sleeve_frame(side)
+    hem = LONG_CUFF if LONG else np.median([to_sleeve(p)[1] for p in cuffs[side]])
+    cuffs[side] = np.array([from_sleeve(u, hem, ARM_R) for u in np.linspace(-np.pi, np.pi, 48, endpoint=False) * SLEEVE_ROUND])
 planes = {}
 field = np.full(len(co), -1.0)
 for side in SHOULDERS:

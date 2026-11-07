@@ -145,6 +145,16 @@ each cuff (`SleeveCuff`, as at the T-Shirt's short cuffs). On the ground it lies
 Tests: `TShirtTests` and `TShirtPlayTests` run for both shirts (the long one's sleeves end just above the wrist, not over the hand),
 `BlackTShirtTests` for both black ones; `TShirtCapture` shoots `tshirt-longsleeve-*.png` and `tshirt-longsleeveblack-*.png`.
 
+## The sleeves' hem (2026-11-07)
+
+Owner, with red lines drawn on two screenshots of the black and white tees: "around the end of the sleeve it kind of looks awkward ... shouldnt
+the shirt look more like where my red lines are, like a real life t shirt would look", then of a close-up of the sleeve's end, "like make it
+not curl up right there". The made sleeve ended where Meshy's had, and Meshy's cuff edge was not level: 0.42-0.44 m down the arm at the front,
+the back and under the arm, but 0.37 m on the outside, so the hem curled up 6 cm over the outside of the arm. Now the short sleeve's hem is a
+ring square to the arm, as the long sleeve's is, at the median of Meshy's edge (0.42 m), and below where Meshy's sleeve ended the sleeve's last
+ring as read is carried on down, so its outside drops straight to the hem rather than in to the skin. The long sleeves are unchanged. 7,461
+triangles, `tools/model_qa.py` passes.
+
 ## The cityXshirt (2026-11-07)
 
 Owner: "put this on a black shirt as an item called "cityXshirt"" (the game's graffiti logo, `Prints/CityX.png`, 1365 x 768 with a clear
