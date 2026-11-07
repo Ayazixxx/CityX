@@ -45,6 +45,12 @@ namespace CityX.Character
         public long Id;
     }
 
+    /// <summary>The server's word to one player that it will not share a drop of theirs (too many at once, or too far from their body).</summary>
+    public struct ItemDropRefusedMessage : IBroadcast
+    {
+        public long Id;
+    }
+
     /// <summary>The server's word that a dropped item was taken, and by which player.</summary>
     public struct ItemTakenMessage : IBroadcast
     {
@@ -102,7 +108,11 @@ namespace CityX.Character
         /// <summary>The most a dropped thing may say is left in it (a jerry can holds 20 litres).</summary>
         public const float MaxContents = 1000.0f;
 
-        public const int MaxDropsPerSecond = 4;
+        /// <summary>
+        /// A spam guard, no more: a sword spin through a pack, or a sledgehammer smash, kills several bodies at once, each letting go of its weapon
+        /// and losing its helmet with its head (4 a second made the 5th a ghost: bug hunt M11).
+        /// </summary>
+        public const int MaxDropsPerSecond = 30;
 
         /// <summary>The most items lying in the world at once; past it the oldest is cleared away for the new one.</summary>
         public const int MaxLying = 300;
@@ -171,6 +181,7 @@ namespace CityX.Character
                     _manager.ClientManager.RegisterBroadcast<ItemTakenMessage>(OnTakenAtClient);
                     _manager.ClientManager.RegisterBroadcast<ItemDropStateMessage>(OnStateAtClient);
                     _manager.ClientManager.RegisterBroadcast<ItemTakeRefusedMessage>(OnTakeRefusedAtClient);
+                    _manager.ClientManager.RegisterBroadcast<ItemDropRefusedMessage>(OnDropRefusedAtClient);
                     Target.Relay = this;
                     _requested = false;   // asked for once the server has let this client in (below)
                 }
@@ -180,6 +191,7 @@ namespace CityX.Character
                     _manager.ClientManager.UnregisterBroadcast<ItemTakenMessage>(OnTakenAtClient);
                     _manager.ClientManager.UnregisterBroadcast<ItemDropStateMessage>(OnStateAtClient);
                     _manager.ClientManager.UnregisterBroadcast<ItemTakeRefusedMessage>(OnTakeRefusedAtClient);
+                    _manager.ClientManager.UnregisterBroadcast<ItemDropRefusedMessage>(OnDropRefusedAtClient);
                     if (ReferenceEquals(Target.Relay, this))
                     {
                         Target.Relay = null;
@@ -234,9 +246,14 @@ namespace CityX.Character
 
         private void OnDropAtServer(NetworkConnection sender, ItemDropMessage message, Channel channel)
         {
-            if (sender == null || !Acceptable(message) || IdOwner(message.Id) != sender.ClientId || _lying.ContainsKey(message.Id)
-                || !Near(sender, message.Position, DropReachMetres) || !_rate.Allow(sender.ClientId, Time.unscaledTime))
+            if (sender == null || IdOwner(message.Id) != sender.ClientId || _lying.ContainsKey(message.Id))
             {
+                return;
+            }
+            if (!Acceptable(message) || !Near(sender, message.Position, DropReachMetres) || !_rate.Allow(sender.ClientId, Time.unscaledTime))
+            {
+                // Told, or it lies on the dropper's screen as a ghost that can never be picked up (bug hunt M11): there it stays theirs alone.
+                _manager.ServerManager.Broadcast(sender, new ItemDropRefusedMessage { Id = message.Id });
                 return;
             }
             while (_order.Count >= MaxLying)
@@ -255,9 +272,15 @@ namespace CityX.Character
 
         private void OnTakeAtServer(NetworkConnection sender, ItemTakeRequest request, Channel channel)
         {
-            if (sender == null || !_lying.TryGetValue(request.Id, out ItemDropMessage drop))
+            if (sender == null)
             {
-                return;   // gone already: someone was first
+                return;
+            }
+            if (!_lying.TryGetValue(request.Id, out ItemDropMessage drop))
+            {
+                // Gone already (someone was first, its word lost) or never shared: told it is gone, or it stays "asked for" there for good.
+                _manager.ServerManager.Broadcast(sender, new ItemTakenMessage { Id = request.Id, TakerClientId = -1 });
+                return;
             }
             bool nearWhereItFell = CouldHaveFallenTo(drop.Position, request.At) && Near(sender, request.At, TakeReachMetres);
             if (!nearWhereItFell && !Near(sender, drop.Position, TakeReachMetres))
@@ -328,6 +351,15 @@ namespace CityX.Character
         private void OnTakeRefusedAtClient(ItemTakeRefusedMessage message, Channel channel)
         {
             Target.TakeRefused(message.Id);
+        }
+
+        /// <summary>How many of this machine's drops the server would not share (for tests).</summary>
+        public int DropsRefused { get; private set; }
+
+        private void OnDropRefusedAtClient(ItemDropRefusedMessage message, Channel channel)
+        {
+            DropsRefused++;
+            Target.DropRefused(message.Id);
         }
 
         private void OnTakenAtClient(ItemTakenMessage message, Channel channel)

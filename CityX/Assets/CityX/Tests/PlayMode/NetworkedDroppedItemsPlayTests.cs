@@ -194,6 +194,63 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Bug hunt M11: a pack killed at once drops more than the server shares in a second, and each one it would not share lay on the dropper's
+        /// screen as a ghost nobody could pick up. A burst well past what a spin or a smash makes is shared; past the spam guard, the dropper is
+        /// told, and keeps the rest as their own to pick up. An ask for something the server no longer has is told it is gone.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ABurstOfDropsIsSharedAndNoneIsLeftAsAGhost()
+        {
+#if UNITY_EDITOR
+            LogAssert.ignoreFailingMessages = true;
+            GameObject playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(NetworkedPlayerPrefabPath);
+            Assert.IsNotNull(playerPrefab, "no NetworkedPlayer.prefab -- run CityX/Rebuild Massing Scene first");
+            ushort port = _nextPort++;
+            (NetworkManager server, DroppedItems _, DroppedItemsNetwork _) = Machine("Burst Server");
+            Transport st = server.TransportManager.Transport;
+            st.SetPort(port);
+            st.SetServerBindAddress("127.0.0.1", IPAddressType.IPv4);
+            server.ServerManager.StartConnection(port);
+            yield return WaitUntil(() => server.IsServerStarted, "the server to start");
+            (NetworkManager a, DroppedItems onA, DroppedItemsNetwork netA) = Machine("Burst Client A");
+            (NetworkManager b, DroppedItems onB, DroppedItemsNetwork netB) = Machine("Burst Client B");
+            yield return Join(a, port);
+            yield return Join(b, port);
+            yield return WaitUntil(() => netA.StatesHeard > 0 && netB.StatesHeard > 0, "both players to be told what lies around");
+            NetworkObject aBody = server.GetPooledInstantiated(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity, asServer: true);
+            server.ServerManager.Spawn(aBody, AtServer(server, a));
+            yield return WaitSeconds(0.3f);
+
+            const int Extra = 3;
+            var ids = new List<long>();
+            for (int i = 0; i < DroppedItemsNetwork.MaxDropsPerSecond + Extra; i++)
+            {
+                ids.Add(onA.Drop(Sword(new Vector3(i * 0.1f, 1.0f, 0.0f)), shared: true).Id);
+            }
+            yield return WaitUntil(() => netA.DropsRefused == Extra, "the dropper to be told of the drops past the spam guard");
+            yield return WaitUntil(() => onB.Count == DroppedItemsNetwork.MaxDropsPerSecond, "the shared drops to reach player B");
+            var kept = new List<long>();
+            foreach (long id in ids)
+            {
+                if (onA.IsKeptHere(id)) kept.Add(id);
+            }
+            Assert.AreEqual(Extra, kept.Count, "the drops past the guard are not kept as the dropper's own");
+
+            // Kept here, one is picked up at once, with no server to ask.
+            Inventory aPockets = Pockets("A's inventory");
+            Assert.IsTrue(onA.Take(kept[0], aPockets), "a drop the server would not share cannot be picked up");
+            Assert.IsTrue(aPockets.HasItem(ItemRegistry.SpikeSword), "it did not go into the inventory");
+            Assert.IsFalse(onA.Has(kept[0]));
+
+            // An ask for an id the server does not have is answered: gone, not left waiting for good.
+            netA.RequestTake(kept[1]);
+            yield return WaitUntil(() => !onA.Has(kept[1]), "the server to say an item it does not have is gone");
+#else
+            yield break;
+#endif
+        }
+
         [TestCase(0.0f, 30.0f, 0.0f, 0.5f, 0.0f, ExpectedResult = true)]
         [TestCase(0.0f, 30.0f, 0.0f, 0.5f, 25.0f, ExpectedResult = true)]
         [TestCase(0.0f, 30.0f, 0.0f, 0.5f, 200.0f, ExpectedResult = false)]

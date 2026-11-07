@@ -55,6 +55,9 @@ namespace CityX.Character
         private readonly Dictionary<long, ItemDrop> _drops = new Dictionary<long, ItemDrop>();
         private readonly Dictionary<long, DroppedItem> _shown = new Dictionary<long, DroppedItem>();
         private readonly Dictionary<long, Inventory> _asked = new Dictionary<long, Inventory>();
+
+        /// <summary>This machine's drops the server would not share (bug hunt M11): this machine's alone, taken here at once, never a ghost.</summary>
+        private readonly HashSet<long> _keptHere = new HashSet<long>();
         private long _lastLocalId;
 
         /// <summary>How many items lie in the world on this machine.</summary>
@@ -119,7 +122,7 @@ namespace CityX.Character
             {
                 return false;
             }
-            if (id < 0 || Relay == null)
+            if (id < 0 || Relay == null || _keptHere.Contains(id))
             {
                 Remove(id);
                 return into.PickUp(drop.ItemId, drop.Data);
@@ -148,6 +151,21 @@ namespace CityX.Character
             _asked.Remove(id);
         }
 
+        /// <summary>
+        /// The server's word that it would not share a drop this machine made (too many at once, or too far from its body): it stays here as this
+        /// machine's alone, to be picked up as one, instead of lying as a ghost nobody may take.
+        /// </summary>
+        public void DropRefused(long id)
+        {
+            if (_drops.ContainsKey(id))
+            {
+                _keptHere.Add(id);
+            }
+        }
+
+        /// <summary>Whether <paramref name="id"/> is a drop the server would not share, kept on this machine alone.</summary>
+        public bool IsKeptHere(long id) => _keptHere.Contains(id);
+
         /// <summary>Every drop recorded here, as it lies now (a shown one at its object's place, at rest), for a player who joins.</summary>
         public List<ItemDrop> Current()
         {
@@ -172,6 +190,7 @@ namespace CityX.Character
         {
             _drops.Remove(id);
             _asked.Remove(id);
+            _keptHere.Remove(id);
             if (_shown.TryGetValue(id, out DroppedItem shown))
             {
                 _shown.Remove(id);
