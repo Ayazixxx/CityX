@@ -180,8 +180,9 @@ house is **dark when the player arrives**: every lamp off (by day the windows li
 **fuse box** on the workshop's east wall has a red lever on a hinge at its middle; looked at, it names itself under the crosshair ("Fuse box",
 `[E] Turn the power on`, the same prompt as the items and the drawers), and E throws it over with a switch's click: the power comes on
 (`World/TutorialHousePower`, kept apart from the house's objects so a rebuild keeps it, as the broken pieces are kept) and every lamp lights.
-Thrown, the lever hangs down and offers nothing more. This machine's own, as the containers are (the tutorial is played in a private copy of
-the streets); the claim is not gated on it yet (Old Guy's lines for it are the owner's to write; `TutorialHousePower.Shared.IsOn` is the hook).
+Thrown, the lever hangs down and offers nothing more. In a session the power is everyone's, as the broken pieces are (since 2026-11-06, bug
+hunt M12: it lit the house for whoever threw the lever alone): it goes through the house's network (`TutorialHouseNetwork`, a
+`TutorialHousePowerMessage`), and a player who joins later is told it in the house's state; the claim is not gated on it yet (Old Guy's lines for it are the owner's to write; `TutorialHousePower.Shared.IsOn` is the hook).
 
 How: `View/Interactables/FuseBoxSwitch` is a `Character/Interaction/HoverTarget`, a thing that names itself and is used with E; the inspector's
 look (`ItemInspector`) picks the item, the container or the target looked at most directly, the prompt names it, and the pickup and the searcher

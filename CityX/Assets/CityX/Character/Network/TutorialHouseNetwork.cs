@@ -19,10 +19,16 @@ namespace CityX.Character
     {
     }
 
-    /// <summary>Every broken piece of Old Guy's house, for a joining player.</summary>
+    /// <summary>Old Guy's house's power turned on (its fuse box's lever thrown), on its way between machines.</summary>
+    public struct TutorialHousePowerMessage : IBroadcast
+    {
+    }
+
+    /// <summary>Every broken piece of Old Guy's house, and whether its power is on, for a joining player.</summary>
     public struct TutorialHouseStateMessage : IBroadcast
     {
         public int[] Pieces;
+        public bool PowerOn;
     }
 
     /// <summary>
@@ -54,6 +60,9 @@ namespace CityX.Character
         private bool _requested;
         private readonly SenderRate _rate = new SenderRate(MaxBreaksPerSecond);
 
+        /// <summary>The server's own word on the power, for joiners: not read off TutorialHousePower.Shared, which a dedicated server never hears.</summary>
+        private bool _powerOn;
+
         private void Update()
         {
             if (_manager == null)
@@ -72,11 +81,14 @@ namespace CityX.Character
                 {
                     _manager.ServerManager.RegisterBroadcast<TutorialHouseBreakMessage>(OnBreakAtServer);
                     _manager.ServerManager.RegisterBroadcast<TutorialHouseStateRequest>(OnStateRequestAtServer);
+                    _manager.ServerManager.RegisterBroadcast<TutorialHousePowerMessage>(OnPowerAtServer);
                 }
                 else
                 {
                     _manager.ServerManager.UnregisterBroadcast<TutorialHouseBreakMessage>(OnBreakAtServer);
                     _manager.ServerManager.UnregisterBroadcast<TutorialHouseStateRequest>(OnStateRequestAtServer);
+                    _manager.ServerManager.UnregisterBroadcast<TutorialHousePowerMessage>(OnPowerAtServer);
+                    _powerOn = false;
                 }
                 _serverHandlers = server;
             }
@@ -88,17 +100,17 @@ namespace CityX.Character
                 {
                     _manager.ClientManager.RegisterBroadcast<TutorialHouseBreakMessage>(OnBreakAtClient);
                     _manager.ClientManager.RegisterBroadcast<TutorialHouseStateMessage>(OnStateAtClient);
+                    _manager.ClientManager.RegisterBroadcast<TutorialHousePowerMessage>(OnPowerAtClient);
                     TutorialHouseDamage.Shared.Relay = this;
+                    TutorialHousePower.Shared.Relay = this;
                     _requested = false;   // asked for once the server has let this client in (below)
                 }
                 else
                 {
                     _manager.ClientManager.UnregisterBroadcast<TutorialHouseBreakMessage>(OnBreakAtClient);
                     _manager.ClientManager.UnregisterBroadcast<TutorialHouseStateMessage>(OnStateAtClient);
-                    if (ReferenceEquals(TutorialHouseDamage.Shared.Relay, this))
-                    {
-                        TutorialHouseDamage.Shared.Relay = null;
-                    }
+                    _manager.ClientManager.UnregisterBroadcast<TutorialHousePowerMessage>(OnPowerAtClient);
+                    LetGoOfTheHouse();
                 }
                 _clientHandlers = client;
             }
@@ -113,10 +125,46 @@ namespace CityX.Character
 
         private void OnDisable()
         {
+            LetGoOfTheHouse();
+        }
+
+        private void LetGoOfTheHouse()
+        {
             if (ReferenceEquals(TutorialHouseDamage.Shared.Relay, this))
             {
                 TutorialHouseDamage.Shared.Relay = null;
             }
+            if (ReferenceEquals(TutorialHousePower.Shared.Relay, this))
+            {
+                TutorialHousePower.Shared.Relay = null;
+            }
+        }
+
+        public void SendPowerOn()
+        {
+            if (_manager != null && _manager.IsClientStarted)
+            {
+                _manager.ClientManager.Broadcast(new TutorialHousePowerMessage());
+            }
+        }
+
+        /// <summary>How many times this machine has heard the power come on (for tests).</summary>
+        public int PowerHeard { get; private set; }
+
+        private void OnPowerAtServer(NetworkConnection sender, TutorialHousePowerMessage message, Channel channel)
+        {
+            if (sender == null || !_rate.Allow(sender.ClientId, Time.unscaledTime))
+            {
+                return;
+            }
+            _powerOn = true;
+            _manager.ServerManager.Broadcast(message);
+        }
+
+        private void OnPowerAtClient(TutorialHousePowerMessage message, Channel channel)
+        {
+            PowerHeard++;
+            TutorialHousePower.Shared.Told();
         }
 
         public void Send(int piece)
@@ -143,7 +191,7 @@ namespace CityX.Character
             {
                 return;
             }
-            _manager.ServerManager.Broadcast(sender, new TutorialHouseStateMessage { Pieces = TutorialHouseDamage.Shared.All().ToArray() });
+            _manager.ServerManager.Broadcast(sender, new TutorialHouseStateMessage { Pieces = TutorialHouseDamage.Shared.All().ToArray(), PowerOn = _powerOn });
         }
 
         private void OnBreakAtClient(TutorialHouseBreakMessage message, Channel channel)
@@ -159,6 +207,10 @@ namespace CityX.Character
             for (int i = 0; i < LastStateSize; i++)
             {
                 TutorialHouseDamage.Shared.Told(state.Pieces[i]);
+            }
+            if (state.PowerOn)
+            {
+                TutorialHousePower.Shared.Told();
             }
         }
     }

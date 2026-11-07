@@ -40,6 +40,8 @@ namespace CityX.Tests
             _managers.Clear();
             TutorialHouseDamage.Shared.Clear();
             TutorialHouseDamage.Shared.Relay = null;
+            TutorialHousePower.Shared.Reset();
+            TutorialHousePower.Shared.Relay = null;
             LogAssert.ignoreFailingMessages = false;
         }
 
@@ -124,6 +126,45 @@ namespace CityX.Tests
             yield return Join(c, port);
             yield return WaitUntil(() => onC.StatesHeard > 0, "the late joiner to be told what is broken");
             Assert.AreEqual(2, onC.LastStateSize, "the late joiner was not told the plank and the pane");
+        }
+
+        /// <summary>
+        /// The fuse box lights the house for everyone (bug hunt M12, 2026-11-06: it lit it for whoever threw the lever alone): thrown on A's
+        /// machine, B hears it, and a player who joins later finds the power on.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ThePowerTurnedOnByOnePlayerIsOnForEveryoneAndALateJoiner()
+        {
+            LogAssert.ignoreFailingMessages = true;
+            TutorialHousePower.Shared.Reset();
+            ushort port = _nextPort++;
+            NetworkManager server = Manager("Power Server");
+            Transport st = server.TransportManager.Transport;
+            st.SetPort(port);
+            st.SetServerBindAddress("127.0.0.1", IPAddressType.IPv4);
+            server.ServerManager.StartConnection(port);
+            yield return WaitUntil(() => server.IsServerStarted, "the server to start");
+            House(server);
+
+            NetworkManager a = Manager("Power Client A");
+            NetworkManager b = Manager("Power Client B");
+            TutorialHouseNetwork onA = House(a);
+            TutorialHouseNetwork onB = House(b);
+            yield return Join(a, port);
+            yield return Join(b, port);
+            yield return WaitUntil(() => onA.StatesHeard > 0 && onB.StatesHeard > 0, "both clients to be told the house's state on joining");
+
+            // The lever thrown on A's machine (what FuseBoxSwitch.Use does there: TutorialHousePower.TurnOn, through its relay).
+            onA.SendPowerOn();
+            yield return WaitUntil(() => onB.PowerHeard > 0, "player B to hear the power come on");
+
+            // A player who joins with the house dark here is told it is lit.
+            TutorialHousePower.Shared.Reset();
+            NetworkManager c = Manager("Power Client C");
+            TutorialHouseNetwork onC = House(c);
+            yield return Join(c, port);
+            yield return WaitUntil(() => onC.StatesHeard > 0, "the late joiner to be told the house's state");
+            Assert.IsTrue(TutorialHousePower.Shared.IsOn, "the late joiner finds the house dark");
         }
     }
 }

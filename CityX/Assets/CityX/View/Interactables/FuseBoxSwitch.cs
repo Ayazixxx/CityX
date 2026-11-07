@@ -8,7 +8,7 @@ namespace CityX.View
     /// THE FUSE BOX'S LEVER in Old Guy's house (docs/OLD_GUYS_HOUSE.md; docs/GAME_DESIGN.md: "Old Guy has you turn its power back on, then
     /// you claim it"): looked at, it names itself under the crosshair; E throws it over, with a switch's click, and the house's power comes
     /// on (TutorialHousePower) for good. The lever turns on a hinge at its middle and flips in place on the panel from pointing up to pointing down; a lever found
-    /// already thrown (the house rebuilt) hangs down from the start.
+    /// already thrown (the house rebuilt, or thrown by another player: the power is shared in a session) hangs down from the start.
     /// </summary>
     public sealed class FuseBoxSwitch : HoverTarget
     {

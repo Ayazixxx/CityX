@@ -15,6 +15,10 @@ namespace CityX.Tests
             public readonly List<int> Sent = new List<int>();
 
             public void Send(int piece) => Sent.Add(piece);
+
+            public int PowerSent;
+
+            public void SendPowerOn() => PowerSent++;
         }
 
         private TutorialHouseDamage _damage;

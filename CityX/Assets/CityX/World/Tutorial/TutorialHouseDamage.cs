@@ -7,6 +7,9 @@ namespace CityX.World
     public interface ITutorialHouseRelay
     {
         void Send(int piece);
+
+        /// <summary>The house's power turned on here (TutorialHousePower), for every machine.</summary>
+        void SendPowerOn();
     }
 
     /// <summary>
