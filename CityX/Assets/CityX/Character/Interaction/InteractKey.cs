@@ -9,6 +9,10 @@ namespace CityX.Character
     /// up, where it used to act on the press, which would have taken every item the player meant to lift.
     ///
     /// The press is timed once per frame for everything that asks (every pickup and GrabCarry), off the keyboard.
+    ///
+    /// NOT WHILE TYPING (bug hunt, 2026-11-06): an E typed into the chat or the console picked up whatever lay near. While a text box has
+    /// the keyboard (<see cref="IsTyping"/>, told by the UI, which knows its text boxes) E is no press at all. Not "while the body's input is
+    /// held": the inspect card holds it and takes the item with its own E.
     /// </summary>
     public static class InteractKey
     {
@@ -17,6 +21,12 @@ namespace CityX.Character
 
         private static readonly InteractPress Press = new InteractPress();
         private static int _readFrame = -1;
+
+        /// <summary>Whether a text box has the keyboard now (set by the UI: TypingFocus). Null: never.</summary>
+        public static System.Func<bool> IsTyping;
+
+        /// <summary>A text box has the keyboard: E types a letter.</summary>
+        public static bool Typing => IsTyping != null && IsTyping();
 
         /// <summary>E was let go this frame after a press shorter than <see cref="HoldSeconds"/>.</summary>
         public static bool Tapped
@@ -59,6 +69,11 @@ namespace CityX.Character
                 Press.Reset();   // unread for a while (nothing near to use E on): a press then is a new one
             }
             _readFrame = Time.frameCount;
+            if (Typing)
+            {
+                Press.Reset();   // not a let-go either: an E held into the chat must not tap on the way
+                return;
+            }
             Keyboard keyboard = Keyboard.current;
             Press.Step(keyboard != null && keyboard.eKey.isPressed, Time.deltaTime);
         }

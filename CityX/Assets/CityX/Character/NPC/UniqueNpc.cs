@@ -266,7 +266,7 @@ namespace CityX.Character
                 _nearbyPlayer = null;
                 return;
             }
-            if (Keyboard.current == null || !Keyboard.current.eKey.wasPressedThisFrame)
+            if (Keyboard.current == null || !Keyboard.current.eKey.wasPressedThisFrame || InteractKey.Typing)
             {
                 return;
             }

@@ -8,6 +8,8 @@ Owner, 2026-10-21: "make it so holding E on objects carrys them while tapping E 
   hats, clothes and dropped items. Pickups used to act the moment E went down, which would have taken every item the player meant to lift.
 - **Hold** (0.3 s): `GrabCarry` lifts what the player looks at.
 - The press is timed once per frame in game time (`InteractPress`, plain and tested).
+- **Not while typing** (2026-11-06): while a text box has the keyboard (the chat, the console), E is no press at all (`InteractKey.IsTyping`,
+  told by `UI/Hud/TypingFocus`), so an E typed into the chat picks nothing up. `TypingEPlayTests`.
 - Doors, benches, books, cars and switches still act on the press; nothing about them is carried.
 
 ## Tap = equip (`Inventory.PickUp`)
