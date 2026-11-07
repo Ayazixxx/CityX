@@ -92,7 +92,9 @@ namespace CityX.UIEditor
             GameObject panel = MakeCenteredPanel(parent, "SettingsPanel", new Vector2(360.0f, 620.0f));
             panel.SetActive(false);
 
-            MakeLabel(panel.transform, "Heading", "SETTINGS", 24, Gold, new Vector2(0.0f, 170.0f));
+            // The heading up into the empty top of the panel, and under it the way to the graphics page.
+            MakeLabel(panel.transform, "Heading", "SETTINGS", 24, Gold, new Vector2(0.0f, 262.0f));
+            view.GraphicsButton = MakeButton(panel.transform, "GraphicsButton", "GRAPHICS", Paper, new Vector2(0.0f, 210.0f));
 
             MakeLabel(panel.transform, "MasterLabel", "MASTER VOLUME", 15, Paper, new Vector2(0.0f, 118.0f));
             view.MasterSlider = MakeSlider(panel.transform, "MasterSlider", new Vector2(0.0f, 94.0f));
@@ -133,6 +135,19 @@ namespace CityX.UIEditor
             view.PushToTalkToggle = MakeToggle(panel.transform, "PushToTalkToggle", new Vector2(115.0f, -234.0f));
 
             view.BackButton = MakeButton(panel.transform, "BackButton", "BACK", Paper, new Vector2(0.0f, -274.0f));
+
+            view.Graphics = GraphicsPanelBuilder.Build(panel.transform, new GraphicsPanelBuilder.Style
+            {
+                Label = (parent, name, content, size, position, dimensions) =>
+                {
+                    Text label = MakeLabel(parent, name, content, size, Paper, position);
+                    label.rectTransform.sizeDelta = dimensions;
+                    return label;
+                },
+                Arrow = MakeArrowButton,
+                Button = (parent, name, content, position) => MakeButton(parent, name, content, Paper, position),
+                HeadingColour = Gold,
+            });
 
             return panel;
         }

@@ -55,6 +55,9 @@ namespace CityX.Core
 
         /// <summary>Matches settings_panel.gd's own default -- push_to_talk starts true.</summary>
         public bool PushToTalk = true;
+
+        /// <summary>The picture's quality: the graphics page of the settings (CityX.View.GraphicsQuality puts it into force).</summary>
+        public GraphicsOptions Graphics = new GraphicsOptions();
     }
 
     /// <summary>
@@ -99,8 +102,9 @@ namespace CityX.Core
 
             try
             {
-                GameSettingsData data = JsonUtility.FromJson<GameSettingsData>(File.ReadAllText(path));
-                return data ?? new GameSettingsData();
+                GameSettingsData data = JsonUtility.FromJson<GameSettingsData>(File.ReadAllText(path)) ?? new GameSettingsData();
+                data.Graphics = (data.Graphics ?? new GraphicsOptions()).Clean();
+                return data;
             }
             catch (Exception error)
             {

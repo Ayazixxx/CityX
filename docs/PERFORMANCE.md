@@ -50,7 +50,9 @@ CityX/Builds/Bench/CityX.exe -cityxbench -screen-width 2560 -screen-height 1600 
 Flags: `-force-d3d11`, `-bench-msaa N`, `-bench-shadow M`, `-bench-shadowres P`, `-bench-cascades N`,
 `-bench-scale S`, `-bench-radius CHUNKS`, `-bench-fullradius CHUNKS` (0 = no far version), `-bench-threads N`,
 `-bench-standing S`, `-bench-running S`, `-bench-flying S`, `-bench-flyspeed M/S` (default 22, a boosted jetpack),
-`-bench-exact S` (0 = off), `-bench-gcslice MS`. Results go to `bench-result.txt`; the census (renderers, draws,
+`-bench-exact S` (0 = off), `-bench-gcslice MS`, `-bench-effects S` (instead of the phases: each graphics effect's cost by day and
+by night, S seconds on and S off each; docs/GRAPHICS_SETTINGS.md). The benchmark runs with its window behind others (it sets
+`Application.runInBackground`; the game itself pauses there). Results go to `bench-result.txt`; the census (renderers, draws,
 triangles, in-frustum) is in it. Three phases: standing, sprinting, and flying 40 m over the ground (the body carried along a
 straight line). Each reports its garbage collections, the managed heap, how much was allocated, the chunk mesh arrays made new and
 held (`ChunkArrayPool`), and how long the game stood still: a watchdog thread does nothing but read the clock, and a collection

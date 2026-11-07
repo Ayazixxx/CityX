@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// itself (docs/AMERICAN_STREETS.md) to streets-*.png: its sidewalk, a corner, its street lights by day and by night. Explicit; run by name with -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
-    public sealed class TrafficCapture
+    public sealed partial class TrafficCapture
     {
         private const string ScenePath = "Assets/CityX/Scenes/CityMassing.unity";
         private Scene _scene;

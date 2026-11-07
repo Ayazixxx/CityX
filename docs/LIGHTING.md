@@ -94,3 +94,22 @@ from light", "it should be almost pitch black at night like minecraft", then "I 
   [UnitySSGIURP](https://discussions.unity.com/t/open-source-screen-space-global-illumination-for-urp/952599), Unity 6; commercial Radiant GI),
   screen-space reflections from the same author, and what this pass already does by hand (bounce lights, per-surface sky occlusion). Screen-space
   GI only bounces light from what is on screen, so it suits lit rooms and lamp pools; it cannot see round corners. A candidate for the next pass.
+
+## Light shafts (2026-11-06/07)
+
+Owner, 2026-11-06, of the graphics ideas offered: "lets try 1 2 3 and 5 leave 4 for later" (1 bounced light, 2 wet reflections, 3 light
+shafts, 4 neon signs, 5 contact shadows). Contact shadows were built first and taken out again: the sun's shadows are already sharp near
+things (4096 px, four cascades), so a screen-space contact shadow pass changed a few hundred pixels of a frame.
+
+The light shafts (`LightShaftsFeature`, `Shaders/CityXLightShafts.shader`, set up by `LightShaftsSetup`) trace the air along each pixel's line of
+sight in 24 steps, each asking the sun's shadow map whether the sun reaches it: the air in the sun glows more, the air in a tower's shadow less
+(only where there is haze). Kept subtle on purpose: the first version washed the city out, the second turned it blue-black (it took away
+more than the haze had added). Now the darkening is capped at a quarter of the picture.
+
+Cost (docs/GRAPHICS_SETTINGS.md): traced at full size through URP's soft shadow filter they took 2.5 ms of a frame at 2560x1600; one hardware
+shadow comparison a step did not help by day (the 4 million pixels' scattered shadow-map reads were the cost) but stopped them running by
+moonlight; traced at half the width and height and laid over the picture, 1.2 ms by day. With the sun under the horizon the feature adds no
+pass at all. Settings > GRAPHICS > LIGHT SHAFTS switches them off.
+
+Pictures: `TrafficCapture.RenderTheLightEffects` (the real city, morning and afternoon, down a street toward the sun and from 60 m up) and
+`RenderTheLightEffectsInTheSun` (a low sun behind a row of pillars), each `gfx-*-off.png` and `-on.png`.

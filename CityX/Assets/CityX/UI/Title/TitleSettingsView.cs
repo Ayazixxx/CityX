@@ -78,6 +78,11 @@ namespace CityX.UI
 
         public Toggle PushToTalkToggle;
 
+        [Tooltip("Opens the graphics page over these settings.")]
+        public Button GraphicsButton;
+
+        public GraphicsSettingsPanel Graphics;
+
         [Tooltip("title_screen.gd's own StarsPlayer -- see TitleScreen.MusicPlayer's own doc comment.")]
         public AudioSource MusicPlayer;
 
@@ -92,8 +97,20 @@ namespace CityX.UI
             if (MusicSlider != null) MusicSlider.onValueChanged.AddListener(OnMusicVolumeChanged);
             if (FullscreenToggle != null) FullscreenToggle.onValueChanged.AddListener(OnFullscreenToggled);
             if (PushToTalkToggle != null) PushToTalkToggle.onValueChanged.AddListener(OnPushToTalkToggled);
+            if (GraphicsButton != null && Graphics != null) GraphicsButton.onClick.AddListener(Graphics.Open);
 
             LoadSettings();
+        }
+
+        /// <summary>Closes the graphics page if it is open (Escape steps back to these settings); whether it was.</summary>
+        public bool CloseGraphics()
+        {
+            if (Graphics == null || !Graphics.IsOpen)
+            {
+                return false;
+            }
+            Graphics.Close();
+            return true;
         }
 
         /// <summary>Called by a ButtonAction.Kind.SettingsResolutionNext button.</summary>
@@ -279,6 +296,7 @@ namespace CityX.UI
                 OutputDevice = _outputDeviceIndex >= 0 && _outputDeviceIndex < outputOptions.Length
                     ? outputOptions[_outputDeviceIndex] : VoiceDeviceOptions.DefaultDevice,
                 PushToTalk = PushToTalkToggle != null ? PushToTalkToggle.isOn : true,
+                Graphics = GameSettings.Load().Graphics,   // the graphics page saves its own; kept as it is
             });
         }
     }

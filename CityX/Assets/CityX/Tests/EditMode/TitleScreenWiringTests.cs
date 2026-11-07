@@ -84,6 +84,18 @@ namespace CityX.Tests
             {
                 return true;
             }
+            // The graphics page and the button opening it are wired at runtime by their views, which list them.
+            Button pressed = button.GetComponent<Button>();
+            GraphicsSettingsPanel graphics = button.GetComponentInParent<GraphicsSettingsPanel>(true);
+            if (graphics != null && (graphics.PreviousButtons.Contains(pressed) || graphics.NextButtons.Contains(pressed) || graphics.BackButton == pressed))
+            {
+                return true;
+            }
+            TitleSettingsView settings = button.GetComponentInParent<TitleSettingsView>(true);
+            if (settings != null && settings.GraphicsButton == pressed && settings.Graphics != null)
+            {
+                return true;
+            }
             for (Transform t = button.transform; t != null; t = t.parent)
             {
                 if (t.name == "RowTemplate")

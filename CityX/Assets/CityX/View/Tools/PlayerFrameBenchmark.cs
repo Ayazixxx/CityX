@@ -26,7 +26,7 @@ namespace CityX.View
     /// bench-result.txt beside the game and quits. Each phase also reports the garbage collections in it and how
     /// long they stopped the game (a watchdog thread, see <see cref="Watchdog"/>).
     /// </summary>
-    public sealed class PlayerFrameBenchmark : MonoBehaviour
+    public sealed partial class PlayerFrameBenchmark : MonoBehaviour
     {
         private static bool HasFlag(string flag)
         {
@@ -42,6 +42,8 @@ namespace CityX.View
         {
             if (HasFlag("-cityxbench"))
             {
+                // The game pauses while its window is behind another, and a benchmark started from a tool opens behind it: it waited forever.
+                Application.runInBackground = true;
                 new GameObject("FrameBenchmark").AddComponent<PlayerFrameBenchmark>();
             }
         }
@@ -181,6 +183,13 @@ namespace CityX.View
                 locomotion.Tick(new LocomotionInput(), Time.deltaTime);
                 settle += Time.unscaledDeltaTime;
                 yield return null;
+            }
+
+            if (Arg("-bench-effects") != null)
+            {
+                yield return MeasureEffects(sb, locomotion, ArgSeconds("-bench-effects", 6.0f));
+                Finish(sb);
+                yield break;
             }
 
             float exactSeconds = ArgSeconds("-bench-exact", 3.0f);

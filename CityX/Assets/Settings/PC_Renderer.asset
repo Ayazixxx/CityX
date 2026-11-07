@@ -68,7 +68,8 @@ MonoBehaviour:
   - {fileID: 7833122117494664109}
   - {fileID: -5567595369808700196}
   - {fileID: -8338708140924727510}
-  m_RendererFeatureMap: ad6b866f10d7b46cdc5c717182edbbb22a0f864e20f5468c
+  - {fileID: 1071977666742245417}
+  m_RendererFeatureMap: ad6b866f10d7b46cdc5c717182edbbb22a0f864e20f5468c29d85221026ee00e
   m_UseNativeRenderPass: 1
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_AssetVersion: 3
@@ -96,6 +97,20 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
+--- !u!114 &1071977666742245417
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f63a51e44c4984b4e82ccf292e3eedc4, type: 3}
+  m_Name: CityXLightShafts
+  m_EditorClassIdentifier: CityX.View::CityX.View.LightShaftsFeature
+  m_Active: 1
+  Material: {fileID: 2100000, guid: eca9562b9e7c38945a80ad0c52e03df5, type: 2}
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0

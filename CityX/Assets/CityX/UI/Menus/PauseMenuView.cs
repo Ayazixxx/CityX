@@ -81,6 +81,11 @@ namespace CityX.UI
 
         public Toggle PushToTalkToggle;
 
+        [Tooltip("Opens the graphics page over the settings.")]
+        public Button GraphicsButton;
+
+        public GraphicsSettingsPanel Graphics;
+
         [Tooltip("Told to re-read its settings when the Input Device stepper or Push-to-Talk toggle changes.")]
         public PlayerVoiceCapture VoiceCapture;
 
@@ -110,6 +115,7 @@ namespace CityX.UI
             if (SettingsButton != null) SettingsButton.onClick.AddListener(ShowSettings);
             if (BackButton != null) BackButton.onClick.AddListener(ShowPause);
             if (QuitButton != null) QuitButton.onClick.AddListener(QuitToTitle);
+            if (GraphicsButton != null && Graphics != null) GraphicsButton.onClick.AddListener(Graphics.Open);
 
             if (MasterSlider != null) MasterSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
             if (MusicSlider != null) MusicSlider.onValueChanged.AddListener(OnMusicVolumeChanged);
@@ -206,11 +212,13 @@ namespace CityX.UI
         private void ShowSettings()
         {
             if (PausePanel != null) PausePanel.SetActive(false);
+            if (Graphics != null) Graphics.Close();
             if (SettingsPanel != null) SettingsPanel.SetActive(true);
         }
 
         private void ShowPause()
         {
+            if (Graphics != null) Graphics.Close();
             if (SettingsPanel != null) SettingsPanel.SetActive(false);
             if (PausePanel != null) PausePanel.SetActive(true);
         }
@@ -401,6 +409,7 @@ namespace CityX.UI
                 OutputDevice = _outputDeviceIndex >= 0 && _outputDeviceIndex < outputOptions.Length
                     ? outputOptions[_outputDeviceIndex] : VoiceDeviceOptions.DefaultDevice,
                 PushToTalk = PushToTalkToggle != null ? PushToTalkToggle.isOn : true,
+                Graphics = GameSettings.Load().Graphics,   // the graphics page saves its own; kept as it is
             });
         }
     }

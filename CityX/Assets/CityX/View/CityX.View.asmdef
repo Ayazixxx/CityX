@@ -2,6 +2,7 @@
     "name": "CityX.View",
     "rootNamespace": "CityX.View",
     "references": [
+        "CityX.Core",
         "CityX.World",
         "CityX.Character",
         "CityX.Items",

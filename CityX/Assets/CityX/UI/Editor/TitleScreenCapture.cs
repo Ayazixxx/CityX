@@ -216,6 +216,7 @@ namespace CityX.UIEditor
         public static void CaptureSettings()
         {
             Shoot("settings", TitleScreen.Panel.Settings, seedCharacters: false);
+            Shoot("settings-graphics", TitleScreen.Panel.Settings, seedCharacters: false, graphicsPage: true);
         }
 
         /// <summary>
@@ -247,7 +248,7 @@ namespace CityX.UIEditor
         private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,
             CharacterSelect.Mode selectMode = CharacterSelect.Mode.List,
             string hairStyle = null, bool showIdlePrompt = false, string headView = null,
-            Color? hairColour = null, int creatorTab = CreatorTabs.Paint)
+            Color? hairColour = null, int creatorTab = CreatorTabs.Paint, bool graphicsPage = false)
         {
             string outputDirectory = Path.Combine(
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
@@ -297,6 +298,11 @@ namespace CityX.UIEditor
                 else
                 {
                     title.Show(panel);
+                }
+                if (graphicsPage && title.SettingsPanel != null && title.SettingsPanel.TryGetComponent(out TitleSettingsView settings) &&
+                    settings.Graphics != null)
+                {
+                    settings.Graphics.Open();
                 }
                 if (panel == TitleScreen.Panel.CharacterSelect && title.Select != null)
                 {

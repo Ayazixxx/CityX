@@ -117,6 +117,11 @@ namespace CityX.UI
         /// </summary>
         public void Show(Panel panel)
         {
+            // The settings always come back on their own page, not on the graphics page they were left on.
+            if (SettingsPanel != null && SettingsPanel.TryGetComponent(out TitleSettingsView settings))
+            {
+                settings.CloseGraphics();
+            }
             _showing = panel;
             _menuRevealed = true;
             if (PromptLabel != null) PromptLabel.gameObject.SetActive(false);
@@ -173,6 +178,11 @@ namespace CityX.UI
             {
                 Select.Back();
                 return;
+            }
+            if (_showing == Panel.Settings && SettingsPanel != null && SettingsPanel.TryGetComponent(out TitleSettingsView settings) &&
+                settings.CloseGraphics())
+            {
+                return;   // Escape on the graphics page steps back to the settings
             }
             Show(Panel.Menu);
         }

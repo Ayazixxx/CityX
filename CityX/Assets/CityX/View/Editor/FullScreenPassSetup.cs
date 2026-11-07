@@ -56,31 +56,7 @@ namespace CityX.ViewEditor
         private static void Ensure(UniversalRendererData data, string featureName, Material material,
             FullScreenPassRendererFeature.InjectionPoint point, ScriptableRenderPassInput needs)
         {
-            FullScreenPassRendererFeature feature = null;
-            foreach (ScriptableRendererFeature f in data.rendererFeatures)
-            {
-                if (f is FullScreenPassRendererFeature full && f.name == featureName)
-                {
-                    feature = full;
-                }
-            }
-            if (feature == null)
-            {
-                // The way the renderer's own inspector adds a feature: a sub-asset, then its entry in both serialized lists (the list and the id map).
-                feature = ScriptableObject.CreateInstance<FullScreenPassRendererFeature>();
-                feature.name = featureName;
-                AssetDatabase.AddObjectToAsset(feature, data);
-                AssetDatabase.TryGetGUIDAndLocalFileIdentifier(feature, out string _, out long localId);
-                var so = new SerializedObject(data);
-                SerializedProperty list = so.FindProperty("m_RendererFeatures");
-                SerializedProperty map = so.FindProperty("m_RendererFeatureMap");
-                list.arraySize++;
-                list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = feature;
-                map.arraySize++;
-                map.GetArrayElementAtIndex(map.arraySize - 1).longValue = localId;
-                so.ApplyModifiedProperties();
-            }
-
+            FullScreenPassRendererFeature feature = EnsureFeature<FullScreenPassRendererFeature>(data, featureName);
             feature.SetActive(true);
             feature.passMaterial = material;
             feature.passIndex = 0;
@@ -89,6 +65,70 @@ namespace CityX.ViewEditor
             feature.requirements = needs;
             EditorUtility.SetDirty(feature);
             EditorUtility.SetDirty(data);
+        }
+
+        /// <summary>
+        /// The renderer feature of type <typeparamref name="T"/> called <paramref name="featureName"/> on <paramref name="data"/>, made when there
+        /// is none; one of another type by that name (an effect that moved to a feature of its own) is taken off first.
+        /// </summary>
+        public static T EnsureFeature<T>(UniversalRendererData data, string featureName) where T : ScriptableRendererFeature
+        {
+            T found = null;
+            foreach (ScriptableRendererFeature f in data.rendererFeatures.ToArray())
+            {
+                if (f == null || f.name != featureName)
+                {
+                    continue;
+                }
+                if (f is T typed)
+                {
+                    found = typed;
+                }
+                else
+                {
+                    Remove(data, f);
+                }
+            }
+            if (found != null)
+            {
+                return found;
+            }
+
+            // The way the renderer's own inspector adds a feature: a sub-asset, then its entry in both serialized lists (the list and the id map).
+            var feature = ScriptableObject.CreateInstance<T>();
+            feature.name = featureName;
+            AssetDatabase.AddObjectToAsset(feature, data);
+            AssetDatabase.TryGetGUIDAndLocalFileIdentifier(feature, out string _, out long localId);
+            var so = new SerializedObject(data);
+            SerializedProperty list = so.FindProperty("m_RendererFeatures");
+            SerializedProperty map = so.FindProperty("m_RendererFeatureMap");
+            list.arraySize++;
+            list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = feature;
+            map.arraySize++;
+            map.GetArrayElementAtIndex(map.arraySize - 1).longValue = localId;
+            so.ApplyModifiedProperties();
+            return feature;
+        }
+
+        /// <summary><paramref name="feature"/> off the renderer: out of both serialized lists, and its sub-asset deleted.</summary>
+        private static void Remove(UniversalRendererData data, ScriptableRendererFeature feature)
+        {
+            var so = new SerializedObject(data);
+            SerializedProperty list = so.FindProperty("m_RendererFeatures");
+            SerializedProperty map = so.FindProperty("m_RendererFeatureMap");
+            for (int i = list.arraySize - 1; i >= 0; i--)
+            {
+                SerializedProperty entry = list.GetArrayElementAtIndex(i);
+                if (entry.objectReferenceValue == feature)
+                {
+                    entry.objectReferenceValue = null;
+                    list.DeleteArrayElementAtIndex(i);
+                    map.DeleteArrayElementAtIndex(i);
+                }
+            }
+            so.ApplyModifiedProperties();
+            AssetDatabase.RemoveObjectFromAsset(feature);
+            Object.DestroyImmediate(feature, true);
         }
     }
 }

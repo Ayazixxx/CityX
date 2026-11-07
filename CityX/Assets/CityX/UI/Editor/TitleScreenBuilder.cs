@@ -774,6 +774,15 @@ namespace CityX.UIEditor
         private static void MakeMultiplayerButton(Transform parent, string name, string label,
             Vector2 position, Vector2 size, TitleMultiplayerView view, ButtonAction.Kind action)
         {
+            Button button = MakeWideButton(parent, name, label, position, size);
+            var wiring = button.gameObject.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Multiplayer = view;
+        }
+
+        /// <summary>A button sized as asked, with nothing wired: its view adds the listener when it wakes.</summary>
+        private static Button MakeWideButton(Transform parent, string name, string label, Vector2 position, Vector2 size)
+        {
             var buttonObject = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)buttonObject.transform;
             rect.SetParent(parent, false);
@@ -788,16 +797,13 @@ namespace CityX.UIEditor
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = background;
 
-            var wiring = buttonObject.AddComponent<ButtonAction>();
-            wiring.Action = action;
-            wiring.Multiplayer = view;
-
             ColorBlock colours = button.colors;
             colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
             colours.pressedColor = Gold;
             button.colors = colours;
 
             MakeLabel(buttonObject.transform, "Label", label, 18, Gold, Vector2.zero, size);
+            return button;
         }
 
         /// <summary>
@@ -840,8 +846,10 @@ namespace CityX.UIEditor
             TitleSettingsView view = panel.AddComponent<TitleSettingsView>();
             view.MusicPlayer = title.MusicPlayer;
 
+            // The heading up into the empty top of the panel, and under it the way to the graphics page.
             MakeLabel(panel.transform, "Heading", "SETTINGS", 30, Gold,
-                new Vector2(0.0f, 178.0f), new Vector2(440.0f, 40.0f));
+                new Vector2(0.0f, 262.0f), new Vector2(440.0f, 40.0f));
+            view.GraphicsButton = MakeWideButton(panel.transform, "GraphicsButton", "GRAPHICS", new Vector2(0.0f, 208.0f), GraphicsButtonSize);
 
             MakeLabel(panel.transform, "MasterLabel", "MASTER VOLUME", 17, Paper,
                 new Vector2(0.0f, 124.0f), new Vector2(440.0f, 30.0f));
@@ -912,8 +920,26 @@ namespace CityX.UIEditor
 
             MakeButton(panel.transform, "BackButton", "BACK", 6, title, ButtonAction.Kind.TitleBack);
 
+            view.Graphics = GraphicsPanelBuilder.Build(panel.transform, new GraphicsPanelBuilder.Style
+            {
+                Label = (parent, name, content, size, position, dimensions) => MakeLabel(parent, name, content, size, Paper, position, dimensions),
+                Arrow = MakeArrowButton,
+                Button = (parent, name, content, position) => MakeWideButton(parent, name, content, position, GraphicsButtonSize),
+                HeadingColour = Gold,
+                HeadingSize = 30,
+                RowSize = 14,
+                Width = 440.0f,
+                BackY = -290.0f,
+                NameX = -125.0f,
+                PreviousX = 40.0f,
+                ValueX = 110.0f,
+                NextX = 180.0f,
+            });
+
             return panel;
         }
+
+        private static readonly Vector2 GraphicsButtonSize = new Vector2(220.0f, 40.0f);
 
         /// <summary>Hand-built rather than from DefaultControls, matching PauseMenuBuilder's own copy of this.</summary>
         private static Slider MakeSlider(Transform parent, string name, Vector2 position)

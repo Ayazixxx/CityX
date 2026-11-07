@@ -27,7 +27,8 @@ MonoBehaviour:
   m_RendererFeatures:
   - {fileID: 7628191580248757010}
   - {fileID: 1460677253388302327}
-  m_RendererFeatureMap: 12535a8bd3c7dc69f7f7b313395e4514
+  - {fileID: 6613172869238471829}
+  m_RendererFeatureMap: 12535a8bd3c7dc69f7f7b313395e451495bc35bdafb5c65b
   m_UseNativeRenderPass: 1
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_AssetVersion: 3
@@ -75,6 +76,20 @@ MonoBehaviour:
   passIndex: 0
   bindDepthStencilAttachment: 0
   m_Version: 1
+--- !u!114 &6613172869238471829
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f63a51e44c4984b4e82ccf292e3eedc4, type: 3}
+  m_Name: CityXLightShafts
+  m_EditorClassIdentifier: CityX.View::CityX.View.LightShaftsFeature
+  m_Active: 1
+  Material: {fileID: 2100000, guid: eca9562b9e7c38945a80ad0c52e03df5, type: 2}
 --- !u!114 &7628191580248757010
 MonoBehaviour:
   m_ObjectHideFlags: 0
