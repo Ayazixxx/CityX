@@ -29,7 +29,6 @@ namespace CityX.Character
             Brain,
             Guts,
             SkullShard,
-            Tooth,
             Meat,
         }
 
@@ -97,8 +96,6 @@ namespace CityX.Character
                     return new[] { Tissue.Guts };
                 case Bit.SkullShard:
                     return new[] { Tissue.Bone, Tissue.DarkMeat };
-                case Bit.Tooth:
-                    return new[] { Tissue.Tooth };
                 default:
                     return new[] { Tissue.Meat };
             }
@@ -133,7 +130,8 @@ namespace CityX.Character
             switch (part)
             {
                 case BodyPart.Head:
-                    return new List<Bit> { Bit.Jaw, Bit.Eye, Bit.Eye, Bit.Brain, Bit.Brain, Bit.SkullShard, Bit.SkullShard, Bit.Tooth, Bit.Tooth, Bit.Tooth };
+                    // No loose teeth: tiny and pale, flung about they lay in the dark as points of light (owner, 2026-11-08); the jaw keeps its own.
+                    return new List<Bit> { Bit.Jaw, Bit.Eye, Bit.Eye, Bit.Brain, Bit.Brain, Bit.SkullShard, Bit.SkullShard };
                 case BodyPart.Torso:
                     return new List<Bit> { Bit.RibSide, Bit.RibSide, Bit.Spine, Bit.Heart, Bit.Lung, Bit.Lung, Bit.Liver, Bit.Guts, Bit.Guts, Bit.Meat, Bit.Meat, Bit.Meat };
                 default:
@@ -195,9 +193,6 @@ namespace CityX.Character
                     break;
                 case Bit.SkullShard:
                     SkullShard(into, random);
-                    break;
-                case Bit.Tooth:
-                    GoreMeshes.Box(into, 0, Vector3.zero, new Vector3(0.016f, 0.024f, 0.014f), Quaternion.identity);
                     break;
                 default:
                     GoreMeshes.Ball(into, 0, Vector3.zero, new Vector3(0.07f, 0.055f, 0.06f), 0.3f, 2.3f, 7.0f + variant * 11.0f, 8, 12);

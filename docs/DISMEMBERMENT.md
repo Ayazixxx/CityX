@@ -58,9 +58,13 @@ as well".
   the body they came out of. A whole body that bursts keeps its hidden ragdoll on the floor, so what follows the body (the death camera) finds it there.
 - The cut-off bones' ragdoll bodies stay on their joints (they must be whole again on revival) with no collider and almost no weight, so
   the invisible limb neither props the body up nor drags it. They are always the end of a chain, where a light link is stable.
-- Every piece is matte, and no tissue is paler than the skin (`Gore.Palest`, 0.7): near-white eyes, teeth and bone came out twice the
-  bloom's threshold in the noon sun, and small on a dark body the bloom made each a dot of glowing light (owner, 2026-11-07). Eyes are a
-  soft grey-white now, bone and teeth ivory.
+- Every piece is matte, and no tissue is paler than 0.5 (`Gore.Palest`). At first near-white eyes, teeth and bone came out twice the bloom's
+  threshold in the noon sun, and small on a dark body the bloom made each a dot of glowing light (owner, 2026-11-07): capped at the skin's
+  0.7. At night, under a room's lamps, small pale bits on dark red meat (eyes, teeth, bone, a chunk's rim of fat) still lay about as points
+  of light (2026-11-08: "there are still little dots of shining light coming from some of the dismembered parts ive asked for it to be fixed
+  several times"): capped at 0.5, eye whites 0.42, and a burst head no longer throws loose teeth (the jaw keeps its own). `GoreNightCapture`
+  renders hacked bodies at night under a flashlight and lamps through the game's grade and counts the small bright patches; the earlier
+  checks were by day with no grade, where no such dot can show.
 - A copy keeps the look of what it copies, each material's own property block included (`MaterialBlocks`): the hair's dye is on its
   material's block, and the cut-off head and a burst head's hair chunks came out in the hair material's gold (owner, 2026-11-08: "when my
   player got decapitated the hair color changed on the decapitated head"). Hair a hat or helmet covers (switched off under it) is not

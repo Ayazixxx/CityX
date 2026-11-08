@@ -27,7 +27,8 @@ namespace CityX.Tests
 
         /// <summary>
         /// Near-white eyes, teeth and bone glowed as dots in the sun (owner, 2026-11-07: "small dots of glowing light"): nothing in a body is
-        /// paler than its skin, so no piece blooms more than a whole body does.
+        /// paler than its skin, so no piece blooms more than a whole body does; and since 2026-11-08 none past 0.5, so no small pale bit lies in
+        /// the dark as a point of light.
         /// </summary>
         [Test]
         public void NoPieceOfGoreIsPalerThanSkin()

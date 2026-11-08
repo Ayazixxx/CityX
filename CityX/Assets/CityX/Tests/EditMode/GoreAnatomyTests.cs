@@ -52,7 +52,6 @@ namespace CityX.Tests
             Assert.AreEqual(2.0f * GoreAnatomy.EyeRadius, GoreAnatomy.MeshOf(GoreAnatomy.Bit.Eye).bounds.size.x, 0.005f, "the eye");
             Assert.That(GoreAnatomy.MeshOf(GoreAnatomy.Bit.RibSide).bounds.size.y, Is.InRange(0.25f, 0.4f), "the ribs");
             Assert.That(GoreAnatomy.MeshOf(GoreAnatomy.Bit.Heart).bounds.size.y, Is.InRange(0.15f, 0.3f), "the heart");
-            Assert.That(GoreAnatomy.MeshOf(GoreAnatomy.Bit.Tooth).bounds.size.y, Is.InRange(0.015f, 0.04f), "a tooth");
         }
 
         [Test]
@@ -73,6 +72,23 @@ namespace CityX.Tests
             CollectionAssert.Contains(GoreAnatomy.BitsOf(BodyPart.RightLowerArm), GoreAnatomy.Bit.Forearm);
             CollectionAssert.Contains(GoreAnatomy.BitsOf(BodyPart.LeftLowerLeg), GoreAnatomy.Bit.Shin);
             CollectionAssert.Contains(GoreAnatomy.BitsOf(BodyPart.RightUpperArm), GoreAnatomy.Bit.Humerus);
+        }
+
+        /// <summary>
+        /// Nothing flung out of a burst is a speck: loose teeth, tiny and pale, lay in the dark as points of light (owner, 2026-11-08: "there are
+        /// still little dots of shining light coming from some of the dismembered parts").
+        /// </summary>
+        [Test]
+        public void NoBitFlungOutIsASpeck()
+        {
+            foreach (BodyPart part in System.Enum.GetValues(typeof(BodyPart)))
+            {
+                foreach (GoreAnatomy.Bit bit in GoreAnatomy.BitsOf(part))
+                {
+                    Vector3 size = GoreAnatomy.MeshOf(bit).bounds.size;
+                    Assert.Greater(Mathf.Max(size.x, Mathf.Max(size.y, size.z)), 0.04f, $"a {part}'s {bit} is a speck");
+                }
+            }
         }
     }
 }
