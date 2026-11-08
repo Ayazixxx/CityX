@@ -28,6 +28,10 @@ namespace CityX.CharacterEditor
         public const string NetworkedShootaPath = "Assets/CityX/Character/NetworkedShoota.prefab";
         public const string NetworkedWraithPath = "Assets/CityX/Character/NetworkedWraith.prefab";
         public const string NetworkedGiantPath = "Assets/CityX/Character/NetworkedGiant.prefab";
+        public const string NetworkedWraithSummonPath = "Assets/CityX/Character/NetworkedWraithSummon.prefab";
+
+        /// <summary>The summon's kind: what the Wraith Staff asks the session for (WraithSummonCaster.SummonKind).</summary>
+        public const string WraithSummonKind = "wraith_summon";
         private const string DefaultPrefabObjectsPath = "Assets/DefaultPrefabObjects.asset";
         private const string ControllerPath = "Assets/CityX/Character/PlayerAnimator.controller";
 
@@ -38,6 +42,7 @@ namespace CityX.CharacterEditor
             Add(kinds, "swordsman", BuildBody(SwordsmanPath, NetworkedSwordsmanPath, typeof(SwordsmanBrain)));
             Add(kinds, "shoota", BuildBody(ShootaPath, NetworkedShootaPath, typeof(ShootaBrain)));
             Add(kinds, "wraith", BuildWraith());
+            Add(kinds, WraithSummonKind, BuildWraithSummon());
             Add(kinds, "giant", BuildBody(GiantPath, NetworkedGiantPath, typeof(GiantBrain)));
             return kinds.ToArray();
         }
@@ -75,6 +80,17 @@ namespace CityX.CharacterEditor
         {
             return Build(WraithPath, NetworkedWraithPath, root =>
             {
+                root.AddComponent<NetworkedWraith>();
+                root.AddComponent<NetworkedEnemy>();
+            });
+        }
+
+        /// <summary>The Wraith Staff's summon: the Wraith, a summon from the start on every machine (Wraith.StartsSummoned).</summary>
+        private static NetworkObject BuildWraithSummon()
+        {
+            return Build(WraithPath, NetworkedWraithSummonPath, root =>
+            {
+                root.GetComponent<Wraith>().StartsSummoned = true;
                 root.AddComponent<NetworkedWraith>();
                 root.AddComponent<NetworkedEnemy>();
             });

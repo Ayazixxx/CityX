@@ -79,8 +79,8 @@ namespace CityX.Weapons
         /// <summary>How many times he has raised his guard (for the tests).</summary>
         public int GuardsRaised { get; private set; }
 
-        /// <summary>Who he is fighting (null when nobody): found by the search, or set by a test.</summary>
-        public PlayerVitals Target
+        /// <summary>Who he is fighting (null when nobody): a player or a summon on their side, found by the search, or set by a test.</summary>
+        public IOpponent Target
         {
             get => _target;
             set
@@ -101,7 +101,7 @@ namespace CityX.Weapons
         private PlayerAnimationDriver _driver;
         private SoulsSwordCombat _combat;
         private SwordWeapon _sword;
-        private PlayerVitals _target;
+        private IOpponent _target;
         private SoulsSwordCombat _targetCombat;
         private MeleeAttacker _targetMelee;
         private PlayerLocomotion _targetBody;
@@ -201,7 +201,7 @@ namespace CityX.Weapons
 
         private void OnTargetOpened()
         {
-            float stun = _target != null ? _target.HitstunRemaining : 0.0f;
+            float stun = Opponents.Alive(_target) ? _target.HitstunRemaining : 0.0f;
             _targetOpenUntil = Time.time + Mathf.Max(0.3f, stun);
         }
 
@@ -306,7 +306,7 @@ namespace CityX.Weapons
             }
 
             FindTarget();
-            WatchTarget(_targetCombat, _target);
+            WatchTarget(_targetCombat, _target as PlayerVitals);
             _combat?.Tick(deltaTime);
 
             DuelistMind.Senses senses = Sense();
@@ -383,7 +383,7 @@ namespace CityX.Weapons
 
         private DuelistMind.Senses Sense()
         {
-            bool has = _target != null && _target.IsAlive;
+            bool has = Opponents.Alive(_target);
             var senses = new DuelistMind.Senses
             {
                 HasTarget = has,
@@ -413,7 +413,7 @@ namespace CityX.Weapons
         /// <summary>What a player would press, handed to the same combat, dash and locomotion the player's keys reach.</summary>
         private void Act(DuelistMind.Intent intent, float deltaTime)
         {
-            float yaw = Facing(_target != null ? YawTo(_target.transform.position) : transform.eulerAngles.y, deltaTime);
+            float yaw = Facing(Opponents.Alive(_target) ? YawTo(_target.transform.position) : transform.eulerAngles.y, deltaTime);
             bool stunned = _vitals.IsStunned;
 
             if (_combat != null && _combat.IsEquipped)
@@ -468,7 +468,7 @@ namespace CityX.Weapons
                 // The sword's own walk, run, side-steps and back-step, facing whoever he fights as the player does locked on (Tab).
                 Sword1HEquipped = _combat != null && _combat.IsEquipped && _combat.IsOneHanded,
                 SwordEquipped = _combat != null && _combat.IsEquipped && !_combat.IsOneHanded,
-                LockedOn = _target != null,
+                LockedOn = Opponents.Alive(_target),
             }, deltaTime);
         }
 
@@ -518,41 +518,46 @@ namespace CityX.Weapons
             return toward.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(toward).eulerAngles.y : transform.eulerAngles.y;
         }
 
-        private void SetTarget(PlayerVitals target)
+        /// <summary>Whom he fights, and how he reads them: a player's sword, fists and dash; a summon has none of them.</summary>
+        private void SetTarget(IOpponent target)
         {
+            bool here = Opponents.Here(target);
             _target = target;
-            _targetCombat = target != null ? target.GetComponent<SoulsSwordCombat>() : null;
-            _targetMelee = target != null ? target.GetComponent<MeleeAttacker>() : null;
-            _targetBody = target != null ? target.GetComponent<PlayerLocomotion>() : null;
+            _targetCombat = here ? target.gameObject.GetComponent<SoulsSwordCombat>() : null;
+            _targetMelee = here ? target.gameObject.GetComponent<MeleeAttacker>() : null;
+            _targetBody = here ? target.gameObject.GetComponent<PlayerLocomotion>() : null;
         }
 
-        /// <summary>The nearest living player within <see cref="NoticeMetres"/>: this machine's own, or in a session another player's copy (PlayerBodies).</summary>
+        /// <summary>
+        /// The nearest living opponent within <see cref="NoticeMetres"/>: this machine's player, in a session another player's copy, or a summon
+        /// on their side (Opponents).
+        /// </summary>
         private void FindTarget()
         {
             if (_pinned)
             {
-                if (_target == null)
+                if (!Opponents.Here(_target))
                 {
                     _pinned = false;
                 }
                 else if (_targetCombat == null)
                 {
-                    _targetCombat = _target.GetComponent<SoulsSwordCombat>();   // added when a sword is first equipped
+                    _targetCombat = _target.gameObject.GetComponent<SoulsSwordCombat>();   // added when a sword is first equipped
                 }
                 return;
             }
-            if (_targetCombat == null && _target != null)
+            if (_targetCombat == null && Opponents.Here(_target))
             {
-                _targetCombat = _target.GetComponent<SoulsSwordCombat>();
+                _targetCombat = _target.gameObject.GetComponent<SoulsSwordCombat>();
             }
             // Once a second, with or without a target (every enemy used to scan the whole scene every frame while nobody was near: 0.33 ms
             // each, docs/PERFORMANCE.md); a target that has died is replaced at once.
-            if (Time.time < _nextSearch && (_target == null || _target.IsAlive))
+            if (Time.time < _nextSearch && (_target == null || Opponents.Alive(_target)))
             {
                 return;
             }
             _nextSearch = Time.time + TargetSearchSeconds;
-            PlayerVitals best = PlayerBodies.NearestAlive(transform.position, NoticeMetres);
+            IOpponent best = Opponents.NearestAlive(transform.position, NoticeMetres);
             if (best != _target)
             {
                 SetTarget(best);

@@ -76,6 +76,7 @@ namespace CityX.Items
             [ItemRegistry.HealingStaff] = Rarity.Rare,
             [ItemRegistry.WaterStaff] = Rarity.Rare,
             [ItemRegistry.AngelWings] = Rarity.VeryRare,
+            [ItemRegistry.WraithStaff] = Rarity.VeryRare,   // one wild Wraith in 33 leaves one (my placement: not on the owner's list)
             [ItemRegistry.DarkAngelWings] = Rarity.VeryRare,
         };
 

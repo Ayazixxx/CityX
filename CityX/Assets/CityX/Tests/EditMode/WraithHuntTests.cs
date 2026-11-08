@@ -46,6 +46,16 @@ namespace CityX.Tests
             Assert.LessOrEqual(new Vector3(self.x, 0.0f, self.z).magnitude, WraithHunt.LungeMetres + 0.1f);
         }
 
+        /// <summary>A summon (Bold) goes straight in and lunges at what faces it: an enemy fighting it always turns to it (Wraith.Summon.cs).</summary>
+        [Test]
+        public void ABoldOneComesStraightOnAtWhatFacesItAndLunges()
+        {
+            var hunt = new WraithHunt { Bold = true };
+            Vector3 self = RunUntil(hunt, new Vector3(0.0f, 0.0f, 10.0f), PreyAt(Vector3.zero, Vector3.forward), WraithPhase.Lunging, 6.0f);
+            Assert.AreEqual(WraithPhase.Lunging, hunt.Phase, "it never lunged at what faced it");
+            Assert.Greater(self.z, 0.0f, "it went round to the back");
+        }
+
         [Test]
         public void FacedItHangsBackAndGoesRoundInsteadOfComingOn()
         {

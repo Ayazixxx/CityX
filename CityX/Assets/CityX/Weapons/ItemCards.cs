@@ -168,6 +168,11 @@ namespace CityX.Weapons
                 case MagicStaff _:
                     Speck(card, MagicSpeckRules.StaffDamage, MagicSpeckRules.StaffShotSeconds);
                     break;
+                case WraithStaff _:
+                    card.Add("Casts", "Summons a Wraith that fights for you, one at a time");
+                    card.Add("Summon", Wraith.SummonedMaxHealth, Wraith.SummonedMaxHealth.ToString("0") + " health");
+                    card.Add("Mana", WraithSummonCaster.ManaCost, WraithSummonCaster.ManaCost.ToString("0") + " a summon", false);
+                    break;
             }
         }
 

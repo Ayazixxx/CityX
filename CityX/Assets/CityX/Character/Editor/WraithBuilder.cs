@@ -22,6 +22,7 @@ namespace CityX.CharacterEditor
     public static class WraithBuilder
     {
         public const string PrefabPath = "Assets/CityX/Character/Wraith.prefab";
+        private const string WraithStaffPrefabPath = "Assets/CityX/Weapons/WraithStaff.prefab";
         private const string BodyMeshPath = "Assets/CityX/Character/FusedBody.asset";
         public const string ModelPath = "Assets/CityX/Character/WraithModel/PhantomMawBody.glb";
         public const string WraithBodyPath = "Assets/CityX/Character/WraithBody.asset";
@@ -179,6 +180,8 @@ namespace CityX.CharacterEditor
                 wraith.Face = face;
                 wraith.Jaw = jaw;
                 wraith.Gas = gas;
+                // The staff it can leave (Wraith.Summon.cs): its own prefab, so a drop does not depend on any inventory listing it.
+                wraith.StaffPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(WraithStaffPrefabPath);
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();

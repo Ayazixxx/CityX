@@ -31,7 +31,7 @@ namespace CityX.Weapons
         private Ragdoll _ragdoll;
         private Animator _animator;
         private PlayerAnimationDriver _driver;
-        private PlayerVitals _target;
+        private IOpponent _target;
         private float _nextSearch;
         private float _deadFor;
         private bool _removed;
@@ -123,14 +123,15 @@ namespace CityX.Weapons
                 return;
             }
             FindTarget();
-            float distance = _target != null ? Flat(_target.transform.position - transform.position).magnitude : float.MaxValue;
+            bool has = Opponents.Alive(_target);
+            float distance = has ? Flat(_target.transform.position - transform.position).magnitude : float.MaxValue;
             GiantMind.Intent intent = Mind.Tick(new GiantMind.Senses
             {
-                HasTarget = _target != null,
+                HasTarget = has,
                 Distance = distance,
                 Grounded = _locomotion.IsGrounded,
             }, deltaTime);
-            if (_target != null)
+            if (has)
             {
                 Vector3 to = Flat(_target.transform.position - transform.position);
                 if (to.sqrMagnitude > 0.01f && Mind.Current != GiantMind.Phase.Crouch)
@@ -155,12 +156,12 @@ namespace CityX.Weapons
 
         private void FindTarget()
         {
-            if (Time.time < _nextSearch && (_target == null || _target.IsAlive))   // once a second, target or none (SwordsmanBrain.FindTarget)
+            if (Time.time < _nextSearch && (_target == null || Opponents.Alive(_target)))   // once a second, target or none (SwordsmanBrain.FindTarget)
             {
                 return;
             }
             _nextSearch = Time.time + TargetSearchSeconds;
-            _target = PlayerBodies.NearestAlive(transform.position, GiantRules.NoticeMetres);
+            _target = Opponents.NearestAlive(transform.position, GiantRules.NoticeMetres);   // a player or a summon on their side
         }
 
         private static Vector3 Flat(Vector3 v)

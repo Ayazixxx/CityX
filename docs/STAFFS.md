@@ -21,6 +21,7 @@ every shot paying mana. Built 2026-10-27, three of them, as the owner asked one 
 | The aim | from the staff's head to what the crosshair is ON: the first thing the camera's line meets past the body (`PlayerInputReader.CrosshairDirection`), every staff alike. Aimed at a point 15 m ahead of the camera instead, as at first, a shot hit beside anything nearer or farther, the camera sitting up and off to the right of the hand (owner, 2026-10-29: "the beam staff was hitting slightly to the side of the crosshair"). The Healing staff picks the ally nearest the crosshair instead |
 | The charge's look | a glow at the staff's head swelling with the charge, and a light (`StaffChargeGlow`), on every player's screen |
 | Mana | every shot pays; a charge stops growing at what the mana pays for, and one cannot start without enough for the smallest shot. Tab lock-on is off with a staff, as with a gun |
+| The Wraith Staff | the owner's Meshy model, its orb glowing the Wraith's eyes' red; a click summons a Wraith on your side (docs/WRAITH_STAFF.md) |
 | The models | `StaffBuilder`, drawn in code (turned shapes): a 2.4 m shaft with a ferrule, a leather wrap at the grip, a cup at the head holding the crystal, glowing in the spell's colour. Arcane: dark purple wood, brass, a magenta orb. Fireball: dark red wood, an iron brazier, an orange ember. Ice Shard: pale wood, silver, a faceted shard of ice. Water: sea-green wood, steel, a pale blue orb |
 
 ## Each staff

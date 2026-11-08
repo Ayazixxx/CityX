@@ -69,6 +69,9 @@ No Animator: `Wraith.LateUpdate` sets every bone from a few slow sines over the 
 
 - 18 health: one pistol round or two punches ("dies very quickly"). Killing it is worth 15 XP.
 - Dead, it fades away over 1.1 s, rising, and is gone; the gas stops.
+- **Its prey** (2026-11-08): the nearest of what the enemies fight, a player or a summon on their side (`Opponents`); a body without a human
+  neck (a Wraith, the Crimson Claw) is bitten at its head or high on its back. Its hunt does not steer round the body it hunts.
+- **Summoned** by the Wraith Staff it fights on its summoner's side, and a wild one killed leaves the staff one time in 33 (docs/WRAITH_STAFF.md).
 - **In a session** (`NetworkedWraith`): the machine that spawned it hunts and bites; on every other machine a copy follows it, posed from how it moves. The owner tells the copies the phase, whose neck it is at, and each spurt of blood. A blow on a copy is sent to the owner, and its health comes back. Whoever it bites takes the damage through their own copy (`NetworkedDamage`), so a bite on another player's body lands on their machine.
 
 ## Tests

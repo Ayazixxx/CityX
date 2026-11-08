@@ -140,7 +140,7 @@ namespace CityX.Weapons
             {
                 return true;   // whoever fired it
             }
-            return _hostile ? PlayerBodies.IsPlayer(body) : body.GetComponent<IHostile>() != null;
+            return _hostile ? PlayerBodies.IsPlayer(body) || Opponents.IsSummon(body) : body.GetComponent<IHostile>() != null && !Opponents.IsSummon(body);
         }
 
         /// <summary>Another player's guard sent a bullet flying: the same streak, here. Nothing is hit by a copy's.</summary>

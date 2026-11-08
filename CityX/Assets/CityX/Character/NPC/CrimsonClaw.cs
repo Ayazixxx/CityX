@@ -171,7 +171,11 @@ namespace CityX.Character
 
         private float _health = MaxHealth;
         private bool _isDead;
-        private PlayerVitals _target;
+        private IOpponent _target;
+        private float _retargetIn;
+
+        /// <summary>It looks again for the nearest of what it fights this often, seconds: a summon come nearer than its target is fought instead.</summary>
+        public const float RetargetSeconds = 1.0f;
 
         private float _attackCooldownRemaining;
         private AttackState _attackState = AttackState.Idle;
@@ -265,21 +269,23 @@ namespace CityX.Character
             HoverCorrect(deltaTime);
             _attackCooldownRemaining = Mathf.Max(0.0f, _attackCooldownRemaining - deltaTime);
 
-            if (_target == null || !_target.IsAlive)
+            _retargetIn -= deltaTime;
+            if (!Opponents.Alive(_target) || (_retargetIn <= 0.0f && !IsAttacking))
             {
-                _target = FindNearestPlayer();
+                _target = FindTarget();
+                _retargetIn = RetargetSeconds;
             }
 
             TickGrowl(deltaTime);
 
             if (IsAttacking)
             {
-                if (_target != null)
+                if (Opponents.Alive(_target))
                 {
                     EnemyPack.Turns.Ask(transform, _target, TurnKind.Melee, Time.time);   // keeps the turn through the swing
                 }
                 TickAttack(deltaTime);
-                if (_target != null && (_attackState == AttackState.Windup || _attackState == AttackState.Tell))
+                if (Opponents.Alive(_target) && (_attackState == AttackState.Windup || _attackState == AttackState.Tell))
                 {
                     TurnTowards(_target.transform.position, WindUpTurnDegreesPerSecond * deltaTime);   // slowly; swiping, not at all
                 }
@@ -291,7 +297,7 @@ namespace CityX.Character
                 _turnUsed = false;
             }
 
-            if (_target == null)
+            if (!Opponents.Alive(_target))
             {
                 return;
             }
@@ -375,6 +381,28 @@ namespace CityX.Character
             transform.position = position;
         }
 
+        /// <summary>What it fights: the nearer of this machine's player and the nearest summon on the players' side (<see cref="Opponents"/>).</summary>
+        private IOpponent FindTarget()
+        {
+            IOpponent player = FindNearestPlayer();
+            float reach = player != null ? Vector3.Distance(transform.position, player.transform.position) : DetectionRange;
+            IOpponent best = player;
+            foreach (IOpponent summon in Opponents.Summons)
+            {
+                if (!Opponents.Alive(summon))
+                {
+                    continue;
+                }
+                float distance = Vector3.Distance(transform.position, summon.transform.position);
+                if (distance < reach)
+                {
+                    reach = distance;
+                    best = summon;
+                }
+            }
+            return best;
+        }
+
         /// <summary>
         /// Simplified from the source's own "search every node in the
         /// players group, keep the nearest" -- this Unity port has no such
@@ -408,7 +436,7 @@ namespace CityX.Character
 
         private void TickGrowl(float deltaTime)
         {
-            bool hasTargetNow = _target != null;
+            bool hasTargetNow = Opponents.Alive(_target);
             if (hasTargetNow && !_hadTargetLastFrame)
             {
                 PlayRandomGrowl();
@@ -643,7 +671,7 @@ namespace CityX.Character
         /// </summary>
         private void CheckClawHit()
         {
-            if (_attackHitLanded || _target == null || !_target.IsAlive)
+            if (_attackHitLanded || !Opponents.Alive(_target))
             {
                 return;
             }
@@ -652,7 +680,7 @@ namespace CityX.Character
             if (InFront(toTarget, ClawHitRadius, ClawHitHalfAngleDegrees))
             {
                 _attackHitLanded = true;
-                ((IDamageable)_target).ApplyHit(AttackDamage, transform.position, CombatTuning.HitstunSeconds);
+                _target.ApplyHit(AttackDamage, transform.position, CombatTuning.HitstunSeconds);
             }
         }
 

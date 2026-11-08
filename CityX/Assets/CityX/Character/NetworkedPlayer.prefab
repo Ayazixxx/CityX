@@ -164,6 +164,9 @@ PrefabInstance:
       addedObject: {fileID: 87716580026089376}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 2930094866047213669}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 696711509978025582}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -185,7 +188,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 4249142436463914994}
+      addedObject: {fileID: 7730421307072881962}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -535,6 +538,8 @@ MonoBehaviour:
     Prefab: {fileID: 47449306826721817, guid: 14df4534e74ccd24c84802e8b94fc357, type: 3}
   - ItemId: magic_staff
     Prefab: {fileID: 7081518439271566258, guid: 3fd511d6ab84f114191aca877a42e7fe, type: 3}
+  - ItemId: wraith_staff
+    Prefab: {fileID: 4751142771732496734, guid: f25b9c5d26402c3459e1c0b9f5aedd75, type: 3}
   - ItemId: grenade
     Prefab: {fileID: 8138500019268029943, guid: 33f3d1d7864fb9b45999c39649ec288a, type: 3}
   - ItemId: woodenboomerang
@@ -975,6 +980,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.MagicSpeckCaster
   LightMaterial: {fileID: 2100000, guid: 1d309feaf5d69004cbc4800b421ca350, type: 2}
+--- !u!114 &2930094866047213669
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb9325382a2907342899d965fae41bf6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.WraithSummonCaster
+  WraithPrefab: {fileID: 3720225186577256688, guid: 0e1c744fd3a967449b33e36e19984709, type: 3}
 --- !u!114 &696711509978025582
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1065,7 +1083,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &4249142436463914994
+--- !u!114 &7730421307072881962
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

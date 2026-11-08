@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CityX.Character
@@ -6,6 +7,7 @@ namespace CityX.Character
     /// The Wraith (owner, 2026-10-26): a low-level ghost that floats about the streets. Its head and body are the owner's model, on the player's own arms (2026-11-05), its tail
     /// wearing away into gas, all on the ghost surface (Shaders/CityXGhost), with two glowing red eyes and solid white teeth (WraithBuilder). It "dies very quickly":
     /// <see cref="MaxHealth"/> is one pistol round or two punches, and dead it fades away and rises. It sneaks up behind a player and bites their neck (Wraith.Bite.cs).
+    /// Summoned by a Wraith Staff it fights on its summoner's side (Wraith.Summon.cs).
     ///
     /// No CharacterController and no Animator: it hovers (WraithDrift: drift, linger, bob, a ground-relative hover height), steered round
     /// walls by NpcSteering, and poses its own bones every frame (WraithPose) over the body's rest.
@@ -113,7 +115,12 @@ namespace CityX.Character
 
         public bool IsAlive => !_dead;
         public float Health => _health;
-        float IHealthBar.MaxHealth => MaxHealth;
+        float IHealthBar.MaxHealth => MaxHealthNow;
+
+        private static readonly List<Wraith> _all = new List<Wraith>();
+
+        /// <summary>Every Wraith in the world here, wild or summoned (a summon looks for its prey among them).</summary>
+        public static IReadOnlyList<Wraith> All => _all;
         int IXpReward.XpReward => XpForKill;
 
         /// <summary>How far it has faded after dying, 0 to 1; at 1 it is gone.</summary>
@@ -152,6 +159,12 @@ namespace CityX.Character
             }
             _hipsRest = Hips != null ? Hips.localPosition : Vector3.zero;
             BindBite();
+            if (StartsSummoned)
+            {
+                _health = SummonedMaxHealth;
+                _hunt.RestSeconds = SummonedRestSeconds;
+                _hunt.Bold = true;
+            }
         }
 
         private void Update()
@@ -204,6 +217,13 @@ namespace CityX.Character
                 ShowLook();
                 return;
             }
+            if (IsSummoned)
+            {
+                TickSummoned(deltaTime);
+                FindPlayer(deltaTime);
+                ShowLook();
+                return;
+            }
 
             Vector3 velocity = _drift.Tick(transform.position, deltaTime);
             float speed = velocity.magnitude;
@@ -244,7 +264,7 @@ namespace CityX.Character
             {
                 return;
             }
-            health = Mathf.Clamp(health, 0.0f, MaxHealth);
+            health = Mathf.Clamp(health, 0.0f, MaxHealthNow);
             if (health < _health)
             {
                 _hurt = 1.0f;
@@ -395,8 +415,13 @@ namespace CityX.Character
 
         private void Die()
         {
+            if (_dead)
+            {
+                return;
+            }
             _dead = true;
             _player = null;
+            OnKilled();
             if (MainCollision != null)
             {
                 MainCollision.enabled = false;

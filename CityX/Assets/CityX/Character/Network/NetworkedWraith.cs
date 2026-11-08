@@ -39,11 +39,11 @@ namespace CityX.Character
 
         // ---- the owner's hunt: what it is doing and whose neck it is at, and each spurt of blood, on every screen ----
 
-        private void OnPhaseChanged(WraithPhase phase, PlayerVitals prey)
+        private void OnPhaseChanged(WraithPhase phase, Component prey)
         {
             if (NetworkObject != null && IsSpawned && IsOwner)
             {
-                SendPhaseToServer((byte)phase, prey != null ? prey.GetComponent<NetworkObject>() : null);
+                SendPhaseToServer((byte)phase, prey != null ? prey.GetComponentInParent<NetworkObject>() : null);
             }
         }
 
@@ -69,7 +69,7 @@ namespace CityX.Character
         {
             if (_wraith != null)
             {
-                _wraith.ShowPhaseFromNetwork((WraithPhase)phase, prey != null ? prey.GetComponent<PlayerVitals>() : null);
+                _wraith.ShowPhaseFromNetwork((WraithPhase)phase, prey != null ? prey.GetComponent<IDamageable>() as Component : null);
             }
         }
 
@@ -97,10 +97,27 @@ namespace CityX.Character
             if (_wraith != null)
             {
                 _wraith.IsCopy = !Owner.IsLocalClient;   // IsOwner is not settled yet inside OnStartNetwork (FishNet)
+                if (_wraith.StartsSummoned && Owner.IsLocalClient)
+                {
+                    _wraith.Summon(OwnersBody());   // a Wraith Staff's summon, come in: its summoner's machine runs it
+                }
             }
         }
 
         private bool IsCopy => NetworkObject != null && IsSpawned && !IsOwner;
+
+        /// <summary>The body of the player who owns it, as this machine holds it: its summoner.</summary>
+        private PlayerVitals OwnersBody()
+        {
+            foreach (NetworkedPlayerIdentity identity in Object.FindObjectsByType<NetworkedPlayerIdentity>(FindObjectsSortMode.None))
+            {
+                if (identity.NetworkManager == NetworkManager && identity.Owner == Owner && identity.TryGetComponent(out PlayerVitals body))
+                {
+                    return body;
+                }
+            }
+            return PlayerBodies.Local();
+        }
 
         public bool TryRelayHit(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage)
         {

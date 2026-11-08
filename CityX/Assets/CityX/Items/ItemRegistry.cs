@@ -63,6 +63,7 @@ namespace CityX.Items
         public const string FrostStaff = "frost_staff";
         public const string MagicWand = "magic_wand";
         public const string MagicStaff = "magic_staff";
+        public const string WraithStaff = "wraith_staff";
         public const string Grenade = "grenade";
 
         /// <summary>How many grenades make a stack: they are spent as they are thrown, the next one coming into the hand.</summary>
@@ -156,6 +157,8 @@ namespace CityX.Items
             // every spell cast through it.
             [MagicWand] = new ItemDefinition(MagicWand, "Magic Wand", "weapon", EquipSlots.Primary, 1),
             [MagicStaff] = new ItemDefinition(MagicStaff, "Magic Staff", "weapon", EquipSlots.Primary, 1),
+            // The Wraith Staff (2026-11-08, docs/WRAITH_STAFF.md): a wild Wraith's rare drop; it summons one Wraith that fights on your side.
+            [WraithStaff] = new ItemDefinition(WraithStaff, "Wraith Staff", "weapon", EquipSlots.Primary, 1),
             // The frag grenade (2026-10-29, docs/GRENADE.md): thrown with the bottle's gesture, a stack of them, the next one into the hand.
             [Grenade] = new ItemDefinition(Grenade, "Frag Grenade", "weapon", EquipSlots.Primary, GrenadeStack),
         };

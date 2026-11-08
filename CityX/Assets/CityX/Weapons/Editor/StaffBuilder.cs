@@ -14,7 +14,7 @@ namespace CityX.WeaponsEditor
     /// </summary>
     public static class StaffBuilder
     {
-        private const string Folder = "Assets/CityX/Weapons/Staffs";
+        public const string Folder = "Assets/CityX/Weapons/Staffs";
         public const string ArcanePrefabPath = "Assets/CityX/Weapons/ArcaneStaff.prefab";
         public const string FireballPrefabPath = "Assets/CityX/Weapons/FireballStaff.prefab";
         public const string IceShardPrefabPath = "Assets/CityX/Weapons/IceShardStaff.prefab";

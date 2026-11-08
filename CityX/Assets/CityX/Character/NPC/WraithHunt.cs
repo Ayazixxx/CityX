@@ -58,6 +58,15 @@ namespace CityX.Character
         /// <summary>It will not hunt again for this long after a bite or a miss, seconds.</summary>
         public const float CooldownSeconds = 8.0f;
 
+        /// <summary>This one's rest after a bite or a miss, seconds: <see cref="CooldownSeconds"/>, or a summon's shorter one.</summary>
+        public float RestSeconds = CooldownSeconds;
+
+        /// <summary>
+        /// Goes straight in from any side (a summon fighting for its summoner): an enemy fighting it always turns to face it, so waiting for
+        /// its back it would only ever circle.
+        /// </summary>
+        public bool Bold;
+
         /// <summary>The bite: what sinking its teeth in does, then every <see cref="BiteTickSeconds"/> while it holds on. Owner: "a lot" (a player has 100).</summary>
         public const float SinkDamage = 30.0f;
 
@@ -161,7 +170,7 @@ namespace CityX.Character
                     if (PhaseSeconds >= RecoverSeconds)
                     {
                         Enter(WraithPhase.Drifting);
-                        Cooldown = CooldownSeconds;
+                        Cooldown = RestSeconds;
                     }
                     break;
             }
@@ -179,9 +188,14 @@ namespace CityX.Character
             Vector3 away = distance > 1e-4f ? fromPrey / distance : -Flat(prey.Forward).normalized;
             Vector3 facing = Flat(prey.Forward).normalized;
             float faced = Vector3.Dot(facing, away);
-            if (faced <= BehindDot && distance <= LungeMetres)
+            if ((faced <= BehindDot || Bold) && distance <= LungeMetres)
             {
                 Enter(WraithPhase.Lunging);
+                return;
+            }
+            if (Bold)
+            {
+                Velocity = Toward(-fromPrey, SneakSpeed);
                 return;
             }
 

@@ -28,6 +28,7 @@ namespace CityX.Tests
             ("swordsman", typeof(SwordsmanBrain)),
             ("shoota", typeof(ShootaBrain)),
             ("wraith", null),
+            ("wraith_summon", null),   // the Wraith Staff's summon (docs/WRAITH_STAFF.md)
         };
 
         [Test]

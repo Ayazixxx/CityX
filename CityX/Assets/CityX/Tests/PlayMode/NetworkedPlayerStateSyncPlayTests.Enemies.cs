@@ -29,6 +29,7 @@ namespace CityX.Tests
                 Kind("swordsman", "Assets/CityX/Character/NetworkedSwordsman.prefab"),
                 Kind("shoota", "Assets/CityX/Character/NetworkedShoota.prefab"),
                 Kind("wraith", "Assets/CityX/Character/NetworkedWraith.prefab"),
+                Kind("wraith_summon", "Assets/CityX/Character/NetworkedWraithSummon.prefab"),
                 Kind("giant", "Assets/CityX/Character/NetworkedGiant.prefab"),
             };
             foreach (NetworkManager manager in new[] { _server, _clients[0], _clients[1] })
@@ -282,6 +283,35 @@ namespace CityX.Tests
             yield return WaitUntil(() => !real.IsAlive && !copy.IsAlive, "the Wraith to die on both machines");
             yield return WaitUntil(() => _enemyNetworks[2].CreditedXp == Wraith.XpForKill, "B to be paid the Wraith");
             yield return WaitUntil(() => EnemyOn(_clients[1]) == null, "the faded Wraith to be taken out of the session");
+#else
+            Assert.Ignore("needs the editor to load the networked prefabs.");
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// The Wraith Staff's summon (docs/WRAITH_STAFF.md): asked for by A, it comes in run by A's machine on A's side, and the other player's
+        /// copy knows it is a summon too, so B's blow on it does not land and B's machine's enemies fight it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ASummonIsOnItsSummonersSideOnEveryMachine()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            yield return StartEnemyNetworks();
+            NetworkObject onA = null, onB = null;
+            yield return SpawnFromA("wraith_summon", new Vector3(0.0f, WraithDrift.HoverHeight, 3.0f), (a, b) => { onA = a; onB = b; });
+            var real = onA.GetComponent<Wraith>();
+            var copy = onB.GetComponent<Wraith>();
+            Assert.IsTrue(real.IsSummoned, "A's summon is not on A's side");
+            Assert.AreEqual(_aOnA.GetComponent<PlayerVitals>(), real.Master, "A's summon does not follow A");
+            Assert.IsTrue(copy.IsSummoned, "B's machine takes A's summon for a wild Wraith");
+            Assert.IsTrue(Opponents.IsSummon(onB.gameObject), "B's machine's enemies would not fight A's summon");
+            Assert.AreEqual(HitResponse.Ignored,
+                DamageContext.Strike(copy, 20.0f, _bOnB.transform.position, 0.0f, DamageKind.Physical, 0.0f, null, _bOnB.gameObject),
+                "B's blow landed on A's summon");
+            yield return null;
+            Assert.AreEqual(Wraith.SummonedMaxHealth, real.Health, "B's blow hurt A's summon");
 #else
             Assert.Ignore("needs the editor to load the networked prefabs.");
             yield break;

@@ -16,7 +16,7 @@ namespace CityX.Character
     /// with their stat point, so a levelled character is genuinely tougher
     /// rather than just hitting harder.
     /// </summary>
-    public sealed class PlayerVitals : MonoBehaviour, IDamageable, IPoisonable, IXpReward, IHealthBar
+    public sealed class PlayerVitals : MonoBehaviour, IDamageable, IOpponent, IPoisonable, IXpReward, IHealthBar
     {
         /// <summary>
         /// XP for killing this body: none for a player's, set on an NPC that wears the player's body (the Shoota, 2026-10-15). Paid by whatever

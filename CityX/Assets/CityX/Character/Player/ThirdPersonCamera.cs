@@ -634,9 +634,9 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                if (damageable is Civilian || damageable is UniqueNpc)
+                if (damageable is Civilian || damageable is UniqueNpc || (damageable is Component body && Opponents.IsSummon(body.gameObject)))
                 {
-                    continue;
+                    continue;   // not someone to fight: a passer-by, or a summon on the players' side
                 }
                 found.Add(damageable);
             }

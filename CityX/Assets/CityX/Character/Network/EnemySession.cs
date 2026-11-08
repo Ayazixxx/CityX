@@ -24,6 +24,15 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Asks the session to bring <paramref name="kind"/> in here, run by this machine (EnemyNetwork; the Wraith Staff's summon). False with
+        /// no session to ask: the caller makes it here itself.
+        /// </summary>
+        public static bool TrySpawn(string kind, Vector3 position, Quaternion rotation)
+        {
+            return EnemyNetwork.Current != null && EnemyNetwork.Current.TrySpawn(kind, position, rotation);
+        }
+
+        /// <summary>
         /// Takes a body out of the world: a networked enemy is despawned by the server (on every machine; asked by its owner, a copy waits for
         /// it), anything else is simply destroyed here.
         /// </summary>

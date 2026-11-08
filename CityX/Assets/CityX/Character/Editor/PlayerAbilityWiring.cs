@@ -32,6 +32,7 @@ namespace CityX.CharacterEditor
         private const string PebblePrefabPath = "Assets/CityX/Weapons/Pebble.prefab";
         private const string ThrownGrenadePrefabPath = "Assets/CityX/Weapons/ThrownGrenade.prefab";
         private const string ThrownBoomerangPrefabPath = "Assets/CityX/Weapons/ThrownBoomerang.prefab";
+        private const string WraithPrefabPath = "Assets/CityX/Character/Wraith.prefab";
         private const string ThunderStrikeClipPath = "Assets/CityX/UI/Audio/thunder_strike.ogg";
         private const string SelfSmiteLightMaterialPath = "Assets/CityX/Character/SelfSmiteLight.mat";
 
@@ -111,6 +112,10 @@ namespace CityX.CharacterEditor
             // --- the Magic Wand's and the Magic Staff's speck of dust (2026-10-30, docs/MAGIC_WAND.md): drawn in code, its glows from the same light.
             var magicSpeck = GetOrAdd<MagicSpeckCaster>(player);
             magicSpeck.LightMaterial = EnsureSelfSmiteLightMaterial() ?? magicSpeck.LightMaterial;
+
+            // --- the Wraith Staff's summon (2026-11-08, docs/WRAITH_STAFF.md): the Wraith, made here when there is no session to ask.
+            var summon = GetOrAdd<WraithSummonCaster>(player);
+            summon.WraithPrefab = Load(WraithPrefabPath) ?? summon.WraithPrefab;
 
             // --- the bow's draw and arrows as other players see them (2026-10-28, docs/ARCHERY.md): a copy looses the bow's own arrow.
             var archery = GetOrAdd<Archery>(player);

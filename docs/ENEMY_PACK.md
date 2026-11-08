@@ -37,6 +37,9 @@ to you".
 
 Enemies hostile to each other (and to you) come later. The pack then needs sides instead of "every enemy".
 
+Since 2026-11-08 the enemies fight not only players but any summon on their side (the Wraith Staff's Wraith: `Opponents`, docs/WRAITH_STAFF.md):
+each goes for the nearest of them, and a turn (`AttackTurns`) is asked of whichever it fights.
+
 ## Tests
 
 - `AttackTurnsTests` (EditMode): one swings and two shoot; the next in line gets a given-back turn while the giver rests; a lone attacker

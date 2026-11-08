@@ -56,22 +56,23 @@ namespace CityX.Character
         /// <summary>Its next attack is a grab, if what it attacks can be thrown (tests and captures, not to wait out two swipes).</summary>
         public void GrabNext() => _swipesSinceGrab = SwipesBetweenGrabs;
 
-        private bool WantsToGrab() => _swipesSinceGrab >= SwipesBetweenGrabs && _target != null && _target.CanBeSeized;
+        /// <summary>A grab is a player's to be caught in: a summon is only ever swiped at.</summary>
+        private bool WantsToGrab() => _swipesSinceGrab >= SwipesBetweenGrabs && Opponents.Alive(_target) && _target is PlayerVitals player && player.CanBeSeized;
 
         /// <summary>Its swing closes on what it reaches, as a swipe would cut it, and not on someone dashing.</summary>
         private void TryCatch()
         {
-            if (_target == null || !_target.IsAlive)
+            if (!Opponents.Alive(_target) || !(_target is PlayerVitals player))
             {
                 return;
             }
             Vector3 toTarget = _target.transform.position - transform.position;
             toTarget.y = 0.0f;
-            if (!InFront(toTarget, ClawHitRadius, ClawHitHalfAngleDegrees) || !_target.Seize())
+            if (!InFront(toTarget, ClawHitRadius, ClawHitHalfAngleDegrees) || !player.Seize())
             {
                 return;
             }
-            _held = _target;
+            _held = player;
             if (MainCollision != null)
             {
                 MainCollision.enabled = false;   // the held body hangs inside its box; the ragdoll's depenetration would fight the grip

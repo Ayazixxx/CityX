@@ -7,7 +7,8 @@ namespace CityX.Character
     /// THE HUNT AND THE BITE (owner, 2026-11-05: "sneak up behind you and sink his teeth into your neck using the wraith neck bite.fbx animation. make blood effects where he bites").
     /// WraithHunt decides; here is the body doing it. The recording (SourceArt/WraithBite) is played bone by bone over the drifting pose, and the whole Wraith is moved so its teeth are
     /// on the prey's neck, whatever the recording's reach, since a player stands 2.6 m tall. In a session the owner's machine hunts and bites, and every other machine is told the
-    /// phase and each spurt of blood (NetworkedWraith).
+    /// phase and each spurt of blood (NetworkedWraith). A wild one's prey is the nearest of what the enemies fight (a player or a summon, Opponents); a summon's, the nearest
+    /// enemy to its summoner (Wraith.Summon.cs): a body with a neck is bitten there, any other high on its back.
     /// </summary>
     public sealed partial class Wraith
     {
@@ -63,7 +64,8 @@ namespace CityX.Character
         private float _biteBlend;
         private float _clipSeconds;
         private WraithPhase _shownPhase = WraithPhase.Drifting;
-        private PlayerVitals _prey;
+        /// <summary>What it hunts: a damageable body (a player, a summon, an enemy).</summary>
+        private Component _prey;
         private Transform _preyNeck;
         private float _preySearch;
         private AudioSource _voice;
@@ -74,10 +76,10 @@ namespace CityX.Character
         public WraithPhase Phase => IsCopy ? _shownPhase : _hunt.Phase;
 
         /// <summary>The body it is after.</summary>
-        public PlayerVitals Prey => _prey;
+        public Component Prey => _prey;
 
         /// <summary>The owner's machine: its phase changed (NetworkedWraith tells the others).</summary>
-        public event System.Action<WraithPhase, PlayerVitals> PhaseChanged;
+        public event System.Action<WraithPhase, Component> PhaseChanged;
 
         /// <summary>The owner's machine: its teeth let out blood here.</summary>
         public event System.Action<Vector3> Bled;
@@ -109,12 +111,13 @@ namespace CityX.Character
         private bool TickHunt(float deltaTime)
         {
             FindPrey(deltaTime);
+            bool exists = PreyAlive();
             var sight = new WraithHunt.Prey
             {
-                Exists = _prey != null && _prey.IsAlive,
-                Position = _prey != null ? _prey.transform.position : Vector3.zero,
-                Forward = _prey != null ? _prey.transform.forward : Vector3.forward,
-                Evading = _prey != null && _prey.IsInvulnerable,
+                Exists = exists,
+                Position = exists ? _prey.transform.position : Vector3.zero,
+                Forward = exists ? _prey.transform.forward : Vector3.forward,
+                Evading = exists && _prey is IOpponent opponent && opponent.IsInvulnerable,
             };
             bool reached = sight.Exists && Jaw != null && (NeckPoint() - Jaw.position).sqrMagnitude <= BiteReachMetres * BiteReachMetres;
             _hunt.Tick(deltaTime, transform.position, sight, reached);
@@ -126,9 +129,13 @@ namespace CityX.Character
             if (_hunt.DamageDue > 0.0f && sight.Exists)
             {
                 Vector3 neck = NeckPoint();
-                DamageContext.Strike(_prey, _hunt.DamageDue, transform.position, WraithHunt.BiteHitstunSeconds, DamageKind.Physical, 0.0f, neck, gameObject);
-                ShowBlood(neck);
-                Bled?.Invoke(neck);
+                DamageContext.Strike((IDamageable)_prey, _hunt.DamageDue, transform.position, WraithHunt.BiteHitstunSeconds, DamageKind.Physical, 0.0f, neck,
+                    gameObject);
+                if (!(_prey is IBloodless))   // a summon bitten is a ghost bitten
+                {
+                    ShowBlood(neck);
+                    Bled?.Invoke(neck);
+                }
             }
             _clipSeconds += deltaTime;
 
@@ -139,7 +146,7 @@ namespace CityX.Character
                     float speed = velocity.magnitude;
                     if (speed > 1e-4f)
                     {
-                        Vector3 direction = _steering.Steer(transform, velocity / speed, deltaTime);
+                        Vector3 direction = _steering.Steer(transform, velocity / speed, deltaTime, _prey != null ? _prey.transform : null);
                         transform.position += direction * (speed * deltaTime);
                     }
                     _stalkSpeed = speed;
@@ -174,7 +181,7 @@ namespace CityX.Character
         }
 
         /// <summary>Told by its owner what it is doing (NetworkedWraith).</summary>
-        public void ShowPhaseFromNetwork(WraithPhase phase, PlayerVitals prey)
+        public void ShowPhaseFromNetwork(WraithPhase phase, Component prey)
         {
             _prey = prey;
             _preyNeck = null;
@@ -228,7 +235,7 @@ namespace CityX.Character
                 return;   // committed to this one
             }
             _preySearch -= deltaTime;
-            if (_preySearch > 0.0f && _prey != null && _prey.IsAlive)
+            if (_preySearch > 0.0f && PreyAlive())
             {
                 return;
             }
@@ -237,7 +244,7 @@ namespace CityX.Character
                 return;
             }
             _preySearch = PreySearchSeconds;
-            PlayerVitals found = PlayerBodies.NearestAlive(transform.position, WraithHunt.LoseMetres);
+            Component found = IsSummoned ? NearestHostile() : Opponents.NearestAlive(transform.position, WraithHunt.LoseMetres) as Component;
             if (found != _prey)
             {
                 _prey = found;
@@ -245,7 +252,13 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>Where its teeth go: the back of the prey's neck.</summary>
+        /// <summary>Its prey is there and alive.</summary>
+        private bool PreyAlive() => _prey != null && _prey is IDamageable body && body.IsAlive;
+
+        /// <summary>
+        /// Where its teeth go: the back of the prey's neck (a body built on the player's, a Wraith's head); a body with neither, high on its
+        /// back (the Crimson Claw's head).
+        /// </summary>
         private Vector3 NeckPoint()
         {
             if (_prey == null)
@@ -255,10 +268,24 @@ namespace CityX.Character
             if (_preyNeck == null)
             {
                 Animator animator = _prey.GetComponentInChildren<Animator>();
-                _preyNeck = animator != null ? animator.GetBoneTransform(HumanBodyBones.Neck) : null;
+                _preyNeck = animator != null && animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Neck) : null;
+                if (_preyNeck == null && _prey.TryGetComponent(out Wraith wraith))
+                {
+                    _preyNeck = wraith.Head;
+                }
             }
-            Vector3 neck = _preyNeck != null ? _preyNeck.position : _prey.transform.position + Vector3.up * BodyRig.ShoulderY;
-            return neck - _prey.transform.forward * NeckBackMetres + _prey.transform.right * NeckSideMetres;
+            Transform body = _prey.transform;
+            if (_preyNeck != null)
+            {
+                return _preyNeck.position - body.forward * NeckBackMetres + body.right * NeckSideMetres;
+            }
+            Collider shape = _prey.GetComponentInChildren<Collider>();
+            if (shape == null)
+            {
+                return body.position + Vector3.up * BodyRig.ShoulderY - body.forward * NeckBackMetres;
+            }
+            Bounds bounds = shape.bounds;
+            return bounds.center + Vector3.up * (bounds.extents.y * 0.6f) - body.forward * (bounds.extents.z * 0.6f);
         }
 
         /// <summary>The recording over the pose already on the bones, and its teeth brought onto the neck.</summary>

@@ -243,6 +243,10 @@ namespace CityX.Character
             {
                 return HitResponse.Ignored;   // one enemy's blow on another: they are on the same side (EnemyPack)
             }
+            if (Opponents.SameSide(striker, target))
+            {
+                return HitResponse.Ignored;   // a player's blow on a summon on their side (Opponents)
+            }
             bool wasAlive = target.IsAlive;
             HitResponse response;
             using (new Scope(kind, penetration, contactPoint))
@@ -254,6 +258,10 @@ namespace CityX.Character
             if (wasAlive && !target.IsAlive && striker != null && target is IXpReward reward)
             {
                 PlayerVitals killer = striker.GetComponentInParent<PlayerVitals>();
+                if (killer == null)
+                {
+                    killer = Opponents.SummonerOf(striker);   // a summon's kill is its summoner's
+                }
                 if (killer != null)
                 {
                     killer.AddXp(reward.XpReward);

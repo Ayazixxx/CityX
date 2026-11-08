@@ -5825,6 +5825,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ef968067480d3942b2991b9f5967619, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.Wraith
+  StartsSummoned: 0
+  StaffPrefab: {fileID: 4751142771732496734, guid: f25b9c5d26402c3459e1c0b9f5aedd75, type: 3}
   Hips: {fileID: 1625811707188321665}
   Spine: {fileID: 8384795302873469048}
   Head: {fileID: 6517866625751037199}

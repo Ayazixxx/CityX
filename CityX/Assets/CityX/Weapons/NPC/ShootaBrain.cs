@@ -68,7 +68,7 @@ namespace CityX.Weapons
         public string CoverSearchSummary => $"{_search.Queries} rays, {_search.OpenSpots} open spots, {_search.DetourSpots} ways round tried";
 
         /// <summary>Who he is after (null when nobody): set by the search, or by a test.</summary>
-        public PlayerVitals Target
+        public IOpponent Target
         {
             get => _target;
             set
@@ -95,7 +95,7 @@ namespace CityX.Weapons
         private int _magazine;
         private bool _reloadStarted;
         private float _reloadTimer;
-        private PlayerVitals _target;
+        private IOpponent _target;
         private bool _targetPinned;
         private float _nextSearch;
         private Vector3 _lastSeen;
@@ -140,7 +140,7 @@ namespace CityX.Weapons
             {
                 _steering.ConfigureFrom(_controller);
             }
-            _blocked = (a, b) => SolidBetween(a, b, _searchThreat != null ? _searchThreat : (_target != null ? _target.transform : null));
+            _blocked = (a, b) => SolidBetween(a, b, _searchThreat != null ? _searchThreat : (Opponents.Alive(_target) ? _target.transform : null));
             if (_vitals != null)
             {
                 _vitals.Damaged += OnDamaged;
@@ -268,7 +268,7 @@ namespace CityX.Weapons
 
             FindTarget();
             TrackTargetSpeed(deltaTime);
-            bool sees = _target != null && CanSee(_target);
+            bool sees = Opponents.Alive(_target) && CanSee(_target);
             if (sees)
             {
                 _alerted = true;
@@ -286,9 +286,9 @@ namespace CityX.Weapons
 
             var senses = new ShootaMind.Senses
             {
-                HasTarget = _target != null && _target.IsAlive,
+                HasTarget = Opponents.Alive(_target),
                 SeesTarget = sees,
-                TargetDistance = _target != null ? Vector3.Distance(transform.position, _target.transform.position) : float.MaxValue,
+                TargetDistance = Opponents.Alive(_target) ? Vector3.Distance(transform.position, _target.transform.position) : float.MaxValue,
                 Magazine = _magazine,
                 MagazineSize = _profile != null ? _profile.MagazineSize : 30,
                 Reloading = reloading,
@@ -321,11 +321,11 @@ namespace CityX.Weapons
                     LocomotionInput input = AimAt(TargetAimPoint());
                     // In a pack (EnemyPack): he shoots on his turn (two at a time), never through a packmate -- he steps aside to clear the
                     // line instead -- and keeps a step from the others.
-                    bool turn = _target != null && EnemyPack.Turns.Ask(transform, _target, TurnKind.Ranged, Time.time);
-                    bool blocked = _target != null && EnemyPack.AllyInTheWay(transform, transform.position, _target.transform.position);
+                    bool turn = Opponents.Alive(_target) && EnemyPack.Turns.Ask(transform, _target, TurnKind.Ranged, Time.time);
+                    bool blocked = Opponents.Alive(_target) && EnemyPack.AllyInTheWay(transform, transform.position, _target.transform.position);
                     if (blocked)
                     {
-                        float side = _target != null ? -EnemyPack.CrowdSide(transform, _target.transform.position) : 0.0f;
+                        float side = Opponents.Alive(_target) ? -EnemyPack.CrowdSide(transform, _target.transform.position) : 0.0f;
                         input.Move = new Vector2(side != 0.0f ? side : 1.0f, 0.0f);
                     }
                     else
@@ -348,7 +348,7 @@ namespace CityX.Weapons
                     LocomotionInput input = Stand();
                     input.Crouch = atCover;
                     input.GunEquipped = true;
-                    if (_target != null)
+                    if (Opponents.Alive(_target))
                     {
                         input.YawDegrees = YawTo(_target.transform.position);
                     }
@@ -575,23 +575,23 @@ namespace CityX.Weapons
         {
             if (_targetPinned)
             {
-                if (_target == null)
+                if (!Opponents.Here(_target))
                 {
                     _targetPinned = false;
                 }
                 return;
             }
-            if (Time.time < _nextSearch && (_target == null || _target.IsAlive))   // once a second, target or none (SwordsmanBrain.FindTarget)
+            if (Time.time < _nextSearch && (_target == null || Opponents.Alive(_target)))   // once a second, target or none (SwordsmanBrain.FindTarget)
             {
                 return;
             }
             _nextSearch = Time.time + TargetSearchSeconds;
-            _target = PlayerBodies.NearestAlive(transform.position, float.MaxValue);
+            _target = Opponents.NearestAlive(transform.position, float.MaxValue);   // a player or a summon on their side
         }
 
         private void TrackTargetSpeed(float deltaTime)
         {
-            if (_target == null || deltaTime <= 0.0f)
+            if (!Opponents.Alive(_target) || deltaTime <= 0.0f)
             {
                 _targetSpeed = 0.0f;
                 return;
@@ -603,7 +603,7 @@ namespace CityX.Weapons
         }
 
         /// <summary>Within sight range, in front of him unless he is already alerted, and nothing solid between his eye and the target's.</summary>
-        private bool CanSee(PlayerVitals target)
+        private bool CanSee(IOpponent target)
         {
             Vector3 eye = Eye;
             Vector3 chest = TargetAimPoint();
@@ -624,7 +624,7 @@ namespace CityX.Weapons
         /// <summary>The middle of the target's chest: what he aims at.</summary>
         private Vector3 TargetAimPoint()
         {
-            if (_target == null)
+            if (!Opponents.Alive(_target))
             {
                 return transform.position + transform.forward * 10.0f + Vector3.up * (Height * 0.6f);
             }
@@ -666,7 +666,7 @@ namespace CityX.Weapons
         /// </summary>
         private void RefreshCover(bool wanted)
         {
-            if (_target == null)
+            if (!Opponents.Alive(_target))
             {
                 _search.Cancel();
                 return;

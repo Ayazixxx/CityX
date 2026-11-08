@@ -298,6 +298,8 @@ namespace CityX.ViewEditor
             // The Magic Wand and the Magic Staff (2026-10-30, docs/MAGIC_WAND.md): drawn in code, stand-ins until the owner's models.
             GameObject magicWandPrefab = CityX.WeaponsEditor.MagicWandBuilder.Build();
             GameObject magicStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildMagic();
+            // The Wraith Staff (2026-11-08, docs/WRAITH_STAFF.md): the owner's Meshy model; a wild Wraith's rare drop, it summons one to your side.
+            GameObject wraithStaffPrefab = CityX.WeaponsEditor.WraithStaffBuilder.Build();
             GameObject grenadePrefab = CityX.WeaponsEditor.GrenadeBuilder.Build();
             // The Wooden Boomerang (2026-11-05, docs/BOOMERANG.md), whose in-flight twin PlayerAbilityWiring gives the body by path.
             GameObject boomerangPrefab = CityX.WeaponsEditor.BoomerangBuilder.Build();
@@ -595,6 +597,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.MagicWand, Prefab = magicWandPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.MagicStaff, Prefab = magicStaffPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.WraithStaff, Prefab = wraithStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Grenade, Prefab = grenadePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

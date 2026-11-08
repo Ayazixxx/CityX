@@ -40,6 +40,19 @@ namespace CityX.Character
             return best;
         }
 
+        /// <summary>This machine's own player's body (the one whose input reader is on), or null.</summary>
+        public static PlayerVitals Local()
+        {
+            foreach (PlayerInputReader reader in Object.FindObjectsByType<PlayerInputReader>(FindObjectsSortMode.None))
+            {
+                if (reader.isActiveAndEnabled && reader.TryGetComponent(out PlayerVitals vitals))
+                {
+                    return vitals;
+                }
+            }
+            return null;
+        }
+
         /// <summary>Whether <paramref name="body"/> is a player's, this machine's own or another player's copy.</summary>
         public static bool IsPlayer(GameObject body)
         {
