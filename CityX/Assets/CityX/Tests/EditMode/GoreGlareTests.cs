@@ -25,6 +25,26 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// Near-white eyes, teeth and bone glowed as dots in the sun (owner, 2026-11-07: "small dots of glowing light"): nothing in a body is
+        /// paler than its skin, so no piece blooms more than a whole body does.
+        /// </summary>
+        [Test]
+        public void NoPieceOfGoreIsPalerThanSkin()
+        {
+            var skin = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/Character/Materials/PlayerSkin.mat");
+            Assert.IsNotNull(skin, "no player skin material");
+            Assert.LessOrEqual(Gore.Palest, skin.GetColor("_BaseColor").maxColorComponent, "the palest gore is paler than the skin");
+            foreach (GoreAnatomy.Tissue tissue in System.Enum.GetValues(typeof(GoreAnatomy.Tissue)))
+            {
+                for (int variant = 0; variant < 4; variant++)
+                {
+                    Assert.LessOrEqual(Gore.ColourOf(tissue, variant).maxColorComponent, Gore.Palest + 1e-4f, $"{tissue} is paler than skin");
+                }
+            }
+            Assert.LessOrEqual(Gore.Collar.maxColorComponent, Gore.Palest);
+        }
+
         [Test]
         public void TheCitysBloomIsCapped()
         {

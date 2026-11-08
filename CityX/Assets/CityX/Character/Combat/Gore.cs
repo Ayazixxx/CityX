@@ -76,27 +76,34 @@ namespace CityX.Character
         /// <summary>Iris colours an eye can have.</summary>
         private static readonly Color[] Irises =
         {
-            new Color(0.36f, 0.2f, 0.08f), new Color(0.25f, 0.45f, 0.75f), new Color(0.3f, 0.52f, 0.3f), new Color(0.5f, 0.55f, 0.6f),
+            new Color(0.36f, 0.2f, 0.08f), new Color(0.23f, 0.42f, 0.68f), new Color(0.3f, 0.52f, 0.3f), new Color(0.5f, 0.55f, 0.6f),
         };
 
-        /// <summary>What each tissue looks like: its colour and how wet it shines.</summary>
+        /// <summary>
+        /// No tissue is paler than this, the player's skin (0.72): in the noon sun a near-white eye, tooth or bone came out twice as bright as
+        /// the bloom's threshold, and small on a dark body the bloom spread it into a dot of glowing light (owner, 2026-11-07: "small dots of
+        /// glowing light").
+        /// </summary>
+        public const float Palest = 0.7f;
+
+        /// <summary>What each tissue looks like: its colour, never paler than <see cref="Palest"/>.</summary>
         public static Color ColourOf(GoreAnatomy.Tissue tissue, int variant = 0)
         {
             switch (tissue)
             {
                 case GoreAnatomy.Tissue.Meat: return new Color(0.58f, 0.06f, 0.05f);
                 case GoreAnatomy.Tissue.DarkMeat: return new Color(0.32f, 0.03f, 0.03f);
-                case GoreAnatomy.Tissue.Fat: return new Color(0.93f, 0.8f, 0.5f);
-                case GoreAnatomy.Tissue.Bone: return new Color(0.9f, 0.86f, 0.74f);
+                case GoreAnatomy.Tissue.Fat: return new Color(0.7f, 0.6f, 0.38f);
+                case GoreAnatomy.Tissue.Bone: return new Color(0.7f, 0.66f, 0.56f);
                 case GoreAnatomy.Tissue.Marrow: return new Color(0.48f, 0.05f, 0.06f);
-                case GoreAnatomy.Tissue.Tooth: return new Color(0.95f, 0.94f, 0.88f);
-                case GoreAnatomy.Tissue.Lung: return new Color(0.86f, 0.5f, 0.52f);
+                case GoreAnatomy.Tissue.Tooth: return new Color(0.7f, 0.69f, 0.64f);
+                case GoreAnatomy.Tissue.Lung: return new Color(0.7f, 0.4f, 0.42f);
                 case GoreAnatomy.Tissue.Heart: return new Color(0.45f, 0.04f, 0.05f);
-                case GoreAnatomy.Tissue.Vessel: return new Color(0.72f, 0.22f, 0.26f);
+                case GoreAnatomy.Tissue.Vessel: return new Color(0.7f, 0.21f, 0.25f);
                 case GoreAnatomy.Tissue.Liver: return new Color(0.36f, 0.07f, 0.05f);
-                case GoreAnatomy.Tissue.Brain: return new Color(0.86f, 0.66f, 0.66f);
-                case GoreAnatomy.Tissue.Guts: return new Color(0.85f, 0.5f, 0.46f);
-                case GoreAnatomy.Tissue.EyeWhite: return new Color(0.95f, 0.95f, 0.93f);
+                case GoreAnatomy.Tissue.Brain: return new Color(0.7f, 0.53f, 0.53f);
+                case GoreAnatomy.Tissue.Guts: return new Color(0.7f, 0.41f, 0.38f);
+                case GoreAnatomy.Tissue.EyeWhite: return new Color(0.7f, 0.7f, 0.68f);
                 case GoreAnatomy.Tissue.Iris: return Irises[Mathf.Abs(variant) % Irises.Length];
                 default: return new Color(0.03f, 0.03f, 0.03f);
             }

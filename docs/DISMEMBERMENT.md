@@ -58,6 +58,9 @@ as well".
   the body they came out of. A whole body that bursts keeps its hidden ragdoll on the floor, so what follows the body (the death camera) finds it there.
 - The cut-off bones' ragdoll bodies stay on their joints (they must be whole again on revival) with no collider and almost no weight, so
   the invisible limb neither props the body up nor drags it. They are always the end of a chain, where a light link is stable.
+- Every piece is matte, and no tissue is paler than the skin (`Gore.Palest`, 0.7): near-white eyes, teeth and bone came out twice the
+  bloom's threshold in the noon sun, and small on a dark body the bloom made each a dot of glowing light (owner, 2026-11-07). Eyes are a
+  soft grey-white now, bone and teeth ivory.
 - Chunks and cut-off parts lie 60 s, then shrink away over 3 s, taking the meshes made for them (`Debris`). Revived, the body is whole
   (`Restore`).
 
