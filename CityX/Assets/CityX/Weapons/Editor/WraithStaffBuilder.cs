@@ -20,6 +20,16 @@ namespace CityX.WeaponsEditor
         private const string BodyMaterialPath = StaffBuilder.Folder + "/WraithStaffBody.mat";
         private const string OrbMaterialPath = StaffBuilder.Folder + "/WraithStaffOrb.mat";
 
+        /// <summary>
+        /// The orb's own light (owner, 2026-11-08: "make the wraith staff orb have a bit of red light reflect off of it not too much just enough
+        /// that it is noticeable in the dark"): a small red glow at the orb, reaching the hand, the arm and the ground near the holder.
+        /// </summary>
+        public static readonly Color OrbLightColour = new Color(1.0f, 0.12f, 0.1f);
+
+        public const float OrbLightIntensity = 0.8f;
+
+        public const float OrbLightRange = 3.0f;
+
         /// <summary>The model's two parts, by the material names the build script gives them.</summary>
         public const string BodyMaterialName = "WraithStaffBody";
         public const string OrbMaterialName = "WraithStaffOrb";
@@ -61,6 +71,13 @@ namespace CityX.WeaponsEditor
                 var tip = new GameObject(StaffItem.TipName);
                 tip.transform.SetParent(root.transform, false);
                 tip.transform.localPosition = new Vector3(0.0f, StaffBuilder.OrbHeight, 0.0f);
+                Light glow = new GameObject("OrbLight").AddComponent<Light>();
+                glow.transform.SetParent(tip.transform, false);
+                glow.type = LightType.Point;
+                glow.color = OrbLightColour;
+                glow.intensity = OrbLightIntensity;
+                glow.range = OrbLightRange;
+                glow.shadows = LightShadows.None;
 
                 root.AddComponent<WraithStaff>().Tip = tip.transform;
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);

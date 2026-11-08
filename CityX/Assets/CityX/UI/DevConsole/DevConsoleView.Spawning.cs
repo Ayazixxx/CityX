@@ -377,6 +377,8 @@ namespace CityX.UI
                 case "magic_wand": return ItemRegistry.MagicWand;
                 case "magicstaff":
                 case "magic_staff": return ItemRegistry.MagicStaff;
+                case "wraithstaff":
+                case "wraith_staff": return ItemRegistry.WraithStaff;
                 case "waterstaff":
                 case "water_staff":
                 case "hose":

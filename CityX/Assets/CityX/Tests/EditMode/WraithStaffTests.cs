@@ -25,6 +25,19 @@ namespace CityX.Tests
             Assert.AreEqual(Rarity.VeryRare, ItemRarity.Of(ItemRegistry.WraithStaff));
         }
 
+        /// <summary>To try it without killing thirty-odd Wraiths: /equip wraithstaff, /spawn wraithstaff.</summary>
+        [Test]
+        public void TheConsoleKnowsItByName()
+        {
+            System.Reflection.MethodInfo alias = typeof(CityX.UI.DevConsoleView).GetMethod("AliasToItemId",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(alias, "DevConsoleView.AliasToItemId is gone");
+            foreach (string name in new[] { "wraithstaff", "wraith_staff" })
+            {
+                Assert.AreEqual(ItemRegistry.WraithStaff, alias.Invoke(null, new object[] { name }), $"/equip {name}");
+            }
+        }
+
         [Test]
         public void OneWildWraithInThirtyThreeDropsIt()
         {
@@ -75,6 +88,21 @@ namespace CityX.Tests
                     "the glow is not at the head");
             }
             Assert.AreEqual(1, glowing, "the orb alone should glow");
+        }
+
+        /// <summary>"a bit of red light reflect off of it not too much just enough that it is noticeable in the dark": one small red light, at the orb.</summary>
+        [Test]
+        public void ItsOrbCastsALittleRedLight()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            Light[] lights = prefab.GetComponentsInChildren<Light>(true);
+            Assert.AreEqual(1, lights.Length, "the orb casts no light, or more than one");
+            Light glow = lights[0];
+            Assert.AreEqual(LightType.Point, glow.type);
+            Assert.Greater(glow.color.r, 4.0f * Mathf.Max(glow.color.g, glow.color.b), "not red");
+            Assert.LessOrEqual(glow.range, 4.0f, "it lights more than what is near the staff");
+            Assert.LessOrEqual(glow.intensity, 2.0f, "too bright: a little light, not a lamp");
+            Assert.AreEqual(0.0f, Vector3.Distance(glow.transform.position, prefab.GetComponent<WraithStaff>().Tip.position), 0.01f, "not at the orb");
         }
 
         /// <summary>No player's blow lands on a summon on their side (its master's included); anything else's does.</summary>

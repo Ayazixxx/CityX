@@ -27,7 +27,8 @@ Meshy FBX (101,932 triangles, a 4096 colour map; the zip stays in Downloads):
   tools/model_qa.py's "fine" line for a weapon.
 
 `WraithStaffBuilder` makes the prefab: the staff painted, the orb in the Wraith's eyes' own red and glow (`WraithBuilder.EyeColour`,
-`EyeGlowColour`, HDR, so the bloom spreads it). Pictures: `WraithStaffCapture.ShowTheStaffInTheHand` (`wraithstaff-held-*.png`).
+`EyeGlowColour`, HDR, so the bloom spreads it), and a small red light of its own at the orb (owner, 2026-11-08: "a bit of red light reflect
+off of it not too much just enough that it is noticeable in the dark": a point light, 0.8 strong, reaching 3 m, no shadows). Pictures: `WraithStaffCapture.ShowTheStaffInTheHand` (`wraithstaff-held-*.png`).
 
 ## The summon
 
