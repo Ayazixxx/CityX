@@ -16,7 +16,7 @@ namespace CityX.Character
     /// the scene root, because its bones were plain meshes with no bodies. Here
     /// the skeleton already exists and the physics can simply live on it.
     /// </summary>
-    public sealed class Ragdoll : MonoBehaviour
+    public sealed partial class Ragdoll : MonoBehaviour
     {
         /// <summary>
         /// character.gd RAGDOLL_LINEAR_DAMP / RAGDOLL_ANGULAR_DAMP.
@@ -150,7 +150,7 @@ namespace CityX.Character
         /// Requested: "the ragdoll can continue to take fall damage."
         /// </summary>
         public bool IsRestingOnGround =>
-            _limp && (Torso == null || Torso.linearVelocity.magnitude < RestVelocityThreshold);
+            _limp && !_held && (Torso == null || Torso.linearVelocity.magnitude < RestVelocityThreshold);
 
         /// <summary>True from BeginStandingUp until the GettingUp clip finishes -- see FinishStandingUp.</summary>
         public bool IsStandingUp => _standingUpElapsed >= 0.0f;
@@ -319,18 +319,32 @@ namespace CityX.Character
         /// </summary>
         public void Activate(Vector3 velocity, bool allowImmediateStandUp = false)
         {
+            if (!GoLimp(allowImmediateStandUp))
+            {
+                return;
+            }
+            Fly(velocity);
+        }
+
+        /// <summary>
+        /// The body is the ragdoll's from here (the walker, its controller and the Animator off), its bones still kinematic, in the pose the
+        /// Animator left them. False when it cannot go limp: already limp, a copy, or swinging on the grapple (the rope is let go instead).
+        /// </summary>
+        private bool GoLimp(bool allowImmediateStandUp)
+        {
             if (_limp || IsMirrored)
             {
-                return;   // a second killing blow must not re-launch the corpse; a copy posed as its owner's ragdoll is not thrown here
+                return false;   // a second killing blow must not re-launch the corpse; a copy posed as its owner's ragdoll is not thrown here
             }
 
             if (_swing != null && _swing.IsActive)
             {
                 _swing.Release(false);
-                return;
+                return false;
             }
 
             _limp = true;
+            _held = false;
             _allowImmediateStandUp = allowImmediateStandUp;
 
             if (Animator != null)
@@ -354,7 +368,12 @@ namespace CityX.Character
             {
                 _controller.enabled = false;
             }
+            return true;
+        }
 
+        /// <summary>Limp bones go live, every one flying at <paramref name="velocity"/>, the torso tumbling.</summary>
+        private void Fly(Vector3 velocity)
+        {
             // BEFORE going live -- see DepenetrateFromWorld's own doc
             // comment. Every body here is still kinematic and still
             // following the exact pose the Animator left it in, so pushing
@@ -1082,7 +1101,7 @@ namespace CityX.Character
             // driven by RepositionToRagdollRest/the GettingUp clip at that
             // point; a depenetration correction has no business fighting
             // either one.
-            if (!IsStandingUp)
+            if (!IsStandingUp && !IsHeld)
             {
                 TickLiveDepenetration();
             }

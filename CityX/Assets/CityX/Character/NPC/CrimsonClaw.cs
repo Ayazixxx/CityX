@@ -20,7 +20,8 @@ namespace CityX.Character
     /// only slowly while winding up and not at all once it swipes; and the
     /// swipe reaches only what is in front of it (ClawHitHalfAngleDegrees).
     /// The swipe moves its whole body in one flowing motion (ClawStrikeMotion),
-    /// and its eyes glow red until it dies, then go out (EyesGlow).
+    /// and its eyes glow red until it dies, then go out (EyesGlow). Every third
+    /// attack its swipe grabs and throws instead (CrimsonClaw.Grab.cs).
     ///
     /// HOVER HEIGHT IS GROUND-RELATIVE, NOT AN ABSOLUTE WORLD Y -- the one
     /// deliberate deviation from the source. Godot's own HOVER_HEIGHT (1.5)
@@ -51,12 +52,24 @@ namespace CityX.Character
     /// directly with an explicit deltaTime, without needing a real Unity
     /// Update loop pumping.
     /// </summary>
-    public sealed class CrimsonClaw : MonoBehaviour, IDamageable, IHealthBar, IHostile
+    public sealed partial class CrimsonClaw : MonoBehaviour, IDamageable, IHealthBar, IHostile
     {
         public const float MaxHealth = 150.0f;
         public const float DetectionRange = 16.0f;
         public const float ChaseSpeed = 5.0f;
-        public const float AttackRange = 3.0f;
+
+        /// <summary>
+        /// How far in front of its middle its claws reach when it swipes, metres: the claw's tip, 0.95 of the model forward, carried on by the
+        /// swipe and the lunge of its body (ClawStrikeMotion), about 1.15.
+        /// </summary>
+        public const float ClawReachMetres = 1.15f * ModelScale;
+
+        /// <summary>Half the width of what it swipes at across the shoulders, metres: a blow that reaches its side lands.</summary>
+        public const float TargetBodyRadius = 0.45f;
+
+        /// <summary>It swipes at what is within its claws' reach, so a blow lands unless the target steps away during the tell.</summary>
+        public const float AttackRange = ClawReachMetres;
+
         public const float AttackCooldownSeconds = 1.6f;
         public const float AttackDamage = 15.0f;
 
@@ -79,17 +92,19 @@ namespace CityX.Character
         public const float SwingAngleDegrees = 75.0f;
 
         /// <summary>
-        /// How close the TARGET must be to this body during the swing phase
-        /// to actually land a hit -- see this class's own doc comment on why
-        /// that is a distance-to-body check, not a per-claw swept-tip check.
+        /// How close the TARGET's middle must be to this body's during the swing phase to actually land a hit -- see this class's own doc
+        /// comment on why that is a distance-to-body check, not a per-claw swept-tip check: as far as its claws reach and the target's own
+        /// width (owner, 2026-11-08: "he was swinging right next to me and should have been hitting but it wasnt reaching my hitbox"; it was
+        /// 2.5 m while it swung from 3).
         /// </summary>
-        public const float ClawHitRadius = 2.5f;
+        public const float ClawHitRadius = ClawReachMetres + TargetBodyRadius;
 
         /// <summary>
         /// ...and in front of it: within this many degrees either side of where it faces. It used to reach all round, so a dash past it was hit
-        /// anyway (owner, 2026-10-24: "the dash feels pretty useless ... because the enemies just auto lock onto you anyways").
+        /// anyway (owner, 2026-10-24: "the dash feels pretty useless ... because the enemies just auto lock onto you anyways"). Measured to the
+        /// near edge of the target's body since 2026-11-08 (it was 70 to the middle), so a body beside it is reached and a dash round it still slips it.
         /// </summary>
-        public const float ClawHitHalfAngleDegrees = 70.0f;
+        public const float ClawHitHalfAngleDegrees = 60.0f;
 
         /// <summary>Winding up and through its tell it turns toward its target only this fast, degrees per second; swiping and recovering not at all.</summary>
         public const float WindUpTurnDegreesPerSecond = 120.0f;
@@ -112,7 +127,15 @@ namespace CityX.Character
         /// <summary>Dead, the glow goes out over this many seconds ("the glow fades away upon death").</summary>
         public const float EyesFadeSeconds = 1.5f;
 
-        public const float ModelScale = 2.0f;
+        /// <summary>
+        /// Drawn at this size (owner, 2026-11-08: "make the crimson claw 10% bigger": it was 2, then 2.2; then, for its fist to hold a player
+        /// with little of either showing through the other, "i dont mind increasing the size of the crimson claw as a whole slightly": the
+        /// fit was measured at 2.2, 2.4 and 2.6, see <see cref="FistHollow"/>).
+        /// </summary>
+        public const float ModelScale = 2.4f;
+
+        /// <summary>While chasing and waiting it turns to face its target at most this fast, degrees per second (it used to snap round).</summary>
+        public const float TurnDegreesPerSecond = 360.0f;
         public const float RagdollTossSpeed = 1.8f;
         public const float RagdollLinearDamp = 0.4f;
         public const float RagdollAngularDamp = 0.4f;
@@ -141,6 +164,7 @@ namespace CityX.Character
             Tell,
             Swing,
             Recover,
+            Holding,   // its swipe caught someone: CrimsonClaw.Grab.cs
         }
 
         private readonly NpcSteering _steering = new NpcSteering();
@@ -198,7 +222,7 @@ namespace CityX.Character
         /// <summary>Exposed for tests -- which hand the NEXT attack swings.</summary>
         public bool NextAttackHandIsLeft => _nextAttackHandIsLeft;
 
-        /// <summary>Somewhere between winding up and recovered.</summary>
+        /// <summary>Somewhere between winding up and recovered, swiping or grabbing.</summary>
         public bool IsAttacking => _attackState != AttackState.Idle;
 
         private void Awake()
@@ -220,9 +244,9 @@ namespace CityX.Character
             }
             _bound = true;
             // Sized off the collision box CrimsonClawBuilder gives this body
-            // (1.8 x 1.3 x 2.0, scaled) rather than a CharacterController
+            // (1.8 x 1.3 x 2.0 of the model, scaled) rather than a CharacterController
             // that does not exist here.
-            _steering.Configure(width: 1.8f, topY: 1.3f, reach: 2.0f);
+            _steering.Configure(width: 0.9f * ModelScale, topY: 0.65f * ModelScale, reach: 1.0f * ModelScale);
         }
 
         private void Update()
@@ -248,7 +272,7 @@ namespace CityX.Character
 
             TickGrowl(deltaTime);
 
-            if (_attackState != AttackState.Idle)
+            if (IsAttacking)
             {
                 if (_target != null)
                 {
@@ -284,16 +308,18 @@ namespace CityX.Character
             }
             else if (distance > AttackRange && (turn || distance > WaitMetres))
             {
-                Vector3 direction = _steering.Steer(transform, (toTarget / distance + EnemyPack.Separation(transform)).normalized, deltaTime);
-                FaceAlong(direction);
+                // Steered round what is in its way, but always facing what it chases (facing where it steered, it looked one way and the other).
+                Vector3 direction = _steering.Steer(transform, (toTarget / distance + EnemyPack.Separation(transform)).normalized, deltaTime,
+                    _target.transform);
+                TurnTowards(_target.transform.position, TurnDegreesPerSecond * deltaTime);
                 transform.position += direction * ChaseSpeed * deltaTime;
             }
             else if (turn && !EnemyPack.AllyInTheWay(transform, transform.position, _target.transform.position))
             {
-                FaceTowards(_target.transform.position);
+                TurnTowards(_target.transform.position, TurnDegreesPerSecond * deltaTime);
                 if (_attackCooldownRemaining <= 0.0f)
                 {
-                    StartAttack();
+                    StartAttack(WantsToGrab());
                     _turnUsed = true;
                 }
             }
@@ -304,7 +330,7 @@ namespace CityX.Character
                 Vector3 inOut = distance < WaitMetres - 0.5f ? -toward : Vector3.zero;
                 Vector3 drift = Vector3.ClampMagnitude(round * 0.5f + inOut + EnemyPack.Separation(transform), 1.0f);
                 transform.position += drift * WaitSpeed * deltaTime;
-                FaceTowards(_target.transform.position);
+                TurnTowards(_target.transform.position, TurnDegreesPerSecond * deltaTime);
             }
         }
 
@@ -324,6 +350,7 @@ namespace CityX.Character
         private void OnDisable()
         {
             EnemyPack.Leave(transform);
+            LetGoOfHeld(Vector3.zero);   // gone while holding someone: they drop
         }
 
         /// <summary>
@@ -409,11 +436,6 @@ namespace CityX.Character
             GrowlAudio.Play();
         }
 
-        private void FaceTowards(Vector3 worldPoint)
-        {
-            FaceAlong(worldPoint - transform.position);
-        }
-
         /// <summary>Turns toward <paramref name="worldPoint"/> by at most <paramref name="maxDegrees"/>.</summary>
         private void TurnTowards(Vector3 worldPoint, float maxDegrees)
         {
@@ -426,35 +448,20 @@ namespace CityX.Character
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(direction.normalized, Vector3.up), maxDegrees);
         }
 
-        /// <summary>Instant snap, matching the source's own look_at -- no turn-rate smoothing exists there to port.</summary>
-        private void FaceAlong(Vector3 direction)
-        {
-            direction.y = 0.0f;
-            if (direction.sqrMagnitude < 0.0001f)
-            {
-                return;
-            }
-            transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
-        }
-
         // --- attack state machine ---
 
-        private void StartAttack()
+        /// <summary>A swipe; with <paramref name="grab"/>, one whose claw closes on what it reaches and throws it instead of cutting it.</summary>
+        private void StartAttack(bool grab = false)
         {
             _attackCooldownRemaining = AttackCooldownSeconds;
+            _grabbing = grab;
+            _swipesSinceGrab = grab ? 0 : _swipesSinceGrab + 1;
             _attackState = AttackState.Windup;
             _attackPhaseTimer = 0.0f;
             _attackPhaseDuration = WindupSeconds;
             _attackHitLanded = false;
             _activeClawPivot = _nextAttackHandIsLeft ? LeftClawPivot : RightClawPivot;
-            if (!_restKnown)
-            {
-                // Between attacks every part is back at rest, so the first attack finds where rest is.
-                _leftRest = Rest.Of(LeftClawPivot);
-                _rightRest = Rest.Of(RightClawPivot);
-                _bodyRest = Rest.Of(BodyVisual != null ? BodyVisual.parent : null);
-                _restKnown = true;
-            }
+            KnowRest();
 
             if (AttackAudio != null && AttackSound != null)
             {
@@ -466,11 +473,20 @@ namespace CityX.Character
         private void TickAttack(float deltaTime)
         {
             _attackPhaseTimer += deltaTime;
+            if (_attackState == AttackState.Holding)
+            {
+                TickHolding();
+                return;
+            }
             ApplyStrikePose();
 
             if (_attackPhaseTimer < _attackPhaseDuration)
             {
-                if (_attackState == AttackState.Swing)
+                if (_attackState == AttackState.Swing && _grabbing)
+                {
+                    TryCatch();
+                }
+                else if (_attackState == AttackState.Swing)
                 {
                     CheckClawHit();
                 }
@@ -503,12 +519,18 @@ namespace CityX.Character
                     break;
 
                 case AttackState.Recover:
-                    _attackState = AttackState.Idle;
-                    _activeClawPivot = null;
-                    PlaceAtRest();
-                    _nextAttackHandIsLeft = !_nextAttackHandIsLeft;
+                    EndAttack();
                     break;
             }
+        }
+
+        /// <summary>Recovered: at rest, the other hand next.</summary>
+        private void EndAttack()
+        {
+            _attackState = AttackState.Idle;
+            _activeClawPivot = null;
+            PlaceAtRest();
+            _nextAttackHandIsLeft = !_nextAttackHandIsLeft;
         }
 
         /// <summary>Claws and body where <see cref="ClawStrikeMotion"/> has them this far into the attack (the phases' own times).</summary>
@@ -521,9 +543,14 @@ namespace CityX.Character
                 AttackState.Recover => WindupSeconds + TellSeconds + SwingSeconds,
                 _ => 0.0f,
             };
+            Place(ClawStrikeMotion.At(phaseStart + _attackPhaseTimer));
+        }
+
+        /// <summary>Claws and body at <paramref name="pose"/> (the -X claw's), swung by the claw striking now.</summary>
+        private void Place(ClawStrikeMotion.Pose pose)
+        {
             Rest strike = _nextAttackHandIsLeft ? _leftRest : _rightRest;
             Rest other = _nextAttackHandIsLeft ? _rightRest : _leftRest;
-            ClawStrikeMotion.Pose pose = ClawStrikeMotion.At(phaseStart + _attackPhaseTimer);
             if (strike.Position.x > 0.0f)
             {
                 // By where the claw is, not its name: the model's LeftClaw sits on +X, and swung by its name it swiped out and back,
@@ -533,6 +560,19 @@ namespace CityX.Character
             strike.Place(pose.StrikeTurn, pose.StrikeShift);
             other.Place(pose.OtherTurn, pose.OtherShift);
             _bodyRest.Place(pose.BodyTurn, pose.BodyShift);
+        }
+
+        /// <summary>Between attacks every part is back at rest, so the first attack finds where rest is.</summary>
+        private void KnowRest()
+        {
+            if (_restKnown)
+            {
+                return;
+            }
+            _leftRest = Rest.Of(LeftClawPivot);
+            _rightRest = Rest.Of(RightClawPivot);
+            _bodyRest = Rest.Of(BodyVisual != null ? BodyVisual.parent : null);
+            _restKnown = true;
         }
 
         private void PlaceAtRest()
@@ -609,13 +649,28 @@ namespace CityX.Character
             }
             Vector3 toTarget = _target.transform.position - transform.position;
             toTarget.y = 0.0f;
-            Vector3 facing = transform.forward;
-            facing.y = 0.0f;
-            if (toTarget.magnitude <= ClawHitRadius && Vector3.Angle(facing, toTarget) <= ClawHitHalfAngleDegrees)
+            if (InFront(toTarget, ClawHitRadius, ClawHitHalfAngleDegrees))
             {
                 _attackHitLanded = true;
                 ((IDamageable)_target).ApplyHit(AttackDamage, transform.position, CombatTuning.HitstunSeconds);
             }
+        }
+
+        /// <summary>
+        /// A target <paramref name="toTarget"/> away (flat) is within <paramref name="reach"/> and within <paramref name="halfAngle"/> of where
+        /// it faces: the angle to the nearer edge of its body, not its middle, so one right beside it is not missed by a hair.
+        /// </summary>
+        private bool InFront(Vector3 toTarget, float reach, float halfAngle)
+        {
+            float distance = toTarget.magnitude;
+            if (distance > reach)
+            {
+                return false;
+            }
+            Vector3 facing = transform.forward;
+            facing.y = 0.0f;
+            float edge = distance > TargetBodyRadius ? Mathf.Asin(TargetBodyRadius / distance) * Mathf.Rad2Deg : 90.0f;
+            return Vector3.Angle(facing, toTarget) <= halfAngle + edge;
         }
 
         // --- IDamageable ---
@@ -640,6 +695,7 @@ namespace CityX.Character
         {
             EnemyPack.Leave(transform);
             _isDead = true;
+            LetGoOfHeld(Vector3.zero);
             _target = null;
             _attackState = AttackState.Idle;
             _activeClawPivot = null;

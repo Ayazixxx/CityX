@@ -56,6 +56,55 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Its grab and throw (owner, 2026-11-08: "can you make an attack where the crimson claw grabs you and throws you"), a frame every
+        /// 1/10 s from its tell until the thrown player has landed: crimsonclaw-grab-NN.png.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator FilmOneGrab()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            var stage = new Stage();
+            GameObject player = stage.Player(new Vector3(0.0f, 0.05f, 2.2f));
+            CrimsonClaw claw = stage.Claw();
+            claw.GrabNext();
+            for (int i = 0; i < 300 && !claw.IsAttacking; i++)
+            {
+                yield return null;
+            }
+            Assert.IsTrue(claw.IsAttacking, "it never went for the player in front of it");
+            Vector3 middle = claw.transform.position + claw.transform.forward * 2.5f + Vector3.up * 0.5f;
+            Vector3 from = middle + claw.transform.right * 9.0f + claw.transform.forward * 1.5f + Vector3.up * 2.0f;
+            bool caught = false;
+            int heldShots = 0;
+            for (int shot = 0; shot < 34; shot++)
+            {
+                caught |= claw.IsHolding;
+                if (claw.IsHolding && ++heldShots == 5)
+                {
+                    // Up close, held in its fist (owner's drawing: the head out of the top, the legs out of the bottom).
+                    Vector3 fist = claw.FistPoint();
+                    Vector3 ahead = claw.transform.forward;
+                    Vector3 side = claw.transform.right * Mathf.Sign(claw.transform.InverseTransformPoint(fist).x);
+                    stage.Shoot("crimsonclaw-grab-held-front", fist + ahead * 4.5f + Vector3.up * 0.8f, fist);
+                    stage.Shoot("crimsonclaw-grab-held-side", fist + side * 4.5f + Vector3.up * 0.8f, fist);
+                    stage.Shoot("crimsonclaw-grab-held-threequarter", fist + (ahead + side).normalized * 4.5f + Vector3.up * 1.5f, fist);
+                }
+                stage.Shoot($"crimsonclaw-grab-{shot:00}", from, middle);
+                for (int i = 0; i < 6; i++)
+                {
+                    yield return null;
+                }
+            }
+            Assert.IsTrue(caught, "it never caught the player");
+            Object.Destroy(player);
+            stage.Clear(claw.gameObject);
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator ShowItsEyes()
         {
@@ -68,7 +117,7 @@ namespace CityX.Tests
             {
                 yield return null;
             }
-            Vector3 face = claw.transform.position + Vector3.up * 0.8f + claw.transform.forward * 0.6f;
+            Vector3 face = claw.transform.position + Vector3.up * 0.3f + claw.transform.forward * 1.0f;   // its eye slits
             Vector3 forward = claw.transform.forward;
             Vector3 right = claw.transform.right;
             stage.Shoot("crimsonclaw-eyes-day-front", face + forward * 3.2f + Vector3.up * 1.4f, face);

@@ -37,9 +37,9 @@ namespace CityX.CharacterEditor
         private static readonly Color BodyColor = new Color(0.94f, 0.94f, 0.92f);
 
         /// <summary>
-        /// The eyes: the model's discs in its brow sockets (SourceArt/CrimsonClaw/claw_patch.py gives them this material name), glowing red as if
-        /// lit from inside the head (owner, 2026-11-07: "make it glow red from within the head only visible through the eyes"). Only the eyes
-        /// give off light; nothing lights the rest of it. Dark red when the glow has gone out.
+        /// The eyes: what is seen deep inside its head through the two slits across its face (SourceArt/CrimsonClaw/claw_patch.py gives it
+        /// this material name), glowing red (owner, 2026-11-07: "make it glow red from within the head only visible through the eyes"). Only
+        /// the eyes give off light; nothing lights the rest of it. Dark red when the glow has gone out.
         /// </summary>
         private const string EyesSourceMaterial = "CrimsonClawEyes";
         private const string EyesMaterialPath = "Assets/CityX/Character/Materials/CrimsonClawEyes.mat";

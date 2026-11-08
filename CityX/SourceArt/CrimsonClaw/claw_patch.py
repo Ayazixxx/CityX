@@ -5,15 +5,16 @@
 #   "C:/Program Files/Blender Foundation/Blender 4.2/blender.exe" -b --factory-startup --python claw_patch.py -- <in.fbx> <out stem> [triangles]
 #
 # The model is a shell, like a hood: a wall a few centimetres thick round a hollow that is open underneath, behind the lower jaw. The holes
-# go through that wall: one under each side spike, one on each side of the top of the head. Each hole is a short tube from the wall's
+# go through that wall: one under each side spike, one on each side of the top of the head (over the brow). Each hole is a short tube from the wall's
 # outside to its inside. The tube is deleted, which leaves an opening on each face of the wall, and each opening is closed by a disc of
 # rings faired into the surface round it (the disc and a band of the surface round it moved to the smoothest surface the band's edge
 # allows: the squared umbrella Laplacian least, solved by conjugate gradients), so the surface carries on over where the hole was.
 # The two side spikes (a horn back and a hook hanging over the hole) are never cut or moved: the disc meets them as they are (owner:
 # "please try to avoid touching the two spikes on the side of the head"). --preview <file.blend> stops before cutting and colours what
 # would be cut red and the spikes blue.
-# Then the whole model is decimated to [triangles] (default 20000) and split into its three pieces, Body, LeftClaw and RightClaw (named
-# as the game's first copy of this model names them), written as <out stem>.fbx and <out stem>.glb.
+# Then the whole model is decimated to [triangles] (default 20000); what is seen deep inside the head through its two eye slits is given
+# the eyes' material, which the game makes glow (see glowing_faces); and it is split into its three pieces, Body, LeftClaw and RightClaw
+# (named as the game's first copy of this model names them), written as <out stem>.fbx and <out stem>.glb.
 import math
 import sys
 
@@ -33,10 +34,10 @@ PREVIEW = args[args.index("--preview") + 1] if "--preview" in args else None   #
 HOLES = [
     ("side left", Vector((-0.43, 0.05, 0.29)), Vector((-1, 0, 0)), 0.06),
     ("side right", Vector((0.41, 0.05, 0.29)), Vector((1, 0, 0)), 0.03),
-    ("eye left", Vector((-0.20, -0.305, 0.42)), Vector((0, 0, 1)), 0.0),
-    ("eye right", Vector((0.18, -0.305, 0.42)), Vector((0, 0, 1)), 0.0),
+    ("brow left", Vector((-0.20, -0.305, 0.42)), Vector((0, 0, 1)), 0.0),
+    ("brow right", Vector((0.18, -0.305, 0.42)), Vector((0, 0, 1)), 0.0),
 ]
-TUBE_RADIUS = {"side": 0.16, "eye": 0.09}   # how far from a hole's line its opening is looked for
+TUBE_RADIUS = {"side": 0.16, "brow": 0.09}   # how far from a hole's line its opening is looked for
 TUBE_LENGTH = 0.10                          # how far along the line, either way from the point, its tube can reach
 MASK_STEP = 0.0025                          # spacing of the rays that find where a hole is open
 OUTSIDE = 0.35                              # ... shot from this far out along the way through
@@ -49,8 +50,18 @@ TUBE_TURN = 0.92                            # a tube face (its rounded lip too) 
 BAND = 0.03                                 # metres of the surface round an opening faired with its disc
 MATERIALS = ("CrimsonClawSkin", "CrimsonClawEyes")   # the model's two materials: the game finds the eyes by this name
 SKIN, EYES = 0, 1
-DETAIL = set()                              # corners the decimation keeps: the eyes' outlines and the side spikes ...
-DETAIL_KEEP = 1.0                           # ... wholly
+DETAIL_KEEP = 1.0                           # the decimation keeps the side spikes wholly
+# Its eyes are the two slits across its face under the brow, ringed with small spikes. A slit is found by looks straight in, from the
+# front and round to each side: a spot where the look goes SLIT_SINK deeper than the face SLIT_LIP above and below it.
+SLIT_HEIGHTS = (0.0, 0.25)                  # the slits lie between these heights
+SLIT_STEP = 0.0025                          # spacing of the looks
+SLIT_LIP = 0.05
+SLIT_SINK = 0.12
+SLIT_SIDES = range(-60, 61, 20)             # degrees round from the front the slits are looked into
+GLOW_LOOKS = [(yaw, pitch) for yaw in range(-40, 41, 10) for pitch in range(-35, 36, 7)]   # and looked through from, degrees
+GLOW_DEPTH = 0.10                           # what a look through a slit meets this far in past its lips glows ...
+GLOW_CLEAR = 0.07                           # ... a face only if each of its corners is this far in: the spikes and lips stay skin
+GLOW_CLOSE = 2                              # rings of faces the glow is grown by and shrunk back, filling the gaps between looks
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=SOURCE)
@@ -179,10 +190,8 @@ def tube(name, centre, axis, hidden):
 
 
 doomed = set()
-axes = {}   # each hole's way through, outward
 for name, centre, guess, hidden in HOLES:
-    axes[name] = outward_axis(centre, guess)
-    doomed |= tube(name, centre, axes[name], hidden)
+    doomed |= tube(name, centre, outward_axis(centre, guess), hidden)
 if PREVIEW:
     for f in bm.faces:
         f.material_index = 1 if f.index in doomed else 2 if all(x in SPIKES for x in f.verts) else 0
@@ -268,8 +277,6 @@ def fill_and_fair(chain, material):
         band |= nxt
         frontier = nxt
     free = list(band) + new_verts
-    if material == EYES:
-        DETAIL.update(chain)
     fair(free)
     return len(new_verts), rings, edge
 
@@ -334,24 +341,9 @@ def middle_of(chain):
     return sum((v.co for v in chain), Vector()) / len(chain)
 
 
-def hole_of(chain):
-    return min(HOLES, key=lambda hole: (middle_of(chain) - hole[1]).length)
-
-
-# The two holes in front, in the brow sockets, are its eyes: closed on the outside by a disc of their own material (EYES), which the
-# game makes glow red as if lit from inside the head (owner, 2026-11-07: "make it glow red from within the head only visible through
-# the eyes"); closed inside with skin.
-outside = {}
-for chain in loops:
-    name = hole_of(chain)[0]
-    along = (middle_of(chain) - hole_of(chain)[1]).dot(axes[name])
-    if name not in outside or along > outside[name][0]:
-        outside[name] = (along, chain)
 for chain in loops:
     centre = middle_of(chain)
-    name = hole_of(chain)[0]
-    eye = name.startswith("eye") and outside[name][1] is chain
-    made, rings, edge = fill_and_fair(chain, EYES if eye else SKIN)
+    made, rings, edge = fill_and_fair(chain, SKIN)
     print(f"  closed {len(chain)}-edge opening at ({centre.x:.3f}, {centre.y:.3f}, {centre.z:.3f}): {rings} rings, {made} corners, edge {edge*1000:.1f} mm")
 
 bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
@@ -364,7 +356,7 @@ for name in MATERIALS:
     material.diffuse_color = (0.9, 0.05, 0.05, 1.0) if name == MATERIALS[EYES] else (0.8, 0.8, 0.8, 1.0)   # for a look in Blender
     ob.data.materials.append(material)
 bm.verts.index_update()
-detail = [v.index for v in DETAIL | SPIKES if v.is_valid]
+detail = [v.index for v in SPIKES if v.is_valid]
 bm.to_mesh(ob.data)
 bm.free()
 group = ob.vertex_groups.new(name="detail")
@@ -391,6 +383,68 @@ mod.invert_vertex_group = True   # the group is what it reduces: inverted, what 
 bpy.ops.object.modifier_apply(modifier=mod.name)
 ob.vertex_groups.clear()
 print(f"decimated: {len(ob.data.polygons)} triangles")
+
+
+def turned(yaw, pitch=0.0):
+    """The way in from the front (+Y, the model faces -Y) turned <yaw> degrees round and tipped <pitch> degrees down."""
+    y, p = math.radians(yaw), math.radians(pitch)
+    return Vector((-math.sin(y) * math.cos(p), math.cos(y) * math.cos(p), -math.sin(p)))
+
+
+def glowing_faces(mesh):
+    """What is seen deep inside the head through its eye slits (owner, 2026-11-08: "the glow should be coming from the two circled
+    areas not clipping through any of the spikes and not the two red dots on top of the head"): the faces a look through a slit
+    meets GLOW_DEPTH in past the slit's lips, the gaps between looks filled; never a face with a corner near the lips. Run on the cut
+    model, so no triangle the cut makes can stretch the glow out over the face."""
+    seen = BVHTree.FromBMesh(mesh)
+
+    def reach(start, way):
+        return seen.ray_cast(start, way, 3.0)[3]
+    lips = []   # (a point between the slit's lips, the way in)
+    for side in SLIT_SIDES:
+        way = turned(side)
+        across = way.cross(Vector((0, 0, 1))).normalized()
+        for i in range(int(-0.6 / SLIT_STEP), int(0.6 / SLIT_STEP) + 1):
+            for j in range(int(SLIT_HEIGHTS[0] / SLIT_STEP), int(SLIT_HEIGHTS[1] / SLIT_STEP) + 1):
+                start = across * (i * SLIT_STEP) + Vector((0, 0, j * SLIT_STEP)) - way * 1.5
+                deep, above, below = reach(start, way), reach(start + Vector((0, 0, SLIT_LIP)), way), reach(start - Vector((0, 0, SLIT_LIP)), way)
+                if None in (deep, above, below) or deep - max(above, below) < SLIT_SINK:
+                    continue
+                lips.append((start + way * max(above, below), way))
+    near = KDTree(len(lips))
+    for k, (spot, way) in enumerate(lips):
+        near.insert(spot, k)
+    near.balance()
+
+    def inside(point):
+        spot, way = lips[near.find(point)[1]]
+        return (point - spot).dot(way)
+    glow = set()
+    for spot, way in lips:
+        side = math.degrees(math.atan2(-way.x, way.y))
+        for yaw, pitch in GLOW_LOOKS:
+            look = turned(side + yaw, pitch)
+            loc, nor, idx, dist = seen.ray_cast(spot - look, look, 3.0)
+            if idx is not None and inside(loc) > GLOW_DEPTH:
+                glow.add(mesh.faces[idx])
+    found = len(glow)
+    for _ in range(GLOW_CLOSE):
+        glow |= {g for f in glow for e in f.edges for g in e.link_faces}
+    for _ in range(GLOW_CLOSE):
+        glow = {f for f in glow if all(g in glow for e in f.edges for g in e.link_faces)}
+    # and nothing outside the slits' heights: the hook of a side spike over its hole looks to these tests like a slit's lip
+    glow = {f for f in glow if all(inside(v.co) > GLOW_CLEAR and SLIT_HEIGHTS[0] - GLOW_CLEAR < v.co.z < SLIT_HEIGHTS[1] for v in f.verts)}
+    print(f"eyes: {len(lips)} spots in the slits, {found} faces seen through them, {len(glow)} glowing")
+    return glow
+
+
+cut = bmesh.new()
+cut.from_mesh(ob.data)
+cut.faces.ensure_lookup_table()
+for f in glowing_faces(cut):
+    f.material_index = EYES
+cut.to_mesh(ob.data)
+cut.free()
 
 # Its three pieces, named.
 bpy.ops.object.mode_set(mode='EDIT')

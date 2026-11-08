@@ -575,6 +575,44 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// Seized by something that will throw it (the Crimson Claw's grab): held stiff in its hand (Ragdoll.Seize), not getting up while
+        /// held. False when it cannot be: dead, dashing (the dash's dodge escapes a grab as it does a blow), already down, swinging on the
+        /// grapple (the rope is let go instead), or a copy of another machine's body (the owner's machine runs the ragdoll; a copy shows it).
+        /// </summary>
+        public bool Seize()
+        {
+            if (!CanBeSeized || IsInvulnerable || !_ragdoll.Seize())
+            {
+                return false;
+            }
+            _finisherRagdollRemaining = 0.0f;
+            return true;
+        }
+
+        /// <summary>A body this machine runs that could be seized and thrown: alive, on its feet, with a ragdoll.</summary>
+        public bool CanBeSeized => !IsDead && _ragdoll != null && !_ragdoll.IsLimp && !_ragdoll.IsMirrored;
+
+        /// <summary>Held (after <see cref="Seize"/>) upright, facing along <paramref name="facing"/>, the middle of its torso at <paramref name="point"/>.</summary>
+        public void HoldAt(Vector3 point, Vector3 facing) => _ragdoll?.HoldMiddleAt(point, facing);
+
+        /// <summary>Where the middle of its torso is while it is held.</summary>
+        public Vector3 HeldMiddle => _ragdoll != null ? _ragdoll.TorsoMiddle : transform.position;
+
+        /// <summary>Let go of after <see cref="Seize"/>, flying at <paramref name="velocity"/>; up again <paramref name="limpSeconds"/> later.</summary>
+        public void Throw(Vector3 velocity, float limpSeconds)
+        {
+            if (_ragdoll == null || !_ragdoll.IsHeld)
+            {
+                return;
+            }
+            _ragdoll.LetGo(velocity);
+            if (!IsDead)
+            {
+                _finisherRagdollRemaining = limpSeconds;
+            }
+        }
+
         /// <summary>Throws this body limp, here only (what a forwarded knockdown does on the owner's machine).</summary>
         public void KnockDown(Vector3 velocity)
         {

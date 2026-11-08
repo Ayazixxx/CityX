@@ -4,9 +4,10 @@ namespace CityX.Character
 {
     /// <summary>
     /// The Crimson Claw's swipe as one motion of its whole body (owner, 2026-11-07: "make it look more fluid less robotic"): the striking claw
-    /// rears back and up, coils tighter through its tell, then whips across and down past where it aims and settles; the other claw braces
+    /// rears back and up, coils tighter through its tell (still: a quiver there, 22 times a second, looked like a glitch; owner, 2026-11-08: "it
+    /// looks right and left super rapidly like 20 times per second"), then whips across and down past where it aims and settles; the other claw braces
     /// back and swings the other way; the head and body turn into the blow and lunge after it. Every part runs through one smooth curve
-    /// through its keys (cubic, each key's speed taken from its neighbours), so nothing stops dead or jumps between the phases, which keep
+    /// through its keys (<see cref="KeyedMotion"/>), so nothing stops dead or jumps between the phases, which keep
     /// their times (<see cref="CrimsonClaw.WindupSeconds"/> and the rest: the tell and the hit window are unchanged).
     /// Poses are for a swipe by the claw on the model's -X side; <see cref="Pose.Mirrored"/> gives the +X claw's. Turns are degrees (x pitch,
     /// tip down; y yaw, its tip in across the face toward +X; z roll), shifts are in the model's own units (it is drawn at
@@ -29,21 +30,18 @@ namespace CityX.Character
             {
                 return new Pose
                 {
-                    StrikeTurn = Flip(StrikeTurn), StrikeShift = FlipShift(StrikeShift),
-                    OtherTurn = Flip(OtherTurn), OtherShift = FlipShift(OtherShift),
-                    BodyTurn = Flip(BodyTurn), BodyShift = FlipShift(BodyShift),
+                    StrikeTurn = MirrorTurn(StrikeTurn), StrikeShift = MirrorShift(StrikeShift),
+                    OtherTurn = MirrorTurn(OtherTurn), OtherShift = MirrorShift(OtherShift),
+                    BodyTurn = MirrorTurn(BodyTurn), BodyShift = MirrorShift(BodyShift),
                 };
             }
-
-            private static Vector3 Flip(Vector3 turn) => new Vector3(turn.x, -turn.y, -turn.z);
-            private static Vector3 FlipShift(Vector3 shift) => new Vector3(-shift.x, shift.y, shift.z);
         }
 
-        /// <summary>The strike drawn back, in its tell, quivers this much, degrees (a creature straining to let go, not a held frame).</summary>
-        public const float TellQuiverDegrees = 1.2f;
+        /// <summary>A turn of a part on the -X side as the same turn of its mirror on the +X side.</summary>
+        private static Vector3 MirrorTurn(Vector3 turn) => new Vector3(turn.x, -turn.y, -turn.z);
 
-        /// <summary>... this many times a second.</summary>
-        public const float TellQuiverHertz = 22.0f;
+        /// <summary>A shift of a part on the -X side as the same shift of its mirror on the +X side.</summary>
+        private static Vector3 MirrorShift(Vector3 shift) => new Vector3(-shift.x, shift.y, shift.z);
 
         private const float Windup = CrimsonClaw.WindupSeconds;
         private const float Tell = Windup + CrimsonClaw.TellSeconds;
@@ -133,7 +131,7 @@ namespace CityX.Character
         public static Pose At(float seconds)
         {
             float t = Mathf.Clamp(seconds, 0.0f, End);
-            var pose = new Pose
+            return new Pose
             {
                 StrikeTurn = Along(StrikeTurns, t),
                 StrikeShift = Along(StrikeShifts, t),
@@ -142,44 +140,8 @@ namespace CityX.Character
                 BodyTurn = Along(BodyTurns, t),
                 BodyShift = Along(BodyShifts, t),
             };
-            if (t > Windup && t < Tell)
-            {
-                // Straining in its tell: a quiver that swells and dies away within it, so it starts and ends still.
-                float swell = Mathf.Sin(Mathf.PI * (t - Windup) / (Tell - Windup));
-                float quiver = TellQuiverDegrees * swell * swell * Mathf.Sin(2.0f * Mathf.PI * TellQuiverHertz * t);
-                pose.StrikeTurn += new Vector3(quiver, quiver * 0.6f, 0.0f);
-            }
-            return pose;
         }
 
-        /// <summary>The curve through <paramref name="keys"/> at <paramref name="t"/>: cubic between keys, still at the first and last.</summary>
-        private static Vector3 Along(Vector3[] keys, float t)
-        {
-            int i = 0;
-            while (i < Times.Length - 2 && t > Times[i + 1])
-            {
-                i++;
-            }
-            float span = Times[i + 1] - Times[i];
-            float s = Mathf.Clamp01((t - Times[i]) / span);
-            Vector3 from = keys[i];
-            Vector3 to = keys[i + 1];
-            Vector3 leaving = Speed(keys, i) * span;
-            Vector3 arriving = Speed(keys, i + 1) * span;
-            float s2 = s * s;
-            float s3 = s2 * s;
-            return (2.0f * s3 - 3.0f * s2 + 1.0f) * from + (s3 - 2.0f * s2 + s) * leaving
-                 + (-2.0f * s3 + 3.0f * s2) * to + (s3 - s2) * arriving;
-        }
-
-        /// <summary>How fast the curve passes key <paramref name="i"/>: from its neighbours; still at the ends.</summary>
-        private static Vector3 Speed(Vector3[] keys, int i)
-        {
-            if (i == 0 || i == keys.Length - 1)
-            {
-                return Vector3.zero;
-            }
-            return (keys[i + 1] - keys[i - 1]) / (Times[i + 1] - Times[i - 1]);
-        }
+        private static Vector3 Along(Vector3[] keys, float t) => KeyedMotion.Along(Times, keys, t);
     }
 }

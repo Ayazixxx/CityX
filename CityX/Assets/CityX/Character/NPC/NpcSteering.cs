@@ -76,6 +76,9 @@ namespace CityX.Character
 
         private float _commitRemaining;
 
+        /// <summary>What the body steering now is coming for: never in its way.</summary>
+        private Transform _chased;
+
         public bool IsAvoiding => _commitSide != 0.0f;
 
         /// <summary>
@@ -114,9 +117,13 @@ namespace CityX.Character
         /// direction back again whenever nothing is in the way, so an NPC
         /// crossing open ground moves in precisely the straight line it always
         /// did and costs three raycasts to prove it.
+        ///
+        /// <paramref name="chased"/>, the body it is coming for, is not in its way: steered round as a wall, the Crimson Claw sidestepped the
+        /// player it chased, one way and back, and faced each way in turn (owner, 2026-11-08: "it looks right and left super rapidly").
         /// </summary>
-        public Vector3 Steer(Transform body, Vector3 desired, float deltaTime)
+        public Vector3 Steer(Transform body, Vector3 desired, float deltaTime, Transform chased = null)
         {
+            _chased = chased;
             var goal = new Vector3(desired.x, 0.0f, desired.z);
             if (goal.sqrMagnitude < 0.000001f)
             {
@@ -206,8 +213,8 @@ namespace CityX.Character
             // Triggers ignored: the indoor volumes and the door reach are both
             // triggers covering whole buildings, and an NPC that treated them
             // as walls would refuse to walk down a street at all.
-            return Physics.Raycast(from, direction, LookAhead, ObstacleMask,
-                QueryTriggerInteraction.Ignore);
+            return Physics.Raycast(from, direction, out RaycastHit hit, LookAhead, ObstacleMask, QueryTriggerInteraction.Ignore)
+                && (_chased == null || !hit.transform.IsChildOf(_chased));
         }
 
         /// <summary>

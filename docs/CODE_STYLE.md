@@ -35,6 +35,8 @@ conventions down and apply them every time.
    - `Tests/PlayMode/OpenRun.Face`: turn the player to look along an open, level run of street (the tests of moves that travel).
    - `Character/Editor/ClipAsset.Store`: save a generated animation clip into the one already at its path. Never delete and re-create an
      asset that prefabs or controllers hold: what still held the deleted one saves a blank.
+   - `Character/NPC/KeyedMotion.Along`: one smooth curve through timed keys (the Crimson Claw's swipe and grab).
+   - `Character/Body/MaterialBlocks`: each material's own property block, for a copy of a renderer to look like it (a dye lives there).
    - Already shared before: `TwoBoneIK`, `DeterministicRandom`, `CaptureGuard` (tests), the `*Strikes` keyframe tables and others.
 2. **One topic per file.** A file past about a thousand lines usually holds several topics. Split it into partial files by topic, named
    `Class.Topic.cs` (see `PlayerLocomotion.*.cs`), and where a topic can stand on its own, make it a class of its own. Pure logic in plain

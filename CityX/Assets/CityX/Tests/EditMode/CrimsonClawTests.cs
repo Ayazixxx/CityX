@@ -250,7 +250,7 @@ namespace CityX.Tests
             Quaternion drawnBack = pivot.localRotation;
             Assert.Greater(Quaternion.Angle(Quaternion.identity, drawnBack), CrimsonClaw.WindupAngleDegrees * 0.9f, "the claw is not drawn back");
 
-            // Through the tell it stays drawn back, coiling tighter and quivering (2026-11-07: a held frame looked robotic), never on its way.
+            // Through the tell it stays drawn back, coiling tighter (2026-11-07: a held frame looked robotic), never on its way.
             for (float t = 0.0f; t < CrimsonClaw.TellSeconds - 0.1f; t += 0.01f)
             {
                 TickSeconds(claw, 0.01f, 0.01f);
@@ -277,6 +277,87 @@ namespace CityX.Tests
             player.transform.position = new Vector3(1.5f, 0.0f, 0.0f);   // round to its side, still well within its reach
             TickSeconds(claw, 0.06f + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds, 0.01f);
             Assert.AreEqual(PlayerVitals.BaseMaxHealth, player.Health, 0.001f, "the swipe followed a target that dashed round it");
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-08: "he was swinging right next to me and should have been hitting but it wasnt reaching my hitbox". It swung from 3 m
+        /// but hit only within 2.5; now a swipe lands on whatever its claws reach, the edge of a body included, and not beyond.
+        /// </summary>
+        [Test]
+        public void ItsSwipeLandsOnWhatItsClawsReachAndNotBeyond()
+        {
+            Assert.LessOrEqual(CrimsonClaw.AttackRange, CrimsonClaw.ClawHitRadius - 0.3f, "it swings at what it cannot reach");
+            foreach ((float distance, bool lands) in new[] { (CrimsonClaw.ClawHitRadius - 0.1f, true), (CrimsonClaw.ClawHitRadius + 0.3f, false) })
+            {
+                CrimsonClaw claw = CreateCrimsonClaw(out _, out _);
+                PlayerVitals player = CreatePlayer(new Vector3(0.0f, 0.0f, CrimsonClaw.AttackRange - 0.2f));
+                TickSeconds(claw, CrimsonClaw.WindupSeconds, 0.01f);
+                Assert.IsTrue(claw.IsAttacking, "setup: it did not swing at a target in range");
+                player.transform.position = new Vector3(0.0f, 0.0f, distance);   // stepped back during the tell
+                TickSeconds(claw, CrimsonClaw.TellSeconds + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds, 0.01f);
+                Assert.AreEqual(lands, player.Health < PlayerVitals.BaseMaxHealth, lands
+                    ? $"a target {distance:0.00} m away, within its claws' reach, was missed"
+                    : $"a target {distance:0.00} m away, beyond its claws' reach, was hit");
+                TearDown();
+            }
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-08: "it looks right and left super rapidly ... it just is a glitch". It turns toward what it chases at a steady rate,
+        /// never snapping round, and ends up facing it.
+        /// </summary>
+        [Test]
+        public void ItTurnsSmoothlyToFaceWhatItChases()
+        {
+            CrimsonClaw claw = CreateCrimsonClaw(out _, out _);
+            CreatePlayer(new Vector3(0.0f, 0.0f, -10.0f));   // behind it
+            Quaternion before = claw.transform.rotation;
+            for (int i = 0; i < 100; i++)
+            {
+                claw.Tick(0.01f);
+                Assert.LessOrEqual(Quaternion.Angle(before, claw.transform.rotation), CrimsonClaw.TurnDegreesPerSecond * 0.01f + 0.01f, "it snapped round");
+                before = claw.transform.rotation;
+            }
+            Vector3 toPlayer = new Vector3(0.0f, 0.0f, -10.0f) - claw.transform.position;
+            toPlayer.y = 0.0f;
+            Assert.Less(Vector3.Angle(claw.transform.forward, toPlayer), 2.0f, "it never came to face what it chases");
+        }
+
+        /// <summary>Its claws, swiping, reach as far in front of it as <see cref="CrimsonClaw.ClawReachMetres"/> says (the model, not a guess).</summary>
+        [Test]
+        public void ItsClawsReachAsFarAsItSays()
+        {
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrimsonClaw.prefab");
+            GameObject go = Object.Instantiate(prefab);
+            _spawned.Add(go);
+            var claw = go.GetComponent<CrimsonClaw>();
+            claw.Bind();
+            CreatePlayer(new Vector3(0.0f, 0.0f, 2.0f));
+            Renderer striking = (claw.NextAttackHandIsLeft ? claw.LeftClawPivot : claw.RightClawPivot).GetComponentInChildren<Renderer>();
+            for (int i = 0; i < 300 && !claw.IsAttacking; i++)
+            {
+                claw.Tick(0.01f);
+            }
+            Assert.IsTrue(claw.IsAttacking, "setup: it never swiped");
+            float reach = 0.0f;
+            for (float t = 0.0f; t < CrimsonClaw.AttackSeconds; t += 0.01f)
+            {
+                claw.Tick(0.01f);
+                reach = Mathf.Max(reach, striking.bounds.max.z - go.transform.position.z);   // it faces +Z, at the origin
+            }
+            Assert.AreEqual(CrimsonClaw.ClawReachMetres, reach, 0.35f, "its claws do not reach as far as it says");
+        }
+
+        /// <summary>A target with no ragdoll to throw is only ever swiped at, every attack.</summary>
+        [Test]
+        public void WhatCannotBeThrownIsNeverGrabbed()
+        {
+            CrimsonClaw claw = CreateCrimsonClaw(out _, out _);
+            PlayerVitals player = CreatePlayer(new Vector3(0.0f, 0.0f, 1.0f));
+            claw.GrabNext();
+            TickSeconds(claw, CrimsonClaw.AttackSeconds + 0.1f);
+            Assert.AreEqual(PlayerVitals.BaseMaxHealth - CrimsonClaw.AttackDamage, player.Health, 0.001f, "it did not swipe");
+            Assert.IsFalse(claw.IsHolding);
         }
 
         /// <summary>After a swipe every claw and the body are back exactly where they rest.</summary>
