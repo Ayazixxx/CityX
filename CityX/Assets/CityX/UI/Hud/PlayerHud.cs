@@ -398,12 +398,7 @@ namespace CityX.UI
             copy.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = copy.AddComponent<MeshRenderer>();
             renderer.sharedMaterials = skinned.sharedMaterials;
-            var block = new MaterialPropertyBlock();
-            for (int i = 0; i < skinned.sharedMaterials.Length; i++)
-            {
-                skinned.GetPropertyBlock(block, i);
-                renderer.SetPropertyBlock(block, i);
-            }
+            MaterialBlocks.Copy(skinned, renderer, skinned.sharedMaterials.Length);
             return copy;
         }
 

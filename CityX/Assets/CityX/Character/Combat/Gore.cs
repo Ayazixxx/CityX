@@ -70,6 +70,9 @@ namespace CityX.Character
             public string Name;
             public Material[] Materials;
             public MaterialPropertyBlock Block;
+
+            /// <summary>Each material's own block (the hair's dye), null where it has none; a patch's extra submeshes take the last.</summary>
+            public MaterialPropertyBlock[] Blocks;
             public UnityEngine.Rendering.ShadowCastingMode Shadows = UnityEngine.Rendering.ShadowCastingMode.On;
         }
 
@@ -151,6 +154,14 @@ namespace CityX.Character
                     if (source.Block != null)
                     {
                         renderer.SetPropertyBlock(source.Block);
+                    }
+                    for (int i = 0; source.Blocks != null && source.Blocks.Length > 0 && i < renderer.sharedMaterials.Length; i++)
+                    {
+                        MaterialPropertyBlock own = source.Blocks[Mathf.Min(i, source.Blocks.Length - 1)];
+                        if (own != null)
+                        {
+                            renderer.SetPropertyBlock(own, i);
+                        }
                     }
                     renderer.shadowCastingMode = source.Shadows;
                     made.Add(patch.Mesh);

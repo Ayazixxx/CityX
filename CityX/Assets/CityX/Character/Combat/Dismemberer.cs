@@ -321,11 +321,11 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                if (piece != null)
+                if (IsDrawn(renderer) && piece != null)
                 {
                     pieceBounds.Encapsulate(Freeze(renderer, piece.transform, made));
                 }
-                else
+                else if (IsDrawn(renderer))
                 {
                     knocked += BreakOrKnockOff(renderer, sources, away);
                 }
@@ -486,6 +486,7 @@ namespace CityX.Character
             var block = new MaterialPropertyBlock();
             source.GetPropertyBlock(block);
             renderer.SetPropertyBlock(block);
+            MaterialBlocks.Copy(source, renderer, renderer.sharedMaterials.Length);   // the sheen is the last material, so the others line up
             renderer.shadowCastingMode = source.shadowCastingMode;
             return renderer.bounds;
         }
@@ -552,6 +553,12 @@ namespace CityX.Character
         {
             return renderer is MeshRenderer || renderer is SkinnedMeshRenderer;
         }
+
+        /// <summary>
+        /// Drawn at all: a hat or helmet switches the hair under it off (CharacterHair), so a cut-off head in a hat had the hair poking through
+        /// the hat on its copy.
+        /// </summary>
+        private static bool IsDrawn(Renderer renderer) => !renderer.forceRenderingOff;
 
         /// <summary>Something held in a hand (a sword, a gun, a shield): it hangs under a hand bone.</summary>
         private bool HeldInHand(Transform part)

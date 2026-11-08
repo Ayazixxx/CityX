@@ -61,6 +61,10 @@ as well".
 - Every piece is matte, and no tissue is paler than the skin (`Gore.Palest`, 0.7): near-white eyes, teeth and bone came out twice the
   bloom's threshold in the noon sun, and small on a dark body the bloom made each a dot of glowing light (owner, 2026-11-07). Eyes are a
   soft grey-white now, bone and teeth ivory.
+- A copy keeps the look of what it copies, each material's own property block included (`MaterialBlocks`): the hair's dye is on its
+  material's block, and the cut-off head and a burst head's hair chunks came out in the hair material's gold (owner, 2026-11-08: "when my
+  player got decapitated the hair color changed on the decapitated head"). Hair a hat or helmet covers (switched off under it) is not
+  copied: it poked through the hat on the flying head.
 - Chunks and cut-off parts lie 60 s, then shrink away over 3 s, taking the meshes made for them (`Debris`). Revived, the body is whole
   (`Restore`).
 

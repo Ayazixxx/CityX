@@ -145,12 +145,14 @@ namespace CityX.Character
             }
             var block = new MaterialPropertyBlock();
             renderer.GetPropertyBlock(block);
+            Material[] materials = FrozenLook.WithoutSheen(renderer.sharedMaterials);
             return new Gore.Source
             {
                 Surface = new GoreShatter.Surface { Positions = world, Normals = worldNormals, Uvs = mesh.uv, Triangles = triangles, Layer = layer },
                 Name = renderer.name,
-                Materials = FrozenLook.WithoutSheen(renderer.sharedMaterials),
+                Materials = materials,
                 Block = block,
+                Blocks = MaterialBlocks.Of(renderer, materials.Length),
                 Shadows = renderer.shadowCastingMode,
             };
         }
@@ -315,7 +317,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                if (partOfBone.TryGetValue(renderer.transform, out BodyPart on))
+                if (IsDrawn(renderer) && partOfBone.TryGetValue(renderer.transform, out BodyPart on))
                 {
                     int g = groupOfPart[(int)on];
                     if (g > 0)
