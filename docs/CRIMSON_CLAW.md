@@ -63,12 +63,17 @@ about 2.5 m; a test measures the built claw against it), it swings at what is wi
 body's width (`TargetBodyRadius`, 0.45 m), within 60 degrees either side of where it faces measured to the near edge of the body. A dash
 round to its side during the tell still slips it.
 
+**Pressing in** (owner, 2026-11-08: "i feel like i can just hold s and not get hit by him as he is swinging but i hit him if i swing"):
+through its wind-up and tell it edges forward at 2.5 m/s (a walk backward is 3), and lunges 1.2 m with the swipe, while its target is more
+than 1.65 m off (never into them). Backing off at a walk it now catches you; a dash still gets clear.
+
 ## The grab and throw (2026-11-08)
 
 Owner: "can you make an attack where the crimson claw grabs you and throws you", then "i wanted it to be a 1 handed grab... you can use the
 swing attack animation but he just grabs his and the raises his arm and throws him", then a drawing of the hold ("make the body fit into
-the claw like make him grip it with his thumb", "you are ragdolled when thrown"). Every third attack, when its target can be thrown (a body
-with a ragdoll this machine runs), its swipe is a grab (`CrimsonClaw.Grab.cs`):
+the claw like make him grip it with his thumb", "you are ragdolled when thrown"). Every fourth attack, when its target can be thrown (a body
+with a ragdoll this machine runs), its swipe is a grab (2026-11-08: "it should be mostly swing attacks", "should not do the grab or the throw
+twice in a row": three swipes at you on your feet come between two grabs; swipes at you lying down after a throw do not count) (`CrimsonClaw.Grab.cs`):
 
 - The same wind-up, tell, glint and swing as a swipe. What the swing reaches (as a swipe would hit it) is caught instead of cut; a
   dash's dodge slips it, and a grab that reaches nothing is a swipe that missed.

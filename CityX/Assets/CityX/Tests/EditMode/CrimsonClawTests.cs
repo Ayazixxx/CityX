@@ -280,24 +280,34 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Owner, 2026-11-08: "he was swinging right next to me and should have been hitting but it wasnt reaching my hitbox". It swung from 3 m
-        /// but hit only within 2.5; now a swipe lands on whatever its claws reach, the edge of a body included, and not beyond.
+        /// Owner, 2026-11-08: "he was swinging right next to me and should have been hitting but it wasnt reaching my hitbox", then "i feel like
+        /// i can just hold s and not get hit by him as he is swinging". It swings at what its claws reach; walked back from at a walk through
+        /// its tell and swipe, it presses in and still lands; a dash's length away by the end of the tell, it misses.
         /// </summary>
         [Test]
-        public void ItsSwipeLandsOnWhatItsClawsReachAndNotBeyond()
+        public void ItsSwipeCatchesATargetWalkingBackButNotOneThatDashedClear()
         {
             Assert.LessOrEqual(CrimsonClaw.AttackRange, CrimsonClaw.ClawHitRadius - 0.3f, "it swings at what it cannot reach");
-            foreach ((float distance, bool lands) in new[] { (CrimsonClaw.ClawHitRadius - 0.1f, true), (CrimsonClaw.ClawHitRadius + 0.3f, false) })
+            const float walkBack = 3.0f;   // a walk backward, metres per second
+            const float dash = 4.5f;
+            foreach (bool dashed in new[] { false, true })
             {
                 CrimsonClaw claw = CreateCrimsonClaw(out _, out _);
                 PlayerVitals player = CreatePlayer(new Vector3(0.0f, 0.0f, CrimsonClaw.AttackRange - 0.2f));
-                TickSeconds(claw, CrimsonClaw.WindupSeconds, 0.01f);
+                claw.Tick(0.01f);
                 Assert.IsTrue(claw.IsAttacking, "setup: it did not swing at a target in range");
-                player.transform.position = new Vector3(0.0f, 0.0f, distance);   // stepped back during the tell
-                TickSeconds(claw, CrimsonClaw.TellSeconds + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds, 0.01f);
-                Assert.AreEqual(lands, player.Health < PlayerVitals.BaseMaxHealth, lands
-                    ? $"a target {distance:0.00} m away, within its claws' reach, was missed"
-                    : $"a target {distance:0.00} m away, beyond its claws' reach, was hit");
+                for (float t = 0.01f; t < CrimsonClaw.AttackSeconds; t += 0.01f)
+                {
+                    player.transform.position += Vector3.forward * (walkBack * 0.01f);
+                    if (dashed && Mathf.Abs(t - (CrimsonClaw.WindupSeconds + CrimsonClaw.TellSeconds - 0.05f)) < 0.005f)
+                    {
+                        player.transform.position += Vector3.forward * dash;
+                    }
+                    claw.Tick(0.01f);
+                }
+                Assert.AreEqual(!dashed, player.Health < PlayerVitals.BaseMaxHealth, dashed
+                    ? "a target that dashed clear in its tell was hit"
+                    : "a target walking back through its tell and swipe was missed");
                 TearDown();
             }
         }

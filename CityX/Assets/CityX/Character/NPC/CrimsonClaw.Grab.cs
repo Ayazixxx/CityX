@@ -5,7 +5,8 @@ namespace CityX.Character
     /// <summary>
     /// ITS ONE-HANDED GRAB AND THROW (owner, 2026-11-08: "can you make an attack where the crimson claw grabs you and throws you", then "i
     /// wanted it to be a 1 handed grab... you can use the swing attack animation but he just grabs his and the raises his arm and throws him").
-    /// Every third attack, when what it attacks can be thrown, its swipe is a grab: the same wind-up, tell and glint, the same swing, but what
+    /// Every fourth attack (three swipes at you on your feet first; owner, 2026-11-08: "it should be mostly swing attacks"), when what it
+    /// attacks can be thrown, its swipe is a grab: the same wind-up, tell and glint, the same swing, but what
     /// the swing reaches is caught instead of cut: held stiff and upright in that fist like a doll (owner's drawing: the chest in the hollow
     /// under the thumb, the talons round the front, the head out of the top and the legs hanging out of the bottom; Ragdoll.Seize) while it
     /// raises its arm and rears back (<see cref="ClawGrabMotion"/>), then let go limp, flung forward and up, hurt, and up again a moment after
@@ -15,8 +16,8 @@ namespace CityX.Character
     /// </summary>
     public sealed partial class CrimsonClaw
     {
-        /// <summary>Swipes between two grabs: every third attack is a grab.</summary>
-        public const int SwipesBetweenGrabs = 2;
+        /// <summary>Swipes at a standing player between two grabs: every fourth attack at most is a grab, never two in a row.</summary>
+        public const int SwipesBetweenGrabs = 3;
 
         /// <summary>Thrown this fast ahead of it and up, metres per second.</summary>
         public const float ThrowSpeed = 13.0f;

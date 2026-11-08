@@ -20,7 +20,7 @@ namespace CityX.Character
     /// only slowly while winding up and not at all once it swipes; and the
     /// swipe reaches only what is in front of it (ClawHitHalfAngleDegrees).
     /// The swipe moves its whole body in one flowing motion (ClawStrikeMotion),
-    /// and its eyes glow red until it dies, then go out (EyesGlow). Every third
+    /// and its eyes glow red until it dies, then go out (EyesGlow). Every fourth
     /// attack its swipe grabs and throws instead (CrimsonClaw.Grab.cs).
     ///
     /// HOVER HEIGHT IS GROUND-RELATIVE, NOT AN ABSOLUTE WORLD Y -- the one
@@ -289,6 +289,7 @@ namespace CityX.Character
                 {
                     TurnTowards(_target.transform.position, WindUpTurnDegreesPerSecond * deltaTime);   // slowly; swiping, not at all
                 }
+                PressIn(deltaTime);
                 return;
             }
             if (_turnUsed)
@@ -338,6 +339,41 @@ namespace CityX.Character
                 transform.position += drift * WaitSpeed * deltaTime;
                 TurnTowards(_target.transform.position, TurnDegreesPerSecond * deltaTime);
             }
+        }
+
+        /// <summary>
+        /// Through its wind-up and tell it edges forward this fast, metres per second, while what it swipes at is further off than
+        /// <see cref="PressInWithinMetres"/>: backing off at a walk it no longer escaped every swipe (owner, 2026-11-08: "i feel like i can just
+        /// hold s and not get hit by him as he is swinging"). Slower than a walk backward (3), so it is the lunge that catches up; a dash still
+        /// gets clear.
+        /// </summary>
+        public const float TellCreepSpeed = 2.5f;
+
+        /// <summary>... and swiping, it lunges this far forward over the swipe, metres.</summary>
+        public const float SwingLungeMetres = 1.2f;
+
+        /// <summary>It presses in only while its target is further off than this, metres: never into them.</summary>
+        public const float PressInWithinMetres = TargetBodyRadius + 1.2f;
+
+        /// <summary>Edging forward through its tell and lunging with the swipe, along where it faces.</summary>
+        private void PressIn(float deltaTime)
+        {
+            float speed = _attackState == AttackState.Windup || _attackState == AttackState.Tell ? TellCreepSpeed
+                : _attackState == AttackState.Swing ? SwingLungeMetres / SwingSeconds
+                : 0.0f;
+            if (speed <= 0.0f || !Opponents.Alive(_target))
+            {
+                return;
+            }
+            Vector3 toTarget = _target.transform.position - transform.position;
+            toTarget.y = 0.0f;
+            if (toTarget.magnitude <= PressInWithinMetres)
+            {
+                return;
+            }
+            Vector3 ahead = transform.forward;
+            ahead.y = 0.0f;
+            transform.position += ahead.normalized * (speed * deltaTime);
         }
 
         /// <summary>Waiting its turn (another of the pack is attacking), it hovers out about here, metres: just out of its reach.</summary>
@@ -483,7 +519,9 @@ namespace CityX.Character
         {
             _attackCooldownRemaining = AttackCooldownSeconds;
             _grabbing = grab;
-            _swipesSinceGrab = grab ? 0 : _swipesSinceGrab + 1;
+            // Only a swipe at a player on their feet counts toward the next grab: swiped at lying down after a throw, they were caught again
+            // the moment they stood (owner, 2026-11-08: "the claw should not do the grab or the throw twice in a row").
+            _swipesSinceGrab = grab ? 0 : _swipesSinceGrab + (_target is PlayerVitals standing && standing.CanBeSeized ? 1 : 0);
             _attackState = AttackState.Windup;
             _attackPhaseTimer = 0.0f;
             _attackPhaseDuration = WindupSeconds;
