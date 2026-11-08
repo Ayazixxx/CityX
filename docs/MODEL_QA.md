@@ -58,3 +58,4 @@ Run it after changing the script.
 | Farmer Hat (2026-10-26) | 5,000 triangles (over the 4k "fine" line for a hat, under 6k: the frayed straw); 2 z-fights; one piece, no holes, no spikes |
 | Combat sword | within budget; 14 spike points along the blade's thin edge |
 | Meshy White Sword zip | 50,698 triangles and 8 maps of 2048 (about 45 MB of video memory): why it was baked down |
+| Crimson Claw, owner's new Meshy model (2026-11-07) | 476,748 triangles, no texture coordinates. The head is a hollow shell open underneath; four holes went through its wall (one under each side spike, two on top), which this check cannot see (a hole through a closed wall leaves no open edge). `SourceArt/CrimsonClaw/claw_patch.py` closes them on both faces of the wall, leaves the side spikes untouched, and cuts it to 20,000; after: one z-fight among the teeth from the cut, still no texture coordinates (none in the Meshy file) |
