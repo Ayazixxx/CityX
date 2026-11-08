@@ -31,7 +31,10 @@ The slits go through the head's wall into its hollow. What is seen deep inside t
 `claw_patch.py` finds them by looks straight into the face, from the front and round to 60 degrees each side: a slit is where a look goes
 12 cm deeper than the face 5 cm above and below it. From each spot in a slit it looks in from 9 x 11 directions; a face met 10 cm past the
 slit's lips glows, the gaps between looks are filled, and a face glows only if every corner of it is 7 cm in from the lips and within the
-slits' heights, so the spikes and lips round the slits stay skin. It is done after the cut to 20,000: done before, the cut stretched
+slits' heights, so the spikes and lips round the slits stay skin; and only if it is shut in, most looks out of it over its own side (not
+downward, where the head is open underneath) meeting the head again: where a slit wraps round the side of the head, the head's outside
+there passed for deep inside and showed red at the corner of the eye (owner, 2026-11-08: "a little bit of red glow poking through the
+corner of the eye"). It is done after the cut to 20,000: done before, the cut stretched
 triangles from inside out over the brow and the spikes, and the red came out on them.
 
 Only the eyes give off light; nothing on it is a light. Dead, they go out over `EyesFadeSeconds` (1.5 s; "the glow fades away upon death"),

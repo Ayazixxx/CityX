@@ -62,6 +62,8 @@ GLOW_LOOKS = [(yaw, pitch) for yaw in range(-40, 41, 10) for pitch in range(-35,
 GLOW_DEPTH = 0.10                           # what a look through a slit meets this far in past its lips glows ...
 GLOW_CLEAR = 0.07                           # ... a face only if each of its corners is this far in: the spikes and lips stay skin
 GLOW_CLOSE = 2                              # rings of faces the glow is grown by and shrunk back, filling the gaps between looks
+GLOW_SKY = 0.3                              # a glowing face sees out of the head this little: of the looks out of it over its own side
+                                            # (none downward, where the head is open underneath), most meet the head again
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=SOURCE)
@@ -391,6 +393,19 @@ def turned(yaw, pitch=0.0):
     return Vector((-math.sin(y) * math.cos(p), math.cos(y) * math.cos(p), -math.sin(p)))
 
 
+SKY = [Vector((math.cos(a) * math.cos(e), math.sin(a) * math.cos(e), math.sin(e)))
+       for e in (math.radians(x) for x in (-15, 0, 20, 40, 60, 80)) for a in (math.radians(y) for y in range(0, 360, 20))]
+
+
+def open_sky(seen, face):
+    """The share of looks out of <face>, over its own side and not downward, that leave the head without meeting it."""
+    start = face.calc_center_median() + face.normal * 0.003
+    looks = [d for d in SKY if d.dot(face.normal) > 0.1]
+    if not looks:
+        return 1.0
+    return sum(1 for d in looks if seen.ray_cast(start, d, 3.0)[0] is None) / len(looks)
+
+
 def glowing_faces(mesh):
     """What is seen deep inside the head through its eye slits (owner, 2026-11-08: "the glow should be coming from the two circled
     areas not clipping through any of the spikes and not the two red dots on top of the head"): the faces a look through a slit
@@ -434,6 +449,9 @@ def glowing_faces(mesh):
         glow = {f for f in glow if all(g in glow for e in f.edges for g in e.link_faces)}
     # and nothing outside the slits' heights: the hook of a side spike over its hole looks to these tests like a slit's lip
     glow = {f for f in glow if all(inside(v.co) > GLOW_CLEAR and SLIT_HEIGHTS[0] - GLOW_CLEAR < v.co.z < SLIT_HEIGHTS[1] for v in f.verts)}
+    # and only what is shut in: where a slit wraps round the side of the head, the head's own outside there passed for deep inside, and
+    # showed red at the corner of the eye (owner, 2026-11-08: "a little bit of red glow poking through the corner of the eye")
+    glow = {f for f in glow if open_sky(seen, f) < GLOW_SKY}
     print(f"eyes: {len(lips)} spots in the slits, {found} faces seen through them, {len(glow)} glowing")
     return glow
 
