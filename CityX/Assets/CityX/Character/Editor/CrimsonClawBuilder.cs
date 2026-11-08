@@ -36,10 +36,14 @@ namespace CityX.CharacterEditor
 
         private static readonly Color BodyColor = new Color(0.94f, 0.94f, 0.92f);
 
-        // Re-derived via connected-component analysis of the source mesh --
-        // see crimson_claw_monster.gd's own CLAW_PIVOT_L/R comment.
-        private static readonly Vector3 ClawPivotL = new Vector3(-0.3162f, -0.5586f, -0.2854f);
-        private static readonly Vector3 ClawPivotR = new Vector3(0.2593f, -0.6106f, -0.3043f);
+        /// <summary>
+        /// The eyes: the model's discs in its brow sockets (SourceArt/CrimsonClaw/claw_patch.py gives them this material name), glowing red as if
+        /// lit from inside the head (owner, 2026-11-07: "make it glow red from within the head only visible through the eyes"). Only the eyes
+        /// give off light; nothing lights the rest of it. Dark red when the glow has gone out.
+        /// </summary>
+        private const string EyesSourceMaterial = "CrimsonClawEyes";
+        private const string EyesMaterialPath = "Assets/CityX/Character/Materials/CrimsonClawEyes.mat";
+        private static readonly Color EyesColor = new Color(0.16f, 0.01f, 0.01f);
 
         private const float AudioMinDistance = 3.0f;
         private const float AudioMaxDistance = 20.0f;
@@ -84,9 +88,9 @@ namespace CityX.CharacterEditor
                 facingFlip.transform.SetParent(model.transform, false);
                 facingFlip.transform.localRotation = Quaternion.identity;
 
-                Transform bodyVisual = BuildBodyPiece(imported, facingFlip.transform, bodyMaterial);
-                Transform leftClawPivot = BuildClawPivot(imported, facingFlip.transform, "LeftClaw", ClawPivotL, bodyMaterial);
-                Transform rightClawPivot = BuildClawPivot(imported, facingFlip.transform, "RightClaw", ClawPivotR, bodyMaterial);
+                Transform bodyVisual = BuildBodyPiece(imported, facingFlip.transform, bodyMaterial, BuildEyesMaterial(), out int eyesSlot);
+                Transform leftClawPivot = BuildClawPivot(imported, facingFlip.transform, "LeftClaw", bodyMaterial);
+                Transform rightClawPivot = BuildClawPivot(imported, facingFlip.transform, "RightClaw", bodyMaterial);
 
                 // NO EYES -- Requested: "remove the crimson claws glowing
                 // eyes we are going to redo those completely." Used to build
@@ -108,6 +112,7 @@ namespace CityX.CharacterEditor
                 crimsonClaw.LeftClawPivot = leftClawPivot;
                 crimsonClaw.RightClawPivot = rightClawPivot;
                 crimsonClaw.BodyVisual = bodyVisual;
+                crimsonClaw.EyesMaterialSlot = eyesSlot;
                 crimsonClaw.MainCollision = collision;
 
                 WireAudio(root, crimsonClaw);
@@ -123,8 +128,10 @@ namespace CityX.CharacterEditor
             }
         }
 
-        private static Transform BuildBodyPiece(GameObject imported, Transform parent, Material material)
+        /// <summary>The head and body, the skin on every part of the mesh but the eyes (<paramref name="eyesSlot"/>: theirs, -1 if it has none).</summary>
+        private static Transform BuildBodyPiece(GameObject imported, Transform parent, Material skin, Material eyes, out int eyesSlot)
         {
+            eyesSlot = -1;
             MeshFilter source = FindMeshFilterNamed(imported.transform, "Body");
             if (source == null)
             {
@@ -134,24 +141,48 @@ namespace CityX.CharacterEditor
             var visual = new GameObject("Body");
             visual.transform.SetParent(parent, false);
             visual.AddComponent<MeshFilter>().sharedMesh = source.sharedMesh;
-            visual.AddComponent<MeshRenderer>().sharedMaterial = material;
+            Material[] imports = source.GetComponent<MeshRenderer>().sharedMaterials;
+            var materials = new Material[source.sharedMesh.subMeshCount];
+            for (int i = 0; i < materials.Length; i++)
+            {
+                bool isEyes = i < imports.Length && imports[i] != null && imports[i].name.StartsWith(EyesSourceMaterial);
+                materials[i] = isEyes ? eyes : skin;
+                if (isEyes)
+                {
+                    eyesSlot = i;
+                }
+            }
+            visual.AddComponent<MeshRenderer>().sharedMaterials = materials;
             return visual.transform;
         }
 
+        private static Material BuildEyesMaterial()
+        {
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(EyesMaterialPath);
+            if (material == null)
+            {
+                material = new Material(CityX.Core.LitShader.Find()) { name = "CrimsonClawEyes" };
+                AssetDatabase.CreateAsset(material, EyesMaterialPath);
+            }
+            material.SetColor("_BaseColor", EyesColor);
+            CityX.Core.LitShader.MakeMatte(material);
+            material.EnableKeyword("_EMISSION");
+            material.SetColor("_EmissionColor", CrimsonClaw.EyesGlow);
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;   // with none, the keyword is dropped as the material is saved
+            EditorUtility.SetDirty(material);
+            AssetDatabase.SaveAssets();
+            return material;
+        }
+
         /// <summary>
-        /// A pivot Node at <paramref name="pivotPosition"/> (that claw's own
-        /// approximate wrist) with the named claw mesh as its child, offset
-        /// by -pivotPosition so it renders in exactly its original spot at
-        /// rest -- rotating the returned pivot then swings the claw around
-        /// that wrist point instead of the whole model's own origin. Matches
-        /// the source's own _build_claw_pivot exactly.
+        /// A pivot at the named claw's wrist (<see cref="WristOf"/>) with the claw mesh as its child, offset so it renders in exactly its
+        /// original spot at rest: turning the pivot swings the claw about its wrist. The pivots used to be fixed points from the Godot port,
+        /// which in this import sat behind the body and on the other claw's side, so every swing flung the claw round a two-metre loop.
         /// </summary>
-        private static Transform BuildClawPivot(GameObject imported, Transform parent, string meshName,
-            Vector3 pivotPosition, Material material)
+        private static Transform BuildClawPivot(GameObject imported, Transform parent, string meshName, Material material)
         {
             var pivot = new GameObject(meshName + "Pivot");
             pivot.transform.SetParent(parent, false);
-            pivot.transform.localPosition = pivotPosition;
 
             MeshFilter source = FindMeshFilterNamed(imported.transform, meshName);
             if (source == null)
@@ -159,12 +190,21 @@ namespace CityX.CharacterEditor
                 Debug.LogWarning($"CityX: {GlbPath} has no '{meshName}' mesh -- that claw will be invisible.");
                 return pivot.transform;
             }
+            Vector3 pivotPosition = WristOf(source.sharedMesh);
+            pivot.transform.localPosition = pivotPosition;
             var visual = new GameObject(meshName);
             visual.transform.SetParent(pivot.transform, false);
             visual.transform.localPosition = -pivotPosition;
             visual.AddComponent<MeshFilter>().sharedMesh = source.sharedMesh;
             visual.AddComponent<MeshRenderer>().sharedMaterial = material;
             return pivot.transform;
+        }
+
+        /// <summary>A claw's wrist: the middle of its back end (the model faces +Z, its talons reach forward from the wrist).</summary>
+        public static Vector3 WristOf(Mesh claw)
+        {
+            Bounds bounds = claw.bounds;
+            return new Vector3(bounds.center.x, bounds.center.y, bounds.min.z);
         }
 
         private static Material BuildBodyMaterial()

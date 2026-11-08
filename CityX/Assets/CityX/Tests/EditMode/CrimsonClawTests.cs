@@ -250,8 +250,13 @@ namespace CityX.Tests
             Quaternion drawnBack = pivot.localRotation;
             Assert.Greater(Quaternion.Angle(Quaternion.identity, drawnBack), CrimsonClaw.WindupAngleDegrees * 0.9f, "the claw is not drawn back");
 
-            TickSeconds(claw, CrimsonClaw.TellSeconds - 0.1f, 0.01f);
-            Assert.Less(Quaternion.Angle(drawnBack, pivot.localRotation), 1.0f, "the claw did not hold drawn back through its tell");
+            // Through the tell it stays drawn back, coiling tighter and quivering (2026-11-07: a held frame looked robotic), never on its way.
+            for (float t = 0.0f; t < CrimsonClaw.TellSeconds - 0.1f; t += 0.01f)
+            {
+                TickSeconds(claw, 0.01f, 0.01f);
+                Assert.Greater(Quaternion.Angle(Quaternion.identity, pivot.localRotation), CrimsonClaw.WindupAngleDegrees * 0.9f,
+                    "the claw did not stay drawn back through its tell");
+            }
             Assert.AreEqual(PlayerVitals.BaseMaxHealth, player.Health, 0.001f, "it struck during its tell");
 
             TickSeconds(claw, 0.1f + CrimsonClaw.SwingSeconds + 0.05f, 0.01f);
@@ -272,6 +277,145 @@ namespace CityX.Tests
             player.transform.position = new Vector3(1.5f, 0.0f, 0.0f);   // round to its side, still well within its reach
             TickSeconds(claw, 0.06f + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds, 0.01f);
             Assert.AreEqual(PlayerVitals.BaseMaxHealth, player.Health, 0.001f, "the swipe followed a target that dashed round it");
+        }
+
+        /// <summary>After a swipe every claw and the body are back exactly where they rest.</summary>
+        [Test]
+        public void AfterASwipeEverythingIsBackAtRest()
+        {
+            CrimsonClaw claw = CreateCrimsonClaw(out Transform leftPivot, out Transform rightPivot);
+            Transform body = new GameObject("Body").transform;
+            Transform rig = new GameObject("FacingFlip").transform;
+            rig.SetParent(claw.transform, false);
+            body.SetParent(rig, false);
+            claw.BodyVisual = body;
+            Vector3 leftAt = leftPivot.localPosition;
+            CreatePlayer(new Vector3(0.0f, 0.0f, 1.5f));
+
+            TickSeconds(claw, CrimsonClaw.WindupSeconds + CrimsonClaw.TellSeconds - 0.03f, 0.01f);   // coiled, just before it swipes
+            Assert.Greater(Quaternion.Angle(Quaternion.identity, rig.localRotation), 3.0f, "the body took no part in the swipe");
+            Assert.Greater(Quaternion.Angle(Quaternion.identity, rightPivot.localRotation), 1.0f, "the other claw took no part in it");
+
+            TickSeconds(claw, 0.03f + CrimsonClaw.SwingSeconds + CrimsonClaw.RecoverSeconds, 0.01f);
+            Assert.AreEqual(Quaternion.identity, leftPivot.localRotation);
+            Assert.AreEqual(Quaternion.identity, rightPivot.localRotation);
+            Assert.AreEqual(Quaternion.identity, rig.localRotation);
+            Assert.AreEqual(Vector3.zero, rig.localPosition);
+            Assert.AreEqual(leftAt, leftPivot.localPosition);
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-07: "make it glow red from within the head only visible through the eyes, the glow fades away upon death". Its eyes
+        /// glow until it dies, then go out over EyesFadeSeconds, on its own copy of their material: another Claw's stay lit.
+        /// </summary>
+        [Test]
+        public void ItsEyesGlowUntilItDiesThenGoOut()
+        {
+            Assert.AreEqual(1.0f, CrimsonClaw.EyesGlowAfterDeath(0.0f), 1e-5f);
+            Assert.AreEqual(0.0f, CrimsonClaw.EyesGlowAfterDeath(CrimsonClaw.EyesFadeSeconds), 1e-5f);
+
+            Shader lit = CityX.Core.LitShader.Find();
+            var skin = new Material(lit);
+            var eyes = new Material(lit);
+            eyes.SetColor("_EmissionColor", CrimsonClaw.EyesGlow);
+            CrimsonClaw claw = CreateCrimsonClaw(out _, out _);
+            var body = new GameObject("Body");
+            body.transform.SetParent(claw.transform, false);
+            body.AddComponent<MeshFilter>();
+            var renderer = body.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = new[] { skin, eyes };
+            claw.BodyVisual = body.transform;
+            claw.EyesMaterialSlot = 1;
+            try
+            {
+                TickSeconds(claw, 0.5f);
+                Assert.AreEqual(1.0f, claw.EyesBrightness, "its eyes dimmed while it lived");
+                Assert.AreSame(eyes, renderer.sharedMaterials[1], "a living one's eyes left the shared material");
+
+                ((IDamageable)claw).ApplyHit(CrimsonClaw.MaxHealth, Vector3.zero, 0.0f);
+                TickSeconds(claw, CrimsonClaw.EyesFadeSeconds * 0.5f);
+                Material own = renderer.sharedMaterials[1];
+                Assert.AreNotSame(eyes, own, "it put out every Claw's eyes, not its own");
+                float halfway = own.GetColor("_EmissionColor").r;
+                Assert.Less(halfway, CrimsonClaw.EyesGlow.r * 0.8f, "its eyes did not dim");
+                Assert.Greater(halfway, CrimsonClaw.EyesGlow.r * 0.2f, "its eyes went out at once, not fading");
+                Assert.AreEqual(CrimsonClaw.EyesGlow, eyes.GetColor("_EmissionColor"), "the shared eyes dimmed");
+
+                TickSeconds(claw, CrimsonClaw.EyesFadeSeconds);
+                Assert.AreEqual(0.0f, own.GetColor("_EmissionColor").maxColorComponent, 1e-4f, "its eyes never went out");
+            }
+            finally
+            {
+                Object.DestroyImmediate(renderer.sharedMaterials[1]);
+                Object.DestroyImmediate(skin);
+                Object.DestroyImmediate(eyes);
+            }
+        }
+
+        /// <summary>
+        /// The built Crimson Claw's swipe cuts in across its front, at what it swipes at. Swung by the claws' names it swept the claw out to
+        /// its side and back, away from its target (the model's LeftClaw sits on its right).
+        /// </summary>
+        [Test]
+        public void ItsSwipeCutsInAcrossItsFront()
+        {
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrimsonClaw.prefab");
+            GameObject go = Object.Instantiate(prefab);
+            _spawned.Add(go);
+            var claw = go.GetComponent<CrimsonClaw>();
+            claw.Bind();
+            CreatePlayer(new Vector3(0.0f, 0.0f, 2.0f));
+            foreach (bool left in new[] { true, false })
+            {
+                Assert.AreEqual(left, claw.NextAttackHandIsLeft);
+                Transform pivot = left ? claw.LeftClawPivot : claw.RightClawPivot;
+                Renderer striking = pivot.GetComponentInChildren<Renderer>();
+                float side = Mathf.Sign(go.transform.InverseTransformPoint(striking.bounds.center).x);
+                Assert.AreEqual(side, Mathf.Sign(go.transform.InverseTransformPoint(pivot.position).x), "the claw turns about a point on the other side");
+                Assert.Less(Vector3.Distance(pivot.position, striking.bounds.center), striking.bounds.extents.magnitude,
+                    "the claw turns about a point off it, not its wrist");
+                for (int i = 0; i < 300 && !claw.IsAttacking; i++)
+                {
+                    claw.Tick(0.01f);
+                }
+                Assert.IsTrue(claw.IsAttacking, "it never swiped at the target in front of it");
+
+                TickSeconds(claw, CrimsonClaw.WindupSeconds + CrimsonClaw.TellSeconds - 0.03f, 0.01f);
+                Vector3 coiled = go.transform.InverseTransformPoint(striking.bounds.center);
+                TickSeconds(claw, 0.03f + CrimsonClaw.SwingSeconds, 0.01f);
+                Vector3 struck = go.transform.InverseTransformPoint(striking.bounds.center);
+
+                Assert.Less((struck.x - coiled.x) * side, -0.3f, $"the {(left ? "left" : "right")} claw did not cut in across its front");
+                Assert.Greater(struck.z, coiled.z - 0.1f, $"the {(left ? "left" : "right")} claw swept back, away from its target");
+                for (int i = 0; i < 300 && claw.IsAttacking; i++)
+                {
+                    claw.Tick(0.01f);
+                }
+            }
+        }
+
+        /// <summary>The built Crimson Claw: the eyes in its head glow, and nothing else on it does.</summary>
+        [Test]
+        public void TheBuiltClawsEyesAloneGlow()
+        {
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrimsonClaw.prefab");
+            Assert.IsNotNull(prefab, "no Crimson Claw prefab: run CrimsonClawBuilder.Build");
+            var claw = prefab.GetComponent<CrimsonClaw>();
+            Assert.GreaterOrEqual(claw.EyesMaterialSlot, 0, "its head has no eyes");
+            MeshRenderer body = claw.BodyVisual.GetComponent<MeshRenderer>();
+            Mesh mesh = claw.BodyVisual.GetComponent<MeshFilter>().sharedMesh;
+            Assert.Greater(mesh.GetTriangles(claw.EyesMaterialSlot).Length / 3, 20, "its eyes are not in the mesh");
+            foreach (MeshRenderer renderer in prefab.GetComponentsInChildren<MeshRenderer>())
+            {
+                for (int i = 0; i < renderer.sharedMaterials.Length; i++)
+                {
+                    Material material = renderer.sharedMaterials[i];
+                    bool eyes = renderer == body && i == claw.EyesMaterialSlot;
+                    bool glows = material.IsKeywordEnabled("_EMISSION") && material.GetColor("_EmissionColor").maxColorComponent > 0.01f;
+                    Assert.AreEqual(eyes, glows, eyes ? "its eyes do not glow" : $"{renderer.name}'s {material.name} glows");
+                }
+            }
+            Assert.AreEqual(0, prefab.GetComponentsInChildren<Light>().Length, "a light shines out of more than its eyes");
         }
     }
 }

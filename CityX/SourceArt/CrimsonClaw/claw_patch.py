@@ -12,8 +12,8 @@
 # The two side spikes (a horn back and a hook hanging over the hole) are never cut or moved: the disc meets them as they are (owner:
 # "please try to avoid touching the two spikes on the side of the head"). --preview <file.blend> stops before cutting and colours what
 # would be cut red and the spikes blue.
-# Then the whole model is decimated to [triangles] (default 20000) and split into its three pieces, Body, LeftClaw and RightClaw (the
-# creature's own left and right; it faces -Y here), written as <out stem>.fbx and <out stem>.glb.
+# Then the whole model is decimated to [triangles] (default 20000) and split into its three pieces, Body, LeftClaw and RightClaw (named
+# as the game's first copy of this model names them), written as <out stem>.fbx and <out stem>.glb.
 import math
 import sys
 
@@ -33,10 +33,10 @@ PREVIEW = args[args.index("--preview") + 1] if "--preview" in args else None   #
 HOLES = [
     ("side left", Vector((-0.43, 0.05, 0.29)), Vector((-1, 0, 0)), 0.06),
     ("side right", Vector((0.41, 0.05, 0.29)), Vector((1, 0, 0)), 0.03),
-    ("top left", Vector((-0.20, -0.305, 0.42)), Vector((0, 0, 1)), 0.0),
-    ("top right", Vector((0.18, -0.305, 0.42)), Vector((0, 0, 1)), 0.0),
+    ("eye left", Vector((-0.20, -0.305, 0.42)), Vector((0, 0, 1)), 0.0),
+    ("eye right", Vector((0.18, -0.305, 0.42)), Vector((0, 0, 1)), 0.0),
 ]
-TUBE_RADIUS = {"side": 0.16, "top": 0.09}   # how far from a hole's line its opening is looked for
+TUBE_RADIUS = {"side": 0.16, "eye": 0.09}   # how far from a hole's line its opening is looked for
 TUBE_LENGTH = 0.10                          # how far along the line, either way from the point, its tube can reach
 MASK_STEP = 0.0025                          # spacing of the rays that find where a hole is open
 OUTSIDE = 0.35                              # ... shot from this far out along the way through
@@ -47,6 +47,10 @@ SPIKE_REACH = 0.25                          # ... within this of the hole
 SPIKES = set()                              # its corners, never cut or moved
 TUBE_TURN = 0.92                            # a tube face (its rounded lip too) is turned across the way through: |n . axis| under this
 BAND = 0.03                                 # metres of the surface round an opening faired with its disc
+MATERIALS = ("CrimsonClawSkin", "CrimsonClawEyes")   # the model's two materials: the game finds the eyes by this name
+SKIN, EYES = 0, 1
+DETAIL = set()                              # corners the decimation keeps: the eyes' outlines and the side spikes ...
+DETAIL_KEEP = 1.0                           # ... wholly
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=SOURCE)
@@ -175,9 +179,10 @@ def tube(name, centre, axis, hidden):
 
 
 doomed = set()
+axes = {}   # each hole's way through, outward
 for name, centre, guess, hidden in HOLES:
-    axis = outward_axis(centre, guess)
-    doomed |= tube(name, centre, axis, hidden)
+    axes[name] = outward_axis(centre, guess)
+    doomed |= tube(name, centre, axes[name], hidden)
 if PREVIEW:
     for f in bm.faces:
         f.material_index = 1 if f.index in doomed else 2 if all(x in SPIKES for x in f.verts) else 0
@@ -229,8 +234,8 @@ def openings():
     return loops
 
 
-def fill_and_fair(chain):
-    """Closes one opening with rings toward its middle, then fairs the disc and a band round it."""
+def fill_and_fair(chain, material):
+    """Closes one opening with rings toward its middle, of <material>, then fairs the disc and a band round it."""
     m = len(chain)
     pts = [v.co.copy() for v in chain]
     centre = sum(pts, Vector()) / m
@@ -244,12 +249,12 @@ def fill_and_fair(chain):
         new_verts += ring
         for i in range(m):
             j = (i + 1) % m
-            bm.faces.new((previous[i], previous[j], ring[j], ring[i]))
+            bm.faces.new((previous[i], previous[j], ring[j], ring[i])).material_index = material
         previous = ring
     middle = bm.verts.new(centre)
     new_verts.append(middle)
     for i in range(m):
-        bm.faces.new((previous[i], previous[(i + 1) % m], middle))
+        bm.faces.new((previous[i], previous[(i + 1) % m], middle)).material_index = material
     # the band: the old surface within BAND of the rim, by rings of neighbours
     band, frontier = set(chain) - SPIKES, set(chain) - SPIKES
     made = set(new_verts)
@@ -263,6 +268,8 @@ def fill_and_fair(chain):
         band |= nxt
         frontier = nxt
     free = list(band) + new_verts
+    if material == EYES:
+        DETAIL.update(chain)
     fair(free)
     return len(new_verts), rings, edge
 
@@ -321,17 +328,47 @@ print("openings: " + ", ".join(f"{len(c)} edges at ({sum(v.co.x for v in c) / le
                                f"{sum(v.co.z for v in c) / len(c):.2f})" for c in loops))
 # each hole's tube cut through leaves two openings, one on each face of the wall; one alone would close the hole on one face only
 assert len(loops) == 2 * len(HOLES), f"{len(loops)} openings, not two for each of the {len(HOLES)} holes"
+
+
+def middle_of(chain):
+    return sum((v.co for v in chain), Vector()) / len(chain)
+
+
+def hole_of(chain):
+    return min(HOLES, key=lambda hole: (middle_of(chain) - hole[1]).length)
+
+
+# The two holes in front, in the brow sockets, are its eyes: closed on the outside by a disc of their own material (EYES), which the
+# game makes glow red as if lit from inside the head (owner, 2026-11-07: "make it glow red from within the head only visible through
+# the eyes"); closed inside with skin.
+outside = {}
 for chain in loops:
-    centre = sum((v.co for v in chain), Vector()) / len(chain)
-    made, rings, edge = fill_and_fair(chain)
+    name = hole_of(chain)[0]
+    along = (middle_of(chain) - hole_of(chain)[1]).dot(axes[name])
+    if name not in outside or along > outside[name][0]:
+        outside[name] = (along, chain)
+for chain in loops:
+    centre = middle_of(chain)
+    name = hole_of(chain)[0]
+    eye = name.startswith("eye") and outside[name][1] is chain
+    made, rings, edge = fill_and_fair(chain, EYES if eye else SKIN)
     print(f"  closed {len(chain)}-edge opening at ({centre.x:.3f}, {centre.y:.3f}, {centre.z:.3f}): {rings} rings, {made} corners, edge {edge*1000:.1f} mm")
 
 bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
 open_left = sum(1 for e in bm.edges if e.is_boundary)
 broken = sum(1 for e in bm.edges if not e.is_manifold)
 print(f"patched: {len(bm.faces)} triangles, {open_left} open edges, {broken} broken edges, V-E+F {len(bm.verts) - len(bm.edges) + len(bm.faces)}")
+ob.data.materials.clear()
+for name in MATERIALS:
+    material = bpy.data.materials.new(name)
+    material.diffuse_color = (0.9, 0.05, 0.05, 1.0) if name == MATERIALS[EYES] else (0.8, 0.8, 0.8, 1.0)   # for a look in Blender
+    ob.data.materials.append(material)
+bm.verts.index_update()
+detail = [v.index for v in DETAIL | SPIKES if v.is_valid]
 bm.to_mesh(ob.data)
 bm.free()
+group = ob.vertex_groups.new(name="detail")
+group.add(detail, DETAIL_KEEP, 'REPLACE')
 if "--save" in args:   # the patched model before decimating, as a .blend
     bpy.ops.wm.save_as_mainfile(filepath=args[args.index("--save") + 1])
 
@@ -349,7 +386,10 @@ for p in ob.data.polygons:
 mod = ob.modifiers.new("decimate", 'DECIMATE')
 mod.decimate_type = 'COLLAPSE'
 mod.ratio = TRIANGLES / len(ob.data.polygons)
+mod.vertex_group = "detail"
+mod.invert_vertex_group = True   # the group is what it reduces: inverted, what it keeps
 bpy.ops.object.modifier_apply(modifier=mod.name)
+ob.vertex_groups.clear()
 print(f"decimated: {len(ob.data.polygons)} triangles")
 
 # Its three pieces, named.
@@ -362,8 +402,8 @@ body, claws = pieces[0], pieces[1:3]
 body.name = body.data.name = "Body"
 for claw in claws:
     x = sum((claw.matrix_world @ v.co).x for v in claw.data.vertices) / len(claw.data.vertices)
-    # facing -Y, the creature's left hand is on +X
-    claw.name = claw.data.name = "LeftClaw" if x > 0 else "RightClaw"
+    # named as the game's first copy of this model names them (CrimsonClawBuilder's pivots are placed by these names): LeftClaw on -X here
+    claw.name = claw.data.name = "LeftClaw" if x < 0 else "RightClaw"
 for o in pieces:
     for p in o.data.polygons:
         p.use_smooth = True

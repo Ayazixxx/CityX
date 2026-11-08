@@ -19,6 +19,8 @@ namespace CityX.Character
     /// holds drawn back, glinting (TellSeconds), before it swipes; it turns
     /// only slowly while winding up and not at all once it swipes; and the
     /// swipe reaches only what is in front of it (ClawHitHalfAngleDegrees).
+    /// The swipe moves its whole body in one flowing motion (ClawStrikeMotion),
+    /// and its eyes glow red until it dies, then go out (EyesGlow).
     ///
     /// HOVER HEIGHT IS GROUND-RELATIVE, NOT AN ABSOLUTE WORLD Y -- the one
     /// deliberate deviation from the source. Godot's own HOVER_HEIGHT (1.5)
@@ -101,6 +103,15 @@ namespace CityX.Character
 
         public const float NoticeGrowlIntervalSeconds = 5.0f;
 
+        /// <summary>
+        /// Its eyes glow this red (HDR: the bloom spreads it), as if lit from inside its head; only the eyes give off light (owner,
+        /// 2026-11-07: "make it glow red from within the head only visible through the eyes").
+        /// </summary>
+        public static readonly Color EyesGlow = new Color(5.0f, 0.0f, 0.03f);
+
+        /// <summary>Dead, the glow goes out over this many seconds ("the glow fades away upon death").</summary>
+        public const float EyesFadeSeconds = 1.5f;
+
         public const float ModelScale = 2.0f;
         public const float RagdollTossSpeed = 1.8f;
         public const float RagdollLinearDamp = 0.4f;
@@ -110,6 +121,8 @@ namespace CityX.Character
         public Transform LeftClawPivot;
         public Transform RightClawPivot;
         public Transform BodyVisual;
+        [Tooltip("Which of the body's materials is its eyes; -1 if it has none.")]
+        public int EyesMaterialSlot = -1;
         public BoxCollider MainCollision;
         public AudioSource GrowlAudio;
         public AudioSource AttackAudio;
@@ -140,11 +153,37 @@ namespace CityX.Character
         private AttackState _attackState = AttackState.Idle;
         private float _attackPhaseTimer;
         private float _attackPhaseDuration;
-        private float _attackFromAngleDegrees;
-        private float _attackToAngleDegrees;
         private bool _attackHitLanded;
         private bool _nextAttackHandIsLeft = true;
         private Transform _activeClawPivot;
+        private Rest _leftRest;
+        private Rest _rightRest;
+        private Rest _bodyRest;
+        private bool _restKnown;
+
+        private Material _eyes;
+        private float _deadSeconds;
+
+        /// <summary>Where a moving part sits between attacks.</summary>
+        private struct Rest
+        {
+            public Transform Part;
+            public Vector3 Position;
+            public Quaternion Rotation;
+
+            public static Rest Of(Transform part) =>
+                new Rest { Part = part, Position = part != null ? part.localPosition : Vector3.zero, Rotation = part != null ? part.localRotation : Quaternion.identity };
+
+            /// <summary>Turned and shifted from rest (in its parent's frame: the model's).</summary>
+            public void Place(Vector3 turn, Vector3 shift)
+            {
+                if (Part != null)
+                {
+                    Part.localPosition = Position + shift;
+                    Part.localRotation = Rotation * Quaternion.Euler(turn);
+                }
+            }
+        }
 
         private bool _hadTargetLastFrame;
         private float _growlTimerRemaining;
@@ -158,6 +197,9 @@ namespace CityX.Character
 
         /// <summary>Exposed for tests -- which hand the NEXT attack swings.</summary>
         public bool NextAttackHandIsLeft => _nextAttackHandIsLeft;
+
+        /// <summary>Somewhere between winding up and recovered.</summary>
+        public bool IsAttacking => _attackState != AttackState.Idle;
 
         private void Awake()
         {
@@ -192,6 +234,7 @@ namespace CityX.Character
         {
             if (_isDead)
             {
+                FadeEyes(deltaTime);
                 return;
             }
 
@@ -404,9 +447,14 @@ namespace CityX.Character
             _attackPhaseDuration = WindupSeconds;
             _attackHitLanded = false;
             _activeClawPivot = _nextAttackHandIsLeft ? LeftClawPivot : RightClawPivot;
-            float windupSign = _nextAttackHandIsLeft ? -1.0f : 1.0f;
-            _attackFromAngleDegrees = 0.0f;
-            _attackToAngleDegrees = WindupAngleDegrees * windupSign;
+            if (!_restKnown)
+            {
+                // Between attacks every part is back at rest, so the first attack finds where rest is.
+                _leftRest = Rest.Of(LeftClawPivot);
+                _rightRest = Rest.Of(RightClawPivot);
+                _bodyRest = Rest.Of(BodyVisual != null ? BodyVisual.parent : null);
+                _restKnown = true;
+            }
 
             if (AttackAudio != null && AttackSound != null)
             {
@@ -418,7 +466,7 @@ namespace CityX.Character
         private void TickAttack(float deltaTime)
         {
             _attackPhaseTimer += deltaTime;
-            ApplyClawAngleForCurrentPhase();
+            ApplyStrikePose();
 
             if (_attackPhaseTimer < _attackPhaseDuration)
             {
@@ -429,7 +477,6 @@ namespace CityX.Character
                 return;
             }
 
-            float swingSign = _nextAttackHandIsLeft ? 1.0f : -1.0f;
             switch (_attackState)
             {
                 case AttackState.Windup:
@@ -437,7 +484,6 @@ namespace CityX.Character
                     _attackState = AttackState.Tell;
                     _attackPhaseTimer = 0.0f;
                     _attackPhaseDuration = TellSeconds;
-                    _attackFromAngleDegrees = _attackToAngleDegrees;
                     if (_activeClawPivot != null)
                     {
                         AttackGlint.Show(_activeClawPivot.position + transform.forward * ClawGlintReach);
@@ -448,48 +494,107 @@ namespace CityX.Character
                     _attackState = AttackState.Swing;
                     _attackPhaseTimer = 0.0f;
                     _attackPhaseDuration = SwingSeconds;
-                    _attackFromAngleDegrees = _attackToAngleDegrees;
-                    _attackToAngleDegrees = SwingAngleDegrees * swingSign;
                     break;
 
                 case AttackState.Swing:
                     _attackState = AttackState.Recover;
                     _attackPhaseTimer = 0.0f;
                     _attackPhaseDuration = RecoverSeconds;
-                    _attackFromAngleDegrees = _attackToAngleDegrees;
-                    _attackToAngleDegrees = 0.0f;
                     break;
 
                 case AttackState.Recover:
                     _attackState = AttackState.Idle;
                     _activeClawPivot = null;
+                    PlaceAtRest();
                     _nextAttackHandIsLeft = !_nextAttackHandIsLeft;
                     break;
             }
         }
 
-        private void ApplyClawAngleForCurrentPhase()
+        /// <summary>Claws and body where <see cref="ClawStrikeMotion"/> has them this far into the attack (the phases' own times).</summary>
+        private void ApplyStrikePose()
         {
-            if (_activeClawPivot == null)
+            float phaseStart = _attackState switch
+            {
+                AttackState.Tell => WindupSeconds,
+                AttackState.Swing => WindupSeconds + TellSeconds,
+                AttackState.Recover => WindupSeconds + TellSeconds + SwingSeconds,
+                _ => 0.0f,
+            };
+            Rest strike = _nextAttackHandIsLeft ? _leftRest : _rightRest;
+            Rest other = _nextAttackHandIsLeft ? _rightRest : _leftRest;
+            ClawStrikeMotion.Pose pose = ClawStrikeMotion.At(phaseStart + _attackPhaseTimer);
+            if (strike.Position.x > 0.0f)
+            {
+                // By where the claw is, not its name: the model's LeftClaw sits on +X, and swung by its name it swiped out and back,
+                // away from its target.
+                pose = pose.Mirrored();
+            }
+            strike.Place(pose.StrikeTurn, pose.StrikeShift);
+            other.Place(pose.OtherTurn, pose.OtherShift);
+            _bodyRest.Place(pose.BodyTurn, pose.BodyShift);
+        }
+
+        private void PlaceAtRest()
+        {
+            _leftRest.Place(Vector3.zero, Vector3.zero);
+            _rightRest.Place(Vector3.zero, Vector3.zero);
+            _bodyRest.Place(Vector3.zero, Vector3.zero);
+        }
+
+        /// <summary>How bright its eyes glow, a share of <see cref="EyesGlow"/>, <paramref name="seconds"/> after it died.</summary>
+        public static float EyesGlowAfterDeath(float seconds) => Mathf.SmoothStep(1.0f, 0.0f, seconds / EyesFadeSeconds);
+
+        /// <summary>How bright its eyes glow now, a share of <see cref="EyesGlow"/>.</summary>
+        public float EyesBrightness => _isDead ? EyesGlowAfterDeath(_deadSeconds) : 1.0f;
+
+        /// <summary>Dead, its eyes go out.</summary>
+        private void FadeEyes(float deltaTime)
+        {
+            if (_deadSeconds > EyesFadeSeconds)
+            {
+                return;   // out
+            }
+            _deadSeconds += deltaTime;
+            if (_eyes != null || TakeOwnEyes())
+            {
+                _eyes.SetColor("_EmissionColor", EyesGlow * EyesBrightness);
+            }
+        }
+
+        /// <summary>A copy of the eyes' material of its own, so only this one's go out.</summary>
+        private bool TakeOwnEyes()
+        {
+            if (BodyVisual == null || EyesMaterialSlot < 0 || !BodyVisual.TryGetComponent(out MeshRenderer body))
+            {
+                return false;
+            }
+            Material[] materials = body.sharedMaterials;
+            if (EyesMaterialSlot >= materials.Length || materials[EyesMaterialSlot] == null)
+            {
+                return false;
+            }
+            _eyes = new Material(materials[EyesMaterialSlot]) { name = materials[EyesMaterialSlot].name + " (going out)" };
+            materials[EyesMaterialSlot] = _eyes;
+            body.sharedMaterials = materials;
+            return true;
+        }
+
+        private void OnDestroy()
+        {
+            if (_eyes == null)
             {
                 return;
             }
-            float t = _attackPhaseDuration > 0.0f
-                ? Mathf.Clamp01(_attackPhaseTimer / _attackPhaseDuration)
-                : 1.0f;
-            float eased = _attackState switch
+            if (Application.isPlaying)
             {
-                AttackState.Windup => EaseOutSine(t),
-                AttackState.Swing => EaseOutQuad(t),
-                _ => EaseInOutSine(t),
-            };
-            float angle = Mathf.Lerp(_attackFromAngleDegrees, _attackToAngleDegrees, eased);
-            _activeClawPivot.localRotation = Quaternion.Euler(0.0f, angle, 0.0f);
+                Destroy(_eyes);
+            }
+            else
+            {
+                DestroyImmediate(_eyes);
+            }
         }
-
-        private static float EaseOutSine(float t) => Mathf.Sin(t * Mathf.PI * 0.5f);
-        private static float EaseOutQuad(float t) => 1.0f - (1.0f - t) * (1.0f - t);
-        private static float EaseInOutSine(float t) => -(Mathf.Cos(Mathf.PI * t) - 1.0f) * 0.5f;
 
         /// <summary>
         /// Only ever lands ONE hit per attack (_attackHitLanded), so staying
