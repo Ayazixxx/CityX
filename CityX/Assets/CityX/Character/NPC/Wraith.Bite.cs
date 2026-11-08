@@ -41,8 +41,11 @@ namespace CityX.Character
 
         private const float PreySearchSeconds = 1.0f;
 
-        /// <summary>A hiss the prey can hear coming, and the crunch.</summary>
-        private const float HissVolume = 0.8f;
+        /// <summary>The owner's attack noise the prey can hear coming, and the crunch.</summary>
+        private const float AttackVolume = 0.8f;
+
+        /// <summary>The owner's recording (2026-11-07: "replace the wraith attack noise with this"), under Resources.</summary>
+        public const string AttackClipName = "Wraith/WraithAttack";
 
         private const float CrunchVolume = 1.0f;
 
@@ -64,7 +67,7 @@ namespace CityX.Character
         private Transform _preyNeck;
         private float _preySearch;
         private AudioSource _voice;
-        private static AudioClip _hiss;
+        private static AudioClip _attack;
         private static AudioClip _crunch;
 
         /// <summary>What it is doing just now, here or as its owner says.</summary>
@@ -190,12 +193,12 @@ namespace CityX.Character
             _clipSeconds = 0.0f;
             if (phase == WraithPhase.Lunging)
             {
-                // The tell: a glint at its head and a hiss, half a second before the teeth.
+                // The tell: a glint at its head and its attack noise, half a second before the teeth.
                 if (Application.isPlaying && Head != null)
                 {
                     AttackGlint.Flash(Head.position);
                 }
-                Speak(HissClip(), HissVolume);
+                Speak(AttackClip(), AttackVolume);
             }
             else if (phase == WraithPhase.Biting)
             {
@@ -305,7 +308,7 @@ namespace CityX.Character
 
         private void Speak(AudioClip clip, float volume)
         {
-            if (!Application.isPlaying)
+            if (!Application.isPlaying || clip == null)
             {
                 return;
             }
@@ -321,14 +324,14 @@ namespace CityX.Character
             _voice.PlayOneShot(clip, volume);
         }
 
-        /// <summary>Breath through teeth: noise, narrowing and swelling, then cut off.</summary>
-        private static AudioClip HissClip()
+        /// <summary>The noise of its lunge, loaded once.</summary>
+        public static AudioClip AttackClip()
         {
-            if (_hiss == null)
+            if (_attack == null)
             {
-                _hiss = Noise("WraithHiss", WraithHunt.LungeSeconds, 0.42f, t => Mathf.Sin(Mathf.PI * Mathf.Clamp01(t * 1.15f)));
+                _attack = Resources.Load<AudioClip>(AttackClipName);
             }
-            return _hiss;
+            return _attack;
         }
 
         /// <summary>Teeth going in: a hard, dull burst.</summary>

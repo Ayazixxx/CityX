@@ -234,5 +234,15 @@ namespace CityX.Tests
             Assert.Less(wraith.HandRight.position.y, wraith.ArmRight.position.y - 0.5f, "the right arm does not hang");
             Assert.Greater(wraith.Head.position.y, wraith.Spine.position.y, "the head is not over the spine");
         }
+
+        /// <summary>Its lunge makes the owner's attack noise (2026-11-07: "replace the wraith attack noise with this").</summary>
+        [Test]
+        public void ItsLungeMakesTheOwnersAttackNoise()
+        {
+            AudioClip clip = Wraith.AttackClip();
+            Assert.IsNotNull(clip, $"no Resources/{Wraith.AttackClipName}");
+            Assert.AreEqual("WraithAttack", clip.name);
+            Assert.Greater(clip.length, 2.0f, "not the owner's 2.4 s recording");
+        }
     }
 }

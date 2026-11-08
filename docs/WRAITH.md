@@ -44,7 +44,7 @@ Three things together, and no thrown ribbons (the first build's: "that just look
 |---|---|
 | Drifting | as below. It notices a player within 16 m, and loses one past 28 m |
 | Stalking | makes for a point 1.4 m behind them at 3.2 m/s while their body faces away (a player walks at 4). Within 60 degrees of their facing it is "seen": from far off it creeps at 1 m/s, within 5 m it goes round them at 1.8 m/s, and keeps off |
-| Lunging | from behind and within 2.4 m. Half a second, committed: a glint at its head and a hiss are the tell, and a dash or a step away beats it |
+| Lunging | from behind and within 2.4 m. Half a second, committed: a glint at its head and its attack noise (the owner's recording, `Resources/Wraith/WraithAttack.mp3`) are the tell, and a dash or a step away beats it |
 | Biting | 30 damage as the teeth go in, then 6 every 0.45 s for 1.9 s (about 50 in all, of a player's 100), each a 0.4 s stun and a spurt of blood from the neck. It stays on the neck as they move. It can be killed off them |
 | Thrown | 0.77 s, flung back off them |
 | Recovering | 0.6 s, then it leaves them alone for 8 s |
