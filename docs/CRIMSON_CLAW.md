@@ -76,7 +76,10 @@ with a ragdoll this machine runs), its swipe is a grab (2026-11-08: "it should b
 twice in a row": three swipes at you on your feet come between two grabs; swipes at you lying down after a throw do not count) (`CrimsonClaw.Grab.cs`):
 
 - The same wind-up, tell, glint and swing as a swipe. What the swing reaches (as a swipe would hit it) is caught instead of cut; a
-  dash's dodge slips it, and a grab that reaches nothing is a swipe that missed.
+  dash's dodge slips it, and a grab that reaches nothing is a swipe that missed. **A guard stops it** (owner, 2026-11-08: "make the crimson claw
+  grab blockable"): guarding when the claw arrives (a block, a raised shield in front, an Arcane Barrier: `PlayerVitals.GuardsAgainst`), you are
+  struck once as by a swipe and the guard answers as it does any blow (a parry, a quarter of the damage and its stamina, or a broken guard),
+  and the claw closes on nothing for the rest of that swing.
 - **Held in its fist like a doll** (`PlayerVitals.Seize`, `Ragdoll.Seize`): the body is the ragdoll's, as a knockdown's (no keys, the walker
   and its Animator off), but stiff: every bone stays kinematic, the arms let down, and the whole body is carried upright by its root with
   the middle of its torso in the fist (`Ragdoll.HoldMiddleAt`), eased in from where it stood over 0.3 s. It faces where the Claw faces.

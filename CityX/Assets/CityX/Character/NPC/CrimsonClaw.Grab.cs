@@ -11,7 +11,7 @@ namespace CityX.Character
     /// under the thumb, the talons round the front, the head out of the top and the legs hanging out of the bottom; Ragdoll.Seize) while it
     /// raises its arm and rears back (<see cref="ClawGrabMotion"/>), then let go limp, flung forward and up, hurt, and up again a moment after
     /// it lands ("you are ragdolled when thrown"). A swing that
-    /// reaches nothing (or someone dashing) is a swipe that missed. Killed while holding, it drops what it held.
+    /// reaches nothing (or someone dashing) is a swipe that missed; a guard takes it as a swipe's blow. Killed while holding, it drops what it held.
     /// Only the body's own machine seizes it; everyone sees it held and thrown through the ragdoll's mirror (docs/MULTIPLAYER_STATE.md).
     /// </summary>
     public sealed partial class CrimsonClaw
@@ -60,16 +60,30 @@ namespace CityX.Character
         /// <summary>A grab is a player's to be caught in: a summon is only ever swiped at.</summary>
         private bool WantsToGrab() => _swipesSinceGrab >= SwipesBetweenGrabs && Opponents.Alive(_target) && _target is PlayerVitals player && player.CanBeSeized;
 
-        /// <summary>Its swing closes on what it reaches, as a swipe would cut it, and not on someone dashing.</summary>
+        /// <summary>
+        /// Its swing closes on what it reaches, as a swipe would cut it, and not on someone dashing. A guard stops it (owner, 2026-11-08: "make
+        /// the crimson claw grab blockable"): a player guarding when the claw arrives is struck as by a swipe, once, and the guard answers as
+        /// it does any blow, and the claw closes on nothing for the rest of that swing.
+        /// </summary>
         private void TryCatch()
         {
-            if (!Opponents.Alive(_target) || !(_target is PlayerVitals player))
+            if (_attackHitLanded || !Opponents.Alive(_target) || !(_target is PlayerVitals player))
             {
                 return;
             }
             Vector3 toTarget = _target.transform.position - transform.position;
             toTarget.y = 0.0f;
-            if (!InFront(toTarget, ClawHitRadius, ClawHitHalfAngleDegrees) || !player.Seize())
+            if (!InFront(toTarget, ClawHitRadius, ClawHitHalfAngleDegrees))
+            {
+                return;
+            }
+            if (player.GuardsAgainst(transform.position))
+            {
+                _attackHitLanded = true;
+                _target.ApplyHit(AttackDamage, transform.position, CombatTuning.HitstunSeconds);
+                return;
+            }
+            if (!player.Seize())
             {
                 return;
             }

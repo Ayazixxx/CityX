@@ -108,6 +108,99 @@ namespace CityX.Tests
             Assert.IsFalse(_player.GetComponent<Ragdoll>().IsLimp, "a player who dashed was thrown down");
         }
 
+        /// <summary>Owner, 2026-11-08: "make the crimson claw grab blockable". The guard takes it as a blow, and letting it down after does not get you caught.</summary>
+        [UnityTest]
+        public IEnumerator AGuardStopsTheGrab()
+        {
+            var vitals = _player.GetComponent<PlayerVitals>();
+            var ragdoll = _player.GetComponent<Ragdoll>();
+            bool caught = false;
+            bool attacked = false;
+            yield return Frames(3.0f + CrimsonClaw.GrabSeconds, () =>
+            {
+                caught |= _claw.IsHolding;
+                attacked |= _claw.IsAttacking;
+                if (vitals.Health >= PlayerVitals.BaseMaxHealth - 0.001f)
+                {
+                    vitals.StartBlock();   // up until the blow lands, then let down: the rest of the swing must not catch
+                }
+                return attacked && !_claw.IsAttacking;
+            });
+            Assert.IsTrue(attacked, "setup: it never went for the player");
+            Assert.IsFalse(caught, "it caught a player who was guarding");
+            Assert.IsFalse(ragdoll.IsLimp, "a player who guarded was thrown down");
+            Assert.Greater(vitals.Health, PlayerVitals.BaseMaxHealth - CrimsonClaw.AttackDamage, "the guard stopped none of the blow");
+        }
+
+        [UnityTest]
+        public IEnumerator ARaisedShieldStopsTheGrabFromInFrontOnly()
+        {
+            var vitals = _player.GetComponent<PlayerVitals>();
+            var shield = new GameObject("Shield");
+            shield.transform.SetParent(_player.transform, false);
+            vitals.Shield = shield.transform;
+            vitals.ShieldRaised = true;
+            bool caught = false;
+            bool attacked = false;
+            yield return Frames(3.0f + CrimsonClaw.GrabSeconds, () =>
+            {
+                caught |= _claw.IsHolding;
+                attacked |= _claw.IsAttacking;
+                return attacked && !_claw.IsAttacking;
+            });
+            Assert.IsTrue(attacked, "setup: it never went for the player");
+            Assert.IsFalse(caught, "it caught a player behind a raised shield");
+
+            _claw.GrabNext();
+            _player.transform.rotation = Quaternion.identity;   // its back to the claw: the shield covers nothing there
+            Physics.SyncTransforms();
+            yield return UntilHolding();
+            Assert.IsTrue(_claw.IsHolding, "a shield held the other way should not stop it");
+        }
+
+        [Test]
+        public void TheGuardsAgainstABlowAreABlockAShieldInFrontAndABarrier()
+        {
+            var vitals = _player.GetComponent<PlayerVitals>();
+            Vector3 ahead = _player.transform.position + _player.transform.forward * 3.0f;
+            Vector3 behind = _player.transform.position - _player.transform.forward * 3.0f;
+            Assert.IsFalse(vitals.GuardsAgainst(ahead), "nothing is up yet");
+
+            vitals.StartBlock();
+            Assert.IsTrue(vitals.GuardsAgainst(behind), "a block is a guard");
+            vitals.TickHitstun(PlayerVitals.BlockWindowSeconds + 0.1f);
+            Assert.IsFalse(vitals.GuardsAgainst(ahead), "setup: the block ran out");
+
+            var shield = new GameObject("Shield");
+            shield.transform.SetParent(_player.transform, false);
+            vitals.Shield = shield.transform;
+            vitals.ShieldRaised = true;
+            Assert.IsTrue(vitals.GuardsAgainst(ahead), "a shield guards the front");
+            Assert.IsFalse(vitals.GuardsAgainst(behind), "and not the back");
+            vitals.ShieldRaised = false;
+
+            vitals.Barrier = new FrontBarrier(_player.transform);
+            Assert.IsTrue(vitals.GuardsAgainst(ahead), "a barrier guards what it covers");
+            Assert.IsFalse(vitals.GuardsAgainst(behind), "and not what it does not");
+            vitals.Barrier = null;
+        }
+
+        private sealed class FrontBarrier : IBarrier
+        {
+            private readonly Transform _body;
+
+            public FrontBarrier(Transform body)
+            {
+                _body = body;
+            }
+
+            public bool Covers(Vector3 fromPosition) => Vector3.Dot(fromPosition - _body.position, _body.forward) > 0.0f;
+
+            public void Absorb(float amount, Vector3 fromPosition)
+            {
+            }
+        }
+
         [UnityTest]
         public IEnumerator KilledWhileHoldingItDropsThePlayer()
         {

@@ -457,6 +457,9 @@ namespace CityX.Character
             return toward.sqrMagnitude > 1e-4f && Vector3.Angle(transform.forward, toward) <= ShieldCoverDegrees;
         }
 
+        /// <summary>Whether a blow from <paramref name="fromPosition"/> would meet a guard: a held or timed block, a raised shield in front, or an Arcane Barrier.</summary>
+        public bool GuardsAgainst(Vector3 fromPosition) => (Barrier != null && Barrier.Covers(fromPosition)) || IsBlocking || ShieldCovers(fromPosition);
+
         /// <summary>Throws a block. Re-throwing mid-block restarts the window.</summary>
         public void StartBlock()
         {
