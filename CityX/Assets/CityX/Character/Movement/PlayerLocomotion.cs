@@ -924,6 +924,8 @@ namespace CityX.Character
             ApplyClimbWallLimbs();
             ApplyLedgeHands();
             ApplyStraightWrists();
+            // On a ladder, every hand on its rung and every foot on its own (PlayerLocomotion.Ladder.cs): after the straight wrists, which a grip bends.
+            ApplyLadderLimbs();
             // Both hands pushed out flat against a raised Arcane Barrier (PlayerLocomotion.Barrier.cs): after the straight wrists, which it bends.
             ApplyBarrierPose();
             // A bow in the left hand: the bow arm out along the aim, the string hand nocking and drawing (PlayerLocomotion.Bow.cs).

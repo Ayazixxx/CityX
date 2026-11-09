@@ -23,7 +23,7 @@ namespace CityX.View
     /// </summary>
     public static class SurfaceLook
     {
-        /// <summary>Materials in the facade texture array: eight wall materials, then paving, asphalt, bare earth and setts.</summary>
+        /// <summary>Materials in the facade texture array: eight wall materials, then paving, asphalt, bare earth and setts, then four old bricks.</summary>
         public const int Slices = 16;
 
         /// <summary>The ground's materials, after the eight wall ones (WallMaterial in World): paving slabs, road asphalt, bare earth, granite setts.</summary>
@@ -31,6 +31,10 @@ namespace CityX.View
         public const int Asphalt = 9;
         public const int Earth = 10;
         public const int Setts = 11;
+
+        /// <summary>Old brick, as the sewers are built of, in four colours from here on: grey, blue, grey-yellow, green-black (FacadeTextures).</summary>
+        public const int OldBrick = 12;
+        public const int OldBrickColours = 4;
 
         /// <summary>Steps of wear a look can carry (0 = clean .. 7 = filthy).</summary>
         public const int WearLevels = 8;

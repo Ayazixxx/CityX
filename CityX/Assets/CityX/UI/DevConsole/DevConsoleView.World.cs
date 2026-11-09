@@ -150,7 +150,7 @@ namespace CityX.UI
                 Log("no city streamer in this scene");
                 return;
             }
-            if (what != "slope" && what != "highway" && what != "district")   // "district": the highway's old name here, kept
+            if (what != "slope" && what != "highway" && what != "district" && what != "manhole" && what != "mouth")   // "district": the highway's old name here, kept
             {
                 Log(DevCommands.UsageFor("goto"));
                 return;
@@ -169,6 +169,15 @@ namespace CityX.UI
                     return;
                 }
                 found = "sloped road";
+            }
+            else if (what == "manhole" || what == "mouth")
+            {
+                if (!TryFindNearestSewerEntrance(world, from, what == "mouth", out destination))
+                {
+                    Log(what == "mouth" ? "no sewer mouth in this city" : "no open manhole in this city");
+                    return;
+                }
+                found = what == "mouth" ? "sewer mouth" : "open manhole";
             }
             else
             {
@@ -196,6 +205,44 @@ namespace CityX.UI
             Physics.SyncTransforms();
 
             Log($"teleported to the nearest {found}");
+        }
+
+        /// <summary>
+        /// A way into the sewers nearest a place (docs/SEWERS.md): beside the nearest manhole whose lid is off, or in the open cut a few
+        /// metres out from the nearest tunnel mouth, looking at neither (the body keeps its facing).
+        /// </summary>
+        private static bool TryFindNearestSewerEntrance(CityWorld world, Vector3 from, bool mouth, out Vector3 destination)
+        {
+            destination = Vector3.zero;
+            SewerPlan sewers = SewerPlan.For(world.Plan);
+            float best = float.MaxValue;
+            if (mouth)
+            {
+                foreach (SewerOutfall outfall in sewers.AllOutfalls)
+                {
+                    double out_ = System.Math.Min(outfall.End - 1.0, outfall.Portal + 6.0);
+                    CityX.World.Plan.Vec2 p = outfall.Tube.At(out_);
+                    var at = new Vector3((float)p.X, (float)outfall.Floor + 0.3f, (float)p.Y);
+                    if ((at - from).sqrMagnitude < best)
+                    {
+                        best = (at - from).sqrMagnitude;
+                        destination = at;
+                    }
+                }
+                return best < float.MaxValue;
+            }
+            foreach (SewerRoom room in sewers.Rooms)
+            {
+                if (room.Shaft == null || !room.Shaft.Open) continue;
+                Ladder ladder = Ladders.Of(room.Shaft);
+                Vector3 at = ladder.StandAtTop - ladder.Normal * 1.2f + Vector3.up * 0.3f;
+                if ((at - from).sqrMagnitude < best)
+                {
+                    best = (at - from).sqrMagnitude;
+                    destination = at;
+                }
+            }
+            return best < float.MaxValue;
         }
 
         /// <summary>The middle of the nearest road that climbs at least 4% (else the steepest in the city), a couple of metres up.</summary>

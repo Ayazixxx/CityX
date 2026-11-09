@@ -650,6 +650,15 @@ namespace CityX.Character
         /// <summary>Where the mantle is, 0 (hanging) to 1 (standing on the ledge). Meaningless outside a mantle.</summary>
         public float MantleProgress => Mathf.Clamp01(_mantleElapsed / MantleSeconds);
 
+        /// <summary>The pull-up onto a ledge reached some other way than up a wall: the top of a ladder (PlayerLadder).</summary>
+        public void MantleOnto(LedgeProbe.Ledge ledge)
+        {
+            if (!IsToppingOut)
+            {
+                BeginMantle(ledge);
+            }
+        }
+
         private void BeginMantle(LedgeProbe.Ledge ledge)
         {
             IsClimbing = false;

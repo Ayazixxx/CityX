@@ -58,6 +58,9 @@ Infinite both ways. Each zone is very tall (hours to cross). **No digging, no bu
 **The streets' gutters and manholes go with the Sewers (owner, 2026-11-06):** "we should save street gutters and manholes to be apart of
 when we build the sewers" (docs/AMERICAN_STREETS.md).
 
+**The Sewers have their own notes since 2026-11-09: docs/SEWERS.md** (the owner's words on the entrances, the flood tunnels and the dark,
+the research, the design, and what is built: tunnels under every road, rooms, manhole ladders, mouths under bridges).
+
 **The Sewers' look (owner, 2026-10-31):** the "fake liquid" streams (a bent, turning torus whose procedural texture drives its displacement and
 normals; Tuatara Games' realtime-VFX post) belong in the sewer level: water pouring from pipes and grates into the channels.
 

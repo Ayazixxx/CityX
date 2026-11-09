@@ -117,6 +117,9 @@ east the joints crossed the walk at a slant, and it read as a plaza's paving, no
 - Not built yet: manholes and drains, the gutter pan in the road, yellow dome mats at the crossings.
 - **Owner, 2026-11-06: "we should save street gutters and manholes to be apart of when we build the sewers".** So the gutter pan, the
   storm drains and the manholes wait for the Sewers (docs/GAME_DESIGN.md) and are built with them, as the street's side of what lies below.
+- **The manholes are built (2026-11-09, docs/SEWERS.md)**: one over the middle of each junction that has room for its shaft, a lid in the
+  road, or for three in ten a real hole with a yellow ring painted round it and the lid lying beside it. The gutter pan and the kerb's
+  storm drains are still to come.
 
 ### Red kerb by the hydrants (2026-11-05)
 

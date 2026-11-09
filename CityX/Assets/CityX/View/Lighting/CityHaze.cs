@@ -99,15 +99,18 @@ namespace CityX.View
         private static readonly int SkyTopId = Shader.PropertyToID("_CityXHazeSkyTop");
         private static readonly int SkyId = Shader.PropertyToID("_CityXHazeSky");
 
-        /// <summary>Pushes the haze into the shader globals; <paramref name="towardSun"/> is the unit direction to the sun.</summary>
-        public static void Push(in Settings s, Vector3 towardSun)
+        /// <summary>
+        /// Pushes the haze into the shader globals; <paramref name="towardSun"/> is the unit direction to the sun. <paramref name="thin"/> thins
+        /// the air itself (none of it in a tunnel) and leaves the fade at the streamed city's edge as it is.
+        /// </summary>
+        public static void Push(in Settings s, Vector3 towardSun, float thin = 1.0f)
         {
             Shader.SetGlobalColor(ColourId, s.Colour);
             Shader.SetGlobalColor(SunColourId, s.SunColour);
             Shader.SetGlobalColor(SkyTopId, s.SkyTop);
             Shader.SetGlobalVector(SkyId, new Vector4(s.SkyCurve, s.SkyEnergy, 0.0f, 0.0f));
             Shader.SetGlobalVector(SunDirId, towardSun);
-            Shader.SetGlobalVector(ParamsId, new Vector4(s.Density, s.Falloff, s.BaseY, MaxHaze));
+            Shader.SetGlobalVector(ParamsId, new Vector4(s.Density * Mathf.Clamp01(thin), s.Falloff, s.BaseY, MaxHaze));
             Shader.SetGlobalVector(EdgeId, new Vector4(s.EdgeStart, s.EdgeEnd, ClearRadius, FadeInEnd));
         }
 

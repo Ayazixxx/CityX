@@ -592,6 +592,7 @@ namespace CityX.View
             // The glass other players break comes into this city's record (Character.GlassDamageNetwork).
             GlassDamage.Current = Damage;
             StreetLampDirector.Ensure();   // the street lights' real light at night, lent to the nearest lamps
+            SewerAir.Ensure();   // the sky's light fading out as the eye goes under the ground
         }
 
         private void OnDisable()

@@ -36,6 +36,18 @@ namespace CityX.View
         /// indoors -- SurfaceLook): by day a room is lit by its windows, not by the whole open sky the street sees; at night the sky is dark anyway,
         /// and a room is what its own lamps make it (2026-10-09 lighting pass).
         /// </summary>
+        /// <summary>
+        /// How far out of the sky's light the eye is, 0 to 1 (SewerAir: down a manhole, in a tunnel). The sky's light, its reflections and
+        /// the haze go with it: what lights a tunnel is what shines in it.
+        /// </summary>
+        public static float Underground { get; set; }
+
+        /// <summary>
+        /// What is left of the sky's light deep under the ground. Not quite nothing: the owner asked for "mostly pitch black", and the
+        /// games that are truly dark all keep a trace, so a wall is a shape and not a guess.
+        /// </summary>
+        public const float UndergroundSkyLight = 0.02f;
+
         public const float IndoorShadeDay = 0.65f;
         public const float IndoorShadeNight = 0.92f;   // 0.5 until the owner asked for pitch-black nights: a dark room is dark
 
@@ -194,7 +206,8 @@ namespace CityX.View
             // cheap honest stand-in is a TRILIGHT ambient: more and bluer light from the open sky above, the base colour at the horizon, and a
             // darker, warmer bounce off the street from below. Same average brightness as the old flat one, but up-facing roofs and
             // down-facing undersides, and the two sides of a street canyon, no longer light identically.)
-            Color baseAmbient = state.AmbientColour;
+            float underground = Mathf.Clamp01(Underground);
+            Color baseAmbient = state.AmbientColour * Mathf.Lerp(1.0f, UndergroundSkyLight, underground);
             Color skyTint = SkyCycle.Weathered(state.SkyTopColour, Overcast, Flash);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = Color.Lerp(baseAmbient, skyTint * baseAmbient.maxColorComponent * 2.0f, 0.4f) * 1.35f;
@@ -205,7 +218,7 @@ namespace CityX.View
             RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
             // Faded with the daylight: the reflection map is the sky as it was captured, and a daytime sky in every window and wet street
             // at midnight was the pale grey glow the owner saw ("get rid of this greyish hue"; night should be "almost pitch black").
-            RenderSettings.reflectionIntensity = Mathf.Lerp(NightReflection, 1.0f, state.Daylight);
+            RenderSettings.reflectionIntensity = Mathf.Lerp(NightReflection, 1.0f, state.Daylight) * Mathf.Lerp(1.0f, UndergroundSkyLight, underground);
 
             // Weather goes through the sky, the fog and the camera background
             // ALL TOGETHER, from the same colour: the horizon end of the dome
@@ -223,7 +236,7 @@ namespace CityX.View
                 Vector3 towardSun = Sun != null ? -Sun.transform.forward : Vector3.up;
                 CityHaze.Push(CityHaze.For(horizon, SkyCycle.Weathered(state.SkyTopColour, Overcast, Flash), state.SkyEnergy,
                     state.SunColour, state.SunIntensity, Overcast, 1.0f - Overcast * OvercastDiscHiding,
-                    RenderSettings.fogStartDistance, RenderSettings.fogEndDistance), towardSun);
+                    RenderSettings.fogStartDistance, RenderSettings.fogEndDistance), towardSun, 1.0f - underground);
             }
             else
             {
@@ -298,7 +311,7 @@ namespace CityX.View
             }
 
             // Inside a building, less of the sky (CityMeshBuilder.Interior.cs marks what is inside).
-            Shader.SetGlobalFloat(IndoorShade, Mathf.Lerp(IndoorShadeNight, IndoorShadeDay, state.Daylight));
+            Shader.SetGlobalFloat(IndoorShade, Mathf.Lerp(Mathf.Lerp(IndoorShadeNight, IndoorShadeDay, state.Daylight), 1.0f, underground));
             Daylight = state.Daylight;
 
             // The stars come out as the light goes, and a cloud lid hides them.

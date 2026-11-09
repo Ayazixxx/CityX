@@ -179,7 +179,8 @@ namespace CityX.UI
                     "knight_helmet|clawskull|jeans|spikesword|combatsword|knife|ak47|crowbar|bat|spraycan|shield|staff|firestaff|icestaff|waterstaff|flamestaff|beamstaff|" +
                     "healstaff|froststaff|wand|magicstaff|wraithstaff|grenade|boomerang|bow|crossbow|slingshot|gascan|flashlight|wings|darkwings>";
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|shield|legs|top|back|helmet>";
-                case "goto": return "/goto <slope|highway> -- teleports to the nearest one (onto an expressway's deck for highway)";
+                case "goto": return "/goto <slope|highway|manhole|mouth> -- teleports to the nearest one (onto an expressway's deck for highway; beside the " +
+                    "nearest open manhole; into the open cut before the nearest sewer mouth)";
                 case "pistol": return "/pistol <pos|rot> <x> <y> <z>, /pistol scale <value>, or /pistol pose -- " +
                     "live-tunes the equipped pistol's own grip in the hand";
                 case "aim": return "/aim offset <metres>, /aim yaw <degrees>, /aim armyaw <degrees>, or /aim pose -- " +

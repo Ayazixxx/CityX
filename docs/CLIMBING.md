@@ -46,6 +46,9 @@ Sticky feet (`WallStick`) uses the same intent and the same probe.
 up onto ledges (owner: "pulling yourself up onto a ledge naturally is apart of climb") and no climbing in through high windows. Sticky feet is
 Wall Stick, above Climb. Vaulting is everyone's. A body with no character (the editor's play button, the tests) knows Climb and Wall Stick.
 
+Ladders are their own thing (2026-11-09, `PlayerLadder`, docs/SEWERS.md): anyone climbs one, skill or not, with no stamina; walk into its
+foot or press E. A ladder's top is climbed out of with the wall climb's own pull-up (`PlayerClimbing.MantleOnto`).
+
 ## Tests
 
 `WallGrabIntentTests` (fixtures: doorway, jamb, window, stairs, fence, corner, door, angle, intent),

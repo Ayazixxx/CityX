@@ -186,6 +186,50 @@ namespace CityX.Character
         /// </summary>
         public float MinDistance = 1.5f;
 
+        /// <summary>
+        /// Under the ground (a tunnel, a manhole's neck) the camera comes in as close as this to stay inside the walls: every face of a
+        /// tunnel looks inward, so a camera standing in the rock behind one sees straight through it to the sky. The body it is then
+        /// inside of is not drawn while the camera is within <see cref="HideBodyWithin"/> of it.
+        /// </summary>
+        public const float UndergroundMinDistance = 0.3f;
+
+        public const float HideBodyWithin = 0.95f;
+
+        private readonly List<Renderer> _bodyRenderers = new List<Renderer>();
+        private readonly List<UnityEngine.Rendering.ShadowCastingMode> _bodyShadows = new List<UnityEngine.Rendering.ShadowCastingMode>();
+        private bool _bodyHidden;
+
+        /// <summary>True while the body is not drawn because the camera is inside it (its shadow still falls).</summary>
+        public bool BodyHidden => _bodyHidden;
+
+        /// <summary>Draws the body or only its shadow.</summary>
+        private void ShowBody(bool shown)
+        {
+            if (shown == !_bodyHidden || Target == null)
+            {
+                return;
+            }
+            if (!shown)
+            {
+                Target.GetComponentsInChildren(false, _bodyRenderers);
+                _bodyShadows.Clear();
+                foreach (Renderer part in _bodyRenderers)
+                {
+                    _bodyShadows.Add(part.shadowCastingMode);
+                    part.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < _bodyRenderers.Count; i++)
+                {
+                    if (_bodyRenderers[i] != null) _bodyRenderers[i].shadowCastingMode = _bodyShadows[i];
+                }
+                _bodyRenderers.Clear();
+            }
+            _bodyHidden = !shown;
+        }
+
         [Tooltip(
             "Field of view while aiming (see IsAiming). Narrower than the ordinary field of " +
             "view, which is read from whatever the Camera component already starts at rather " +
@@ -348,6 +392,7 @@ namespace CityX.Character
 
         private void OnDisable()
         {
+            ShowBody(true);
             if (Local == this)
             {
                 Local = null;
@@ -818,10 +863,12 @@ namespace CityX.Character
                 }
             }
 
+            bool underground = CityX.World.CurrentSewers.DarknessAt(Target.position + Vector3.up * (0.5f * scale)) > 0.05f;
             if (nearest < wantedDistance)
             {
-                wanted = pivot + direction * Mathf.Max(MinDistance * scale, nearest - 0.1f * scale);
+                wanted = pivot + direction * Mathf.Max((underground ? UndergroundMinDistance : MinDistance) * scale, nearest - 0.1f * scale);
             }
+            ShowBody(!underground || Vector3.Distance(pivot, wanted) >= HideBodyWithin * scale);
 
             // The impact shake, last: after the walls have had their say, and only on where the picture is taken from.
             wanted += rotation * (TickShake(Time.deltaTime) * scale);

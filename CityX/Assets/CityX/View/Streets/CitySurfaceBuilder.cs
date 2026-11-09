@@ -70,6 +70,9 @@ namespace CityX.View
             // skirt down each road's edge to the ground beside it (RoadSkirt).
             List<Vec2[]> terrainCuts = RoadCuts(ctx, chunkX, chunkY);
             terrainCuts.AddRange(basements);
+            // The sewers (CitySurfaceBuilder.Sewers.cs): the open cut of a tunnel's mouth is dug out of the bank, and an open manhole is a hole
+            // in its junction's asphalt.
+            List<Vec2[]> manholes = SewerCuts(ctx, chunkX, chunkY, far, terrainCuts);
             // The stairways through the steep blocks (CitySurfaceBuilder.StairLanes.cs) are cut out of the ground and the paving, their treads
             // sinking into the slope where it steepens. (The sidewalks beside steep roads were laid as steps for a day; the owner had them
             // taken out, 2026-10-16: "the along side the road stairs look like shit and serve no purpose". They are sloping paving again.)
@@ -151,9 +154,10 @@ namespace CityX.View
                 if (j == null) continue;
                 if (j.Plate != null)
                 {
-                    BuildPlate(ctx, j, ground, step);
+                    BuildPlate(ctx, j, ground, step, manholes);
                 }
             }
+            BuildSewers(ctx, chunkX, chunkY, structures, far);
 
             if (!far)
             {
@@ -643,7 +647,7 @@ namespace CityX.View
             }
         }
 
-        private static void BuildPlate(Context ctx, JunctionGeometry j, MeshBuffer buffer, float step)
+        private static void BuildPlate(Context ctx, JunctionGeometry j, MeshBuffer buffer, float step, List<Vec2[]> holes = null)
         {
             Vec2[] plate = j.Plate;
             Bounds(plate, out double mx, out double mz, out double Mx, out double Mz);
@@ -656,7 +660,17 @@ namespace CityX.View
             {
                 var tri = new List<Vec2> { centre, plate[i], plate[(i + 1) % plate.Length] };
                 List<Vec2> clipped = Clip(tri, ctx.Rect);
-                Fan(ctx, buffer, clipped, height);
+                if (holes != null && clipped.Count >= 3)
+                {
+                    foreach (List<Vec2> part in Subtract(clipped, holes))
+                    {
+                        Fan(ctx, buffer, part, height);
+                    }
+                }
+                else
+                {
+                    Fan(ctx, buffer, clipped, height);
+                }
                 // Its outline's skirt (along the roads' ends it lies under the ribbons, hidden).
                 RoadSkirt(ctx, buffer, plate[i], plate[(i + 1) % plate.Length], centre - (plate[i] + plate[(i + 1) % plate.Length]) * 0.5, height, step);
             }

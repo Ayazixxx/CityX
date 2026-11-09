@@ -23,6 +23,9 @@ namespace CityX.World.Plan
     {
         public RoadNode Node;
         public Vec2[] Plate;
+
+        /// <summary>For each point of the plate, the road whose end is the side from that point to the next one (its id), or -1 where the side is the plate's own edge.</summary>
+        public int[] PlateEdge;
     }
 
     /// <summary>
@@ -42,10 +45,24 @@ namespace CityX.World.Plan
         private const double MaxTrim = 42.0;
         [ThreadStatic] private static double _maxTrim;
 
+        /// <summary>Every ribbon stops at least this far short of a junction where two or more meet (none for the roads; the sewers want a room there).</summary>
+        [ThreadStatic] private static double _leastTrim;
+
         public static PlanGeometry Build(CityPlanData data)
         {
             PlanConfig cfg = data.Config;
+            return Build(data, e => CityPlan.HalfWidth(cfg, e.Class));
+        }
+
+        /// <summary>
+        /// The same laying-out for anything that runs along the roads at a width of its own (the sewers under them): a road given no width
+        /// is left out, and the junctions are worked out from the ones that are left.
+        /// </summary>
+        public static PlanGeometry Build(CityPlanData data, Func<RoadEdge, double> halfWidth, double leastTrim = 0.0)
+        {
+            PlanConfig cfg = data.Config;
             _maxTrim = MaxTrim * cfg.Scale;
+            _leastTrim = leastTrim;
             var geo = new PlanGeometry
             {
                 Edges = new EdgeGeometry[data.Edges.Count],
@@ -55,6 +72,8 @@ namespace CityX.World.Plan
             foreach (RoadEdge e in data.Edges)
             {
                 if (!e.Alive) continue;
+                double half = halfWidth(e);
+                if (half <= 0.0) continue;
                 Vec2 d = e.B.P - e.A.P;
                 double len = d.Length;
                 geo.Edges[e.Id] = new EdgeGeometry
@@ -64,7 +83,7 @@ namespace CityX.World.Plan
                     B = e.B.P,
                     Dir = len > 1e-9 ? d / len : new Vec2(1.0, 0.0),
                     Length = len,
-                    HalfWidth = CityPlan.HalfWidth(cfg, e.Class),
+                    HalfWidth = half,
                 };
             }
 
@@ -98,7 +117,7 @@ namespace CityX.World.Plan
             var order = new List<RoadEdge>(node.Edges.Count);
             foreach (RoadEdge e in node.Edges)
             {
-                if (!e.Alive) continue;
+                if (!e.Alive || geo.Edges[e.Id] == null) continue;
                 order.Add(e);
             }
             int k = order.Count;
@@ -153,8 +172,14 @@ namespace CityX.World.Plan
                 }
             }
 
+            for (int i = 0; i < k; i++)
+            {
+                trim[i] = Math.Max(trim[i], _leastTrim);
+            }
+
             // Plate: for each road, the right then left point of its trimmed start, plus the outside-bend corner after it.
             var plate = new List<Vec2>(k * 3);
+            var plateEdge = new List<int>(k * 3);
             for (int i = 0; i < k; i++)
             {
                 RoadEdge e = order[i];
@@ -163,13 +188,17 @@ namespace CityX.World.Plan
 
                 Vec2 centre = node.P + dirs[i] * trim[i];
                 plate.Add(centre - dirs[i].Perp * half[i]);
+                plateEdge.Add(e.Id);
                 plate.Add(centre + dirs[i].Perp * half[i]);
+                plateEdge.Add(-1);
                 if (outer[i] && hasCorner[i] && (corner[i] - node.P).Length < _maxTrim * 1.2)
                 {
                     plate.Add(corner[i]);
+                    plateEdge.Add(-1);
                 }
             }
             junction.Plate = plate.ToArray();
+            junction.PlateEdge = plateEdge.ToArray();
         }
     }
 }

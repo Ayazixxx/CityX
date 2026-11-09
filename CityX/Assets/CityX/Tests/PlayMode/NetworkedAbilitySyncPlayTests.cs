@@ -365,6 +365,32 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// A ladder (2026-11-09, docs/SEWERS.md): player A gets on one; player B is told which, and B's copy of A takes hold of it with its
+        /// own hands and feet, and lets go when A does.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ALadderOnePlayerIsOnIsHeldByAnothersCopyOfThem()
+        {
+#if UNITY_EDITOR
+            yield return BringUpTwoPlayers();
+            var owner = _ownerBody.GetComponent<PlayerLadder>();
+            Assert.IsNotNull(owner, "the joining player has no ladder climbing: rebuild the scene (PlayerAbilityWiring)");
+            var remote = _remoteBody.GetComponent<PlayerLocomotion>();
+            Vector3 ahead = _ownerBody.transform.forward;
+            ahead.y = 0.0f;
+            ahead.Normalize();
+            var ladder = new CityX.World.Ladder { Foot = _ownerBody.transform.position + ahead * 0.5f, Normal = -ahead, Height = 6.0f, TopOpen = false };
+            owner.GetOn(ladder, false);
+            yield return WaitUntil(() => remote.LadderWeight > 0.9f, "B's copy of A to take hold of the ladder");
+            owner.LetGo(Vector3.zero);
+            yield return WaitUntil(() => remote.LadderWeight < 0.05f, "B's copy of A to let go of it");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         // --- helpers ---
 
         private static IEnumerator WaitUntil(System.Func<bool> condition, string what)

@@ -239,6 +239,7 @@ namespace CityX.Character
         private GrappleSwing _grappleSwing;
         private PlayerClimbing _climbing;
         private PlayerVaulting _vaulting;
+        private PlayerLadder _ladder;
         private WallStick _wallStick;
 
         /// <summary>
@@ -281,6 +282,7 @@ namespace CityX.Character
             _grappleSwing = GetComponent<GrappleSwing>();
             _climbing = GetComponent<PlayerClimbing>();
             _vaulting = GetComponent<PlayerVaulting>();
+            _ladder = GetComponent<PlayerLadder>();
             _wallStick = GetComponent<WallStick>();
             _skills = PlayerSkills.On(gameObject);
             _fireballCaster = GetComponent<IFireballCaster>();
@@ -665,6 +667,15 @@ namespace CityX.Character
                 return;
             }
 
+            // A LADDER OWNS THE FRAME TOO (PlayerLadder): W and S climb, Shift with S slides, Space hops off, Control drops.
+            if (_ladder != null && _ladder.IsOn)
+            {
+                _ladder.Tick(keyboard.wKey.isPressed, keyboard.sKey.isPressed, keyboard.leftShiftKey.isPressed,
+                    keyboard.spaceKey.wasPressedThisFrame, keyboard.leftCtrlKey.wasPressedThisFrame, deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
             // THE SWING OWNS THE WHOLE FRAME WHILE ACTIVE, matching
             // player.gd's own _physics_process early-return into
             // _process_grapple_swing -- placed above TickCombat and the
@@ -829,6 +840,14 @@ namespace CityX.Character
                 {
                     wishDirection = Quaternion.Euler(0.0f, yaw, 0.0f) * new Vector3(wx, 0.0f, wz).normalized;
                 }
+            }
+
+            // WALKING INTO A LADDER'S FOOT GETS ON IT (E gets on from anywhere beside it, and from its top: LadderPrompt).
+            if (_ladder != null && (_grabCarry == null || !_grabCarry.IsCarrying) && !_locomotion.IsDashing
+                && _ladder.TryWalkOn(keyboard.wKey.isPressed, wishDirection))
+            {
+                _audio?.SilenceFootsteps();
+                return;
             }
 
             // RUNNING AT A LOW OBSTACLE VAULTS IT (Shift + W; holding Space is still the way to ask for a climb, checked above).

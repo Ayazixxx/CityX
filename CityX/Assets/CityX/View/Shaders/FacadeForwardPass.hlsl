@@ -106,7 +106,7 @@ half3 CityXRoomFill(float3 positionWS, float3 normalWS)
 }
 
 // What a tile of each wall material covers, in metres across and up. MUST match FacadeTextures.TileMetresX / TileMetresY.
-static const float2 kTileMetres[12] =
+static const float2 kTileMetres[16] =
 {
     float2(4.0, 4.0),       // concrete
     float2(2.025, 2.1),     // brick
@@ -119,7 +119,11 @@ static const float2 kTileMetres[12] =
     float2(4.0, 4.0),       // paving
     float2(6.0, 6.0),       // asphalt
     float2(5.0, 5.0),       // earth
-    float2(2.0, 2.0)        // setts
+    float2(2.0, 2.0),       // setts
+    float2(2.025, 2.1),     // grey brick (old brick, under the ground)
+    float2(2.025, 2.1),     // blue brick
+    float2(2.025, 2.1),     // stock brick
+    float2(2.025, 2.1)      // moss brick
 };
 
 struct Attributes

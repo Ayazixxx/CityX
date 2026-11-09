@@ -22,18 +22,46 @@ namespace CityX.View
     {
         public const int Size = 512;
         public const int Columns = 4;
-        public const int Rows = 3;
+        public const int Rows = 4;
 
+        /// <summary>
+        /// The last four are the old brick of the sewers (docs/SEWERS.md; owner, 2026-11-09: "the red brick texture in the sewers really doesnt
+        /// look right make them grey or something"): grey, the blue engineering brick, a grey-yellow stock brick, and brick gone green-black.
+        /// </summary>
         public static readonly string[] SliceNames =
-            { "concrete", "brick", "plaster", "metal", "stone", "tile", "spandrel", "roof", "paving", "asphalt", "earth", "setts" };
+        {
+            "concrete", "brick", "plaster", "metal", "stone", "tile", "spandrel", "roof", "paving", "asphalt", "earth", "setts",
+            "greybrick", "bluebrick", "stockbrick", "mossbrick",
+        };
 
         /// <summary>What a tile covers, in metres, across and up. Brick is not square: nine bricks across, twenty-eight courses up.</summary>
-        public static readonly float[] TileMetresX = { 4.0f, 2.025f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 4.0f, 6.0f, 5.0f, 2.0f };
+        public static readonly float[] TileMetresX = { 4.0f, 2.025f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 4.0f, 6.0f, 5.0f, 2.0f, 2.025f, 2.025f, 2.025f, 2.025f };
 
-        public static readonly float[] TileMetresY = { 4.0f, 2.1f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 4.0f, 6.0f, 5.0f, 2.0f };
+        public static readonly float[] TileMetresY = { 4.0f, 2.1f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 4.0f, 6.0f, 5.0f, 2.0f, 2.1f, 2.1f, 2.1f, 2.1f };
 
         /// <summary>How strongly relief becomes slope in the normal map, per slice.</summary>
-        private static readonly float[] NormalStrength = { 1.0f, 1.3f, 0.8f, 1.1f, 0.9f, 1.0f, 0.6f, 1.2f, 1.0f, 1.0f, 1.2f, 1.1f };
+        private static readonly float[] NormalStrength = { 1.0f, 1.3f, 0.8f, 1.1f, 0.9f, 1.0f, 0.6f, 1.2f, 1.0f, 1.0f, 1.2f, 1.1f, 1.3f, 1.3f, 1.3f, 1.3f };
+
+        /// <summary>A brick wall in its colours: its bricks from dark to light, and its mortar.</summary>
+        private readonly struct BrickColours
+        {
+            public readonly Color Dark, Light, Mortar;
+
+            public BrickColours(Color dark, Color light, Color mortar)
+            {
+                Dark = dark;
+                Light = light;
+                Mortar = mortar;
+            }
+        }
+
+        private static readonly BrickColours RedBrick = new BrickColours(new Color(0.45f, 0.23f, 0.18f), new Color(0.58f, 0.30f, 0.23f), new Color(0.60f, 0.60f * 0.97f, 0.60f * 0.92f));
+
+        // Old brick under the ground: the joints dark with damp, not pale as on a house.
+        private static readonly BrickColours GreyBrick = new BrickColours(new Color(0.33f, 0.34f, 0.33f), new Color(0.45f, 0.46f, 0.44f), new Color(0.22f, 0.23f, 0.21f));
+        private static readonly BrickColours BlueBrick = new BrickColours(new Color(0.22f, 0.25f, 0.31f), new Color(0.31f, 0.35f, 0.42f), new Color(0.36f, 0.37f, 0.36f));
+        private static readonly BrickColours StockBrick = new BrickColours(new Color(0.42f, 0.39f, 0.29f), new Color(0.54f, 0.50f, 0.37f), new Color(0.27f, 0.26f, 0.22f));
+        private static readonly BrickColours MossBrick = new BrickColours(new Color(0.21f, 0.27f, 0.22f), new Color(0.31f, 0.38f, 0.30f), new Color(0.15f, 0.18f, 0.14f));
 
         /// <summary>One drawn tile: colour and smoothness per pixel, and relief height in millimetres.</summary>
         public sealed class Tile
@@ -67,7 +95,7 @@ namespace CityX.View
                     switch (slice)
                     {
                         case 0: Concrete(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
-                        case 1: Brick(u, v, x, y, out r, out g, out b, out s, out h); break;
+                        case 1: Brick(u, v, x, y, RedBrick, out r, out g, out b, out s, out h); break;
                         case 2: Plaster(u, v, x, y, out r, out g, out b, out s, out h); break;
                         case 3: Metal(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
                         case 4: Stone(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
@@ -77,7 +105,11 @@ namespace CityX.View
                         case 8: Paving(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
                         case 9: Asphalt(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
                         case 10: Earth(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
-                        default: Setts(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
+                        case 11: Setts(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
+                        case 12: Brick(u, v, x, y, GreyBrick, out r, out g, out b, out s, out h); break;
+                        case 13: Brick(u, v, x, y, BlueBrick, out r, out g, out b, out s, out h); break;
+                        case 14: Brick(u, v, x, y, StockBrick, out r, out g, out b, out s, out h); break;
+                        default: Brick(u, v, x, y, MossBrick, out r, out g, out b, out s, out h); break;
                     }
                     int i = y * size + x;
                     tile.R[i] = Mathf.Clamp01(r);
@@ -188,7 +220,7 @@ namespace CityX.View
         }
 
         /// <summary>Running-bond brick, 215 x 65 mm with a 10 mm joint: nine bricks across, twenty-eight courses up.</summary>
-        private static void Brick(float u, float v, int px, int py,
+        private static void Brick(float u, float v, int px, int py, in BrickColours colours,
             out float r, out float g, out float b, out float s, out float h)
         {
             const int bricksAcross = 9;
@@ -211,18 +243,18 @@ namespace CityX.View
             float mott = Fbm(u, v, 3, 3, 6, 17);
 
             float fire = hb > 0.90f ? 0.70f : (hb < 0.12f ? 1.12f : 1.0f);          // a few burnt and a few pale bricks
-            float br = Mathf.Lerp(0.45f, 0.58f, hb) * fire;
-            float bg = Mathf.Lerp(0.23f, 0.30f, hb) * fire;
-            float bb = Mathf.Lerp(0.18f, 0.23f, hb) * fire;
+            float br = Mathf.Lerp(colours.Dark.r, colours.Light.r, hb) * fire;
+            float bg = Mathf.Lerp(colours.Dark.g, colours.Light.g, hb) * fire;
+            float bb = Mathf.Lerp(colours.Dark.b, colours.Light.b, hb) * fire;
             float shade = 0.94f + 0.10f * hb2 + (grain - 0.5f) * 0.10f + (mott - 0.5f) * 0.10f;
             br *= shade;
             bg *= shade;
             bb *= shade;
 
-            float mortarTone = 0.60f + (grain - 0.5f) * 0.10f + (mott - 0.5f) * 0.08f;
-            r = Mathf.Lerp(br, mortarTone, mortar);
-            g = Mathf.Lerp(bg, mortarTone * 0.97f, mortar);
-            b = Mathf.Lerp(bb, mortarTone * 0.92f, mortar);
+            float mortarShade = (grain - 0.5f) * 0.10f + (mott - 0.5f) * 0.08f;
+            r = Mathf.Lerp(br, colours.Mortar.r + mortarShade, mortar);
+            g = Mathf.Lerp(bg, colours.Mortar.g + mortarShade * 0.97f, mortar);
+            b = Mathf.Lerp(bb, colours.Mortar.b + mortarShade * 0.92f, mortar);
             s = Mathf.Lerp(0.14f, 0.07f, mortar) + (hb2 - 0.5f) * 0.04f;
             h = Mathf.Lerp(0.0f, -5.0f, mortar) + (grain - 0.5f) * 0.8f + Smooth(0.0045f, 0.012f, d) * 1.2f;
         }
