@@ -81,6 +81,17 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// <paramref name="v"/> made one long, however short it is, or <paramref name="otherwise"/> if it is nothing at all. Not Vector3.normalized:
+        /// that answers zero for anything shorter than 1e-5, which the face of a sliver is, and a corner with no normal draws as a pixel that
+        /// is not a number, which the bloom spreads into a glowing dot (GoreNightCapture.SweepTheCameraForFlickers).
+        /// </summary>
+        public static Vector3 Direction(Vector3 v, Vector3 otherwise)
+        {
+            float length = v.magnitude;
+            return length > 1e-15f ? v / length : otherwise;
+        }
+
+        /// <summary>
         /// A shape turned round the Y axis through <paramref name="rings"/> (height, radius) from bottom to top, <paramref name="sides"/>
         /// round, closed by a flat cap at each end (into <paramref name="bottomCap"/> and <paramref name="topCap"/>'s submeshes). A ring's
         /// radius is pushed in and out by <paramref name="jag"/> (0 to 1) round it, for a broken end.
@@ -111,7 +122,7 @@ namespace CityX.Character
                     Vector3 along = above - below;
                     Vector3 outward = new Vector3(p.x, 0.0f, p.z);
                     Vector3 normal = outward.sqrMagnitude > 1e-12f ? (outward.normalized - along.normalized * Vector3.Dot(outward.normalized, along.normalized)) : Vector3.up;
-                    row[i] = into.Add(p, normal.sqrMagnitude > 1e-12f ? normal.normalized : Vector3.up, new Vector2(i / (float)sides, k / (float)points.Count));
+                    row[i] = into.Add(p, Direction(normal, Vector3.up), new Vector2(i / (float)sides, k / (float)points.Count));
                 }
                 rows.Add(row);
             }

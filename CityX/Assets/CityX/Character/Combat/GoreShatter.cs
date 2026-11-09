@@ -410,7 +410,7 @@ namespace CityX.Character
             }
             for (int w = 0; w < weldNormals.Count; w++)
             {
-                weldNormals[w] = weldNormals[w].sqrMagnitude > 1e-20f ? weldNormals[w].normalized : Vector3.up;
+                weldNormals[w] = GoreMeshes.Direction(weldNormals[w], Vector3.up);
             }
 
             // The torn edge: every edge only one triangle of the patch has.
@@ -477,8 +477,7 @@ namespace CityX.Character
                 // A strip down the torn edge from a to b, facing out of the patch (away from the triangle that has the edge).
                 Vector3 ua = weldPositions[a] - weldNormals[a] * from, ub = weldPositions[b] - weldNormals[b] * from;
                 Vector3 la = weldPositions[a] - weldNormals[a] * to, lb = weldPositions[b] - weldNormals[b] * to;
-                Vector3 normal = Vector3.Cross(lb - ua, ub - ua);
-                normal = normal.sqrMagnitude > 1e-20f ? normal.normalized : Vector3.up;
+                Vector3 normal = GoreMeshes.Direction(Vector3.Cross(lb - ua, ub - ua), Vector3.up);
                 int iua = into.Add(ua, normal, Vector2.zero), iub = into.Add(ub, normal, Vector2.zero);
                 int ila = into.Add(la, normal, Vector2.zero), ilb = into.Add(lb, normal, Vector2.zero);
                 into.Triangle(submesh, iua, ilb, iub);

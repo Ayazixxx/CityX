@@ -65,6 +65,13 @@ as well".
   several times"): capped at 0.5, eye whites 0.42, and a burst head no longer throws loose teeth (the jaw keeps its own). `GoreNightCapture`
   renders hacked bodies at night under a flashlight and lamps through the game's grade and counts the small bright patches; the earlier
   checks were by day with no grade, where no such dot can show.
+- **No broken pixels** (owner, 2026-11-08, with screenshots: "the little flickers of light are still happening on dismembered body parts", "they
+  flicker as i move my mouse": the pale colours above were not it). A torn piece's meat had 13 to 32 corners with no normal at all:
+  `Vector3.normalized` answers zero for anything shorter than 1e-5, and the guard before it (1e-20) let a body's sliver triangles through. A
+  triangle with no normal lights to a pixel that is not a number, on the frames a pixel lands on it, and the bloom's clamp (`min` answers its
+  other argument for a NaN) makes that the brightest value there is: a white dot with a glow that flickers as the view moves. Normals are
+  made with `GoreMeshes.Direction` now, and the game's camera has URP's Stop NaN on, so a broken pixel from anything else is drawn black.
+  `GoreNightCapture.SweepTheCameraForFlickers` turns the camera in small steps, counts such pixels before the grade and traces each to its renderer.
 - A copy keeps the look of what it copies, each material's own property block included (`MaterialBlocks`): the hair's dye is on its
   material's block, and the cut-off head and a burst head's hair chunks came out in the hair material's gold (owner, 2026-11-08: "when my
   player got decapitated the hair color changed on the decapitated head"). Hair a hat or helmet covers (switched off under it) is not

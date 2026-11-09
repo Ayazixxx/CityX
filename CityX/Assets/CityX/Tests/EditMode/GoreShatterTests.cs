@@ -167,6 +167,25 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// A body's mesh has slivers, and Vector3.normalized answers zero for anything shorter than 1e-5, which their face normals are: a corner
+        /// with no normal draws as a pixel that is not a number, and the bloom makes that a glowing dot, there for the frames a pixel lands on it
+        /// (owner, 2026-11-08: "the little flickers of light are still happening on dismembered body parts", "they flicker as i move my mouse").
+        /// </summary>
+        [Test]
+        public void EvenAPieceOfTinyTrianglesHasNormalsOneLong()
+        {
+            GoreShatter.Surface fine = Tube(0.012f, 12, 12, GoreShatter.Layer.Flesh, 0.003f);
+            foreach (GoreShatter.Chunk chunk in Shatter(4, 3, fine))
+            {
+                foreach (GoreShatter.Patch patch in chunk.Patches)
+                {
+                    Assert.AreEqual(0, BadCorners(patch.Mesh), "a tiny piece's outside has a corner with no normal");
+                }
+                Assert.AreEqual(0, BadCorners(chunk.Meat), "a tiny piece's meat has a corner with no normal");
+            }
+        }
+
         [Test]
         public void EveryTriangleLandsInOnePieceAndEveryPieceIsClosed()
         {

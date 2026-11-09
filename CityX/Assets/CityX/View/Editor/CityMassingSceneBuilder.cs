@@ -209,6 +209,10 @@ namespace CityX.ViewEditor
             // committed scene file: m_RenderPostProcessing serialized as 0 on
             // both cameras in CityMassing.unity.
             cameraData.renderPostProcessing = true;
+            // A pixel that is not a number goes into the bloom as the brightest thing there can be and comes out a glowing dot, flickering as
+            // the view moves (owner, 2026-11-08, on gore; the torn meat made them, GoreMeshes.Direction). URP's guard draws such a pixel black,
+            // whatever made it.
+            cameraData.stopNaN = true;
             cameraObject.AddComponent<FlyCamera>();
             cameraObject.AddComponent<AudioListener>();
 

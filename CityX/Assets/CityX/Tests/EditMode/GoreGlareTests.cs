@@ -56,5 +56,23 @@ namespace CityX.Tests
             Assert.LessOrEqual(bloom.clamp.value, ViewEditor.CityMassingSceneBuilder.BloomClamp);
             Assert.Greater(bloom.clamp.value, View.DayNightCycle.WindowGlow, "the cap would dim the lit windows' own glow");
         }
+
+        /// <summary>
+        /// A pixel that is not a number goes into the bloom as the brightest thing there can be: a glowing dot, flickering as the view moves
+        /// (owner, 2026-11-08: "they flicker as i move my mouse"). The camera that shows the game draws one black, whatever made it.
+        /// </summary>
+        [Test]
+        public void TheGamesCameraDrawsABrokenPixelBlack()
+        {
+            string[] scene = System.IO.File.ReadAllLines("Assets/CityX/Scenes/CityMassing.unity");
+            int graded = System.Array.FindIndex(scene, line => line.Trim() == "m_RenderPostProcessing: 1");
+            Assert.GreaterOrEqual(graded, 0, "no camera in the game's scene has the grade on: rebuild the scene");
+            bool stops = false;
+            for (int i = graded; i < Mathf.Min(scene.Length, graded + 8); i++)
+            {
+                stops |= scene[i].Trim() == "m_StopNaN: 1";
+            }
+            Assert.IsTrue(stops, "the game's camera lets broken pixels into the bloom: rebuild the scene");
+        }
     }
 }
