@@ -133,6 +133,79 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// RECOVERY ON EVERY SCREEN (docs/RECOVERY.md): A, thrown, flips back onto its feet, and B's copy of A flips as A does -- the flip is part
+        /// of being down, so it travels with the ragdoll's pose -- posed as A was at the moment it shows, then is its Animator's again, upright.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ARecoveryFlipShowsOnAnotherPlayersCopy()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            GameObject owner = _aOnA.gameObject;
+            GameObject copy = _aOnB.gameObject;
+            var ownerRagdoll = owner.GetComponent<Ragdoll>();
+            var ownerLocomotion = owner.GetComponent<PlayerLocomotion>();
+            var copyMirror = copy.GetComponent<RagdollMirror>();
+            owner.GetComponent<PlayerInputReader>().enabled = false;   // driven here: there is no keyboard
+
+            owner.GetComponent<PlayerVitals>().KnockDown(new Vector3(0.0f, 12.0f, 4.0f));
+            Assert.IsTrue(ownerRagdoll.IsLimp, "setup: A was not thrown");
+            yield return WaitUntil(() =>
+            {
+                ownerRagdoll.Tick(Time.deltaTime);
+                return copyMirror.IsMirroring;
+            }, "B's copy of A to take A's limp pose");
+            Assert.IsTrue(ownerRagdoll.Recover(owner.transform.forward), "setup: A could not flip up");
+
+            // The copy is measured by which way its body points (hips to neck) against A's at the moment it shows: where it is in the air is
+            // the network's (the copy's root follows A's on its own clock, a few centimetres behind at the speed it flies).
+            Animator ownerAnimator = owner.GetComponentInChildren<Animator>();
+            Animator copyAnimator = copy.GetComponentInChildren<Animator>();
+            System.Func<Animator, Vector3> bodyUp = animator =>
+                (animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position).normalized;
+            var ownerUps = new System.Collections.Generic.List<(float time, Vector3 at)>();
+            var angles = new System.Collections.Generic.List<float>();
+            Vector3 lastUp = bodyUp(copyAnimator);
+            float copyTurned = 0.0f;
+            for (float t = 0.0f; t < 6.0f && (ownerRagdoll.IsLimp || copyMirror.IsMirroring || !copyAnimator.enabled); t += Time.deltaTime)
+            {
+                if (ownerRagdoll.IsLimp)
+                {
+                    ownerRagdoll.Tick(Time.deltaTime);
+                }
+                else
+                {
+                    ownerLocomotion.Tick(default, Time.deltaTime);
+                }
+                yield return null;
+                ownerUps.Add((Time.time, bodyUp(ownerAnimator)));
+                Vector3 up = bodyUp(copyAnimator);
+                copyTurned += Vector3.Angle(lastUp, up);
+                lastUp = up;
+                if (copyMirror.IsMirroring && OwnerAt(ownerUps, copyMirror.PlaybackTime, out Vector3 ownerUp))
+                {
+                    angles.Add(Vector3.Angle(ownerUp, up));
+                }
+            }
+            angles.Sort();
+            float typical = angles.Count > 0 ? angles[angles.Count / 2] : float.MaxValue;
+            Debug.Log($"CityX networked recovery: B's copy of A turned {copyTurned:0} deg (A's flip {ownerRagdoll.Flip.SweepDegrees:0}), pointing " +
+                      $"within {typical:0} deg typically of A as A was at the moment it shows ({angles.Count} frames measured)");
+            Assert.IsFalse(ownerRagdoll.IsLimp, "A never came out of the flip");
+            Assert.IsFalse(copyMirror.IsMirroring, "B's copy of A never came out of it");
+            Assert.IsTrue(copyAnimator.enabled, "B's copy of A was not handed back to its Animator");
+            Assert.Greater(copyTurned, RecoveryFlip.MinSweepDegrees - 30.0f, "B's copy of A did not flip as A did");
+            Assert.Greater(angles.Count, 3, "the copy's moment was never within what A was seen to do");
+            Assert.Less(typical, 20.0f, "B's copy of A is not turned as A was at the moment it shows");
+            yield return null;
+            Assert.Greater(copyAnimator.GetBoneTransform(HumanBodyBones.Head).position.y - copy.transform.position.y, 1.6f, "B's copy of A is not upright");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator AGrappleHangShowsOnAnotherPlayersCopyWithItsRope()
         {

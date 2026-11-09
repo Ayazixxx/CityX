@@ -85,6 +85,22 @@ namespace CityX.Character
         /// <summary>Below this speed, metres a second, the soles are laid flat on the ground (fully when stood still); above it the clip rolls them.</summary>
         public const float FlatFootBelowSpeed = 1.0f;
 
+        /// <summary>
+        /// The feet forget where they last stood and count the body as in the air (taken back mid-flight by the Recovery flip, metres from where
+        /// it went down): kept, the walker's first frame measured the whole way it had been flung as one stride, glided the drawn body down to
+        /// the ground it had left and bent the legs out in front, as if sat on nothing.
+        /// </summary>
+        private void ForgetFootingInTheAir()
+        {
+            _footIkHasLast = false;
+            _footIkWasInAir = true;
+            _footIkAirSeconds = LongestGraceSeconds;
+            _feet.Reset();
+            _footwork.Reset();
+            _glide.Reset();
+            _stairSteps.Reset();
+        }
+
         private void ApplyFootIK()
         {
             if (_animator == null)

@@ -17,7 +17,7 @@ One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromanc
 
 | Tree | Stars | Notes |
 |---|---|---|
-| Freerunner | Vault (root, everyone has it) -> Dash, Climb, Super Jump; Wall Stick above Climb | the owner's shape; Wall Stick's place is mine |
+| Freerunner | Vault (root, everyone has it) -> Dash, Climb, Recovery; Wall Stick above Climb; Super Jump above Recovery | the owner's shape (2026-11-08: Recovery took Super Jump's place in the first row, Super Jump after it, docs/RECOVERY.md); Wall Stick's place is mine |
 | Sword | Sword Spin -> Sword Wave, Stab Dash, Octaslash | the four need a sword in hand; Stab Dash (2026-10-18) is the owner's, docs/STAB_DASH.md |
 | Berserker | Bloodrage | |
 | Pyromancer | Fireball | its top star joins Steam |
@@ -41,8 +41,9 @@ my layout, as are the trees' order and the two not in the game.
 - **Reset** (two clicks) forgets everything but vaulting and gives every point back. Free for now; GAME_DESIGN.md wants respecs to cost more later.
 - **A body with no character knows what the game had before the tree**, with the old number keys: pressing play on the city scene in the
   editor, and every test, plays as before. **A character made before the skill tree** (`SkillsVersion` 0) keeps the same, and its keys; a reset
-  turns that into points to spend. That is every skill **but Super Jump** (`SkillBook.AsBeforeTheTree`): the charged jump was not in the game, and
-  knowing it moves a jump from the press of Space to its release, which every test (and anyone used to the instant jump) would trip over.
+  turns that into points to spend. That is every skill **but Super Jump and Recovery** (`SkillBook.AsBeforeTheTree`): the charged jump was not in
+  the game, and knowing it moves a jump from the press of Space to its release, which every test (and anyone used to the instant jump) would trip
+  over; Recovery came after the tree and changes what Space does to a body that is down.
 - Saved with the character (`LearnedSkills`, `Hotbar`, `SkillPoints`, `SkillsVersion` in `CharacterSave`; `CharacterIdentity` reads and writes).
 
 ### Ranks (2026-10-27, with Arcane Orb)
@@ -69,6 +70,7 @@ less (docs/MAGIC_WAND.md).
 | Dash | double-tapping Shift does nothing. **The sword's roll is not gated**: it is the sword fighter's dodge, part of sword combat |
 | Climb | no wall is ever grabbed (Space held, or Shift + W into a tall wall): no climbing, no pulling up onto ledges, no climbing in through high windows |
 | Wall Stick | no sticking to walls |
+| Recovery | Space stands a knocked-down body up only once it has lain still 2 s, with the get-up clip. **With it**, Space flips the body back onto its feet at once, from anywhere, even in mid-air, keeping its momentum (Saints Row IV's Ninja Reflexes, docs/RECOVERY.md) |
 | Super Jump | Space jumps at once at the base height. **With it**, Space held crouches and charges (up to 1.5 s) and the jump goes on release, up to 15 times as high (a full charge rose 15.6 m against 1.07 m in the test). The charged jump had been kept out of the game for this ("keep it in the vault") |
 | Vault | always available |
 
@@ -111,8 +113,8 @@ body's, `NetworkedPlayerIdentity.OnStartClient`).
 
 `SkillTreeTests` (the map's data, the rules, the bar, the save, skill points, the forgiven landing), `SkillRankTests` (ranks: their cost, a reset, the save, the server's count), `SkillMapLayoutTests` (the row, the two copies,
 wrapping, stepping tree to tree, show all), `SkillMenuPlayTests` (learning, the bar, dragging a star onto a slot, wrapping, zoom, reset, closing,
-the HUD's bar), `SkillLocksRealInputPlayTests` (real keys in the real city: a new character's keys, a spell moved to 0, Dash, Climb and Super Jump
-only once learnt, a super jump's landing). `SkillMenuCapture` (Explicit, -Graphics) renders `Logs/CityShots/skills-*.png`.
+the HUD's bar), `SkillLocksRealInputPlayTests` (real keys in the real city: a new character's keys, a spell moved to 0, Dash, Climb, Recovery and
+Super Jump only once learnt, a super jump's landing). `SkillMenuCapture` (Explicit, -Graphics) renders `Logs/CityShots/skills-*.png`.
 
 ### Not done
 

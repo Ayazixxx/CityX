@@ -480,6 +480,9 @@ namespace CityX.Character
         /// </summary>
         public const float FinisherRagdollSeconds = 1.5f;
 
+        /// <summary>A knockdown whose time ran out while the body was still flying looks again this often for it to have come down, seconds.</summary>
+        public const float LandingCheckSeconds = 0.05f;
+
         /// <summary>player.gd POST_FINISHER_INVULN_SECONDS -- granted once the body stands back up, not during the knockdown itself.</summary>
         public const float PostFinisherInvulnerabilitySeconds = 1.0f;
 
@@ -915,10 +918,18 @@ namespace CityX.Character
             {
                 _finisherRagdollRemaining = 0.0f;   // killed while knocked down: death has the body from here, and a corpse does not get up
             }
+            if (_ragdoll != null && _ragdoll.IsRecovering)
+            {
+                _finisherRagdollRemaining = 0.0f;   // flipped back up (Recovery): the knockdown is over
+            }
             if (_finisherRagdollRemaining > 0.0f)
             {
                 _finisherRagdollRemaining -= deltaTime;
-                if (_finisherRagdollRemaining <= 0.0f)
+                if (_finisherRagdollRemaining <= 0.0f && _ragdoll != null && _ragdoll.IsLimp && !_ragdoll.IsOnGround)
+                {
+                    _finisherRagdollRemaining = LandingCheckSeconds;   // still flying (thrown high): up once it has come down, not in mid-air
+                }
+                else if (_finisherRagdollRemaining <= 0.0f)
                 {
                     _finisherRagdollRemaining = 0.0f;
                     // Gets up with the stand-up animation, from wherever the body is lying (no rest wait: the knockdown's own timer was it).
@@ -1320,6 +1331,19 @@ namespace CityX.Character
         {
             _wasAirborne = true;
             _highestAirborneY = currentY;
+        }
+
+        /// <summary>
+        /// The fall under way is measured from another point of the body from here, <paramref name="metres"/> higher (negative: lower) than the
+        /// one before: the Recovery flip, watched by the torso while the body was limp and by the feet once it flips onto them. Its highest point
+        /// moves by as much, so the landing counts the same drop.
+        /// </summary>
+        public void ShiftFallPeak(float metres)
+        {
+            if (_wasAirborne)
+            {
+                _highestAirborneY += metres;
+            }
         }
 
         private bool _fallForgiven;

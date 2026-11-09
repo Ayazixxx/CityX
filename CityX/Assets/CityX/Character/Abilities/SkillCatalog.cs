@@ -104,7 +104,9 @@ namespace CityX.Character
     /// game yet (Hydromancer, and Steam, the hybrid of fire and water) show where trees found later and hybrids go.
     ///
     /// Freerunner is the owner's: vaulting at the root, given to everyone in the tutorial, then three paths, Dash, Climb (with pulling yourself up
-    /// onto ledges, owner) and Super Jump. Wall Stick on the Climb path is my placement. Every other tree's shape is my layout.
+    /// onto ledges, owner) and Recovery, with Super Jump after Recovery (owner, 2026-11-08: "recovery should be one of the first 3 options in
+    /// replacement of superjump and superjump can go after it"). Wall Stick on the Climb path is my placement. Every other tree's shape is my
+    /// layout.
     /// </summary>
     public static class SkillCatalog
     {
@@ -112,6 +114,7 @@ namespace CityX.Character
         public const string Dash = "dash";
         public const string Climb = "climb";
         public const string SuperJump = "super-jump";
+        public const string Recovery = "recovery";
         public const string WallStick = "wall-stick";
         public const string Fireball = "fireball";
         public const string IceShards = "ice-shards";
@@ -219,7 +222,7 @@ namespace CityX.Character
         {
             var nodes = new List<SkillNode>
             {
-                // --- Freerunner (owner): vaulting at the root, then Dash, Climb and Super Jump.
+                // --- Freerunner (owner): vaulting at the root, then Dash, Climb and Recovery; Super Jump after Recovery.
                 new SkillNode(Vault, "Vault", "freerunner", SkillKind.Movement, At(0, 0),
                     "Run at a low wall, a railing or a window with Shift + W and you go over it or through it. Everyone learns it in the tutorial.",
                     knownFromStart: true),
@@ -228,16 +231,18 @@ namespace CityX.Character
                 new SkillNode(Climb, "Climb", "freerunner", SkillKind.Movement, At(0, 1),
                     "Hold Space at a wall to grab it, or run into it with Shift + W. Climb any wall, pull yourself up onto ledges and climb in " +
                     "through windows too high to vault.", new[] { Vault }),
-                new SkillNode(SuperJump, "Super Jump", "freerunner", SkillKind.Movement, At(1, 1),
-                    "Hold Space to crouch and charge, let go to leap. A full charge takes a second and a half and goes many times higher.",
+                new SkillNode(Recovery, "Recovery", "freerunner", SkillKind.Movement, At(1, 1),
+                    "Knocked down or thrown, press Space to flip straight back onto your feet, even in mid-air, keeping your momentum.",
                     new[] { Vault }),
+                new SkillNode(SuperJump, "Super Jump", "freerunner", SkillKind.Movement, At(1, 2),
+                    "Hold Space to crouch and charge, let go to leap. A full charge takes a second and a half and goes many times higher.",
+                    new[] { Recovery }),
                 new SkillNode(WallStick, "Wall Stick", "freerunner", SkillKind.Movement, At(0, 2),
                     "Sprint and leap at a wall to stick to it by your feet, then run along it.", new[] { Climb }),
                 Empty("freerunner", 1, At(-1, 2), Dash),
                 Empty("freerunner", 2, At(-1, 3), "freerunner-1"),
                 Empty("freerunner", 3, At(0, 3), WallStick),
-                Empty("freerunner", 4, At(1, 2), SuperJump),
-                Empty("freerunner", 5, At(1, 3), "freerunner-4"),
+                Empty("freerunner", 4, At(1, 3), SuperJump),
 
                 // --- Sword.
                 new SkillNode(SwordSpin, "Sword Spin", "sword", SkillKind.Ability, At(0, 0),

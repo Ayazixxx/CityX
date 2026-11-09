@@ -11,13 +11,14 @@ namespace CityX.Tests
     /// <summary>
     /// THE SKILL TREES AND THE BAR (owner, 2026-10-14: "implement all the skills we have so far including the movements like dash, climb, super
     /// jump ... with the ability to add them as hotbar spells"; vaulting first, for everyone, then Dash, Climb and Super Jump; movement keeps its
-    /// own controls; keys 1 to 0, all equal). The map's data, the rules for learning, the bar and the save.
+    /// own controls; keys 1 to 0, all equal; 2026-11-08: Recovery in Super Jump's place, Super Jump after it). The map's data, the rules for
+    /// learning, the bar and the save.
     /// </summary>
     public sealed class SkillTreeTests
     {
         private static readonly string[] EverySkillTheGameHas =
         {
-            SkillCatalog.Vault, SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump, SkillCatalog.WallStick,
+            SkillCatalog.Vault, SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump, SkillCatalog.WallStick, SkillCatalog.Recovery,
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
             SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.StabDash, SkillCatalog.Bloodrage,
             SkillCatalog.SelfSmite, SkillCatalog.Grow, SkillCatalog.Shrink, SkillCatalog.ArcaneOrb, SkillCatalog.ArcaneBarrier,
@@ -94,26 +95,44 @@ namespace CityX.Tests
             Assert.AreEqual(FireEnhancementAbility.Id, SkillCatalog.FireEnhancement);
         }
 
+        /// <summary>Owner, 2026-11-08: "recovery should be one of the first 3 options in replacement of superjump and superjump can go after it".</summary>
         [Test]
-        public void FreerunnerIsVaultingForEveryoneThenDashClimbAndSuperJump()
+        public void FreerunnerIsVaultingForEveryoneThenDashClimbAndRecoveryWithSuperJumpAfterRecovery()
         {
             SkillNode vault = SkillCatalog.Find(SkillCatalog.Vault);
             Assert.IsTrue(vault.KnownFromStart, "vaulting is taught in the tutorial: everyone has it");
             Assert.IsEmpty(vault.Requires);
-            foreach (string path in new[] { SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump })
+            foreach (string path in new[] { SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.Recovery })
             {
                 SkillNode node = SkillCatalog.Find(path);
                 Assert.AreEqual("freerunner", node.TreeId);
                 CollectionAssert.AreEqual(new[] { SkillCatalog.Vault }, node.Requires, $"{path} should open straight from vaulting");
                 Assert.IsFalse(node.KnownFromStart, $"{path} has to be learnt");
+                Assert.AreEqual(SkillCatalog.RowSpacing, node.Position.y, 0.01f, $"{path} is one of the first row's three");
             }
+            SkillNode superJump = SkillCatalog.Find(SkillCatalog.SuperJump);
+            CollectionAssert.AreEqual(new[] { SkillCatalog.Recovery }, superJump.Requires, "Super Jump comes after Recovery");
+            Assert.AreEqual(SkillCatalog.Find(SkillCatalog.Recovery).Position.x, superJump.Position.x, 0.01f, "straight above it");
+            Assert.Greater(superJump.Position.y, SkillCatalog.Find(SkillCatalog.Recovery).Position.y);
             Assert.AreEqual(1, SkillCatalog.Nodes.Count(n => n.KnownFromStart), "only vaulting is known from the start");
+        }
+
+        [Test]
+        public void ACharacterWhoLearntSuperJumpBeforeRecoveryCameKeepsIt()
+        {
+            var book = new SkillBook();
+            book.SetLearnt(new[] { SkillCatalog.SuperJump });
+            Assert.IsTrue(book.Knows(SkillCatalog.SuperJump), "it was paid for");
+            Assert.IsFalse(book.Knows(SkillCatalog.Recovery));
+            int points = 1;
+            Assert.AreEqual(SkillBook.Refusal.None, book.TryLearn(SkillCatalog.Recovery, ref points), "and Recovery can still be learnt");
         }
 
         [Test]
         public void MovementKeepsItsOwnControlsAndTheSpellsAndTechniquesGoOnTheBar()
         {
-            foreach (string id in new[] { SkillCatalog.Vault, SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump, SkillCatalog.WallStick })
+            foreach (string id in new[] { SkillCatalog.Vault, SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump, SkillCatalog.WallStick,
+                         SkillCatalog.Recovery })
             {
                 Assert.IsFalse(SkillCatalog.Find(id).GoesOnBar, $"{id} is movement: it keeps its own controls (owner)");
             }
@@ -220,12 +239,12 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void BeforeTheTreeEveryoneHadEverySkillButTheChargedJump()
+        public void BeforeTheTreeEveryoneHadEverySkillButTheChargedJumpAndRecovery()
         {
             SkillBook before = SkillBook.AsBeforeTheTree();
             foreach (string id in EverySkillTheGameHas)
             {
-                Assert.AreEqual(id != SkillCatalog.SuperJump, before.Knows(id), id);
+                Assert.AreEqual(id != SkillCatalog.SuperJump && id != SkillCatalog.Recovery, before.Knows(id), id);
             }
         }
 

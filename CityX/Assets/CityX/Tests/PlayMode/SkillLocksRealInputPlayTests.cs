@@ -13,7 +13,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// THE SKILLS, FROM THE REAL KEYS IN THE REAL SCENE (owner, 2026-10-14). The number keys cast whatever is in their slot of the bar, once it is
-    /// learnt; Dash, Climb and Super Jump work only once learnt (vaulting always does); a brand new character has vaulting only.
+    /// learnt; Dash, Climb, Recovery and Super Jump work only once learnt (vaulting always does); a brand new character has vaulting only.
     /// </summary>
     public sealed class SkillLocksRealInputPlayTests : InputTestFixture
     {
@@ -228,7 +228,8 @@ namespace CityX.Tests
             }
             yield return Wait(0.5f);
 
-            skills.SetPoints(1);
+            skills.SetPoints(2);
+            Assert.AreEqual(SkillBook.Refusal.None, skills.TryLearn(SkillCatalog.Recovery), "Super Jump comes after Recovery");
             Assert.AreEqual(SkillBook.Refusal.None, skills.TryLearn(SkillCatalog.SuperJump));
             var vitals = input.GetComponent<PlayerVitals>();
             float healthBefore = vitals.Health;
@@ -243,6 +244,52 @@ namespace CityX.Tests
             }
             yield return Wait(0.3f);
             Assert.AreEqual(healthBefore, vitals.Health, 0.01f, "landing a super jump back on the street it left should not hurt");
+        }
+
+        /// <summary>
+        /// RECOVERY (owner, 2026-11-08, Saints Row IV's): thrown into the air, Space flips the body back onto its feet at once, once Recovery is
+        /// learnt; without it Space does nothing to a body that is still flying.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SpaceFlipsAThrownBodyBackOntoItsFeetOnlyOnceRecoveryIsLearnt()
+        {
+            PlayerInputReader input = null;
+            yield return Stage(i => input = i);
+            PlayerSkills skills = MakeNew(input, 0);
+            var vitals = input.GetComponent<PlayerVitals>();
+            var ragdoll = input.GetComponent<Ragdoll>();
+            var locomotion = input.GetComponent<PlayerLocomotion>();
+
+            vitals.KnockDown(new Vector3(0.0f, 9.0f, 3.0f));
+            Assert.IsTrue(ragdoll.IsLimp, "setup: not thrown");
+            yield return Wait(0.3f);
+            yield return Tap(_keyboard.spaceKey);
+            Assert.IsTrue(ragdoll.IsLimp && !ragdoll.IsRecovering, "Space flipped a thrown body up without Recovery learnt");
+            for (float t = 0.0f; t < 8.0f && ragdoll.IsLimp; t += Time.deltaTime)
+            {
+                yield return null;   // the knockdown's own get-up, on the ground
+            }
+            Assert.IsFalse(ragdoll.IsLimp, "setup: never got up from the first throw");
+            yield return Wait(1.5f);
+
+            skills.SetPoints(1);
+            Assert.AreEqual(SkillBook.Refusal.None, skills.TryLearn(SkillCatalog.Recovery));
+            vitals.KnockDown(new Vector3(0.0f, 9.0f, 3.0f));
+            yield return Wait(0.3f);
+            Assert.IsTrue(ragdoll.IsLimp, "setup: not thrown the second time");
+            Press(_keyboard.spaceKey);
+            yield return null;
+            Assert.IsTrue(ragdoll.IsRecovering, "Space should flip a thrown body back up once Recovery is learnt");
+            Release(_keyboard.spaceKey);
+            for (float t = 0.0f; t < 4.0f && (ragdoll.IsLimp || !locomotion.IsGrounded); t += Time.deltaTime)
+            {
+                yield return null;
+            }
+            Assert.IsFalse(ragdoll.IsLimp, "the flip never handed the body back");
+            Assert.IsTrue(locomotion.IsGrounded, "it never landed");
+            Animator animator = input.GetComponentInChildren<Animator>();
+            float headOverFeet = animator.GetBoneTransform(HumanBodyBones.Head).position.y - input.transform.position.y;
+            Assert.Greater(headOverFeet, 1.6f, "it should land on its feet, upright");
         }
 
         /// <summary>Holds Space for longer than a full charge, lets go, and reports how far the body rose.</summary>

@@ -243,8 +243,8 @@ namespace CityX.Character
 
         /// <summary>
         /// What this body has learnt and what is on its bar (owner, 2026-10-14). The number keys cast whatever is in their slot, and Dash, Climb,
-        /// Wall Stick and Super Jump work only once learnt; vaulting always does. A body with no character knows what the game had before the
-        /// skill tree: everything but Super Jump (PlayerSkills).
+        /// Wall Stick, Recovery and Super Jump work only once learnt; vaulting always does. A body with no character knows what the game had
+        /// before the skill tree: everything but Super Jump and Recovery (PlayerSkills).
         /// </summary>
         private PlayerSkills _skills;
 
@@ -515,7 +515,8 @@ namespace CityX.Character
                 // StopThrustEffects just above) rather than once, so it also
                 // catches a jetpack that gets equipped mid-ragdoll.
                 EquippedFlightGear?.ResetTilt();
-                if (_grappleSwing != null && _grappleSwing.IsRoped && !IsHeld)
+                bool roped = _grappleSwing != null && _grappleSwing.IsRoped;   // Space lets go of the rope, so it flips nobody up the same frame
+                if (roped && !IsHeld)
                 {
                     TickRopedSwing(keyboard, deltaTime);   // the rope's controls while the body hangs limp from it (GrappleSwing.Rope.cs)
                 }
@@ -558,17 +559,23 @@ namespace CityX.Character
                     // grounded landing case already follows below.
                     if (_vitals != null && _ragdoll.Torso != null)
                     {
-                        float ragdollFallDamage =
-                            _vitals.TickFallDamage(_ragdoll.IsRestingOnGround, _ragdoll.Torso.position.y);
+                        // Flipping back up (Recovery), the body is watched from its feet, as it will be once the walker has it.
+                        float watchedY = _ragdoll.IsRecovering ? transform.position.y : _ragdoll.Torso.position.y;
+                        float ragdollFallDamage = _vitals.TickFallDamage(_ragdoll.IsRestingOnGround, watchedY);
                         if (ragdollFallDamage > 0.0f)
                         {
                             _audio?.PlayFallImpact();
                         }
                     }
 
-                    if (_ragdoll.CanStandUp && !IsHeld && keyboard.spaceKey.wasPressedThisFrame)
+                    // SPACE GETS A BODY THAT IS DOWN BACK UP: with Recovery learnt, at once, from anywhere, with a flip (Saints Row IV's Ninja
+                    // Reflexes, docs/RECOVERY.md); without it, once it has lain still a while, with the get-up.
+                    if (!IsHeld && !roped && keyboard.spaceKey.wasPressedThisFrame)
                     {
-                        _ragdoll.BeginStandingUp();
+                        if (!(_skills.Knows(SkillCatalog.Recovery) && _ragdoll.Recover(transform.forward)) && _ragdoll.CanStandUp)
+                        {
+                            _ragdoll.BeginStandingUp();
+                        }
                     }
                 }
                 return;

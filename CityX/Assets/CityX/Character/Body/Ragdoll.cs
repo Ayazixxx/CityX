@@ -150,7 +150,38 @@ namespace CityX.Character
         /// Requested: "the ragdoll can continue to take fall damage."
         /// </summary>
         public bool IsRestingOnGround =>
-            _limp && !_held && (Torso == null || Torso.linearVelocity.magnitude < RestVelocityThreshold);
+            _limp && !_held && !IsRecovering && (Torso == null || Torso.linearVelocity.magnitude < RestVelocityThreshold);
+
+        /// <summary>A limp body lying on something has its torso at most this far above the surface under it, metres (lying flat, about 0.2).</summary>
+        public const float OnGroundTorsoHeight = 0.7f;
+
+        /// <summary>
+        /// Limp and down on something, still or sliding, rather than flying: the torso within <see cref="OnGroundTorsoHeight"/> of the surface
+        /// below it. A knockdown's timed get-up waits for it (PlayerVitals): a body thrown high was stood up in mid-air.
+        /// </summary>
+        public bool IsOnGround => _limp && Torso != null && Torso.transform.position.y - GroundBelow(Torso.transform.position) <= OnGroundTorsoHeight;
+
+        /// <summary>The height of the nearest surface below <paramref name="from"/> (the body's own parts not counted); 50 m down if none.</summary>
+        private float GroundBelow(Vector3 from)
+        {
+            const float Above = 0.3f;   // from a little above: a torso sunk a hair into the floor would not see the floor from inside it
+            const float Reach = 50.0f;
+            int count = Physics.RaycastNonAlloc(from + Vector3.up * Above, Vector3.down, GroundHits, Reach, ~0, QueryTriggerInteraction.Ignore);
+            float nearest = float.PositiveInfinity;
+            float ground = from.y - Reach;
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit hit = GroundHits[i];
+                if (hit.collider != null && hit.distance < nearest && !IsOwnCollider(hit.collider))
+                {
+                    nearest = hit.distance;
+                    ground = hit.point.y;
+                }
+            }
+            return ground;
+        }
+
+        private static readonly RaycastHit[] GroundHits = new RaycastHit[16];
 
         /// <summary>True from BeginStandingUp until the GettingUp clip finishes -- see FinishStandingUp.</summary>
         public bool IsStandingUp => _standingUpElapsed >= 0.0f;
@@ -168,7 +199,7 @@ namespace CityX.Character
         /// same recovery delay a real crash/finisher knockdown uses to make
         /// getting knocked down actually cost something.
         /// </summary>
-        public bool CanStandUp => _limp && !IsStandingUp &&
+        public bool CanStandUp => _limp && !IsStandingUp && !IsRecovering &&
             (_allowImmediateStandUp || _restSeconds >= StandUpRestSeconds);
 
         private void Awake()
@@ -224,7 +255,7 @@ namespace CityX.Character
         private void OnDied()
         {
             // The body's own motion, plus the fling of the blow that killed it (PlayerVitals.DeathImpulse: a melee kill throws the corpse).
-            Vector3 velocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
+            Vector3 velocity = IsRecovering ? _flipVelocity : _locomotion != null ? _locomotion.Velocity : Vector3.zero;
             if (_vitals != null)
             {
                 velocity += _vitals.DeathImpulse;
@@ -332,6 +363,10 @@ namespace CityX.Character
         /// </summary>
         private bool GoLimp(bool allowImmediateStandUp)
         {
+            if (IsRecovering)
+            {
+                AbandonRecovery();   // knocked down again mid-flip: it goes limp from the pose it was flipping in
+            }
             if (_limp || IsMirrored)
             {
                 return false;   // a second killing blow must not re-launch the corpse; a copy posed as its owner's ragdoll is not thrown here
@@ -753,6 +788,10 @@ namespace CityX.Character
             {
                 AbandonStandingUp();
             }
+            if (IsRecovering)
+            {
+                AbandonRecovery();
+            }
             _limp = false;
             _restSeconds = 0.0f;
             _allowImmediateStandUp = false;
@@ -793,6 +832,12 @@ namespace CityX.Character
                 return;
             }
 
+            if (IsRecovering)
+            {
+                TickRecovery(deltaTime);
+                return;
+            }
+
             if (IsStandingUp)
             {
                 _standingUpElapsed += deltaTime;
@@ -830,7 +875,7 @@ namespace CityX.Character
         /// its time.</param>
         public void BeginStandingUp(bool force = false, float paceSeconds = StandUpPaceSeconds)
         {
-            if (!(force ? _limp && !IsStandingUp : CanStandUp))
+            if (!(force ? _limp && !IsStandingUp && !IsRecovering : CanStandUp))
             {
                 return;
             }
@@ -898,6 +943,7 @@ namespace CityX.Character
 
         private void LateUpdate()
         {
+            PoseFlip();
             float clipShare = BlendFromSnapshot();
             if (IsStandingUp)
             {
@@ -916,7 +962,7 @@ namespace CityX.Character
                 return 1.0f;
             }
             _blendElapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(_blendElapsed / StandUpBlendSeconds);
+            float t = Mathf.Clamp01(_blendElapsed / _snapshotBlendSeconds);
             float eased = t * t * (3.0f - 2.0f * t);
             Transform hips = Animator != null ? Animator.GetBoneTransform(HumanBodyBones.Hips) : null;
             if (hips != null)
@@ -1101,7 +1147,7 @@ namespace CityX.Character
             // driven by RepositionToRagdollRest/the GettingUp clip at that
             // point; a depenetration correction has no business fighting
             // either one.
-            if (!IsStandingUp && !IsHeld)
+            if (!IsStandingUp && !IsHeld && !IsRecovering)
             {
                 TickLiveDepenetration();
             }

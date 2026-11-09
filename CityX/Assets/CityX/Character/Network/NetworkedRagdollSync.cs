@@ -9,9 +9,10 @@ namespace CityX.Character
     /// the same on all multiplayer screens, whether it was ragdoll from the water jet or jetpack crash or grapple swinging. i want all the
     /// ragdolls to be synced up"). Before, each machine threw its own copy of a body about with its own physics (or not at all), so a body
     /// lying face-down on its owner's screen sat up, or stood, on everyone else's. Now only the owner's machine runs the ragdoll: while the
-    /// body is limp -- falling, hanging from the rope, lying still, getting up -- its pose goes to the server (<see cref="SendSeconds"/> apart
-    /// while it moves, <see cref="RestingSendSeconds"/> while it lies still, unreliably: a lost pose is replaced by the next), which checks it
-    /// and passes it to every other player, whose copy plays it back (<see cref="RagdollMirror"/>). When the body is up, a last word, sent
+    /// body is limp -- falling, hanging from the rope, lying still, getting up, flipping back up (Recovery) -- its pose goes to the server
+    /// (<see cref="SendSeconds"/> apart while it moves, <see cref="RestingSendSeconds"/> while it lies still, unreliably: a lost pose is replaced
+    /// by the next), which checks it and passes it to every other player, whose copy plays it back (<see cref="RagdollMirror"/>). When the body
+    /// is up, a last word, sent
     /// reliably, hands the copies back to their Animators. A copy that went limp on its own machine (an attacker's machine throws the copy it
     /// hit at once) and is never sent a pose -- the owner's machine did not throw it -- gets back up by itself after
     /// <see cref="LoneFallSeconds"/>, as the owner never fell.
@@ -111,9 +112,9 @@ namespace CityX.Character
 
         private bool IsLyingStill()
         {
-            if (_ragdoll.IsStandingUp)
+            if (_ragdoll.IsStandingUp || _ragdoll.IsRecovering)
             {
-                return false;   // getting up is moving, though the bodies are kinematic again
+                return false;   // getting up, or flipping back up, is moving, though the bodies are kinematic again
             }
             foreach (Rigidbody body in _ragdoll.Bodies)
             {

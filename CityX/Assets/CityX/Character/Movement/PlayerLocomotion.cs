@@ -648,6 +648,20 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Takes the body back in mid-flight at <paramref name="velocity"/> (the Recovery flip handing it over, Ragdoll.Recovery.cs): its rise or
+        /// fall carries on under gravity and its way across rides as momentum until it lands (<see cref="SetResidualVelocity"/>), the keys
+        /// steering on top as in any jump. Whatever it was walking at before it went down is forgotten.
+        /// </summary>
+        public void TakeOverFlight(Vector3 velocity)
+        {
+            _horizontalVelocity = Vector3.zero;
+            SetResidualVelocity(velocity);
+            _verticalVelocity = velocity.y;
+            Velocity = velocity;
+            ForgetFootingInTheAir();
+        }
+
+        /// <summary>
         /// Sends the body into a dash along <paramref name="direction"/>.
         ///
         /// THE DIRECTION IS LOCKED IN HERE rather than read live each step.
