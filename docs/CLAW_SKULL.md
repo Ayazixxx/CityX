@@ -17,6 +17,9 @@ a lucky drop from the Crimson Claw, chance not chosen.
 `ClawSkullBuilder` keeps that placement and takes the head's centre off it. To refit it, move or scale it in Blender and export over the same file,
 then rebuild the scene.
 
+**The owner's last adjustment was on the head, in Unity** (2026-11-09): 13.26 degrees about the Head bone's X and 1.7 mm up, kept in `ClawSkull.FittedPosition` and `FittedRotationEuler`.
+To adjust it that way: Play, `/equip clawskull`, select `ClawSkull(Clone)` in the Hierarchy, move it, and copy the Inspector's numbers into those two. It needs no rebuild.
+
 **The back was drawn in, not cut**, so every spike is still there. From a pivot 0.15 m behind the head's centre, what is behind it was squeezed
 towards the head by an amount set at each height so the back follows the owner's red line: nothing moves above 2.44 m, and the furthest reach
 went from 0.70 m to 0.44 m behind the centre. The squeeze eases in over the first 15%, so there is no crease, and is even after that. The lowest spikes

@@ -15,6 +15,7 @@ namespace CityX.Tests
     {
         private const string PrefabPath = "Assets/CityX/Wearables/ClawSkull.prefab";
         private const string NetworkedPlayerPath = "Assets/CityX/Character/NetworkedPlayer.prefab";
+        private const string PlayerPath = "Assets/CityX/Character/Player.prefab";
 
         /// <summary>The most triangles a helmet should have: the top of the budget's "aim" (the budget given to the owner on 2026-10-18).</summary>
         private const int TriangleBudget = 5000;
@@ -60,6 +61,38 @@ namespace CityX.Tests
         {
             Bounds bounds = Model().GetComponent<MeshFilter>().sharedMesh.bounds;
             Assert.Greater(bounds.min.z, -FurthestBack, "the back of the skull still sticks out too far to play with");
+        }
+
+        /// <summary>The owner's numbers from the Inspector (2026-11-09: "make this the new positioning"), on the wearer and on other players' copies alike.</summary>
+        [Test]
+        public void ItSitsOnTheHeadWhereTheOwnerFittedIt()
+        {
+            var fittedPosition = new Vector3(0.0f, 0.00169f, 0.0f);
+            Quaternion fittedRotation = Quaternion.Euler(13.26f, 0.0f, 0.0f);
+
+            GameObject skullPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            GameObject body = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPath));
+            GameObject worn = Object.Instantiate(skullPrefab);
+            GameObject onACopy = Object.Instantiate(skullPrefab);
+            try
+            {
+                Transform head = body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Head);
+                worn.GetComponent<ClawSkull>().OnEquip(body, ItemInstanceData.None);
+                onACopy.GetComponent<ClawSkull>().MountCosmetic(body);
+
+                foreach (GameObject skull in new[] { worn, onACopy })
+                {
+                    Assert.AreSame(head, skull.transform.parent, "it is not riding the Head bone");
+                    Assert.Less(Vector3.Distance(fittedPosition, skull.transform.localPosition), 0.0001f, "it moved off the owner's position");
+                    Assert.Less(Quaternion.Angle(fittedRotation, skull.transform.localRotation), 0.01f, "it turned off the owner's angle");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(worn);
+                Object.DestroyImmediate(onACopy);
+                Object.DestroyImmediate(body);
+            }
         }
 
         [Test]
