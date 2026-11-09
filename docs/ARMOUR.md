@@ -22,7 +22,7 @@ Owner, 2026-11-06:
 
 ## Which pieces are armour
 
-- Only the **Knight Helmet** (Heavy, 14) so far. Every other worn item is clothing.
+- The **Knight Helmet** (Heavy, 14) and the **Claw Skull** (Medium, 9.1; my placement, docs/CLAW_SKULL.md) so far. Every other worn item is clothing.
 - New armour pieces get a tier in `ArmourRatings.Tiers`, and their rating follows from their slot.
 
 ## Multiplayer

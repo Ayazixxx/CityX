@@ -58,6 +58,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.Slingshot, "Assets/CityX/Weapons/Slingshot.prefab"),
             (ItemRegistry.KnightHelmet, "Assets/CityX/Wearables/KnightHelmet.prefab"),
             (ItemRegistry.FarmerHat, "Assets/CityX/Wearables/FarmerHat.prefab"),
+            (ItemRegistry.ClawSkull, "Assets/CityX/Wearables/ClawSkull.prefab"),
             (ItemRegistry.RoundShield, "Assets/CityX/Wearables/RoundShield.prefab"),
             (ItemRegistry.HoodedCloak, "Assets/CityX/Wearables/HoodedCloak.prefab"),
             (ItemRegistry.MidnightCoat, "Assets/CityX/Wearables/MidnightCoat.prefab"),

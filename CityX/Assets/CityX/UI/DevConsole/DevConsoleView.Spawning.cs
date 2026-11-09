@@ -448,6 +448,8 @@ namespace CityX.UI
                 case "farmer_hat":
                 case "farmerhat":
                 case "strawhat": return ItemRegistry.FarmerHat;
+                case "claw_skull":
+                case "clawskull": return ItemRegistry.ClawSkull;
                 default: return null;
             }
         }

@@ -282,6 +282,7 @@ namespace CityX.ViewEditor
             GameObject sprayCanPrefab = CityX.WeaponsEditor.SprayCanBuilder.Build();
             GameObject knightHelmetPrefab = CityX.WearablesEditor.KnightHelmetBuilder.Build();
             GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
+            GameObject clawSkullPrefab = CityX.WearablesEditor.ClawSkullBuilder.Build();
             // The round shield (2026-10-27): drawn in code, a stand-in to test shields with (docs/SHIELD.md).
             GameObject roundShieldPrefab = CityX.WearablesEditor.RoundShieldBuilder.Build();
             // The magic staffs (2026-10-27): drawn in code, stand-ins until the owner's models (docs/STAFFS.md).
@@ -571,6 +572,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.KnightHelmet, Prefab = knightHelmetPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.FarmerHat, Prefab = farmerHatPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.ClawSkull, Prefab = clawSkullPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.RoundShield, Prefab = roundShieldPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

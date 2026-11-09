@@ -32,6 +32,7 @@ namespace CityX.Items
         private static readonly Dictionary<string, ArmourTier> Tiers = new Dictionary<string, ArmourTier>
         {
             [ItemRegistry.KnightHelmet] = ArmourTier.Heavy,
+            [ItemRegistry.ClawSkull] = ArmourTier.Medium,   // bone, not steel (my placement)
         };
 
         public static ArmourTier TierOf(string itemId)
