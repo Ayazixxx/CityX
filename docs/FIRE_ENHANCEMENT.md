@@ -21,6 +21,7 @@ and enchants). A Pyromancer spell, next to Fireball in the skill tree; put it on
     lights gasoline.
   - **an arrow** (the bow): it flies burning, burns what it hits and lights gasoline where it lands; stuck, it burns on a few seconds.
   - **a staff**: nothing. The fire neither shows on a staff nor goes to its attack; it waits for a weapon that is not a staff.
+  - While the weapon burns it lights any gasoline near either end of its flames (owner, 2026-11-08: "make the gasoline ignite from gunshot and fire spells"), so a burning sword swung low or carried through a gasoline trail sets it off.
 - **What a burning blow does**: the blow's own damage, then 15 fire damage (a spell's: Spell Power raises it; no stagger, no blood), and
   the target is set alight for 5 s (`FireScene.SetAlight`: the flames on the torso and the afterburn's 4 a second that burning gasoline
   leaves, put out by water as any burning body is).

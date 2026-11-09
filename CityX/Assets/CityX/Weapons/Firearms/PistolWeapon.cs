@@ -1113,12 +1113,14 @@ namespace CityX.Weapons
                             BloodBurst.Spawn(hit.point, hit.point - origin, 0.6f);   // a body with vitals shows its own wound (HitImpactEffects)
                         }
                     }
-                    FireScene.Ignite(hit.point, CityX.World.FireRules.SparkIgniteRadius, true, wielder);   // a shot into gasoline lights it (docs/FIRE.md)
                     if (burning)
                     {
                         FireScene.BurnAlong(hit.point, hit.point + Vector3.up * BurningFlareMetres, 1.0f, 1.0f, BurningFlareSeconds);   // it flares where it meets
                     }
                 }
+                // A shot into gasoline lights it (docs/FIRE.md), wherever it stopped: the city's own streets and walls are not "something" above
+                // (there is nothing on them to hurt), and gasoline lies on them.
+                FireScene.Ignite(shotEnd, CityX.World.FireRules.SparkIgniteRadius, true, wielder);
             }
 
             // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where the shot really ended, whatever the mode (the arm points the

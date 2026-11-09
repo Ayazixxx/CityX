@@ -112,6 +112,180 @@ namespace CityX.Tests
             }
         }
 
+        private PistolWeapon Pistol(GameObject holder)
+        {
+#if UNITY_EDITOR
+            GameObject model = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Pistol.prefab"));
+            Assert.IsNotNull(model, "no Pistol.prefab -- rebuild the firearms");
+            _made.Add(model);
+            var gun = model.GetComponent<PistolWeapon>();
+            gun.OnEquip(holder, ItemInstanceData.None);
+            return gun;
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>A fireball from <paramref name="from"/> to <paramref name="to"/>, flown until it has burst.</summary>
+        private IEnumerator Fireball(Vector3 from, Vector3 to, bool cosmetic = false, float size = 1.0f, float blastRadius = 0.0f)
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/FireballProjectile.prefab");
+            Assert.IsNotNull(prefab, "no FireballProjectile.prefab -- rebuild the scene");
+            FireballProjectile ball = FireballProjectile.Spawn(prefab, from, (to - from).normalized * 40.0f, 0.0f, null, cosmetic, 0.0f, null, size, blastRadius);
+            Assert.IsNotNull(ball, "setup: no fireball");
+            for (float t = 0.0f; t < 2.0f && ball != null; t += Step)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+            Assert.IsTrue(ball == null, "setup: the fireball never burst");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>The city's own streets and walls: one glass-keeper over them all (GlassBreaker on the streamer), and only its windows are glass.</summary>
+        private sealed class CitySurface : MonoBehaviour, CityX.World.IBreakableSurface
+        {
+            public bool TakePunch(Vector3 point) => false;
+        }
+
+        /// <summary>A shot from high over <paramref name="at"/>: steep, so the gun's small spread lands it within a stride of where it was aimed.</summary>
+        private static bool ShootDownAt(PistolWeapon gun, GameObject shooter, Vector3 at)
+        {
+            Vector3 eye = at + new Vector3(0.0f, 8.0f, -1.0f);
+            return gun.Fire(eye, (at - eye).normalized, true, shooter);
+        }
+
+        /// <summary>Owner, 2026-11-08: "make the gasoline ignite from gunshot and fire spells".</summary>
+        [UnityTest]
+        public IEnumerator AGunshotIntoGasolineLightsItAndOneAtBareGroundDoesNot()
+        {
+            GameObject shooter = Body(new Vector3(0.0f, 0.05f, 6.0f));
+            PistolWeapon gun = Pistol(shooter);
+            yield return Frames(1.5f);
+            Vector3 start = new Vector3(0.0f, 0.0f, 8.0f);
+            Trail(start, 5);
+
+            Assert.IsTrue(ShootDownAt(gun, shooter, start + Vector3.right * 6.0f), "setup: the gun did not fire");
+            Assert.AreEqual(0, FireScene.BurningCount, "a shot at bare ground lit something");
+
+            yield return Frames(1.0f);
+            Assert.IsTrue(ShootDownAt(gun, shooter, start), "setup: the gun did not fire again");
+            Assert.Greater(FireScene.BurningCount, 0, "a bullet into the gasoline did not light it");
+            Assert.IsTrue(FireScene.Instance.Field.TryBurningUnder(start, out _), "the gasoline it hit is not burning");
+        }
+
+        /// <summary>
+        /// Gasoline on a street: a bullet that stops on the city itself ends "on a wall" for the blow (nothing to hurt there), and only a prop or
+        /// a plain floor used to light the fuel, so in the city a shot never did.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AGunshotLightsGasolineLyingOnTheCitysOwnStreets()
+        {
+            _made[0].AddComponent<CitySurface>();
+            GameObject shooter = Body(new Vector3(0.0f, 0.05f, 6.0f));
+            PistolWeapon gun = Pistol(shooter);
+            yield return Frames(1.5f);
+            Vector3 start = new Vector3(0.0f, 0.0f, 8.0f);
+            Trail(start, 5);
+
+            Assert.IsTrue(ShootDownAt(gun, shooter, start), "setup: the gun did not fire");
+            Assert.Greater(FireScene.BurningCount, 0, "a bullet into gasoline on the city's own street did not light it");
+        }
+
+        [UnityTest]
+        public IEnumerator AFireballLightsTheGasolineItBurstsInButNotBareGround()
+        {
+            Vector3 start = new Vector3(0.0f, 0.0f, 8.0f);
+            Vector3 eye = new Vector3(0.0f, 3.0f, 3.0f);
+            yield return Fireball(eye, new Vector3(12.0f, 0.0f, 8.0f));
+            Assert.AreEqual(0, FireScene.BurningCount, "a fireball on bare ground set it alight");
+
+            Trail(start, 5);
+            yield return Fireball(eye, start);
+            Assert.Greater(FireScene.BurningCount, 0, "a fireball bursting in the gasoline did not light it");
+            Assert.IsTrue(FireScene.Instance.Field.TryBurningUnder(start, out FireCell lit), "the gasoline it burst in is not burning");
+            Assert.IsTrue(lit.Gasoline);
+        }
+
+        [UnityTest]
+        public IEnumerator AFireballLightsTheGasolineUnderABodyItStrikes()
+        {
+            Vector3 start = new Vector3(0.0f, 0.0f, 8.0f);
+            Trail(start, 3);
+            Target(start);
+            yield return Fireball(new Vector3(0.0f, 1.6f, 3.0f), start + Vector3.up * 1.6f);
+            Assert.IsTrue(FireScene.Instance.Field.TryBurningUnder(start, out _), "a body standing in gasoline was struck by a fireball and the gasoline did not catch");
+        }
+
+        [UnityTest]
+        public IEnumerator AChargedFireballLightsGasolineAcrossItsBlast()
+        {
+            Vector3 landing = new Vector3(0.0f, 0.0f, 8.0f);
+            Vector3 off = landing + Vector3.right * 3.5f;
+            FireScene.Pour(off, 0.15f);
+            yield return Fireball(new Vector3(0.0f, 3.0f, 3.0f), landing, false, 2.0f, 4.0f);
+            Assert.IsTrue(FireScene.Instance.Field.TryBurningUnder(off, out _), "gasoline inside a charged ball's blast did not catch");
+        }
+
+        /// <summary>The fire is decided where the ball was cast and reaches other players through FireSync: their copy of the ball lights nothing itself.</summary>
+        [UnityTest]
+        public IEnumerator AnotherPlayersFireballLightsNothingHereByItself()
+        {
+            Vector3 start = new Vector3(0.0f, 0.0f, 8.0f);
+            Trail(start, 5);
+            yield return Fireball(new Vector3(0.0f, 3.0f, 3.0f), start, true);
+            Assert.AreEqual(0, FireScene.BurningCount, "a copy of another player's fireball lit the gasoline by itself");
+        }
+
+        [UnityTest]
+        public IEnumerator AFireballsFireIsSentToOtherPlayers()
+        {
+            Vector3 start = new Vector3(0.0f, 0.0f, 8.0f);
+            Trail(start, 5);
+            var told = new List<FireEvent>();
+            System.Action<FireEvent> listen = told.Add;
+            FireScene.Happened += listen;
+            yield return Fireball(new Vector3(0.0f, 3.0f, 3.0f), start);
+            FireScene.Happened -= listen;
+            Assert.IsTrue(told.Exists(fire => fire.Act == FireAct.Ignite), "the fire it lit was not told to other players");
+        }
+
+        private FireEnhancementAbility Enhancement(GameObject body)
+        {
+            FireEnhancementAbility fire = body.GetComponent<FireEnhancementAbility>();
+            return fire != null ? fire : body.AddComponent<FireEnhancementAbility>();
+        }
+
+        [UnityTest]
+        public IEnumerator AWeaponAblazeLightsGasolineItComesNear()
+        {
+            GameObject body = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            Transform hand = body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand);
+            yield return Frames(0.2f);
+            var under = new Vector3(hand.position.x, 0.0f, hand.position.z);
+            FireScene.Pour(under, 0.15f);
+            yield return Frames(0.3f);
+            Assert.AreEqual(0, FireScene.BurningCount, "setup: nothing should burn before the weapon is lit");
+
+            Assert.IsTrue(Enhancement(body).TryCast(), "setup: the Fire Enhancement did not light");
+            yield return Frames(0.4f);
+            Assert.IsTrue(FireScene.Instance.Field.TryBurningUnder(under, out _), "a hand ablaze right over the gasoline did not light it");
+        }
+
+        [UnityTest]
+        public IEnumerator AnotherPlayersWeaponAblazeLightsNothingHereByItself()
+        {
+            GameObject body = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            Transform hand = body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand);
+            yield return Frames(0.2f);
+            FireScene.Pour(new Vector3(hand.position.x, 0.0f, hand.position.z), 0.15f);
+            Enhancement(body).PlayRemote(new AbilityEvent(FireEnhancementAbility.Lit, body.transform.position, Vector3.zero, 5.0f));
+            yield return Frames(0.5f);
+            Assert.AreEqual(0, FireScene.BurningCount, "a copy's burning weapon lit the gasoline by itself");
+        }
+
         /// <summary>Made when the first fire was lit, the noise stopped the game for a tenth of a second: it is worked out as the game starts.</summary>
         [UnityTest]
         public IEnumerator TheFiresNoiseIsWorkedOutAsTheGameStartsNotWhenTheFirstFireIsLit()

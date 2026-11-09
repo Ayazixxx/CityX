@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.World;
 using UnityEngine;
 
 namespace CityX.Weapons
@@ -178,6 +179,10 @@ namespace CityX.Weapons
             {
                 Blast(point, target);
             }
+            if (!Cosmetic)
+            {
+                LightGasoline(point, target);
+            }
             FireBurst.Spawn(BurstPrefab, point, normal, _size);
             if (ImpactSound != null)
             {
@@ -185,6 +190,17 @@ namespace CityX.Weapons
             }
 
             Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// Gasoline it bursts in goes up (owner, 2026-11-08: "make the gasoline ignite from gunshot and fire spells"), the floor under a body it
+        /// struck included; bare ground does not catch (2026-10-29: "fireball doesnt need to light the ground on fire"). Other players are told by
+        /// the fire itself (FireSync).
+        /// </summary>
+        private void LightGasoline(Vector3 point, IDamageable struck)
+        {
+            Vector3 ground = struck is Component body ? new Vector3(point.x, body.transform.position.y, point.z) : point;
+            FireScene.Ignite(ground, Mathf.Max(FireRules.FireballIgniteRadius * _size, _blastRadius), true, _striker);
         }
 
         /// <summary>

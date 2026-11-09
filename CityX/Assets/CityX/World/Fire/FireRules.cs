@@ -104,6 +104,9 @@ namespace CityX.World
         /// <summary>A bullet, a burning body or lightning lights the fuel this far round its point.</summary>
         public const float SparkIgniteRadius = 0.5f;
 
+        /// <summary>A fireball lights the fuel this far round where it bursts, at a plain ball's size.</summary>
+        public const float FireballIgniteRadius = 1.5f;
+
         /// <summary>Water (the water staff's jet) puts out the fire this far round where it lands.</summary>
         public const float DouseRadius = 1.6f;
 

@@ -1,3 +1,4 @@
+using CityX.World;
 using UnityEngine;
 
 namespace CityX.Character
@@ -40,6 +41,7 @@ namespace CityX.Character
         private bool _burningSwing;
         private float _swingSeconds;
         private bool _shownOnly;
+        private float _igniteDue;
 
         /// <summary>The fire waits for the body's next attack (on a copy: is shown waiting).</summary>
         public bool IsArmed => _armedLeft > 0.0f;
@@ -203,7 +205,24 @@ namespace CityX.Character
             if (_ablaze != null)
             {
                 _ablaze.Show(IsAblaze);
+                LightGasolineNearTheFlames(deltaTime);
             }
+        }
+
+        /// <summary>
+        /// A weapon ablaze lights gasoline it comes near (owner, 2026-11-08: "make the gasoline ignite from gunshot and fire spells"), at both ends
+        /// of its flames. Decided on the caster's machine; other players are told by the fire itself (FireSync).
+        /// </summary>
+        private void LightGasolineNearTheFlames(float deltaTime)
+        {
+            _igniteDue -= deltaTime;
+            if (_shownOnly || !_ablaze.Burning || _igniteDue > 0.0f)
+            {
+                return;
+            }
+            _igniteDue = FireRules.IgniteTickSeconds;
+            FireScene.Ignite(_ablaze.From, FireRules.SparkIgniteRadius, true, gameObject);
+            FireScene.Ignite(_ablaze.To, FireRules.SparkIgniteRadius, true, gameObject);
         }
 
         private void OnSwingStarted(ComboStage stage)

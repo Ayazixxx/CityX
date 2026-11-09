@@ -67,8 +67,10 @@ burning body out: standing in water, the water staff's jet, rain over time. Fire
 nobody on this machine: the lighter's machine deals the damage and it reaches other players through their copies, as every hit does.
 
 **Lighting it.** `FireScene.Ignite(point, radius, onlyFuel, striker)` from: the Flame Staff's stream (where it meets the world, and any
-gasoline under its length), the flamethrower, Self Smite's bolt (gasoline only: lightning lights fuel, not pavement) and a bullet's impact
-(gasoline only). Not the fireball (owner, 2026-10-29: "fireball doesnt need to light the ground on fire, we will work on fireball later").
+gasoline under its length), the flamethrower, Self Smite's bolt (gasoline only: lightning lights fuel, not pavement), a bullet's impact
+(gasoline only), the fireball (owner, 2026-11-08: "make the gasoline ignite from gunshot and fire spells": gasoline only, 1.5 m round its burst, its whole
+blast when charged, on the floor under a body it strikes; 2026-10-29: "fireball doesnt need to light the ground on fire") and a weapon ablaze
+(the Fire Enhancement: gasoline near either end of its flames). A copy of another player's ball or weapon lights nothing itself: `FireSync` brings it.
 `FireScene.Douse(point, radius)` from the water staff's landing.
 
 **The gas can** ("Gas Can", item id `jerry_can`, `JerryCanItem`; `/equip gascan`, `can` or `jerrycan`; renamed from Jerry Can by the owner 2026-10-29): a red steel can with an X pressed into its sides, a top handle and a spout, drawn in
