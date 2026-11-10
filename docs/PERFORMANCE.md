@@ -50,7 +50,9 @@ CityX/Builds/Bench/CityX.exe -cityxbench -screen-width 2560 -screen-height 1600 
 Flags: `-force-d3d11`, `-bench-msaa N`, `-bench-shadow M`, `-bench-shadowres P`, `-bench-cascades N`,
 `-bench-scale S`, `-bench-radius CHUNKS`, `-bench-fullradius CHUNKS` (0 = no far version), `-bench-threads N`,
 `-bench-standing S`, `-bench-running S`, `-bench-flying S`, `-bench-flyspeed M/S` (default 22, a boosted jetpack),
-`-bench-exact S` (0 = off), `-bench-gcslice MS`, `-bench-effects S` (instead of the phases: each graphics effect's cost by day and
+`-bench-exact S` (0 = off), `-bench-gcslice MS`, `-bench-settle S` (how long the city streams in before anything is timed: the whole
+view takes about 25 s, the default is 6), `-bench-vsync N`, `-bench-fps N`, `-bench-physics HZ` (what-ifs for the pacing, below),
+`-bench-effects S` (instead of the phases: each graphics effect's cost by day and
 by night, S seconds on and S off each; docs/GRAPHICS_SETTINGS.md). The benchmark runs with its window behind others (it sets
 `Application.runInBackground`; the game itself pauses there). Results go to `bench-result.txt`; the census (renderers, draws,
 triangles, in-frustum) is in it. Three phases: standing, sprinting, and flying 40 m over the ground (the body carried along a
@@ -62,10 +64,36 @@ city scene runs alone in this build, with no network manager: the animator sync 
 
 ## Still on the table
 
-- Merge far chunks into blocks (4x4 chunks per mesh): draws in view ~2,500 -> a few hundred.
-- Frame pacing: ~20% of sprinting frames land at 17-20 ms even though CPU and GPU are each ~6 ms busy (windowed
-  presentation); not chased.
+- Merge far chunks into blocks (4x4 chunks per mesh). Measured again on 2026-11-10 (below): about 1,000 draws in view now, the main
+  thread 4 ms and the render thread 3.5 ms of an 8 ms frame the graphics card sets. It would not be felt; left alone.
 - Far glass is still the transparent material; an opaque far material would leave the transparent pass empty.
+
+## Update: how even the frames are (2026-11-10)
+
+Owner, 2026-11-09: "improve upon ... graphics and smoothness". Measured first, in the built player with everything since October in it
+(the sewers, the street furniture, the roof stairs): standing 119 fps, sprinting 113, flying at 22 m/s 93-111; no frame over 35 ms in any
+run, 0.1-1.6% of frames under 60 fps. Fast enough; the question left was how EVEN the frames are, which is what reads as smooth.
+
+The benchmark now says: each phase has a **Pacing** line (how much a frame's length differs from the one before, and what a physics step
+adds to the frames that run one), and every timed frame goes to `bench-frames.csv` beside the result (its length, its physics steps, the
+streamer's share, whether a collection finished in it, and the engine's split of main thread, present wait, render thread and graphics card).
+
+What it showed, standing still with the whole view loaded and nothing streaming or collecting:
+- Most of the time the frames are as even as they can be: 7.4-8.4 ms each, the main thread busy 3 ms and waiting 4.5 ms for the graphics
+  card. A physics step costs nothing measurable (8.4 ms with one, 8.4 without).
+- **Every 3.0 seconds, for about a second, frames swung between 7 and 14 ms**, main thread, render thread and graphics card all slower
+  together. It looked like the game: the sky's reflections are re-captured every 3 seconds (`DayNightCycle.EnvironmentUpdateSeconds`).
+  Switched off for a run, the swings were still there, on the same beat. They were **another program**: a Firefox process on the same
+  machine busy for 1.1 s of every 3 (sampled with every process's CPU time four times a second while the benchmark stood still). Not the
+  game's to fix; with background programs closed the game's own pacing is the even 7.4-8.4 ms.
+- **V-Sync makes it worse on this screen.** At 165 Hz a refresh is 6.06 ms and a frame takes about 8, so with V-Sync every frame is shown
+  for one refresh or two, turn about (609 frames of 6 ms, 1,120 of 12, 139 of 18 in a 20 s sprint): a frame differed from the one before
+  by 4.8-5.9 ms on average, against 0.8-1.0 ms without. Every second refresh (82.5 fps) is steadier (mostly 12.1 ms) but any frame the
+  background delays costs a whole extra refresh (18.2 ms, a fifth of the time here). A 90 fps cap paces like no cap at all (0.7-0.9 ms).
+  So the game stays as it is: no V-Sync, the player's own cap or none.
+
+Lesson: before blaming a periodic hitch on the game, sample what else is running; and test the suspect by switching it off before
+replacing it.
 
 ## Update: shooting windows no longer rebuilds the chunk (2026-10-09)
 

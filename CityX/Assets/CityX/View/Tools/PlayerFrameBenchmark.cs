@@ -77,7 +77,22 @@ namespace CityX.View
 
             // The chunk meshes' arrays used again (ChunkArrayPool): new ones made in the phase, and what is held for reuse at its end.
             public long PoolMade, PoolHeld;
+
+            // Frame by frame, for the pacing (bench-frames.csv): the physics steps run in the frame, the streamer's share of it, and the
+            // engine's own split of the newest frame it has finished timing (a few frames behind the frame it is listed beside).
+            public readonly List<int> FixedSteps = new List<int>();
+            public readonly List<float> StreamerMs = new List<float>();
+            public readonly List<FrameTiming> Timed = new List<FrameTiming>();
         }
+
+        private static int _fixedSteps;
+
+        private void FixedUpdate()
+        {
+            _fixedSteps++;
+        }
+
+        private readonly List<Phase> _phases = new List<Phase>();
 
         private static readonly FrameTiming[] Timings = new FrameTiming[1];
 
@@ -98,11 +113,15 @@ namespace CityX.View
         /// real settings on disk are never touched: -bench-msaa N, -bench-shadow METRES, -bench-shadowres PIXELS,
         /// -bench-cascades N, -bench-scale S, -bench-radius CHUNKS, -bench-threads N, -bench-gcslice MS (the incremental
         /// collector's time slice per frame), -bench-standing SECONDS, -bench-running SECONDS, -bench-flying SECONDS,
-        /// -bench-flyspeed M/S.
+        /// -bench-flyspeed M/S; and for the pacing -bench-vsync N (a frame every N refreshes of the screen), -bench-fps N (the cap)
+        /// and -bench-physics HZ (the physics steps a second).
         /// </summary>
         private static string ApplyOverrides()
         {
             var text = new StringBuilder();
+            if (int.TryParse(Arg("-bench-vsync"), out int vsync)) { QualitySettings.vSyncCount = vsync; text.Append($" vSync={vsync}"); }
+            if (int.TryParse(Arg("-bench-fps"), out int cap)) { Application.targetFrameRate = cap; text.Append($" cap={cap}"); }
+            if (float.TryParse(Arg("-bench-physics"), out float physicsHz) && physicsHz > 0.0f) { Time.fixedDeltaTime = 1.0f / physicsHz; text.Append($" physics={physicsHz}Hz"); }
             var pipeline = (QualitySettings.renderPipeline != null ? QualitySettings.renderPipeline : UnityEngine.Rendering.GraphicsSettings.defaultRenderPipeline)
                 as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
             if (pipeline != null)
@@ -176,9 +195,9 @@ namespace CityX.View
             _watchdog = new Watchdog();
             _watchdog.Start();
 
-            // Let the first ring of the city stream in before timing anything.
-            float settle = 0.0f;
-            while (settle < 6.0f)
+            // Let the first ring of the city stream in before timing anything (-bench-settle SECONDS: the whole view takes about 25).
+            float settle = 0.0f, settleFor = ArgSeconds("-bench-settle", 6.0f);
+            while (settle < settleFor)
             {
                 locomotion.Tick(new LocomotionInput(), Time.deltaTime);
                 settle += Time.unscaledDeltaTime;
@@ -213,7 +232,32 @@ namespace CityX.View
             yield return MeasureExactly(sb, locomotion, exactSeconds, Motion.Flying, flySpeed);
             Census(sb, "(after flying)");
 
+            _phases.Add(standing);
+            _phases.Add(running);
+            _phases.Add(flying);
+            WriteFrames();
             Finish(sb);
+        }
+
+        /// <summary>Every timed frame of every phase, one a line, beside the result (bench-frames.csv): what the pacing figures are worked out from.</summary>
+        private void WriteFrames()
+        {
+            var csv = new StringBuilder("phase,frame,ms,physics steps,streamer ms,collection,timed cpu,timed main,timed present wait,timed render,timed gpu\n");
+            for (int p = 0; p < _phases.Count; p++)
+            {
+                Phase phase = _phases[p];
+                var collected = new HashSet<int>(phase.CollectedFrames);
+                for (int i = 0; i < phase.Frames.Count; i++)
+                {
+                    FrameTiming t = phase.Timed[i];
+                    csv.Append(p).Append(',').Append(i).Append(',').Append(phase.Frames[i].ToString("0.00")).Append(',')
+                        .Append(phase.FixedSteps[i]).Append(',').Append(phase.StreamerMs[i].ToString("0.00")).Append(',')
+                        .Append(collected.Contains(i) ? 1 : 0).Append(',').Append(t.cpuFrameTime.ToString("0.00")).Append(',')
+                        .Append(t.cpuMainThreadFrameTime.ToString("0.00")).Append(',').Append(t.cpuMainThreadPresentWaitTime.ToString("0.00")).Append(',')
+                        .Append(t.cpuRenderThreadFrameTime.ToString("0.00")).Append(',').Append(t.gpuFrameTime.ToString("0.00")).Append('\n');
+                }
+            }
+            File.WriteAllText(Path.Combine(Application.dataPath, "..", "bench-frames.csv"), csv.ToString());
         }
 
         /// <summary>
@@ -291,6 +335,7 @@ namespace CityX.View
             phase.ReservedStart = Profiler.GetMonoHeapSizeLong();
             int collections = GC.CollectionCount(0);
             int collectionsAtStart = collections;
+            int fixedSteps = _fixedSteps;
             phase.StartTicks = Stopwatch.GetTimestamp();
             long frameStart = phase.StartTicks;
             while (elapsed < seconds)
@@ -338,15 +383,20 @@ namespace CityX.View
                 {
                     phase.WorstStreamerMs = Math.Max(phase.WorstStreamerMs, streamer.LastUpdateMs);
                 }
+                phase.FixedSteps.Add(_fixedSteps - fixedSteps);
+                fixedSteps = _fixedSteps;
+                phase.StreamerMs.Add(streamer != null ? (float)streamer.LastUpdateMs : 0.0f);
 
                 FrameTimingManager.CaptureFrameTimings();
-                if (FrameTimingManager.GetLatestTimings(1, Timings) > 0)
+                bool timed = FrameTimingManager.GetLatestTimings(1, Timings) > 0;
+                if (timed)
                 {
                     phase.Gpu += Timings[0].gpuFrameTime;
                     phase.CpuMain += Timings[0].cpuMainThreadFrameTime;
                     phase.CpuRender += Timings[0].cpuRenderThreadFrameTime;
                     phase.TimingSamples++;
                 }
+                phase.Timed.Add(timed ? Timings[0] : default);
             }
             phase.EndTicks = Stopwatch.GetTimestamp();
             phase.Seconds = elapsed;
@@ -395,6 +445,7 @@ namespace CityX.View
             sb.AppendLine($"Frames: {phase.Frames.Count} over {phase.Seconds:0.0}s = {phase.Frames.Count / Mathf.Max(0.01f, phase.Seconds):0} fps average");
             sb.AppendLine($"Frame ms: avg {total / count:0.0}, median {Percentile(sorted, 0.5f)}, p95 {Percentile(sorted, 0.95f)}, p99 {Percentile(sorted, 0.99f)}, worst {sorted[sorted.Count - 1]:0.0}");
             sb.AppendLine($"Under 60fps: {over17} frames ({100.0f * over17 / count:0.0}%), over 33ms: {over33}, over 100ms: {over100}");
+            ReportPacing(sb, phase);
             if (phase.TimingSamples > 0)
             {
                 int t = phase.TimingSamples;
@@ -461,6 +512,44 @@ namespace CityX.View
             {
                 sb.AppendLine($"Frames over 33 ms:{slow}");
             }
+        }
+
+        /// <summary>
+        /// How even the frames are, which is what reads as smooth: how much a frame's length differs from the one before it, and what a
+        /// physics step adds to the frames that run one (at 50 steps a second and twice as many frames, every other frame does).
+        /// </summary>
+        private static void ReportPacing(StringBuilder sb, Phase phase)
+        {
+            int frames = phase.Frames.Count;
+            if (frames < 2)
+            {
+                return;
+            }
+            double change = 0.0, stepped = 0.0, unstepped = 0.0;
+            int over2 = 0, over4 = 0, steppedFrames = 0;
+            for (int i = 0; i < frames; i++)
+            {
+                if (i > 0)
+                {
+                    float differs = Mathf.Abs(phase.Frames[i] - phase.Frames[i - 1]);
+                    change += differs;
+                    if (differs > 2.0f) over2++;
+                    if (differs > 4.0f) over4++;
+                }
+                if (phase.FixedSteps[i] > 0)
+                {
+                    stepped += phase.Frames[i];
+                    steppedFrames++;
+                }
+                else
+                {
+                    unstepped += phase.Frames[i];
+                }
+            }
+            int pairs = frames - 1, unsteppedFrames = frames - steppedFrames;
+            sb.AppendLine($"Pacing: a frame differs from the one before by {change / pairs:0.00} ms on average; by over 2 ms {100.0 * over2 / pairs:0.0}% " +
+                          $"of the time, by over 4 ms {100.0 * over4 / pairs:0.0}%. Frames with a physics step {stepped / Math.Max(1, steppedFrames):0.0} ms " +
+                          $"({steppedFrames}), without {unstepped / Math.Max(1, unsteppedFrames):0.0} ms ({unsteppedFrames})");
         }
 
         private static bool OverlapsCollectedFrame(Phase phase, HashSet<int> collectedFrames, long start, long end)
