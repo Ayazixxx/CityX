@@ -116,6 +116,33 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, ride.BeltSpeed, 1e-5f);
         }
 
+        /// <summary>Owner, 2026-11-10: "can you make him kind of tilt over towards the right as he is being rolled off?"</summary>
+        [Test]
+        public void ItCountsTheLastStretchOfTheRideEasedAndOnlyOnTheWayOut()
+        {
+            BeltRide ride = Ride();
+            Assert.AreEqual(0.0f, ride.ThroughLast(1.0f), "rolling in is not the way out");
+            Until(ride, 1.0f, 20.0f);
+            Assert.AreEqual(BeltRide.Stage.Making, ride.Now);
+            Assert.AreEqual(0.0f, ride.ThroughLast(1.0f));
+            ride.Finish();
+            Until(ride, 0.0f, 20.0f);
+            Assert.AreEqual(BeltRide.Stage.OnTheEdge, ride.Now);
+            Assert.Less(ride.BodyAt, End - 1.0f, "this test wants to start before the last stretch");
+            Assert.AreEqual(0.0f, ride.ThroughLast(1.0f), "already leaning before the last stretch");
+
+            float previous = 0.0f;
+            while (ride.Now == BeltRide.Stage.OnTheEdge)
+            {
+                ride.Step(0.0f, Frame);
+                float now = ride.ThroughLast(1.0f);
+                Assert.GreaterOrEqual(now, previous, "it went back");
+                Assert.Less(now - previous, 0.06f, "it jumped");
+                previous = now;
+            }
+            Assert.AreEqual(1.0f, ride.ThroughLast(1.0f), 1e-4f, "not all the way when it is let go");
+        }
+
         /// <summary>Owner, 2026-11-10: "make this noise play when going right or left on the conveyer belt, and at the end when the
         /// conveyer belt rolls your character off".</summary>
         [Test]

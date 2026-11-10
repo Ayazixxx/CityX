@@ -66,6 +66,14 @@ namespace CityX.UI
         /// <summary>How far the belt's surface has run in all, metres, positive to the right: what its slats and rollers are drawn by.</summary>
         public float Travel { get; private set; }
 
+        /// <summary>How far along the last <paramref name="metres"/> before it is let go the body is, 0 to 1, eased; held at 1 after.</summary>
+        public float ThroughLast(float metres)
+        {
+            return Now == Stage.RollingOut || Now == Stage.OnTheEdge || Now == Stage.Fallen
+                ? Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01((BodyAt - (_end - metres)) / metres))
+                : 0.0f;
+        }
+
         /// <summary>
         /// One frame. <paramref name="push"/> is the player's keys, -1 (left) to 1 (right), and only counts while rolling in: holding
         /// right brings the body in and the belt slows to set it down exactly in the middle; left runs it back, never past where it
