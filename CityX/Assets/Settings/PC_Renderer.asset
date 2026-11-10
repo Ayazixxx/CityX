@@ -20,6 +20,20 @@ MonoBehaviour:
   passIndex: 0
   bindDepthStencilAttachment: 0
   m_Version: 1
+--- !u!114 &-6024049552631060400
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13b2d0c3e30490e4cb6c158d293d27cc, type: 3}
+  m_Name: CityXWetMirror
+  m_EditorClassIdentifier: CityX.View::CityX.View.WetMirrorFeature
+  m_Active: 1
+  Material: {fileID: 2100000, guid: 6b6984a7b53e6e94c91d117d40634fab, type: 2}
 --- !u!114 &-5567595369808700196
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -69,7 +83,8 @@ MonoBehaviour:
   - {fileID: -5567595369808700196}
   - {fileID: -8338708140924727510}
   - {fileID: 1071977666742245417}
-  m_RendererFeatureMap: ad6b866f10d7b46cdc5c717182edbbb22a0f864e20f5468c29d85221026ee00e
+  - {fileID: -6024049552631060400}
+  m_RendererFeatureMap: ad6b866f10d7b46cdc5c717182edbbb22a0f864e20f5468c29d85221026ee00e50281342d94666ac
   m_UseNativeRenderPass: 1
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_AssetVersion: 3

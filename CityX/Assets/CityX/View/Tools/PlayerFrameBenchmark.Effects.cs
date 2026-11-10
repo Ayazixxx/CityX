@@ -24,19 +24,31 @@ namespace CityX.View
         private IEnumerator MeasureEffects(StringBuilder sb, PlayerLocomotion locomotion, float seconds)
         {
             var sky = FindFirstObjectByType<DayNightCycle>();
-            (string name, float time)[] times =
+            var rain = FindFirstObjectByType<RainEffect>();
+            (string name, float time, bool wet)[] times =
             {
-                ("DAY (mid-morning)", SkyCycle.DaySeconds * 0.35f),
-                ("NIGHT (lamps and windows lit)", SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f),
+                ("DAY (mid-morning)", SkyCycle.DaySeconds * 0.35f, false),
+                ("NIGHT (lamps and windows lit)", SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f, false),
+                ("NIGHT IN HEAVY RAIN (the streets soaked)", SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f, true),
             };
-            foreach ((string when, float time) in times)
+            foreach ((string when, float time, bool wet) in times)
             {
                 if (sky != null)
                 {
                     sky.Running = false;
                     sky.TimeOfDay = time;
                 }
+                if (wet && rain != null)
+                {
+                    rain.SetRain(1.0f);
+                    rain.Soak(1.0f);
+                }
                 yield return Stand(locomotion, 3.0f);
+                if (wet)
+                {
+                    // Off the real screen, not a test's render texture: what the player sees (the reflections the right way up).
+                    yield return SaveScreenLookingAlongTheGround(locomotion.transform);
+                }
                 // Each effect timed on and then off straight after, and what it costs is the pair's difference: a laptop's card slows as it
                 // warms, and over a whole run that drift (up to 1.7 ms) swamped the cheap effects when each was set against one first reading.
                 sb.AppendLine($"--- EFFECTS, {when}: standing still, {seconds:0} s on then {seconds:0} s off each (the graphics card's ms a frame)");
@@ -69,6 +81,64 @@ namespace CityX.View
             }
         }
 
+        /// <summary>The real screen from a walker's eye, looking along the ground the way the body faces: bench-rain.bmp, where the wet ground shows.</summary>
+        private static IEnumerator SaveScreenLookingAlongTheGround(Transform body)
+        {
+            var follow = FindFirstObjectByType<ThirdPersonCamera>();
+            Camera eye = Camera.main;
+            if (follow == null || eye == null)
+            {
+                yield break;
+            }
+            follow.enabled = false;
+            Vector3 from = body.position + Vector3.up * 2.3f;
+            eye.transform.SetPositionAndRotation(from, Quaternion.LookRotation(body.forward * 30.0f + Vector3.down * 1.5f));
+            // The mirror shows the frame before, so a frame or two from where the eye now is.
+            yield return null;
+            yield return null;
+            yield return null;
+            yield return SaveScreen(System.IO.Path.Combine(Application.dataPath, "..", "bench-rain.bmp"));
+            follow.enabled = true;
+        }
+
+        /// <summary>The screen as it is at the end of this frame, as a BMP (this project has neither of Unity's image-writing modules).</summary>
+        private static IEnumerator SaveScreen(string path)
+        {
+            yield return new WaitForEndOfFrame();
+            int width = Screen.width, height = Screen.height;
+            var image = new Texture2D(width, height, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+            Color32[] pixels = image.GetPixels32();
+            Destroy(image);
+            int row = (width * 3 + 3) & ~3;
+            using (var file = new System.IO.BinaryWriter(System.IO.File.Create(path)))
+            {
+                file.Write((byte)'B');
+                file.Write((byte)'M');
+                file.Write(54 + row * height);
+                file.Write(0);
+                file.Write(54);
+                file.Write(40);
+                file.Write(width);
+                file.Write(height);
+                file.Write((short)1);
+                file.Write((short)24);
+                file.Write(new byte[24]);
+                var line = new byte[row];
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        Color32 c = pixels[y * width + x];
+                        line[x * 3] = c.b;
+                        line[x * 3 + 1] = c.g;
+                        line[x * 3 + 2] = c.r;
+                    }
+                    file.Write(line);
+                }
+            }
+        }
+
         /// <summary>A second to settle, then the graphics card's mean ms a frame and the mean frame over <paramref name="seconds"/>, standing.</summary>
         private static IEnumerator Clock(PlayerLocomotion locomotion, float seconds, Action<(double gpu, float frame)> result)
         {
@@ -94,6 +164,7 @@ namespace CityX.View
         {
             var effects = new List<Effect>
             {
+                FeatureOff("wet street reflections", GraphicsQuality.ReflectionsFeature),
                 FeatureOff("light shafts", "CityXLightShafts"),
                 FeatureOff("haze (the city's air)", "CityXHaze"),
                 FeatureOff("black outlines (the cel look)", "CityXOutline"),

@@ -171,7 +171,15 @@ float FacadeNoise(float2 p)
     return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
 }
 
-void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out half3 normalTS, out bool indoors, out bool underground)
+#include "CityXWetMirror.hlsl"
+
+// The wall material that soaks the rain up instead of holding it on top: bare earth (SurfaceLook's slices, kTileMetres above).
+#define CITYX_EARTH_SLICE 10.0
+
+// standingWater: how much rain lies on the surface, 0..1, to mirror the city (CityXWetMirror.hlsl): the city's wetness where the rain
+// reaches, none on bare earth.
+void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out half3 normalTS, out bool indoors, out bool underground,
+    out float standingWater)
 {
     surfaceData = (SurfaceData)0;
 
@@ -206,9 +214,11 @@ void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out ha
     albedo *= lerp(1.0, 0.50, dirt);
     smoothness *= lerp(1.0, 0.55, dirt);
 
-    // Rain: wet surfaces are darker and shinier.
-    albedo *= lerp(1.0, 0.70, _CityXWetness);
-    smoothness = lerp(smoothness, max(smoothness, 0.72), _CityXWetness);
+    // Rain: wet surfaces are darker and shinier. It does not rain inside a building or under the ground.
+    float rain = indoors ? 0.0 : _CityXWetness;
+    standingWater = slice == CITYX_EARTH_SLICE ? 0.0 : rain;
+    albedo *= lerp(1.0, 0.70, rain);
+    smoothness = lerp(smoothness, max(smoothness, 0.72), rain);
 
     surfaceData.albedo = albedo;
     surfaceData.alpha = 1.0;
@@ -478,10 +488,13 @@ void FacadePassFragment(
     half3 normalTS;
     bool indoors;
     bool underground;
-    InitializeFacadeSurface(input, surfaceData, normalTS, indoors, underground);
+    float standingWater;
+    InitializeFacadeSurface(input, surfaceData, normalTS, indoors, underground, standingWater);
+    half3 facingWS = normalize(input.normalWS);
     if (!indoors)
     {
-        CityXApplySnow(surfaceData, input.positionWS, normalize(input.normalWS));
+        CityXApplySnow(surfaceData, input.positionWS, facingWS);
+        standingWater *= 1.0 - CityXSnowLying(input.positionWS, facingWS);   // snow lying on it mirrors nothing
     }
 
 #ifdef LOD_FADE_CROSSFADE
@@ -499,6 +512,10 @@ void FacadePassFragment(
     InitializeBakedGIData(input, inputData);
 
     half4 color = CityXFragmentPBR(inputData, surfaceData, indoors, underground);
+    if (standingWater > 0.0)
+    {
+        color.rgb = CityXWetMirror(color.rgb, input.positionWS, facingWS, inputData.viewDirectionWS, standingWater, input.positionCS.xy);
+    }
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = 1.0;
 

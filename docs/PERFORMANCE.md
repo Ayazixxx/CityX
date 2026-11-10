@@ -52,8 +52,8 @@ Flags: `-force-d3d11`, `-bench-msaa N`, `-bench-shadow M`, `-bench-shadowres P`,
 `-bench-standing S`, `-bench-running S`, `-bench-flying S`, `-bench-flyspeed M/S` (default 22, a boosted jetpack),
 `-bench-exact S` (0 = off), `-bench-gcslice MS`, `-bench-settle S` (how long the city streams in before anything is timed: the whole
 view takes about 25 s, the default is 6), `-bench-vsync N`, `-bench-fps N`, `-bench-physics HZ` (what-ifs for the pacing, below),
-`-bench-effects S` (instead of the phases: each graphics effect's cost by day and
-by night, S seconds on and S off each; docs/GRAPHICS_SETTINGS.md). The benchmark runs with its window behind others (it sets
+`-bench-effects S` (instead of the phases: each graphics effect's cost by day, by night and at night in heavy rain,
+S seconds on and S off each; docs/GRAPHICS_SETTINGS.md). The benchmark runs with its window behind others (it sets
 `Application.runInBackground`; the game itself pauses there). Results go to `bench-result.txt`; the census (renderers, draws,
 triangles, in-frustum) is in it. Three phases: standing, sprinting, and flying 40 m over the ground (the body carried along a
 straight line). Each reports its garbage collections, the managed heap, how much was allocated, the chunk mesh arrays made new and

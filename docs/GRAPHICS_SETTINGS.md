@@ -34,12 +34,13 @@ rows says what the row last pointed at does and what it costs. Escape on the tit
 | ANTI-ALIASING | OFF, 2X, 4X | MSAA |
 | AMBIENT OCCLUSION | OFF, ON | URP's SSAO renderer feature |
 | LIGHT SHAFTS | OFF, ON | the `CityXLightShafts` renderer feature |
+| REFLECTIONS | OFF, ON | the `CityXWetMirror` renderer feature: the city in the wet streets (docs/WET_STREETS.md) |
 
-| Preset | Shadows | Anti-aliasing | Ambient occlusion | Light shafts |
-|---|---|---|---|---|
-| LOW | LOW | OFF | OFF | OFF |
-| MEDIUM | MEDIUM | 2X | ON | OFF |
-| HIGH (a new game) | HIGH | 4X | ON | ON |
+| Preset | Shadows | Anti-aliasing | Ambient occlusion | Light shafts | Reflections |
+|---|---|---|---|---|---|
+| LOW | LOW | OFF | OFF | OFF | OFF |
+| MEDIUM | MEDIUM | 2X | ON | OFF | OFF |
+| HIGH (a new game) | HIGH | 4X | ON | ON | ON |
 
 A settings file from before this loads as HIGH, the game as it was. The black outlines, the haze and the bloom stay on in every preset: they
 are the game's look, and cost about 0.2 ms each.
@@ -61,6 +62,7 @@ in the city (7.4-9.3 ms of graphics card time a frame), everything in the table 
 |---|---|---|
 | light shafts: full size, URP's soft shadow filter | 2.5 ms | 3.0 ms (they ran by moonlight) |
 | light shafts: half size (now) | 1.2 | none (no pass with the sun down) |
+| wet street reflections (2026-11-10) | none when dry | none when dry, 0.19 in heavy rain |
 | anti-aliasing (MSAA 4x against off) | 0.8-1.1 | 1.2-1.3 |
 | ambient occlusion | 0.8-1.1 | 1.0-1.1 |
 | bloom and colour grade | 0.7-0.8 | 0.75 |

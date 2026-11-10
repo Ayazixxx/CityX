@@ -42,7 +42,7 @@ namespace CityX.Tests
             var fresh = new GraphicsOptions();
             Assert.AreEqual(GraphicsPreset.High, fresh.Preset);
             Assert.AreEqual(100, fresh.ResolutionScale);
-            Assert.IsTrue(fresh.LightShafts && fresh.AmbientOcclusion);
+            Assert.IsTrue(fresh.LightShafts && fresh.AmbientOcclusion && fresh.Reflections);
             Assert.AreEqual(ShadowDetail.High, fresh.Shadows);
         }
 
@@ -54,12 +54,15 @@ namespace CityX.Tests
                 Assert.AreEqual(preset, GraphicsOptions.Of(preset).Preset);
             }
             GraphicsOptions low = GraphicsOptions.Of(GraphicsPreset.Low);
-            Assert.IsFalse(low.LightShafts || low.AmbientOcclusion, "LOW still draws an effect it could drop");
+            Assert.IsFalse(low.LightShafts || low.AmbientOcclusion || low.Reflections, "LOW still draws an effect it could drop");
             Assert.AreEqual(1, low.AntiAliasing);
 
             GraphicsOptions changed = GraphicsOptions.Of(GraphicsPreset.High);
             changed.LightShafts = false;
             Assert.AreEqual(GraphicsPreset.Custom, changed.Preset);
+            changed = GraphicsOptions.Of(GraphicsPreset.High);
+            changed.Reflections = false;
+            Assert.AreEqual(GraphicsPreset.Custom, changed.Preset, "the reflections are no part of what makes a preset");
         }
 
         [Test]

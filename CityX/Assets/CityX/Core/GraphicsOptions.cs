@@ -38,6 +38,9 @@ namespace CityX.Core
 
         public bool LightShafts = true;
 
+        /// <summary>The wet streets mirror the city in the rain (docs/WET_STREETS.md).</summary>
+        public bool Reflections = true;
+
         /// <summary>The share of the window's pixels drawn, in percent; the picture is stretched (and sharpened) to fill the window.</summary>
         public int ResolutionScale = 100;
 
@@ -63,18 +66,21 @@ namespace CityX.Core
                     AntiAliasing = 1;
                     AmbientOcclusion = false;
                     LightShafts = false;
+                    Reflections = false;
                     break;
                 case GraphicsPreset.Medium:
                     Shadows = ShadowDetail.Medium;
                     AntiAliasing = 2;
                     AmbientOcclusion = true;
                     LightShafts = false;
+                    Reflections = false;
                     break;
                 case GraphicsPreset.High:
                     Shadows = ShadowDetail.High;
                     AntiAliasing = 4;
                     AmbientOcclusion = true;
                     LightShafts = true;
+                    Reflections = true;
                     break;
             }
         }
@@ -88,7 +94,7 @@ namespace CityX.Core
                 {
                     GraphicsOptions made = Of(preset);
                     if (Shadows == made.Shadows && AntiAliasing == made.AntiAliasing && AmbientOcclusion == made.AmbientOcclusion &&
-                        LightShafts == made.LightShafts)
+                        LightShafts == made.LightShafts && Reflections == made.Reflections)
                     {
                         return preset;
                     }

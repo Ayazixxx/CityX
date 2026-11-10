@@ -111,6 +111,8 @@ with no ripples. `RainRealCityPlayTests` therefore uses no end-of-frame waits;
 
 `/weather` now goes through the server, so a change of rain or snow reaches every machine, and a joining player is told how it is. See docs/SNOW.md.
 
+The city mirrored in the wet ground: docs/WET_STREETS.md.
+
 ## Not built
 
 - Rain masking footsteps / stealth noise (no stealth system to hook into yet).

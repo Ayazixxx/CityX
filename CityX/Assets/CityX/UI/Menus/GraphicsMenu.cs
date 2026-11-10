@@ -62,6 +62,9 @@ namespace CityX.UI
             new Row("LIGHT SHAFTS", OffOn,
                 "Sunbeams through the haze between the towers, by day. Cost: medium.",
                 options => options.LightShafts ? 1 : 0, (options, choice) => options.LightShafts = choice == 1),
+            new Row("REFLECTIONS", OffOn,
+                "The city mirrored in wet streets. Costs nothing until it rains, then a little.",
+                options => options.Reflections ? 1 : 0, (options, choice) => options.Reflections = choice == 1),
         };
 
         private static string[] OffOn => new[] { "OFF", "ON" };

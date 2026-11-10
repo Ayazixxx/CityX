@@ -113,3 +113,7 @@ pass at all. Settings > GRAPHICS > LIGHT SHAFTS switches them off.
 
 Pictures: `TrafficCapture.RenderTheLightEffects` (the real city, morning and afternoon, down a street toward the sun and from 60 m up) and
 `RenderTheLightEffectsInTheSun` (a low sun behind a row of pillars), each `gfx-*-off.png` and `-on.png`.
+
+## Wet reflections (2026-11-10)
+
+Idea 2 of that list: docs/WET_STREETS.md.

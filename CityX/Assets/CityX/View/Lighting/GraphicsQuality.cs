@@ -16,6 +16,7 @@ namespace CityX.View
     {
         public const string LightShaftsFeature = "CityXLightShafts";
         public const string AmbientOcclusionFeature = "ScreenSpaceAmbientOcclusion";
+        public const string ReflectionsFeature = "CityXWetMirror";
 
         /// <summary>What the shadow qualities below High draw: the sun's shadow map's side in pixels, and its cascades.</summary>
         public const int MediumShadowResolution = 2048;
@@ -77,6 +78,11 @@ namespace CityX.View
             Current = options;
             SetFeature(LightShaftsFeature, options.LightShafts);
             SetFeature(AmbientOcclusionFeature, options.AmbientOcclusion);
+            SetFeature(ReflectionsFeature, options.Reflections);
+            if (!options.Reflections)
+            {
+                WetMirrorFeature.Clear();
+            }
 
             UniversalRenderPipelineAsset pipeline = Pipeline();
             if (pipeline == null)

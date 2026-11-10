@@ -67,6 +67,7 @@ namespace CityX.ViewEditor
             HazeSetup.EnsureFeature();   // the city's air: a full-screen height-fog pass (Shaders/CityXHaze.shader), driven by DayNightCycle
             OutlineSetup.EnsureFeature();   // the cel look's black lines: a full-screen edge pass (Shaders/CityXOutline.shader, CelShading)
             LightShaftsSetup.EnsureFeature();   // sunbeams and tower shadows in the air: a full-screen pass after the haze (Shaders/CityXLightShafts.shader, docs/LIGHTING.md)
+            WetMirrorSetup.EnsureFeature();   // what the wet streets mirror in the rain: the last frame's picture, kept (Shaders/CityXWetMirror.hlsl, docs/WET_STREETS.md)
 
             // The mesh builder writes UVs in METRES, so tiling is simply the
             // reciprocal of how many metres of world each texture covers. That
