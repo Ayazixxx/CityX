@@ -187,3 +187,24 @@ Tests: `RoomFillTests` (the fill covers its floor, walls, ceiling and fittings a
 go to the rooms either side; a hall's fill reaches its window reveals but not its stairwell; brightness bounds; no lamp in a carved room or
 over a stair hole; the shader's constants and packing), `RoomLightsPlayTests.ALitRoomsBouncedLightGoesToTheShaderAndComesOutWhenItGoesDark`.
 Checked by rendering `RoomLightsCapture` before and after.
+
+## Update 2026-11-09: the marks had stopped reaching the shaders
+
+Found while making the sewers dark (docs/SEWERS.md): a street lamp lit the tunnel under its road although the shader skips a light
+marked outside. URP keeps only the marks on rendering layers the project NAMES (Project Settings, Tags and Layers), and strips the rest
+without a word; the project's layers still carried the placeholder names of an older Unity ("Light Layer 1" to "7"), which this one
+does not count as named (`RenderingLayerMask.GetDefinedRenderingLayersCombinedMaskValue` gave the default layer alone). So every light
+reached the shaders unmarked: a lit room shone through its walls onto the pavement and the house next door, a door lamp lit the room
+behind its wall, and the soft fitting (`CityXSoftenFitting`, which knows a room light by its mark) never ran. Every test read the mark
+back from the light, where it was fine.
+
+- The layers are named for what they are: `Interior Lights`, `Exterior Lights`, `Carried Beams` (`CityLightLayers.Interior`, `Exterior`,
+  `Beam`). `NightLightingTests.TheShadersReadALightsMarksByTheBitsTheyAreSetWith` fails if a mark is on a layer the project does not
+  name.
+- `LightMarksPlayTests` (needs `-Graphics`) renders a wall under each mark: a room's light does not light the street and a street
+  light does, and the other way round for a room's wall. Only a picture shows a mark that never arrived.
+- The street lamps' real lights (`StreetLampDirector`) are marked outside too: they cast no shadows.
+- What it changed, rendered with the old names and the new on the same rooms (`RoomLightsCapture`, 40 night shots): rooms are 1 to
+  4 % dimmer inside (the soft fitting, and no light from the next room through the wall); the pavement in front of a lit building is
+  10 to 15 % darker, lit by the door lamp and the street lamps alone. A lit room no longer lays pale patches on the pavement through
+  its wall. Light falling out through the WINDOWS onto the street would need the room lights to cast shadows; not built.

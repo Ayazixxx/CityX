@@ -189,6 +189,8 @@ namespace CityX.View
             light.innerSpotAngle = InnerConeDegrees;
             light.color = Sodium;
             light.shadows = LightShadows.None;
+            // It casts no shadows, so nothing but its mark keeps it off the rooms beside the road and out of the tunnel under it.
+            CityLightLayers.MarkOutside(light);
             light.enabled = false;
             return light;
         }

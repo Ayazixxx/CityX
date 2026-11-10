@@ -18,6 +18,11 @@
 // Without the keyword everything here is URP's own lighting, called as before, so the game looks exactly as it did with cel shading off.
 // The thick black lines are a separate full-screen pass (CityXOutline.shader).
 //
+// THE DARK UNDER THE GROUND is here too, as both shaders need it (docs/SEWERS.md; owner, 2026-11-09: "pitch black like night time in
+// minecraft with barely any visibility and the flashlight/ other light sources need to light up the darkness"). With the eye under the
+// ground (_CityXUnderground) a body gets nothing of the sun, the moon, the sky or the city's own lamps; what is left is what shines down
+// there, and a trace round the eye (CityXDarkTrace) by which the nearest few metres are shapes and no more.
+//
 // The numbers are globals set by CelShading.cs (live: /celshade), so no material changes for a retune. Each is (0, 0, 0, 0) until set,
 // which lights everything flat and fully: the toon light never goes dark for want of a setting.
 
@@ -29,6 +34,62 @@
 float4 _CityXToonSun;
 // x: the specular (URP's DirectBRDFSpecular times the light) at which a hard highlight shows, y: its strength.
 float4 _CityXToonShine;
+
+// How far out of the sky's light the eye is, 0 (under the open sky) to 1 (deep in a tunnel); and what an eye still makes out in the dark:
+// rgb the light of it on a surface at the eye, a how many metres from the eye it reaches. Both set by DayNightCycle, 0 until then.
+float _CityXUnderground;
+float4 _CityXDarkTrace;
+
+// Which side of a wall a light is on (View/CityLightLayers.cs): a light on the interior layer lights only indoor surfaces, one on the
+// exterior layer only outdoor ones. The city's own lamps carry one or the other; a light somebody carries or lights carries neither.
+// MUST match CityLightLayers.Interior / Exterior.
+#define CITYX_INTERIOR_LIGHT_LAYER (1u << 1)
+#define CITYX_EXTERIOR_LIGHT_LAYER (1u << 2)
+#define CITYX_CITY_LIGHT_LAYERS (CITYX_INTERIOR_LIGHT_LAYER | CITYX_EXTERIOR_LIGHT_LAYER)
+
+// A light somebody carries (a torch's beam, and the glow round it) is on the beam layer. Under the ground it does not fall off with the
+// distance: it lights what it falls on, near or far, as a bare light of its strength would CITYX_BEAM_MATCH_METRES off, and only its
+// range ends it (URP fades every light out over the last of its range). A tunnel is long and its walls lie almost along the beam: by
+// the square of the distance a beam bright enough to show the far end of one burns the wall beside the hand white, and one that spares
+// the wall is gone ten metres on. Under the sky it falls off as any light does: thrown so down a street it floods every house front
+// thirty metres off. MUST match CityLightLayers.Beam.
+#define CITYX_BEAM_LIGHT_LAYER (1u << 3)
+#define CITYX_BEAM_MATCH_METRES 4.0
+
+// Where additional light <i> is (the light loop's own index), the way URP's GetAdditionalLight finds it.
+float3 CityXAdditionalLightPosition(uint i)
+{
+#if USE_CLUSTER_LIGHT_LOOP
+    int lightIndex = i;
+#else
+    int lightIndex = GetPerObjectLightIndex(i);
+#endif
+#if USE_STRUCTURED_BUFFER_FOR_LIGHT_DATA
+    return _AdditionalLightsBuffer[lightIndex].position.xyz;
+#else
+    return _AdditionalLightsPosition[lightIndex].xyz;
+#endif
+}
+
+// A carried light's falloff (CITYX_BEAM_LIGHT_LAYER) on what is <under> the ground (0 under the sky, 1 in a tunnel): the square of the
+// distance URP divided by, put back.
+void CityXThrowBeam(inout Light light, uint i, float3 positionWS, half under)
+{
+    if ((light.layerMask & CITYX_BEAM_LIGHT_LAYER) != 0)
+    {
+        float3 toLight = CityXAdditionalLightPosition(i) - positionWS;
+        light.distanceAttenuation *= lerp(1.0, dot(toLight, toLight) / (CITYX_BEAM_MATCH_METRES * CITYX_BEAM_MATCH_METRES), under);
+    }
+}
+
+// What an eye makes out in the dark with no light at all: a faint light as if from the eye itself, strongest on what faces it and gone a
+// few metres off. The owner asked for "barely any visibility", not none: a wall an arm's length away is a shape, the tunnel beyond is black.
+half3 CityXDarkTrace(float3 positionWS, half3 normalWS, half3 viewDirectionWS)
+{
+    float near = saturate(1.0 - distance(positionWS, _WorldSpaceCameraPos) / max(_CityXDarkTrace.a, 0.001));
+    half facing = 0.4 + 0.6 * saturate(dot(normalWS, viewDirectionWS));
+    return _CityXDarkTrace.rgb * (near * near * facing);
+}
 
 half CityXToonEdge(half amount, half at, half halfWidth)
 {
@@ -123,16 +184,23 @@ half4 CityXToonFragmentPBR(InputData inputData, SurfaceData surfaceData)
 
     MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI);
 
+    // Under the ground the sky's own light is already gone (DayNightCycle takes the ambient and the reflections away); the sun, the moon
+    // and the city's lamps go here. A body knows only where the eye is, not where it stands itself: one seen down a manhole from the
+    // street is lit as the street is.
+    half sky = 1.0 - _CityXUnderground;
+
     LightingData lightingData = CreateLightingData(inputData, surfaceData);
     lightingData.giColor = GlobalIllumination(brdfData, brdfDataClearCoat, surfaceData.clearCoatMask,
                                               inputData.bakedGI, aoFactor.indirectAmbientOcclusion, inputData.positionWS,
                                               inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
+    lightingData.giColor += CityXDarkTrace(inputData.positionWS, inputData.normalWS, inputData.viewDirectionWS) * brdfData.diffuse
+                            * _CityXUnderground;
 #ifdef _LIGHT_LAYERS
     if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
 #endif
     {
         lightingData.mainLightColor = CityXToonLight(brdfData, mainLight, inputData.normalWS, inputData.viewDirectionWS,
-                                                     specularHighlightsOff, true);
+                                                     specularHighlightsOff, true) * sky;
     }
 
     #if defined(_ADDITIONAL_LIGHTS)
@@ -150,20 +218,23 @@ half4 CityXToonFragmentPBR(InputData inputData, SurfaceData surfaceData)
 #endif
         {
             lightingData.additionalLightsColor += CityXToonLight(brdfData, light, inputData.normalWS, inputData.viewDirectionWS,
-                                                                 specularHighlightsOff, true);
+                                                                 specularHighlightsOff, true) * sky;
         }
     }
     #endif
 
     LIGHT_LOOP_BEGIN(pixelLightCount)
         Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+        CityXThrowBeam(light, lightIndex, inputData.positionWS, _CityXUnderground);
 
 #ifdef _LIGHT_LAYERS
         if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
 #endif
         {
+            // The city's own lamps cast no shadows: a street lamp would light a body in the tunnel under its road.
+            half reaches = (light.layerMask & CITYX_CITY_LIGHT_LAYERS) != 0 ? sky : 1.0;
             lightingData.additionalLightsColor += CityXToonLight(brdfData, light, inputData.normalWS, inputData.viewDirectionWS,
-                                                                 specularHighlightsOff, false);
+                                                                 specularHighlightsOff, false) * reaches;
         }
     LIGHT_LOOP_END
     #endif

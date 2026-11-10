@@ -47,9 +47,7 @@ namespace CityX.Tests
             GameObject holder = Body(Vector3.zero);
             GameObject stranger = Body(new Vector3(-1.2f, 0.0f, 7.0f));
             stranger.transform.rotation = Quaternion.Euler(0.0f, 180.0f, 0.0f);
-            var torch = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Flashlight.prefab"))
-                .GetComponent<FlashlightItem>();
-            torch.OnEquip(holder, ItemInstanceData.None);
+            FlashlightItem torch = TorchFor(holder);
             Vector3 look = new Vector3(-0.08f, -0.12f, 1.0f).normalized;
             yield return Hold(holder, torch, true, 0.8f, look);
 
@@ -73,23 +71,33 @@ namespace CityX.Tests
         }
 
 #if UNITY_EDITOR
-        private static GameObject Body(Vector3 at)
+        internal static GameObject Body(Vector3 at)
         {
             GameObject body = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                 at, Quaternion.identity);
             body.GetComponent<PlayerInputReader>().enabled = false;
             return body;
         }
+
+        /// <summary>A flashlight in a body's hand, off.</summary>
+        internal static FlashlightItem TorchFor(GameObject holder)
+        {
+            var torch = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Flashlight.prefab"))
+                .GetComponent<FlashlightItem>();
+            torch.OnEquip(holder, ItemInstanceData.None);
+            return torch;
+        }
 #endif
 
-        private static IEnumerator Hold(GameObject body, FlashlightItem torch, bool click, float seconds, Vector3 look)
+        /// <summary>A body standing with its torch for a while, turned to a yaw and looking along a line; a click on the first frame switches it.</summary>
+        internal static IEnumerator Hold(GameObject body, FlashlightItem torch, bool click, float seconds, Vector3 look, float yawDegrees = 0.0f)
         {
             var locomotion = body.GetComponent<PlayerLocomotion>();
             for (float t = 0.0f; t < seconds; t += Step)
             {
                 Vector3 eye = body.transform.position + Vector3.up * 2.4f - look * 4.0f;
                 torch.Tick(click && t < Step, eye, look, body, Step);
-                locomotion.Tick(new LocomotionInput { YawDegrees = 0.0f }, Step);
+                locomotion.Tick(new LocomotionInput { YawDegrees = yawDegrees }, Step);
                 yield return null;
             }
         }

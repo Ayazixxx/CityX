@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using CityX.View;
+using CityX.Weapons;
 using CityX.World;
 using CityX.World.Plan;
 using NUnit.Framework;
@@ -14,7 +15,8 @@ namespace CityX.Tests
     /// <summary>
     /// Not a test: the sewers (docs/SEWERS.md) in the real city, to Logs/CityShots/sewer-*.png: an open manhole from the street and from
     /// over it, the room under it with its ladder, a tunnel of each kind, and a mouth of each kind of gate from the channel and from inside.
-    /// Explicit; needs -Graphics.
+    /// The shapes are shot by a lamp carried with the camera and the sky's light left on; the dark as it is played is in sewer-6 (with
+    /// that lamp and without), sewer-7 (a flashlight in a hand, on and off) and each mouth's -inside-as-played. Explicit; needs -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class SewerCapture
@@ -32,7 +34,18 @@ namespace CityX.Tests
             yield return new WaitForSecondsRealtime(2.0f);
         }
 
+        /// <summary>
+        /// How far out of the sky's light the eye is, set as SewerAir sets it. Right before a shot: every frame SewerAir draws it back
+        /// toward what the scene's own camera has.
+        /// </summary>
+        private static void Dark(DayNightCycle cycle, float underground)
+        {
+            DayNightCycle.Underground = underground;
+            cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
+        }
+
         [UnityTest]
+        [Timeout(900000)]
         public IEnumerator RenderTheSewers()
         {
             CaptureGuard.NeedsGraphics();
@@ -124,16 +137,32 @@ namespace CityX.Tests
                 if (seen.Count == 1)
                 {
                     // As it is played: the sky's light gone (SewerAir does this as the eye goes down), by the lamp and then without it.
-                    DayNightCycle.Underground = 1.0f;
-                    cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
+                    Dark(cycle, 1.0f);
                     BuildingShapeCapture.Shoot(camera, directory, "sewer-6-dark-with-a-lamp", eye, look);
                     lamp.enabled = false;
                     BuildingShapeCapture.Shoot(camera, directory, "sewer-6-dark-without", eye, look);
                     BuildingShapeCapture.Shoot(camera, directory, "sewer-6-dark-room-under-the-open-manhole",
                         floor + normal * 6.0f + Vector3.up * 2.6f + Vector3.Cross(Vector3.up, normal) * 2.0f, floor + Vector3.up * 3.0f);
+
+                    // By a flashlight in a hand, from behind the one who holds it: switched on, then off.
+                    Vec2 walkway = tube.Dir.Perp * ((tube.Section.ChannelHalfWidth + tube.Section.FloorHalfWidth) * 0.5);
+                    double stand = along + 4.5;
+                    Vec2 feet = tube.At(stand) + walkway, behind = at + walkway * 0.15;
+                    var forward = new Vector3((float)tube.Dir.X, 0.0f, (float)tube.Dir.Y);
+                    GameObject holder = FlashlightCapture.Body(new Vector3((float)feet.X, (float)tube.FloorAt(stand) + 0.05f, (float)feet.Y));
+                    FlashlightItem torch = FlashlightCapture.TorchFor(holder);
+                    Vector3 beam = (forward + Vector3.down * 0.05f).normalized;
+                    float yaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+                    var shoulder = new Vector3((float)behind.X, eye.y, (float)behind.Y);
+                    yield return FlashlightCapture.Hold(holder, torch, true, 0.8f, beam, yaw);
+                    Dark(cycle, 1.0f);
+                    BuildingShapeCapture.Shoot(camera, directory, "sewer-7-flashlight-on", shoulder, look);
+                    yield return FlashlightCapture.Hold(holder, torch, true, 0.3f, beam, yaw);
+                    Dark(cycle, 1.0f);
+                    BuildingShapeCapture.Shoot(camera, directory, "sewer-7-flashlight-off", shoulder, look);
+                    Object.Destroy(holder);
                     lamp.enabled = true;
-                    DayNightCycle.Underground = 0.0f;
-                    cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
+                    Dark(cycle, 0.0f);
                 }
                 if (seen.Count >= 8) break;
             }
@@ -162,7 +191,13 @@ namespace CityX.Tests
                 BuildingShapeCapture.Shoot(camera, directory, name + "-front", portal + dir * back + Vector3.up * 2.6f + side * 1.2f, portal + Vector3.up * 2.4f);
                 BuildingShapeCapture.Shoot(camera, directory, name + "-bank", portal + dir * (back + 10.0f) + Vector3.up * 9.0f + side * 16.0f, portal + Vector3.up * 2.0f);
                 lamp.enabled = true;
-                BuildingShapeCapture.Shoot(camera, directory, name + "-inside", portal - dir * 9.0f + Vector3.up * 2.6f - side * 1.0f, portal + dir * 6.0f + Vector3.up * 2.0f);
+                Vector3 within = portal - dir * 9.0f + Vector3.up * 2.6f - side * 1.0f, outward = portal + dir * 6.0f + Vector3.up * 2.0f;
+                BuildingShapeCapture.Shoot(camera, directory, name + "-inside", within, outward);
+                // The same as it is played: no lamp, and as much of the sky's light gone as is at that eye.
+                lamp.enabled = false;
+                Dark(cycle, (float)sewers.DarknessAt(within.x, within.y, within.z));
+                BuildingShapeCapture.Shoot(camera, directory, name + "-inside-as-played", within, outward);
+                Dark(cycle, 0.0f);
                 Debug.Log($"CityX sewer capture: mouth {pair.Key} under bridge {outfall.Bridge.Id}, {tube.Section.Kind} {tube.Section.Style}, " +
                     $"headwall {outfall.Portal:F0} m from its room, open cut {outfall.End - outfall.Portal:F0} m");
             }

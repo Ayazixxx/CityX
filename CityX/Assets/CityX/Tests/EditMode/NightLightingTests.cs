@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using CityX.Character;
 using CityX.View;
 using CityX.World;
@@ -57,9 +58,11 @@ namespace CityX.Tests
         {
             foreach (bool indoors in new[] { false, true })
             {
+                // A room's wear keeps to the clean half: the filthy half of a sheltered look is what marks the ground's inside.
+                float[] wears = indoors ? new[] { 0.0f, 0.15f, 0.4f } : new[] { 0.0f, 0.5f, 1.0f };
                 for (int slice = 0; slice < 12; slice++)
                 {
-                    foreach (float wear in new[] { 0.0f, 0.5f, 1.0f })
+                    foreach (float wear in wears)
                     {
                         Color32 packed = SurfaceLook.Pack(new Color32(200, 120, 40, 255), slice, wear, indoors);
                         SurfaceLook.Unpack(packed, out Color32 tint, out int gotSlice, out float gotWear, out bool gotIndoors);
@@ -67,11 +70,34 @@ namespace CityX.Tests
                         Assert.AreEqual(wear, gotWear, 1.0f / (SurfaceLook.WearLevels - 1));
                         Assert.AreEqual(indoors, gotIndoors);
                         Assert.AreEqual(indoors, SurfaceLook.IsIndoors(packed));
+                        Assert.IsFalse(SurfaceLook.IsUnderground(packed));
                         Assert.AreEqual(200, tint.r);
                     }
                 }
             }
             Assert.IsFalse(SurfaceLook.IsIndoors(SurfaceLook.Default), "an unstyled surface is outdoors");
+            Assert.IsFalse(SurfaceLook.IsUnderground(SurfaceLook.Pack(Color.white, 3, 1.0f, true)), "a filthy room went dark as a tunnel");
+        }
+
+        [Test]
+        public void ALookUnderTheGroundIsShelteredAndNeverTakenForARoom()
+        {
+            float step = 1.0f / (SurfaceLook.WearLevels - 1);
+            float least = SurfaceLook.UndergroundWear * step;
+            for (int slice = 0; slice < SurfaceLook.Slices; slice++)
+            {
+                foreach (float wear in new[] { 0.0f, 0.35f, 0.8f, 1.0f })
+                {
+                    Color32 packed = SurfaceLook.PackUnderground(new Color(0.8f, 0.4f, 0.2f), slice, wear);
+                    SurfaceLook.Unpack(packed, out Color32 tint, out int gotSlice, out float gotWear, out bool sheltered);
+                    Assert.IsTrue(SurfaceLook.IsUnderground(packed), $"slice {slice}, wear {wear}: not under the ground");
+                    Assert.IsTrue(sheltered && SurfaceLook.IsIndoors(packed), "under the ground and out in the sky's light");
+                    Assert.AreEqual(slice, gotSlice);
+                    Assert.AreEqual(Mathf.Max(wear, least), gotWear, step);
+                    Assert.AreEqual(204, tint.r);
+                }
+            }
+            Assert.IsFalse(SurfaceLook.IsUnderground(SurfaceLook.Default), "an unstyled surface is under the ground");
         }
 
         [Test]
@@ -204,7 +230,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ARoomLightIsMarkedInsideAndAnEntranceLampOutside()
+        public void ARoomLightIsMarkedInsideAnEntranceLampOutsideAndATorchACarriedBeam()
         {
             var go = new GameObject("Lights");
             try
@@ -221,11 +247,42 @@ namespace CityX.Tests
                 CityLightLayers.MarkOutside(outside);
                 Assert.AreNotEqual(0u, CityLightLayers.Of(outside) & CityLightLayers.Exterior);
                 Assert.AreEqual(0u, CityLightLayers.Of(outside) & CityLightLayers.Interior);
+
+                var torch = new GameObject("Torch");
+                torch.transform.SetParent(go.transform);
+                Light beam = torch.AddComponent<Light>();
+                CityLightLayers.MarkBeam(beam);
+                Assert.AreNotEqual(0u, CityLightLayers.Of(beam) & CityLightLayers.Beam);
+                Assert.AreNotEqual(0u, CityLightLayers.Of(beam) & CityLightLayers.Default, "it must still light the bodies it falls on");
+                Assert.AreEqual(0u, CityLightLayers.Of(beam) & (CityLightLayers.Interior | CityLightLayers.Exterior),
+                    "a torch is carried through doors: it is on no side of a wall");
             }
             finally
             {
                 Object.DestroyImmediate(go);
             }
+        }
+
+        [Test]
+        public void TheShadersReadALightsMarksByTheBitsTheyAreSetWith()
+        {
+            string text = System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "CityX/View/Shaders/CityXToonLighting.hlsl"));
+            uint Bit(string name)
+            {
+                Match define = Regex.Match(text, $@"#define {name} \(1u << (\d+)\)");
+                Assert.IsTrue(define.Success, $"CityXToonLighting.hlsl no longer defines {name} as one bit");
+                return 1u << int.Parse(define.Groups[1].Value);
+            }
+            Assert.AreEqual(CityLightLayers.Interior, Bit("CITYX_INTERIOR_LIGHT_LAYER"));
+            Assert.AreEqual(CityLightLayers.Exterior, Bit("CITYX_EXTERIOR_LIGHT_LAYER"));
+            Assert.AreEqual(CityLightLayers.Beam, Bit("CITYX_BEAM_LIGHT_LAYER"));
+
+            // URP hands a shader only the layers the project names (RenderingLayerUtils.ToValidRenderingLayers): a mark on any other is lost.
+            uint marks = CityLightLayers.Interior | CityLightLayers.Exterior | CityLightLayers.Beam;
+            uint named = RenderingLayerMask.GetDefinedRenderingLayersCombinedMaskValue();
+            Assert.AreEqual(marks, marks & named,
+                $"a light's mark is on a rendering layer the project does not name (Tags and Layers names {named:X}: "
+                + $"{string.Join(", ", RenderingLayerMask.GetDefinedRenderingLayerNames())}): URP strips it");
         }
 
         // ---- windows ----
@@ -391,6 +448,69 @@ namespace CityX.Tests
                 Object.DestroyImmediate(dome);
                 Shader.SetGlobalFloat("_CityXIndoorShade", 0.0f);
                 RenderSettings.reflectionIntensity = oldReflection;
+            }
+        }
+
+        [Test]
+        public void UnderTheGroundTheSkyGivesNothingAndTheDarkKeepsOnlyATrace()
+        {
+            var go = new GameObject("Cycle");
+            var dome = new Material(Shader.Find("CityX/ProceduralSky"));
+            Color oldFog = RenderSettings.fogColor;
+            Color oldSky = RenderSettings.ambientSkyColor, oldAmbient = RenderSettings.ambientLight, oldGround = RenderSettings.ambientGroundColor;
+            float oldReflection = RenderSettings.reflectionIntensity;
+            var oldAmbientMode = RenderSettings.ambientMode;
+            try
+            {
+                var cycle = go.AddComponent<DayNightCycle>();
+                cycle.SkyDome = dome;
+                SkyCycle.State noon = SkyCycle.At(SkyCycle.DaySeconds * 0.5f);
+
+                DayNightCycle.Underground = 1.0f;
+                cycle.Apply(noon);
+                Assert.AreEqual(1.0f, Shader.GetGlobalFloat("_CityXUnderground"), 1e-4f, "the shaders are not told the eye is under the ground");
+                Assert.AreEqual(0.0f, RenderSettings.ambientSkyColor.maxColorComponent, 1e-5f, "the sky's light in a tunnel at noon");
+                Assert.AreEqual(0.0f, RenderSettings.ambientEquatorColor.maxColorComponent, 1e-5f, "the sky's light in a tunnel at noon");
+                Assert.AreEqual(0.0f, RenderSettings.ambientGroundColor.maxColorComponent, 1e-5f, "the sky's light in a tunnel at noon");
+                Assert.AreEqual(0.0f, RenderSettings.reflectionIntensity, 1e-5f, "the sky reflected in a tunnel");
+                Assert.AreEqual(DayNightCycle.IndoorShadeDay, Shader.GetGlobalFloat("_CityXIndoorShade"), 1e-4f, "a room's share of the sky is the room's");
+                Vector4 trace = Shader.GetGlobalVector("_CityXDarkTrace");
+                float brightest = Mathf.Max(trace.x, Mathf.Max(trace.y, trace.z));
+                Assert.Greater(brightest, 0.0f, "the dark keeps no trace: the wall in front of the player is a guess");
+                // Grey brick gives back about an eighth of it, and that is before the wall turns from the eye and stands off from it.
+                Assert.Less(brightest, 0.3f, "the dark's trace lights the tunnel (owner: \"barely any visibility\")");
+                Assert.AreEqual(DayNightCycle.DarkTraceReach, trace.w, 1e-4f);
+                Assert.Less(DayNightCycle.DarkTraceReach, 20.0f, "the trace reaches down the tunnel: beyond a few steps the dark is black");
+
+                DayNightCycle.Underground = 0.0f;
+                cycle.Apply(noon);
+                Assert.AreEqual(0.0f, Shader.GetGlobalFloat("_CityXUnderground"), 1e-4f);
+                Assert.Greater(RenderSettings.ambientEquatorColor.maxColorComponent, 0.01f, "the sky's light did not come back up the ladder");
+                Assert.AreEqual(1.0f, RenderSettings.reflectionIntensity, 1e-3f);
+
+                // A scene without a sky cycle (the title screen) must not inherit a tunnel's dark.
+                DayNightCycle.Underground = 1.0f;
+                cycle.Apply(noon);
+                Object.DestroyImmediate(go);
+                Assert.AreEqual(0.0f, Shader.GetGlobalFloat("_CityXUnderground"), 1e-4f, "the dark outlived the sky cycle that set it");
+            }
+            finally
+            {
+                DayNightCycle.Underground = 0.0f;
+                RenderSettings.fogColor = oldFog;
+                RenderSettings.ambientMode = oldAmbientMode;
+                RenderSettings.ambientSkyColor = oldSky;
+                RenderSettings.ambientLight = oldAmbient;
+                RenderSettings.ambientGroundColor = oldGround;
+                RenderSettings.reflectionIntensity = oldReflection;
+                if (go != null)
+                {
+                    Object.DestroyImmediate(go);
+                }
+                Object.DestroyImmediate(dome);
+                Shader.SetGlobalFloat("_CityXIndoorShade", 0.0f);
+                Shader.SetGlobalFloat("_CityXUnderground", 0.0f);
+                Shader.SetGlobalVector("_CityXDarkTrace", Vector4.zero);
             }
         }
 

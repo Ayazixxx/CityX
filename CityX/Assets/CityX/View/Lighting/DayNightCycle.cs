@@ -32,22 +32,29 @@ namespace CityX.View
         public UnityEngine.Rendering.Volume NightGrade;
 
         /// <summary>
-        /// How much of the sky's light the inside of a building does NOT get (the facade shader's _CityXIndoorShade, on every surface marked
-        /// indoors -- SurfaceLook): by day a room is lit by its windows, not by the whole open sky the street sees; at night the sky is dark anyway,
-        /// and a room is what its own lamps make it (2026-10-09 lighting pass).
-        /// </summary>
-        /// <summary>
-        /// How far out of the sky's light the eye is, 0 to 1 (SewerAir: down a manhole, in a tunnel). The sky's light, its reflections and
-        /// the haze go with it: what lights a tunnel is what shines in it.
+        /// How far out of the sky's light the eye is, 0 to 1 (SewerAir: down a manhole, in a tunnel). The sky's light, its reflections, the
+        /// haze and the sunbeams go with it, and on a body the sun, the moon and the city's lamps too (_CityXUnderground in
+        /// CityXToonLighting.hlsl): what lights a tunnel is what shines in it.
         /// </summary>
         public static float Underground { get; set; }
 
         /// <summary>
-        /// What is left of the sky's light deep under the ground. Not quite nothing: the owner asked for "mostly pitch black", and the
-        /// games that are truly dark all keep a trace, so a wall is a shape and not a guess.
+        /// The trace the dark keeps round the eye under the ground, in linear light (_CityXDarkTrace, CityXToonLighting.hlsl): what a surface
+        /// at the eye and facing it gets, before its own colour. The owner asked for "pitch black like night time in minecraft with barely
+        /// any visibility" (2026-11-09), and the games that are truly dark all keep this much, so the wall in front of the player is a shape
+        /// and not a guess. On the tunnels' grey brick, which gives back an eighth of what falls on it, it shows the wall beside the player
+        /// about a twentieth of the way from black to white and nothing a few steps on: nothing a flashlight would not be wanted for.
         /// </summary>
-        public const float UndergroundSkyLight = 0.02f;
+        public static readonly Color DarkTrace = new Color(0.16f, 0.19f, 0.25f);
 
+        /// <summary>How far from the eye the trace reaches, in metres. Beyond it the dark is black.</summary>
+        public const float DarkTraceReach = 14.0f;
+
+        /// <summary>
+        /// How much of the sky's light the inside of a building does NOT get (the facade shader's _CityXIndoorShade, on every surface marked
+        /// indoors -- SurfaceLook): by day a room is lit by its windows, not by the whole open sky the street sees; at night the sky is dark anyway,
+        /// and a room is what its own lamps make it (2026-10-09 lighting pass).
+        /// </summary>
         public const float IndoorShadeDay = 0.65f;
         public const float IndoorShadeNight = 0.92f;   // 0.5 until the owner asked for pitch-black nights: a dark room is dark
 
@@ -62,6 +69,8 @@ namespace CityX.View
         public static float Daylight { get; set; } = 1.0f;
 
         private static readonly int IndoorShade = Shader.PropertyToID("_CityXIndoorShade");
+        private static readonly int EyeUnderground = Shader.PropertyToID("_CityXUnderground");
+        private static readonly int DarkTraceLight = Shader.PropertyToID("_CityXDarkTrace");
         private static readonly int StarEnergy = Shader.PropertyToID("_StarEnergy");
 
         /// <summary>
@@ -155,9 +164,10 @@ namespace CityX.View
 
         private void OnDisable()
         {
-            // Shader globals outlive the scene: a scene without a sky cycle (the title screen) must not inherit this one's air.
+            // Shader globals outlive the scene: a scene without a sky cycle (the title screen) must not inherit this one's air, or its dark.
             CityHaze.Clear();
             CurrentSky.Clear();
+            Shader.SetGlobalFloat(EyeUnderground, 0.0f);
         }
 
         /// <summary>
@@ -213,7 +223,10 @@ namespace CityX.View
             // darker, warmer bounce off the street from below. Same average brightness as the old flat one, but up-facing roofs and
             // down-facing undersides, and the two sides of a street canyon, no longer light identically.)
             float underground = Mathf.Clamp01(Underground);
-            Color baseAmbient = state.AmbientColour * Mathf.Lerp(1.0f, UndergroundSkyLight, underground);
+            float aboveGround = 1.0f - underground;
+            Shader.SetGlobalFloat(EyeUnderground, underground);
+            Shader.SetGlobalVector(DarkTraceLight, new Vector4(DarkTrace.r, DarkTrace.g, DarkTrace.b, DarkTraceReach));
+            Color baseAmbient = state.AmbientColour * aboveGround;
             Color skyTint = SkyCycle.Weathered(state.SkyTopColour, Overcast, Flash);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = Color.Lerp(baseAmbient, skyTint * baseAmbient.maxColorComponent * 2.0f, 0.4f) * 1.35f;
@@ -224,7 +237,7 @@ namespace CityX.View
             RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
             // Faded with the daylight: the reflection map is the sky as it was captured, and a daytime sky in every window and wet street
             // at midnight was the pale grey glow the owner saw ("get rid of this greyish hue"; night should be "almost pitch black").
-            RenderSettings.reflectionIntensity = Mathf.Lerp(NightReflection, 1.0f, state.Daylight) * Mathf.Lerp(1.0f, UndergroundSkyLight, underground);
+            RenderSettings.reflectionIntensity = Mathf.Lerp(NightReflection, 1.0f, state.Daylight) * aboveGround;
 
             // Weather goes through the sky, the fog and the camera background
             // ALL TOGETHER, from the same colour: the horizon end of the dome
@@ -242,7 +255,7 @@ namespace CityX.View
                 Vector3 towardSun = Sun != null ? -Sun.transform.forward : Vector3.up;
                 CityHaze.Push(CityHaze.For(horizon, SkyCycle.Weathered(state.SkyTopColour, Overcast, Flash), state.SkyEnergy,
                     state.SunColour, state.SunIntensity, Overcast, 1.0f - Overcast * OvercastDiscHiding,
-                    RenderSettings.fogStartDistance, RenderSettings.fogEndDistance), towardSun, 1.0f - underground);
+                    RenderSettings.fogStartDistance, RenderSettings.fogEndDistance), towardSun, aboveGround);
             }
             else
             {
@@ -317,7 +330,7 @@ namespace CityX.View
             }
 
             // Inside a building, less of the sky (CityMeshBuilder.Interior.cs marks what is inside).
-            Shader.SetGlobalFloat(IndoorShade, Mathf.Lerp(Mathf.Lerp(IndoorShadeNight, IndoorShadeDay, state.Daylight), 1.0f, underground));
+            Shader.SetGlobalFloat(IndoorShade, Mathf.Lerp(IndoorShadeNight, IndoorShadeDay, state.Daylight));
             Daylight = state.Daylight;
 
             // The stars come out as the light goes, and a cloud lid hides them.

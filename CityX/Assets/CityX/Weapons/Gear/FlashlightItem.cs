@@ -1,5 +1,7 @@
 using CityX.Character;
 using CityX.Items;
+using CityX.View;
+using CityX.World;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -10,8 +12,9 @@ namespace CityX.Weapons
     /// docs/FLASHLIGHT.md). A black aluminium torch (drawn in code by FlashlightBuilder) in the right hand; left click switches it on and off
     /// with a click. Lit, the arm holds it out and points it where you look, a little late (PlayerLocomotion.Torch), and it throws its beam the
     /// way games light theirs: a spot light shaped by a cookie (<see cref="FlashlightRules"/>: a hot spot melting into a soft spill),
-    /// warm white, casting soft shadows, so walls and bodies cut it; a faint shaft of light in the air, seen best in the dark; and a glow on its
-    /// lens that flares when you look into the beam.
+    /// warm white, casting soft shadows, so walls and bodies cut it; under the ground a dim light all round it, which is what shows the
+    /// walls beside you in a tunnel; a faint shaft of light in the air, seen from the side; and a glow on its lens that flares when you
+    /// look into the beam.
     ///
     /// Held like the jerry can (IEquippableFlamethrower: ticked every frame with the trigger and the camera's aim), equipped from the console
     /// (/equip flashlight), seen in other players' hands lit and pointing where they point (ICosmeticMountable and FlashlightSync, through
@@ -30,6 +33,7 @@ namespace CityX.Weapons
         public Transform Lens;
 
         private Light _light;
+        private Light _glow;
         private Transform _beam;
         private Transform _shaft;
         private MeshRenderer _shaftRenderer;
@@ -41,7 +45,7 @@ namespace CityX.Weapons
         private PlayerLocomotion _locomotion;
         private bool _triggerWas;
 
-        /// <summary>On: the light, the shaft and the lens's glow shown.</summary>
+        /// <summary>On: the beam, the shaft and the lens's glow shown, and under the ground the light round it.</summary>
         public bool IsLit { get; private set; }
 
         /// <summary>Where it points: what is under the crosshair, or the end of its reach (on a copy, its owner's, sent).</summary>
@@ -49,6 +53,9 @@ namespace CityX.Weapons
 
         /// <summary>The spot light it throws (for tests).</summary>
         public Light Beam => _light;
+
+        /// <summary>The dim light all round it under the ground (for tests).</summary>
+        public Light Glow => _glow;
 
         private MaterialPropertyBlock GlareTint => _glareTint ??= new MaterialPropertyBlock();
 
@@ -194,6 +201,7 @@ namespace CityX.Weapons
             if (_light != null)
             {
                 _light.enabled = on;
+                ShowGlow();
                 _shaftRenderer.enabled = on;
                 _glareRenderer.enabled = on;
             }
@@ -204,10 +212,17 @@ namespace CityX.Weapons
             }
         }
 
+        /// <summary>The light round a lit torch, as strong as the place it is in is out of the sky's light: none on the street.</summary>
+        private void ShowGlow()
+        {
+            _glow.intensity = FlashlightRules.GlowIntensity(CurrentSewers.DarknessAt(_beam.position));
+            _glow.enabled = IsLit && _glow.intensity > 0.0f;
+        }
+
         /// <summary>Its size: a giant's torch reaches as far as the giant is big.</summary>
         private float Scale => Mathf.Max(0.01f, transform.lossyScale.y);
 
-        /// <summary>The light, the shaft and the glow, at the lens, along the torch.</summary>
+        /// <summary>The beam, the light round it, the shaft and the lens's glow, at the lens, along the torch.</summary>
         private void Build()
         {
             Transform lens = Lens != null ? Lens : transform;
@@ -224,6 +239,16 @@ namespace CityX.Weapons
             _light.cookie = FlashlightLook.Cookie;
             _light.shadows = LightShadows.Soft;
             _light.shadowNearPlane = FlashlightRules.ShadowNearPlane;
+            CityLightLayers.MarkBeam(_light);
+
+            var glow = new GameObject("Glow");
+            glow.transform.SetParent(_beam, false);
+            _glow = glow.AddComponent<Light>();
+            _glow.type = LightType.Point;
+            _glow.color = FlashlightRules.Colour;
+            _glow.range = FlashlightRules.GlowReach;
+            _glow.shadows = LightShadows.None;
+            CityLightLayers.MarkBeam(_glow);
 
             _shaft = new GameObject("Shaft").transform;
             _shaft.SetParent(_beam, false);
@@ -260,12 +285,17 @@ namespace CityX.Weapons
             if (_light != null)
             {
                 _light.range = FlashlightRules.Range * Scale;
+                _glow.range = FlashlightRules.GlowReach * Scale;
+                if (IsLit)
+                {
+                    ShowGlow();
+                }
             }
         }
 
         /// <summary>
         /// Before each camera draws: the lens's glow facing it, bigger and brighter the more the beam points at it; and the shaft fading out
-        /// as the beam turns toward it (looked at from inside its cone the shaft's wedges show as flat slabs, and the glare says it all there).
+        /// as the camera comes to look along the beam (<see cref="FlashlightRules.ShaftShown"/>).
         /// </summary>
         private void FaceCamera(ScriptableRenderContext context, Camera camera)
         {
@@ -276,17 +306,17 @@ namespace CityX.Weapons
             Vector3 beam = _beam.forward;
             Vector3 toCamera = camera.transform.position - _beam.position;
             Vector3 toEye = toCamera.sqrMagnitude > 1e-6f ? toCamera.normalized : -beam;
-            float facing = Mathf.Max(0.0f, Vector3.Dot(beam, toEye));
-            float into = Mathf.Pow(facing, 8.0f);
+            float towardEye = Vector3.Dot(beam, toEye);
+            float into = Mathf.Pow(Mathf.Max(0.0f, towardEye), 8.0f);
             _glare.rotation = Quaternion.FromToRotation(Vector3.up, toEye);
             _glare.localScale = Vector3.one * FlashlightRules.GlareSize * (1.0f + into * FlashlightRules.GlareFlare);
             _glareRenderer.GetPropertyBlock(GlareTint);
             GlareTint.SetColor("_BaseColor", FlashlightRules.Colour * (0.4f + 0.6f * into));
             _glareRenderer.SetPropertyBlock(GlareTint);
-            float shaft = 1.0f - Mathf.SmoothStep(0.0f, 1.0f, (facing - 0.5f) / 0.4f);
             _shaftRenderer.GetPropertyBlock(ShaftTint);
             Color colour = FlashlightRules.Colour;
-            ShaftTint.SetColor("_BaseColor", new Color(colour.r, colour.g, colour.b, FlashlightRules.ShaftStrength * shaft));
+            float shaft = FlashlightRules.ShaftStrength * FlashlightRules.ShaftShown(towardEye);
+            ShaftTint.SetColor("_BaseColor", new Color(colour.r, colour.g, colour.b, shaft));
             _shaftRenderer.SetPropertyBlock(ShaftTint);
         }
     }

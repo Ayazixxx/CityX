@@ -72,8 +72,10 @@ world seed). What changed is what the chunks build at each corner.
   A powered lens is drawn with the lit windows, so it glows by night by itself. Only the near version of a chunk stands its lamps.
 - **The light on the road** is real light lent to the nearest lamps (`View/Lighting/StreetLampDirector`): at dusk and by night up to
   14 sodium-orange spot lights are stood under the powered lamps within 95 m of the eye, fading out toward the edge of that reach so
-  one changing hands is never seen. The chunks say where their powered lamps hang as they are built (`StreetLampSites`).
-- Tests: `StreetLightsTests`. Pictures: `TrafficCapture.RenderTheStreets` (`streets-3-*.png` by day, `streets-4-*.png` by night,
+  one changing hands is never seen. The chunks say where their powered lamps hang as they are built (`StreetLampSites`). Each is marked
+  outside (`CityLightLayers.MarkOutside`, 2026-11-09): it casts no shadows and reaches 26 m, so the mark is all that keeps it off the
+  rooms beside the road and out of the sewer under it.
+- Tests: `StreetLightsTests`, `LightMarksPlayTests.AStreetLampsRealLightIsMarkedOutside`. Pictures: `TrafficCapture.RenderTheStreets` (`streets-3-*.png` by day, `streets-4-*.png` by night,
   `streets-5-*.png` a street without power).
 
 ### The sidewalk's concrete (2026-11-05)

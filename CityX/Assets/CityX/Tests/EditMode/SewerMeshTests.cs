@@ -9,7 +9,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The sewers as the chunks build them (docs/SEWERS.md): an open manhole is a real hole in its junction's road and a shut one is not,
-    /// and every face of a tunnel looks into the tunnel (nothing sees or strikes a face from behind).
+    /// every face of a tunnel looks into the tunnel (nothing sees or strikes a face from behind), and is marked under the ground, where the
+    /// sky and the street's lamps light nothing.
     /// </summary>
     public sealed class SewerMeshTests
     {
@@ -96,13 +97,22 @@ namespace CityX.Tests
             Assert.Greater(shut, 2, "too few shut manholes near the spawn to tell");
         }
 
-        [Test]
-        public void EveryFaceOfATunnelLooksIntoIt()
+        /// <summary>One face of a tunnel as a chunk built it: its first corner in the chunk's structures, its middle, and the tunnel's axis beside it.</summary>
+        private struct TunnelFace
+        {
+            public MeshBuffer Buffer;
+            public int Corner, Road;
+            public Vector3 Middle, Axis;
+            public string Where;
+        }
+
+        /// <summary>The faces of a dozen tunnels near the spawn, a slice of each every five metres, away from the rooms at their ends.</summary>
+        private IEnumerable<TunnelFace> TunnelFaces()
         {
             PlanWorld plan = World.Plan;
             SewerPlan sewers = SewerPlan.For(plan);
             plan.TryFindSpawn(out double sx, out double sz);
-            int tunnels = 0, faces = 0;
+            int tunnels = 0;
             foreach (RoadEdge edge in plan.Data.Edges)
             {
                 SewerTube tube = sewers.Tube(edge.Id);
@@ -122,15 +132,58 @@ namespace CityX.Tests
                         var flat = new Vec2(middle.x + chunk.Origin.x - at.X, middle.z + chunk.Origin.z - at.Y);
                         if (System.Math.Abs(Vec2.Dot(flat, tube.Dir)) > 2.0 || System.Math.Abs(Vec2.Cross(tube.Dir, flat)) > section.HalfWidth + 0.05) continue;
                         if (middle.y < floor - section.ChannelDepth - 0.05 || middle.y > floor + section.Crown + 0.6) continue;
-                        faces++;
-                        Vector3 normal = s.Normals[s.Triangles[t]];
-                        Assert.Greater(Vector3.Dot(normal, (axis - middle).normalized), -0.05f,
-                            $"the tunnel under road {edge.Id} ({section.Kind} {section.Style}): a face {along:F0} m along looks out of it");
+                        yield return new TunnelFace
+                        {
+                            Buffer = s, Corner = t, Road = edge.Id, Middle = middle, Axis = axis,
+                            Where = $"the tunnel under road {edge.Id} ({section.Kind} {section.Style}), {along:F0} m along",
+                        };
                     }
                 }
             }
-            Assert.Greater(tunnels, 5);
+        }
+
+        [Test]
+        public void EveryFaceOfATunnelLooksIntoIt()
+        {
+            int faces = 0;
+            var tunnels = new HashSet<int>();
+            foreach (TunnelFace face in TunnelFaces())
+            {
+                faces++;
+                tunnels.Add(face.Road);
+                Vector3 normal = face.Buffer.Normals[face.Buffer.Triangles[face.Corner]];
+                Assert.Greater(Vector3.Dot(normal, (face.Axis - face.Middle).normalized), -0.05f, $"{face.Where}: a face looks out of it");
+            }
+            Assert.Greater(tunnels.Count, 5);
             Assert.Greater(faces, 2000, "the tunnels' faces were not found in the chunks");
+        }
+
+        [Test]
+        public void ATunnelIsMarkedUnderTheGroundAndTheStreetOverItIsNot()
+        {
+            // The mark is what keeps the sun, the moon and the street's lamps off a tunnel's walls (SurfaceLook.PackUnderground): without it
+            // a sewer at noon is lit like a cellar with the door open.
+            int faces = 0;
+            foreach (TunnelFace face in TunnelFaces())
+            {
+                faces++;
+                for (int corner = 0; corner < 3; corner++)
+                {
+                    Assert.IsTrue(SurfaceLook.IsUnderground(face.Buffer.Colors[face.Buffer.Triangles[face.Corner + corner]]),
+                        $"{face.Where}: a face the sky lights");
+                }
+            }
+            Assert.Greater(faces, 2000, "the tunnels' faces were not found in the chunks");
+            foreach (Chunk chunk in _built.Values)
+            {
+                foreach (MeshBuffer street in new[] { chunk.Ground, chunk.Pavement })
+                {
+                    foreach (Color32 look in street.Colors)
+                    {
+                        Assert.IsFalse(SurfaceLook.IsUnderground(look), "a piece of the street is marked under the ground: nothing would light it");
+                    }
+                }
+            }
         }
     }
 }

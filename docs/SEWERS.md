@@ -69,9 +69,10 @@ city is of the seed), so every machine builds the same tunnels and nothing is se
 - **Depth.** The floor is `SewerPlan.Depth` under the ground all along a road, so a tunnel climbs and falls with its street. The subway,
   when it comes, goes below the channels' floors; the deep level below that.
 - **Sizes** are for the camera (5 m behind a 2.6 m body): the smallest gallery is 5.6 m wide and 5.2 m to its crown.
-- **Darkness.** Below ground the sky gives nothing: the sky's light, its reflections and the haze fade out as the camera goes down
-  (`DayNightCycle.Underground`). What lights a tunnel is the daylight falling through an open manhole or a mouth, a flashlight, and later
-  the camps' lamps.
+- **Darkness.** Owner, 2026-11-09: "the sewers need to be darker more pitch black like night time in minecraft with barely any visibility
+  and the flashlight/ other light sources need to light up the darkness". Below ground the sky gives nothing, and neither do the city's
+  own lamps over the street or in the rooms above. What lights a tunnel is what is carried or lit down there: a flashlight, a fire, a
+  spell, a muzzle flash, and later the camps' lamps.
 - **Variety** comes from families picked by the seed: the tunnel's section (brick barrel vault, stone arch, round concrete pipe, concrete
   box), the gate at a mouth (none, bars with a door ajar, bars with a gap), the ladder (step irons, a railed ladder), the manhole (lid on,
   lid lying beside the hole).
@@ -132,13 +133,34 @@ asphalt (`BuildPlate`), with a yellow ring painted round it and its lid lying be
 - Other players: `PlayerLadder` is an `IReplicatedAbility` ("ladder"). It says which ladder the body is on, again every second, and the
   copy poses its own limbs from its own height.
 
-**The dark** (`View/Lighting/SewerAir.cs`, `DayNightCycle.Underground`): as the camera goes down a neck or in at a mouth the sky's light,
-its reflections and the haze fade to `UndergroundSkyLight` (2 %) over about half a second. Daylight still falls down an open manhole and in
-at a mouth. Under the ground the camera comes in as close as 0.3 m to stay inside the walls, and the body is not drawn within 0.95 m of it.
+**The dark** (`View/Lighting/SewerAir.cs`, `DayNightCycle.Underground`, `Shaders/CityXToonLighting.hlsl`):
+
+- **The tunnels' own surfaces** are marked under the ground in their vertex colour (`SurfaceLook.PackUnderground`: the indoor bit with
+  the filthy half of the wear). The facade shader gives such a surface nothing of the sun, the moon or the sky, and none of the city's
+  lamps (lights marked inside or outside, `CityLightLayers`): a street lamp casts no shadows, so it lit the tunnel under its road.
+- **Bodies and props** have no such mark, so they go by the eye: as the camera goes down a neck or in at a mouth
+  (`CurrentSewers.DarknessAt`, faded over about half a second by `SewerAir`), `_CityXUnderground` takes the sun, the moon, the sky and
+  the city's lamps off them, and the sky's reflections, the haze and the sunbeams out of the air.
+- **Barely any visibility, not none** (`CityXDarkTrace`, `DayNightCycle.DarkTrace` and `DarkTraceReach`): a faint cold light as if from
+  the eye itself, strongest on what faces it, gone 14 m off. A wall an arm's length away is a shape, the tunnel beyond is black. Measured
+  on `sewer-6-dark-without.png`: brightest pixel 20 of 255, mean 4 (before: 42 and 21).
+- **What does light it**: a light nobody marked (a fire, a spell, a muzzle flash) lights everything as it always did, and a carried
+  light (the flashlight's beam and the glow round it, `CityLightLayers.Beam`, docs/FLASHLIGHT.md) is as bright on the far end of a tunnel
+  as on the wall beside the hand.
+- **A light's mark only reaches the shaders if its rendering layer has a name** (Project Settings, Tags and Layers: `Interior Lights`,
+  `Exterior Lights`, `Carried Beams`). URP strips a mark on a layer the project does not name and says nothing: until 2026-11-09 no
+  mark did anything, and a lit room shone through its walls. `LightMarksPlayTests` renders a wall under each mark to prove it.
+- Under the ground the camera comes in as close as 0.3 m to stay inside the walls, and the body is not drawn within 0.95 m of it.
+
+Known limits: a body goes by the camera's darkness, not its own, so one in a tunnel seen from the street is sunlit and one outside seen
+from deep within is dark; the dark has a hard edge at a mouth; no daylight falls down an open manhole or in at a mouth (a shaft of
+daylight there is offered to the owner, not built); with cel shading off a body is still sunlit underground.
 
 **Tests**: `SewerPlanTests`, `SewerMeshTests`, `LadderGaitTests` (EditMode); `SewerPlayTests` (a body falls down an open manhole and walks
-25 m of tunnel; the street holds over a shut one; the player's body climbs the real ladder and out), `LadderPlayTests` (PlayMode).
-Pictures: `SewerCapture` (`sewer-*.png`), `LadderCapture` (`ladder-*.png`).
+25 m of tunnel; the street holds over a shut one; the player's body climbs the real ladder and out), `LadderPlayTests`,
+`LightMarksPlayTests` (under the ground a carried light lights the wall and the city's lamps do not; needs `-Graphics`) (PlayMode).
+Pictures: `SewerCapture` (`sewer-*.png`; `sewer-6-dark-*` the dark alone and with a lamp, `sewer-7-flashlight-*` the torch off and on),
+`LadderCapture` (`ladder-*.png`).
 
 **Not built yet**: water in the channels (the water shader takes only the sun's light, so it needs lamps and the flashlight first); camps
 and their lamps; the deep level; opening a shut manhole; kerb drains; manholes along a street between junctions; mouths in hillsides and

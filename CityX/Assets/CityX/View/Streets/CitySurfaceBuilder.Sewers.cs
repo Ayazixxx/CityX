@@ -70,9 +70,9 @@ namespace CityX.View
         // ---------------------------------------------------------------- looks
 
         /// <summary>
-        /// What a tunnel's face looks like: old brick, wet stone or plain concrete by its style, darker in the channel, all of it marked as
-        /// inside so the sky does not light it (SurfaceLook). The brick and the stone come in the colour of their neighbourhood
-        /// (<paramref name="tone"/>, SewerPlan.ToneAt): old brick grey, blue, grey-yellow or green-black, never a house's red.
+        /// What a tunnel's face looks like: old brick, wet stone or plain concrete by its style, darker in the channel. The brick and the
+        /// stone come in the colour of their neighbourhood (<paramref name="tone"/>, SewerPlan.ToneAt): old brick grey, blue, grey-yellow
+        /// or green-black, never a house's red.
         /// </summary>
         private static Color32 SewerLook(SewerStyle style, SewerSurface surface, int salt, bool inside = true, int tone = 0)
         {
@@ -82,19 +82,19 @@ namespace CityX.View
             switch (style)
             {
                 case SewerStyle.BrickVault:
-                    if (channel) return SurfaceLook.Pack(new Color(0.34f, 0.36f, 0.31f) * shade, (int)WallMaterial.Concrete, 0.95f, inside);
-                    if (floor) return SurfaceLook.Pack(new Color(0.56f, 0.55f, 0.52f) * shade, (int)WallMaterial.Stone, 0.8f, inside);
-                    return SurfaceLook.Pack(new Color(0.92f, 0.92f, 0.92f) * shade, SurfaceLook.OldBrick + tone % SurfaceLook.OldBrickColours, 0.7f, inside);
+                    if (channel) return SewerPack(new Color(0.34f, 0.36f, 0.31f) * shade, (int)WallMaterial.Concrete, 0.95f, inside);
+                    if (floor) return SewerPack(new Color(0.56f, 0.55f, 0.52f) * shade, (int)WallMaterial.Stone, 0.8f, inside);
+                    return SewerPack(new Color(0.92f, 0.92f, 0.92f) * shade, SurfaceLook.OldBrick + tone % SurfaceLook.OldBrickColours, 0.7f, inside);
                 case SewerStyle.StoneArch:
-                    if (channel) return SurfaceLook.Pack(new Color(0.36f, 0.40f, 0.35f) * shade, (int)WallMaterial.Stone, 0.95f, inside);
-                    if (floor) return SurfaceLook.Pack(new Color(0.58f, 0.59f, 0.56f) * shade, SurfaceLook.Setts, 0.8f, inside);
-                    return SurfaceLook.Pack(StoneTones[tone % StoneTones.Length] * shade, (int)WallMaterial.Stone, 0.8f, inside);
+                    if (channel) return SewerPack(new Color(0.36f, 0.40f, 0.35f) * shade, (int)WallMaterial.Stone, 0.95f, inside);
+                    if (floor) return SewerPack(new Color(0.58f, 0.59f, 0.56f) * shade, SurfaceLook.Setts, 0.8f, inside);
+                    return SewerPack(StoneTones[tone % StoneTones.Length] * shade, (int)WallMaterial.Stone, 0.8f, inside);
                 case SewerStyle.RoundPipe:
-                    if (channel) return SurfaceLook.Pack(new Color(0.38f, 0.40f, 0.37f) * shade, (int)WallMaterial.Concrete, 0.9f, inside);
-                    return SurfaceLook.Pack(new Color(0.60f, 0.61f, 0.60f) * shade, (int)WallMaterial.Concrete, floor ? 0.6f : 0.75f, inside);
+                    if (channel) return SewerPack(new Color(0.38f, 0.40f, 0.37f) * shade, (int)WallMaterial.Concrete, 0.9f, inside);
+                    return SewerPack(new Color(0.60f, 0.61f, 0.60f) * shade, (int)WallMaterial.Concrete, floor ? 0.6f : 0.75f, inside);
                 default:
-                    if (channel) return SurfaceLook.Pack(new Color(0.42f, 0.43f, 0.41f) * shade, (int)WallMaterial.Concrete, 0.85f, inside);
-                    return SurfaceLook.Pack(new Color(0.72f, 0.72f, 0.70f) * shade, (int)WallMaterial.Concrete, floor ? 0.45f : 0.6f, inside);
+                    if (channel) return SewerPack(new Color(0.42f, 0.43f, 0.41f) * shade, (int)WallMaterial.Concrete, 0.85f, inside);
+                    return SewerPack(new Color(0.72f, 0.72f, 0.70f) * shade, (int)WallMaterial.Concrete, floor ? 0.45f : 0.6f, inside);
             }
         }
 
@@ -104,11 +104,20 @@ namespace CityX.View
             new Color(0.56f, 0.60f, 0.64f), new Color(0.50f, 0.58f, 0.52f), new Color(0.46f, 0.52f, 0.60f), new Color(0.40f, 0.42f, 0.44f),
         };
 
+        /// <summary>
+        /// A sewer's look where it is: under the ground (<paramref name="inside"/>), where nothing of the sky and none of the city's lamps
+        /// light it (SurfaceLook.PackUnderground), or out in the daylight, as the cut at a mouth and a lid on the street are.
+        /// </summary>
+        private static Color32 SewerPack(Color tint, int slice, float wear, bool inside)
+        {
+            return inside ? SurfaceLook.PackUnderground(tint, slice, wear) : SurfaceLook.Pack(tint, slice, wear);
+        }
+
         /// <summary>Ladders, bars and lids: dark iron, rusting (under the ground, and out in the daylight).</summary>
-        private static Color32 SewerIron(bool inside) => SurfaceLook.Pack(new Color(0.30f, 0.25f, 0.22f), (int)WallMaterial.Metal, 0.9f, inside);
+        private static Color32 SewerIron(bool inside) => SewerPack(new Color(0.30f, 0.25f, 0.22f), (int)WallMaterial.Metal, 0.9f, inside);
 
         /// <summary>The paint that says "here": a ladder's top rungs, a door's frame, the ring round an open manhole (players walk past what does not stand out).</summary>
-        private static Color32 SewerYellow(bool inside) => SurfaceLook.Pack(new Color(0.95f, 0.74f, 0.10f), (int)WallMaterial.Metal, 0.35f, inside);
+        private static Color32 SewerYellow(bool inside) => SewerPack(new Color(0.95f, 0.74f, 0.10f), (int)WallMaterial.Metal, 0.35f, inside);
 
         // ---------------------------------------------------------------- tunnels
 

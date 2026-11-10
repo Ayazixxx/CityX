@@ -22,13 +22,16 @@ namespace CityX.Weapons
         private static Material _shaftMaterial;
         private static Material _glareMaterial;
 
-        /// <summary>The cookie: <see cref="FlashlightRules.CookieAt"/> out from the middle, grey in every channel (the light reads its colour).</summary>
+        /// <summary>
+        /// The cookie: <see cref="FlashlightRules.CookieAt"/> out from the middle as the light reads it (<see cref="FlashlightRules.CookieTexelAt"/>),
+        /// grey in every channel (the light reads its colour).
+        /// </summary>
         public static Texture2D Cookie => _cookie != null
             ? _cookie
             : (_cookie = GlowShapes.Paint("FlashlightCookie", CookieSize, TextureWrapMode.Clamp, (u, v) =>
             {
                 float x = u * 2.0f - 1.0f, y = v * 2.0f - 1.0f;
-                return FlashlightRules.CookieAt(Mathf.Sqrt(x * x + y * y));
+                return FlashlightRules.CookieTexelAt(Mathf.Sqrt(x * x + y * y));
             }, true));
 
         /// <summary>

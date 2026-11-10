@@ -4,9 +4,11 @@ using UnityEngine;
 namespace CityX.View
 {
     /// <summary>
-    /// UNDER THE GROUND THE SKY GIVES NOTHING (docs/SEWERS.md; owner, 2026-11-09: "mostly pitch black aside from lights from encampments").
-    /// As the eye goes down a manhole or in at a tunnel's mouth, the sky's light, its reflections and the haze fade out
-    /// (<see cref="DayNightCycle.Underground"/>), and come back as it comes out. One for the whole game, as the lamp directors are.
+    /// UNDER THE GROUND THE SKY GIVES NOTHING (docs/SEWERS.md; owner, 2026-11-09: "mostly pitch black aside from lights from encampments",
+    /// then "pitch black like night time in minecraft with barely any visibility"). As the eye goes down a manhole or in at a tunnel's
+    /// mouth, the sky's light, its reflections, the haze and the sunbeams fade out, and on a body the sun, the moon and the city's lamps
+    /// (<see cref="DayNightCycle.Underground"/>), and come back as it comes out. The tunnels' own walls never had them: they are marked
+    /// under the ground (SurfaceLook.PackUnderground). One for the whole game, as the lamp directors are.
     /// </summary>
     public sealed class SewerAir : MonoBehaviour
     {

@@ -5,7 +5,8 @@
 // building's look read off the vertex.
 //
 //   vertex colour rgb  the tint, an authoring (gamma) colour
-//   vertex colour a    255 minus (slice * 16 + wear): which wall material, and how weathered (SurfaceLook.cs packs it)
+//   vertex colour a    255 minus (slice * 16 + sheltered * 8 + wear): which wall material, whether it is inside a building or under
+//                      the ground, and how weathered (SurfaceLook.cs packs it)
 //
 // Kept as close to LitForwardPass.hlsl as it can be so lighting, shadows, Forward+, probes, SSAO and decals behave exactly as they do
 // on every other material in the city; only InitializeFacadeSurface is new.
@@ -29,29 +30,9 @@ float _CityXWetness;
 float _CityXIndoorShade;
 CBUFFER_END
 
-// Which side of a wall a light is on (View/CityLightLayers.cs): a light on the interior layer lights only indoor surfaces, one on the
-// exterior layer only outdoor ones. MUST match CityLightLayers.Interior / Exterior.
-#define CITYX_INTERIOR_LIGHT_LAYER (1u << 1)
-#define CITYX_EXTERIOR_LIGHT_LAYER (1u << 2)
-
 // A room light is a fitting, not a point: its light falls off as 1 / (d^2 + r^2), not 1 / d^2, with r this radius in metres (the squared value).
 // Without it the wall a metre from a lamp got thirty times the light of the floor six metres under it and burnt white while the floor stayed dim.
 #define CITYX_FITTING_RADIUS_SQ 2.6
-
-// Where additional light <i> is (the light loop's own index), the way URP's GetAdditionalLight finds it.
-float3 CityXAdditionalLightPosition(uint i)
-{
-#if USE_CLUSTER_LIGHT_LOOP
-    int lightIndex = i;
-#else
-    int lightIndex = GetPerObjectLightIndex(i);
-#endif
-#if USE_STRUCTURED_BUFFER_FOR_LIGHT_DATA
-    return _AdditionalLightsBuffer[lightIndex].position.xyz;
-#else
-    return _AdditionalLightsPosition[lightIndex].xyz;
-#endif
-}
 
 // A room light's falloff, softened near it (CITYX_FITTING_RADIUS_SQ).
 void CityXSoftenFitting(inout Light light, uint i, float3 positionWS)
@@ -190,15 +171,17 @@ float FacadeNoise(float2 p)
     return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
 }
 
-void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out half3 normalTS, out bool indoors)
+void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out half3 normalTS, out bool indoors, out bool underground)
 {
     surfaceData = (SurfaceData)0;
 
-    // The look: slice, indoors and wear out of the alpha (SurfaceLook.Pack), tint out of the colour.
+    // The look: slice, sheltered and wear out of the alpha (SurfaceLook.Pack), tint out of the colour. Sheltered is a building's inside
+    // or, with the filthy half of the wear, under the ground (SurfaceLook.UndergroundWear).
     float code = round((1.0 - input.look.a) * 255.0);
     float slice = floor(code / 16.0);
     float rest = code - slice * 16.0;
     indoors = rest > 7.5;
+    underground = rest > 11.5;
     float wear = (rest - (indoors ? 8.0 : 0.0)) / 7.0;
     float3 tint = SRGBToLinear(input.look.rgb);
 
@@ -233,8 +216,9 @@ void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out ha
     surfaceData.specular = half3(0.0, 0.0, 0.0);
     surfaceData.smoothness = smoothness;
     // Inside a building the open sky is mostly hidden: its light (the ambient and the sky's reflection, which URP scales by occlusion) is dimmed
-    // there. The sun and the moon still come in through the windows, and the room's own lights are what lights it at night.
-    surfaceData.occlusion = indoors ? 1.0 - _CityXIndoorShade : 1.0;
+    // there. The sun and the moon still come in through the windows, and the room's own lights are what lights it at night. Under the
+    // ground there is no sky at all.
+    surfaceData.occlusion = underground ? 0.0 : (indoors ? 1.0 - _CityXIndoorShade : 1.0);
     surfaceData.emission = half3(0.0, 0.0, 0.0);
 #if defined(CITYX_TOON)
     n = half3(0.0, 0.0, 1.0);   // cel shaded: lit flat, as the wall is, not by its bricks (CityXToonLighting.hlsl)
@@ -246,7 +230,9 @@ void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out ha
 // URP's UniversalFragmentPBR (ShaderLibrary/Lighting.hlsl, URP 17.3) with one change: the city's lights know which side of a wall they are on
 // (CITYX_INTERIOR_LIGHT_LAYER / CITYX_EXTERIOR_LIGHT_LAYER). Without it a lit room's lamps, which cast no shadows, would shine straight through
 // the building's walls onto the pavement and the building next door. The sun and the moon go through CityXSunLight, cel shaded with CITYX_TOON.
-half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoors)
+// A surface under the ground gets none of them: no sun, no moon, none of the city's lamps on either side of a wall, only the lights that
+// carry no side (a flashlight, a fire, a spell) and the dark's trace round the eye (CityXToonLighting.hlsl).
+half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoors, bool underground)
 {
     #if defined(_SPECULARHIGHLIGHTS_OFF)
     bool specularHighlightsOff = true;
@@ -285,20 +271,26 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
     lightingData.giColor = GlobalIllumination(brdfData, brdfDataClearCoat, surfaceData.clearCoatMask,
                                               inputData.bakedGI, aoFactor.indirectAmbientOcclusion, inputData.positionWS,
                                               inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
-    if (indoors)
+    if (underground)
+    {
+        lightingData.giColor += CityXDarkTrace(inputData.positionWS, inputData.normalWS, inputData.viewDirectionWS) * brdfData.diffuse;
+    }
+    else if (indoors)
     {
         lightingData.giColor += CityXRoomFill(inputData.positionWS, inputData.normalWS) * brdfData.diffuse * screenOcclusion;
     }
 #ifdef _LIGHT_LAYERS
-    if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
+    if (!underground && IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
+#else
+    if (!underground)
 #endif
     {
         lightingData.mainLightColor = CityXSunLight(brdfData, brdfDataClearCoat, mainLight, inputData.normalWS,
                                                     inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff);
     }
 
-    // The lights that belong on the other side of this surface's wall.
-    uint wrongSide = indoors ? CITYX_EXTERIOR_LIGHT_LAYER : CITYX_INTERIOR_LIGHT_LAYER;
+    // The lights that belong on the other side of this surface's wall; under the ground, both sides' (the whole city is above).
+    uint wrongSide = underground ? CITYX_CITY_LIGHT_LAYERS : (indoors ? CITYX_EXTERIOR_LIGHT_LAYER : CITYX_INTERIOR_LIGHT_LAYER);
 
     #if defined(_ADDITIONAL_LIGHTS)
     uint pixelLightCount = GetAdditionalLightsCount();
@@ -312,9 +304,9 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
         CityXSoftenFitting(light, lightIndex, inputData.positionWS);
 
 #ifdef _LIGHT_LAYERS
-        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers) && (light.layerMask & wrongSide) == 0)
+        if (!underground && IsMatchingLightLayer(light.layerMask, meshRenderingLayers) && (light.layerMask & wrongSide) == 0)
 #else
-        if ((light.layerMask & wrongSide) == 0)
+        if (!underground && (light.layerMask & wrongSide) == 0)
 #endif
         {
             lightingData.additionalLightsColor += CityXSunLight(brdfData, brdfDataClearCoat, light, inputData.normalWS,
@@ -326,6 +318,7 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
     LIGHT_LOOP_BEGIN(pixelLightCount)
         Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
         CityXSoftenFitting(light, lightIndex, inputData.positionWS);
+        CityXThrowBeam(light, lightIndex, inputData.positionWS, underground ? 1.0 : 0.0);
 
 #ifdef _LIGHT_LAYERS
         if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers) && (light.layerMask & wrongSide) == 0)
@@ -483,7 +476,8 @@ void FacadePassFragment(
     SurfaceData surfaceData;
     half3 normalTS;
     bool indoors;
-    InitializeFacadeSurface(input, surfaceData, normalTS, indoors);
+    bool underground;
+    InitializeFacadeSurface(input, surfaceData, normalTS, indoors, underground);
     if (!indoors)
     {
         CityXApplySnow(surfaceData, input.positionWS, normalize(input.normalWS));
@@ -503,7 +497,7 @@ void FacadePassFragment(
 
     InitializeBakedGIData(input, inputData);
 
-    half4 color = CityXFragmentPBR(inputData, surfaceData, indoors);
+    half4 color = CityXFragmentPBR(inputData, surfaceData, indoors, underground);
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = 1.0;
 

@@ -12,11 +12,16 @@ namespace CityX.View
     /// every vertex it writes carries it.
     ///
     ///   rgb    the tint, as an authoring (gamma) colour: the shader multiplies the material by it
-    ///   alpha  255 minus a code, where code = slice * 16 + indoors * 8 + wear (slice 0..15, indoors 0 or 1, wear 0..7, 7 = filthy)
+    ///   alpha  255 minus a code, where code = slice * 16 + sheltered * 8 + wear (slice 0..15, sheltered 0 or 1, wear 0..7, 7 = filthy)
     ///
     /// INDOORS marks a surface inside a building (2026-10-09, the lighting pass): the facade shader dims the sky's light on it (a room is not
     /// lit by the open sky the way the street is) and lets only the lights inside the building reach it, so a lit room never shines through
     /// its own walls onto the street (CityLightLayers). Wear went from 16 steps to 8 to make room for it: nobody can tell the difference.
+    ///
+    /// UNDER THE GROUND (the sewers) is the same bit with the filthy half of the wear: a sheltered surface worn <see cref="UndergroundWear"/>
+    /// or more is under the ground, one worn less is a building's inside. Rooms are kept clean and tunnels never are, so neither misses the
+    /// half it gave up, and all sixteen materials stay. The facade shader gives such a surface nothing of the sky at all, no sun, no moon
+    /// and none of the city's own lamps: what lights a tunnel is what shines in it.
     ///
     /// ALPHA IS INVERTED so that the colour Unity gives a mesh with no vertex colours at all, opaque white, decodes to slice 0 with no
     /// wear and a white tint: a buffer nobody styled looks like plain material, exactly as it did before there were looks.
@@ -39,10 +44,13 @@ namespace CityX.View
         /// <summary>Steps of wear a look can carry (0 = clean .. 7 = filthy).</summary>
         public const int WearLevels = 8;
 
-        /// <summary>The bit of the code that marks a surface as inside a building.</summary>
+        /// <summary>The bit of the code that marks a surface as out of the sky's light: inside a building, or under the ground.</summary>
         public const int IndoorBit = 8;
 
-        /// <summary>How many codes one slice spans (its wear steps, indoors and out).</summary>
+        /// <summary>The step of wear from which a sheltered surface is under the ground; one worn less is inside a building.</summary>
+        public const int UndergroundWear = 4;
+
+        /// <summary>How many codes one slice spans (its wear steps, sheltered and not).</summary>
         private const int CodesPerSlice = 16;
 
         /// <summary>White, slice 0, clean, outdoors: what an unstyled vertex is.</summary>
@@ -50,14 +58,26 @@ namespace CityX.View
 
         public static Color32 Pack(Color tint, int slice, float wear, bool indoors = false)
         {
-            return Pack(new Color32(Byte(tint.r), Byte(tint.g), Byte(tint.b), 255), slice, wear, indoors);
+            return Pack(Bytes(tint), slice, wear, indoors);
         }
 
+        /// <summary>A look out of doors, or (<paramref name="indoors"/>) inside a building, where the wear keeps to its clean half.</summary>
         public static Color32 Pack(Color32 tint, int slice, float wear, bool indoors = false)
         {
+            return Pack(tint, slice, wear, indoors, 0, indoors ? UndergroundWear - 1 : WearLevels - 1);
+        }
+
+        /// <summary>A look under the ground (a tunnel, a sewer room, a shaft): the wear keeps to its filthy half.</summary>
+        public static Color32 PackUnderground(Color tint, int slice, float wear)
+        {
+            return Pack(Bytes(tint), slice, wear, true, UndergroundWear, WearLevels - 1);
+        }
+
+        private static Color32 Pack(Color32 tint, int slice, float wear, bool sheltered, int leastWear, int mostWear)
+        {
             int s = Mathf.Clamp(slice, 0, Slices - 1);
-            int w = Mathf.Clamp(Mathf.RoundToInt(wear * (WearLevels - 1)), 0, WearLevels - 1);
-            int code = s * CodesPerSlice + (indoors ? IndoorBit : 0) + w;
+            int w = Mathf.Clamp(Mathf.RoundToInt(wear * (WearLevels - 1)), leastWear, mostWear);
+            int code = s * CodesPerSlice + (sheltered ? IndoorBit : 0) + w;
             return new Color32(tint.r, tint.g, tint.b, (byte)(255 - code));
         }
 
@@ -77,10 +97,16 @@ namespace CityX.View
             tint = new Color32(look.r, look.g, look.b, 255);
         }
 
-        /// <summary>Whether a packed look is of a surface inside a building.</summary>
+        /// <summary>Whether a packed look is of a surface out of the sky's light: inside a building, or under the ground.</summary>
         public static bool IsIndoors(Color32 look)
         {
             return ((255 - look.a) & IndoorBit) != 0;
+        }
+
+        /// <summary>Whether a packed look is of a surface under the ground (<see cref="PackUnderground"/>).</summary>
+        public static bool IsUnderground(Color32 look)
+        {
+            return IsIndoors(look) && ((255 - look.a) & (IndoorBit - 1)) >= UndergroundWear;
         }
 
         /// <summary>
@@ -118,6 +144,11 @@ namespace CityX.View
         public static bool IsFloodlit(Color32 look)
         {
             return look.b == FloodlitMarker;
+        }
+
+        private static Color32 Bytes(Color tint)
+        {
+            return new Color32(Byte(tint.r), Byte(tint.g), Byte(tint.b), 255);
         }
 
         private static byte Byte(float v)

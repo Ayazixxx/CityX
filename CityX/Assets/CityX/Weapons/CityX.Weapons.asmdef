@@ -5,6 +5,7 @@
         "CityX.Character",
         "CityX.Core",
         "CityX.Items",
+        "CityX.View",
         "CityX.World",
         "Unity.InputSystem"
     ],

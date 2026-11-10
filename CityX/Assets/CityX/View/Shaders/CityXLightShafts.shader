@@ -7,8 +7,9 @@
 // full size: the traced light added to the picture, stretched smooth.
 //
 // How thick the air is comes from the haze's own numbers (_CityXHazeParams, set by DayNightCycle through CityHaze), so the beams thicken
-// and thin with the haze; with no haze set (a test scene) _CityXShaftDensity stands in. Scaled by the sun's brightness: none at night.
-// A strength of 0 hands the picture back untouched.
+// and thin with the haze; with no haze set (a test scene) _CityXShaftDensity stands in. Scaled by the sun's brightness: none at night,
+// and none for an eye under the ground (_CityXUnderground, DayNightCycle), where no sun reaches the air. A strength of 0 hands the
+// picture back untouched.
 Shader "CityX/LightShafts"
 {
     Properties
@@ -37,6 +38,7 @@ Shader "CityX/LightShafts"
         float _CityXShaftForward;
         float _CityXShaftBalance;
         float _CityXShaftMaxDarken;
+        float _CityXUnderground;
         ENDHLSL
 
         Pass
@@ -95,7 +97,8 @@ Shader "CityX/LightShafts"
             half4 Trace(Varyings input) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-                if (_CityXShaftStrength <= 0.0)
+                float aboveGround = 1.0 - _CityXUnderground;
+                if (_CityXShaftStrength <= 0.0 || aboveGround <= 0.0)
                 {
                     return 0.0;
                 }
@@ -136,7 +139,7 @@ Shader "CityX/LightShafts"
                 // Only where there is haze to darken (none set: a test scene, nothing to take away).
                 float haze = _CityXHazeParams.x > 0.0 ? 1.0 : 0.0;
                 float glow = (1.0 - exp(-lit)) - _CityXShaftBalance * haze * (1.0 - exp(-all));
-                return half4(sun.color * glow * phase * _CityXShaftStrength, 1.0);
+                return half4(sun.color * glow * phase * _CityXShaftStrength * aboveGround, 1.0);
             }
             ENDHLSL
         }
