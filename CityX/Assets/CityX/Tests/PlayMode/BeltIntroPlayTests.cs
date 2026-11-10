@@ -366,7 +366,8 @@ namespace CityX.Tests
 
         /// <summary>
         /// Owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position if that is possible. if we can do that then we
-        /// shouldnt need to add any artificial tilt it should just do it on its own as it slowly rolls off".
+        /// shouldnt need to add any artificial tilt it should just do it on its own as it slowly rolls off"; then "im fine if it kinda
+        /// "throws" him off due to the extra speed".
         /// </summary>
         [UnityTest]
         public IEnumerator ItIsStoodUpShortOfTheEndAndTipsOffItByItself()
@@ -392,7 +393,7 @@ namespace CityX.Tests
 
             Vector3 upright = neck.position - hips.position;
             float carriedFrom = belt.InverseTransformPoint(hips.position).x;
-            float tippedBeforeTheEnd = 0.0f, slackAfter = -1.0f, leanWhenSlack = 0.0f;
+            float tippedBeforeTheEnd = 0.0f, slackAfter = -1.0f, leanWhenSlack = 0.0f, hipsWhenSlack = 0.0f;
             int inTheBelt = 0;
             float waited = 0.0f;
             while (waited < 6.0f && belt.InverseTransformPoint(hips.position).y > -3.0f)
@@ -413,6 +414,7 @@ namespace CityX.Tests
                 {
                     slackAfter = waited;
                     leanWhenSlack = belt.InverseTransformPoint(neck.position).x - belt.InverseTransformPoint(hips.position).x;
+                    hipsWhenSlack = belt.InverseTransformPoint(hips.position).y;
                     Assert.Greater(belt.InverseTransformPoint(hips.position).x - carriedFrom, 0.3f, "the belt did not carry it to its end");
                 }
                 foreach (HumanBodyBones bone in legs)
@@ -425,8 +427,9 @@ namespace CityX.Tests
             }
             Assert.Less(tippedBeforeTheEnd, 10.0f, "it does not stand while both feet are on the belt");
             Assert.Greater(slackAfter, 0.0f, "it never went slack");
-            Assert.Less(slackAfter, BeltIntro.SlackAfterSeconds - 0.1f, "it never tipped over by itself: it went slack on the clock");
-            Assert.Greater(leanWhenSlack, 0.1f, "it did not tip toward the drop");
+            Assert.Less(slackAfter, BeltIntro.SlackAfterSeconds - 0.1f, "it went slack on the clock, not as it left the belt");
+            Assert.Greater(hipsWhenSlack, 0.0f, "it fell stiff, held standing, before it went slack");
+            Assert.Greater(leanWhenSlack, 0.05f, "it did not tip toward the drop");
             Assert.Less(belt.InverseTransformPoint(hips.position).y, -3.0f, "it never fell off the belt");
             Assert.AreEqual(0, inTheBelt, "a leg went through the belt");
         }
@@ -523,8 +526,7 @@ namespace CityX.Tests
             yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 12.0f, "the body never reached the belt's end");
             yield return Frames(5);
             Assert.IsTrue(hum.isPlaying, "the belt goes quiet the moment the body falls off it");
-            float slowed = BeltRide.OverTheEnd / BeltRide.Speed;   // it crawls over its end, and sounds as it runs
-            Assert.AreEqual(BeltIntro.HumVolume * BeltIntro.WideHumShare * slowed, hum.volume, 0.01f, "from the wider view the belt does not sound further away");
+            Assert.AreEqual(BeltIntro.HumVolume * BeltIntro.WideHumShare, hum.volume, 0.01f, "from the wider view the belt does not sound further away");
             yield return Until(() => entered, 8.0f, "the world was never entered after the fall");
             Assert.Less(heardWhenEntered, 0.05f, "the belt is still loud when the screen is black");
         }

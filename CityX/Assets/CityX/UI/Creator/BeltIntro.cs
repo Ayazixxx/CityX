@@ -77,10 +77,13 @@ namespace CityX.UI
 
         public const float StandingDamping = 120.0f;
 
-        /// <summary>The stood body goes slack once it has tipped this far from upright, degrees, or this long after it was stood, seconds.</summary>
+        /// <summary>
+        /// The stood body goes slack once both feet are off the belt's end, or it has tipped this far from upright, degrees, or this long
+        /// after it was stood, seconds: held stiff in the air, it fell like a statue.
+        /// </summary>
         public const float SlackAtDegrees = 35.0f;
 
-        public const float SlackAfterSeconds = 3.0f;
+        public const float SlackAfterSeconds = 1.5f;
 
         /// <summary>How long the tools take to fade in or out, seconds.</summary>
         public const float ToolsFadeSeconds = 0.6f;
@@ -95,7 +98,7 @@ namespace CityX.UI
         /// <summary>The screen starts to go black once the limp body is this far under the belt, or this long after it was let go.</summary>
         public const float BlackBelow = 6.0f;
 
-        public const float BlackAfterSeconds = 4.0f;
+        public const float BlackAfterSeconds = 2.5f;
         public const float BlackFadeSeconds = 0.6f;
 
         /// <summary>How loud the belt is at its full run.</summary>
@@ -329,7 +332,8 @@ namespace CityX.UI
         /// Just short of the belt's end, both feet still on it: the body is the ragdoll's, stood up in the idle it was in and moving as
         /// fast as the belt, which carries it on (owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position ...
         /// it should just do it on its own as it slowly rolls off"). Its front foot is carried over the end, and with nothing under it the
-        /// body tips over the drum by itself.
+        /// body tips toward the drop by itself as the belt throws it off at its full run (owner: "im fine if it kinda "throws" him off due
+        /// to the extra speed").
         /// </summary>
         private void LetGo()
         {
@@ -347,17 +351,29 @@ namespace CityX.UI
             }
         }
 
-        /// <summary>The stood body goes slack once it has tipped far enough over, or after a while whatever it did.</summary>
+        /// <summary>The stood body goes slack once it is off the belt or has tipped far enough over, or after a while whatever it did.</summary>
         private void SlackenOnceTipped()
         {
             if (Ragdoll == null || !Ragdoll.IsStood)
             {
                 return;
             }
-            if (_sinceDrop >= SlackAfterSeconds || Vector3.Angle(_uprightWhenStood, BodyUp()) >= SlackAtDegrees)
+            if (_sinceDrop >= SlackAfterSeconds || BothFeetOverTheEnd() || Vector3.Angle(_uprightWhenStood, BodyUp()) >= SlackAtDegrees)
             {
                 Ragdoll.Slacken();
             }
+        }
+
+        private bool BothFeetOverTheEnd()
+        {
+            Animator animator = Ragdoll.Animator;
+            if (animator == null || !animator.isHuman || Belt == null)
+            {
+                return false;
+            }
+            Transform belt = Belt.transform;
+            return belt.InverseTransformPoint(animator.GetBoneTransform(HumanBodyBones.LeftFoot).position).x > ConveyorBelt.Length
+                && belt.InverseTransformPoint(animator.GetBoneTransform(HumanBodyBones.RightFoot).position).x > ConveyorBelt.Length;
         }
 
         /// <summary>From the hips to the neck.</summary>

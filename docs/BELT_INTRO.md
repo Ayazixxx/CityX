@@ -39,22 +39,22 @@ game's own.
 4. **Rolling out.** After the name is confirmed and the server has made the character, the tools fade out, the body turns back to the
    front and comes alive, and the belt carries it right at full run.
 5. **The wider view.** 1.2 m past the right edge of the screen the view changes to a camera 15 m back that shows the belt's end, 6 m on.
-   Over its last metre and a half the belt slows gently (2 m/s²) to a crawl, 0.6 m/s, and runs on at that (`BeltRide.OverTheEnd`): at the
-   full run the body was carried off the end before it had tipped (owner: "as it slowly rolls off").
 6. **Stood up, short of the end** (owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position ... it should
    just do it on its own as it slowly rolls off"). 0.5 m short of the belt's end, both feet still on its top, the body becomes the
    ragdoll's (`Ragdoll.Stand`): every bone live, moving as fast as the belt, each joint sprung back toward the idle it was in
    (`StandingStiffness`, drives on joints of their own, so the solver holds them). Nothing holds it up but its feet. The belt's surface
    is a body of its own that runs at the belt's speed (`ConveyorBelt.Speed`), so the feet are carried as on a real belt; the front foot
-   is carried over the drum, and with nothing under it the body tips over the end by itself.
+   is carried over the drum, and with nothing under it the body tips toward the drop by itself as
+   the belt, at its full run all the way and on after it, throws it off (owner: "make it keep going at the same speed even after it
+   throws him off", "im fine if it kinda "throws" him off due to the extra speed"; a slow crawl over the end was tried first).
    Before this, the feet were held on the belt by IK round the drum and the body went limp past the end; a tip made by turning the hips
    was tried and taken out (owner: "get rid of the tilt it feels animated it should be ragdoll physics"), and the plain drop after it
    "looks terrible".
-7. **Slack.** Tipped 35 degrees from upright (or 3 s after being stood, whatever it did), the springs let go (`Ragdoll.Slacken`) and
+7. **Slack.** Once both feet are past the end, or tipped 35 degrees from upright, or 1.5 s after being stood, whatever it did, the springs let go (`Ragdoll.Slacken`) and
    it falls limp. The joints measure their limits from the idle, not the T-pose it woke in (`Ragdoll.MeasureLimitsFromThisPose`):
    measured from the T-pose, the hanging arms were past their limits and were wrenched in, 46 degrees at the elbows in eight frames
    (owner, 2026-11-10: "the player puts his hands on his waist right as the conveyer belt rolls them off").
-8. **Black.** 6 m under the belt, or 4 s after being stood up, the screen fades to black (`Core/ScreenBlack`, 0.6 s); then the world
+8. **Black.** 6 m under the belt, or 2.5 s after being stood up, the screen fades to black (`Core/ScreenBlack`, 0.6 s); then the world
    loads behind it, and the fall from the sky (`IntroCutscene`, docs/INTRO.md) fades up out of the black over 1.2 s as it begins.
 
 ## How it is put together

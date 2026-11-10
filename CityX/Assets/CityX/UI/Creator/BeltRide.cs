@@ -24,7 +24,7 @@ namespace CityX.UI
             /// <summary>Past the edge of the screen (the wider view from here): on to the belt's end.</summary>
             OnTheEdge,
 
-            /// <summary>At the end of its ride, just short of the belt's end: the body is the ragdoll's, and the belt runs on, slowly.</summary>
+            /// <summary>At the end of its ride, just short of the belt's end: the body is the ragdoll's, and the belt runs on at its full run.</summary>
             Fallen,
         }
 
@@ -32,15 +32,6 @@ namespace CityX.UI
         public const float Speed = 2.4f;
 
         public const float Acceleration = 6.0f;
-
-        /// <summary>
-        /// How slowly the belt carries the body over its end, m/s, and how gently it slows to that on the way, m/s²: slowly enough for the
-        /// body to tip over the end by itself (owner, 2026-11-10: "it should just do it on its own as it slowly rolls off"). At the full
-        /// run it was carried off the end before it had tipped.
-        /// </summary>
-        public const float OverTheEnd = 0.6f;
-
-        public const float SlowingDown = 2.0f;
 
         /// <summary>This near the middle the body is in it, metres.</summary>
         private const float Arrived = 0.004f;
@@ -97,12 +88,8 @@ namespace CityX.UI
                 case Stage.Making:
                     wanted = 0.0f;
                     break;
-                case Stage.RollingOut:
-                    wanted = Speed;
-                    break;
                 default:
-                    // Slowed so as to be at OverTheEnd at the end, and on at that.
-                    wanted = Mathf.Min(Speed, Mathf.Sqrt(OverTheEnd * OverTheEnd + 2.0f * SlowingDown * Mathf.Max(0.0f, _end - BodyAt)));
+                    wanted = Speed;
                     break;
             }
             BeltSpeed = Mathf.MoveTowards(BeltSpeed, wanted, Acceleration * deltaTime);
