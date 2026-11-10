@@ -20,7 +20,8 @@ namespace CityX.Tests
     /// marked, and the wall says what reached it: a room's light never lights the street, the city's lamps never light a tunnel, and
     /// under the ground a carried beam (owner, 2026-11-09: "the flashlight/ other light sources need to light up the darkness") is as
     /// bright on a far wall as on a near one, where a bare light falls off with the square of the distance; under the sky it falls off
-    /// as a bare light does. Needs a graphics device (-Graphics).
+    /// as a bare light does. And with a pane of glass for the wall: a lamp shines on a window as an area, not as a disc (owner,
+    /// 2026-11-09: "it keeps reflecting as circles instead of just an area of light"). Needs a graphics device (-Graphics).
     /// </summary>
     public sealed class LightMarksPlayTests
     {
@@ -126,8 +127,11 @@ namespace CityX.Tests
             _made.Add(_target);
         }
 
-        /// <summary>The middle of the picture in linear light, and its brightest channel as it is stored.</summary>
-        private float Shoot(out float brightest)
+        /// <summary>
+        /// The middle of the picture in linear light, and its brightest channel as it is stored; or the same square
+        /// <paramref name="right"/> pixels to the right of the middle.
+        /// </summary>
+        private float Shoot(out float brightest, int right = 0)
         {
             _camera.Render();
             RenderTexture previous = RenderTexture.active;
@@ -144,7 +148,7 @@ namespace CityX.Tests
             int first = (Size - Middle) / 2;
             for (int y = first; y < first + Middle; y++)
             {
-                for (int x = first; x < first + Middle; x++)
+                for (int x = first + right; x < first + right + Middle; x++)
                 {
                     Color c = pixels[y * Size + x];
                     brightest = Mathf.Max(brightest, c.maxColorComponent);
@@ -164,8 +168,8 @@ namespace CityX.Tests
             return LightOnTheWall(metres, BareLight * metres * metres, mark);
         }
 
-        /// <summary>The same of a light of a given <paramref name="intensity"/>.</summary>
-        private float LightOnTheWall(float metres, float intensity, System.Action<Light> mark)
+        /// <summary>The same of a light of a given <paramref name="intensity"/>, measured <paramref name="right"/> pixels right of the middle.</summary>
+        private float LightOnTheWall(float metres, float intensity, System.Action<Light> mark, int right = 0)
         {
             _camera.transform.position = new Vector3(0.0f, 0.0f, -metres);
             var light = new GameObject("LightMarksLight").AddComponent<Light>();
@@ -179,10 +183,10 @@ namespace CityX.Tests
             light.innerSpotAngle = 55.0f;
             light.shadows = LightShadows.None;
             mark?.Invoke(light);
-            float lit = Shoot(out float brightest);
+            float lit = Shoot(out float brightest, right);
             Assert.Less(brightest, 0.9f, $"the wall {metres} m off is burnt white: no measure of the light on it");
             light.enabled = false;
-            return lit - Shoot(out _);
+            return lit - Shoot(out _, right);
         }
 
         private static float MatchMetres()
@@ -193,11 +197,12 @@ namespace CityX.Tests
             return float.Parse(define.Groups[1].Value, CultureInfo.InvariantCulture);
         }
 
-        private static Material CityMaterial()
+        /// <summary>One of the city's own materials: its walls' and streets', or by <paramref name="name"/> another (its window glass).</summary>
+        private static Material CityMaterial(string name = "CityConcrete")
         {
 #if UNITY_EDITOR
-            var material = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/CityConcrete.mat");
-            Assert.IsNotNull(material, "no CityConcrete.mat");
+            var material = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>($"Assets/CityX/View/Materials/{name}.mat");
+            Assert.IsNotNull(material, $"no {name}.mat");
             return material;
 #else
             Assert.Ignore("needs the editor to load the city's material.");
@@ -326,6 +331,24 @@ namespace CityX.Tests
             Assert.AreEqual(bare, beam, bare * Tolerance, "a torch does not light a tunnel's wall as a bare light does where the two agree");
             Assert.Less(outside, bare * Unlit, $"a street light lights the tunnel under its road ({outside:0.0000} of a bare light's {bare:0.0000})");
             Assert.Less(inside, bare * Unlit, $"a room's light lights the tunnel under its building ({inside:0.0000} of a bare light's {bare:0.0000})");
+        }
+
+        [UnityTest]
+        public IEnumerator ALampShinesOnAWindowAsAnAreaNotADisc()
+        {
+            // A lamp at the eye, four metres from a pane that fills the picture: its mirror image is the middle of the picture. Glass as
+            // smooth as a window's showed it there as a white disc a few degrees across, and nothing of it ten degrees off.
+            const float metres = 4.0f;
+            const int tenDegrees = Size / 6;   // the picture is sixty degrees across
+            Build(CityMaterial("CityGlassDark"));
+            _camera.fieldOfView = 60.0f;
+            yield return null;
+            float lamp = metres * metres;      // a lamp that puts one unit of light on the pane
+            float middle = LightOnTheWall(metres, lamp, null);
+            float beside = LightOnTheWall(metres, lamp, null, tenDegrees);
+            Assert.Greater(middle, Lit, "a lamp does not shine on a window at all");
+            Assert.Greater(beside, middle * 0.35f,
+                $"a lamp's shine on a window is a disc: ten degrees off its middle the pane has {beside:0.0000} of the middle's {middle:0.0000}");
         }
 
         [Test]

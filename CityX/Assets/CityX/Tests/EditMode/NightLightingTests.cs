@@ -313,6 +313,29 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ALampMeetsWindowGlassRougherThanTheSkyDoes()
+        {
+            // Owner, 2026-11-09: "it keeps reflecting as circles instead of just an area of light like most light sources in video games
+            // do". A lamp is a point to URP, and glass as smooth as a window's shone each one back as a white disc in every pane near it.
+            // What the shine then looks like is rendered in LightMarksPlayTests, which needs a graphics device.
+            string text = System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "CityX/View/Shaders/GlassForwardPass.hlsl"));
+            Match define = Regex.Match(text, @"#define CITYX_GLASS_LAMP_SMOOTHNESS ([0-9.]+)");
+            Assert.IsTrue(define.Success, "GlassForwardPass.hlsl no longer says how smooth glass is to a lamp");
+            float toALamp = float.Parse(define.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.LessOrEqual(toALamp, 0.5f, "to a lamp the glass is smooth enough to shine it back as a disc");
+            StringAssert.Contains("LightingPhysicallyBased(lampBrdf", text, "the lamps shine on the glass as the sky sees it again");
+#if UNITY_EDITOR
+            foreach (string name in new[] { "CityGlassDark", "CityGlassLit" })
+            {
+                var glass = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>($"Assets/CityX/View/Materials/{name}.mat");
+                Assert.IsNotNull(glass, $"no {name}.mat");
+                Assert.Greater(glass.GetFloat("_Smoothness"), toALamp + 0.2f,
+                    $"{name} is as rough to the sky as to a lamp: its reflections of the sky and the sun's glint are gone");
+            }
+#endif
+        }
+
+        [Test]
         public void ADeadBuildingsSignsAreDark()
         {
             // Blade signs glow only where there is power: a dead building's lit-glass buffer holds nothing.

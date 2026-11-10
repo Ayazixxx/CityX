@@ -33,6 +33,13 @@ everything, including whatever is made later. With the keyword off every surface
   On the walls, roofs and ground it is URP's own soft light: a pool that fades out, and on a wet street a soft reflection. (Until
   2026-11-09 a lamp lit in three flat steps, which drew three rings round every street lamp and every flashlight beam; owner: "it keeps
   reflecting as circles instead of just an area of light like most light sources in video games do".)
+- **A lamp on window glass** is a soft sheen over the pane (`GlassForwardPass.hlsl`, `CityXGlassFragmentPBR`). A lamp is a point to URP,
+  and glass as smooth as a window's (0.86) shone each one back as a hard white disc: one in every pane near a room light, a door lamp, a
+  street lamp or a flashlight, the rest of the owner's circles. To a lamp the glass is no smoother than `CITYX_GLASS_LAMP_SMOOTHNESS`
+  (0.4), so its shine spreads over the pane, as a lamp with some size to it would (HDRP's lights have a "max smoothness" for this). The
+  sun, the moon and the sky still meet the glass as smooth as it is. Not done for wet streets (0.72 at the wettest: a soft streak under
+  a lamp, which rain is meant to have). Tests: `NightLightingTests.ALampMeetsWindowGlassRougherThanTheSkyDoes`,
+  `LightMarksPlayTests.ALampShinesOnAWindowAsAnAreaNotADisc` (rendered); pictures `RoomLightsCapture`.
 - **A shiny surface** (wet in the rain, metal) gets one hard highlight from the sun or the moon, and on a body from a lamp too; no soft sheen.
 - The soft dark corners of the screen-space ambient occlusion are left out, and normal maps (the bricks, the paving) do not light the
   surface: a cel surface is flat.

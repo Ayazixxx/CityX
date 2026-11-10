@@ -52,6 +52,13 @@ static const float3 kLightColours[8] =
 // How bright a floodlit face is (SurfaceLook.PackFloodlit) right over a lamp, as a multiplier of its paint and the cycle's emission level.
 static const float kFloodlitBrightness = 0.75;
 
+// To a lamp the glass is no smoother than this. A lamp is a point to URP, and glass as smooth as a window's shines a point back as a
+// hard white disc: every lamp in a room, over a door or on the street drew a circle in every pane near it (owner, 2026-11-09: "it keeps
+// reflecting as circles instead of just an area of light like most light sources in video games do"). Rougher, its shine spreads over
+// the pane, as a lamp with some size to it would shine (HDRP's lights carry a "max smoothness" for the same reason). The sun, the moon
+// and the sky still meet the glass as smooth as it is.
+#define CITYX_GLASS_LAMP_SMOOTHNESS 0.4
+
 CBUFFER_START(UnityPerMaterial)
 float4 _BaseColor;
 float4 _EmissionColor;
@@ -196,6 +203,96 @@ Varyings GlassPassVertex(Attributes input)
     return output;
 }
 
+// URP's UniversalFragmentPBR (ShaderLibrary/Lighting.hlsl, URP 17.3) with one change: the lamps (every light but the sun, the moon and
+// other suns) shine on glass no smoother than CITYX_GLASS_LAMP_SMOOTHNESS.
+half4 CityXGlassFragmentPBR(InputData inputData, SurfaceData surfaceData)
+{
+    #if defined(_SPECULARHIGHLIGHTS_OFF)
+    bool specularHighlightsOff = true;
+    #else
+    bool specularHighlightsOff = false;
+    #endif
+    BRDFData brdfData;
+    InitializeBRDFData(surfaceData, brdfData);
+
+    #if defined(DEBUG_DISPLAY)
+    half4 debugColor;
+    if (CanDebugOverrideOutputColor(inputData, surfaceData, brdfData, debugColor))
+    {
+        return debugColor;
+    }
+    #endif
+
+    BRDFData brdfDataClearCoat = CreateClearCoatBRDFData(surfaceData, brdfData);
+    SurfaceData lampSurface = surfaceData;
+    lampSurface.smoothness = min(surfaceData.smoothness, CITYX_GLASS_LAMP_SMOOTHNESS);
+    BRDFData lampBrdf;
+    InitializeBRDFData(lampSurface, lampBrdf);
+
+    half4 shadowMask = CalculateShadowMask(inputData);
+    AmbientOcclusionFactor aoFactor = CreateAmbientOcclusionFactor(inputData, surfaceData);
+    uint meshRenderingLayers = GetMeshRenderingLayer();
+    Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
+
+    MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI);
+
+    LightingData lightingData = CreateLightingData(inputData, surfaceData);
+
+    lightingData.giColor = GlobalIllumination(brdfData, brdfDataClearCoat, surfaceData.clearCoatMask,
+                                              inputData.bakedGI, aoFactor.indirectAmbientOcclusion, inputData.positionWS,
+                                              inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
+#ifdef _LIGHT_LAYERS
+    if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
+#endif
+    {
+        lightingData.mainLightColor = LightingPhysicallyBased(brdfData, brdfDataClearCoat, mainLight, inputData.normalWS,
+                                                              inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff);
+    }
+
+    #if defined(_ADDITIONAL_LIGHTS)
+    uint pixelLightCount = GetAdditionalLightsCount();
+
+    #if USE_CLUSTER_LIGHT_LOOP
+    [loop] for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
+    {
+        CLUSTER_LIGHT_LOOP_SUBTRACTIVE_LIGHT_CHECK
+
+        Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+
+#ifdef _LIGHT_LAYERS
+        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
+#endif
+        {
+            lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light, inputData.normalWS,
+                                                                          inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff);
+        }
+    }
+    #endif
+
+    LIGHT_LOOP_BEGIN(pixelLightCount)
+        Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+
+#ifdef _LIGHT_LAYERS
+        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
+#endif
+        {
+            lightingData.additionalLightsColor += LightingPhysicallyBased(lampBrdf, brdfDataClearCoat, light, inputData.normalWS,
+                                                                          inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff);
+        }
+    LIGHT_LOOP_END
+    #endif
+
+    #if defined(_ADDITIONAL_LIGHTS_VERTEX)
+    lightingData.vertexLightingColor += inputData.vertexLighting * brdfData.diffuse;
+    #endif
+
+#if REAL_IS_HALF
+    return min(CalculateFinalColor(lightingData, surfaceData.alpha), HALF_MAX);
+#else
+    return CalculateFinalColor(lightingData, surfaceData.alpha);
+#endif
+}
+
 void GlassPassFragment(
     Varyings input
     , out half4 outColor : SV_Target0
@@ -271,7 +368,7 @@ void GlassPassFragment(
     InitializeInputData(input, inputData);
     InitializeBakedGIData(input, inputData);
 
-    half4 color = UniversalFragmentPBR(inputData, surfaceData);
+    half4 color = CityXGlassFragmentPBR(inputData, surfaceData);
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = alpha;
 
