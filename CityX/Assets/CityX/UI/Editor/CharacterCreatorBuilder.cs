@@ -63,6 +63,7 @@ namespace CityX.UIEditor
             belt.Creator = creator;
             belt.Life = stage.GetComponent<CreatorLife>();
             belt.Belt = stage.GetComponentInChildren<ConveyorBelt>(true);
+            belt.Hum = belt.Belt.GetComponent<AudioSource>();
             belt.Rider = creator.RotationPivot;
             belt.MakingCamera = creator.Camera;
             belt.WideCamera = stage.transform.Find(WideCameraName).GetComponent<Camera>();
@@ -108,6 +109,7 @@ namespace CityX.UIEditor
         }
 
         private const string WideCameraName = "WideCamera";
+        private const string BeltLoopPath = "Assets/CityX/UI/Audio/conveyor_belt_loop.ogg";
 
         /// <summary>
         /// Everything physical comes off the body but its ragdoll, which it keeps whole: at the end of the belt it is let go and falls
@@ -301,7 +303,18 @@ namespace CityX.UIEditor
             var belt = new GameObject("Belt") { layer = layer };
             belt.transform.SetParent(stage.transform, false);
             belt.AddComponent<ConveyorBelt>();
-            var sky = new GameObject("Sky") { layer = layer };
+            // Its running sound: the steady part of the owner's recording as a loop (SourceArt/BeltIntro/belt_loop.py). BeltIntro plays it.
+            AudioSource hum = belt.AddComponent<AudioSource>();
+            hum.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(BeltLoopPath);
+            hum.loop = true;
+            hum.playOnAwake = false;
+            hum.spatialBlend = 0.0f;
+            hum.volume = 0.0f;
+            if (hum.clip == null)
+            {
+                Debug.LogWarning("CityX: no conveyor belt sound at " + BeltLoopPath + ".");
+            }
+            var sky =new GameObject("Sky") { layer = layer };
             sky.transform.SetParent(stage.transform, false);
             sky.AddComponent<BeltSky>();
 

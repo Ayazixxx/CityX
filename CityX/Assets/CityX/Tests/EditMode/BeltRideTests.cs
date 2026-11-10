@@ -116,6 +116,40 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, ride.BeltSpeed, 1e-5f);
         }
 
+        /// <summary>Owner, 2026-11-10: "make this noise play when going right or left on the conveyer belt, and at the end when the
+        /// conveyer belt rolls your character off".</summary>
+        [Test]
+        public void TheBeltIsHeardRunningEitherWayAndNotStandingStill()
+        {
+            BeltRide ride = Ride();
+            Assert.AreEqual(0.0f, ride.Running, "an empty belt nobody runs is heard");
+            for (int i = 0; i < 60; i++)
+            {
+                ride.Step(1.0f, Frame);
+            }
+            Assert.AreEqual(1.0f, ride.Running, 1e-4f, "run right, the belt is not heard at its full run");
+            for (int i = 0; i < 120; i++)
+            {
+                ride.Step(-1.0f, Frame);
+            }
+            Assert.Less(ride.BeltSpeed, 0.0f);
+            Assert.AreEqual(1.0f, ride.Running, 1e-4f, "run left, the belt is not heard at its full run");
+            for (int i = 0; i < 60; i++)
+            {
+                ride.Step(0.0f, Frame);
+            }
+            Assert.AreEqual(0.0f, ride.Running, "let go, the belt is still heard");
+
+            Until(ride, 1.0f, 20.0f);
+            Assert.AreEqual(BeltRide.Stage.Making, ride.Now);
+            Assert.AreEqual(0.0f, ride.Running, "the belt is heard while the character is made");
+            ride.Finish();
+            Until(ride, 0.0f, 20.0f);
+            Until(ride, 0.0f, 20.0f);
+            Assert.AreEqual(BeltRide.Stage.Fallen, ride.Now);
+            Assert.AreEqual(1.0f, ride.Running, 1e-4f, "the belt is not heard as it rolls the body off its end");
+        }
+
         [Test]
         public void FinishedItIsCarriedOffPastTheEdgeAndOffTheEndWithNoKeyHeld()
         {

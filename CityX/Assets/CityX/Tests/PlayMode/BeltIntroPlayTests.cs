@@ -255,6 +255,54 @@ namespace CityX.Tests
             Assert.Less(ragdoll.Torso.position.y, top - 2.0f, "the body did not fall off the belt");
         }
 
+        /// <summary>Owner, 2026-11-10: "make this noise play when going right or left on the conveyer belt, and at the end when the
+        /// conveyer belt rolls your character off".</summary>
+        [UnityTest]
+        public IEnumerator TheBeltIsHeardWhileItRunsEitherWayAndAsItRollsTheBodyOff()
+        {
+            yield return Begin();
+            AudioSource hum = _belt.Hum;
+            Assert.IsNotNull(hum, "the belt has no sound");
+            Assert.IsNotNull(hum.clip, "the belt's sound has no recording");
+            Assert.IsTrue(hum.loop, "the belt's sound ends while the belt still runs");
+            yield return Frames(20);
+            Assert.IsFalse(hum.isPlaying, "the belt is heard standing still");
+
+            Press(_keyboard.dKey);
+            yield return Frames(40);
+            Assert.IsTrue(hum.isPlaying, "run right, the belt makes no sound");
+            Assert.AreEqual(BeltIntro.HumVolume, hum.volume, 0.01f, "at its full run the belt is not at its full sound");
+            Release(_keyboard.dKey);
+            yield return Frames(30);
+            Assert.IsFalse(hum.isPlaying, "the belt is heard on after it has stopped");
+
+            Press(_keyboard.aKey);
+            yield return Frames(10);
+            Assert.IsTrue(hum.isPlaying, "run left, the belt makes no sound");
+            Release(_keyboard.aKey);
+            yield return null;
+
+            yield return RollIn();
+            yield return Frames(5);
+            Assert.IsFalse(hum.isPlaying, "the belt is heard while the character is made");
+
+            bool entered = false;
+            float heardWhenEntered = 1.0f;
+            _belt.RollOut(() =>
+            {
+                entered = true;
+                heardWhenEntered = hum.volume;
+            });
+            yield return Frames(40);
+            Assert.IsTrue(hum.isPlaying, "the belt carries the body off without a sound");
+            yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 12.0f, "the body never reached the belt's end");
+            yield return Frames(5);
+            Assert.IsTrue(hum.isPlaying, "the belt goes quiet the moment the body falls off it");
+            Assert.AreEqual(BeltIntro.HumVolume, hum.volume, 0.01f);
+            yield return Until(() => entered, 8.0f, "the world was never entered after the fall");
+            Assert.Less(heardWhenEntered, 0.05f, "the belt is still loud when the screen is black");
+        }
+
         [UnityTest]
         public IEnumerator ANewCharactersWorldWaitsForTheRideAndAMadeOnesDoesNot()
         {

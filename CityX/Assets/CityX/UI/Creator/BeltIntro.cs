@@ -37,6 +37,9 @@ namespace CityX.UI
 
         public Ragdoll Ragdoll;
 
+        [Tooltip("The belt's running sound, a loop: heard as far as the belt runs.")]
+        public AudioSource Hum;
+
         [Tooltip("The creator's tool column: faded in when the body arrives, out when it leaves.")]
         public CanvasGroup Tools;
 
@@ -73,6 +76,9 @@ namespace CityX.UI
 
         public const float BlackAfterSeconds = 2.5f;
         public const float BlackFadeSeconds = 0.6f;
+
+        /// <summary>How loud the belt is at its full run.</summary>
+        public const float HumVolume = 0.6f;
 
         public const string PromptText = "PRESS  D  OR  →";
         public const string LiftText = "T-POSE  [T]";
@@ -117,6 +123,7 @@ namespace CityX.UI
             // The rest is put right when the panel next comes up (its stage goes off with it now).
             _ride = null;
             _enterWorld = null;
+            SoundTheBelt();
             if (Title != null && Title.Select != null)
             {
                 Title.Select.Departure = null;
@@ -129,6 +136,7 @@ namespace CityX.UI
             _ride = null;
             _enterWorld = null;
             _blackFor = -1.0f;
+            SoundTheBelt();
             if (Title != null && Title.Select != null)
             {
                 Title.Select.Departure = null;
@@ -277,6 +285,7 @@ namespace CityX.UI
                     Fall(deltaTime);
                     break;
             }
+            SoundTheBelt();
         }
 
         // --- the stages ---
@@ -342,6 +351,33 @@ namespace CityX.UI
                 System.Action enter = _enterWorld;
                 _enterWorld = null;
                 enter();
+            }
+        }
+
+        /// <summary>
+        /// The belt is heard as hard as it runs (owner, 2026-11-10: "make this noise play when going right or left on the conveyer belt,
+        /// and at the end when the conveyer belt rolls your character off"): up and down with its speed, so it neither starts nor stops
+        /// with a click, and out with the picture as that goes black.
+        /// </summary>
+        private void SoundTheBelt()
+        {
+            if (Hum == null)
+            {
+                return;
+            }
+            float heard = _ride != null ? _ride.Running : 0.0f;
+            if (_blackFor >= 0.0f)
+            {
+                heard *= 1.0f - Mathf.Clamp01(_blackFor / BlackFadeSeconds);
+            }
+            Hum.volume = HumVolume * heard;
+            if (heard > 0.0f && !Hum.isPlaying)
+            {
+                Hum.Play();
+            }
+            else if (heard <= 0.0f && Hum.isPlaying)
+            {
+                Hum.Stop();
             }
         }
 

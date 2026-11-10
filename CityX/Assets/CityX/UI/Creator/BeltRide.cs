@@ -60,6 +60,9 @@ namespace CityX.UI
         /// <summary>The belt's speed now, m/s, positive to the right.</summary>
         public float BeltSpeed { get; private set; }
 
+        /// <summary>How hard the belt is running, either way: 0 stopped to 1 at its full run. What it is heard by.</summary>
+        public float Running => Mathf.Abs(BeltSpeed) / Speed;
+
         /// <summary>How far the belt's surface has run in all, metres, positive to the right: what its slats and rollers are drawn by.</summary>
         public float Travel { get; private set; }
 

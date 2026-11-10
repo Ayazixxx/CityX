@@ -56,6 +56,12 @@ game's own.
   cameras draw without it (`View/Lighting/ClearAirCamera`).
 - **The world waits for the ride.** `CharacterSelect.Play` hands the loading of the world to `Departure` when one is set and the
   character is new; `BeltIntro.RollOut` plays the ride and calls it in the black.
+- **The sound** (owner, 2026-11-10, with a recording: "make this noise play when going right or left on the conveyer belt, and at the
+  end when the conveyer belt rolls your character off"). The recording fades in over its first four seconds, longer than a roll-in
+  takes, so the game plays its steady part as a loop with no seam (`UI/Audio/conveyor_belt_loop.ogg`, cut by
+  `SourceArt/BeltIntro/belt_loop.py` from the recording kept beside it). It is heard as hard as the belt runs (`BeltRide.Running`,
+  `BeltIntro.HumVolume` at the full run): up and down with the belt's speed either way, silent while the character is made, on as the
+  belt carries the body off and past its fall, and out with the picture as that goes black.
 - **The black** lasts across the change of scene (`ScreenBlack` is not destroyed with the title) and clears itself after 30 s if nothing
   does.
 
@@ -65,9 +71,8 @@ game's own.
   the hair on, before the ride off. Needs the strokes kept in order as they are made.
 - **Reactions**: the body liking or disliking what is put on it.
 - **What a returning player's title screen is.**
-- Sound: the belt has none yet.
 
 ## Tests
 
-`BeltRideTests` (the rules of the ride), `BeltIntroPlayTests` (in the real title scene with real keys: the empty belt, rolling in either way, the tools fading in, the arms lifting before paint lands, the ride off, the wider view, the drop, the black, the world waiting for the ride, a first start),
+`BeltRideTests` (the rules of the ride), `BeltIntroPlayTests` (in the real title scene with real keys: the empty belt, rolling in either way, the tools fading in, the arms lifting before paint lands, the ride off, the wider view, the drop, the black, the world waiting for the ride, a first start, the belt heard while it runs),
 `BeltIntroCapture` (Explicit, `-Graphics`: `Logs/CityShots/belt-NN-*.png`, every beat).
