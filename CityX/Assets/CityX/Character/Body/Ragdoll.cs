@@ -961,7 +961,6 @@ namespace CityX.Character
 
         private void LateUpdate()
         {
-            FollowTheStand();
             PoseFlip();
             float clipShare = BlendFromSnapshot();
             if (IsStandingUp)
@@ -1154,10 +1153,6 @@ namespace CityX.Character
             // so it pulls every body equally regardless of mass -- gravity does
             // not care what a forearm weighs.
             Vector3 extra = Physics.gravity * ExtraGravityScale;
-            if (_stood != null)
-            {
-                _stood.AddForce(extra, ForceMode.Acceleration);
-            }
             foreach (Rigidbody body in Bodies)
             {
                 if (body != null)
@@ -1170,7 +1165,7 @@ namespace CityX.Character
             // driven by RepositionToRagdollRest/the GettingUp clip at that
             // point; a depenetration correction has no business fighting
             // either one.
-            if (!IsStandingUp && !IsHeld && !IsRecovering && !IsStood)
+            if (!IsStandingUp && !IsHeld && !IsRecovering)
             {
                 TickLiveDepenetration();
             }

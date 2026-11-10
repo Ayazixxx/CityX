@@ -151,6 +151,29 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ItCanBeLetGoShortOfTheEndOnlyOnTheLastRideAndTheBeltRunsOn()
+        {
+            BeltRide ride = Ride();
+            ride.LetGo();
+            Assert.AreEqual(BeltRide.Stage.RollingIn, ride.Now, "let go while rolling in");
+            Until(ride, 1.0f, 20.0f);
+            ride.LetGo();
+            Assert.AreEqual(BeltRide.Stage.Making, ride.Now, "let go while it was being made");
+            ride.Finish();
+            ride.LetGo();
+            Assert.AreEqual(BeltRide.Stage.RollingOut, ride.Now, "let go on the screen");
+            Until(ride, 0.0f, 20.0f);
+            Assert.AreEqual(BeltRide.Stage.OnTheEdge, ride.Now);
+            ride.Step(0.0f, Frame);
+            float at = ride.BodyAt;
+            ride.LetGo();
+            Assert.AreEqual(BeltRide.Stage.Fallen, ride.Now);
+            ride.Step(0.0f, Frame);
+            Assert.AreEqual(at, ride.BodyAt, 1e-5f, "the belt still carries a body let go");
+            Assert.AreEqual(BeltRide.Speed, ride.BeltSpeed, 1e-4f, "the belt did not run on at its full run");
+        }
+
+        [Test]
         public void FinishedItIsCarriedOffPastTheEdgeAndOffTheEndWithNoKeyHeld()
         {
             BeltRide ride = Ride();

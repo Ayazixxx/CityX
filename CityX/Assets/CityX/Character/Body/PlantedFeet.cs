@@ -48,6 +48,9 @@ namespace CityX.Character
         /// <summary>The feet have been set down (<see cref="SetDown"/>).</summary>
         public bool IsDown { get; private set; }
 
+        /// <summary>Where the ankle of <paramref name="foot"/> (LeftFoot or RightFoot) is held, in the body's own space, once set down.</summary>
+        public Vector3 Spot(HumanBodyBones foot) => (foot == HumanBodyBones.LeftFoot ? _left : _right).Place;
+
         /// <summary>
         /// Finds where the feet stay by playing the Animator's current clip once round, here and now (it ends where it began): each foot
         /// goes on the middle of its sway, on the body's floor, sole flat. On one end of the sway the far leg would run out of reach.

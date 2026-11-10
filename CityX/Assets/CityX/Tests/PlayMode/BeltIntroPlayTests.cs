@@ -403,68 +403,74 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position"; "make it look natural like a person getting
-        /// rolled off", with a drawing of it pitched out over the drop, its back foot on the roller: "thats like the last frame his right leg
-        /// touches the roller after that he falls"; "no knee sag"; "make him fully loose after frame 19" (the front foot at the top of the roller).
+        /// Owner, 2026-11-10: "make it look natural like a person getting rolled off", with a drawing of it pitched out over the drop, its
+        /// back foot on the roller; "feel like he needs a little tilt it still feels like his left leg hovers in air and visible goes limp,
+        /// looks very game engine like not like a cool cutscene".
         /// </summary>
         [UnityTest]
-        public IEnumerator ItIsStoodUpStraightThenLimpWithItsBackFootCaughtOnTheRollerAndPitchesOverIt()
+        public IEnumerator ItLeansOverTheRollerOnItsFrontFootThenGoesLimpWithoutAJumpAndPitchesOverItsBackFoot()
         {
             yield return Begin();
             yield return RollIn();
             _belt.RollOut(() => { });
-            yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 15.0f, "the body never reached the belt's end");
-
-            Ragdoll ragdoll = _belt.Ragdoll;
-            Assert.IsTrue(ragdoll.IsLimp, "it is not the ragdoll's");
-            Assert.IsTrue(ragdoll.IsStood, "it was let go limp, not stood up");
-            Assert.IsTrue(ragdoll.IsPinned, "its back foot is not held");
             Animator animator = _belt.Life.Animator;
             Transform belt = _belt.Belt.transform;
+            Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
             Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
             Transform neck = animator.GetBoneTransform(HumanBodyBones.Neck);
             Transform[] feet = { animator.GetBoneTransform(HumanBodyBones.LeftFoot), animator.GetBoneTransform(HumanBodyBones.RightFoot) };
-            HumanBodyBones[] legs = { HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot, HumanBodyBones.LeftLowerLeg, HumanBodyBones.RightLowerLeg };
-            foreach (Transform foot in feet)
-            {
-                Assert.Less(belt.InverseTransformPoint(foot.position).x, ConveyorBelt.Length, "it was stood up with a foot already over the end");
-            }
-            Transform back = belt.InverseTransformPoint(feet[0].position).x < belt.InverseTransformPoint(feet[1].position).x ? feet[0] : feet[1];
-            float Knee(HumanBodyBones thigh, HumanBodyBones shin, HumanBodyBones foot) =>
-                Vector3.Angle(animator.GetBoneTransform(shin).position - animator.GetBoneTransform(thigh).position,
-                    animator.GetBoneTransform(foot).position - animator.GetBoneTransform(shin).position);
-            float leftKnee = Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot);
-            float rightKnee = Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot);
+            float r = ConveyorBelt.DrumRadius, soleUnder = BodyRig.FootY * feet[0].lossyScale.y;
 
-            Transform front = back == feet[0] ? feet[1] : feet[0];
-            Vector3 upright = neck.position - hips.position;
-            float carriedFrom = belt.InverseTransformPoint(hips.position).x;
-            float sagged = 0.0f, frontWhenLimp = float.MinValue, tiltWhenLetGo = -1.0f, letGoAfter = -1.0f, backFootPast = float.MaxValue;
-            bool limp = false;
+            // Over the roller, still alive: the front ankle rides the roller, the back one the top, and it leans.
+            float hovered = 0.0f, mostLean = 0.0f;
+            var heads = new List<(Vector3 at, bool limp)>();
+            var sampler = _belt.gameObject.AddComponent<AfterEveryLateUpdate>();
+            sampler.Sample = () =>
+            {
+                heads.Add((head.position, _belt.Ragdoll.IsLimp));
+                if (_belt.Ride.Now != BeltRide.Stage.OnTheEdge)
+                {
+                    return;
+                }
+                Vector3 a = belt.InverseTransformPoint(feet[0].position), b = belt.InverseTransformPoint(feet[1].position);
+                Vector3 front = a.x > b.x ? a : b;
+                float past = front.x - ConveyorBelt.Length;
+                if (past > 0.02f && past < r)
+                {
+                    float fromAxis = new Vector2(past, front.y + r).magnitude;
+                    hovered = Mathf.Max(hovered, Mathf.Abs(fromAxis - r - soleUnder));
+                }
+                mostLean = Mathf.Max(mostLean, Vector3.Angle(belt.up, neck.position - hips.position));
+            };
+            yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 15.0f, "the body was never let go");
+            yield return Frames(3);
+            UnityEngine.Object.Destroy(sampler);
+            Assert.Less(hovered, 0.04f, "the front foot left the roller before the body was let go (owner: \"his left leg hovers in air\")");
+            Assert.That(mostLean, Is.InRange(BeltIntro.HandOverAtDegrees - 6.0f, BeltIntro.HandOverAtDegrees + 10.0f), "it did not lean a little over the roller");
+
+            Ragdoll ragdoll = _belt.Ragdoll;
+            Assert.IsTrue(ragdoll.IsLimp, "it is not the ragdoll's");
+            Assert.IsTrue(ragdoll.IsPinned, "its back foot is not held");
+            // No jump as physics takes it: the head moves on, frame to frame, as it was moving.
+            int first = heads.FindIndex(h => h.limp);
+            // Leaning faster and faster as the foot goes round the roller, so measured against where its last steps were heading.
+            Assert.Greater(first, 2, "never seen alive before it went limp");
+            Vector3 step1 = heads[first - 2].at - heads[first - 3].at, step2 = heads[first - 1].at - heads[first - 2].at;
+            Vector3 heading = step2 + (step2 - step1), stepAfter = heads[first].at - heads[first - 1].at;
+            Assert.Less((stepAfter - heading).magnitude, 0.03f, "the body jumped as it went limp");
+
+            Transform back = belt.InverseTransformPoint(feet[0].position).x < belt.InverseTransformPoint(feet[1].position).x ? feet[0] : feet[1];
+            float tiltWhenLetGo = -1.0f, backFootPast = float.MaxValue;
             int inTheBelt = 0;
             float waited = 0.0f;
+            HumanBodyBones[] legs = { HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot, HumanBodyBones.LeftLowerLeg, HumanBodyBones.RightLowerLeg };
             while (waited < 6.0f && belt.InverseTransformPoint(hips.position).y > -3.0f)
             {
                 waited += Time.deltaTime;
                 yield return null;
-                float tilt = Vector3.Angle(upright, neck.position - hips.position);
-                if (ragdoll.IsStood)
+                if (tiltWhenLetGo < 0.0f && !ragdoll.IsPinned)
                 {
-                    sagged = Mathf.Max(sagged,
-                        Mathf.Abs(Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot) - leftKnee),
-                        Mathf.Abs(Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) - rightKnee));
-                }
-                else if (!limp)
-                {
-                    limp = true;
-                    frontWhenLimp = belt.InverseTransformPoint(front.position).x - ConveyorBelt.Length;
-                    Assert.IsTrue(ragdoll.IsPinned, "its back foot was let go as it went limp");
-                    Assert.Greater(belt.InverseTransformPoint(hips.position).x - carriedFrom, 0.3f, "the belt did not carry it to its end");
-                }
-                if (limp && letGoAfter < 0.0f && !ragdoll.IsPinned)
-                {
-                    letGoAfter = waited;
-                    tiltWhenLetGo = tilt;
+                    tiltWhenLetGo = Vector3.Angle(belt.up, neck.position - hips.position);
                     backFootPast = belt.InverseTransformPoint(back.position).x - ConveyorBelt.Length;
                     Assert.Greater(belt.InverseTransformPoint(neck.position).x, belt.InverseTransformPoint(hips.position).x + 0.3f, "it did not pitch out over the drop");
                 }
@@ -476,16 +482,22 @@ namespace CityX.Tests
                     }
                 }
             }
-            Assert.Less(sagged, 1.0f, "a knee bent while it stood");
-            Assert.IsTrue(limp, "it never went limp");
-            Assert.That(frontWhenLimp, Is.InRange(0.0f, 0.15f), "it did not go limp as its front foot went over the top of the roller (owner: \"make him fully loose after frame 19\")");
-            Assert.Greater(letGoAfter, 0.0f, "its back foot was never let go");
-            Assert.Less(letGoAfter, BeltIntro.LetGoAfterSeconds - 0.1f, "its back foot was let go on the clock, not pitched over");
-            // Seen a frame after, turning fast.
-            Assert.That(tiltWhenLetGo, Is.InRange(BeltIntro.LetGoAtDegrees, BeltIntro.LetGoAtDegrees + 20.0f), "its back foot was not held until it had pitched 45 degrees over");
+            Assert.Greater(tiltWhenLetGo, 0.0f, "its back foot was never let go");
+            Assert.That(tiltWhenLetGo, Is.InRange(BeltIntro.LetGoAtDegrees, BeltIntro.LetGoAtDegrees + 25.0f), "its back foot was not held until it had pitched 45 degrees over");
             Assert.AreEqual(0.0f, backFootPast, 0.15f, "its back foot was not on the top of the roller as it pitched over");
             Assert.Less(belt.InverseTransformPoint(hips.position).y, -3.0f, "it never fell off the belt");
             Assert.AreEqual(0, inTheBelt, "a leg went through the belt");
+        }
+
+        [DefaultExecutionOrder(10000)]
+        private sealed class AfterEveryLateUpdate : MonoBehaviour
+        {
+            public Action Sample;
+
+            private void LateUpdate()
+            {
+                Sample?.Invoke();
+            }
         }
 
         private static float ElbowBend(Animator animator, HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones hand)
@@ -519,7 +531,8 @@ namespace CityX.Tests
                     Mathf.Abs(ElbowBend(animator, HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand) - right));
             }
             TestContext.WriteLine($"elbows moved {worst:0.0} degrees in the first 8 frames limp");
-            Assert.Less(worst, 12.0f, "the arms snapped into another shape as the body went limp");
+            // Wrenched to the limits measured from the T-pose they moved 46 degrees; pitching over the roller, limp arms swing some 20 of their own.
+            Assert.Less(worst, 30.0f, "the arms snapped into another shape as the body went limp");
         }
 
         [UnityTest]

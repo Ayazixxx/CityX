@@ -132,16 +132,17 @@ namespace CityX.Tests
             Shoot("wide-view");
             yield return Frames(70);
             Shoot("toward-the-end");
-            while (_belt.Ride.Now == BeltRide.Stage.OnTheEdge)
+            // Over the end: a picture every twentieth of a second from a metre short of it, leaning over the roller and going limp, then
+            // every tenth.
+            Transform belt = _belt.Belt.transform;
+            while (_belt.Ride.Now == BeltRide.Stage.OnTheEdge && belt.InverseTransformPoint(_belt.Rider.position).x < ConveyorBelt.Length - 1.0f)
             {
                 yield return null;
             }
-            // Stood up short of the end, it tips off by itself: a picture every twentieth of a second over the end, then every tenth.
-            Shoot("stood-up");
-            for (int i = 1; i <= 16; i++)
+            for (int i = 1; i <= 18; i++)
             {
-                yield return Frames(i <= 10 ? 3 : 6);
-                Shoot($"tipping-{i}");
+                Shoot($"over-{i}");
+                yield return Frames(i <= 12 ? 3 : 6);
             }
             yield return Frames(16);
             Shoot("falling");

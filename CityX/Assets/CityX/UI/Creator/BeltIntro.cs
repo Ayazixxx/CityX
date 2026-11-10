@@ -69,8 +69,14 @@ namespace CityX.UI
         /// <summary>From where the view changes to the belt's end, metres: about two and a half seconds' ride.</summary>
         public const float EdgeToEnd = 6.0f;
 
-        /// <summary>How far short of the belt's end the middle of the body is when it is stood up as a ragdoll, metres: both feet still on the top.</summary>
-        public const float StoodBeforeTheEnd = 0.5f;
+        /// <summary>
+        /// How far the body leans over the roller before physics takes it, degrees: past this, keeping its front foot on the roller as
+        /// that curves away at the belt's full run would spin it round. It is let go turning as fast as it was, or it jumps.
+        /// </summary>
+        public const float HandOverAtDegrees = 12.0f;
+
+        /// <summary>How far past the belt's end the middle of the body is let go if it has not been by then, metres.</summary>
+        public const float ThroughTheEnd = 0.6f;
 
         /// <summary>The snag lets the back foot go once the body has pitched this far over the end, degrees, or this long after it was stood, seconds, whatever it did.</summary>
         public const float LetGoAtDegrees = 45.0f;
@@ -110,10 +116,12 @@ namespace CityX.UI
         private float _toolsShown = 1.0f;
         private float _promptElapsed;
         private float _sinceDrop;
-        private Vector3 _uprightWhenStood = Vector3.up;
         private Rigidbody _snag;
-        private HumanBodyBones _frontFoot;
         private HumanBodyBones _backFoot;
+        private float _lean;
+        private float _leaning;
+        private Vector3 _leanAxis;
+        private Vector3 _back;
         private float _blackFor = -1.0f;
         private float _riderHeight;
         private bool _heightKnown;
@@ -150,6 +158,8 @@ namespace CityX.UI
                 Title.Select.Departure = null;
             }
             DropTheSnag();
+            _lean = 0.0f;
+            _leaning = 0.0f;
             if (Ragdoll != null && Ragdoll.IsLimp)
             {
                 Ragdoll.Deactivate();
@@ -190,7 +200,7 @@ namespace CityX.UI
         {
             Stand();
             float edge = EdgeOfScreen();
-            _ride = new BeltRide(-(edge + BeyondTheEdge + WaitsFurtherOff), edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd - StoodBeforeTheEnd);
+            _ride = new BeltRide(-(edge + BeyondTheEdge + WaitsFurtherOff), edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd + ThroughTheEnd);
             _shown = _ride.Now;
             PlaceRider(_ride.BodyAt);
             if (Life != null)
@@ -262,6 +272,12 @@ namespace CityX.UI
             {
                 PlaceRider(_ride.BodyAt);
             }
+            if (now == BeltRide.Stage.OnTheEdge && before == BeltRide.Stage.OnTheEdge && LeanOverTheRoller(deltaTime) >= HandOverAtDegrees)
+            {
+                _ride.LetGo();
+                now = _ride.Now;
+                _shown = now;
+            }
 
             if (now != before)
             {
@@ -325,11 +341,47 @@ namespace CityX.UI
         }
 
         /// <summary>
-        /// Just short of the belt's end, both feet still on it: the body is the ragdoll's, stood up straight in the idle it was in and moving
-        /// as fast as the belt (owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position"; "no knee sag make him
-        /// stand up straight until at 45"). Its back foot is snagged where it stands and carried with the belt to the top of the roller, and
-        /// held there: the body swings out over it by its own run and pitches over the drop (the owner's drawing: "thats like the last frame
-        /// his right leg touches the roller after that he falls").
+        /// Over the roller the body leans about its back foot just as far as keeps its front foot on the roller as that curves away under
+        /// it, still standing in its idle (owner, 2026-11-10: "feel like he needs a little tilt it still feels like his left leg hovers in
+        /// air"); the lean, degrees. <see cref="HandOverAtDegrees"/> over, physics takes it (<see cref="LetGo"/>).
+        /// </summary>
+        private float LeanOverTheRoller(float deltaTime)
+        {
+            if (Life == null || Life.Feet == null || !Life.Feet.IsDown || Belt == null)
+            {
+                return 0.0f;
+            }
+            Transform belt = Belt.transform;
+            Transform root = Life.Animator.transform;
+            Rider.localRotation = Quaternion.identity;   // facing the front, as ChangeView left it
+            Vector3 left = root.TransformPoint(Life.Feet.Spot(HumanBodyBones.LeftFoot));
+            Vector3 right = root.TransformPoint(Life.Feet.Spot(HumanBodyBones.RightFoot));
+            bool leftBehind = belt.InverseTransformPoint(left).x < belt.InverseTransformPoint(right).x;
+            Vector3 back = leftBehind ? left : right, front = leftBehind ? right : left;
+            _backFoot = leftBehind ? HumanBodyBones.LeftFoot : HumanBodyBones.RightFoot;
+
+            float past = belt.InverseTransformPoint(front).x - ConveyorBelt.Length;
+            float r = ConveyorBelt.DrumRadius;
+            float drop = past <= 0.0f ? 0.0f : past >= r ? r : r - Mathf.Sqrt(r * r - past * past);
+            float stance = Mathf.Max(belt.InverseTransformPoint(front).x - belt.InverseTransformPoint(back).x, 0.05f);
+            float lean = Mathf.Atan2(drop, stance) * Mathf.Rad2Deg;
+
+            // Turned the way that takes the belt's run down, about the back ankle.
+            _leanAxis = Vector3.Cross(belt.up, belt.right).normalized;
+            Quaternion turn = Quaternion.AngleAxis(lean, _leanAxis);
+            Rider.SetPositionAndRotation(back + turn * (Rider.position - back), turn * Rider.rotation);
+            _leaning = deltaTime > 0.0f ? (lean - _lean) * Mathf.Deg2Rad / deltaTime : 0.0f;
+            _lean = lean;
+            _back = back;
+            return lean;
+        }
+
+        /// <summary>
+        /// Leaning over the roller (<see cref="LeanOverTheRoller"/>), the body is let go: limp, moving as it was, along with the belt and
+        /// turning over its back foot, so that nothing about it jumps as physics takes it (owner, 2026-11-10: "visible goes limp, looks very
+        /// game engine like not like a cool cutscene"). Its back foot is snagged where it stands and carried with the belt to the top of
+        /// the roller and held there, and the body swings out over it (the owner's drawing: "thats like the last frame his right leg touches
+        /// the roller after that he falls").
         /// </summary>
         private void LetGo()
         {
@@ -344,24 +396,16 @@ namespace CityX.UI
             }
             Transform stage = Rider.parent;
             Vector3 along = stage != null ? stage.TransformDirection(Vector3.left) : Vector3.left;   // the screen's right
-            Animator animator = Ragdoll.Animator;
-            Vector3 left = animator.GetBoneTransform(HumanBodyBones.LeftFoot).position;
-            Vector3 right = animator.GetBoneTransform(HumanBodyBones.RightFoot).position;
-            Transform belt = Belt.transform;
-            bool leftBehind = belt.InverseTransformPoint(left).x < belt.InverseTransformPoint(right).x;
-            Vector3 back = leftBehind ? left : right;
-            _frontFoot = leftBehind ? HumanBodyBones.RightFoot : HumanBodyBones.LeftFoot;
-            _backFoot = leftBehind ? HumanBodyBones.LeftFoot : HumanBodyBones.RightFoot;
-            _uprightWhenStood = animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position;
-            if (!Ragdoll.Stand(along * BeltRide.Speed))
+            Vector3 turning = _leanAxis * Mathf.Max(_leaning, 0.0f);
+            if (!Ragdoll.LetGoTurning(along * BeltRide.Speed, turning, _back))
             {
                 return;
             }
             var snag = new GameObject("Snag") { layer = gameObject.layer };
-            snag.transform.position = back;
+            snag.transform.position = _back;
             _snag = snag.AddComponent<Rigidbody>();
             _snag.isKinematic = true;
-            Ragdoll.Pin(_backFoot, belt.forward, _snag);   // turning over the drop only, not toward the camera or away
+            Ragdoll.Pin(_backFoot, Belt.transform.forward, _snag);   // turning over the drop only, not toward the camera or away
         }
 
         /// <summary>The snag rides the belt to the top of the roller and stops there.</summary>
@@ -377,26 +421,16 @@ namespace CityX.UI
             _snag.MovePosition(belt.TransformPoint(at));
         }
 
-        /// <summary>
-        /// The moment the front foot is past the top of the roller, with nothing under it, the body goes fully limp (owner, 2026-11-10: "make
-        /// him fully loose after frame 19"), its back foot still snagged, so it swings out over the drop loose; pitched far enough over
-        /// (or held too long, whatever it did), the snag lets it go.
-        /// </summary>
+        /// <summary>Pitched far enough over (or held too long, whatever it did), the snag lets the back foot go.</summary>
         private void LetGoOnceOver()
         {
-            if (Ragdoll == null || !Ragdoll.IsLimp)
+            if (Ragdoll == null || !Ragdoll.IsPinned)
             {
                 return;
             }
             Animator animator = Ragdoll.Animator;
-            bool over = Belt.transform.InverseTransformPoint(animator.GetBoneTransform(_frontFoot).position).x > ConveyorBelt.Length;
-            if (Ragdoll.IsStood && (over || _sinceDrop >= LetGoAfterSeconds))
-            {
-                Ragdoll.Slacken();
-                Ragdoll.Pin(_backFoot, Belt.transform.forward, _snag);
-            }
             Vector3 up = animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position;
-            if (!Ragdoll.IsStood && Ragdoll.IsPinned && (Vector3.Angle(_uprightWhenStood, up) >= LetGoAtDegrees || _sinceDrop >= LetGoAfterSeconds))
+            if (Vector3.Angle(Belt.transform.up, up) >= LetGoAtDegrees || _sinceDrop >= LetGoAfterSeconds)
             {
                 Ragdoll.Unpin();
                 DropTheSnag();

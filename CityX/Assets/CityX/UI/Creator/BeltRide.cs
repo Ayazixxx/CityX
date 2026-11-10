@@ -126,5 +126,14 @@ namespace CityX.UI
                 Now = Stage.RollingOut;
             }
         }
+
+        /// <summary>The body is let go here, short of the end, its belt running on: only on the last ride, past the edge of the screen.</summary>
+        public void LetGo()
+        {
+            if (Now == Stage.OnTheEdge)
+            {
+                Now = Stage.Fallen;
+            }
+        }
     }
 }
