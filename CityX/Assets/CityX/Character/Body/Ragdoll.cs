@@ -812,6 +812,7 @@ namespace CityX.Character
             _limp = false;
             _restSeconds = 0.0f;
             _allowImmediateStandUp = false;
+            Slacken();
 
             SetKinematic(true);
 

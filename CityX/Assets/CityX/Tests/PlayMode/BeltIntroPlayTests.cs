@@ -149,11 +149,17 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, _belt.Belt.Travel, 1e-4f, "the belt runs with no key held");
             Assert.Less(BodyAcrossTheScreen(), -0.05f);
 
+            // Owner, 2026-11-10: "make the player model placed a little bit farther to the left off screen so it takes about +2 seconds for him
+            // to appear onto the screen where holding D" (it took under a second).
             Press(_keyboard.dKey);
-            yield return Frames(40);
-            float partWay = BodyAcrossTheScreen();
+            float held = 0.0f;
+            while (BodyAcrossTheScreen() < 0.0f && held < 8.0f)
+            {
+                held += Time.deltaTime;
+                yield return null;
+            }
             Assert.Greater(_belt.Belt.Travel, 0.5f, "D does not run the belt");
-            Assert.That(partWay, Is.InRange(-0.3f, 0.5f), "the body is not riding in from the left");
+            Assert.That(held, Is.InRange(2.5f, 3.5f), "the body does not ride into sight about two seconds later than it did");
             yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Making, 10.0f, "holding D never set the body down in the middle");
             Release(_keyboard.dKey);
             Assert.AreEqual(0.5f, BodyAcrossTheScreen(), 0.01f, "the body was not set down in the middle of the screen");
@@ -350,85 +356,79 @@ namespace CityX.Tests
             yield return Until(() => entered, 8.0f, "the world was never entered after the fall");
         }
 
-        /// <summary>How deep inside the belt an ankle's sole is, metres, 0 on or off it; and how far above the surface right under it, when it is over the belt.</summary>
-        private float SoleInTheBelt(Transform foot, out float above)
+        /// <summary>Whether a point in the belt's own frame is inside the top run or the drum.</summary>
+        private static bool InsideTheBelt(Vector3 at)
         {
-            Transform belt = _belt.Belt.transform;
-            float soleUnder = BodyRig.FootY * foot.lossyScale.y;
-            Vector3 ankle = belt.InverseTransformPoint(foot.position);
-            if (ankle.x <= ConveyorBelt.Length)
-            {
-                above = ankle.y - soleUnder;
-                return ankle.y > -2.0f * ConveyorBelt.DrumRadius ? Mathf.Max(0.0f, -above) : 0.0f;
-            }
-            float fromAxis = new Vector2(ankle.x - ConveyorBelt.Length, ankle.y + ConveyorBelt.DrumRadius).magnitude;
-            above = fromAxis - ConveyorBelt.DrumRadius - soleUnder;
-            return Mathf.Max(0.0f, -above);
+            return at.x < ConveyorBelt.Length
+                ? at.y < 0.0f && at.y > -2.0f * ConveyorBelt.DrumRadius
+                : new Vector2(at.x - ConveyorBelt.Length, at.y + ConveyorBelt.DrumRadius).magnitude < ConveyorBelt.DrumRadius;
         }
 
-        /// <summary>Owner, 2026-11-10, of the leg going through the end of the belt: "make it so it stands on top of it using foot ik and rolls off".</summary>
+        /// <summary>
+        /// Owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position if that is possible. if we can do that then we
+        /// shouldnt need to add any artificial tilt it should just do it on its own as it slowly rolls off".
+        /// </summary>
         [UnityTest]
-        public IEnumerator ItStandsOnTheBeltOverItsEndAndNothingGoesThroughIt()
+        public IEnumerator ItIsStoodUpShortOfTheEndAndTipsOffItByItself()
         {
             yield return Begin();
             yield return RollIn();
             _belt.RollOut(() => { });
-            Animator animator = _belt.Life.Animator;
-            Transform left = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
-            Transform right = animator.GetBoneTransform(HumanBodyBones.RightFoot);
-            Transform belt = _belt.Belt.transform;
-            float worst = 0.0f, hovering = 0.0f;
-            // After the feet are placed, in the same frame: a coroutine runs after Update, with the rider moved and the legs still last frame's.
-            var sampler = _belt.gameObject.AddComponent<AfterEveryLateUpdate>();
-            sampler.Sample = () =>
-            {
-                if (_belt.Ride.Now == BeltRide.Stage.Fallen)
-                {
-                    return;
-                }
-                foreach (Transform foot in new[] { left, right })
-                {
-                    worst = Mathf.Max(worst, SoleInTheBelt(foot, out float above));
-                    float past = belt.InverseTransformPoint(foot.position).x - ConveyorBelt.Length;
-                    if (past < 0.3f)
-                    {
-                        hovering = Mathf.Max(hovering, above);
-                    }
-                }
-            };
             yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 15.0f, "the body never reached the belt's end");
-            UnityEngine.Object.Destroy(sampler);
-            Assert.Less(worst, 0.015f, "a sole is pushed into the belt on the last ride");
-            Assert.Less(hovering, 0.02f, "a foot leaves the belt before it has been rolled off");
-            float furthestBack = Mathf.Min(belt.InverseTransformPoint(left.position).x, belt.InverseTransformPoint(right.position).x);
-            Assert.Greater(furthestBack, ConveyorBelt.Length - 0.02f, "it was let go with a foot still on the top of the belt");
 
-            float deepest = 0.0f;
-            for (int i = 0; i < 60; i++)
+            Ragdoll ragdoll = _belt.Ragdoll;
+            Assert.IsTrue(ragdoll.IsLimp, "it is not the ragdoll's");
+            Assert.IsTrue(ragdoll.IsStood, "it was let go limp, not stood up");
+            Animator animator = _belt.Life.Animator;
+            Transform belt = _belt.Belt.transform;
+            Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+            Transform neck = animator.GetBoneTransform(HumanBodyBones.Neck);
+            Transform[] feet = { animator.GetBoneTransform(HumanBodyBones.LeftFoot), animator.GetBoneTransform(HumanBodyBones.RightFoot) };
+            HumanBodyBones[] legs = { HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot, HumanBodyBones.LeftLowerLeg, HumanBodyBones.RightLowerLeg };
+            foreach (Transform foot in feet)
             {
+                Assert.Less(belt.InverseTransformPoint(foot.position).x, ConveyorBelt.Length, "it was stood up with a foot already over the end");
+            }
+
+            Vector3 upright = neck.position - hips.position;
+            float carriedFrom = belt.InverseTransformPoint(hips.position).x;
+            float tippedBeforeTheEnd = 0.0f, slackAfter = -1.0f, leanWhenSlack = 0.0f;
+            int inTheBelt = 0;
+            float waited = 0.0f;
+            while (waited < 6.0f && belt.InverseTransformPoint(hips.position).y > -3.0f)
+            {
+                waited += Time.deltaTime;
                 yield return null;
-                foreach (HumanBodyBones bone in new[] { HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot, HumanBodyBones.LeftLowerLeg, HumanBodyBones.RightLowerLeg })
+                float tilt = Vector3.Angle(upright, neck.position - hips.position);
+                bool bothOnTheTop = true;
+                foreach (Transform foot in feet)
                 {
-                    Vector3 at = belt.InverseTransformPoint(animator.GetBoneTransform(bone).position);
-                    bool insideTheBelt = at.x < ConveyorBelt.Length ? at.y < 0.0f && at.y > -2.0f * ConveyorBelt.DrumRadius : new Vector2(at.x - ConveyorBelt.Length, at.y + ConveyorBelt.DrumRadius).magnitude < ConveyorBelt.DrumRadius;
-                    if (insideTheBelt)
+                    bothOnTheTop &= belt.InverseTransformPoint(foot.position).x < ConveyorBelt.Length - 0.05f;
+                }
+                if (bothOnTheTop)
+                {
+                    tippedBeforeTheEnd = Mathf.Max(tippedBeforeTheEnd, tilt);
+                }
+                if (slackAfter < 0.0f && !ragdoll.IsStood)
+                {
+                    slackAfter = waited;
+                    leanWhenSlack = belt.InverseTransformPoint(neck.position).x - belt.InverseTransformPoint(hips.position).x;
+                    Assert.Greater(belt.InverseTransformPoint(hips.position).x - carriedFrom, 0.3f, "the belt did not carry it to its end");
+                }
+                foreach (HumanBodyBones bone in legs)
+                {
+                    if (InsideTheBelt(belt.InverseTransformPoint(animator.GetBoneTransform(bone).position)))
                     {
-                        deepest += 1.0f;
+                        inTheBelt++;
                     }
                 }
             }
-            Assert.AreEqual(0.0f, deepest, "a leg goes through the belt as the body falls off it");
-        }
-
-        [DefaultExecutionOrder(10000)]
-        private sealed class AfterEveryLateUpdate : MonoBehaviour
-        {
-            public Action Sample;
-
-            private void LateUpdate()
-            {
-                Sample?.Invoke();
-            }
+            Assert.Less(tippedBeforeTheEnd, 10.0f, "it does not stand while both feet are on the belt");
+            Assert.Greater(slackAfter, 0.0f, "it never went slack");
+            Assert.Less(slackAfter, BeltIntro.SlackAfterSeconds - 0.1f, "it never tipped over by itself: it went slack on the clock");
+            Assert.Greater(leanWhenSlack, 0.1f, "it did not tip toward the drop");
+            Assert.Less(belt.InverseTransformPoint(hips.position).y, -3.0f, "it never fell off the belt");
+            Assert.AreEqual(0, inTheBelt, "a leg went through the belt");
         }
 
         private static float ElbowBend(Animator animator, HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones hand)
@@ -523,7 +523,8 @@ namespace CityX.Tests
             yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 12.0f, "the body never reached the belt's end");
             yield return Frames(5);
             Assert.IsTrue(hum.isPlaying, "the belt goes quiet the moment the body falls off it");
-            Assert.AreEqual(BeltIntro.HumVolume * BeltIntro.WideHumShare, hum.volume, 0.01f, "from the wider view the belt does not sound further away");
+            float slowed = BeltRide.OverTheEnd / BeltRide.Speed;   // it crawls over its end, and sounds as it runs
+            Assert.AreEqual(BeltIntro.HumVolume * BeltIntro.WideHumShare * slowed, hum.volume, 0.01f, "from the wider view the belt does not sound further away");
             yield return Until(() => entered, 8.0f, "the world was never entered after the fall");
             Assert.Less(heardWhenEntered, 0.05f, "the belt is still loud when the screen is black");
         }

@@ -63,11 +63,16 @@ namespace CityX.Tests
             Shoot("empty");
 
             Press(_keyboard.dKey);
-            yield return Frames(45);
-            Shoot("rolling-in");
-            yield return Frames(60);
-            Shoot("rolling-in-further");
             float waited = 0.0f;
+            while (_belt.MakingCamera.WorldToViewportPoint(_belt.Rider.position).x < 0.05f && waited < 10.0f)
+            {
+                waited += Time.deltaTime;
+                yield return null;
+            }
+            Shoot("rolling-in");
+            yield return Frames(45);
+            Shoot("rolling-in-further");
+            waited = 0.0f;
             while (_belt.Ride.Now == BeltRide.Stage.RollingIn && waited < 10.0f)
             {
                 waited += Time.deltaTime;
@@ -131,12 +136,15 @@ namespace CityX.Tests
             {
                 yield return null;
             }
-            yield return Frames(8);
-            Shoot("let-go");
-            yield return Frames(14);
-            Shoot("falling");
+            // Stood up short of the end, it tips off by itself: a picture every tenth of a second.
+            Shoot("stood-up");
+            for (int i = 1; i <= 16; i++)
+            {
+                yield return Frames(6);
+                Shoot($"tipping-{i}");
+            }
             yield return Frames(16);
-            Shoot("falling-further");
+            Shoot("falling");
             waited = 0.0f;
             while (!entered && waited < 8.0f)
             {

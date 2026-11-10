@@ -59,14 +59,28 @@ namespace CityX.UI
         /// <summary>How far past the edge of the screen the body waits, and how far past the other edge the view changes, metres.</summary>
         public const float BeyondTheEdge = 1.7f;
 
+        /// <summary>
+        /// How much further off the left the body waits at the start, metres: two seconds of the belt at its full run before it comes into
+        /// sight (owner, 2026-11-10: "make the player model placed a little bit farther to the left off screen so it takes about +2 seconds
+        /// for him to appear onto the screen where holding D").
+        /// </summary>
+        public const float WaitsFurtherOff = 2.0f * BeltRide.Speed;
+
         /// <summary>From where the view changes to the belt's end, metres: about two and a half seconds' ride.</summary>
         public const float EdgeToEnd = 6.0f;
 
-        /// <summary>How far past the belt's end the middle of the body rides before it is let go, metres: until the back foot has gone over.</summary>
-        public const float StandsPastTheEnd = 0.38f;
+        /// <summary>How far short of the belt's end the middle of the body is when it is stood up as a ragdoll, metres: both feet still on the top.</summary>
+        public const float StoodBeforeTheEnd = 0.5f;
 
-        /// <summary>How far round the drum a foot follows the belt, metres: a quarter of the way round, to where the leg can still reach.</summary>
-        public const float FurthestRoundTheDrum = 0.44f;
+        /// <summary>How hard each joint of the stood body is sprung toward its pose, newton-metres a radian, and damped: enough to stand.</summary>
+        public const float StandingStiffness = 3000.0f;
+
+        public const float StandingDamping = 120.0f;
+
+        /// <summary>The stood body goes slack once it has tipped this far from upright, degrees, or this long after it was stood, seconds.</summary>
+        public const float SlackAtDegrees = 35.0f;
+
+        public const float SlackAfterSeconds = 3.0f;
 
         /// <summary>How long the tools take to fade in or out, seconds.</summary>
         public const float ToolsFadeSeconds = 0.6f;
@@ -81,7 +95,7 @@ namespace CityX.UI
         /// <summary>The screen starts to go black once the limp body is this far under the belt, or this long after it was let go.</summary>
         public const float BlackBelow = 6.0f;
 
-        public const float BlackAfterSeconds = 2.5f;
+        public const float BlackAfterSeconds = 4.0f;
         public const float BlackFadeSeconds = 0.6f;
 
         /// <summary>How loud the belt is at its full run.</summary>
@@ -101,6 +115,7 @@ namespace CityX.UI
         private float _toolsShown = 1.0f;
         private float _promptElapsed;
         private float _sinceDrop;
+        private Vector3 _uprightWhenStood = Vector3.up;
         private float _blackFor = -1.0f;
         private float _riderHeight;
         private bool _heightKnown;
@@ -144,10 +159,6 @@ namespace CityX.UI
             {
                 Life.enabled = true;
                 Life.SnapStill();
-                if (Life.Feet != null)
-                {
-                    Life.Feet.Floor = null;
-                }
             }
             if (Creator != null)
             {
@@ -165,7 +176,7 @@ namespace CityX.UI
             if (Belt != null)
             {
                 Belt.Travel = 0.0f;
-                Belt.SetSolid(true);
+                Belt.Speed = 0.0f;
             }
             SetTools(1.0f);
             if (Prompt != null)
@@ -180,7 +191,7 @@ namespace CityX.UI
         {
             Stand();
             float edge = EdgeOfScreen();
-            _ride = new BeltRide(-(edge + BeyondTheEdge), edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd + StandsPastTheEnd);
+            _ride = new BeltRide(-(edge + BeyondTheEdge + WaitsFurtherOff), edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd - StoodBeforeTheEnd);
             _shown = _ride.Now;
             PlaceRider(_ride.BodyAt);
             if (Life != null)
@@ -219,10 +230,6 @@ namespace CityX.UI
             if (Life != null)
             {
                 Life.ComeAlive();
-                if (Life.Feet != null)
-                {
-                    Life.Feet.Floor = FloorOfTheBelt;
-                }
             }
             if (Creator != null)
             {
@@ -250,6 +257,7 @@ namespace CityX.UI
             if (Belt != null)
             {
                 Belt.Travel = _ride.Travel;
+                Belt.Speed = _ride.BeltSpeed;
             }
             if (now != BeltRide.Stage.Fallen)
             {
@@ -317,7 +325,12 @@ namespace CityX.UI
             ShowCameras(wide: true);
         }
 
-        /// <summary>At the belt's end: the body is the ragdoll's, going as fast as the belt was.</summary>
+        /// <summary>
+        /// Just short of the belt's end, both feet still on it: the body is the ragdoll's, stood up in the idle it was in and moving as
+        /// fast as the belt, which carries it on (owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position ...
+        /// it should just do it on its own as it slowly rolls off"). Its front foot is carried over the end, and with nothing under it the
+        /// body tips over the drum by itself.
+        /// </summary>
         private void LetGo()
         {
             _sinceDrop = 0.0f;
@@ -325,44 +338,44 @@ namespace CityX.UI
             {
                 Life.LetGo();
             }
-            if (Belt != null)
-            {
-                Belt.SetSolid(false);
-            }
             if (Ragdoll != null && Rider != null)
             {
                 Transform stage = Rider.parent;
                 Vector3 along = stage != null ? stage.TransformDirection(Vector3.left) : Vector3.left;   // the screen's right
-                Ragdoll.MeasureLimitsFromThisPose();
-                Ragdoll.Activate(along * BeltRide.Speed);
+                Ragdoll.Stand(along * BeltRide.Speed, StandingStiffness, StandingDamping);
+                _uprightWhenStood = BodyUp();
             }
         }
 
-        /// <summary>
-        /// The belt under a foot on its last ride (owner, 2026-11-10, of the leg going through the end of the belt: "make it so it stands on
-        /// top of it using foot ik and rolls off"): level along the top, and past the end, round the drum with the slats under it.
-        /// </summary>
-        private void FloorOfTheBelt(Vector3 flat, out Vector3 surface, out Vector3 up)
+        /// <summary>The stood body goes slack once it has tipped far enough over, or after a while whatever it did.</summary>
+        private void SlackenOnceTipped()
         {
-            Transform belt = Belt.transform;
-            Vector3 on = belt.InverseTransformPoint(flat);
-            float past = Mathf.Min(on.x - ConveyorBelt.Length, FurthestRoundTheDrum);
-            if (past <= 0.0f)
+            if (Ragdoll == null || !Ragdoll.IsStood)
             {
-                surface = flat;
-                up = belt.up;
                 return;
             }
-            ConveyorBelt.Surface(ConveyorBelt.Length + past, out Vector3 at, out Vector3 facing);
-            at.z = on.z;
-            surface = belt.TransformPoint(at);
-            up = belt.TransformDirection(facing);
+            if (_sinceDrop >= SlackAfterSeconds || Vector3.Angle(_uprightWhenStood, BodyUp()) >= SlackAtDegrees)
+            {
+                Ragdoll.Slacken();
+            }
+        }
+
+        /// <summary>From the hips to the neck.</summary>
+        private Vector3 BodyUp()
+        {
+            Animator animator = Ragdoll != null ? Ragdoll.Animator : null;
+            if (animator == null || !animator.isHuman)
+            {
+                return Vector3.up;
+            }
+            return animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position;
         }
 
         /// <summary>The body falls out of the picture, the screen goes black behind it, and the world is entered.</summary>
         private void Fall(float deltaTime)
         {
             _sinceDrop += deltaTime;
+            SlackenOnceTipped();
             if (_blackFor < 0.0f)
             {
                 float fallen = Ragdoll != null && Ragdoll.Torso != null && Rider != null

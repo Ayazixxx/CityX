@@ -53,7 +53,11 @@ namespace CityX.UI
         private readonly List<Transform> _hubs = new List<Transform>();
         private readonly List<Object> _made = new List<Object>();
         private Mesh _slats;
+        private Rigidbody _surface;
         private float _travel;
+
+        /// <summary>How fast the surface runs toward the belt's end, metres a second (back, below 0): what stands on it is carried so.</summary>
+        public float Speed { get; set; }
         private float _laidOutAt = float.NaN;
 
         /// <summary>How far the belt's surface has run toward its end, metres (it may run backwards).</summary>
@@ -137,11 +141,16 @@ namespace CityX.UI
             _made.Add(_slats);
             AddPart("Slats", _slats, Rubber);
 
-            // What a limp body lands on and slides off: the top run and the drum.
-            var top = gameObject.AddComponent<BoxCollider>();
+            // What a body stands on and is carried off by: the top run and the drum, on a body of their own that runs with the belt
+            // (FixedUpdate), so whatever stands on it rides with it as feet do on a real belt.
+            var surface = new GameObject("Surface") { layer = gameObject.layer };
+            surface.transform.SetParent(transform, false);
+            _surface = surface.AddComponent<Rigidbody>();
+            _surface.isKinematic = true;
+            var top = surface.AddComponent<BoxCollider>();
             top.center = new Vector3(Length * 0.5f, -DrumRadius, 0.0f);
             top.size = new Vector3(Length, DrumRadius * 2.0f, Width);
-            var drum = gameObject.AddComponent<CapsuleCollider>();
+            var drum = surface.AddComponent<CapsuleCollider>();
             drum.direction = 2;
             drum.center = new Vector3(Length, -DrumRadius, 0.0f);
             drum.radius = DrumRadius;
@@ -173,13 +182,19 @@ namespace CityX.UI
             return material;
         }
 
-        /// <summary>Whether anything can land on it. Off once the body has been rolled off: a limb caught on the end hooks the whole fall.</summary>
-        public void SetSolid(bool solid)
+        /// <summary>
+        /// The surface runs at <see cref="Speed"/> and stays where it is: each step it is put back by one step's run and moved forward to
+        /// where it was, so what touches it is carried as by a belt that moves, and the belt itself goes nowhere.
+        /// </summary>
+        private void FixedUpdate()
         {
-            foreach (Collider part in GetComponents<Collider>())
+            if (_surface == null || Speed == 0.0f)
             {
-                part.enabled = solid;
+                return;
             }
+            Vector3 home = transform.position;
+            _surface.position = home - transform.right * (Speed * Time.fixedDeltaTime);
+            _surface.MovePosition(home);
         }
 
         // --- the slats ---

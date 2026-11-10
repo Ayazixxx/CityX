@@ -24,12 +24,6 @@ namespace CityX.Character
             public Quaternion Sole;
         }
 
-        /// <summary>What is under a sole that would be at <paramref name="flat"/> on a level floor: the surface there, and which way it faces.</summary>
-        public delegate void FloorUnder(Vector3 flat, out Vector3 surface, out Vector3 up);
-
-        /// <summary>A floor that is not level everywhere (the end of the conveyor belt); null for level.</summary>
-        public FloorUnder Floor;
-
         /// <summary>How many poses of the clip the middle of the sway is taken from.</summary>
         private const int SwaySamples = 24;
 
@@ -141,19 +135,11 @@ namespace CityX.Character
             leg.Foot.rotation = Quaternion.Slerp(footAsItWas, leg.Sole, weight);
         }
 
-        /// <summary>Where this frame's ankle and sole go: on the spot, or on whatever <see cref="Floor"/> has under it.</summary>
+        /// <summary>Where this frame's ankle and sole go: on the spot.</summary>
         private void PutOnFloor(Leg leg)
         {
             leg.Ankle = _root.TransformPoint(leg.Place);
             leg.Sole = _root.rotation * leg.Turn;
-            if (Floor == null)
-            {
-                return;
-            }
-            Vector3 toSole = _root.up * (leg.Place.y * _root.lossyScale.y);
-            Floor(leg.Ankle - toSole, out Vector3 surface, out Vector3 up);
-            leg.Ankle = surface + up * toSole.magnitude;
-            leg.Sole = Quaternion.FromToRotation(_root.up, up) * leg.Sole;
         }
     }
 }

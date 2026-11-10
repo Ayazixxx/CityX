@@ -147,7 +147,7 @@ namespace CityX.Tests
             Until(ride, 0.0f, 20.0f);
             Until(ride, 0.0f, 20.0f);
             Assert.AreEqual(BeltRide.Stage.Fallen, ride.Now);
-            Assert.AreEqual(1.0f, ride.Running, 1e-4f, "the belt is not heard as it rolls the body off its end");
+            Assert.AreEqual(BeltRide.OverTheEnd / BeltRide.Speed, ride.Running, 0.02f, "the belt is not heard, as slowly as it runs, as it rolls the body off its end");
         }
 
         [Test]
@@ -168,7 +168,7 @@ namespace CityX.Tests
             float toTheEnd = Until(ride, 0.0f, 20.0f);
             Assert.AreEqual(BeltRide.Stage.Fallen, ride.Now, "it never reached the belt's end");
             Assert.AreEqual(End, ride.BodyAt, BeltRide.Speed * Frame + 1e-4f, "it was let go somewhere other than the end");
-            Assert.AreEqual((End - Cut) / BeltRide.Speed, toTheEnd, 0.1f, "the last ride is at the belt's full run");
+            Assert.That(toTheEnd, Is.InRange((End - Cut) / BeltRide.Speed, (End - Cut) / BeltRide.OverTheEnd), "the last ride took too long or too short");
 
             float let = ride.BodyAt, travelled = ride.Travel;
             for (int i = 0; i < 60; i++)
@@ -176,7 +176,30 @@ namespace CityX.Tests
                 ride.Step(0.0f, Frame);
             }
             Assert.AreEqual(let, ride.BodyAt, 1e-5f, "the belt still carries a body that has fallen off it");
-            Assert.Greater(ride.Travel, travelled + 1.0f, "the belt stopped when the body fell");
+            Assert.AreEqual(travelled + BeltRide.OverTheEnd * 60 * Frame, ride.Travel, 0.01f, "the belt did not run on, slowly, when the body was let go");
+        }
+
+        /// <summary>Owner, 2026-11-10: "it should just do it on its own as it slowly rolls off".</summary>
+        [Test]
+        public void PastTheEdgeItRunsAtFullThenSlowsGentlyToACrawlForTheEnd()
+        {
+            BeltRide ride = Ride();
+            Until(ride, 1.0f, 20.0f);
+            ride.Finish();
+            Until(ride, 0.0f, 20.0f);
+            Assert.AreEqual(BeltRide.Stage.OnTheEdge, ride.Now);
+            Assert.AreEqual(BeltRide.Speed, ride.BeltSpeed, 1e-4f, "it has slowed already at the edge of the screen");
+
+            float previous = ride.BeltSpeed;
+            while (ride.Now == BeltRide.Stage.OnTheEdge)
+            {
+                ride.Step(0.0f, Frame);
+                Assert.LessOrEqual(ride.BeltSpeed, previous + 1e-5f, "it sped up on the way to the end");
+                Assert.LessOrEqual(previous - ride.BeltSpeed, BeltRide.SlowingDown * Frame * 1.1f, "it braked hard");
+                Assert.GreaterOrEqual(ride.BeltSpeed, BeltRide.OverTheEnd - 1e-4f, "it stopped short of the end");
+                previous = ride.BeltSpeed;
+            }
+            Assert.AreEqual(BeltRide.OverTheEnd, ride.BeltSpeed, 0.02f, "it is not at a crawl at the end");
         }
     }
 }
