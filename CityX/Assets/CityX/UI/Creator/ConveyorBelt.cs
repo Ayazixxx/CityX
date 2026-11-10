@@ -168,6 +168,15 @@ namespace CityX.UI
             return material;
         }
 
+        /// <summary>Whether anything can land on it. Off once the body has been rolled off: a limb caught on the end hooks the whole fall.</summary>
+        public void SetSolid(bool solid)
+        {
+            foreach (Collider part in GetComponents<Collider>())
+            {
+                part.enabled = solid;
+            }
+        }
+
         // --- the slats ---
 
         /// <summary>The whole way round: along the top, down round the drum, and back underneath.</summary>

@@ -37,11 +37,16 @@ game's own.
 4. **Rolling out.** After the name is confirmed and the server has made the character, the tools fade out, the body turns back to the
    front and comes alive, and the belt carries it right at full run.
 5. **The wider view.** 1.2 m past the right edge of the screen the view changes to a camera 15 m back that shows the belt's end, 6 m on.
-6. **Let go.** At the end the body goes limp (`Ragdoll.Activate`, moving as fast as the belt) and falls, from the idle it was in: the
+6. **Over the end, on its feet** (owner, 2026-11-10, of the leg going through the end of the belt: "make it so it stands on top of it
+   using foot ik and rolls off"). On this last ride `PlantedFeet.Floor` is the belt's own surface (`BeltIntro.FloorOfTheBelt`): a foot past
+   the end follows the slats round the drum, a quarter of the way at most, the sole turning with them, and the hips come down for it. The
+   body rides on until its back foot has gone over too (`StandsPastTheEnd`, 0.38 m past the end).
+7. **Let go.** There the body goes limp (`Ragdoll.Activate`, moving as fast as the belt) and falls, and the belt stops being solid so
+   that no limb can catch on it; from the idle it was in: the
    joints first measure their limits from that pose (`Ragdoll.MeasureLimitsFromThisPose`). Measured from the T-pose it woke in, the
    hanging arms were past their limits and were wrenched in, 46 degrees at the elbows in eight frames (owner, 2026-11-10: "the player
    puts his hands on his waist right as the conveyer belt rolls them off").
-7. **Black.** 6 m under the belt, or 2.5 s after being let go, the screen fades to black (`Core/ScreenBlack`, 0.6 s); then the world
+8. **Black.** 6 m under the belt, or 2.5 s after being let go, the screen fades to black (`Core/ScreenBlack`, 0.6 s); then the world
    loads behind it, and the fall from the sky (`IntroCutscene`, docs/INTRO.md) fades up out of the black over 1.2 s as it begins.
 
 ## How it is put together

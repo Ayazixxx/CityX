@@ -350,6 +350,87 @@ namespace CityX.Tests
             yield return Until(() => entered, 8.0f, "the world was never entered after the fall");
         }
 
+        /// <summary>How deep inside the belt an ankle's sole is, metres, 0 on or off it; and how far above the surface right under it, when it is over the belt.</summary>
+        private float SoleInTheBelt(Transform foot, out float above)
+        {
+            Transform belt = _belt.Belt.transform;
+            float soleUnder = BodyRig.FootY * foot.lossyScale.y;
+            Vector3 ankle = belt.InverseTransformPoint(foot.position);
+            if (ankle.x <= ConveyorBelt.Length)
+            {
+                above = ankle.y - soleUnder;
+                return ankle.y > -2.0f * ConveyorBelt.DrumRadius ? Mathf.Max(0.0f, -above) : 0.0f;
+            }
+            float fromAxis = new Vector2(ankle.x - ConveyorBelt.Length, ankle.y + ConveyorBelt.DrumRadius).magnitude;
+            above = fromAxis - ConveyorBelt.DrumRadius - soleUnder;
+            return Mathf.Max(0.0f, -above);
+        }
+
+        /// <summary>Owner, 2026-11-10, of the leg going through the end of the belt: "make it so it stands on top of it using foot ik and rolls off".</summary>
+        [UnityTest]
+        public IEnumerator ItStandsOnTheBeltOverItsEndAndNothingGoesThroughIt()
+        {
+            yield return Begin();
+            yield return RollIn();
+            _belt.RollOut(() => { });
+            Animator animator = _belt.Life.Animator;
+            Transform left = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+            Transform right = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            Transform belt = _belt.Belt.transform;
+            float worst = 0.0f, hovering = 0.0f;
+            // After the feet are placed, in the same frame: a coroutine runs after Update, with the rider moved and the legs still last frame's.
+            var sampler = _belt.gameObject.AddComponent<AfterEveryLateUpdate>();
+            sampler.Sample = () =>
+            {
+                if (_belt.Ride.Now == BeltRide.Stage.Fallen)
+                {
+                    return;
+                }
+                foreach (Transform foot in new[] { left, right })
+                {
+                    worst = Mathf.Max(worst, SoleInTheBelt(foot, out float above));
+                    float past = belt.InverseTransformPoint(foot.position).x - ConveyorBelt.Length;
+                    if (past < 0.3f)
+                    {
+                        hovering = Mathf.Max(hovering, above);
+                    }
+                }
+            };
+            yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 15.0f, "the body never reached the belt's end");
+            UnityEngine.Object.Destroy(sampler);
+            Assert.Less(worst, 0.015f, "a sole is pushed into the belt on the last ride");
+            Assert.Less(hovering, 0.02f, "a foot leaves the belt before it has been rolled off");
+            float furthestBack = Mathf.Min(belt.InverseTransformPoint(left.position).x, belt.InverseTransformPoint(right.position).x);
+            Assert.Greater(furthestBack, ConveyorBelt.Length - 0.02f, "it was let go with a foot still on the top of the belt");
+
+            float deepest = 0.0f;
+            for (int i = 0; i < 60; i++)
+            {
+                yield return null;
+                foreach (HumanBodyBones bone in new[] { HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot, HumanBodyBones.LeftLowerLeg, HumanBodyBones.RightLowerLeg })
+                {
+                    Vector3 at = belt.InverseTransformPoint(animator.GetBoneTransform(bone).position);
+                    bool insideTheBelt = at.x < ConveyorBelt.Length ? at.y < 0.0f && at.y > -2.0f * ConveyorBelt.DrumRadius : new Vector2(at.x - ConveyorBelt.Length, at.y + ConveyorBelt.DrumRadius).magnitude < ConveyorBelt.DrumRadius;
+                    if (insideTheBelt)
+                    {
+                        deepest += 1.0f;
+                    }
+                }
+            }
+            Assert.AreEqual(0.0f, deepest, "a leg goes through the belt as the body falls off it");
+        }
+
+        [DefaultExecutionOrder(10000)]
+        private sealed class AfterEveryLateUpdate : MonoBehaviour
+        {
+            public Action Sample;
+
+            private void LateUpdate()
+            {
+                Sample?.Invoke();
+            }
+        }
+
         private static float ElbowBend(Animator animator, HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones hand)
         {
             Vector3 elbow = animator.GetBoneTransform(lower).position;

@@ -62,6 +62,12 @@ namespace CityX.UI
         /// <summary>From where the view changes to the belt's end, metres: about two and a half seconds' ride.</summary>
         public const float EdgeToEnd = 6.0f;
 
+        /// <summary>How far past the belt's end the middle of the body rides before it is let go, metres: until the back foot has gone over.</summary>
+        public const float StandsPastTheEnd = 0.38f;
+
+        /// <summary>How far round the drum a foot follows the belt, metres: a quarter of the way round, to where the leg can still reach.</summary>
+        public const float FurthestRoundTheDrum = 0.44f;
+
         /// <summary>How long the tools take to fade in or out, seconds.</summary>
         public const float ToolsFadeSeconds = 0.6f;
 
@@ -138,6 +144,10 @@ namespace CityX.UI
             {
                 Life.enabled = true;
                 Life.SnapStill();
+                if (Life.Feet != null)
+                {
+                    Life.Feet.Floor = null;
+                }
             }
             if (Creator != null)
             {
@@ -155,6 +165,7 @@ namespace CityX.UI
             if (Belt != null)
             {
                 Belt.Travel = 0.0f;
+                Belt.SetSolid(true);
             }
             SetTools(1.0f);
             if (Prompt != null)
@@ -169,7 +180,7 @@ namespace CityX.UI
         {
             Stand();
             float edge = EdgeOfScreen();
-            _ride = new BeltRide(-(edge + BeyondTheEdge), edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd);
+            _ride = new BeltRide(-(edge + BeyondTheEdge), edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd + StandsPastTheEnd);
             _shown = _ride.Now;
             PlaceRider(_ride.BodyAt);
             if (Life != null)
@@ -208,6 +219,10 @@ namespace CityX.UI
             if (Life != null)
             {
                 Life.ComeAlive();
+                if (Life.Feet != null)
+                {
+                    Life.Feet.Floor = FloorOfTheBelt;
+                }
             }
             if (Creator != null)
             {
@@ -310,6 +325,10 @@ namespace CityX.UI
             {
                 Life.LetGo();
             }
+            if (Belt != null)
+            {
+                Belt.SetSolid(false);
+            }
             if (Ragdoll != null && Rider != null)
             {
                 Transform stage = Rider.parent;
@@ -317,6 +336,27 @@ namespace CityX.UI
                 Ragdoll.MeasureLimitsFromThisPose();
                 Ragdoll.Activate(along * BeltRide.Speed);
             }
+        }
+
+        /// <summary>
+        /// The belt under a foot on its last ride (owner, 2026-11-10, of the leg going through the end of the belt: "make it so it stands on
+        /// top of it using foot ik and rolls off"): level along the top, and past the end, round the drum with the slats under it.
+        /// </summary>
+        private void FloorOfTheBelt(Vector3 flat, out Vector3 surface, out Vector3 up)
+        {
+            Transform belt = Belt.transform;
+            Vector3 on = belt.InverseTransformPoint(flat);
+            float past = Mathf.Min(on.x - ConveyorBelt.Length, FurthestRoundTheDrum);
+            if (past <= 0.0f)
+            {
+                surface = flat;
+                up = belt.up;
+                return;
+            }
+            ConveyorBelt.Surface(ConveyorBelt.Length + past, out Vector3 at, out Vector3 facing);
+            at.z = on.z;
+            surface = belt.TransformPoint(at);
+            up = belt.TransformDirection(facing);
         }
 
         /// <summary>The body falls out of the picture, the screen goes black behind it, and the world is entered.</summary>

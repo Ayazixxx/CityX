@@ -20,7 +20,15 @@ namespace CityX.Character
             public Transform Foot;
             public Vector3 Place;
             public Quaternion Turn;
+            public Vector3 Ankle;
+            public Quaternion Sole;
         }
+
+        /// <summary>What is under a sole that would be at <paramref name="flat"/> on a level floor: the surface there, and which way it faces.</summary>
+        public delegate void FloorUnder(Vector3 flat, out Vector3 surface, out Vector3 up);
+
+        /// <summary>A floor that is not level everywhere (the end of the conveyor belt); null for level.</summary>
+        public FloorUnder Floor;
 
         /// <summary>How many poses of the clip the middle of the sway is taken from.</summary>
         private const int SwaySamples = 24;
@@ -77,6 +85,8 @@ namespace CityX.Character
                 return;
             }
             // The idle stands on its toes: with the sole flat the ankle is lower, further than the straight leg goes. The hips come down for it.
+            PutOnFloor(_left);
+            PutOnFloor(_right);
             float drop = Mathf.Max(0.0f, HipsTooHighBy(_left), HipsTooHighBy(_right));
             _hips.position -= _root.up * (drop * weight);
             Hold(_left, weight);
@@ -110,7 +120,7 @@ namespace CityX.Character
         /// <summary>How far above the height this leg's hip can reach its spot from, the knee left its <see cref="LegReach"/>; below 0 it reaches.</summary>
         private float HipsTooHighBy(Leg leg)
         {
-            Vector3 fromSpot = leg.Thigh.position - _root.TransformPoint(leg.Place);
+            Vector3 fromSpot = leg.Thigh.position - leg.Ankle;
             float above = Vector3.Dot(fromSpot, _root.up);
             float asideSquared = fromSpot.sqrMagnitude - above * above;
             float length = (Vector3.Distance(leg.Thigh.position, leg.Shin.position) + Vector3.Distance(leg.Shin.position, leg.Foot.position)) * LegReach;
@@ -127,8 +137,23 @@ namespace CityX.Character
                 bow -= along * (Vector3.Dot(bow, along) / along.sqrMagnitude);
             }
             Quaternion footAsItWas = leg.Foot.rotation;
-            TwoBoneIK.Solve(leg.Thigh, leg.Shin, leg.Foot, _root.TransformPoint(leg.Place), bow + _root.forward * KneeForward, weight);
-            leg.Foot.rotation = Quaternion.Slerp(footAsItWas, _root.rotation * leg.Turn, weight);
+            TwoBoneIK.Solve(leg.Thigh, leg.Shin, leg.Foot, leg.Ankle, bow + _root.forward * KneeForward, weight);
+            leg.Foot.rotation = Quaternion.Slerp(footAsItWas, leg.Sole, weight);
+        }
+
+        /// <summary>Where this frame's ankle and sole go: on the spot, or on whatever <see cref="Floor"/> has under it.</summary>
+        private void PutOnFloor(Leg leg)
+        {
+            leg.Ankle = _root.TransformPoint(leg.Place);
+            leg.Sole = _root.rotation * leg.Turn;
+            if (Floor == null)
+            {
+                return;
+            }
+            Vector3 toSole = _root.up * (leg.Place.y * _root.lossyScale.y);
+            Floor(leg.Ankle - toSole, out Vector3 surface, out Vector3 up);
+            leg.Ankle = surface + up * toSole.magnitude;
+            leg.Sole = Quaternion.FromToRotation(_root.up, up) * leg.Sole;
         }
     }
 }
