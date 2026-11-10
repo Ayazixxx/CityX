@@ -358,6 +358,23 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Has the joints bend from the pose the body is in now, not the T-pose it woke in: the arms hanging are past a shoulder's limit
+        /// measured from there, and going limp the joints wrench them back, hands to the waist (owner, 2026-11-10: "the player puts his
+        /// hands on his waist right as the conveyer belt rolls them off"). A joint measures from the moment it is connected. Before
+        /// <see cref="Activate"/>, on a body that is still kinematic.
+        /// </summary>
+        public void MeasureLimitsFromThisPose()
+        {
+            Physics.SyncTransforms();
+            foreach (CharacterJoint joint in GetComponentsInChildren<CharacterJoint>(true))
+            {
+                Rigidbody parent = joint.connectedBody;
+                joint.connectedBody = null;
+                joint.connectedBody = parent;
+            }
+        }
+
+        /// <summary>
         /// The body is the ragdoll's from here (the walker, its controller and the Animator off), its bones still kinematic, in the pose the
         /// Animator left them. False when it cannot go limp: already limp, a copy, or swinging on the grapple (the rope is let go instead).
         /// </summary>

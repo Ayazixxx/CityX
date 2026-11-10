@@ -314,6 +314,7 @@ namespace CityX.UI
             {
                 Transform stage = Rider.parent;
                 Vector3 along = stage != null ? stage.TransformDirection(Vector3.left) : Vector3.left;   // the screen's right
+                Ragdoll.MeasureLimitsFromThisPose();
                 Ragdoll.Activate(along * BeltRide.Speed);
             }
         }

@@ -350,6 +350,40 @@ namespace CityX.Tests
             yield return Until(() => entered, 8.0f, "the world was never entered after the fall");
         }
 
+        private static float ElbowBend(Animator animator, HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones hand)
+        {
+            Vector3 elbow = animator.GetBoneTransform(lower).position;
+            return Vector3.Angle(elbow - animator.GetBoneTransform(upper).position, animator.GetBoneTransform(hand).position - elbow);
+        }
+
+        /// <summary>Owner, 2026-11-10: "during the roll off, the player puts his hands on his waist right as the conveyer belt rolls them off,
+        /// can you make them just maintain their idle pose until the ragdoll dropoff".</summary>
+        [UnityTest]
+        public IEnumerator GoingLimpAtTheBeltsEndTheArmsDoNotSnapOutOfTheIdle()
+        {
+            yield return Begin();
+            yield return RollIn();
+            _belt.RollOut(() => { });
+            Animator animator = _belt.Life.Animator;
+            float left = 0.0f, right = 0.0f;
+            while (_belt.Ride.Now != BeltRide.Stage.Fallen)
+            {
+                left = ElbowBend(animator, HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand);
+                right = ElbowBend(animator, HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand);
+                yield return null;
+            }
+            float worst = 0.0f;
+            for (int i = 0; i < 8; i++)
+            {
+                yield return null;
+                worst = Mathf.Max(worst,
+                    Mathf.Abs(ElbowBend(animator, HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand) - left),
+                    Mathf.Abs(ElbowBend(animator, HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand) - right));
+            }
+            TestContext.WriteLine($"elbows moved {worst:0.0} degrees in the first 8 frames limp");
+            Assert.Less(worst, 12.0f, "the arms snapped into another shape as the body went limp");
+        }
+
         [UnityTest]
         public IEnumerator HoldingStillItsFeetAreExactlyWhereTheyArePainted()
         {
