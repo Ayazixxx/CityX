@@ -86,6 +86,27 @@ namespace CityX.Tests
                 yield return Frames(40);
             }
 
+            // Painted while it idles: down the hanging arm and across the belly, then the other two pages over the bare sky.
+            Animator animator = _belt.Life.Animator;
+            _belt.Creator.Colour = new Color(0.8f, 0.1f, 0.5f);
+            _belt.Creator.BrushRadiusPixels = 8;
+            foreach (HumanBodyBones bone in new[] { HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand, HumanBodyBones.Hips, HumanBodyBones.LeftUpperLeg })
+            {
+                _belt.Creator.PressAt(_belt.MakingCamera.WorldToScreenPoint(animator.GetBoneTransform(bone).position));
+                yield return null;
+            }
+            yield return Frames(2);
+            Shoot("painted-alive");
+            CreatorTabs tabs = _belt.Tools.GetComponent<CreatorTabs>();
+            tabs.Show(CreatorTabs.Hair);
+            yield return null;
+            Shoot("hair-page");
+            tabs.Show(CreatorTabs.Face);
+            yield return null;
+            Shoot("face-page");
+            tabs.Show(CreatorTabs.Paint);
+            yield return null;
+
             _belt.TogglePose();
             yield return Frames(12);
             Shoot("arms-lifting");

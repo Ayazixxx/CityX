@@ -187,33 +187,64 @@ namespace CityX.Tests
             Assert.Less(_belt.Belt.Travel, before, "A does not run the belt left");
         }
 
+        /// <summary>Owner, 2026-11-10: "i dont like the auto tpose when you try to draw. make a t pose icon in the top right and make it a
+        /// button that toggles it", and "make it so you can draw on your character when its not tposed".</summary>
         [UnityTest]
-        public IEnumerator AliveItCannotBePaintedAndAPressOnItLiftsItsArmsToBe()
+        public IEnumerator AliveItIsPaintedWhereItStandsAndOnlyTheButtonLiftsItsArms()
         {
             yield return Begin();
             yield return RollIn();
             yield return Until(() => _belt.Tools.alpha >= 1.0f, 2.0f, "the tools never came up");
+            yield return Frames(30);
             CharacterCreator creator = _belt.Creator;
+            Animator animator = _belt.Life.Animator;
             Assert.IsFalse(creator.HoldingStill, "the body is not alive while it is being made");
-            StringAssert.Contains("T-POSE", _belt.PoseLabel.text);
+            var corner = (RectTransform)_belt.PoseButton.transform;
+            Assert.AreEqual(Vector2.one, corner.anchorMin, "the T-pose button is not in the top right");
+            Assert.AreEqual(CreatorKit.Paper, _belt.PoseIcon[0].color, "the button is lit with the arms down");
 
-            Vector2 chest = _belt.MakingCamera.WorldToScreenPoint(_belt.Rider.position);
-            creator.PressAt(chest);
-            Assert.IsFalse(creator.HasEdits, "a press painted the living body, where the brush is not");
-            Assert.IsFalse(_belt.Life.Alive, "a press on the living body did not have it hold still");
+            // The arm, hanging at its side here, is nowhere near where it is in the T-pose the brush knows.
+            Vector2 elbow = _belt.MakingCamera.WorldToScreenPoint(animator.GetBoneTransform(HumanBodyBones.RightLowerArm).position);
+            Vector2 chest = _belt.MakingCamera.WorldToScreenPoint(animator.GetBoneTransform(HumanBodyBones.Spine).position);
+
+            creator.ShowBrushRing(elbow);
+            Assert.IsTrue(creator.BrushRingVisible, "no brush ring over the living body");
+            Vector3 ring = GameObject.Find("BrushRing").GetComponent<LineRenderer>().GetPosition(0);
+            Assert.Less(Vector3.Distance(ring, animator.GetBoneTransform(HumanBodyBones.RightLowerArm).position), 0.35f, "the ring is not on the arm where it is now");
+
+            creator.Colour = Color.magenta;
+            creator.BrushRadiusPixels = CharacterCreator.MaximumBrushSize;
+            creator.PressAt(elbow);
+            Assert.IsTrue(creator.HasEdits, "a press on the living body painted nothing");
+            Assert.IsTrue(_belt.Life.Alive, "painting lifted its arms");
+            Assert.IsTrue(animator.enabled, "painting stopped it idling");
+            yield return Frames(2);
+
+            Color Sampled(Vector2 at)
+            {
+                creator.Colour = Color.black;
+                creator.Current = CharacterCreator.Tool.Eyedropper;
+                creator.PressAt(at);
+                return creator.Colour;
+            }
+
+            Assert.AreEqual(Color.magenta, Sampled(elbow), "the stroke is not on the arm where it stands");
+            Assert.AreNotEqual(Color.magenta, Sampled(chest), "the stroke ran onto the chest");
+
+            _belt.PoseButton.onClick.Invoke();
+            Assert.IsFalse(_belt.Life.Alive, "the button did not lift the arms");
             Assert.IsFalse(creator.HoldingStill, "the arms snapped up instead of lifting");
             yield return Until(() => creator.HoldingStill, CreatorLife.LiftSeconds + 0.5f, "the arms never finished lifting");
-            Assert.IsFalse(_belt.Life.Animator.enabled, "it still idles in its painting pose: strokes would land off target");
-            StringAssert.Contains("RELAX", _belt.PoseLabel.text);
+            Assert.AreEqual(CreatorKit.Gold, _belt.PoseIcon[0].color, "the button is not lit with the arms up");
+            Vector2 elbowOut = _belt.MakingCamera.WorldToScreenPoint(animator.GetBoneTransform(HumanBodyBones.RightLowerArm).position);
+            Assert.AreEqual(Color.magenta, Sampled(elbowOut), "what was painted on the hanging arm is not on the arm held out");
 
-            creator.PressAt(chest);
-            Assert.IsTrue(creator.HasEdits, "holding still, a press on the chest paints nothing");
-
-            _belt.TogglePose();
+            _belt.PoseButton.onClick.Invoke();
             Assert.IsTrue(_belt.Life.Alive, "the button does not let the arms back down");
             Assert.IsFalse(creator.HoldingStill);
             yield return Frames(4);
-            Assert.IsTrue(_belt.Life.Animator.enabled);
+            Assert.IsTrue(animator.enabled);
+            Assert.AreEqual(CreatorKit.Paper, _belt.PoseIcon[0].color);
         }
 
         [UnityTest]
@@ -373,10 +404,11 @@ namespace CityX.Tests
             });
             yield return Frames(40);
             Assert.IsTrue(hum.isPlaying, "the belt carries the body off without a sound");
+            Assert.AreEqual(BeltIntro.HumVolume, hum.volume, 0.01f, "close to, the belt is not at its full sound");
             yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 12.0f, "the body never reached the belt's end");
             yield return Frames(5);
             Assert.IsTrue(hum.isPlaying, "the belt goes quiet the moment the body falls off it");
-            Assert.AreEqual(BeltIntro.HumVolume, hum.volume, 0.01f);
+            Assert.AreEqual(BeltIntro.HumVolume * BeltIntro.WideHumShare, hum.volume, 0.01f, "from the wider view the belt does not sound further away");
             yield return Until(() => entered, 8.0f, "the world was never entered after the fall");
             Assert.Less(heardWhenEntered, 0.05f, "the belt is still loud when the screen is black");
         }

@@ -128,5 +128,6 @@ Tests: `CreatorTabsPlayTests` (each tab its own page, painting only on PAINT, th
 
 The title screen's creator now stands on a conveyor belt in the sky, and making a character starts on the empty belt and ends with the
 body carried off it: docs/BELT_INTRO.md. Two things changed in the creator itself. The body keeps its whole ragdoll (it is the one
-that falls), and it can be **alive** (idling) or **holding still** (`CreatorLife`): paint lands only while it holds the pose the brush
-was built on (`CharacterCreator.HoldingStill`), and a press on the living body lifts its arms. ReDraw is as it was: holding still, no belt.
+that falls), and it can be **alive** (idling) or **holding still** (`CreatorLife`): the brush is built on the pose it
+holds still in, and alive the ray finds it as it stands and carries the hit back to that pose (`CharacterCreator.LivePaint`, docs/BELT_INTRO.md).
+Only the T-pose button or T lifts its arms. ReDraw is as it was: holding still, no belt.

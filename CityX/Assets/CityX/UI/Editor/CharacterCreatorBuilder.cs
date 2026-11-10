@@ -83,14 +83,14 @@ namespace CityX.UIEditor
             prompt.gameObject.SetActive(false);
             belt.Prompt = prompt;
 
-            // Built here and not by CreatorKit: its caption changes with the pose, so BeltIntro holds it.
+            // Built here and not by CreatorKit: the belt's body is the only one with a pose to toggle, and BeltIntro lights the icon.
             var pose = new GameObject("PoseButton", typeof(RectTransform));
             var poseRect = (RectTransform)pose.transform;
             poseRect.SetParent(panel.transform, false);
-            poseRect.anchorMin = poseRect.anchorMax = new Vector2(0.5f, 0.0f);
-            poseRect.pivot = new Vector2(0.5f, 0.5f);
-            poseRect.anchoredPosition = new Vector2(ColumnWidth * 0.5f, 30.0f);
-            poseRect.sizeDelta = new Vector2(150.0f, 34.0f);
+            poseRect.anchorMin = poseRect.anchorMax = Vector2.one;
+            poseRect.pivot = Vector2.one;
+            poseRect.anchoredPosition = new Vector2(-16.0f, -16.0f);
+            poseRect.sizeDelta = new Vector2(PoseButtonSize, PoseButtonSize);
             Image background = pose.AddComponent<Image>();
             background.color = Idle;
             Button button = pose.AddComponent<Button>();
@@ -105,11 +105,68 @@ namespace CityX.UIEditor
             wiring.Creator = creator;
             wiring.Title = title;
             belt.PoseButton = button;
-            belt.PoseLabel = Caption(pose.transform, BeltIntro.RelaxText, 13, Gold);
+            belt.PoseIcon = new Graphic[]
+            {
+                PoseIconPart(pose.transform, "Head", new Vector2(0.0f, 15.0f), new Vector2(11.0f, 11.0f), CircleSprite.Ensure()),
+                PoseIconPart(pose.transform, "Arms", new Vector2(0.0f, 6.0f), new Vector2(36.0f, 4.0f), null),
+                PoseIconPart(pose.transform, "Body", new Vector2(0.0f, -2.0f), new Vector2(8.0f, 20.0f), null),
+                PoseIconPart(pose.transform, "LeftLeg", new Vector2(-2.5f, -14.0f), new Vector2(3.5f, 14.0f), null),
+                PoseIconPart(pose.transform, "RightLeg", new Vector2(2.5f, -14.0f), new Vector2(3.5f, 14.0f), null),
+            };
+            ClearTheColumn(belt.Tools.transform);
+        }
+
+        /// <summary>One piece of the T-posing figure on the pose button, out of plain shapes. Clicks go to the button under it.</summary>
+        private static Graphic PoseIconPart(Transform button, string name, Vector2 at, Vector2 size, Sprite sprite)
+        {
+            var part = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)part.transform;
+            rect.SetParent(button, false);
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = at;
+            rect.sizeDelta = size;
+            Image image = part.AddComponent<Image>();
+            image.sprite = sprite;
+            image.color = Paper;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        /// <summary>
+        /// Only the buttons and the tools over the belt and the sky (owner, 2026-11-10: "get rid of this transparent rectangle behind the
+        /// tools panel. just make it only the buttons and tools"). Clear rather than gone: a stroke must still not start between two
+        /// buttons. With nothing behind them the words outside the buttons take a dark edge, to read on the sky and on the belt alike.
+        /// </summary>
+        private static void ClearTheColumn(Transform tools)
+        {
+            tools.GetComponent<Image>().color = Color.clear;
+            tools.Find("ActionBar").GetComponent<Image>().color = Color.clear;
+            foreach (Image panel in tools.GetComponentsInChildren<Image>(true))
+            {
+                bool seeThroughBackdrop = panel.color.a < 1.0f && panel.sprite == null && panel.GetComponent<Mask>() == null;
+                if (seeThroughBackdrop && panel.GetComponentInParent<Selectable>(true) == null)
+                {
+                    panel.color = Color.clear;   // the FACE page's empty grid
+                }
+            }
+            foreach (Text words in tools.GetComponentsInChildren<Text>(true))
+            {
+                if (words.GetComponentInParent<Selectable>(true) == null)
+                {
+                    if (words.color != Gold)
+                    {
+                        words.color = Color.white;
+                    }
+                    Outline edge = words.gameObject.AddComponent<Outline>();
+                    edge.effectColor = new Color(0.03f, 0.04f, 0.07f, 1.0f);
+                    edge.effectDistance = new Vector2(0.7f, -0.7f);
+                }
+            }
         }
 
         private const string WideCameraName = "WideCamera";
         private const string BeltLoopPath = "Assets/CityX/UI/Audio/conveyor_belt_loop.ogg";
+        private const float PoseButtonSize = 56.0f;
 
         /// <summary>
         /// Everything physical comes off the body but its ragdoll, which it keeps whole: at the end of the belt it is let go and falls
@@ -199,13 +256,10 @@ namespace CityX.UIEditor
 
             KeepOnlyTheRagdoll(body);
 
-            // THE BODY HOLDS ITS BIND POSE HERE. The mesh collider below is
-            // baked from sharedMesh, which is the UNPOSED mesh -- so an idle
-            // animation playing underneath would move the visible body while
-            // the surface a click tests against stayed where it was, and every
-            // stroke would land somewhere other than where it was aimed. A
-            // still T-pose is also the easiest thing to paint: nothing is
-            // hidden behind anything else.
+            // THE BODY WAKES HOLDING STILL: the mesh collider below is the
+            // surface as it woke, and the brush's atlas is bound to it. Once it
+            // idles (CreatorLife) the ray finds it as it stands instead
+            // (CharacterCreator.LivePaint).
             foreach (Animator animator in body.GetComponentsInChildren<Animator>(true))
             {
                 animator.enabled = false;

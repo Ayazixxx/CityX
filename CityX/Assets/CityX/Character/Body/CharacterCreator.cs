@@ -14,7 +14,7 @@ namespace CityX.Character
     /// through, and a stroke started on the body stays a stroke even if it
     /// wanders off the silhouette.
     /// </summary>
-    public sealed class CharacterCreator : MonoBehaviour
+    public sealed partial class CharacterCreator : MonoBehaviour
     {
         public enum Tool
         {
@@ -140,6 +140,7 @@ namespace CityX.Character
                 // and one beside the hips painted an arm nobody could see. Baked once -- the body holds still here (Disarm).
                 Mesh posed = PosedBody();
                 _paint.Bind(posed, head, headToBody);
+                RememberStillSurface(posed, head, headToBody);
                 if (BodyCollider != null)
                 {
                     BodyCollider.sharedMesh = posed;
@@ -209,13 +210,10 @@ namespace CityX.Character
         public bool PaintEnabled = true;
 
         /// <summary>
-        /// Whether the body is in the pose it is painted in (the one it woke in: the brush and the click target are that pose). False
-        /// while it stands and idles (CreatorLife): a press on it then paints nothing and asks it to hold still (<see cref="WantedStill"/>).
+        /// Whether the body is in the pose it woke in, which is the pose the click target is. False while it stands and idles (CreatorLife):
+        /// the ray then finds the body as it stands this frame (<see cref="RaycastAsItStands"/>).
         /// </summary>
         public bool HoldingStill = true;
-
-        /// <summary>A press that would have painted found the body alive: whoever lets it idle has it hold still.</summary>
-        public event System.Action WantedStill;
 
         private void Update()
         {
@@ -426,19 +424,6 @@ namespace CityX.Character
                 _rotating = true;
                 return;
             }
-            if (!HoldingStill)
-            {
-                // Alive, it is not where the brush thinks it is: a press on it has it hold still, one beside it turns it.
-                if (OverTheBodyAsItStands(screenPosition))
-                {
-                    WantedStill?.Invoke();
-                }
-                else
-                {
-                    _rotating = true;
-                }
-                return;
-            }
             if (!Raycast(screenPosition, out Vector3 local, out int triangle))
             {
                 _rotating = true;
@@ -470,12 +455,6 @@ namespace CityX.Character
             _lastPaintScreenPosition = screenPosition;
             Stamp(local, triangle);
             _paint.Apply();
-        }
-
-        /// <summary>Whether a screen point is over the body wherever its animation has it: the box round it, which is all a press needs.</summary>
-        private bool OverTheBodyAsItStands(Vector2 screenPosition)
-        {
-            return Camera != null && BodyRenderer != null && BodyRenderer.bounds.IntersectRay(Camera.ScreenPointToRay(screenPosition));
         }
 
         /// <summary>Whether a press finds the body at all. Off once it is the ragdoll's: its limbs would fall against their own click target.</summary>
@@ -641,7 +620,7 @@ namespace CityX.Character
             Vector3 at = Vector3.zero;
             int face = -1;
             Vector3 up = Vector3.up;
-            bool show = PaintEnabled && HoldingStill && Current == Tool.Brush && !_rotating && !InputBlocked && _paint != null && !OverInterface()
+            bool show = PaintEnabled && Current == Tool.Brush && !_rotating && !InputBlocked && _paint != null && !OverInterface()
                         && Raycast(screenPosition, out at, out face)
                         && _paint.TryNormalOf(face, out up);
             if (!show)
@@ -659,8 +638,8 @@ namespace CityX.Character
             }
 
             Transform body = BodyCollider.transform;
-            Vector3 centre = body.TransformPoint(at);
-            Vector3 worldUp = body.TransformDirection(up).normalized;
+            Vector3 centre = HoldingStill ? body.TransformPoint(at) : _hitNow;
+            Vector3 worldUp = HoldingStill ? body.TransformDirection(up).normalized : _normalNow;
             float radius = BodyPaint.BrushRadiusMetres(BrushRadiusPixels) * body.lossyScale.x;
             Vector3 across = Vector3.Cross(worldUp, Mathf.Abs(worldUp.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
             Vector3 along = Vector3.Cross(worldUp, across);
@@ -739,6 +718,10 @@ namespace CityX.Character
             }
 
             Ray ray = Camera.ScreenPointToRay(screenPosition);
+            if (!HoldingStill)
+            {
+                return RaycastAsItStands(ray, out localPoint, out triangle);
+            }
 
             bool onBody = BodyCollider.Raycast(ray, out RaycastHit body, RayLength);
 

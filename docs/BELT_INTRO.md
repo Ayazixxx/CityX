@@ -29,9 +29,11 @@ game's own.
 2. **Rolling in.** A / D, the arrows, or a controller's stick or pad run the belt either way at up to 2.4 m/s (it takes 0.4 s to get
    there). The body rides it; held right, the belt slows to set it down exactly in the middle; let go, the belt stops where it is; left
    runs it back, never past where it waited.
-3. **Making.** The belt stops, the tools fade in over 0.6 s, and the creator works as before. The body is **alive**: it stands and idles.
-   Alive it cannot be painted (below), so a press on it with a paint tool, the T-POSE button or the T key **lifts its arms**: every bone
-   eases to the pose it is painted in over 0.55 s (`CreatorLife`), and RELAX lets them down again the same way.
+3. **Making.** The belt stops, the tools fade in over 0.6 s, and the creator works as before. The body is **alive**: it stands and idles,
+   and is painted as it stands. The button in the top right corner with a T-posing figure on it (lit while the arms are up), or the T key,
+   **lifts its arms**: every bone eases to the T-pose over 0.55 s (`CreatorLife`), and the same button lets them down again the same way.
+   Only those two do (owner, 2026-11-10: "i dont like the auto tpose when you try to draw. make a t pose icon in the top right and make
+   it a button that toggles it").
 4. **Rolling out.** After the name is confirmed and the server has made the character, the tools fade out, the body turns back to the
    front and comes alive, and the belt carries it right at full run.
 5. **The wider view.** 1.2 m past the right edge of the screen the view changes to a camera 15 m back that shows the belt's end, 6 m on.
@@ -43,9 +45,13 @@ game's own.
 
 - **One body, start to finish.** The creator's body keeps its whole ragdoll now (`CharacterCreatorBuilder.KeepOnlyTheRagdoll`): the
   painted body itself is what falls, with nothing swapped at the cut. The `Ragdoll` holds every bone still until it is let go.
-- **Alive against holding still.** The brush and the click target are the body as it stood when the creator woke, arms out
-  (docs/CHARACTER_CREATOR.md). So paint only lands while it holds exactly that pose (`CharacterCreator.HoldingStill`); alive, a press
-  on it asks it to hold still (`WantedStill`) and a press beside it turns it, as always.
+- **Painted alive** (owner, 2026-11-10: "make it so you can draw on your character when its not tposed"). The brush and its atlas know
+  the body as it stood when the creator woke, arms out (docs/CHARACTER_CREATOR.md). Alive, the ray goes against the body baked in this
+  frame's pose (`CharacterCreator.LivePaint`, `MeshRay`, every triangle, once a frame only while the pointer asks), and the hit is carried
+  by its place on its triangle to that triangle as the brush knows it; the ring is drawn on the body as it is on the screen.
+- **The tools have nothing behind them** (owner, 2026-11-10: "get rid of this transparent rectangle behind the tools panel. just make it
+  only the buttons and tools"): the column and its action bar are clear, here only (`ClearTheColumn`; ReDraw keeps its panel), and still
+  stop a stroke starting between two buttons. The words outside the buttons take a dark edge, to read on the sky and on the belt.
 - **The feet are stuck to the belt** while it is alive (owner, 2026-11-10: "make the bottom of his feet actually stuck to the conveyer
   belt with IK ... it appears as if his feet are gliding back and forth on the ground"). The idle clip moves the feet up to 15 cm with the
   hips; `PlantedFeet` plays the clip once round when the body first comes alive, sets each foot on the middle of its sway, sole flat on
@@ -67,7 +73,9 @@ game's own.
   takes, so the game plays its steady part as a loop with no seam (`UI/Audio/conveyor_belt_loop.ogg`, cut by
   `SourceArt/BeltIntro/belt_loop.py` from the recording kept beside it). It is heard as hard as the belt runs (`BeltRide.Running`,
   `BeltIntro.HumVolume` at the full run): up and down with the belt's speed either way, silent while the character is made, on as the
-  belt carries the body off and past its fall, and out with the picture as that goes black.
+  belt carries the body off and past its fall, and out with the picture as that goes black. From the wider view it is heard at
+  `WideHumShare` of that, the camera being further off (owner, 2026-11-10: "make the conveyer belt 10% quieter and make it a bit quieter
+  when it cuts to the far away angle for the roll off").
 - **The black** lasts across the change of scene (`ScreenBlack` is not destroyed with the title) and clears itself after 30 s if nothing
   does.
 

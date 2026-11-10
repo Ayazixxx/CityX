@@ -46,10 +46,11 @@ namespace CityX.UI
         [Tooltip("PRESS D OR the right arrow, on the empty belt.")]
         public Text Prompt;
 
-        [Tooltip("Lifts the arms to be painted, or lets them down (its ButtonAction calls TogglePose).")]
+        [Tooltip("Lifts the arms, or lets them down (its ButtonAction calls TogglePose).")]
         public Button PoseButton;
 
-        public Text PoseLabel;
+        [Tooltip("The pieces of the little T-posing figure on the button.")]
+        public Graphic[] PoseIcon = System.Array.Empty<Graphic>();
 
         public CreatorOverlays Overlays;
 
@@ -78,11 +79,15 @@ namespace CityX.UI
         public const float BlackFadeSeconds = 0.6f;
 
         /// <summary>How loud the belt is at its full run.</summary>
-        public const float HumVolume = 0.6f;
+        public const float HumVolume = 0.54f;
+
+        /// <summary>The share of that it is heard at from the wider view, the camera being further from it.</summary>
+        public const float WideHumShare = 0.65f;
 
         public const string PromptText = "PRESS  D  OR  →";
-        public const string LiftText = "T-POSE  [T]";
-        public const string RelaxText = "RELAX  [T]";
+
+        /// <summary>The pose button's background while the arms are up: CreatorControls' lit tool.</summary>
+        private static readonly Color PoseOnBackground = new Color(0.30f, 0.26f, 0.12f, 1.0f);
 
         private BeltRide _ride;
         private BeltRide.Stage _shown;
@@ -96,22 +101,6 @@ namespace CityX.UI
 
         /// <summary>The ride under way, or null while the creator stands as it always did.</summary>
         public BeltRide Ride => _ride;
-
-        private void Awake()
-        {
-            if (Creator != null)
-            {
-                Creator.WantedStill += HoldStill;
-            }
-        }
-
-        private void OnDestroy()
-        {
-            if (Creator != null)
-            {
-                Creator.WantedStill -= HoldStill;
-            }
-        }
 
         private void OnEnable()
         {
@@ -172,7 +161,7 @@ namespace CityX.UI
             {
                 Prompt.gameObject.SetActive(false);
             }
-            ShowPoseLabel();
+            ShowPose();
         }
 
         /// <summary>Starts from the empty belt: the body waits off the screen's left, alive, and the player rolls it in.</summary>
@@ -202,7 +191,7 @@ namespace CityX.UI
                 Prompt.text = PromptText;
                 Prompt.gameObject.SetActive(true);
             }
-            ShowPoseLabel();
+            ShowPose();
         }
 
         /// <summary>The character is made and the world is ready to load: the belt carries the body off first, then <paramref name="enterWorld"/>.</summary>
@@ -229,7 +218,7 @@ namespace CityX.UI
             {
                 Overlays.enabled = false;   // Escape no longer backs out: the character exists
             }
-            ShowPoseLabel();
+            ShowPose();
         }
 
         private void Update()
@@ -366,6 +355,10 @@ namespace CityX.UI
                 return;
             }
             float heard = _ride != null ? _ride.Running : 0.0f;
+            if (WideCamera != null && WideCamera.enabled)
+            {
+                heard *= WideHumShare;
+            }
             if (_blackFor >= 0.0f)
             {
                 heard *= 1.0f - Mathf.Clamp01(_blackFor / BlackFadeSeconds);
@@ -383,16 +376,7 @@ namespace CityX.UI
 
         // --- the pose ---
 
-        private void HoldStill()
-        {
-            if (Life != null && (_ride == null || _ride.Now == BeltRide.Stage.Making))
-            {
-                Life.HoldStill();
-                ShowPoseLabel();
-            }
-        }
-
-        /// <summary>The button and the T key: arms up to be painted, or back down.</summary>
+        /// <summary>The button and the T key: arms up, or back down.</summary>
         public void TogglePose()
         {
             if (Life == null || (_ride != null && _ride.Now != BeltRide.Stage.Making))
@@ -407,14 +391,20 @@ namespace CityX.UI
             {
                 Life.ComeAlive();
             }
-            ShowPoseLabel();
+            ShowPose();
         }
 
-        private void ShowPoseLabel()
+        /// <summary>The button lit while the arms are up (or on their way), as the tool buttons are lit while they are the active one.</summary>
+        private void ShowPose()
         {
-            if (PoseLabel != null && Life != null)
+            if (Life == null || PoseButton == null)
             {
-                PoseLabel.text = Life.Alive ? LiftText : RelaxText;
+                return;
+            }
+            PoseButton.targetGraphic.color = Life.Alive ? CreatorKit.Idle : PoseOnBackground;
+            foreach (Graphic part in PoseIcon)
+            {
+                part.color = Life.Alive ? CreatorKit.Paper : CreatorKit.Gold;
             }
         }
 
