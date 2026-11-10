@@ -45,6 +45,27 @@ namespace CityX.Tests
         private static int PlanChunk(double v) => (int)System.Math.Floor(v / CityLayout.ChunkSize);
 
         /// <summary>
+        /// Whether a point on the map is on an outside stair (a footbridge's down to the street, a block's own up to its roof), its rails or
+        /// its posts: within the stair's width of its walking line. A stair is walked on and round, not hung on its wall.
+        /// </summary>
+        public static bool OnStair(StreetStair stair, Vector2 flat)
+        {
+            Vector3[] points = stair.Points;
+            float reach = stair.Width + 0.4f;
+            for (int k = 1; k < points.Length; k++)
+            {
+                var a = new Vector2(points[k - 1].x, points[k - 1].z);
+                Vector2 ab = new Vector2(points[k].x, points[k].z) - a;
+                float t = ab.sqrMagnitude < 1e-6f ? 0.0f : Mathf.Clamp01(Vector2.Dot(flat - a, ab) / ab.sqrMagnitude);
+                if ((a + ab * t - flat).magnitude <= reach)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// The world position of a point given in the builder's unturned frame -- the frame <see cref="BuildingSite.MinX"/> ..
         /// <see cref="BuildingSite.MaxZ"/> are in.
         /// </summary>

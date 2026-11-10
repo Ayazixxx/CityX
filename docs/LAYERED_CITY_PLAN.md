@@ -260,3 +260,36 @@ as steps on a steep street (22nd Street at Vicksburg, a 31.5 % block). Concrete 
   foot. Entrance stairs now fold back along their own front, a lane further out each time, railed, as many lanes as fit before the road, tight
   ones where broad ones would not reach (BUILDING_EXTERIORS.md, "entrance stairs fold back on the hills"). And the garages' drives meet the
   road as drawn all across their mouths, their lanes inside clear of columns (CITY_LIFE.md, "Getting a car in").
+
+**Outside stairs up to the roofs (2026-11-09): L3, a first pass.** Owner: *"improve upon the ... layered chongqing look"*. Until now the
+only outside stairs were the few that come down from a footbridge (8 near the spawn). A block now often has one of its own
+(`World/RoofStairs.cs`): a zig-zag tower against a side or back wall from the paving up to the roof, where an opening in the parapet lets
+it onto the roof. It is the bridges' own tower (`Footbridges.TowerOn`: flights of 18 steps doubling back on two lanes, a landing across
+both at each end, rails, posts to the ground), with a landing at the top outside the opening, level with the roof.
+
+- **Which blocks**: one the bridges would take (`Footbridges.Eligible`) with a flat roof behind a parapet, the roof no more than 60 m over
+  the paving at the stair's foot (`RoofStairs.MaxRise`: seventeen flights). A block with another standing on its roof has one too, **up
+  onto the podium's terrace** round the upper block, where the opening comes onto open roof: downtown nearly every block is a tower, and
+  it is the podiums the stairs climb (19 of the 21 near the spawn). Shares by district (`ShareFor`): downtown 85 %, busy streets and old
+  town 80 %, works 75 %, homes 65 %; fewer than half of those find a wall it fits.
+- **Which wall**: a side wall first (which one by the dice), then the back. Never the front (the door, the shop, the billboard over it),
+  a party wall, a wall of balconies or a walkway, a stretch another block of the building stands against, or where a footbridge or a
+  bridge's stair of the building is in the way. Clear of the wall's corners; off the roads with 1.5 m left to walk past its outer side;
+  out of every other building. Of two blocks facing each other across a gap too narrow for both their towers, only the lower-numbered
+  has one there (each looks 9.3 m out from its wall for a lower-numbered block), so every machine agrees without asking the neighbour.
+- **Drawn** with the bridges' kit (`CityMeshBuilder.AddRoofStair`, `DrawStreetStair`): the rail by district (parapet, rails, pickets,
+  mesh, pipe), a steel deck with the open rails half the time (most of the time in the works). The roof's parapet and coping are built in
+  two parts either side of the opening (`AddParapetSide`), a cornice stops either side of it too (`AddBand`'s gap: across the opening it
+  was a bar across a doorway), the roof's plant keeps off the roof just inside it, and what hangs on the wall (piers, fins, signs,
+  air conditioners) keeps clear of the tower as it does of a bridge's stair (`Footbridges.ClearingsOn`).
+- **Not yet**: doors from the tower's landings into the floors it passes (the plan's "a landing at every floor with a door into that
+  floor's corridor": the flights are 3.96 m, a storey is 3.2 m, so the landings do not meet the floors as they are); stairs on the towers
+  over 60 m (they would need those doors to go anywhere); the windows behind a tower are left as they are.
+- The plan is as it was (the same roads, lots and buildings: a stair is built on a building that was already there), so there is no new
+  world seed, as with the rounded kerb corners (docs/AMERICAN_STREETS.md) and the sewers.
+- Tests: `RoofStairTests` (which blocks and walls; every flight's steps a riser high and a tread deep, the walking line unbroken from the
+  roof to the paving; no stair on a road, in another building or in another stair; the parapet open where it comes onto the roof and
+  whole beside it, the landing and the first flight drawn, the facade told to keep clear; the same stair in the same place worked out
+  again from nothing, far blocks first), `FootbridgePathWalkPlayTests.ARoofStairIsClimbedFromThePavingOntoTheRoof` (a body climbs one
+  from the paving and walks through the opening onto the roof), `RoofStairCapture` (`roofstairs-*.png`, in the game's own city: from the
+  street, along the wall, from the roof, down the tower, and one street without the stairs and with them).

@@ -41,9 +41,13 @@ namespace CityX.View
                 float yt = roofY + ParapetWallHeight + CopingHeight;
                 float yb = o.CorniceAboveRoof ? roofY : yt - o.CorniceHeight;
                 corniceBottom = yb;
-                AddBand(buffer, site, wall, normal, which, u0, u1, yb, yt, o.CorniceDepth, looks.Trim, floorY, round);
+                // It stops either side of the opening the building's stair up the outside comes onto the roof through (World/RoofStairs).
+                RoofStair stair = RoofStairs.Cached(site);
+                bool opens = stair != null && stair.Stair.Wall == which;
+                float gapFrom = opens ? u0 + stair.GapU0 : 0.0f, gapTo = opens ? u0 + stair.GapU1 : 0.0f;
+                AddBand(buffer, site, wall, normal, which, u0, u1, yb, yt, o.CorniceDepth, looks.Trim, floorY, round, gapFrom, gapTo);
                 // A smaller step under it, so the cornice reads as a moulding rather than a plank.
-                AddBand(buffer, site, wall, normal, which, u0, u1, yb - 0.16f, yb, o.CorniceDepth * 0.55f, looks.Trim, floorY, round);
+                AddBand(buffer, site, wall, normal, which, u0, u1, yb - 0.16f, yb, o.CorniceDepth * 0.55f, looks.Trim, floorY, round, gapFrom, gapTo);
                 corniceBottom = yb - 0.16f;
             }
 
@@ -101,10 +105,12 @@ namespace CityX.View
 
         /// <summary>
         /// A horizontal band along a wall, wrapped round the corners at its ends (it runs on past each end by its own depth, so two walls' bands meet as a
-        /// solid corner), and broken where another block of the building stands against the wall above the band's bottom.
+        /// solid corner), and broken where another block of the building stands against the wall above the band's bottom, and across
+        /// <paramref name="gapFrom"/>..<paramref name="gapTo"/> along the wall if that is a stretch at all (the opening a stair up the outside
+        /// comes onto the roof through: a cornice across it is a bar across a doorway).
         /// </summary>
         private static void AddBand(MeshBuffer buffer, BuildingSite site, in Wall wall, Vector3 normal, WindowGrid.Wall which,
-            float u0, float u1, float yBottom, float yTop, float depth, Color32 look, float floorY, bool round)
+            float u0, float u1, float yBottom, float yTop, float depth, Color32 look, float floorY, bool round, float gapFrom = 0.0f, float gapTo = 0.0f)
         {
             if (yTop - yBottom < 0.01f || depth < 0.01f)
             {
@@ -117,15 +123,16 @@ namespace CityX.View
             // the neighbour, and two neighbours' cornices would fight for one face.
             float start = u0 - (!round && AgainstCorner(site, which, false, above) ? 0.0f : depth);
             float end = u1 + (!round && AgainstCorner(site, which, true, above) ? 0.0f : depth);
-            if (site.Contacts != null && !round)
+            bool contacts = site.Contacts != null && !round, gap = gapTo > gapFrom;
+            if (contacts || gap)
             {
-                // Walk the wall, emitting the stretches no contact covers.
+                // Walk the wall, emitting the stretches no contact covers and the gap does not take.
                 float cursor = start;
                 while (cursor < end - 0.01f)
                 {
                     // The next contact starting at or after the cursor (or covering it).
                     float blockFrom = end, blockTo = end;
-                    foreach (WallContact c in site.Contacts)
+                    foreach (WallContact c in contacts ? site.Contacts : System.Array.Empty<WallContact>())
                     {
                         if (c.Wall != which || c.Top <= above)
                         {
@@ -138,6 +145,11 @@ namespace CityX.View
                             blockFrom = Mathf.Max(cs, cursor);
                             blockTo = ce;
                         }
+                    }
+                    if (gap && gapTo > cursor && gapFrom < blockFrom)
+                    {
+                        blockFrom = Mathf.Max(gapFrom, cursor);
+                        blockTo = gapTo;
                     }
                     if (blockFrom > cursor + 0.01f)
                     {

@@ -453,6 +453,19 @@ namespace CityX.View
             }
         }
 
+        /// <summary>The building's stair up the outside to its roof (World/RoofStairs), drawn as a bridge's stair down to the street is.</summary>
+        private static void AddRoofStair(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, in SiteLooks looks, bool far)
+        {
+            RoofStair roof = RoofStairs.For(world, site);
+            if (roof == null)
+            {
+                return;
+            }
+            Color32 saved = buffer.Look;
+            DrawStreetStair(world, site, origin, buffer, roof.Stair, roof.Rail, new BridgeLooks(roof.Deck, site, looks), far);
+            buffer.Look = saved;
+        }
+
         /// <summary>
         /// A street stair (World/Footbridges.StreetStair): its flights of steps and landings down along the wall from the bridge to the paving, a
         /// rail along each open side (between a tower's two lanes, along its outer side, round its landings' open ends), and posts down to the ground

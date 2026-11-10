@@ -105,6 +105,8 @@ namespace CityX.View
             // The building's footbridges (World/Footbridges) are known before anything else: its walls cut their doorways, and a corridor's far
             // building wears the near one's look.
             Footbridges.For(world, site);
+            // And its stair up to the roof (World/RoofStairs): the roof's parapet opens for it, and what hangs on its wall keeps clear of it.
+            RoofStairs.For(world, site);
             // What the building is made of: one look for its walls, one for its ground floor, one for its roof and trim.
             SiteLooks looks = SiteLooks.For(world, site, WindowPlan.For(world, site).Style);
             structures.UvOffset = looks.UvOffset;
@@ -142,6 +144,7 @@ namespace CityX.View
                 // An apartment block's balconies and walkway, the distant version (CityMeshBuilder.Apartment.cs; never on a sealed block).
                 AddApartmentFronts(world, site, builderOrigin, structures, looks, true);
                 AddFootbridges(world, site, builderOrigin, structures, Glazing.OpeningsOnly, looks, true);
+                AddRoofStair(world, site, builderOrigin, structures, looks, true);
             }
             else
             {
@@ -155,6 +158,8 @@ namespace CityX.View
                 // The footbridges it decides, across to the buildings facing it (CityMeshBuilder.Footbridges.cs); a corridor's glass breaks like a window's.
                 AddFootbridges(world, site, builderOrigin, structures,
                     new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare), looks, false);
+                // Its stair up the outside to the roof (World/RoofStairs).
+                AddRoofStair(world, site, builderOrigin, structures, looks, false);
                 // Every room's ceiling lights and the switch by its door; a powered building's glow (CityMeshBuilder.RoomLights.cs).
                 AddRoomLighting(site, concrete, structures, offset, roomGlows, windowGlow);
             }
@@ -1089,21 +1094,23 @@ namespace CityX.View
             float h = ParapetWallHeight;
             float o = CopingOverhang;
 
-            // The wall, in the walls' own look so it reads as the facade carried up past the roof.
+            // The wall, in the walls' own look so it reads as the facade carried up past the roof. It opens where the building's stair up the
+            // outside comes onto the roof (World/RoofStairs).
+            RoofStair stair = RoofStairs.Cached(site);
             buffer.Look = looks.Wall;
-            buffer.AddBox(new Vector3(x0, roofY, z0), new Vector3(x1, roofY + h, z0 + t));
-            buffer.AddBox(new Vector3(x0, roofY, z1 - t), new Vector3(x1, roofY + h, z1));
-            buffer.AddBox(new Vector3(x0, roofY, z0 + t), new Vector3(x0 + t, roofY + h, z1 - t));
-            buffer.AddBox(new Vector3(x1 - t, roofY, z0 + t), new Vector3(x1, roofY + h, z1 - t));
+            AddParapetSide(buffer, stair, WindowGrid.Wall.South, x0, x0, x1, z0, z0 + t, roofY, roofY + h, false);
+            AddParapetSide(buffer, stair, WindowGrid.Wall.North, x0, x0, x1, z1 - t, z1, roofY, roofY + h, false);
+            AddParapetSide(buffer, stair, WindowGrid.Wall.West, z0, z0 + t, z1 - t, x0, x0 + t, roofY, roofY + h, false);
+            AddParapetSide(buffer, stair, WindowGrid.Wall.East, z0, z0 + t, z1 - t, x1 - t, x1, roofY, roofY + h, false);
 
             // The coping on top of it, a little proud.
             buffer.Look = looks.Trim;
             float c0 = roofY + h;
             float c1 = c0 + CopingHeight;
-            buffer.AddBox(new Vector3(x0 - o, c0, z0 - o), new Vector3(x1 + o, c1, z0 + t + o), true);
-            buffer.AddBox(new Vector3(x0 - o, c0, z1 - t - o), new Vector3(x1 + o, c1, z1 + o), true);
-            buffer.AddBox(new Vector3(x0 - o, c0, z0 + t + o), new Vector3(x0 + t + o, c1, z1 - t - o), true);
-            buffer.AddBox(new Vector3(x1 - t - o, c0, z0 + t + o), new Vector3(x1 + o, c1, z1 - t - o), true);
+            AddParapetSide(buffer, stair, WindowGrid.Wall.South, x0, x0 - o, x1 + o, z0 - o, z0 + t + o, c0, c1, true);
+            AddParapetSide(buffer, stair, WindowGrid.Wall.North, x0, x0 - o, x1 + o, z1 - t - o, z1 + o, c0, c1, true);
+            AddParapetSide(buffer, stair, WindowGrid.Wall.West, z0, z0 + t + o, z1 - t - o, x0 - o, x0 + t + o, c0, c1, true);
+            AddParapetSide(buffer, stair, WindowGrid.Wall.East, z0, z0 + t + o, z1 - t - o, x1 - t - o, x1 + o, c0, c1, true);
 
             // A billboard over the street wall (World/RoofBillboards), unless it would stand on the stair's hatch; the plant keeps off its ground.
             RoofBillboard board = RoofBillboards.For(site);
@@ -1122,8 +1129,54 @@ namespace CityX.View
             // mast is left out beside it.
             TowerTop top = TowerTop.For(site);
             Rect topGround = top.Exists ? AddTowerTop(buffer, lit, top, x0, x1, z0, z1, roofY, looks, far) : Rect.zero;
-            AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch, boardGround, topGround, false, top.Exists);
+            AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch, boardGround, topGround, false, top.Exists, RoofStairLanding(stair, x0, x1, z0, z1));
             buffer.Look = saved;
+        }
+
+        /// <summary>
+        /// One side of a roof's parapet, or of its coping: a box <paramref name="a0"/>..<paramref name="a1"/> along the wall and
+        /// <paramref name="b0"/>..<paramref name="b1"/> across it, in two parts either side of the opening where the building's stair up the
+        /// outside comes onto the roof, if it comes up this wall (RoofStair's gap is measured from the wall's <paramref name="start"/>).
+        /// </summary>
+        private static void AddParapetSide(MeshBuffer buffer, RoofStair stair, WindowGrid.Wall wall, float start, float a0, float a1, float b0, float b1,
+            float y0, float y1, bool includeBottom)
+        {
+            bool alongX = wall == WindowGrid.Wall.North || wall == WindowGrid.Wall.South;
+            void Box(float from, float to)
+            {
+                if (to - from < 0.01f)
+                {
+                    return;
+                }
+                Vector3 min = alongX ? new Vector3(from, y0, b0) : new Vector3(b0, y0, from);
+                Vector3 max = alongX ? new Vector3(to, y1, b1) : new Vector3(b1, y1, to);
+                buffer.AddBox(min, max, includeBottom);
+            }
+            if (stair == null || stair.Stair.Wall != wall)
+            {
+                Box(a0, a1);
+                return;
+            }
+            Box(a0, Mathf.Min(a1, start + stair.GapU0));
+            Box(Mathf.Max(a0, start + stair.GapU1), a1);
+        }
+
+        /// <summary>The roof just inside the opening its outside stair comes through: nothing of the roof's plant stands there. None with no stair.</summary>
+        private static Rect RoofStairLanding(RoofStair stair, float x0, float x1, float z0, float z1)
+        {
+            if (stair == null)
+            {
+                return Rect.zero;
+            }
+            const float deep = 2.4f, beside = 0.4f;
+            float g0 = stair.GapU0 - beside, g1 = stair.GapU1 + beside;
+            switch (stair.Stair.Wall)
+            {
+                case WindowGrid.Wall.South: return Rect.MinMaxRect(x0 + g0, z0, x0 + g1, z0 + deep);
+                case WindowGrid.Wall.North: return Rect.MinMaxRect(x0 + g0, z1 - deep, x0 + g1, z1);
+                case WindowGrid.Wall.West: return Rect.MinMaxRect(x0, z0 + g0, x0 + deep, z0 + g1);
+                default: return Rect.MinMaxRect(x1 - deep, z0 + g0, x1, z0 + g1);
+            }
         }
 
         private const float ParapetWallHeight = 1.2f;
@@ -1147,7 +1200,8 @@ namespace CityX.View
         /// type's own mast, the tower's top being one.
         /// </summary>
         private static void AddRoofPlant(MeshBuffer buffer, BuildingSite site, float x0, float x1, float z0, float z1, float roofY,
-            SiteLooks looks, Rect hatch, Rect keepClear = default, Rect keepClear2 = default, bool sparse = false, bool hasTop = false)
+            SiteLooks looks, Rect hatch, Rect keepClear = default, Rect keepClear2 = default, bool sparse = false, bool hasTop = false,
+            Rect keepClear3 = default)
         {
             var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), RoofStream);
             float margin = ParapetWallThickness + 0.9f;
@@ -1170,6 +1224,10 @@ namespace CityX.View
             if (keepClear2.width > 0.0f)
             {
                 taken.Add(keepClear2);
+            }
+            if (keepClear3.width > 0.0f)
+            {
+                taken.Add(keepClear3);
             }
             if (site.HasRoofObstacle)
             {
@@ -2109,7 +2167,7 @@ namespace CityX.View
         /// </summary>
         private static bool InABridgeLanding(BuildingSite site, WindowGrid.Wall which, float u0, float u1, float y0, float y1)
         {
-            if (Footbridges.Cached(site).Length == 0)
+            if (Footbridges.Cached(site).Length == 0 && RoofStairs.Cached(site) == null)
             {
                 return false;
             }

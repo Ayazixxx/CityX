@@ -630,6 +630,7 @@ namespace CityX.World
         {
             Cache.Clear();
             Decided.Clear();
+            RoofStairs.Reset();   // worked out from the same buildings
         }
 
         /// <summary>An ordinary building of enough floors: not a sealed block, a roof-top block, a wing, a round tower or a set piece.</summary>
@@ -750,10 +751,22 @@ namespace CityX.World
                 StreetStair s = b.Stair;
                 if (s != null && s.Site == site.Id && s.Wall == wall)
                 {
-                    into.Add(new FacadeClearing(s.U0 - length * 0.5f - margin, s.U1 - length * 0.5f + margin, s.Bottom - site.BaseHeight - 1.0f,
-                        s.Top - site.BaseHeight + ParapetHeight + margin));
+                    into.Add(StairClearing(site, s, length, margin));
                 }
             }
+            // The stair up to its roof (World/RoofStairs), as a bridge's stair down to the street.
+            RoofStair roof = RoofStairs.Cached(site);
+            if (roof != null && roof.Stair.Wall == wall)
+            {
+                into.Add(StairClearing(site, roof.Stair, length, margin));
+            }
+        }
+
+        /// <summary>The stretch of its wall a stair against it stands before: from under the paving at its foot to over the rail at its top.</summary>
+        private static FacadeClearing StairClearing(BuildingSite site, StreetStair s, float length, float margin)
+        {
+            return new FacadeClearing(s.U0 - length * 0.5f - margin, s.U1 - length * 0.5f + margin, s.Bottom - site.BaseHeight - 1.0f,
+                s.Top - site.BaseHeight + ParapetHeight + margin);
         }
 
         // ---- deciding ----
@@ -1036,7 +1049,7 @@ namespace CityX.World
         }
 
         /// <summary>A bridge's rails by district.</summary>
-        private static BridgeRail PickRail(ZoneKind zone, double r)
+        internal static BridgeRail PickRail(ZoneKind zone, double r)
         {
             // Parapet, rails, pickets, mesh, pipe.
             float[] weights;
@@ -1475,6 +1488,30 @@ namespace CityX.World
             return stair;
         }
 
+        /// <summary>
+        /// A zig-zag stair tower against a wall of a building for something other than a bridge (World/RoofStairs: one up to the roof): from
+        /// <paramref name="top"/> (a world height), where it starts <paramref name="u"/> along the wall, down to the paving, running
+        /// <paramref name="way"/> along the wall (+1 toward its far end, -1 toward its start). Null where it will not fit
+        /// (<see cref="SwitchbackStair"/>), or it would climb more than <paramref name="maxRise"/>.
+        /// </summary>
+        internal static StreetStair TowerOn(CityWorld world, BuildingSite site, WindowGrid.Wall wall, float u, int way, float top, float maxRise)
+        {
+            WallFrame(site, wall, out Vector2 start, out Vector2 along, out Vector2 outward, out float length);
+            var end = new End
+            {
+                Site = site, Wall = wall, Column = 0, U = u, Point = ToWorld(site, start + along * u), Out = DirectionToWorld(site, outward),
+                Along = DirectionToWorld(site, along),
+            };
+            return SwitchbackStair(world, end, top, u, way, length, maxRise);
+        }
+
+        /// <summary>A point in the world by a wall of a building: <paramref name="u"/> along the wall from its start, <paramref name="o"/> out from its face.</summary>
+        internal static Vector2 ByWall(BuildingSite site, WindowGrid.Wall wall, float u, float o)
+        {
+            WallFrame(site, wall, out Vector2 start, out Vector2 along, out Vector2 outward, out _);
+            return ToWorld(site, start + along * u + outward * o);
+        }
+
         /// <summary>A point by a wall: <paramref name="d"/> metres along it the stair's way from where the stair starts, <paramref name="o"/> out from its face.</summary>
         private static Vector2 ByWall(in End a, float startU, int way, float d, float o)
         {
@@ -1595,9 +1632,9 @@ namespace CityX.World
         /// <summary>
         /// The stair as a tower against the wall: flights doubling back on two lanes (the inner one against the wall running the stair's way, the
         /// outer one running back), a landing across both lanes at each end, a short landing on the paving at the foot; rails between the lanes, along
-        /// the outer side and round the landings' open ends (Chongqing's and the reference images' zig-zag stairs). Up to <see cref="MaxTowerRise"/>.
+        /// the outer side and round the landings' open ends (Chongqing's and the reference images' zig-zag stairs). Up to <paramref name="maxRise"/>.
         /// </summary>
-        private static StreetStair SwitchbackStair(CityWorld world, End a, float top, float startU, int way, float length)
+        private static StreetStair SwitchbackStair(CityWorld world, End a, float top, float startU, int way, float length, float maxRise = MaxTowerRise)
         {
             float o1 = StreetStairOffset, o2 = o1 + StreetStairWidth + TowerLaneGap;
             float half = StreetStairWidth * 0.5f;
@@ -1608,7 +1645,7 @@ namespace CityX.World
             for (int pass = 0; pass < 4; pass++)
             {
                 float rise = top - foot;
-                if (rise <= MaxStreetStairRise * 0.25f || rise > MaxTowerRise) return null;
+                if (rise <= MaxStreetStairRise * 0.25f || rise > maxRise) return null;
                 steps = StepsFor(rise);
                 flightsCount = Mathf.CeilToInt(steps / (float)FlightMax);
                 int lastN = steps - (flightsCount - 1) * FlightMax;
@@ -1619,7 +1656,7 @@ namespace CityX.World
             }
             // The last pass moved the foot onto new paving after the steps were counted: counted again for the rise to it, or the steps are
             // a little over MaxRiser where it is lower (a 0.226 m riser on seed 19077151).
-            if (top - foot > MaxTowerRise) return null;
+            if (top - foot > maxRise) return null;
             steps = Mathf.Max(steps, StepsFor(top - foot));
             flightsCount = Mathf.CeilToInt(steps / (float)FlightMax);
             if (flightsCount < 2) return null;   // one flight is a straight run

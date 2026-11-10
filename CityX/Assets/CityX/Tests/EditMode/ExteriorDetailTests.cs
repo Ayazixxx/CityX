@@ -101,23 +101,26 @@ namespace CityX.Tests
                 Build(site, false, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), out Vector3 origin);
                 float low = site.BaseHeight + 0.7f;
                 float high = site.BaseHeight + 2.6f;
-                // A footbridge's stair down to the street runs along the wall and a pier stands under a landing (Footbridges): walked on and round,
-                // not hung in the way (seed 45678679's building 490 has a street stair 2 m out from its wall).
-                var bridgeParts = new List<(Vector2 a, Vector2 b, float reach)>();
+                // A footbridge's stair down to the street runs along the wall and a pier stands under a landing (Footbridges), and a block's own
+                // stair climbs the wall to its roof (RoofStairs): walked on and round, not hung in the way (seed 45678679's building 490 has a
+                // street stair 2 m out from its wall).
+                var stairs = new List<StreetStair>();
+                var piers = new List<Vector2>();
                 foreach (Footbridge bridge in Footbridges.For(World, site))
                 {
                     if (bridge.Stair != null)
                     {
-                        Vector3[] points = bridge.Stair.Points;
-                        for (int k = 1; k < points.Length; k++)
-                        {
-                            bridgeParts.Add((new Vector2(points[k - 1].x, points[k - 1].z), new Vector2(points[k].x, points[k].z), bridge.Stair.Width + 0.4f));
-                        }
+                        stairs.Add(bridge.Stair);
                     }
                     foreach (Vector3 pier in bridge.Path.Piers)
                     {
-                        bridgeParts.Add((new Vector2(pier.x, pier.z), new Vector2(pier.x, pier.z), 1.5f));
+                        piers.Add(new Vector2(pier.x, pier.z));
                     }
+                }
+                RoofStair roofStair = RoofStairs.For(World, site);
+                if (roofStair != null)
+                {
+                    stairs.Add(roofStair.Stair);
                 }
                 foreach (Vector3 v in structures.Vertices)
                 {
@@ -126,14 +129,16 @@ namespace CityX.Tests
                         continue;
                     }
                     var flat = new Vector2(origin.x + v.x, origin.z + v.z);
-                    bool onBridge = false;
-                    foreach ((Vector2 a, Vector2 b, float reach) in bridgeParts)
+                    bool walkedOn = false;
+                    foreach (StreetStair stair in stairs)
                     {
-                        Vector2 ab = b - a;
-                        float t = ab.sqrMagnitude < 1e-6f ? 0.0f : Mathf.Clamp01(Vector2.Dot(flat - a, ab) / ab.sqrMagnitude);
-                        if ((a + ab * t - flat).magnitude <= reach) onBridge = true;
+                        walkedOn |= TestSites.OnStair(stair, flat);
                     }
-                    if (onBridge)
+                    foreach (Vector2 pier in piers)
+                    {
+                        walkedOn |= (pier - flat).magnitude <= 1.5f;
+                    }
+                    if (walkedOn)
                     {
                         continue;
                     }

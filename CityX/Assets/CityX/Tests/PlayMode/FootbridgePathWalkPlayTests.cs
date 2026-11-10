@@ -232,5 +232,48 @@ namespace CityX.Tests
 
         [UnityTest]
         public IEnumerator AStairTowerIsClimbedOntoTheBridge() => ClimbTheStreetStair(true);
+
+        // The stairs up the outside to the roofs (World/RoofStairs, 2026-11-09): from the paving up the tower and through the opening in the
+        // parapet onto the roof.
+        [UnityTest]
+        public IEnumerator ARoofStairIsClimbedFromThePavingOntoTheRoof()
+        {
+            var world = new CityWorld(Seed);
+            RoofStair roof = null;
+            BuildingSite on = BuildingSite.None;
+            foreach (BuildingSite site in TestSites.NearSpawn(world, 60))
+            {
+                roof = RoofStairs.For(world, site);
+                if (roof != null)
+                {
+                    on = site;
+                    break;
+                }
+            }
+            Assert.IsNotNull(roof, "no block near the spawn has a stair up to its roof");
+            StreetStair stair = roof.Stair;
+            Vector3 foot = stair.Points[stair.Points.Length - 1];
+            City(Seed, foot);
+            yield return null;
+            var up = new Vector3[stair.Points.Length];
+            float total = 0.0f;
+            for (int i = 0; i < up.Length; i++)
+            {
+                up[i] = stair.Points[stair.Points.Length - 1 - i];
+                if (i > 0) total += Flat(up[i] - up[i - 1]).magnitude;
+            }
+            CharacterController body = Body(foot + Vector3.up * 0.05f);
+            var result = new float[3];
+            yield return Walk(body, up, 0.3f, total, result);
+            Vector3 p = body.transform.position;
+            on.WorldToLocal(p.x, p.z, out double lx, out double lz);
+            Debug.Log($"CityX roof stair climb: building {on.Id}, wall {stair.Wall}, {stair.Top - stair.Bottom:F1} m up in {stair.Flights.Length} flights: " +
+                $"got {result[0]:F1} of {result[2]:F1} m, ended at y {p.y:F2} (roof {on.Top:F2}), at most {result[1]:F2} m off the line");
+            Assert.That(result[0], Is.GreaterThan(result[2] - 1.0f), $"the body stopped {result[2] - result[0]:F1} m short of the roof");
+            Assert.That(p.y, Is.EqualTo(on.Top).Within(0.4f), "the body is not on the roof");
+            Assert.That(result[1], Is.LessThan(0.6f), "the body left the stair's walking surface");
+            Assert.Less(System.Math.Abs(lx), on.Params.Width * 0.5 - 0.3, "the body did not get through the parapet onto the roof");
+            Assert.Less(System.Math.Abs(lz), on.Params.Depth * 0.5 - 0.3, "the body did not get through the parapet onto the roof");
+        }
     }
 }
