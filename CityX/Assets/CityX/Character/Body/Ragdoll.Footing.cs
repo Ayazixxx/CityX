@@ -6,10 +6,10 @@ namespace CityX.Character
     /// <summary>
     /// STOOD UP, THEN LIMP (owner, 2026-11-10, of the body rolled off the end of the conveyor belt: "make it have ragdoll physics but just be
     /// in a stood up position"; "make it look natural like a person getting rolled off", with a drawing of it pitched out over the drop, its
-    /// back foot still on the roller; "no knee sag make him stand up straight until at 45"). <see cref="Stand"/> makes the body physics' as
-    /// one solid body in the pose it is in, with the mass and middle of all its bones, on the round ends of its legs, so whatever it stands
-    /// on carries it. <see cref="PinStood"/> holds it at one point (a snag) while it goes on, and it swings over that point.
-    /// <see cref="Slacken"/> makes it the plain limp ragdoll, every bone moving as it was moving as part of the whole.
+    /// back foot still on the roller; "make him fully loose after frame 19"). <see cref="Stand"/> makes the body physics' as one solid body
+    /// in the pose it is in, with the mass and middle of all its bones, on the round ends of its legs. <see cref="Slacken"/> makes it the
+    /// plain limp ragdoll, every bone moving as it was moving as part of the whole. <see cref="Pin"/> holds it, stood or limp, at one
+    /// foot to a body (a snag) with a hinge, and it swings over that point; <see cref="Unpin"/> lets it go.
     /// Springs on the joints were tried first: on a body this heavy they held at a hundredth of their strength, the knees folded, and it
     /// turned round as it went over.
     /// </summary>
@@ -23,12 +23,11 @@ namespace CityX.Character
         private ConfigurableJoint _pin;
         private Vector3[] _placesInStood;
         private Quaternion[] _turnsInStood;
-        private readonly List<Rigidbody> _hanging = new List<Rigidbody>();
 
         /// <summary>Stood up as one body, not yet slack.</summary>
         public bool IsStood => _stood != null;
 
-        /// <summary>Held at a point (<see cref="PinStood"/>).</summary>
+        /// <summary>Held at a foot (<see cref="Pin"/>).</summary>
         public bool IsPinned => _pin != null;
 
         /// <summary>
@@ -87,18 +86,24 @@ namespace CityX.Character
             return true;
         }
 
-        /// <summary>Holds the stood body at <paramref name="point"/> to <paramref name="to"/>, free to turn about <paramref name="axis"/> only, as a hinge.</summary>
-        public void PinStood(Vector3 point, Vector3 axis, Rigidbody to)
+        /// <summary>
+        /// Holds the body at the sole of <paramref name="foot"/> to <paramref name="to"/>, free to turn about <paramref name="axis"/> only, as a
+        /// hinge: the stood body while it stands, the shin once it is limp. The round ends are left out of it: the snag holds it, and a sole
+        /// left solid propped it on the side of the roller, halfway over.
+        /// </summary>
+        public void Pin(HumanBodyBones foot, Vector3 axis, Rigidbody to)
         {
-            if (_stood == null || to == null)
+            Transform bone = Animator != null && Animator.isHuman ? Animator.GetBoneTransform(foot) : null;
+            Rigidbody held = _stood != null ? _stood : bone != null ? bone.GetComponentInParent<Rigidbody>() : null;
+            if (bone == null || held == null || to == null)
             {
                 return;
             }
             Unpin();
-            _pin = _stood.gameObject.AddComponent<ConfigurableJoint>();
+            _pin = held.gameObject.AddComponent<ConfigurableJoint>();
             _pin.autoConfigureConnectedAnchor = true;
-            _pin.anchor = _stood.transform.InverseTransformPoint(point);
-            _pin.axis = _stood.transform.InverseTransformDirection(axis);
+            _pin.anchor = held.transform.InverseTransformPoint(bone.position);
+            _pin.axis = held.transform.InverseTransformDirection(axis);
             _pin.connectedBody = to;
             _pin.xMotion = ConfigurableJointMotion.Locked;
             _pin.yMotion = ConfigurableJointMotion.Locked;
@@ -106,45 +111,18 @@ namespace CityX.Character
             _pin.angularYMotion = ConfigurableJointMotion.Locked;
             _pin.angularZMotion = ConfigurableJointMotion.Locked;
             _pin.enablePreprocessing = false;
-            // The snag holds it now: a sole left solid propped it on the side of the roller, halfway over.
-            foreach (GameObject sole in _soles)
-            {
-                sole.GetComponent<Collider>().enabled = false;
-            }
+            // Stood, both: the front one propped it. Limp, the held one only: the other leg goes over the roller as a leg would.
+            SoleSolid(false, _stood != null ? null : bone);
         }
 
-        /// <summary>
-        /// The leg of <paramref name="foot"/> goes loose and hangs from the hip, the rest still stood (owner, 2026-11-10, of the stood body
-        /// going over the end: "his left leg (the one that reaches the edge first) hovers in mid air for a bit unnaturally"; "make the
-        /// physics activate sooner"). Its round end goes with it.
-        /// </summary>
-        public void LetLegHang(HumanBodyBones foot)
+        public void Unpin()
         {
-            Transform bone = _stood != null && Animator != null && Animator.isHuman ? Animator.GetBoneTransform(foot) : null;
-            Rigidbody shin = bone != null ? bone.GetComponentInParent<Rigidbody>() : null;
-            Rigidbody thigh = shin != null && shin.transform.parent != null ? shin.transform.parent.GetComponentInParent<Rigidbody>() : null;
-            if (thigh == null || _hanging.Contains(shin))
+            if (_pin != null)
             {
-                return;
+                Destroy(_pin);
             }
-            Follow(_stood.position, _stood.rotation);
-            Physics.SyncTransforms();
-            foreach (Rigidbody limb in new[] { thigh, shin })
-            {
-                limb.isKinematic = false;
-                limb.interpolation = RigidbodyInterpolation.Interpolate;
-                limb.linearVelocity = _stood.GetPointVelocity(limb.worldCenterOfMass);
-                limb.angularVelocity = _stood.angularVelocity;
-                _hanging.Add(limb);
-            }
-            foreach (GameObject sole in _soles)
-            {
-                if (sole != null && sole.name == SoleName(foot))
-                {
-                    sole.transform.SetParent(bone, true);
-                    sole.GetComponent<Collider>().enabled = true;
-                }
-            }
+            _pin = null;
+            SoleSolid(true, null);
         }
 
         /// <summary>Limp from here: every bone live, moving as it was moving as part of the stood body, the round ends of its legs on its shins.</summary>
@@ -156,22 +134,12 @@ namespace CityX.Character
             }
             Rigidbody stood = _stood;
             Follow(stood.position, stood.rotation);
-            var hung = new List<(Rigidbody, Vector3, Vector3)>();
-            foreach (Rigidbody limb in _hanging)
-            {
-                hung.Add((limb, limb.linearVelocity, limb.angularVelocity));
-            }
             ForgetFooting();
             Physics.SyncTransforms();
             SetKinematic(false);
-            foreach ((Rigidbody limb, Vector3 linear, Vector3 angular) in hung)
-            {
-                limb.linearVelocity = linear;
-                limb.angularVelocity = angular;
-            }
             foreach (Rigidbody body in Bodies)
             {
-                if (body != null && !hung.Exists(h => h.Item1 == body))
+                if (body != null)
                 {
                     body.linearVelocity = stood.GetPointVelocity(body.worldCenterOfMass);
                     body.angularVelocity = stood.angularVelocity;
@@ -180,13 +148,16 @@ namespace CityX.Character
             AddSoles(foot => foot);
         }
 
-        private void Unpin()
+        /// <summary>Turns the round ends on or off: all, or the one on <paramref name="only"/>.</summary>
+        private void SoleSolid(bool solid, Transform only)
         {
-            if (_pin != null)
+            foreach (GameObject sole in _soles)
             {
-                Destroy(_pin);
+                if (sole != null && (only == null || sole.transform.parent == only))
+                {
+                    sole.GetComponent<Collider>().enabled = solid;
+                }
             }
-            _pin = null;
         }
 
         /// <summary>The pin, the stood body and every round end are done with, the bones left as they are.</summary>
@@ -201,7 +172,6 @@ namespace CityX.Character
                 }
             }
             _soles.Clear();
-            _hanging.Clear();
             if (_stood != null)
             {
                 Destroy(_stood.gameObject);
@@ -223,14 +193,12 @@ namespace CityX.Character
             // Parents come before their children in Bodies, so a bone set here is not moved again by its parent.
             for (int i = 0; i < Bodies.Length; i++)
             {
-                if (Bodies[i] != null && !_hanging.Contains(Bodies[i]))
+                if (Bodies[i] != null)
                 {
                     Bodies[i].transform.SetPositionAndRotation(position + rotation * _placesInStood[i], rotation * _turnsInStood[i]);
                 }
             }
         }
-
-        private static string SoleName(HumanBodyBones foot) => "Sole" + foot;
 
         /// <summary>
         /// The round ends of the legs, on whatever <paramref name="holder"/> gives for each foot: the ragdoll has no feet of its own, and on
@@ -250,7 +218,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                var sole = new GameObject(SoleName(foot)) { layer = gameObject.layer };
+                var sole = new GameObject("Sole") { layer = gameObject.layer };
                 sole.transform.SetParent(holder(bone), false);
                 sole.transform.position = bone.position;
                 SphereCollider round = sole.AddComponent<SphereCollider>();

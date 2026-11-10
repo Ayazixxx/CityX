@@ -41,25 +41,25 @@ game's own.
 5. **The wider view.** 1.2 m past the right edge of the screen the view changes to a camera 15 m back that shows the belt's end, 6 m on.
 6. **Stood up straight, snagged at the roller** (owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position";
    "make it look natural like a person getting rolled off", with a drawing of it pitched out over the drop, "thats like the last frame
-   his right leg touches the roller after that he falls"; "no knee sag make him stand up straight until at 45"). 0.5 m short of the
-   belt's end, both feet still on its top, the body becomes physics' as one solid body in the idle it was in (`Ragdoll.Stand`: the
-   mass and middle of all its bones, round ends on its legs to stand on), moving as fast as the belt. Its back foot is snagged
-   (`Ragdoll.PinStood`, a hinge that turns over the drop only): the snag rides the belt to the top of the roller and stops there,
-   and the body swings out over it by its own run. The front leg, once its foot is past the top of the roller with nothing under it,
-   goes loose and hangs from the hip (`Ragdoll.LetLegHang`; owner: "his left leg (the one that reaches the edge first) hovers in mid
-   air for a bit unnaturally"; "make the physics activate sooner"). The belt never slows, before or after (owner: "make it keep going at the same
-   speed even after it throws him off").
+   his right leg touches the roller after that he falls"; "no knee sag"). 0.5 m short of the belt's end, both feet still on its top,
+   the body becomes physics' as one solid body in the idle it was in (`Ragdoll.Stand`: the mass and middle of all its bones, round
+   ends on its legs to stand on), moving as fast as the belt. Its back foot is snagged (`Ragdoll.Pin`, a hinge that turns over the
+   drop only): the snag rides the belt to the top of the roller and stops there. The belt never slows, before or after (owner: "make
+   it keep going at the same speed even after it throws him off").
+7. **Fully loose at the roller** (owner: "make him fully loose after frame 19", the frame his front foot reaches the top of the roller;
+   before that "his left leg ... hovers in mid air for a bit unnaturally"). The moment the front foot is past the top of the roller it
+   goes limp (`Ragdoll.Slacken`), every bone moving as it was moving as part of the whole, its back foot still held by the snag, so
+   it swings out over the drop loose; pitched 45 degrees over (or 1.5 s after being stood) the snag lets it go. The joints measure their
+   limits from the idle, not the T-pose it woke in (`Ragdoll.MeasureLimitsFromThisPose`): measured from the T-pose, the hanging arms
+   were past their limits and were wrenched in, 46 degrees at the elbows in eight frames (owner: "the player puts his hands on his
+   waist right as the conveyer belt rolls them off").
    Tried before, and why not: the feet held on the belt by IK round the drum and the body limp past the end (a leg went through the
    end, then "looks terrible"); a tip made by turning the hips ("feels animated it should be ragdoll physics"); the belt slowed to a
    crawl for the end (owner wanted the same speed); springs on the joints (on a body this heavy they held at a hundredth of their
-   strength: the knees folded and it turned round); limp the moment a foot was over the roller (it sagged at the knees and dropped).
-   Two faults found on the way: the ragdoll has no feet, so on the ends of its shins it stood 12 cm into the belt, and the shins
-   stuck there were shoved out each step until the legs crossed. The round ends fix both.
-7. **Limp at 45 degrees.** Pitched 45 degrees over (or 1.5 s after being stood, whatever it did), it goes limp (`Ragdoll.Slacken`),
-   every bone moving as it was moving as part of the whole, and the snag lets go. The joints measure their limits from the idle, not
-   the T-pose it woke in (`Ragdoll.MeasureLimitsFromThisPose`): measured from the T-pose, the hanging arms were past their limits and
-   were wrenched in, 46 degrees at the elbows in eight frames (owner, 2026-11-10: "the player puts his hands on his waist right as the
-   conveyer belt rolls them off").
+   strength: the knees folded and it turned round); limp with nothing holding it (it sagged at the knees and dropped); stiff to 45
+   degrees, then the front leg alone let hang (still "unnatural"). Two faults found on the way: the ragdoll has no feet, so on the
+   ends of its shins it stood 12 cm into the belt, and the shins stuck there were shoved out each step until the legs crossed. The
+   round ends fix both.
 8. **Black.** 6 m under the belt, or 2.5 s after being stood up, the screen fades to black (`Core/ScreenBlack`, 0.6 s); then the world
    loads behind it, and the fall from the sky (`IntroCutscene`, docs/INTRO.md) fades up out of the black over 1.2 s as it begins.
 

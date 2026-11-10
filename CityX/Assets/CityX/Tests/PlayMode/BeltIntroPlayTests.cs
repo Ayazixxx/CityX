@@ -405,10 +405,10 @@ namespace CityX.Tests
         /// <summary>
         /// Owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position"; "make it look natural like a person getting
         /// rolled off", with a drawing of it pitched out over the drop, its back foot on the roller: "thats like the last frame his right leg
-        /// touches the roller after that he falls"; "no knee sag make him stand up straight until at 45".
+        /// touches the roller after that he falls"; "no knee sag"; "make him fully loose after frame 19" (the front foot at the top of the roller).
         /// </summary>
         [UnityTest]
-        public IEnumerator ItIsStoodUpStraightAndPitchesOverItsBackFootOnTheRollerThenFallsLimp()
+        public IEnumerator ItIsStoodUpStraightThenLimpWithItsBackFootCaughtOnTheRollerAndPitchesOverIt()
         {
             yield return Begin();
             yield return RollIn();
@@ -436,9 +436,11 @@ namespace CityX.Tests
             float leftKnee = Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot);
             float rightKnee = Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot);
 
+            Transform front = back == feet[0] ? feet[1] : feet[0];
             Vector3 upright = neck.position - hips.position;
             float carriedFrom = belt.InverseTransformPoint(hips.position).x;
-            float sagged = 0.0f, tiltWhenLimp = -1.0f, limpAfter = -1.0f, backFootPast = float.MaxValue;
+            float sagged = 0.0f, frontWhenLimp = float.MinValue, tiltWhenLetGo = -1.0f, letGoAfter = -1.0f, backFootPast = float.MaxValue;
+            bool limp = false;
             int inTheBelt = 0;
             float waited = 0.0f;
             while (waited < 6.0f && belt.InverseTransformPoint(hips.position).y > -3.0f)
@@ -448,17 +450,22 @@ namespace CityX.Tests
                 float tilt = Vector3.Angle(upright, neck.position - hips.position);
                 if (ragdoll.IsStood)
                 {
-                    // The back leg it stands on; the front one hangs loose once it is over the roller (owner: "his left leg ... hovers in mid air").
-                    sagged = Mathf.Max(sagged, back == feet[0]
-                        ? Mathf.Abs(Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot) - leftKnee)
-                        : Mathf.Abs(Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) - rightKnee));
+                    sagged = Mathf.Max(sagged,
+                        Mathf.Abs(Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot) - leftKnee),
+                        Mathf.Abs(Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) - rightKnee));
                 }
-                else if (limpAfter < 0.0f)
+                else if (!limp)
                 {
-                    limpAfter = waited;
-                    tiltWhenLimp = tilt;
-                    backFootPast = belt.InverseTransformPoint(back.position).x - ConveyorBelt.Length;
+                    limp = true;
+                    frontWhenLimp = belt.InverseTransformPoint(front.position).x - ConveyorBelt.Length;
+                    Assert.IsTrue(ragdoll.IsPinned, "its back foot was let go as it went limp");
                     Assert.Greater(belt.InverseTransformPoint(hips.position).x - carriedFrom, 0.3f, "the belt did not carry it to its end");
+                }
+                if (limp && letGoAfter < 0.0f && !ragdoll.IsPinned)
+                {
+                    letGoAfter = waited;
+                    tiltWhenLetGo = tilt;
+                    backFootPast = belt.InverseTransformPoint(back.position).x - ConveyorBelt.Length;
                     Assert.Greater(belt.InverseTransformPoint(neck.position).x, belt.InverseTransformPoint(hips.position).x + 0.3f, "it did not pitch out over the drop");
                 }
                 foreach (HumanBodyBones bone in legs)
@@ -469,13 +476,14 @@ namespace CityX.Tests
                     }
                 }
             }
-            Assert.Less(sagged, 1.0f, "the knee it stood on bent");
-            Assert.Greater(limpAfter, 0.0f, "it never went limp");
-            Assert.Less(limpAfter, BeltIntro.LimpAfterSeconds - 0.1f, "it went limp on the clock, not pitched over");
-            // Seen a frame after it went limp, turning fast.
-            Assert.That(tiltWhenLimp, Is.InRange(BeltIntro.LimpAtDegrees, BeltIntro.LimpAtDegrees + 15.0f), "it did not stay straight until it had pitched 45 degrees over");
-            Assert.AreEqual(0.0f, backFootPast, 0.1f, "its back foot was not on the top of the roller as it pitched over");
-            Assert.IsFalse(ragdoll.IsPinned, "its back foot is still held as it falls");
+            Assert.Less(sagged, 1.0f, "a knee bent while it stood");
+            Assert.IsTrue(limp, "it never went limp");
+            Assert.That(frontWhenLimp, Is.InRange(0.0f, 0.15f), "it did not go limp as its front foot went over the top of the roller (owner: \"make him fully loose after frame 19\")");
+            Assert.Greater(letGoAfter, 0.0f, "its back foot was never let go");
+            Assert.Less(letGoAfter, BeltIntro.LetGoAfterSeconds - 0.1f, "its back foot was let go on the clock, not pitched over");
+            // Seen a frame after, turning fast.
+            Assert.That(tiltWhenLetGo, Is.InRange(BeltIntro.LetGoAtDegrees, BeltIntro.LetGoAtDegrees + 20.0f), "its back foot was not held until it had pitched 45 degrees over");
+            Assert.AreEqual(0.0f, backFootPast, 0.15f, "its back foot was not on the top of the roller as it pitched over");
             Assert.Less(belt.InverseTransformPoint(hips.position).y, -3.0f, "it never fell off the belt");
             Assert.AreEqual(0, inTheBelt, "a leg went through the belt");
         }

@@ -72,13 +72,10 @@ namespace CityX.UI
         /// <summary>How far short of the belt's end the middle of the body is when it is stood up as a ragdoll, metres: both feet still on the top.</summary>
         public const float StoodBeforeTheEnd = 0.5f;
 
-        /// <summary>
-        /// The stood body goes limp once it has pitched this far over the end, degrees (owner, 2026-11-10: "no knee sag make him stand up
-        /// straight until at 45"), or this long after it was stood, seconds, whatever it did.
-        /// </summary>
-        public const float LimpAtDegrees = 45.0f;
+        /// <summary>The snag lets the back foot go once the body has pitched this far over the end, degrees, or this long after it was stood, seconds, whatever it did.</summary>
+        public const float LetGoAtDegrees = 45.0f;
 
-        public const float LimpAfterSeconds = 1.5f;
+        public const float LetGoAfterSeconds = 1.5f;
 
         /// <summary>How long the tools take to fade in or out, seconds.</summary>
         public const float ToolsFadeSeconds = 0.6f;
@@ -116,6 +113,7 @@ namespace CityX.UI
         private Vector3 _uprightWhenStood = Vector3.up;
         private Rigidbody _snag;
         private HumanBodyBones _frontFoot;
+        private HumanBodyBones _backFoot;
         private float _blackFor = -1.0f;
         private float _riderHeight;
         private bool _heightKnown;
@@ -353,6 +351,7 @@ namespace CityX.UI
             bool leftBehind = belt.InverseTransformPoint(left).x < belt.InverseTransformPoint(right).x;
             Vector3 back = leftBehind ? left : right;
             _frontFoot = leftBehind ? HumanBodyBones.RightFoot : HumanBodyBones.LeftFoot;
+            _backFoot = leftBehind ? HumanBodyBones.LeftFoot : HumanBodyBones.RightFoot;
             _uprightWhenStood = animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position;
             if (!Ragdoll.Stand(along * BeltRide.Speed))
             {
@@ -362,7 +361,7 @@ namespace CityX.UI
             snag.transform.position = back;
             _snag = snag.AddComponent<Rigidbody>();
             _snag.isKinematic = true;
-            Ragdoll.PinStood(back, belt.forward, _snag);   // turning over the drop only, not toward the camera or away
+            Ragdoll.Pin(_backFoot, belt.forward, _snag);   // turning over the drop only, not toward the camera or away
         }
 
         /// <summary>The snag rides the belt to the top of the roller and stops there.</summary>
@@ -378,22 +377,28 @@ namespace CityX.UI
             _snag.MovePosition(belt.TransformPoint(at));
         }
 
-        /// <summary>Pitched over far enough (or held too long, whatever it did), the stood body goes limp and the snag lets it go.</summary>
+        /// <summary>
+        /// The moment the front foot is past the top of the roller, with nothing under it, the body goes fully limp (owner, 2026-11-10: "make
+        /// him fully loose after frame 19"), its back foot still snagged, so it swings out over the drop loose; pitched far enough over
+        /// (or held too long, whatever it did), the snag lets it go.
+        /// </summary>
         private void LetGoOnceOver()
         {
-            if (Ragdoll == null || !Ragdoll.IsStood)
+            if (Ragdoll == null || !Ragdoll.IsLimp)
             {
                 return;
             }
             Animator animator = Ragdoll.Animator;
-            if (Belt.transform.InverseTransformPoint(animator.GetBoneTransform(_frontFoot).position).x > ConveyorBelt.Length)
-            {
-                Ragdoll.LetLegHang(_frontFoot);   // over the roller with nothing under it: it hangs, not held out in the air
-            }
-            Vector3 up = animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position;
-            if (Vector3.Angle(_uprightWhenStood, up) >= LimpAtDegrees || _sinceDrop >= LimpAfterSeconds)
+            bool over = Belt.transform.InverseTransformPoint(animator.GetBoneTransform(_frontFoot).position).x > ConveyorBelt.Length;
+            if (Ragdoll.IsStood && (over || _sinceDrop >= LetGoAfterSeconds))
             {
                 Ragdoll.Slacken();
+                Ragdoll.Pin(_backFoot, Belt.transform.forward, _snag);
+            }
+            Vector3 up = animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position;
+            if (!Ragdoll.IsStood && Ragdoll.IsPinned && (Vector3.Angle(_uprightWhenStood, up) >= LetGoAtDegrees || _sinceDrop >= LetGoAfterSeconds))
+            {
+                Ragdoll.Unpin();
                 DropTheSnag();
             }
         }
