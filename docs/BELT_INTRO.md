@@ -40,9 +40,7 @@ game's own.
 6. **Over the end, on its feet** (owner, 2026-11-10, of the leg going through the end of the belt: "make it so it stands on top of it
    using foot ik and rolls off"). On this last ride `PlantedFeet.Floor` is the belt's own surface (`BeltIntro.FloorOfTheBelt`): a foot past
    the end follows the slats round the drum, a quarter of the way at most, the sole turning with them, and the hips come down for it. The
-   body rides on until its back foot has gone over too (`StandsPastTheEnd`, 0.38 m past the end). Over the last 1.2 m of the ride it tips
-   30 degrees to the right, toward the drop, about the point between its feet, which stay on the belt (`PlantedFeet.Lean`; owner, 2026-11-10:
-   "can you make him kind of tilt over towards the right as he is being rolled off?").
+   body rides on until its back foot has gone over too (`StandsPastTheEnd`, 0.38 m past the end).
 7. **Let go.** There the body goes limp (`Ragdoll.Activate`, moving as fast as the belt) and falls, and the belt stops being solid so
    that no limb can catch on it; from the idle it was in: the
    joints first measure their limits from that pose (`Ragdoll.MeasureLimitsFromThisPose`). Measured from the T-pose it woke in, the

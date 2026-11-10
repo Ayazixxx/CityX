@@ -68,11 +68,6 @@ namespace CityX.UI
         /// <summary>How far round the drum a foot follows the belt, metres: a quarter of the way round, to where the leg can still reach.</summary>
         public const float FurthestRoundTheDrum = 0.44f;
 
-        /// <summary>How far the body has tipped toward the drop when it is let go, degrees, and over how much of the end of the ride, metres (half a second).</summary>
-        public const float TiltDegrees = 30.0f;
-
-        public const float TiltOverMetres = 1.2f;
-
         /// <summary>How long the tools take to fade in or out, seconds.</summary>
         public const float ToolsFadeSeconds = 0.6f;
 
@@ -152,7 +147,6 @@ namespace CityX.UI
                 if (Life.Feet != null)
                 {
                     Life.Feet.Floor = null;
-                    Life.Feet.Lean = Quaternion.identity;
                 }
             }
             if (Creator != null)
@@ -260,7 +254,6 @@ namespace CityX.UI
             if (now != BeltRide.Stage.Fallen)
             {
                 PlaceRider(_ride.BodyAt);
-                TipOverTheEnd();
             }
 
             if (now != before)
@@ -364,19 +357,6 @@ namespace CityX.UI
             at.z = on.z;
             surface = belt.TransformPoint(at);
             up = belt.TransformDirection(facing);
-        }
-
-        /// <summary>
-        /// As it goes over the end the body tips toward the drop, the feet staying on the belt (owner, 2026-11-10: "can you make him kind of
-        /// tilt over towards the right as he is being rolled off?"). The cameras look along -Z, so a turn about the stage's Z is one to the right.
-        /// </summary>
-        private void TipOverTheEnd()
-        {
-            if (Life == null || Life.Feet == null || Rider == null || Rider.parent == null)
-            {
-                return;
-            }
-            Life.Feet.Lean = Quaternion.AngleAxis(TiltDegrees * _ride.ThroughLast(TiltOverMetres), Rider.parent.forward);
         }
 
         /// <summary>The body falls out of the picture, the screen goes black behind it, and the world is entered.</summary>

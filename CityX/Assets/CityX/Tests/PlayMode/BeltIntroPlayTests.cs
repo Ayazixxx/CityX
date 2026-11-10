@@ -396,27 +396,8 @@ namespace CityX.Tests
                     }
                 }
             };
-            float Lean()
-            {
-                Vector3 hips = _belt.WideCamera.WorldToViewportPoint(animator.GetBoneTransform(HumanBodyBones.Hips).position);
-                Vector3 neck = _belt.WideCamera.WorldToViewportPoint(animator.GetBoneTransform(HumanBodyBones.Neck).position);
-                return Mathf.Atan2(neck.x - hips.x, neck.y - hips.y) * Mathf.Rad2Deg;   // toward the screen's right is positive
-            }
-            yield return Until(() => _belt.Ride.Now == BeltRide.Stage.OnTheEdge, 12.0f, "the body never reached the edge of the screen");
-            yield return null;
-            float upright = Mathf.Abs(Lean());
-            float lastLean = 0.0f;
-            sampler.Sample += () =>
-            {
-                if (_belt.Ride.Now != BeltRide.Stage.Fallen)
-                {
-                    lastLean = Lean();
-                }
-            };
             yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 15.0f, "the body never reached the belt's end");
             UnityEngine.Object.Destroy(sampler);
-            Assert.Less(upright, 12.0f, "it leans before it nears the end");
-            Assert.Greater(lastLean, 18.0f, "(owner) it does not tilt over to the right as it is rolled off");
             Assert.Less(worst, 0.015f, "a sole is pushed into the belt on the last ride");
             Assert.Less(hovering, 0.02f, "a foot leaves the belt before it has been rolled off");
             float furthestBack = Mathf.Min(belt.InverseTransformPoint(left.position).x, belt.InverseTransformPoint(right.position).x);

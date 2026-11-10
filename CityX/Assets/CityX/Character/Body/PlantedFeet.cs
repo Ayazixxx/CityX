@@ -30,9 +30,6 @@ namespace CityX.Character
         /// <summary>A floor that is not level everywhere (the end of the conveyor belt); null for level.</summary>
         public FloorUnder Floor;
 
-        /// <summary>How far the body is tipped over its feet, a turn in the world about the point between them; the feet stay where they are.</summary>
-        public Quaternion Lean = Quaternion.identity;
-
         /// <summary>How many poses of the clip the middle of the sway is taken from.</summary>
         private const int SwaySamples = 24;
 
@@ -90,13 +87,7 @@ namespace CityX.Character
             // The idle stands on its toes: with the sole flat the ankle is lower, further than the straight leg goes. The hips come down for it.
             PutOnFloor(_left);
             PutOnFloor(_right);
-            if (Lean != Quaternion.identity)
-            {
-                Quaternion lean = Quaternion.Slerp(Quaternion.identity, Lean, weight);
-                Vector3 betweenTheFeet = _root.TransformPoint((_left.Place + _right.Place) * 0.5f);
-                _hips.SetPositionAndRotation(betweenTheFeet + lean * (_hips.position - betweenTheFeet), lean * _hips.rotation);
-            }
-            float drop =Mathf.Max(0.0f, HipsTooHighBy(_left), HipsTooHighBy(_right));
+            float drop = Mathf.Max(0.0f, HipsTooHighBy(_left), HipsTooHighBy(_right));
             _hips.position -= _root.up * (drop * weight);
             Hold(_left, weight);
             Hold(_right, weight);
