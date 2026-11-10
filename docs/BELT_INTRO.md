@@ -39,21 +39,25 @@ game's own.
 4. **Rolling out.** After the name is confirmed and the server has made the character, the tools fade out, the body turns back to the
    front and comes alive, and the belt carries it right at full run.
 5. **The wider view.** 1.2 m past the right edge of the screen the view changes to a camera 15 m back that shows the belt's end, 6 m on.
-6. **Stood up, short of the end** (owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position ... it should
-   just do it on its own as it slowly rolls off"). 0.5 m short of the belt's end, both feet still on its top, the body becomes the
-   ragdoll's (`Ragdoll.Stand`): every bone live, moving as fast as the belt, each joint sprung back toward the idle it was in
-   (`StandingStiffness`, drives on joints of their own, so the solver holds them). Nothing holds it up but its feet. The belt's surface
-   is a body of its own that runs at the belt's speed (`ConveyorBelt.Speed`), so the feet are carried as on a real belt; the front foot
-   is carried over the drum, and with nothing under it the body tips toward the drop by itself as
-   the belt, at its full run all the way and on after it, throws it off (owner: "make it keep going at the same speed even after it
-   throws him off", "im fine if it kinda "throws" him off due to the extra speed"; a slow crawl over the end was tried first).
-   Before this, the feet were held on the belt by IK round the drum and the body went limp past the end; a tip made by turning the hips
-   was tried and taken out (owner: "get rid of the tilt it feels animated it should be ragdoll physics"), and the plain drop after it
-   "looks terrible".
-7. **Slack.** Once both feet are past the end, or tipped 35 degrees from upright, or 1.5 s after being stood, whatever it did, the springs let go (`Ragdoll.Slacken`) and
-   it falls limp. The joints measure their limits from the idle, not the T-pose it woke in (`Ragdoll.MeasureLimitsFromThisPose`):
-   measured from the T-pose, the hanging arms were past their limits and were wrenched in, 46 degrees at the elbows in eight frames
-   (owner, 2026-11-10: "the player puts his hands on his waist right as the conveyer belt rolls them off").
+6. **Stood up straight, snagged at the roller** (owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position";
+   "make it look natural like a person getting rolled off", with a drawing of it pitched out over the drop, "thats like the last frame
+   his right leg touches the roller after that he falls"; "no knee sag make him stand up straight until at 45"). 0.5 m short of the
+   belt's end, both feet still on its top, the body becomes physics' as one solid body in the idle it was in (`Ragdoll.Stand`: the
+   mass and middle of all its bones, round ends on its legs to stand on), moving as fast as the belt. Its back foot is snagged
+   (`Ragdoll.PinStood`, a hinge that turns over the drop only): the snag rides the belt to the top of the roller and stops there,
+   and the body swings out over it by its own run. The belt never slows, before or after (owner: "make it keep going at the same
+   speed even after it throws him off").
+   Tried before, and why not: the feet held on the belt by IK round the drum and the body limp past the end (a leg went through the
+   end, then "looks terrible"); a tip made by turning the hips ("feels animated it should be ragdoll physics"); the belt slowed to a
+   crawl for the end (owner wanted the same speed); springs on the joints (on a body this heavy they held at a hundredth of their
+   strength: the knees folded and it turned round); limp the moment a foot was over the roller (it sagged at the knees and dropped).
+   Two faults found on the way: the ragdoll has no feet, so on the ends of its shins it stood 12 cm into the belt, and the shins
+   stuck there were shoved out each step until the legs crossed. The round ends fix both.
+7. **Limp at 45 degrees.** Pitched 45 degrees over (or 1.5 s after being stood, whatever it did), it goes limp (`Ragdoll.Slacken`),
+   every bone moving as it was moving as part of the whole, and the snag lets go. The joints measure their limits from the idle, not
+   the T-pose it woke in (`Ragdoll.MeasureLimitsFromThisPose`): measured from the T-pose, the hanging arms were past their limits and
+   were wrenched in, 46 degrees at the elbows in eight frames (owner, 2026-11-10: "the player puts his hands on his waist right as the
+   conveyer belt rolls them off").
 8. **Black.** 6 m under the belt, or 2.5 s after being stood up, the screen fades to black (`Core/ScreenBlack`, 0.6 s); then the world
    loads behind it, and the fall from the sky (`IntroCutscene`, docs/INTRO.md) fades up out of the black over 1.2 s as it begins.
 
@@ -80,7 +84,7 @@ game's own.
   Held in the body's own space, so they ride the belt and turn with the turntable. Holding still, the body is in the exact pose it is
   painted in, feet and all, so they ease over to that; at the belt's end `CreatorLife.LetGo` hands them to the ragdoll with the rest.
 - **The belt** (`ConveyorBelt`) builds itself when it wakes: 60 m of rubber slats (laid out again from how far the belt has run, and
-  turning down round the drum at its end), a grey steel frame with hubs that turn (grey at the owner's word, 2026-11-10: "make the yellow part of the conveyer belt grey"), and a surface of its own that runs at the belt's speed (`ConveyorBelt.Speed`), so what stands on it is carried. **The sky**
+  turning down round the drum at its end), a grey steel frame with hubs that turn (grey at the owner's word, 2026-11-10: "make the yellow part of the conveyer belt grey"), and a top and a roller that are bodies of their own, the top running at the belt's speed and the roller turning with it (`ConveyorBelt.Speed`), in grippy rubber, so what stands on them is carried. The roller is round where the slats are drawn round it (owner: "are we sure the hitbox of the roller is even round?"; `TheRollerIsRoundAndWhereTheSlatsGoRoundIt`). **The sky**
   (`BeltSky`): one wall of pale cloud grey behind it (owner, 2026-11-10: "make the background white no blue", then "make it slightly grey background like cloud grey"; it was a blue sky). Both are on the creator's own layer, the only one its two cameras see.
 - **Nothing else in the sky** (owner, 2026-11-10, of the first pictures: "I want no clouds in the sky, no ladder holding up the conveyer
   belt and no building remanence left in the background"): the first build had clouds under the belt and legs going down out of sight,

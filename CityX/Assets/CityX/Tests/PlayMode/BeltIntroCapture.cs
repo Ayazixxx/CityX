@@ -136,11 +136,11 @@ namespace CityX.Tests
             {
                 yield return null;
             }
-            // Stood up short of the end, it tips off by itself: a picture every tenth of a second.
+            // Stood up short of the end, it tips off by itself: a picture every twentieth of a second over the end, then every tenth.
             Shoot("stood-up");
             for (int i = 1; i <= 16; i++)
             {
-                yield return Frames(6);
+                yield return Frames(i <= 10 ? 3 : 6);
                 Shoot($"tipping-{i}");
             }
             yield return Frames(16);

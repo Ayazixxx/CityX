@@ -365,12 +365,50 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position if that is possible. if we can do that then we
-        /// shouldnt need to add any artificial tilt it should just do it on its own as it slowly rolls off"; then "im fine if it kinda
-        /// "throws" him off due to the extra speed".
+        /// The roller at the belt's end is round where it is drawn: what the body stands on and is carried over is the circle the slats go
+        /// round (owner, 2026-11-10: "are we sure the hitbox of the roller is even round?").
         /// </summary>
         [UnityTest]
-        public IEnumerator ItIsStoodUpShortOfTheEndAndTipsOffItByItself()
+        public IEnumerator TheRollerIsRoundAndWhereTheSlatsGoRoundIt()
+        {
+            yield return Begin();
+            Transform belt = _belt.Belt.transform;
+            Physics.SyncTransforms();
+            const int Steps = 12;
+            for (int i = 0; i <= Steps; i++)
+            {
+                // Down onto the top half of the roller, from above, at even steps out from its middle.
+                float past = ConveyorBelt.DrumRadius * 0.98f * i / Steps;
+                Vector3 from = belt.TransformPoint(new Vector3(ConveyorBelt.Length + past, 1.0f, 0.0f));
+                float nearest = float.MaxValue;
+                foreach (RaycastHit hit in Physics.RaycastAll(from, -belt.up, 3.0f))
+                {
+                    if (hit.collider.transform.IsChildOf(belt))
+                    {
+                        nearest = Mathf.Min(nearest, hit.distance);
+                    }
+                }
+                Assert.Less(nearest, float.MaxValue, $"nothing solid {past:F2} m past the belt's end");
+                float surface = 1.0f - nearest;
+                float round = -ConveyorBelt.DrumRadius + Mathf.Sqrt(ConveyorBelt.DrumRadius * ConveyorBelt.DrumRadius - past * past);
+                Assert.AreEqual(round, surface, 0.005f, $"the roller is not round {past:F2} m past the belt's end");
+            }
+            for (int i = 0; i <= Steps; i++)
+            {
+                // The slats as drawn, half the way round, lie on that circle.
+                ConveyorBelt.Surface(ConveyorBelt.Length + Mathf.PI * ConveyorBelt.DrumRadius * i / Steps, out Vector3 drawn, out _);
+                float fromTheAxis = new Vector2(drawn.x - ConveyorBelt.Length, drawn.y + ConveyorBelt.DrumRadius).magnitude;
+                Assert.AreEqual(ConveyorBelt.DrumRadius, fromTheAxis, 0.01f, "the slats are not drawn round the roller the body is carried over");
+            }
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-10: "make it have ragdoll physics but just be in a stood up position"; "make it look natural like a person getting
+        /// rolled off", with a drawing of it pitched out over the drop, its back foot on the roller: "thats like the last frame his right leg
+        /// touches the roller after that he falls"; "no knee sag make him stand up straight until at 45".
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ItIsStoodUpStraightAndPitchesOverItsBackFootOnTheRollerThenFallsLimp()
         {
             yield return Begin();
             yield return RollIn();
@@ -380,6 +418,7 @@ namespace CityX.Tests
             Ragdoll ragdoll = _belt.Ragdoll;
             Assert.IsTrue(ragdoll.IsLimp, "it is not the ragdoll's");
             Assert.IsTrue(ragdoll.IsStood, "it was let go limp, not stood up");
+            Assert.IsTrue(ragdoll.IsPinned, "its back foot is not held");
             Animator animator = _belt.Life.Animator;
             Transform belt = _belt.Belt.transform;
             Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
@@ -390,10 +429,16 @@ namespace CityX.Tests
             {
                 Assert.Less(belt.InverseTransformPoint(foot.position).x, ConveyorBelt.Length, "it was stood up with a foot already over the end");
             }
+            Transform back = belt.InverseTransformPoint(feet[0].position).x < belt.InverseTransformPoint(feet[1].position).x ? feet[0] : feet[1];
+            float Knee(HumanBodyBones thigh, HumanBodyBones shin, HumanBodyBones foot) =>
+                Vector3.Angle(animator.GetBoneTransform(shin).position - animator.GetBoneTransform(thigh).position,
+                    animator.GetBoneTransform(foot).position - animator.GetBoneTransform(shin).position);
+            float leftKnee = Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot);
+            float rightKnee = Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot);
 
             Vector3 upright = neck.position - hips.position;
             float carriedFrom = belt.InverseTransformPoint(hips.position).x;
-            float tippedBeforeTheEnd = 0.0f, slackAfter = -1.0f, leanWhenSlack = 0.0f, hipsWhenSlack = 0.0f;
+            float sagged = 0.0f, tiltWhenLimp = -1.0f, limpAfter = -1.0f, backFootPast = float.MaxValue;
             int inTheBelt = 0;
             float waited = 0.0f;
             while (waited < 6.0f && belt.InverseTransformPoint(hips.position).y > -3.0f)
@@ -401,21 +446,19 @@ namespace CityX.Tests
                 waited += Time.deltaTime;
                 yield return null;
                 float tilt = Vector3.Angle(upright, neck.position - hips.position);
-                bool bothOnTheTop = true;
-                foreach (Transform foot in feet)
+                if (ragdoll.IsStood)
                 {
-                    bothOnTheTop &= belt.InverseTransformPoint(foot.position).x < ConveyorBelt.Length - 0.05f;
+                    sagged = Mathf.Max(sagged,
+                        Mathf.Abs(Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot) - leftKnee),
+                        Mathf.Abs(Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) - rightKnee));
                 }
-                if (bothOnTheTop)
+                else if (limpAfter < 0.0f)
                 {
-                    tippedBeforeTheEnd = Mathf.Max(tippedBeforeTheEnd, tilt);
-                }
-                if (slackAfter < 0.0f && !ragdoll.IsStood)
-                {
-                    slackAfter = waited;
-                    leanWhenSlack = belt.InverseTransformPoint(neck.position).x - belt.InverseTransformPoint(hips.position).x;
-                    hipsWhenSlack = belt.InverseTransformPoint(hips.position).y;
+                    limpAfter = waited;
+                    tiltWhenLimp = tilt;
+                    backFootPast = belt.InverseTransformPoint(back.position).x - ConveyorBelt.Length;
                     Assert.Greater(belt.InverseTransformPoint(hips.position).x - carriedFrom, 0.3f, "the belt did not carry it to its end");
+                    Assert.Greater(belt.InverseTransformPoint(neck.position).x, belt.InverseTransformPoint(hips.position).x + 0.3f, "it did not pitch out over the drop");
                 }
                 foreach (HumanBodyBones bone in legs)
                 {
@@ -425,11 +468,13 @@ namespace CityX.Tests
                     }
                 }
             }
-            Assert.Less(tippedBeforeTheEnd, 10.0f, "it does not stand while both feet are on the belt");
-            Assert.Greater(slackAfter, 0.0f, "it never went slack");
-            Assert.Less(slackAfter, BeltIntro.SlackAfterSeconds - 0.1f, "it went slack on the clock, not as it left the belt");
-            Assert.Greater(hipsWhenSlack, 0.0f, "it fell stiff, held standing, before it went slack");
-            Assert.Greater(leanWhenSlack, 0.05f, "it did not tip toward the drop");
+            Assert.Less(sagged, 1.0f, "a knee bent while it stood");
+            Assert.Greater(limpAfter, 0.0f, "it never went limp");
+            Assert.Less(limpAfter, BeltIntro.LimpAfterSeconds - 0.1f, "it went limp on the clock, not pitched over");
+            // Seen a frame after it went limp, turning fast.
+            Assert.That(tiltWhenLimp, Is.InRange(BeltIntro.LimpAtDegrees, BeltIntro.LimpAtDegrees + 15.0f), "it did not stay straight until it had pitched 45 degrees over");
+            Assert.AreEqual(0.0f, backFootPast, 0.1f, "its back foot was not on the top of the roller as it pitched over");
+            Assert.IsFalse(ragdoll.IsPinned, "its back foot is still held as it falls");
             Assert.Less(belt.InverseTransformPoint(hips.position).y, -3.0f, "it never fell off the belt");
             Assert.AreEqual(0, inTheBelt, "a leg went through the belt");
         }

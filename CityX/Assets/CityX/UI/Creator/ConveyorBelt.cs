@@ -38,6 +38,9 @@ namespace CityX.UI
         public const float HubbedLength = 38.0f;
         public const float HubRadius = 0.13f;
 
+        /// <summary>How hard rubber grips what stands on it: enough that a foot on the roller goes down and under with it.</summary>
+        public const float Grip = 1.0f;
+
 
         private const int ArcSteps = 8;
 
@@ -54,6 +57,7 @@ namespace CityX.UI
         private readonly List<Object> _made = new List<Object>();
         private Mesh _slats;
         private Rigidbody _surface;
+        private Rigidbody _roller;
         private float _travel;
 
         /// <summary>How fast the surface runs toward the belt's end, metres a second (back, below 0): what stands on it is carried so.</summary>
@@ -141,8 +145,17 @@ namespace CityX.UI
             _made.Add(_slats);
             AddPart("Slats", _slats, Rubber);
 
-            // What a body stands on and is carried off by: the top run and the drum, on a body of their own that runs with the belt
-            // (FixedUpdate), so whatever stands on it rides with it as feet do on a real belt.
+            // What a body stands on and is carried off by: the top run, a body of its own that runs with the belt, and the roller at its
+            // end, one that turns with it (FixedUpdate). Rubber grips: a foot on the roller is dragged down and under with the belt, as on
+            // a real one, and the body pitches over the end (owner, 2026-11-10: "make it look natural like a person getting rolled off").
+            var rubber = new PhysicsMaterial("BeltRubber")
+            {
+                dynamicFriction = Grip,
+                staticFriction = Grip,
+                frictionCombine = PhysicsMaterialCombine.Maximum,
+                hideFlags = HideFlags.DontSave,
+            };
+            _made.Add(rubber);
             var surface = new GameObject("Surface") { layer = gameObject.layer };
             surface.transform.SetParent(transform, false);
             _surface = surface.AddComponent<Rigidbody>();
@@ -150,11 +163,17 @@ namespace CityX.UI
             var top = surface.AddComponent<BoxCollider>();
             top.center = new Vector3(Length * 0.5f, -DrumRadius, 0.0f);
             top.size = new Vector3(Length, DrumRadius * 2.0f, Width);
-            var drum = surface.AddComponent<CapsuleCollider>();
+            top.sharedMaterial = rubber;
+            var roller = new GameObject("Roller") { layer = gameObject.layer };
+            roller.transform.SetParent(transform, false);
+            roller.transform.localPosition = new Vector3(Length, -DrumRadius, 0.0f);
+            _roller = roller.AddComponent<Rigidbody>();
+            _roller.isKinematic = true;
+            var drum = roller.AddComponent<CapsuleCollider>();
             drum.direction = 2;
-            drum.center = new Vector3(Length, -DrumRadius, 0.0f);
             drum.radius = DrumRadius;
             drum.height = Width + DrumRadius * 2.0f;
+            drum.sharedMaterial = rubber;
 
             LayOut();
         }
@@ -183,8 +202,8 @@ namespace CityX.UI
         }
 
         /// <summary>
-        /// The surface runs at <see cref="Speed"/> and stays where it is: each step it is put back by one step's run and moved forward to
-        /// where it was, so what touches it is carried as by a belt that moves, and the belt itself goes nowhere.
+        /// The top runs at <see cref="Speed"/> and the roller turns with it, and both stay where they are: each step each is put back by
+        /// one step's run and moved on to where it was, so what touches them is carried as by a belt that moves, and the belt goes nowhere.
         /// </summary>
         private void FixedUpdate()
         {
@@ -192,9 +211,14 @@ namespace CityX.UI
             {
                 return;
             }
+            float run = Speed * Time.fixedDeltaTime;
             Vector3 home = transform.position;
-            _surface.position = home - transform.right * (Speed * Time.fixedDeltaTime);
+            _surface.position = home - transform.right * run;
             _surface.MovePosition(home);
+            // Turned about its own axis the way that carries its top toward the end.
+            Quaternion turned = _roller.transform.parent.rotation;
+            _roller.rotation = turned * Quaternion.AngleAxis(run / DrumRadius * Mathf.Rad2Deg, Vector3.forward);
+            _roller.MoveRotation(turned);
         }
 
         // --- the slats ---
