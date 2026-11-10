@@ -9,7 +9,8 @@ namespace CityX.View
     /// Which side of a wall it is on: a light marked <see cref="Interior"/> lights only the city's surfaces inside buildings (SurfaceLook's
     /// indoors flag) and one marked <see cref="Exterior"/> only the ones outside, so a lit room never shines through its own walls onto the
     /// pavement or the building next door, and a lamp over a door does not light the room behind the wall. Everything else (bodies, props) is
-    /// lit by both, by URP's own layer test.
+    /// lit by both, by URP's own layer test. The one exception is an interior light casting a shadow, whose shadow knows where the walls
+    /// are: it reaches the outside through the windows and nowhere else (CityXShineOutThroughWindows).
     ///
     /// Whether somebody carries it: under the ground a light marked <see cref="Beam"/> (a torch) is as bright on what it falls on far off
     /// as near.

@@ -71,6 +71,7 @@ namespace CityX.View
         private static bool _changed;
 
         private readonly Stack<Light> _free = new Stack<Light>();
+        private readonly RoomLampShadows _shadows = new RoomLampShadows(MaxShadowedLamps);
         private int _made;
         private float _wait;
 
@@ -120,6 +121,7 @@ namespace CityX.View
 
         private void LateUpdate()
         {
+            _shadows.Step(Time.unscaledDeltaTime);
             _wait -= Time.unscaledDeltaTime;
             if (_wait > 0.0f && !_changed)
             {
@@ -141,6 +143,7 @@ namespace CityX.View
             if (_instance != null)
             {
                 _instance.Pass(eye, int.MaxValue);
+                _instance._shadows.Snap();
             }
         }
 
@@ -228,15 +231,10 @@ namespace CityX.View
                 }
             }
             Shadowable.Sort(NearestFirst);
-            for (int i = 0; i < Shadowable.Count; i++)
+            _shadows.ClearWanted();
+            for (int i = 0; i < Shadowable.Count && i < MaxShadowedLamps && Shadowable[i].Key <= ShadowReachMetres; i++)
             {
-                bool shadowed = i < MaxShadowedLamps && Shadowable[i].Key <= ShadowReachMetres;
-                LightShadows wanted = shadowed ? LightShadows.Soft : LightShadows.None;
-                Light lamp = Shadowable[i].Value;
-                if (lamp.shadows != wanted)
-                {
-                    lamp.shadows = wanted;
-                }
+                _shadows.Want(Shadowable[i].Value);
             }
 
             // The bounced light of the nearest lit rooms, lamps or not (a lit room seen from down the street glows inside), as many as the
@@ -272,8 +270,8 @@ namespace CityX.View
             Light made = go.AddComponent<Light>();
             made.type = LightType.Spot;
             made.shadows = LightShadows.None;
-            made.shadowStrength = 0.85f;
-            CityLightLayers.MarkInside(made);   // it lights the room and whoever is in it, never the street (CityLightLayers)
+            made.shadowStrength = RoomLampShadows.FullStrength;
+            CityLightLayers.MarkInside(made);   // it lights the room and whoever is in it; of the street only what its windows let it (CityLightLayers)
             made.enabled = false;
             _made++;
             return made;
@@ -286,6 +284,7 @@ namespace CityX.View
             {
                 return;
             }
+            _shadows.Forget(light);
             light.enabled = false;
             light.shadows = LightShadows.None;
             _free.Push(light);

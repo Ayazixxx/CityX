@@ -319,11 +319,12 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
         Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
         CityXSoftenFitting(light, lightIndex, inputData.positionWS);
         CityXThrowBeam(light, lightIndex, inputData.positionWS, underground ? 1.0 : 0.0);
+        bool outThroughWindows = !indoors && !underground && CityXShineOutThroughWindows(light, lightIndex);
 
 #ifdef _LIGHT_LAYERS
-        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers) && (light.layerMask & wrongSide) == 0)
+        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers) && ((light.layerMask & wrongSide) == 0 || outThroughWindows))
 #else
-        if ((light.layerMask & wrongSide) == 0)
+        if ((light.layerMask & wrongSide) == 0 || outThroughWindows)
 #endif
         {
             // A lamp's light on a wall or a street is soft with the cel look too: flat steps drew rings round every lamp (CityXToonLighting.hlsl).

@@ -207,4 +207,25 @@ back from the light, where it was fine.
 - What it changed, rendered with the old names and the new on the same rooms (`RoomLightsCapture`, 40 night shots): rooms are 1 to
   4 % dimmer inside (the soft fitting, and no light from the next room through the wall); the pavement in front of a lit building is
   10 to 15 % darker, lit by the door lamp and the street lamps alone. A lit room no longer lays pale patches on the pavement through
-  its wall. Light falling out through the WINDOWS onto the street would need the room lights to cast shadows; not built.
+  its wall.
+
+## Light out through the windows (2026-11-10)
+
+That fix also took away the window-shaped light on the pavement, which came from the same leak; owner, shown the two side by side: "id
+like that effect to still be in the game but just wanted the circle effect fixed". The patches had only ever been the work of the lamps with a
+shadow map (the nearest four within 30 m, `RoomLightDirector`): the shadow of the wall and the window frames is what cuts their light to
+the shape of the windows. So those lamps, and no others, light the outside (`CityXShineOutThroughWindows`, in the facade shader's
+light loop), with no new shadow map and no new light:
+
+- **Only a lamp holding a map.** A lamp without one has no idea where the walls are and stays off the street, so nothing shines through a
+  solid wall. A lamp's shadow is not black (strength 0.85, which suits a room); outside it is taken as solid, or 15 % of the lamp would
+  come through the wall.
+- **Faded, not switched** (`RoomLampShadows`). Walking along a lit shop, the nearest four lamps keep changing, and a lamp that lost its map
+  would take its patch off the pavement in one frame. A lamp no longer wanted keeps its map while its shadow strength runs to nothing
+  (0.3 s), only then does the next lamp get it, and on the street a lamp's brightness follows its strength. So there are never more than four
+  maps, and indoors the shadows fade rather than pop too.
+- **Limit:** only rooms near the player spill light, as before; a lit shop far down the street lays none until the player is within 30 m.
+
+Tests: `RoomLampShadowsTests` (the hand-over of a map, never over the budget, the shader's copy of the full strength),
+`LightMarksPlayTests.ARoomLampWithAShadowReachesTheStreetThroughAWindowButNotThroughAWall` (rendered). Pictures: `RoomLightsCapture`, the
+`door-night` views.

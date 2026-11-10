@@ -56,19 +56,47 @@ float4 _CityXDarkTrace;
 #define CITYX_BEAM_LIGHT_LAYER (1u << 3)
 #define CITYX_BEAM_MATCH_METRES 4.0
 
-// Where additional light <i> is (the light loop's own index), the way URP's GetAdditionalLight finds it.
-float3 CityXAdditionalLightPosition(uint i)
+// A room lamp's shadow strength at its full. MUST match RoomLampShadows.FullStrength.
+#define CITYX_ROOM_LAMP_SHADOW_STRENGTH 0.85
+
+// The index URP's light data is under for additional light <i> (the light loop's own index).
+int CityXAdditionalLightIndex(uint i)
 {
 #if USE_CLUSTER_LIGHT_LOOP
-    int lightIndex = i;
+    return i;
 #else
-    int lightIndex = GetPerObjectLightIndex(i);
+    return GetPerObjectLightIndex(i);
 #endif
+}
+
+// Where additional light <i> is, the way URP's GetAdditionalLight finds it.
+float3 CityXAdditionalLightPosition(uint i)
+{
+    int lightIndex = CityXAdditionalLightIndex(i);
 #if USE_STRUCTURED_BUFFER_FOR_LIGHT_DATA
     return _AdditionalLightsBuffer[lightIndex].position.xyz;
 #else
     return _AdditionalLightsPosition[lightIndex].xyz;
 #endif
+}
+
+// Whether a room's lamp reaches a surface outside, through the windows: only a lamp holding a shadow map, the one thing that knows where the
+// walls are. The light is left as it falls there: its shadow solid, where indoors it is strength-softened and would let a share of the lamp
+// through the wall, and its brightness following its shadow strength, so a lamp gaining or losing its map (RoomLampShadows) fades in and out.
+bool CityXShineOutThroughWindows(inout Light light, uint i)
+{
+    if ((light.layerMask & CITYX_INTERIOR_LIGHT_LAYER) == 0)
+    {
+        return false;
+    }
+    half4 shadow = GetAdditionalLightShadowParams(CityXAdditionalLightIndex(i));
+    if (shadow.w < 0.0 || shadow.x <= 0.0)
+    {
+        return false;
+    }
+    light.shadowAttenuation = saturate((light.shadowAttenuation - (1.0 - shadow.x)) / shadow.x);
+    light.distanceAttenuation *= saturate(shadow.x / CITYX_ROOM_LAMP_SHADOW_STRENGTH);
+    return true;
 }
 
 // A carried light's falloff (CITYX_BEAM_LIGHT_LAYER) on what is <under> the ground (0 under the sky, 1 in a tunnel): the square of the

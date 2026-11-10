@@ -305,6 +305,41 @@ namespace CityX.Tests
         }
 
         [UnityTest]
+        public IEnumerator ARoomLampWithAShadowReachesTheStreetThroughAWindowButNotThroughAWall()
+        {
+            // The window-shaped light on the pavement (owner, 2026-11-10: "id like that effect to still be in the game"): nothing in the
+            // way is the window; a wall that casts a shadow and is not itself in the picture is the wall.
+            Build(CityMaterial());
+            yield return null;
+            System.Action<Light> casting = l =>
+            {
+                CityLightLayers.MarkInside(l);
+                l.shadows = LightShadows.Soft;
+                l.shadowStrength = RoomLampShadows.FullStrength;
+            };
+            System.Action<Light> halfFaded = l =>
+            {
+                casting(l);
+                l.shadowStrength = RoomLampShadows.FullStrength * 0.5f;
+            };
+            float bare = LightOnTheWall(SideMetres, null);
+            float throughTheWindow = LightOnTheWall(SideMetres, casting);
+            float fading = LightOnTheWall(SideMetres, halfFaded);
+            Assert.Greater(bare, Lit, "a bare light does not light an outside wall");
+            Assert.AreEqual(bare, throughTheWindow, bare * Tolerance, "a lit room's lamp with a shadow does not reach the street through its window");
+            Assert.AreEqual(bare * 0.5f, fading, bare * Tolerance, "a lamp fading in or out does not follow its shadow's strength");
+
+            GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _made.Add(wall);
+            wall.transform.position = new Vector3(0.0f, 0.0f, -SideMetres * 0.5f);
+            wall.transform.localScale = new Vector3(30.0f, 30.0f, 0.5f);
+            wall.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.ShadowsOnly;
+            yield return null;
+            float throughTheWall = LightOnTheWall(SideMetres, casting);
+            Assert.Less(throughTheWall, bare * Unlit, $"a lit room's lamp shines through a solid wall onto the street ({throughTheWall:0.0000} of a bare light's {bare:0.0000})");
+        }
+
+        [UnityTest]
         public IEnumerator AStreetLightDoesNotLightARoomAndARoomsLightDoes()
         {
             Build(CityMaterial(), SurfaceLook.Pack(Color.white, 0, 0.0f, true));
