@@ -26,6 +26,12 @@ Nothing during the fall runs on a timer. The camera and the cloud follow the bod
 
 - The camera follows a smoothed point: the torso while the body is limp, the player's own pivot once it rises. It swings from overhead
   (pitch 80, 10 m) to beside the body (pitch 15, 9 m) between 45 m and 4 m above the ground.
+- **Where it lands** (owner, 2026-11-10: "make him fall far enough away from the buildings that the camera changes dont clip into the
+  building"): not on the spawn itself (the driveway, 3.5 m from Old Guy's house) but on the most open ground within 40 m of it
+  (`World/OpenGround`, from the plan: furthest from any building, Old Guy's house counted, out from under the expressways, off the water),
+  that is also level all round as far as the cameras swing out (`IntroCutscene.LevelAround`, looking down at the built ground: no stair,
+  raised plaza or drop; a kerb is fine). And the camera comes in short of anything solid rather than into it (`KeptOutOfWalls`). Tried:
+  the most open ground on the roads only (it landed on a big stair the plan does not count as a building).
 - The cloud is thick fog (4 to 30 m) for the first 50 m of the fall (above 460 m) and the scene's own fog below 290 m, eased in between: measured down from the start, so the six seconds added are clear sky over the city.
 - The look-around camera glides through keys (`LookingAroundCamera`); the two old held shots were cut to.
 

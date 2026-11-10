@@ -1,4 +1,5 @@
 using CityX.Core;
+using CityX.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -33,6 +34,22 @@ namespace CityX.Character
         /// the fall cutscene that appears next like 6 seconds longer in the sky"; it began 300 m up, about 10 s).
         /// </summary>
         public const float StartAltitude = 510.0f;
+
+        /// <summary>
+        /// How far from where the character starts the fall may land, metres: on the most open ground within this (OpenGround), so that the
+        /// cameras swinging round the body never go into a wall (owner, 2026-11-10: "make him fall far enough away from the buildings that
+        /// the camera changes dont clip into the building").
+        /// </summary>
+        public const float LandingReach = 40.0f;
+
+        /// <summary>
+        /// How the landing is checked to be on the street: how many places round it are looked down at, from how high over the street, and how
+        /// far off the ground at the landing any of them may be, metres. Stairs and a raised plaza beside the most open ground were landed on.
+        /// </summary>
+        private const int LevelProbes = 12;
+
+        private const float LevelProbeAbove = 30.0f;
+        private const float LevelTolerance = 0.4f;
 
         /// <summary>
         /// How many frames the body hangs, standing, before it goes limp: PlayerHud captures the portrait off the head two frames in, and a
@@ -78,6 +95,11 @@ namespace CityX.Character
 
         /// <summary>How quickly the camera's followed point catches up with the body (per second): smooth, a few metres behind at full speed.</summary>
         public const float CameraFollowRate = 10.0f;
+
+        /// <summary>How far the camera stays off anything solid, metres, and the nearest it comes in to the body when something is close.</summary>
+        public const float CameraClearance = 0.3f;
+
+        public const float CameraNearest = 1.5f;
 
         // --- the landing ---
 
@@ -197,7 +219,7 @@ namespace CityX.Character
             _camera = cameraTransform;
             _ragdoll = GetComponent<Ragdoll>();
 
-            _spawnPosition = transform.position;
+            _spawnPosition = OpenGroundNear(transform.position);
             _originalSpringLength = thirdPersonCamera.Distance;
             float height = locomotion != null ? locomotion.StandingHeight : 1.8f;
             _pivotHeight = height * thirdPersonCamera.PivotHeightFraction;
@@ -600,6 +622,56 @@ namespace CityX.Character
 
         // --- shared ---
 
+        /// <summary>Where the fall lands: the most open level ground near <paramref name="start"/>, on the ground there; <paramref name="start"/> with no world.</summary>
+        private Vector3 OpenGroundNear(Vector3 start)
+        {
+            CityWorld world = CurrentWorld.Instance;
+            if (world == null)
+            {
+                return start;
+            }
+            double startGround = world.Plan.GroundHeight(start.x, start.z);
+            float PlanLevel(double x, double z) => start.y + (float)(world.Plan.GroundHeight(x, z) - startGround);
+            var (bestX, bestZ, _) = OpenGround.Near(world, start.x, start.z, LandingReach, (x, z) => LevelAround(x, z, PlanLevel(x, z), out _));
+            LevelAround(bestX, bestZ, PlanLevel(bestX, bestZ), out float ground);
+            return new Vector3((float)bestX, ground, (float)bestZ);
+        }
+
+        /// <summary>
+        /// Whether the ground all round (<paramref name="x"/>, <paramref name="z"/>), as far as the cameras swing out, is level with the ground
+        /// there (<paramref name="ground"/>): no stair, raised plaza or drop for the body to land on or the camera to go under; a kerb is fine.
+        /// Where nothing has been built yet to look at, the plan's word stands, at <paramref name="planLevel"/>.
+        /// </summary>
+        private bool LevelAround(double x, double z, float planLevel, out float ground)
+        {
+            ground = GroundUnder((float)x, (float)z, planLevel) ?? planLevel;
+            for (int i = 0; i < LevelProbes; i++)
+            {
+                float angle = i * Mathf.PI * 2.0f / LevelProbes;
+                float? there = GroundUnder((float)x + Mathf.Cos(angle) * BesideSpringLength, (float)z + Mathf.Sin(angle) * BesideSpringLength, ground);
+                if (there.HasValue && Mathf.Abs(there.Value - ground) > LevelTolerance)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>The top of whatever is built at (<paramref name="x"/>, <paramref name="z"/>) near <paramref name="level"/>, not the body; null where nothing is.</summary>
+        private float? GroundUnder(float x, float z, float level)
+        {
+            var top = new Vector3(x, level + LevelProbeAbove, z);
+            float nearest = float.MaxValue;
+            foreach (RaycastHit hit in Physics.RaycastAll(top, Vector3.down, LevelProbeAbove * 2.0f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (!hit.transform.IsChildOf(transform) && hit.distance < nearest)
+                {
+                    nearest = hit.distance;
+                }
+            }
+            return nearest < float.MaxValue ? top.y - nearest : (float?)null;
+        }
+
         /// <summary>The cloud for a body this high over the ground: thick fog above CloudThickAltitude, the scene's own below CloudClearAltitude.</summary>
         private void SetCloud(float altitude)
         {
@@ -644,8 +716,26 @@ namespace CityX.Character
         private void PlaceCamera(float distance, float pitch, float yaw)
         {
             Quaternion rotation = Quaternion.Euler(pitch, yaw, 0.0f);
-            _camera.position = _followed - rotation * Vector3.forward * distance;
+            _camera.position = _followed - rotation * Vector3.forward * KeptOutOfWalls(rotation * -Vector3.forward, distance);
             _camera.rotation = rotation;
+        }
+
+        /// <summary>
+        /// How far out along <paramref name="away"/> the camera can go, up to <paramref name="distance"/>, before something solid that is not the
+        /// body: it comes in to just short of a wall, a stair or a plaza edge, rather than into it (owner, 2026-11-10: "make him fall far enough
+        /// away from the buildings that the camera changes dont clip into the building").
+        /// </summary>
+        private float KeptOutOfWalls(Vector3 away, float distance)
+        {
+            float nearest = distance;
+            foreach (RaycastHit hit in Physics.SphereCastAll(_followed, CameraClearance, away, distance, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.distance > 0.01f && hit.distance < nearest && !hit.transform.IsChildOf(transform))
+                {
+                    nearest = hit.distance;
+                }
+            }
+            return nearest < distance ? Mathf.Max(CameraNearest, nearest - CameraClearance) : distance;
         }
 
         private void MovePlayerTo(Vector3 position)
