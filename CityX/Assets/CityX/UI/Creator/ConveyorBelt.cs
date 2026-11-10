@@ -21,6 +21,11 @@ namespace CityX.UI
 
         public const float DrumRadius = 0.28f;
 
+        /// <summary>How far under the slats the frame's lower edge is, and how far out from the belt's middle its side faces are, metres.</summary>
+        public const float FrameBottom = -DrumRadius * 2.0f + 0.04f;
+
+        public const float FrameOutside = Width * 0.5f + 0.13f;
+
         /// <summary>One slat and the gap after it, along the belt; the gap; and how thick the rubber is.</summary>
         public const float SlatPitch = 1.1f;
 
@@ -96,8 +101,8 @@ namespace CityX.UI
             parts.Clear();
             foreach (float side in new[] { -1.0f, 1.0f })
             {
-                float inner = side * (half + 0.03f), outer = side * (half + 0.13f);
-                parts.Box(new Vector3(0.0f, -DrumRadius * 2.0f + 0.04f, Mathf.Min(inner, outer)), new Vector3(Length, -0.06f, Mathf.Max(inner, outer)));
+                float inner = side * (half + 0.03f), outer = side * FrameOutside;
+                parts.Box(new Vector3(0.0f, FrameBottom, Mathf.Min(inner, outer)), new Vector3(Length, -0.06f, Mathf.Max(inner, outer)));
                 parts.Disc(new Vector3(Length, -DrumRadius, 0.0f), DrumRadius - 0.06f, Mathf.Min(inner, outer), Mathf.Max(inner, outer), 20);
             }
             AddPart("Frame", parts.ToMesh(_made), Frame);

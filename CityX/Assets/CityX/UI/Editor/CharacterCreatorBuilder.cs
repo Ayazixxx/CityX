@@ -38,7 +38,8 @@ namespace CityX.UIEditor
             overlays.Creator = creator;
             overlays.Title = title;
 
-            BuildToolColumn(panel.transform, creator, "CREATE", null, column =>
+            // No heading over the tabs (owner, 2026-11-10: "get rid of the text that says create above paint hair and face").
+            BuildToolColumn(panel.transform, creator, null, null, column =>
             {
                 MakeAnchoredButton(column, "EnterCityButton", "ENTER THE CITY", Gold,
                     new Vector2(0.0f, 52.0f), new Vector2(172.0f, 36.0f),
@@ -165,6 +166,23 @@ namespace CityX.UIEditor
         }
 
         private const string WideCameraName = "WideCamera";
+
+        /// <summary>The creator's camera: how high over the belt and how far in front of the body it stands, metres, and its vertical field of view, degrees.</summary>
+        private const float CameraHeight = 1.6f;
+
+        private const float CameraAway = 4.0f;
+        private const float CameraFieldOfView = 75.0f;
+
+        /// <summary>How far over the bottom of the screen the frame's lower edge is put, as a share of the screen's height: just enough for its black line to show.</summary>
+        private const float FrameEdgeOverTheBottom = 0.004f;
+
+        /// <summary>Degrees down that put the lower edge of the belt's frame, on the side facing the camera, on the bottom of the screen.</summary>
+        private static float PitchOntoTheBeltsFrame()
+        {
+            float edgeBelow = Mathf.Atan2(CameraHeight - ConveyorBelt.FrameBottom, CameraAway - ConveyorBelt.FrameOutside);
+            float bottomBelowMiddle = Mathf.Atan(Mathf.Tan(CameraFieldOfView * 0.5f * Mathf.Deg2Rad) * (1.0f - 2.0f * FrameEdgeOverTheBottom));
+            return (edgeBelow - bottomBelowMiddle) * Mathf.Rad2Deg;
+        }
         private const string BeltLoopPath = "Assets/CityX/UI/Audio/conveyor_belt_loop.ogg";
         private const float PoseButtonSize = 56.0f;
 
@@ -317,13 +335,17 @@ namespace CityX.UIEditor
             // ThirdPersonCamera deliberately targets (pivot - forward *
             // distance) for its own over-the-shoulder gameplay shot. The
             // creator wants the opposite of that shot.
-            cameraObject.transform.localPosition = new Vector3(0.0f, 1.6f, 4.0f);
-            cameraObject.transform.localRotation = Quaternion.Euler(8.0f, 180.0f, 0.0f);
+            //
+            // Not pitched down 8 degrees as Godot's was, but just enough to set the lower edge of the belt's frame on the bottom of the
+            // screen, with no sky under it (owner, 2026-11-10: "make the default camera angle throughout the whole thing have the bottom
+            // black line of the conveyer belt resting at the bottom of the screen").
+            cameraObject.transform.localPosition = new Vector3(0.0f, CameraHeight, CameraAway);
+            cameraObject.transform.localRotation = Quaternion.Euler(PitchOntoTheBeltsFrame(), 180.0f, 0.0f);
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
             // The sky the belt stands in (BeltSky), should anything show past its wall.
-            camera.backgroundColor = BeltSky.Middle;
-            camera.fieldOfView = 75.0f;
+            camera.backgroundColor = BeltSky.Colour;
+            camera.fieldOfView = CameraFieldOfView;
             camera.nearClipPlane = 0.05f;
             camera.cullingMask = 1 << layer;
             // Above the title's own camera, so the creator draws over the city
@@ -377,7 +399,7 @@ namespace CityX.UIEditor
             wideObject.transform.SetParent(stage.transform, false);
             Camera wide = wideObject.AddComponent<Camera>();
             wide.clearFlags = CameraClearFlags.SolidColor;
-            wide.backgroundColor = BeltSky.Middle;
+            wide.backgroundColor = BeltSky.Colour;
             wide.fieldOfView = BeltIntro.WideFieldOfView;
             wide.nearClipPlane = 0.1f;
             wide.cullingMask = 1 << layer;

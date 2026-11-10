@@ -106,7 +106,11 @@ six saved, the back pair in shadow, the next one on the right and brought in by 
 anchors in screen order, the silhouette material). Picture: `CharacterSelectCapture` (`Logs/CityShots/select-*.png`, the menu on its own in
 `select-*-menu.png`).
 
-## Tabs: PAINT, HAIR, FACE (2026-11-05)
+## Tabs: DRAW, HAIR, FACE (2026-11-05)
+
+The first tab was called PAINT until 2026-11-10 (owner: "make the paint tab called "DRAW" instead"); the code still calls it `Paint`. The
+title screen's creator has no heading over the tabs since that day (owner: "get rid of the text that says create above paint hair and face");
+ReDraw keeps its REDRAW.
 
 Owner: "try to improve upon the UI of the character creation, I think later im going to have a bunch of premade mouths, eyes, eyebrows, etc., for people who dont want to draw. so improve upon that menu start planning for that, make a hair tab on the menus too and make it so it generate an icon of a plain white playermodel wearing the hairstyle instead of selecting a button with the name of the hairstyle".
 

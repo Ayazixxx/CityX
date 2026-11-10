@@ -40,7 +40,9 @@ game's own.
 6. **Over the end, on its feet** (owner, 2026-11-10, of the leg going through the end of the belt: "make it so it stands on top of it
    using foot ik and rolls off"). On this last ride `PlantedFeet.Floor` is the belt's own surface (`BeltIntro.FloorOfTheBelt`): a foot past
    the end follows the slats round the drum, a quarter of the way at most, the sole turning with them, and the hips come down for it. The
-   body rides on until its back foot has gone over too (`StandsPastTheEnd`, 0.38 m past the end).
+   body rides on until its back foot has gone over too (`StandsPastTheEnd`, 0.38 m past the end). It stays upright to the last: a tip
+   toward the drop over the last 1.2 m, made by turning the hips, was taken out the same day (owner: "get rid of the tilt it feels animated
+   it should be ragdoll physics"); whatever it does after that is the ragdoll's own.
 7. **Let go.** There the body goes limp (`Ragdoll.Activate`, moving as fast as the belt) and falls, and the belt stops being solid so
    that no limb can catch on it; from the idle it was in: the
    joints first measure their limits from that pose (`Ragdoll.MeasureLimitsFromThisPose`). Measured from the T-pose it woke in, the
@@ -50,6 +52,11 @@ game's own.
    loads behind it, and the fall from the sky (`IntroCutscene`, docs/INTRO.md) fades up out of the black over 1.2 s as it begins.
 
 ## How it is put together
+
+- **The view.** The creator's camera stands where Godot's did (1.6 m up, 4 m in front, 75 degrees), pitched so the lower edge of the
+  belt's frame rests on the bottom of the screen with nothing under it, on any screen shape (owner, 2026-11-10: "make the default camera
+  angle throughout the whole thing have the bottom black line of the conveyer belt resting at the bottom of the screen"). Zooming out
+  with the wheel still shows the grey under it.
 
 - **One body, start to finish.** The creator's body keeps its whole ragdoll now (`CharacterCreatorBuilder.KeepOnlyTheRagdoll`): the
   painted body itself is what falls, with nothing swapped at the cut. The `Ragdoll` holds every bone still until it is let go.
@@ -68,7 +75,7 @@ game's own.
   painted in, feet and all, so they ease over to that; at the belt's end `CreatorLife.LetGo` hands them to the ragdoll with the rest.
 - **The belt** (`ConveyorBelt`) builds itself when it wakes: 60 m of rubber slats (laid out again from how far the belt has run, and
   turning down round the drum at its end), a grey steel frame with hubs that turn (grey at the owner's word, 2026-11-10: "make the yellow part of the conveyer belt grey"), and the colliders the limp body lands on. **The sky**
-  (`BeltSky`): one wall of open sky behind it. Both are on the creator's own layer, the only one its two cameras see.
+  (`BeltSky`): one wall of pale cloud grey behind it (owner, 2026-11-10: "make the background white no blue", then "make it slightly grey background like cloud grey"; it was a blue sky). Both are on the creator's own layer, the only one its two cameras see.
 - **Nothing else in the sky** (owner, 2026-11-10, of the first pictures: "I want no clouds in the sky, no ladder holding up the conveyer
   belt and no building remanence left in the background"): the first build had clouds under the belt and legs going down out of sight,
   both taken out. The buildings in those pictures were the title's skyline caught by the picture's own camera, not the game's.

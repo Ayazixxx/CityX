@@ -99,7 +99,7 @@ namespace CityX.UI
         // --- the tool column ---
 
         /// <summary>
-        /// The tool column down the left: the heading, then the PAINT / HAIR / FACE tabs (CreatorTabs) over their pages -- PAINT the
+        /// The tool column down the left: the heading (none if null), then the PAINT / HAIR / FACE tabs (CreatorTabs) over their pages -- PAINT the
         /// tools, the colour square and palette, the brush size, mirror and eraser, undo and redo, the hint; HAIR the styles and their
         /// colour (HairPage); FACE the premade parts to come (FacePage) -- and under every tab the opaque bar pinned to the bottom, on
         /// which <paramref name="addActions"/> puts the creator's own two buttons (it is handed the column).
@@ -126,7 +126,10 @@ namespace CityX.UI
 
             Transform t = column.transform;
 
-            MakeLabel(t, "Heading", heading, 20, Gold, At(-24.0f), 24.0f);
+            if (heading != null)
+            {
+                MakeLabel(t, "Heading", heading, 20, Gold, At(-24.0f), 24.0f);
+            }
 
             // Every page is built in full, whichever is up: a page is hidden by its CanvasGroup, never switched off, so each button and
             // picker on it has woken and wired itself (ButtonAction, CreatorControls, HairColourControls).
@@ -182,7 +185,7 @@ namespace CityX.UI
         private static void MakeTabStrip(Transform column, CreatorTabs tabs, CharacterCreator creator)
         {
             string[] names = { "PaintTab", "HairTab", "FaceTab" };
-            string[] captions = { "PAINT", "HAIR", "FACE" };
+            string[] captions = { "DRAW", "HAIR", "FACE" };   // DRAW, not PAINT: the owner's word, 2026-11-10
             var labels = new Text[names.Length];
             var underlines = new Image[names.Length];
             for (int i = 0; i < names.Length; i++)

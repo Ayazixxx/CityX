@@ -525,12 +525,13 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// character_creator.tscn's own camera, to the number. Getting this
-        /// wrong is not subtle -- the last invented one put the whole
-        /// character high in the frame and cropped it.
+        /// character_creator.tscn's own camera, to the number, but for its pitch: getting this wrong is not subtle -- the last invented
+        /// one put the whole character high in the frame and cropped it. Pitched so the lower edge of the belt's frame rests on the
+        /// bottom of the screen, with no sky under it (owner, 2026-11-10: "make the default camera angle throughout the whole thing have
+        /// the bottom black line of the conveyer belt resting at the bottom of the screen").
         /// </summary>
         [Test]
-        public void TheCreatorsCameraIsTheOneGodotShipped()
+        public void TheCreatorsCameraIsGodotsSetOnTheBeltsFrame()
         {
             var creator = Find<CharacterCreator>();
             Assert.IsNotNull(creator, "there is no CharacterCreator in the title scene");
@@ -539,8 +540,39 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, camera.localPosition.x, 0.001f);
             Assert.AreEqual(1.6f, camera.localPosition.y, 0.001f, "camera height");
             Assert.AreEqual(4.0f, Mathf.Abs(camera.localPosition.z), 0.001f, "camera distance");
-            Assert.AreEqual(8.0f, camera.localEulerAngles.x, 0.01f, "camera pitch");
             Assert.AreEqual(75.0f, creator.Camera.fieldOfView, 0.01f, "field of view");
+
+            var belt = Find<ConveyorBelt>();
+            Assert.IsNotNull(belt, "there is no conveyor belt in the title scene");
+            Assert.AreEqual(camera.parent, belt.transform.parent, "the belt and the camera are not on the one stage");
+            Assert.AreEqual(0.0f, belt.transform.localPosition.y, 0.001f, "the belt is not where the camera was pitched for");
+            Vector3 edge = camera.parent.TransformPoint(new Vector3(0.0f, ConveyorBelt.FrameBottom, ConveyorBelt.FrameOutside));
+            float onScreen = creator.Camera.WorldToViewportPoint(edge).y;
+            Assert.That(onScreen, Is.InRange(0.002f, 0.02f), "the frame's lower edge is not on the bottom of the screen: sky under it, or off the screen");
+        }
+
+        /// <summary>No heading over the creator's tabs, and the first of them reads DRAW (owner, 2026-11-10: "get rid of the text that says
+        /// create above paint hair and face"; "make the paint tab called "DRAW" instead").</summary>
+        [Test]
+        public void TheCreatorsTabsHaveNoHeadingAndTheFirstIsDraw()
+        {
+            var tabs = Find<CreatorTabs>();
+            Assert.IsNotNull(tabs, "the creator has no tabs -- rebuild the title screen");
+            Assert.IsNull(Core.TransformSearch.FindDeep(tabs.transform, "Heading"), "there is still a heading over the tabs");
+            Text caption = OnTheCreator("PaintTab").GetComponentInChildren<Text>(true);
+            Assert.IsNotNull(caption, "the first tab has no caption");
+            Assert.AreEqual("DRAW", caption.text);
+        }
+
+        /// <summary>The sky behind the belt is a pale grey, no blue (owner, 2026-11-10: "make the background white no blue"; "make it slightly grey background like cloud grey").</summary>
+        [Test]
+        public void TheBeltsSkyIsAPaleGreyAndNoBlue()
+        {
+            var creator = Find<CharacterCreator>();
+            Assert.IsNotNull(creator, "there is no CharacterCreator in the title scene");
+            Assert.That(BeltSky.Colour.grayscale, Is.InRange(0.8f, 0.95f), "not a pale grey");
+            Assert.Less(BeltSky.Colour.b - BeltSky.Colour.r, 0.05f, "it is blue");
+            Assert.AreEqual(BeltSky.Colour, creator.Camera.backgroundColor, "the creator's camera clears to another colour");
         }
 
         /// <summary>
