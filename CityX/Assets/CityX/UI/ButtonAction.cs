@@ -105,6 +105,9 @@ namespace CityX.UI
 
             /// <summary>One of the creator's PAINT / HAIR / FACE tabs: puts page Value up. Needs Tabs. Appended, so no saved value moves.</summary>
             CreatorTab,
+
+            /// <summary>The creator's T-POSE / RELAX button: lifts the body's arms to be painted, or lets them down (BeltIntro). Needs Title. Appended.</summary>
+            CreatorTogglePose,
         }
 
         public Kind Action;
@@ -151,7 +154,9 @@ namespace CityX.UI
             {
                 case Kind.ShowMenu: Show(TitleScreen.Panel.Menu); break;
                 case Kind.ShowCharacterSelect: Show(TitleScreen.Panel.CharacterSelect); break;
-                case Kind.ShowCreator: Show(TitleScreen.Panel.Creator); break;
+                case Kind.ShowCreator:
+                    if (Title != null) Title.BeginCreator();
+                    break;
                 case Kind.ShowMultiplayer: Show(TitleScreen.Panel.Multiplayer); break;
                 case Kind.ShowSettings: Show(TitleScreen.Panel.Settings); break;
 
@@ -290,6 +295,13 @@ namespace CityX.UI
                     if (Tabs != null)
                     {
                         Tabs.Show(Value);
+                    }
+                    break;
+
+                case Kind.CreatorTogglePose:
+                    if (Title != null && Title.CreatorPanel != null && Title.CreatorPanel.TryGetComponent(out BeltIntro belt))
+                    {
+                        belt.TogglePose();
                     }
                     break;
 

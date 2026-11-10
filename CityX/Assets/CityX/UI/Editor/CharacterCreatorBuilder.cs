@@ -47,9 +47,105 @@ namespace CityX.UIEditor
                     new Vector2(0.0f, 16.0f), new Vector2(172.0f, 32.0f),
                     ButtonAction.Kind.CreatorTryBack, creator, title, overlays);
             });
+            BuildBelt(panel, stage, creator, title, overlays);
             BuildNamePrompt(panel.transform, overlays);
             BuildDiscardPrompt(panel.transform, overlays);
             return panel;
+        }
+
+        /// <summary>
+        /// The conveyor belt's half of the creator (BeltIntro, docs/BELT_INTRO.md): the sequence itself on the panel, the prompt on the
+        /// empty belt, and the button that lifts the body's arms to be painted. Under the two prompts, which cover everything.
+        /// </summary>
+        private static void BuildBelt(GameObject panel, GameObject stage, CharacterCreator creator, TitleScreen title, CreatorOverlays overlays)
+        {
+            var belt = panel.AddComponent<BeltIntro>();
+            belt.Creator = creator;
+            belt.Life = stage.GetComponent<CreatorLife>();
+            belt.Belt = stage.GetComponentInChildren<ConveyorBelt>(true);
+            belt.Rider = creator.RotationPivot;
+            belt.MakingCamera = creator.Camera;
+            belt.WideCamera = stage.transform.Find(WideCameraName).GetComponent<Camera>();
+            belt.Ragdoll = stage.GetComponentInChildren<Ragdoll>(true);
+            belt.Tools = panel.transform.Find("Tools").gameObject.AddComponent<CanvasGroup>();
+            belt.Overlays = overlays;
+            belt.Title = title;
+
+            Text prompt = UiKit.MakeText(panel.transform, "BeltPrompt", BeltIntro.PromptText, 30, new Color(0.09f, 0.13f, 0.22f));   // dark, on the pale sky under the belt
+            var promptRect = (RectTransform)prompt.transform;
+            promptRect.anchorMin = promptRect.anchorMax = new Vector2(0.5f, 0.0f);
+            promptRect.pivot = new Vector2(0.5f, 0.5f);
+            promptRect.anchoredPosition = new Vector2(0.0f, 72.0f);   // in the open sky under the belt
+            promptRect.sizeDelta = new Vector2(520.0f, 48.0f);
+            prompt.alignment = TextAnchor.MiddleCenter;
+            prompt.fontStyle = FontStyle.Bold;
+            prompt.gameObject.SetActive(false);
+            belt.Prompt = prompt;
+
+            // Built here and not by CreatorKit: its caption changes with the pose, so BeltIntro holds it.
+            var pose = new GameObject("PoseButton", typeof(RectTransform));
+            var poseRect = (RectTransform)pose.transform;
+            poseRect.SetParent(panel.transform, false);
+            poseRect.anchorMin = poseRect.anchorMax = new Vector2(0.5f, 0.0f);
+            poseRect.pivot = new Vector2(0.5f, 0.5f);
+            poseRect.anchoredPosition = new Vector2(ColumnWidth * 0.5f, 30.0f);
+            poseRect.sizeDelta = new Vector2(150.0f, 34.0f);
+            Image background = pose.AddComponent<Image>();
+            background.color = Idle;
+            Button button = pose.AddComponent<Button>();
+            button.targetGraphic = background;
+            ColorBlock colours = button.colors;
+            colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
+            colours.pressedColor = Gold;
+            button.colors = colours;
+            pose.AddComponent<CanvasGroup>();
+            var wiring = pose.AddComponent<ButtonAction>();
+            wiring.Action = ButtonAction.Kind.CreatorTogglePose;
+            wiring.Creator = creator;
+            wiring.Title = title;
+            belt.PoseButton = button;
+            belt.PoseLabel = Caption(pose.transform, BeltIntro.RelaxText, 13, Gold);
+        }
+
+        private const string WideCameraName = "WideCamera";
+
+        /// <summary>
+        /// Everything physical comes off the body but its ragdoll, which it keeps whole: at the end of the belt it is let go and falls
+        /// (BeltIntro). The Ragdoll holds every bone still until then.
+        ///
+        /// JOINTS BEFORE BODIES. A CharacterJoint depends on the Rigidbody on its own object, and Unity refuses to remove a component
+        /// another one still needs, with a console line and not an exception.
+        /// </summary>
+        private static void KeepOnlyTheRagdoll(GameObject body)
+        {
+            var ragdoll = body.GetComponentInChildren<Ragdoll>(true);
+            var kept = new System.Collections.Generic.HashSet<GameObject>();
+            if (ragdoll != null && ragdoll.Bodies != null)
+            {
+                foreach (Rigidbody part in ragdoll.Bodies)
+                {
+                    if (part != null)
+                    {
+                        kept.Add(part.gameObject);
+                    }
+                }
+            }
+            if (kept.Count == 0)
+            {
+                Debug.LogError("CityX: the creator's body has no ragdoll -- it cannot be dropped off the belt's end.");
+            }
+            foreach (Joint joint in body.GetComponentsInChildren<Joint>(true))
+            {
+                if (!kept.Contains(joint.gameObject)) Object.DestroyImmediate(joint);
+            }
+            foreach (Rigidbody rigid in body.GetComponentsInChildren<Rigidbody>(true))
+            {
+                if (!kept.Contains(rigid.gameObject)) Object.DestroyImmediate(rigid);
+            }
+            foreach (Collider collider in body.GetComponentsInChildren<Collider>(true))
+            {
+                if (!kept.Contains(collider.gameObject)) Object.DestroyImmediate(collider);
+            }
         }
 
         /// <summary>
@@ -96,35 +192,10 @@ namespace CityX.UIEditor
             Strip<CharacterController>(body);
             Strip<PlayerAnimationDriver>(body);
             Strip<MeleeAttacker>(body);
-            Strip<Ragdoll>(body);
             Strip<CharacterIdentity>(body);
             Strip<PlayerVitals>(body);
 
-            // JOINTS BEFORE BODIES, AND CHECKED AFTERWARDS.
-            //
-            // A CharacterJoint depends on the Rigidbody on its own object, and
-            // Unity refuses to remove a component another one still needs. So
-            // destroying the bodies first quietly failed on every bone that
-            // carried a joint, and ten rigidbodies and ten joints went into
-            // the saved scene. Their colliders HAD gone, so the ragdoll had
-            // nothing to rest on: the moment play started the bones fell, and
-            // the skin stretched out behind them into a twisted ribbon.
-            //
-            // Nothing about that was visible at build time, and the editor's
-            // screenshot does not run physics, so the creator looked correct
-            // in every check made of it right up until somebody pressed play.
-            Strip<Joint>(body);
-            Strip<Rigidbody>(body);
-            Strip<Collider>(body);
-
-            int leftover = body.GetComponentsInChildren<Rigidbody>(true).Length
-                           + body.GetComponentsInChildren<Joint>(true).Length
-                           + body.GetComponentsInChildren<Collider>(true).Length;
-            if (leftover > 0)
-            {
-                Debug.LogError($"CityX: {leftover} physics components would not come off the " +
-                               "creator's body -- it will collapse into a ragdoll on play.");
-            }
+            KeepOnlyTheRagdoll(body);
 
             // THE BODY HOLDS ITS BIND POSE HERE. The mesh collider below is
             // baked from sharedMesh, which is the UNPOSED mesh -- so an idle
@@ -194,8 +265,8 @@ namespace CityX.UIEditor
             cameraObject.transform.localRotation = Quaternion.Euler(8.0f, 180.0f, 0.0f);
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
-            // character_creator.tscn's own Environment background_color.
-            camera.backgroundColor = new Color(0.12f, 0.13f, 0.16f);
+            // The sky the belt stands in (BeltSky), should anything show past its wall.
+            camera.backgroundColor = BeltSky.Middle;
             camera.fieldOfView = 75.0f;
             camera.nearClipPlane = 0.05f;
             camera.cullingMask = 1 << layer;
@@ -211,6 +282,8 @@ namespace CityX.UIEditor
             creatorCameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             creatorCameraData.antialiasingQuality = AntialiasingQuality.High;
             cameraObject.layer = layer;
+            // The title's night air is laid over every camera's picture: not over this one's daylight sky.
+            cameraObject.AddComponent<CityX.View.ClearAirCamera>();
 
             // THREE LIGHTS, because one directional light on a matte body gives
             // a black side, and half of painting is on the side facing away.
@@ -220,7 +293,41 @@ namespace CityX.UIEditor
             AddLight(stage, layer, "Back", new Vector3(-25.0f, 20.0f, 0.0f), 0.6f,
                 new Color(1.0f, 0.95f, 0.85f));
 
+            // The key light throws the body's shadow on the belt, or it floats over it.
+            stage.transform.Find("KeyLight").GetComponent<Light>().shadows = LightShadows.Soft;
+
+            // The conveyor belt the body stands on and the sky it stands in (BeltIntro, docs/BELT_INTRO.md). Both build themselves when
+            // they wake, on this layer.
+            var belt = new GameObject("Belt") { layer = layer };
+            belt.transform.SetParent(stage.transform, false);
+            belt.AddComponent<ConveyorBelt>();
+            var sky = new GameObject("Sky") { layer = layer };
+            sky.transform.SetParent(stage.transform, false);
+            sky.AddComponent<BeltSky>();
+
+            // The view from further back that shows the belt's end, for the body's last ride and its fall. BeltIntro places it.
+            var wideObject = new GameObject(WideCameraName) { layer = layer };
+            wideObject.transform.SetParent(stage.transform, false);
+            Camera wide = wideObject.AddComponent<Camera>();
+            wide.clearFlags = CameraClearFlags.SolidColor;
+            wide.backgroundColor = BeltSky.Middle;
+            wide.fieldOfView = BeltIntro.WideFieldOfView;
+            wide.nearClipPlane = 0.1f;
+            wide.cullingMask = 1 << layer;
+            wide.depth = 5;
+            wide.allowMSAA = true;
+            wide.enabled = false;
+            var wideData = wideObject.AddComponent<UniversalAdditionalCameraData>();
+            wideData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            wideData.antialiasingQuality = AntialiasingQuality.High;
+            wideObject.AddComponent<CityX.View.ClearAirCamera>();
+
+            var life = stage.AddComponent<CreatorLife>();
+            life.Animator = body.GetComponentInChildren<Animator>(true);
+
             creator = stage.AddComponent<CharacterCreator>();
+            creator.KeepsRagdoll = true;
+            life.Creator = creator;
             creator.RotationPivot = pivotObject.transform;
             creator.Camera = camera;
             creator.BodyCollider = surface;

@@ -47,6 +47,9 @@ namespace CityX.UI
         [Tooltip("The rain's sound and streaks: full outdoors on the menu, muffled and quiet on the character list, gone on the creator.")]
         public TitleAmbience Ambience;
 
+        [Tooltip("The dark corners over the night city. Off over the creator: its belt hangs in a daylight sky, which they turned grey.")]
+        public GameObject Vignette;
+
         [Tooltip("Seconds for one full pulse of the logo. The Godot build's own period.")]
         public float LogoFlickerPeriod = 6.5f;
 
@@ -73,6 +76,33 @@ namespace CityX.UI
         {
             CityX.World.WorldMemory.Forget();   // the title screen is where one world ends and the next begins
             ShowIdlePrompt();
+            if (Application.isPlaying && BeltOnFirstStart)
+            {
+                // Nobody made yet: no logo and no menu, the empty belt (docs/BELT_INTRO.md).
+                CityX.Core.CharacterSources.Current.List(characters =>
+                {
+                    if (this != null && isActiveAndEnabled && !_menuRevealed && characters != null && characters.Count == 0)
+                    {
+                        BeginCreator();
+                    }
+                });
+            }
+        }
+
+        /// <summary>
+        /// Whether a start with no character made yet opens on the conveyor belt instead of the logo. Off in tests of the title's own
+        /// first screen, which have no characters either.
+        /// </summary>
+        public static bool BeltOnFirstStart = true;
+
+        /// <summary>Making a new character: the creator, from the empty conveyor belt (BeltIntro).</summary>
+        public void BeginCreator()
+        {
+            Show(Panel.Creator);
+            if (CreatorPanel != null && CreatorPanel.TryGetComponent(out BeltIntro belt))
+            {
+                belt.Begin();
+            }
         }
 
         /// <summary>
@@ -100,6 +130,7 @@ namespace CityX.UI
             if (SettingsPanel != null) SettingsPanel.SetActive(false);
             if (PromptLabel != null) PromptLabel.gameObject.SetActive(true);
             SetLogoShown(true);
+            if (Vignette != null) Vignette.SetActive(true);
             if (Ambience != null) Ambience.SetMood(TitleAmbience.MoodFor(Panel.Menu));
         }
 
@@ -130,7 +161,15 @@ namespace CityX.UI
             {
                 CharacterSelectPanel.SetActive(panel == Panel.CharacterSelect);
             }
-            if (CreatorPanel != null) CreatorPanel.SetActive(panel == Panel.Creator);
+            if (CreatorPanel != null)
+            {
+                CreatorPanel.SetActive(panel == Panel.Creator);
+                // Shown this way the creator stands ready, whatever ride was under way; BeginCreator starts one on the empty belt.
+                if (panel == Panel.Creator && CreatorPanel.TryGetComponent(out BeltIntro belt))
+                {
+                    belt.Stand();
+                }
+            }
             if (MultiplayerPanel != null) MultiplayerPanel.SetActive(panel == Panel.Multiplayer);
             if (SettingsPanel != null) SettingsPanel.SetActive(panel == Panel.Settings);
 
@@ -144,6 +183,7 @@ namespace CityX.UI
             // alone rather than hidden pre-emptively.
             SetLogoShown(panel != Panel.CharacterSelect && panel != Panel.Creator
                 && panel != Panel.Settings);
+            if (Vignette != null) Vignette.SetActive(panel != Panel.Creator);
 
             // The rain's sound follows where you are: the list is a room out of it, the creator
             // is somewhere with no weather at all.

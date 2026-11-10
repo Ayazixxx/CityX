@@ -531,6 +531,7 @@ namespace CityX.UIEditor
             Image vignetteImage = vignette.AddComponent<Image>();
             vignetteImage.sprite = EnsureVignetteSprite();
             vignetteImage.raycastTarget = false;
+            title.Vignette = vignette;
 
             // The logo itself is a quad in the skyline scene (behind the rooftop
             // tank), so this group holds nothing to draw -- it is the switch the

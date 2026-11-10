@@ -135,10 +135,11 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator TheBodyStandsStillEvenWhileItIsTurned()
         {
-            Assert.IsEmpty(_creator.GetComponentsInChildren<Rigidbody>(true),
-                "the creator's body is still a ragdoll");
-            Assert.IsEmpty(_creator.GetComponentsInChildren<Joint>(true),
-                "the creator's body still has ragdoll joints");
+            // It keeps its ragdoll whole (it is dropped off the belt's end), every part of it held until then.
+            foreach (Rigidbody part in _creator.GetComponentsInChildren<Rigidbody>(true))
+            {
+                Assert.IsTrue(part.isKinematic, $"{part.name} is loose: the creator's body is being simulated");
+            }
 
             Transform[] bones = _creator.BodyRenderer.bones;
             Assert.IsNotEmpty(bones, "the body has no bones");

@@ -67,3 +67,9 @@ upright, limbs hanging.
 Measured over the fall (`IntroCutsceneFallPlayTests.TheBodyFallsFlatOnItsBackWithItsArmsAndLegsThrownAbout`): the chest within 30 degrees
 of the sky for more than 80% of it, the hand and the foot moving well over 30 and 20 cm about the hips. `FallFlailTests` holds the maths.
 Other players still see the body's transform, not its limp pose (docs/MULTIPLAYER_STATE.md, not synced yet).
+
+## Out of the black (2026-11-10)
+
+A new character is now made on a conveyor belt in the sky and dropped off its end (docs/BELT_INTRO.md); the screen goes black as it
+falls, the world loads behind the black, and this fall comes up out of it over 1.2 s as the body is let go (`ScreenBlack.FadeTo`,
+`IntroCutscene.FadeInSeconds`). A world entered with no entrance to play clears the black in half a second (`IntroCutsceneStarter`).

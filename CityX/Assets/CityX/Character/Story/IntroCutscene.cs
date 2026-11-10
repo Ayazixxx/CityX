@@ -36,6 +36,9 @@ namespace CityX.Character
         /// </summary>
         public const int PortraitCaptureDelayFrames = 6;
 
+        /// <summary>How long the fall takes to come up out of a black screen, seconds.</summary>
+        public const float FadeInSeconds = 1.2f;
+
         /// <summary>The air's drag on the falling body: about 35 m/s at the most (9.81 / this), so the fall from StartAltitude takes about 10 s.</summary>
         public const float FallDrag = 0.28f;
 
@@ -283,6 +286,7 @@ namespace CityX.Character
                 return;
             }
             FindFlyingParts();   // while the Animator is still on: going limp switches it off
+            ScreenBlack.FadeTo(0.0f, FadeInSeconds);   // out of the black the belt's drop ended in (docs/BELT_INTRO.md)
             _ragdoll.Activate(LetGoVelocity);
             SetFallPhysics(true);
             _phase = Phase.Falling;

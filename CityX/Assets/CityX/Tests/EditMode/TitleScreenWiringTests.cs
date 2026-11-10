@@ -446,37 +446,56 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The creator's body must carry NO PHYSICS AT ALL except the one mesh
-        /// collider a click is tested against.
+        /// The creator's body carries its ragdoll WHOLE and nothing else physical but the two mesh colliders a click is tested against:
+        /// it is the body that is dropped off the belt's end (BeltIntro), held still by its Ragdoll until then.
         ///
-        /// The prefab it is cloned from is a full ragdoll -- a rigidbody, a
-        /// joint and a collider on every bone -- and the first attempt to take
-        /// that off destroyed the rigidbodies before the joints. Unity will not
-        /// remove a component another one depends on, so it silently failed on
-        /// every bone that had a joint and ten of each went into the saved
-        /// scene with their colliders gone. On play the bones fell through the
-        /// world and dragged the skin out into a twisted ribbon. Nothing said
-        /// so: not the build, not the tests, not the screenshot, which does not
-        /// run physics.
+        /// A HALF-STRIPPED RAGDOLL IS WHAT WENT WRONG BEFORE. The prefab it is cloned from is a full ragdoll -- a rigidbody, a joint and a
+        /// collider on every bone -- and the first attempt to take that off destroyed the rigidbodies before the joints. Unity will not
+        /// remove a component another one depends on, so ten of each went into the saved scene with their colliders gone. On play the bones
+        /// fell through the world and dragged the skin out into a twisted ribbon. Nothing said so: not the build, not the tests, not the
+        /// screenshot, which does not run physics.
         /// </summary>
         [Test]
-        public void TheCreatorsBodyIsNotSecretlyARagdoll()
+        public void TheCreatorsBodyKeepsItsRagdollWholeAndNothingElsePhysical()
         {
             var creator = Find<CharacterCreator>();
             Assert.IsNotNull(creator, "there is no CharacterCreator in the title scene");
+            Assert.IsTrue(creator.KeepsRagdoll, "the creator would take its body's ragdoll off when it wakes: nothing to drop off the belt");
+            var ragdoll = creator.GetComponentInChildren<Ragdoll>(true);
+            Assert.IsNotNull(ragdoll, "the creator's body has no Ragdoll to hold its bones still, or to let them go");
+            Assert.IsNotNull(ragdoll.Torso, "the ragdoll has no torso");
+            Assert.IsNotEmpty(ragdoll.Bodies, "the ragdoll has no bodies");
 
-            Assert.IsEmpty(creator.GetComponentsInChildren<Rigidbody>(true),
-                "the creator's body still has rigidbodies -- it will fall apart on play");
-            Assert.IsEmpty(creator.GetComponentsInChildren<Joint>(true),
-                "the creator's body still has ragdoll joints");
+            var parts = new System.Collections.Generic.HashSet<GameObject>();
+            foreach (Rigidbody part in ragdoll.Bodies)
+            {
+                Assert.IsNotNull(part, "the ragdoll lists a body that is gone");
+                Assert.IsNotNull(part.GetComponent<Collider>(), $"{part.name} has no collider: it would fall through everything");
+                parts.Add(part.gameObject);
+            }
+            foreach (Rigidbody rigid in creator.GetComponentsInChildren<Rigidbody>(true))
+            {
+                Assert.IsTrue(parts.Contains(rigid.gameObject), $"{rigid.name} is a rigidbody the Ragdoll does not hold: it would fall on play");
+            }
+            foreach (Joint joint in creator.GetComponentsInChildren<Joint>(true))
+            {
+                Assert.IsTrue(parts.Contains(joint.gameObject), $"{joint.name} has a joint with no body of the ragdoll's");
+            }
 
-            // TWO, AND EXACTLY TWO: the body's and the skull's. The head is its
+            // BESIDES THE RAGDOLL'S, TWO AND EXACTLY TWO: the body's and the skull's. The head is its
             // own mesh on its own collider -- see HeadMesh -- so the body's
             // collider stops at the shoulders and a click on the face would
             // find nothing without the second one.
-            Collider[] colliders = creator.GetComponentsInChildren<Collider>(true);
-            Assert.AreEqual(2, colliders.Length,
-                "the creator should carry exactly two colliders: the body and the skull");
+            var colliders = new System.Collections.Generic.List<Collider>();
+            foreach (Collider collider in creator.RotationPivot.GetComponentsInChildren<Collider>(true))
+            {
+                if (!parts.Contains(collider.gameObject))
+                {
+                    colliders.Add(collider);
+                }
+            }
+            Assert.AreEqual(2, colliders.Count,
+                "the creator's body should carry exactly two colliders besides its ragdoll's: the body and the skull");
             foreach (Collider collider in colliders)
             {
                 Assert.IsInstanceOf<MeshCollider>(collider,

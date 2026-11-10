@@ -61,6 +61,7 @@ namespace CityX.Character
         {
             if (PlaySession.Character == null || !PlaySession.IsNewCharacter)
             {
+                ScreenBlack.FadeTo(0.0f, 0.5f);   // no entrance to come up out of the black
                 return;
             }
             PlaySession.IsNewCharacter = false;
@@ -118,6 +119,7 @@ namespace CityX.Character
             {
                 Debug.LogWarning("CityX: IntroCutsceneStarter is missing a required reference -- " +
                                   "skipping the new character's entrance rather than risk a broken one.");
+                ScreenBlack.FadeTo(0.0f, 0.5f);
                 return;
             }
 

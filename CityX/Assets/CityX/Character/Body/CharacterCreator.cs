@@ -41,6 +41,9 @@ namespace CityX.Character
         [Tooltip("The hairstyle on the body being made. Set by the Hair buttons.")]
         public CharacterHair Hair;
 
+        [Tooltip("The body keeps its ragdoll (held still by its Ragdoll until it is let go): the title's creator, whose body is dropped off the belt's end. Off, every joint, rigidbody and collider but the click targets is taken off when it wakes.")]
+        public bool KeepsRagdoll;
+
         [Header("Tools")]
         public Tool Current = Tool.Brush;
 
@@ -205,6 +208,15 @@ namespace CityX.Character
         /// </summary>
         public bool PaintEnabled = true;
 
+        /// <summary>
+        /// Whether the body is in the pose it is painted in (the one it woke in: the brush and the click target are that pose). False
+        /// while it stands and idles (CreatorLife): a press on it then paints nothing and asks it to hold still (<see cref="WantedStill"/>).
+        /// </summary>
+        public bool HoldingStill = true;
+
+        /// <summary>A press that would have painted found the body alive: whoever lets it idle has it hold still.</summary>
+        public event System.Action WantedStill;
+
         private void Update()
         {
             Mouse mouse = Mouse.current;
@@ -280,25 +292,30 @@ namespace CityX.Character
         /// </summary>
         private void Disarm()
         {
-            // Joints before bodies: a joint depends on the body beside it.
-            foreach (Joint joint in GetComponentsInChildren<Joint>(true))
+            // The body made on the belt keeps its whole ragdoll (KeepsRagdoll: it is dropped off the belt's end). Its Ragdoll holds every
+            // bone still until it is let go, and its colliders are whole, so nothing falls away.
+            if (!KeepsRagdoll)
             {
-                Remove(joint);
-            }
-            foreach (Rigidbody rigid in GetComponentsInChildren<Rigidbody>(true))
-            {
-                // Kinematic first, because Destroy only takes effect at the end
-                // of the frame and a fixed step can land before then -- one
-                // step of a colliderless ragdoll is one step too many.
-                rigid.isKinematic = true;
-                Remove(rigid);
-            }
-            foreach (Collider collider in GetComponentsInChildren<Collider>(true))
-            {
-                // Except the two a click is tested against.
-                if (collider != BodyCollider && collider != HeadCollider)
+                // Joints before bodies: a joint depends on the body beside it.
+                foreach (Joint joint in GetComponentsInChildren<Joint>(true))
                 {
-                    Remove(collider);
+                    Remove(joint);
+                }
+                foreach (Rigidbody rigid in GetComponentsInChildren<Rigidbody>(true))
+                {
+                    // Kinematic first, because Destroy only takes effect at the end
+                    // of the frame and a fixed step can land before then -- one
+                    // step of a colliderless ragdoll is one step too many.
+                    rigid.isKinematic = true;
+                    Remove(rigid);
+                }
+                foreach (Collider collider in GetComponentsInChildren<Collider>(true))
+                {
+                    // Except the two a click is tested against.
+                    if (collider != BodyCollider && collider != HeadCollider)
+                    {
+                        Remove(collider);
+                    }
                 }
             }
 
@@ -409,6 +426,19 @@ namespace CityX.Character
                 _rotating = true;
                 return;
             }
+            if (!HoldingStill)
+            {
+                // Alive, it is not where the brush thinks it is: a press on it has it hold still, one beside it turns it.
+                if (OverTheBodyAsItStands(screenPosition))
+                {
+                    WantedStill?.Invoke();
+                }
+                else
+                {
+                    _rotating = true;
+                }
+                return;
+            }
             if (!Raycast(screenPosition, out Vector3 local, out int triangle))
             {
                 _rotating = true;
@@ -440,6 +470,42 @@ namespace CityX.Character
             _lastPaintScreenPosition = screenPosition;
             Stamp(local, triangle);
             _paint.Apply();
+        }
+
+        /// <summary>Whether a screen point is over the body wherever its animation has it: the box round it, which is all a press needs.</summary>
+        private bool OverTheBodyAsItStands(Vector2 screenPosition)
+        {
+            return Camera != null && BodyRenderer != null && BodyRenderer.bounds.IntersectRay(Camera.ScreenPointToRay(screenPosition));
+        }
+
+        /// <summary>Whether a press finds the body at all. Off once it is the ragdoll's: its limbs would fall against their own click target.</summary>
+        public void SetClickable(bool clickable)
+        {
+            if (BodyCollider != null) BodyCollider.enabled = clickable;
+            if (HeadCollider != null) HeadCollider.enabled = clickable;
+            if (!clickable && _ring != null)
+            {
+                _ring.enabled = false;
+            }
+        }
+
+        /// <summary>
+        /// Turns the body back toward the camera and the camera back to where it started, <paramref name="share"/> of the way (1: at
+        /// once): the belt carries the body off facing front, however it was turned and zoomed to be painted.
+        /// </summary>
+        public void TurnToFront(float share)
+        {
+            share = Mathf.Clamp01(share);
+            _yaw = Mathf.LerpAngle(_yaw, 0.0f, share);
+            _pitch = Mathf.LerpAngle(_pitch, 0.0f, share);
+            if (RotationPivot != null)
+            {
+                RotationPivot.localRotation = Quaternion.Euler(_pitch, _yaw, 0.0f);
+            }
+            if (Camera != null)
+            {
+                Camera.transform.localPosition = Vector3.Lerp(Camera.transform.localPosition, CameraHome, share);
+            }
         }
 
         /// <summary>Continues whatever PressAt started. Public for the same reason.</summary>
@@ -575,7 +641,7 @@ namespace CityX.Character
             Vector3 at = Vector3.zero;
             int face = -1;
             Vector3 up = Vector3.up;
-            bool show = PaintEnabled && Current == Tool.Brush && !_rotating && !InputBlocked && _paint != null && !OverInterface()
+            bool show = PaintEnabled && HoldingStill && Current == Tool.Brush && !_rotating && !InputBlocked && _paint != null && !OverInterface()
                         && Raycast(screenPosition, out at, out face)
                         && _paint.TryNormalOf(face, out up);
             if (!show)

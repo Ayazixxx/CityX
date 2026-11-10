@@ -123,3 +123,10 @@ Owner: "try to improve upon the UI of the character creation, I think later im g
 The full plan, with what the code does now and what is proposed, is `docs/FACE_PARTS_PLAN.md`. In short: a part is a front-view picture of the whole head, saved on the character as an id, a colour and a small up, size and spacing. It is drawn as a layer over the paint when the head's texture is uploaded, so the paint stays separate and a part can be swapped. Other players build it from the ids, under 200 bytes a face. Before it can work: the server must keep the face when it saves a character, a ReDraw must reach other players (today none does), and the four places that dress a worn body's paint should share one helper.
 
 Tests: `CreatorTabsPlayTests` (each tab its own page, painting only on PAINT, the ring, the wheel over the grid), `CharacterCreatorPlayTests` (each hair tile its own style, on screen and uncovered, the gold frame, the colour card, the swatches), `RedrawRealInputPlayTests` (ReDraw's tabs and tiles by mouse), `TitleScreenWiringTests` (tabs and pages wired, each tool on its own page), `HairIconTests`. Pictures: `TitleScreenCapture.RebuildAndCaptureSelect` (`creator.png`, `creator-hair.png`, `creator-face.png`).
+
+## Made on a conveyor belt, alive (2026-11-10)
+
+The title screen's creator now stands on a conveyor belt in the sky, and making a character starts on the empty belt and ends with the
+body carried off it: docs/BELT_INTRO.md. Two things changed in the creator itself. The body keeps its whole ragdoll (it is the one
+that falls), and it can be **alive** (idling) or **holding still** (`CreatorLife`): paint lands only while it holds the pose the brush
+was built on (`CharacterCreator.HoldingStill`), and a press on the living body lifts its arms. ReDraw is as it was: holding still, no belt.

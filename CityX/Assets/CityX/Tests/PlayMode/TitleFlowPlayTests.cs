@@ -151,6 +151,20 @@ namespace CityX.Tests
             Assert.IsNotNull(creator);
             Assert.IsNotNull(overlays);
 
+            // The new character starts on the empty belt (BeltIntro): rolled in, and its arms lifted to be painted.
+            var belt = Object.FindFirstObjectByType<BeltIntro>();
+            Assert.IsNotNull(belt.Ride, "NEW did not start on the belt");
+            belt.Ride.Step(1.0f, 10.0f);
+            yield return null;
+            belt.TogglePose();
+            float lifting = 0.0f;
+            while (!creator.HoldingStill && lifting < 3.0f)
+            {
+                lifting += Time.deltaTime;
+                yield return null;
+            }
+            Assert.IsTrue(creator.HoldingStill, "the body never held still to be painted");
+
             creator.Colour = Color.magenta;
             creator.BrushRadiusPixels = 5;
             Vector3 chest = creator.BodyCollider.transform.TransformPoint(

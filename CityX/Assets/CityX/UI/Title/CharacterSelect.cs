@@ -119,6 +119,12 @@ namespace CityX.UI
         /// <summary>The hair colour chosen in the creator, held for the same reason.</summary>
         public Color PendingHairColour = CharacterSave.DefaultHairColour;
 
+        /// <summary>
+        /// Set by whoever shows a NEW character off before the world loads (the conveyor belt it was made on carries it away, BeltIntro):
+        /// handed the loading of the world, to call when it is done. Null: the world loads at once.
+        /// </summary>
+        public System.Action<System.Action> Departure;
+
         private void OnEnable()
         {
             Refresh();
@@ -336,7 +342,14 @@ namespace CityX.UI
                     return;
                 }
                 PlaySession.Begin(served, isNew, isAdmin);
-                LoadWorld();
+                if (isNew && Departure != null)
+                {
+                    Departure(LoadWorld);
+                }
+                else
+                {
+                    LoadWorld();
+                }
             });
         }
 

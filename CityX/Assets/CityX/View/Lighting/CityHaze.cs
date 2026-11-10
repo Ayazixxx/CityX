@@ -121,6 +121,13 @@ namespace CityX.View
             Shader.SetGlobalVector(EdgeId, Vector4.zero);
         }
 
+        /// <summary>The haze's numbers as the shaders have them now: put by, cleared and put back round a camera that draws without it (ClearAirCamera).</summary>
+        public static Vector4 Drawn
+        {
+            get => Shader.GetGlobalVector(ParamsId);
+            set => Shader.SetGlobalVector(ParamsId, value);
+        }
+
         /// <summary>The density the shader is currently drawing with (0 = off). For tests.</summary>
         public static float CurrentDensity => Shader.GetGlobalVector(ParamsId).x;
     }
