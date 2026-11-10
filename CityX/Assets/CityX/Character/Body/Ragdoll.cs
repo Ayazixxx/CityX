@@ -91,7 +91,7 @@ namespace CityX.Character
         ///
         /// Rather than skip the clip entirely (a visible pop straight from
         /// limp to standing), BeginStandingUp now plays the SAME clip at
-        /// StandUpPlaybackSpeed so the full motion still completes before
+        /// the quick pace (GetUpPace) so the full motion still completes before
         /// control returns -- just quickly, the way an ordinary in-game
         /// recovery should feel, without needing a second baked animation.
         /// </summary>
@@ -111,10 +111,6 @@ namespace CityX.Character
         /// <summary>How long the hand-back from the get-up clip to ordinary locomotion blends, in seconds.</summary>
         public const float StandUpHandBackBlendSeconds = 0.25f;
 
-        /// <summary>How much faster than IntroCutscene's own cinematic pace the GettingUp clip plays for an ordinary recovery -- see StandUpRecoverySeconds' own doc comment.</summary>
-        public static readonly float StandUpPlaybackSpeed =
-            IntroCutscene.GettingUpClipSeconds / StandUpPaceSeconds;
-
         [Tooltip("Every rigid body in the rig. Filled in by RagdollBuilder.")]
         public Rigidbody[] Bodies;
 
@@ -132,7 +128,6 @@ namespace CityX.Character
         private float _restSeconds;
         private float _standingUpElapsed = -1.0f;
         private bool _allowImmediateStandUp;
-        private float _standUpPaceSeconds = StandUpPaceSeconds;
 
         public bool IsLimp => _limp;
 
@@ -782,6 +777,7 @@ namespace CityX.Character
             _standingUpElapsed = -1.0f;
             _blendElapsed = -1.0f;
             _snapshotBones = null;
+            _lyingBones = null;
             _limp = false;
             if (Animator != null)
             {
@@ -859,9 +855,13 @@ namespace CityX.Character
             if (IsStandingUp)
             {
                 _standingUpElapsed += deltaTime;
-                if (_standingUpElapsed >= _standUpPaceSeconds * UprightShare)
+                if (_standingUpElapsed >= RollSeconds + _pace.Seconds)
                 {
                     FinishStandingUp();
+                }
+                else
+                {
+                    PlayGetUpClip();
                 }
                 return;
             }
@@ -897,27 +897,25 @@ namespace CityX.Character
             {
                 return;
             }
-            _standUpPaceSeconds = paceSeconds;
+            _pace = new GetUpPace(paceSeconds);
             _standingUpElapsed = 0.0f;
             _blendElapsed = -1.0f;
+            _snapshotBones = null;
 
             // FROM ANY POSITION: the pose the ragdoll is in RIGHT NOW is captured, the body is turned and moved so the get-up clip starts
-            // where the ragdoll is lying (head the same way, hips on the same spot), and the first moments of the clip are blended FROM the
-            // captured pose (LateUpdate) so there is no pop. Researched: this is the standard "pose snapshot" ragdoll recovery -- snapshot,
-            // align the animation's root to the body, cross-fade bone rotations, then let the animation run. A body face-down while the clip
-            // starts face-up rolls over during the blend rather than snapping.
-            CapturePose();
+            // where the ragdoll is lying (head the same way, hips on the same spot), and the body is brought from the captured pose onto
+            // its front, where the clip starts (LateUpdate, Ragdoll.GetUp).
+            CaptureLying();
             SetKinematic(true);
 
             if (Animator != null)
             {
                 Animator.enabled = true;
-                Animator.speed = IntroCutscene.GettingUpClipSeconds / _standUpPaceSeconds;
-                Animator.Play("GettingUp", 0, 0.0f);
-                Animator.Update(0.0f);   // the clip's first frame is posed now, so it can be measured
+                PlayGetUpClip();
+                Animator.Update(0.0f);   // the clip's first pose is on the bones now, so it can be measured
             }
             RepositionToRagdollRest();
-            _blendElapsed = _snapshotBones != null ? 0.0f : -1.0f;
+            MeasureRoll();
         }
 
         /// <summary>Seconds over which the captured ragdoll pose is blended into the get-up animation.</summary>
@@ -962,13 +960,13 @@ namespace CityX.Character
         private void LateUpdate()
         {
             PoseFlip();
-            float clipShare = BlendFromSnapshot();
+            float clipShare = IsStandingUp ? PoseFromLying() : BlendFromSnapshot();
             if (IsStandingUp)
             {
-                // The get-up was made on a body with shorter arms: its hands went under the floor (the capsule, moved to where the body lay,
-                // stands on it). Faded in with the clip: the pose the ragdoll lay in is on the floor already, and clamping it in full swung
-                // its elbows and knees on the first frame.
-                LimbFloorClamp.Apply(Animator, transform.position.y, clipShare);
+                // The get-up was made on a body with shorter arms, on a level floor: its hands went under the floor, and the ground a body
+                // falls on is not level. Faded in with the clip: the pose the ragdoll lay in is on the ground already, and holding it there
+                // in full swung its elbows and knees on the first frame.
+                HoldOnTheGround(clipShare);
             }
         }
 
@@ -1005,12 +1003,14 @@ namespace CityX.Character
         private void FinishStandingUp()
         {
             _standingUpElapsed = -1.0f;
+            _lyingBones = null;
             _limp = false;
             _restSeconds = 0.0f;
             _allowImmediateStandUp = false;
 
-            // Back to normal pace for whatever plays next (Locomotion) --
-            // see StandUpPlaybackSpeed's own doc comment. Set unconditionally,
+            // Back to its own pace for whatever plays next (Locomotion): the
+            // get-up holds the Animator still and places the clip itself
+            // (PlayGetUpClip). Set unconditionally,
             // not only when Animator != null was true in BeginStandingUp:
             // Animator can be reassigned/rebound between the two calls, and
             // a stale sped-up multiplier left on it would speed up every
@@ -1062,7 +1062,7 @@ namespace CityX.Character
                 return;
             }
             // Where the ragdoll's hips WERE (captured before the clip was posed over it), not where the bones are now.
-            Vector3 hips = _snapshotBones != null ? _snapshotHipsPosition : Torso.transform.position;
+            Vector3 hips = _lyingBones != null ? _snapshotHipsPosition : Torso.transform.position;
 
             SetBodyCollidersEnabled(false);
             float groundY = hips.y;
@@ -1094,7 +1094,7 @@ namespace CityX.Character
         /// </summary>
         private void AlignClipToLyingBody(Vector3 ragdollHips)
         {
-            if (Animator == null || !Animator.isHuman || _snapshotBones == null)
+            if (Animator == null || !Animator.isHuman || _lyingBones == null)
             {
                 return;
             }

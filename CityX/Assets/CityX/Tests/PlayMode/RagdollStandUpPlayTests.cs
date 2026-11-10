@@ -95,7 +95,7 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(head.position, headBefore), 0.6f, $"{euler}: the head jumped when standing began");
             Assert.Less(MaxBoneAngle(animator, poseBefore), 35.0f, $"{euler}: a bone snapped to the clip's pose on the first frame");
 
-            for (float t = 0.0f; t < Ragdoll.StandUpRecoverySeconds + 0.4f; t += Time.deltaTime)
+            for (float t = 0.0f; t < ragdoll.RollSeconds + Ragdoll.StandUpRecoverySeconds + 0.4f; t += Time.deltaTime)   // rolled onto its front first
             {
                 ragdoll.Tick(Time.deltaTime);
                 yield return null;
@@ -127,6 +127,7 @@ namespace CityX.Tests
             ragdoll.Activate(Vector3.zero, allowImmediateStandUp: true);
             yield return new WaitForSeconds(1.5f);
             ragdoll.BeginStandingUp(force: true);
+            float upIn = ragdoll.RollSeconds + Ragdoll.StandUpRecoverySeconds;   // rolled onto its front first, however it fell
 
             float elapsed = 0.0f;
             while (ragdoll.IsLimp && elapsed < 4.0f)
@@ -135,7 +136,8 @@ namespace CityX.Tests
                 elapsed += Time.deltaTime;
                 yield return null;
             }
-            Assert.Less(elapsed, 1.5f, "the body was held after it was already standing (the clip's idle tail)");
+            Assert.Less(elapsed, upIn + 0.1f, "the body was held after it was already standing (the clip's idle tail)");
+            Assert.Less(upIn, 1.7f, "getting up takes too long for a fight");
             Assert.IsTrue(_player.GetComponent<CharacterController>().enabled, "control did not come back");
             yield return null;
             yield return null;

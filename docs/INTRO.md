@@ -55,13 +55,40 @@ The clip was made on a body with shorter arms and lower hips, so its hands, seat
 `GetUpFloorPlayTests` bakes the skin through the whole clip: no vertex more than 2 cm under the floor (about 1 cm at worst now).
 `GetUpClipCapture` (Explicit) films it side on.
 
+### From however it lies, on whatever it lies on (2026-11-10)
+
+Owner: "make the standing up animation look good. the ragdoll to stand animation. use hand and foot ik to interact with the terrain it is
+standing on properly. right now it looks glitchy. this is the same ragdoll to stand used at the end of the fall cutscene and when you
+ragdoll ingame". Filmed first (`StandUpCapture`, Explicit: back, front and side on level ground, a slope and stairs), three faults:
+
+- **The clip starts face down** (measured on the body: prone, a push-up to 2.0 s, knees to 3.0, feet under to 4.0, standing by 4.9; these
+  notes said "on its back" and the fall lands it on its back for that). Every bone was turned straight from where it lay to the clip in
+  0.4 s, so from its back the body went through itself. Now (`Ragdoll.GetUp`) it is rolled about its own length by however far it lies
+  from face down (half a turn from its back, a quarter from its side, none from its front), the hips rising over the shoulder on the
+  way, while each joint eases from the ragdoll's own angle to the clip's; the clip is held on its first pose until the roll is done. A
+  half turn takes 0.4 s in play and 1.7 s in the entrance (`GetUpPace.HalfTurnSeconds`).
+- **The rise to standing was a pop.** In play the clip was played evenly in 1.8 s, the rise in a fifth of a second. `GetUpPace` now
+  places the clip itself (the Animator is held still): the quick get-up skips the clip's first second of shifting about and gives the
+  push-up, the knees, the feet and the rise each a share, the rise over twice what it had. Control still comes back 1.18 s after the
+  body is on its front. The entrance plays the clip as it is.
+- **The ground was taken to be level** at the height of the root. Now (`Ragdoll.HoldOnTheGround`, each frame of the get-up, the ground
+  looked for under each point, the body itself looked through): while the clip lies, the whole pose is tipped to the slope of the ground
+  along and across the body; as it comes onto its feet the hips go down to the lower foot's ground; and `LimbFloorClamp` moves each hand
+  and foot by as much as the ground under it is above or below the clip's floor while the clip has it on or near that floor
+  (`LimbFloorClamp.Follows`), and keeps it and its elbow or knee out of the ground there.
+
+Tests: `GetUpPaceTests`, `GetUpOnTheGroundPlayTests` (the roll from its back about its own length; on stairs hands on the steps above,
+nothing in a step; lying along a slope), `RagdollStandUpPlayTests`, `GetUpFloorPlayTests`.
+
+Not done: a get-up of its own from the back (sitting up) and from the side; the roll onto the front stands in for both.
+
 ## Flat on its back, flailing in the wind (2026-10-22)
 
 Owner: "make it so you are laying flat horizontal during the fall cutscene at the beginning instead of vertical. and make some amount of
 flailing in the air like there is wind, so he isnt just still during the whole fall". The limp body used to fall the way it was let go:
 upright, limbs hanging.
 
-- **On its back**, the way the get-up clip starts (a body landing face down rolls over during the get-up's blend) and with its face to the
+- **On its back** (written when the get-up clip was taken to start so; it starts face down, and the get-up rolls the body over first: see the stand-up above) and with its face to the
   camera overhead. `FallFlail.Righting` is a damped spring (22 per radian, 6 per second) from the way the chest faces (`FallFlail.Front`:
   from the spine and the shoulders) round to the sky. It turns the WHOLE body as one about its middle, every part's spin and the speed that
   turn gives it where it is: turning the trunk alone fought the joints and the gusts on the limbs tumbled it (measured: the chest 96
