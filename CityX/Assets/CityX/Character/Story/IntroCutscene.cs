@@ -28,7 +28,11 @@ namespace CityX.Character
     /// </summary>
     public sealed class IntroCutscene : MonoBehaviour
     {
-        public const float StartAltitude = 300.0f;
+        /// <summary>
+        /// How high over the ground the fall begins, metres: some 16 s of falling (owner, 2026-11-10, of the fall after the conveyor belt: "make
+        /// the fall cutscene that appears next like 6 seconds longer in the sky"; it began 300 m up, about 10 s).
+        /// </summary>
+        public const float StartAltitude = 510.0f;
 
         /// <summary>
         /// How many frames the body hangs, standing, before it goes limp: PlayerHud captures the portrait off the head two frames in, and a
@@ -39,7 +43,7 @@ namespace CityX.Character
         /// <summary>How long the fall takes to come up out of a black screen, seconds.</summary>
         public const float FadeInSeconds = 1.2f;
 
-        /// <summary>The air's drag on the falling body: about 35 m/s at the most (9.81 / this), so the fall from StartAltitude takes about 10 s.</summary>
+        /// <summary>The air's drag on the falling body: about 35 m/s at the most (9.81 / this), so the fall from StartAltitude takes about 16 s.</summary>
         public const float FallDrag = 0.28f;
 
         /// <summary>The push the body is let go with: a slow tumble from the start.</summary>
@@ -55,9 +59,12 @@ namespace CityX.Character
         public const float CloudFogStartDistance = 4.0f;
         public const float CloudFogEndDistance = 30.0f;
 
-        /// <summary>Above this height over the ground the body is in the cloud; below <see cref="CloudClearAltitude"/> it is clear.</summary>
-        public const float CloudThickAltitude = 250.0f;
-        public const float CloudClearAltitude = 80.0f;
+        /// <summary>
+        /// Above this height over the ground the body is in the cloud; below <see cref="CloudClearAltitude"/> it is clear. Measured down from
+        /// where the fall begins, so that a higher start is more clear sky and the same cloud.
+        /// </summary>
+        public const float CloudThickAltitude = StartAltitude - 50.0f;
+        public const float CloudClearAltitude = StartAltitude - 220.0f;
 
         // --- the camera during the fall: looking down on the body, then beside it as it nears the ground ---
         public const float OverheadSpringLength = 10.0f;

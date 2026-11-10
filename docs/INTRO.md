@@ -8,9 +8,9 @@ are on the ground when you take over control", "make sure the hands arent clippi
 
 ## The beats
 
-1. **Hanging** (6 frames, `PortraitCaptureDelayFrames`): the body waits 300 m up, standing, so the HUD portrait is taken from an
+1. **Hanging** (6 frames, `PortraitCaptureDelayFrames`): the body waits 510 m up, standing (300 m until 2026-11-10; owner: "make the fall cutscene ... like 6 seconds longer in the sky"), so the HUD portrait is taken from an
    upright head.
-2. **Falling**: `Ragdoll.Activate`. While falling, each body part gets air drag (`FallDrag` 0.28, about 35 m/s at most, about 10 s of
+2. **Falling**: `Ragdoll.Activate`. While falling, each body part gets air drag (`FallDrag` 0.28, about 35 m/s at most, about 16 s of
    fall) and continuous collision, and both are put back on landing. WASD or the left stick drift the body sideways, up to 10 m from
    the spawn. The body lies flat on its back with its arms and legs thrown about by the wind (below).
 3. **Landing**: the torso loses more than half its speed in one frame while going faster than 8 m/s. The impact sound plays. A body
@@ -26,7 +26,7 @@ Nothing during the fall runs on a timer. The camera and the cloud follow the bod
 
 - The camera follows a smoothed point: the torso while the body is limp, the player's own pivot once it rises. It swings from overhead
   (pitch 80, 10 m) to beside the body (pitch 15, 9 m) between 45 m and 4 m above the ground.
-- The cloud is thick fog (4 to 30 m) above 250 m and the scene's own fog below 80 m, eased in between.
+- The cloud is thick fog (4 to 30 m) for the first 50 m of the fall (above 460 m) and the scene's own fog below 290 m, eased in between: measured down from the start, so the six seconds added are clear sky over the city.
 - The look-around camera glides through keys (`LookingAroundCamera`); the two old held shots were cut to.
 
 `IntroCutsceneFallPlayTests` plays the whole intro on the real player and fails if the camera moves more than 1.5 m in a frame, if the
