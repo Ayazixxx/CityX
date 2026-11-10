@@ -23,6 +23,7 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 run(os.path.join(OCTASLASH, "octaslash_rig.py"))
 OCTASLASH_NO_BAKE = True
 run(os.path.join(OCTASLASH, "octaslash_pose.py"))
+run(os.path.join(os.path.dirname(HERE), "planted_feet.py"))
 run(os.path.join(HERE, "sword_combo_pose.py"))
 SPANS = bake_combo()
 

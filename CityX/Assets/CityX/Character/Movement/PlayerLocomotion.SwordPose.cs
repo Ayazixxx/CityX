@@ -331,8 +331,24 @@ namespace CityX.Character
             float free = w * Mathf.Clamp01(_swordFrame.FreeHandWeight);
             if (!_swordFrame.TwoHanded && free > 0.001f)
             {
-                PlaceFist(_leftUpperArm, _leftLowerArm, _handL, _swordFrame.FreeHand, free, _swordFrame.FreeElbowOut, -1.0f);
+                PlaceFreeHand(_leftUpperArm, _leftLowerArm, _handL, _swordFrame.FreeHand, free, _swordFrame.FreeElbowOut, -1.0f);
             }
+        }
+
+        /// <summary>
+        /// A hand put <paramref name="offset"/> from its shoulder, in the body's own axes and in arm lengths (x to the body's right, y up, z
+        /// forward), by two-bone IK: the elbow goes down and out, further out to its <paramref name="side"/> with <paramref name="elbowOut"/>.
+        /// </summary>
+        private void PlaceFreeHand(Transform upper, Transform lower, Transform hand, Vector3 offset, float weight, float elbowOut, float side)
+        {
+            if (weight <= 0.001f || upper == null || lower == null || hand == null)
+            {
+                return;
+            }
+            float length = Vector3.Distance(upper.position, lower.position) + Vector3.Distance(lower.position, hand.position);
+            Vector3 target = upper.position + (transform.right * offset.x + transform.up * offset.y + transform.forward * offset.z) * length;
+            Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * side * (0.55f + 0.9f * elbowOut);
+            TwoBoneIK.Solve(upper, lower, hand, target, hint, weight);
         }
     }
 }

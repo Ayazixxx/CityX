@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.Character;
 using NUnit.Framework;
 using UnityEngine;
@@ -5,219 +6,280 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The procedural unarmed strikes on paper, Souls-style (docs/MELEE_COMBOS.md): every blow starts and ends with the arms the walk cycle's own
-    /// (no boxing guard, no placed hands), reaches (nearly) the full length of the arm at the moment it LANDS, goes out along its own path, turns the
-    /// torso into it the right way, and puts the other foot forward.
+    /// The unarmed strikes on paper, Souls-style (docs/FIST_COMBAT.md, docs/MELEE_COMBOS.md), and the full-body clips that throw them (made in
+    /// Blender, CityX/SourceArt/FistCombo), read the way the skeleton plays them: every blow starts and ends standing ready, has its fist at
+    /// full reach on the frame it LANDS, turns the body into it from the hips up with the head kept on what is ahead, strides with the lead
+    /// foot and leaves the rear foot where it stood while the game carries the body past it.
     /// </summary>
     public sealed class FistStrikesTests
     {
         private static readonly FistKind[] All = { FistKind.RightStraight, FistKind.LeftStraight, FistKind.Overhand, FistKind.Uppercut };
 
-        private static Vector3 ThrowingHand(in FistFrame f, FistKind kind) => FistStrikes.UsesRightHand(kind) ? f.RightHand : f.LeftHand;
+        private static BakedMotion Motion()
+        {
+            BakedMotion motion = FistStrikes.Motion;
+            Assert.IsNotNull(motion, "the punches' clips are missing -- build them from Blender (CityX/SourceArt/FistCombo/fist_build.py)");
+            return motion;
+        }
 
-        private static float ThrowingWeight(in FistFrame f, FistKind kind) => FistStrikes.UsesRightHand(kind) ? f.RightWeight : f.LeftWeight;
+        /// <summary>The frame of a blow's clip <paramref name="share"/> of the way through it.</summary>
+        private static int Frame(BakedMotion motion, FistKind kind, float share)
+        {
+            string name = FistStrikes.NameOf(kind);
+            return motion.SegmentStart(name) + Mathf.Min(motion.SegmentFrames(name) - 1, Mathf.RoundToInt(share * motion.SegmentFrames(name)));
+        }
 
-        private static float OtherWeight(in FistFrame f, FistKind kind) => FistStrikes.UsesRightHand(kind) ? f.LeftWeight : f.RightWeight;
+        private static Dictionary<string, Vector3> Joints(BakedMotion motion, FistKind kind, float share, out Dictionary<string, Quaternion> turns)
+        {
+            int frame = Frame(motion, kind, share);
+            turns = BakedMotionPoses.WorldTurns(motion, frame);
+            return BakedMotionPoses.Joints(motion, frame, turns);
+        }
+
+        private static Dictionary<string, Vector3> Joints(BakedMotion motion, FistKind kind, float share)
+        {
+            return Joints(motion, kind, share, out _);
+        }
+
+        /// <summary>The side the blow is thrown from, and the other one: "r" and "l" for all but the left straight.</summary>
+        private static string Thrower(FistKind kind) => FistStrikes.UsesRightHand(kind) ? "r" : "l";
+
+        private static string Other(FistKind kind) => FistStrikes.UsesRightHand(kind) ? "l" : "r";
+
+        /// <summary>Which way a right-handed blow goes, as a sign on x: a left-handed one is its mirror.</summary>
+        private static float Hand(FistKind kind) => FistStrikes.UsesRightHand(kind) ? 1.0f : -1.0f;
+
+        private static float ArmLength(Dictionary<string, Vector3> joints, string side)
+        {
+            return Vector3.Distance(joints["arm_" + side], joints["forearm_" + side]) + Vector3.Distance(joints["forearm_" + side], joints["hand_" + side]);
+        }
+
+        /// <summary>How far to the right a bone faces, degrees (0 straight ahead).</summary>
+        private static float YawOf(Quaternion turn)
+        {
+            Vector3 facing = Vector3.ProjectOnPlane(turn * Vector3.forward, Vector3.up);
+            return Mathf.Atan2(facing.x, facing.z) * Mathf.Rad2Deg;
+        }
+
+        // ---- the clips ----
 
         [Test]
-        public void EveryBlowStartsAndEndsWithTheArmsTheWalkCycles()
+        public void TheClipsAreOnTheGamesOwnBonesAndEachIsAsLongAsItsBlow()
+        {
+            BakedMotion motion = Motion();
+            CollectionAssert.AreEquivalent(BakedMotionPoses.BodyBonesWithoutFingers(), motion.Bones, "the clips' bones are not BodyRig's");
+            Assert.AreEqual(BakedMotion.RootBone, motion.Bones[0]);
+            foreach (FistKind kind in All)
+            {
+                string name = FistStrikes.NameOf(kind);
+                Assert.IsTrue(motion.HasSegment(name), $"no clip for {kind}");
+                Assert.AreEqual(FistStrikes.Seconds(kind), motion.SegmentSeconds(name), 1e-4f, $"{kind}'s clip is not as long as the blow: it would land on another frame");
+            }
+        }
+
+        [Test]
+        public void EveryFrameIsAWholePoseAndNothingSnaps()
+        {
+            BakedMotion motion = Motion();
+            for (int f = 0; f < motion.FrameCount; f++)
+            {
+                for (int b = 0; b < motion.Bones.Count; b++)
+                {
+                    Quaternion q = motion.RotationAt(f, b);
+                    float norm = Mathf.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+                    Assert.AreEqual(1.0f, norm, 1e-3f, $"frame {f}, {motion.Bones[b]}");
+                }
+                Assert.Less(motion.HipsAt(f).magnitude, 1.5f, $"frame {f}: the hips are nowhere near the body");
+            }
+            foreach (FistKind kind in All)
+            {
+                string name = FistStrikes.NameOf(kind);
+                int first = motion.SegmentStart(name);
+                float worst = BakedMotionPoses.WorstStep(motion, first, first + motion.SegmentFrames(name) - 1, false, out string where);
+                // A fist going out turns its arm some forty degrees in a frame; an elbow flipping over turns it a hundred and more.
+                Assert.Less(worst, 75.0f, $"{kind}: {where} turns {worst:0} degrees in one frame");
+            }
+        }
+
+        [Test]
+        public void EveryBlowStartsAndEndsStandingReady()
+        {
+            BakedMotion motion = Motion();
+            foreach (FistKind kind in All)
+            {
+                foreach (float share in new[] { 0.0f, 1.0f })
+                {
+                    Dictionary<string, Vector3> joints = Joints(motion, kind, share, out Dictionary<string, Quaternion> turns);
+                    string when = share <= 0.0f ? "starts" : "ends";
+                    Assert.AreEqual(BodyRig.HipY - FistStrikes.ReadyHipDrop, joints["hips"].y, 0.02f, $"{kind} {when} with the hips somewhere else than the ready stance has them");
+                    Assert.Less(new Vector2(joints["hips"].x, joints["hips"].z).magnitude, 0.03f, $"{kind} {when} with the hips off its feet");
+                    Assert.Less(Mathf.Abs(YawOf(turns["spine"])), 8.0f, $"{kind} {when} with the body still turned");
+                    foreach (string side in new[] { "l", "r" })
+                    {
+                        Assert.Less(joints["hand_" + side].y, joints["arm_" + side].y - 0.6f, $"{kind} {when} with a hand up: the walk's arms hang");
+                        Assert.Less(Mathf.Abs(joints["foot_" + side].z), 0.12f, $"{kind} {when} with a foot out: the next blow starts from square");
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void TheFistIsAtFullReachAheadOfTheBodyOnTheFrameItLands()
+        {
+            BakedMotion motion = Motion();
+            foreach (FistKind kind in All)
+            {
+                string side = Thrower(kind);
+                Dictionary<string, Vector3> joints = Joints(motion, kind, FistStrikes.ContactFraction(kind));
+                float reach = Vector3.Distance(joints["arm_" + side], joints["hand_" + side]) / ArmLength(joints, side);
+                if (kind == FistKind.Uppercut)
+                {
+                    // Driven up under a chin, the elbow under the fist: bent, and the fist above its own shoulder.
+                    Assert.Greater(joints["hand_" + side].y, joints["arm_" + side].y + 0.08f, "the uppercut lands below the shoulder: it is no uppercut");
+                    Assert.Less(joints["forearm_" + side].y, joints["hand_" + side].y - 0.15f, "the uppercut's elbow is not under its fist");
+                    Assert.Greater(joints["hand_" + side].z, 0.45f, "the uppercut lands against its own chest");
+                }
+                else
+                {
+                    Assert.Greater(reach, 0.97f, $"{kind} lands with the arm bent ({reach:0.00} of its length)");
+                    Assert.Greater(joints["hand_" + side].z, 1.0f, $"{kind} lands beside the body, not ahead of it");
+                }
+                // The other fist is not left hanging: it is snatched back to the ribs, or thrown out behind.
+                Assert.Greater(Vector3.Distance(joints["hand_" + Other(kind)], joints["arm_" + Other(kind)]), 0.25f, $"{kind}: the other hand is in its own shoulder");
+            }
+        }
+
+        [Test]
+        public void TheStraightIsDrawnBackFirstTheOverhandComesDownFromHighAndTheUppercutRisesFromLow()
+        {
+            BakedMotion motion = Motion();
+            Dictionary<string, Vector3> wound = Joints(motion, FistKind.RightStraight, 0.22f);
+            // Behind the middle of the body, the elbow further back still. (Its own shoulder is wound back too: it is not the measure.)
+            Assert.Less(wound["hand_r"].z, wound["hips"].z - 0.1f, "the straight is not drawn back before it goes out");
+            Assert.Less(wound["forearm_r"].z, wound["hand_r"].z - 0.1f, "the straight is drawn back with the elbow in front of the fist");
+            Assert.Less(wound["hand_r"].y, wound["arm_r"].y - 0.2f, "the straight is wound up at the shoulder, not at the ribs");
+
+            Dictionary<string, Vector3> high = Joints(motion, FistKind.Overhand, 0.45f);
+            Dictionary<string, Vector3> down = Joints(motion, FistKind.Overhand, FistStrikes.ContactFraction(FistKind.Overhand));
+            Assert.Greater(high["hand_r"].y, high["arm_r"].y + 0.3f, "the overhand is not wound up high: it has no tell");
+            Assert.Less(down["hand_r"].y, down["arm_r"].y, "the overhand lands at shoulder height: it reads as a straight");
+
+            Dictionary<string, Vector3> low = Joints(motion, FistKind.Uppercut, 0.26f);
+            Dictionary<string, Vector3> up = Joints(motion, FistKind.Uppercut, FistStrikes.ContactFraction(FistKind.Uppercut));
+            Assert.Less(low["hand_r"].y, low["hips"].y + 0.4f, "the uppercut does not drop its fist first");
+            Assert.Less(low["hips"].y, BodyRig.HipY - 0.15f, "the uppercut does not dip");
+            Assert.Greater(up["hand_r"].y - low["hand_r"].y, 0.8f, "the uppercut does not rise");
+            Assert.Greater(up["hips"].y, low["hips"].y + 0.15f, "the uppercut's legs do not drive it up");
+        }
+
+        [Test]
+        public void TheBodyTurnsIntoTheBlowFromTheHipsUpAndTheHeadStaysOnWhatIsAhead()
+        {
+            BakedMotion motion = Motion();
+            foreach (FistKind kind in All)
+            {
+                float toward = -Hand(kind);   // a right-handed blow turns the body to the left
+                Joints(motion, kind, FistStrikes.ContactFraction(kind), out Dictionary<string, Quaternion> landing);
+                float hips = YawOf(landing["hips"]) * toward, chest = YawOf(landing["spine"]) * toward, head = YawOf(landing["head"]) * toward;
+                Assert.Greater(hips, 15.0f, $"{kind}: the hips do not turn into the blow ({hips:0} degrees)");
+                Assert.Greater(chest, hips + 8.0f, $"{kind}: the shoulders do not turn further than the hips ({chest:0} against {hips:0} degrees)");
+                Assert.Less(Mathf.Abs(head), chest * 0.5f, $"{kind}: the head turns away with the shoulders ({head:0} of {chest:0} degrees)");
+
+                // Wound up against the blow first: the shoulders turned the other way.
+                float windUp = kind == FistKind.Overhand ? 0.45f : kind == FistKind.Uppercut ? 0.26f : 0.22f;
+                Joints(motion, kind, windUp, out Dictionary<string, Quaternion> wound);
+                Assert.Less(YawOf(wound["spine"]) * toward, -15.0f, $"{kind} is not wound up against itself before it goes");
+            }
+        }
+
+        [Test]
+        public void TheLeftStraightIsTheRightOneMirrored()
+        {
+            BakedMotion motion = Motion();
+            foreach (float share in new[] { 0.0f, 0.22f, 0.46f, 0.8f })
+            {
+                Dictionary<string, Vector3> right = Joints(motion, FistKind.RightStraight, share);
+                Dictionary<string, Vector3> left = Joints(motion, FistKind.LeftStraight, share);
+                foreach (string joint in new[] { "hand", "forearm", "foot", "shin" })
+                {
+                    Vector3 mirrored = left[joint + "_l"];
+                    mirrored.x = -mirrored.x;
+                    Assert.Less(Vector3.Distance(right[joint + "_r"], mirrored), 0.02f, $"{share:0.00} of the way: the left straight's {joint} is not the right one's mirrored");
+                }
+            }
+        }
+
+        [Test]
+        public void TheLeadFootStridesAndTheRearFootStaysWhereItStoodWhileTheBodyIsCarriedPastIt()
+        {
+            BakedMotion motion = Motion();
+            foreach (FistKind kind in All)
+            {
+                string rear = "foot_" + Thrower(kind), lead = "foot_" + Other(kind);
+                float seconds = FistStrikes.Seconds(kind), contact = FistStrikes.ContactFraction(kind);
+                float rearStood = Joints(motion, kind, 0.0f)[rear].z;
+                for (float share = 0.0f; share <= contact; share += 0.04f)
+                {
+                    // The ankle's place on the ground: where it is in the clip, and how far the game has carried the body by then.
+                    float onTheGround = Joints(motion, kind, share)[rear].z + FistStrikes.Carried(kind, share * seconds);
+                    // (Rolling up onto its ball, the ankle goes a few centimetres forward over toes that have not moved.)
+                    Assert.AreEqual(rearStood, onTheGround, 0.07f, $"{kind}, {share:0.00} of the way: the rear foot slides {onTheGround - rearStood:0.00} m along the ground");
+                }
+                Dictionary<string, Vector3> landing = Joints(motion, kind, contact);
+                float stride = landing[lead].z + FistStrikes.CarryMetres(kind);
+                Assert.Greater(stride, FistStrikes.CarryMetres(kind) * 0.9f, $"{kind}: the lead foot has not stridden by the time the blow lands ({stride:0.00} m)");
+                Assert.Greater(landing[lead].z - landing[rear].z, 0.25f, $"{kind} lands with the feet together");
+                Assert.Less(landing[lead].y, 0.2f, $"{kind} lands with the lead foot still in the air");
+            }
+        }
+
+        [Test]
+        public void TheWeightGoesBackAsABlowIsWoundUpAndForwardAsItLands()
+        {
+            BakedMotion motion = Motion();
+            foreach (FistKind kind in new[] { FistKind.RightStraight, FistKind.LeftStraight, FistKind.Overhand })
+            {
+                float windUp = kind == FistKind.Overhand ? 0.45f : 0.22f;
+                Assert.Less(Joints(motion, kind, windUp)["hips"].z, -0.03f, $"{kind}: the weight does not go back as it is wound up");
+                Dictionary<string, Vector3> landing = Joints(motion, kind, FistStrikes.ContactFraction(kind));
+                Assert.Greater(landing["hips"].z, 0.03f, $"{kind}: the weight does not go forward as it lands");
+                Assert.Greater(landing["spine"].z - landing["hips"].z + (landing["neck"].z - landing["spine"].z), 0.15f, $"{kind}: the body does not lean into the blow");
+            }
+        }
+
+        // ---- what the game and the clips agree on ----
+
+        [Test]
+        public void TheBodyIsCarriedFromTheStrideToTheLandingAndNoFurther()
         {
             foreach (FistKind kind in All)
             {
-                FistFrame start = FistStrikes.Evaluate(kind, 0.0f);
-                FistFrame end = FistStrikes.Evaluate(kind, 1.0f);
-                Assert.AreEqual(0.0f, ThrowingWeight(start, kind), 0.001f, $"{kind} starts with the arm already posed");
-                Assert.AreEqual(0.0f, ThrowingWeight(end, kind), 0.001f, $"{kind} ends with the arm still posed");
-                Assert.AreEqual(0.0f, start.TwistDegrees, 0.01f, $"{kind} starts with the torso already turned");
-                Assert.AreEqual(0.0f, end.TwistDegrees, 0.5f, $"{kind} ends with the torso still turned");
-                Assert.AreEqual(FistStrikes.ReadyHipDrop, end.HipDrop, 0.005f, $"{kind} ends with the hips still sunk");
+                float seconds = FistStrikes.Seconds(kind), lands = seconds * FistStrikes.ContactFraction(kind);
+                Assert.AreEqual(0.0f, FistStrikes.Carried(kind, 0.0f), 1e-5f, $"{kind} carries the body before it has begun");
+                Assert.AreEqual(FistStrikes.CarryMetres(kind), FistStrikes.Carried(kind, lands), 1e-4f, $"{kind} has not carried the body its stride by the time it lands");
+                Assert.AreEqual(FistStrikes.CarryMetres(kind), FistStrikes.Carried(kind, seconds), 1e-4f, $"{kind} goes on carrying the body after it has landed");
+                float before = 0.0f;
+                for (float t = 0.0f; t <= seconds; t += 0.01f)
+                {
+                    float carried = FistStrikes.Carried(kind, t);
+                    Assert.GreaterOrEqual(carried, before - 1e-5f, $"{kind} carries the body back at {t:0.00} s");
+                    before = carried;
+                }
+                Assert.That(FistStrikes.CarryMetres(kind), Is.InRange(0.2f, 0.6f), $"{kind}: a stride, not a shuffle and not a leap (the leg is 0.77 m)");
             }
+            // The overhand's long wind-up stands still: it is the tell.
+            Assert.AreEqual(0.0f, FistStrikes.Carried(FistKind.Overhand, FistStrikes.Seconds(FistKind.Overhand) * 0.35f), 1e-5f, "the overhand creeps forward while it is wound up");
         }
 
         /// <summary>The stance places no hand (owner, 2026-11-03: placed, they sat on the hips with the elbows out): the arms stay the walk cycle's.</summary>
         [Test]
-        public void TheReadyStanceLeavesTheArmsToTheWalkCycle()
+        public void TheReadyStanceIsALittleCrouchedWithTheFeetSquare()
         {
             FistFrame ready = FistStrikes.Ready();
             Assert.IsTrue(ready.Active, "the stance is not applied at all");
-            Assert.AreEqual(0.0f, ready.RightWeight, "the stance poses the right arm");
-            Assert.AreEqual(0.0f, ready.LeftWeight, "the stance poses the left arm");
             Assert.Greater(ready.HipDrop, 0.0f, "the ready stance does not crouch at all");
             Assert.AreEqual(0.0f, ready.StanceLead, 0.001f, "the ready stance is not square");
             Assert.Greater(ready.Footwork, 0.99f, "the feet are not planted in the ready stance");
-        }
-
-        [Test]
-        public void TheFistIsAtFullReachWhenItLands()
-        {
-            foreach (FistKind kind in All)
-            {
-                FistFrame landing = FistStrikes.Evaluate(kind, FistStrikes.ContactFraction(kind));
-                Vector3 hand = ThrowingHand(landing, kind);
-                Assert.AreEqual(1.0f, landing.Extension, 0.001f, $"{kind} is not fully extended at its contact moment");
-                if (kind == FistKind.Uppercut)
-                {
-                    Assert.Greater(hand.magnitude, 0.6f, $"{kind} lands too close to the body");
-                }
-                else if (kind == FistKind.Overhand)
-                {
-                    Assert.Greater(hand.magnitude, 0.9f, $"{kind} is not at full stretch when it lands ({hand.magnitude:F2} of an arm length)");
-                }
-                else
-                {
-                    Assert.Greater(hand.z, 0.9f, $"{kind} does not reach out to the target ({hand.z:F2} of an arm length forward)");
-                }
-            }
-        }
-
-        /// <summary>The two straights are the same punch mirrored (Souls' alternating lights); the heavies are their own paths.</summary>
-        [Test]
-        public void TheStraightsMirrorEachOtherAndTheHeaviesHaveTheirOwnPaths()
-        {
-            for (float t = 0.0f; t <= 1.0f; t += 0.1f)
-            {
-                FistFrame right = FistStrikes.Evaluate(FistKind.RightStraight, t);
-                FistFrame left = FistStrikes.Evaluate(FistKind.LeftStraight, t);
-                Vector3 mirrored = new Vector3(-left.LeftHand.x, left.LeftHand.y, left.LeftHand.z);
-                Assert.Less(Vector3.Distance(right.RightHand, mirrored), 0.001f, $"the straights are not mirror images at {t:F1}");
-                Assert.AreEqual(-right.TwistDegrees, left.TwistDegrees, 0.01f, $"the straights turn the torso differently at {t:F1}");
-            }
-            FistKind[] distinct = { FistKind.RightStraight, FistKind.Overhand, FistKind.Uppercut };
-            for (int i = 0; i < distinct.Length; i++)
-            {
-                for (int j = i + 1; j < distinct.Length; j++)
-                {
-                    Vector3 a = FistStrikes.Evaluate(distinct[i], 0.3f).RightHand;
-                    Vector3 b = FistStrikes.Evaluate(distinct[j], 0.3f).RightHand;
-                    Assert.Greater(Vector3.Distance(a, b), 0.05f, $"{distinct[i]} and {distinct[j]} are the same punch");
-                }
-            }
-        }
-
-        /// <summary>A straight is drawn back to the hip, not up to the face, before it goes out.</summary>
-        [Test]
-        public void AStraightIsDrawnBackToTheHipFirst()
-        {
-            FistFrame wound = FistStrikes.Evaluate(FistKind.RightStraight, 0.22f);
-            Assert.Less(wound.RightHand.y, -0.3f, "the fist is not drawn back low");
-            Assert.Less(wound.RightHand.z, 0.0f, "the fist is not drawn back behind the shoulder");
-        }
-
-        [Test]
-        public void TheOverhandComesDownFromHighAndTheUppercutRises()
-        {
-            FistFrame high = FistStrikes.Evaluate(FistKind.Overhand, 0.45f);
-            FistFrame landing = FistStrikes.Evaluate(FistKind.Overhand, FistStrikes.ContactFraction(FistKind.Overhand));
-            Assert.Greater(high.RightHand.y, 0.6f, "the overhand is not wound up high over the shoulder");
-            Assert.Less(high.RightHand.z, 0.0f, "the overhand is not wound back");
-            Assert.Less(landing.RightHand.y, -0.3f, "the overhand does not come down below the shoulder");
-            Assert.Greater(landing.LeanDegrees, 15.0f, "the whole body does not go into the overhand");
-
-            FistFrame low = FistStrikes.Evaluate(FistKind.Uppercut, 0.26f);
-            FistFrame up = FistStrikes.Evaluate(FistKind.Uppercut, FistStrikes.ContactFraction(FistKind.Uppercut));
-            Assert.Less(low.RightHand.y, -0.4f, "the uppercut does not drop low first");
-            Assert.That(up.RightHand.y, Is.InRange(0.2f, 0.45f), "the uppercut does not rise to the chin (and no higher: it went over the head)");
-            Assert.Greater(low.HipDrop, up.HipDrop, "the uppercut does not dip the hips before it rises");
-        }
-
-        [Test]
-        public void TheTorsoTurnsIntoTheBlowTheRightWay()
-        {
-            // A right-handed blow turns the torso to the left (negative yaw), a left-handed one to the right.
-            Assert.Less(FistStrikes.Evaluate(FistKind.RightStraight, FistStrikes.ContactFraction(FistKind.RightStraight)).TwistDegrees, -20.0f,
-                "the right straight does not turn the hips and shoulders into it");
-            Assert.Greater(FistStrikes.Evaluate(FistKind.LeftStraight, FistStrikes.ContactFraction(FistKind.LeftStraight)).TwistDegrees, 20.0f);
-            // And it winds up the other way first.
-            Assert.Greater(FistStrikes.Evaluate(FistKind.RightStraight, 0.15f).TwistDegrees, 1.0f, "no counter-turn in the anticipation");
-            // And leans well into it.
-            Assert.Greater(FistStrikes.Evaluate(FistKind.RightStraight, FistStrikes.ContactFraction(FistKind.RightStraight)).LeanDegrees, 10.0f);
-        }
-
-        /// <summary>The step into a punch is with the OTHER foot: the hips turn into the blow over the front foot.</summary>
-        [Test]
-        public void TheOtherFootIsForwardForEachBlow()
-        {
-            foreach (FistKind kind in All)
-            {
-                FistFrame f = FistStrikes.Evaluate(kind, 0.3f);
-                float expected = FistStrikes.UsesRightHand(kind) ? -1.0f : 1.0f;
-                Assert.AreEqual(expected, f.StanceLead, 0.001f, $"{kind} has the wrong foot forward");
-                Assert.Greater(f.StanceDepth, 0.3f, $"{kind} does not step out");
-                Assert.Greater(f.Footwork, 0.99f, $"{kind} leaves the feet to the walk clip");
-                Assert.Greater(f.HipDrop, FistStrikes.ReadyHipDrop * 0.5f, $"{kind} stands bolt upright");
-            }
-        }
-
-        [Test]
-        public void TheOtherArmIsNeverPosedWhileOneThrows()
-        {
-            foreach (FistKind kind in All)
-            {
-                for (float t = 0.0f; t <= 1.0f; t += 0.01f)
-                {
-                    Assert.AreEqual(0.0f, OtherWeight(FistStrikes.Evaluate(kind, t), kind), $"{kind} poses the other arm at {t:F2}");
-                }
-            }
-        }
-
-        /// <summary>The throwing arm is fully the blow's when it lands, and is taken and given back with no jump.</summary>
-        [Test]
-        public void TheThrowingArmIsTakenAndGivenBackSmoothly()
-        {
-            foreach (FistKind kind in All)
-            {
-                Assert.AreEqual(1.0f, ThrowingWeight(FistStrikes.Evaluate(kind, FistStrikes.ContactFraction(kind)), kind), 0.001f, $"{kind} lands with the arm only part way posed");
-                float last = 0.0f;
-                for (float t = 0.0f; t <= 1.0f; t += 0.01f)
-                {
-                    float weight = ThrowingWeight(FistStrikes.Evaluate(kind, t), kind);
-                    Assert.Less(Mathf.Abs(weight - last), 0.1f, $"{kind}'s arm jumps at {t:F2}");
-                    last = weight;
-                }
-            }
-        }
-
-        [Test]
-        public void ABlendGoesFromOnePoseToTheOther()
-        {
-            FistFrame from = FistStrikes.Evaluate(FistKind.RightStraight, 0.7f);
-            FistFrame to = FistStrikes.Evaluate(FistKind.LeftStraight, 0.1f);
-
-            FistFrame start = FistStrikes.Blend(from, to, 0.0f);
-            Assert.AreEqual(from.TwistDegrees, start.TwistDegrees, 0.001f, "the torso snaps as the next punch takes over");
-            Assert.AreEqual(from.LeanDegrees, start.LeanDegrees, 0.001f);
-            Assert.AreEqual(from.HipDrop, start.HipDrop, 0.001f);
-            Assert.AreEqual(from.RightWeight, start.RightWeight, 0.001f, "the arm recovering is dropped as the next punch takes over");
-            Assert.AreEqual(to.StanceLead, start.StanceLead, 0.001f, "the feet do not go to the next punch's stance");
-
-            FistFrame end = FistStrikes.Blend(from, to, 1.0f);
-            Assert.AreEqual(to.TwistDegrees, end.TwistDegrees, 0.001f);
-            Assert.AreEqual(to.LeftWeight, end.LeftWeight, 0.001f);
-            Assert.AreEqual(0.0f, end.RightWeight, 0.001f, "the arm the last punch used is not given back");
-        }
-
-        /// <summary>An arm only one pose uses fades where it is: lerping it toward the other pose's empty place would pull the hand to the shoulder.</summary>
-        [Test]
-        public void AnArmOnlyOnePoseUsesFadesWhereItIs()
-        {
-            FistFrame from = FistStrikes.Evaluate(FistKind.RightStraight, 0.5f);
-            FistFrame to = FistStrikes.Evaluate(FistKind.LeftStraight, 0.15f);
-            FistFrame half = FistStrikes.Blend(from, to, 0.5f);
-
-            Assert.Less(Vector3.Distance(half.RightHand, from.RightHand), 0.001f, "the fading arm moved toward nothing");
-            Assert.Less(Vector3.Distance(half.LeftHand, to.LeftHand), 0.001f, "the arm coming in is not going to its own place");
-            Assert.AreEqual(from.RightWeight * 0.5f, half.RightWeight, 0.001f);
-        }
-
-        /// <summary>The same arm in both poses goes from one place to the other, so a punch following a punch from the same hand does not jump.</summary>
-        [Test]
-        public void AnArmBothPosesUseMovesBetweenTheirPlaces()
-        {
-            FistFrame from = FistStrikes.Evaluate(FistKind.RightStraight, 0.5f);
-            FistFrame to = FistStrikes.Evaluate(FistKind.Overhand, 0.3f);
-            FistFrame half = FistStrikes.Blend(from, to, 0.5f);
-
-            Assert.Less(Vector3.Distance(half.RightHand, Vector3.Lerp(from.RightHand, to.RightHand, 0.5f)), 0.001f);
         }
 
         [Test]
@@ -228,24 +290,9 @@ namespace CityX.Tests
                 float contact = FistStrikes.ContactFraction(kind);
                 Assert.That(contact, Is.InRange(0.3f, 0.7f), $"{kind}");
                 Assert.That(FistStrikes.Seconds(kind), Is.InRange(0.4f, 0.8f), $"{kind}: each punch is a commitment, not a snap");
-                Assert.That(FistStrikes.MoveFraction(kind), Is.InRange(0.1f, 1.0f), $"{kind}: the legs must keep walking");
                 Assert.IsTrue(FistStrikes.Has(FistStrikes.NameOf(kind)), $"{kind} has no animation name");
             }
             Assert.Greater(FistStrikes.Seconds(FistKind.Overhand), FistStrikes.Seconds(FistKind.RightStraight), "the overhand's wind-up is no tell");
-        }
-
-        [Test]
-        public void NoFrameIsEverNaN()
-        {
-            foreach (FistKind kind in All)
-            {
-                for (float t = -0.1f; t <= 1.1f; t += 0.01f)
-                {
-                    FistFrame f = FistStrikes.Evaluate(kind, t);
-                    Assert.IsFalse(float.IsNaN(f.RightHand.x + f.RightHand.y + f.RightHand.z + f.LeftHand.x + f.LeftHand.y + f.LeftHand.z
-                        + f.TwistDegrees + f.LeanDegrees + f.HipDrop), $"{kind} at {t}");
-                }
-            }
         }
 
         /// <summary>Souls' two-hit string: right, left, and the left closes the chain; the heavies are outside it.</summary>

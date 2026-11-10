@@ -1101,26 +1101,14 @@ namespace CityX.Character
             //
             // A soulslike swing roots the same way, from the click to the end
             // of its recovery -- and a held guard walks at half speed.
-            if (_melee == null || !_melee.IsSwinging)
-            {
-                _swingFacingActive = false;
-            }
             Vector2 heldMove = move;
             SoulsSwordCombat soulsNow = SoulsSword;
             bool soulsArmed = soulsNow != null && soulsNow.IsEquipped;
             if (_melee != null && _melee.IsSwinging)
             {
-                // The aerial sword spin can be steered a little (half pace), as Link's can. An UNARMED strike keeps part of the pace (the legs walk
-                // under it, no longer frozen) and STEPS INTO the blow toward where the body faces while the fist is going out (see
-                // MeleeAttacker.UnarmedMoveFraction / LungeFraction).
+                // The aerial sword spin can be steered a little (half pace), as Link's can. An UNARMED strike roots the body too, and carries it
+                // into the blow by its own stride (MeleeAttacker.CarryIntoPunch): its clip's feet are planted on the ground it is carried over.
                 move *= _melee.SwingMoveFraction;
-                float lunge = _melee.LungeFraction;
-                if (lunge > 0.0f && yawSource != null)
-                {
-                    Vector3 stepWorld = _swingFacingActive ? Quaternion.Euler(0.0f, _swingYaw, 0.0f) * Vector3.forward : transform.forward;
-                    Vector3 stepLocal = Quaternion.Euler(0.0f, -yawSource.eulerAngles.y, 0.0f) * stepWorld;
-                    move = Vector2.ClampMagnitude(move + new Vector2(stepLocal.x, stepLocal.z) * lunge, 1.0f);
-                }
                 sprinting = false;
             }
             else if (soulsArmed && soulsNow.SlowsMovement)

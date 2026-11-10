@@ -4,22 +4,30 @@ namespace CityX.Character
 {
     /// <summary>
     /// Plays the unarmed strikes (<see cref="FistStrikes"/>) on a body, owner or network copy alike: <see cref="PlayerAnimationDriver"/> calls
-    /// <see cref="Begin"/> when a punch is thrown (here, or replayed from the network, which is why a copy punches the same way), this advances the blow
-    /// and holds the READY stance (a little crouched, the feet planted, the arms left to the walk cycle) for a moment after the last one, and hands each frame to
-    /// <see cref="PlayerLocomotion"/>, whose LateUpdate puts the fists where the frame says (after the Animator, like every other procedural pose).
+    /// <see cref="Begin"/> when a punch is thrown (here, or replayed from the network, which is why a copy punches the same way). Each blow is
+    /// a full-body clip (FistStrikes.Motion), sampled on the blow's own clock and handed to <see cref="PlayerLocomotion"/>, whose LateUpdate
+    /// puts it on the body after the Animator. Between blows, and for a moment after the last, the READY stance is held: a little crouched,
+    /// the feet planted, the fists closed, the arms left to the walk cycle.
     ///
-    /// A HIT FREEZES THE BLOW for a moment (hit-stop): the fist stays at full reach for <see cref="HitHoldSeconds"/> when it lands, the single cheapest
-    /// thing that makes a punch feel like it connected.
+    /// A HIT FREEZES THE BLOW for a moment (hit-stop): the fist stays at full reach for <see cref="HitHoldSeconds"/> when it lands, the single
+    /// cheapest thing that makes a punch feel like it connected.
+    ///
+    /// THE STRIDE IS AS LONG AS THE BODY REALLY WENT. A clip's feet are planted on ground the body is carried over (FistStrikes.Carried); a body
+    /// stopped short by whoever it is hitting has gone less far, so the feet are drawn in by that share (PlayerLocomotion.SetFistStride), or
+    /// the planted foot would slide forward under a body standing still.
     /// </summary>
     public sealed class FistPoseDriver : MonoBehaviour
     {
         /// <summary>How long the ready stance is held after the last blow, seconds (then the body goes back to standing as it always does).</summary>
         public const float ReadyLingerSeconds = 1.5f;
 
-        /// <summary>How quickly the arms come into the pose (and go back to the walk cycle's), seconds.</summary>
+        /// <summary>How quickly the stance and a blow's clip come onto the body, seconds, and how quickly the stance lets go.</summary>
         public const float EngageSeconds = 0.09f;
 
         public const float DisengageSeconds = 0.35f;
+
+        /// <summary>How quickly a finished blow's clip hands the body back to the walk cycle, seconds.</summary>
+        public const float ReleaseSeconds = 0.2f;
 
         /// <summary>How long the next punch takes to take over from one still recovering, seconds.</summary>
         public const float CrossfadeSeconds = 0.1f;
@@ -27,18 +35,29 @@ namespace CityX.Character
         /// <summary>How long a landed blow holds at full reach, seconds.</summary>
         public const float HitHoldSeconds = 0.055f;
 
+        /// <summary>The body must have been meant to go this far, metres, before how far it went says anything about the stride.</summary>
+        private const float LeastCarryToMeasure = 0.03f;
+
+        /// <summary>A body still carrying some pace into a blow goes further than the clip's stride: the feet reach no further than this share of it.</summary>
+        private const float LongestStride = 1.25f;
+
         private PlayerLocomotion _locomotion;
         private MeleeAttacker _melee;
         private FistKind _kind;
         private bool _striking;
         private float _elapsed;
         private float _duration = 0.3f;
+        private float _speed = 1.0f;
         private float _hold;
         private float _readyRemaining;
         private float _engage;
-        private FistFrame _shown;
-        private FistFrame _crossfadeFrom;
+        private BakedMotion _motion;
+        private BakedPose _pose;
+        private BakedPose _crossfadeFrom;
         private float _crossfadeRemaining;
+        private float _clipWeight;
+        private bool _holdsBody;
+        private Vector3 _beganAt;
 
         /// <summary>A blow is in progress.</summary>
         public bool IsStriking => _striking;
@@ -48,8 +67,11 @@ namespace CityX.Character
         /// <summary>0 to 1 through the blow in progress.</summary>
         public float Progress => _duration > 0.0f ? Mathf.Clamp01(_elapsed / _duration) : 0.0f;
 
-        /// <summary>0 to 1: how fully the arms are in the pose (0 means the walk cycle's own arms).</summary>
+        /// <summary>0 to 1: how fully the body is in the stance (0 means standing as it always does).</summary>
         public float Engage => _engage;
+
+        /// <summary>0 to 1: how much of the body a blow's clip holds.</summary>
+        public float ClipWeight => _clipWeight;
 
         private void Awake()
         {
@@ -71,6 +93,7 @@ namespace CityX.Character
             {
                 _melee.Landed -= OnLanded;
             }
+            Release();
             if (_locomotion != null)
             {
                 _locomotion.ClearFistPose();
@@ -88,9 +111,18 @@ namespace CityX.Character
         /// <summary>A blow starts (an earlier one still going is replaced: the chain's next punch).</summary>
         public void Begin(FistKind kind)
         {
-            if (_striking)
+            if (_motion == null)
             {
-                _crossfadeFrom = _shown;
+                _motion = FistStrikes.Motion;
+                if (_motion != null)
+                {
+                    _pose = _motion.NewPose();
+                    _crossfadeFrom = _motion.NewPose();
+                }
+            }
+            if (_clipWeight > 0.0f && _pose != null)
+            {
+                _crossfadeFrom.CopyBodyFrom(_pose);
                 _crossfadeRemaining = CrossfadeSeconds;
             }
             _kind = kind;
@@ -100,6 +132,7 @@ namespace CityX.Character
             _duration = FistStrikes.Seconds(kind);
             _hold = 0.0f;
             _readyRemaining = ReadyLingerSeconds;
+            _beganAt = transform.position;
             enabled = true;
         }
 
@@ -109,14 +142,25 @@ namespace CityX.Character
             _speed = Mathf.Max(0.0f, float.IsNaN(speed) ? 1.0f : speed);
         }
 
-        private float _speed = 1.0f;
-
         /// <summary>Ends any blow and drops the stance at once (a block, a ragdoll, an equipped weapon).</summary>
         public void Cancel()
         {
             _striking = false;
             _readyRemaining = 0.0f;
             _crossfadeRemaining = 0.0f;
+            Release();
+        }
+
+        /// <summary>Lets go of the body, if a blow's clip has it: the baked pose is one slot, and a reload or a sword move may have it next.</summary>
+        private void Release()
+        {
+            _clipWeight = 0.0f;
+            if (_holdsBody && _locomotion != null)
+            {
+                _locomotion.SetBakedPose(null, 0.0f);
+                _locomotion.SetFistStride(1.0f);
+            }
+            _holdsBody = false;
         }
 
         private PlayerInputReader _reader;
@@ -126,8 +170,8 @@ namespace CityX.Character
         private GrappleSwing _grapple;
 
         /// <summary>
-        /// Something else owns the arms: a weapon or gun or tool in hand, a climb or vault, a ragdoll, a grapple, a sit. The fists never fight those poses
-        /// for the arms (a punch is thrown with bare hands), and the stance is dropped at once.
+        /// Something else owns the body: a weapon or gun or tool in hand, a climb or vault, a ragdoll, a grapple, a sit. The fists never fight those poses
+        /// (a punch is thrown with bare hands), and the stance is dropped at once.
         /// </summary>
         private bool ArmsAreBusy()
         {
@@ -187,35 +231,65 @@ namespace CityX.Character
                 _readyRemaining -= deltaTime;
             }
 
-            bool wantsPose = _striking || _readyRemaining > 0.0f;
-            _engage = Mathf.MoveTowards(_engage, wantsPose ? 1.0f : 0.0f, deltaTime / (wantsPose ? EngageSeconds : DisengageSeconds));
+            bool wantsStance = _striking || _readyRemaining > 0.0f;
+            _engage = Mathf.MoveTowards(_engage, wantsStance ? 1.0f : 0.0f, deltaTime / (wantsStance ? EngageSeconds : DisengageSeconds));
+            _clipWeight = Mathf.MoveTowards(_clipWeight, _striking ? 1.0f : 0.0f, deltaTime / (_striking ? EngageSeconds : ReleaseSeconds));
 
             if (_locomotion == null)
             {
                 return;
             }
-            if (_engage <= 0.001f && !wantsPose)
+            ShowClip(deltaTime);
+            if (_engage <= 0.001f && !wantsStance)
             {
                 _locomotion.ClearFistPose();
                 enabled = false;
                 return;
             }
 
-            FistFrame frame = _striking ? FistStrikes.Evaluate(_kind, Progress) : FistStrikes.Ready();
+            // The stance under the clip and after it: where the feet stand once the clip lets go.
+            FistFrame stance = FistStrikes.Ready();
+            float w = Mathf.SmoothStep(0.0f, 1.0f, _engage);
+            stance.HipDrop *= w;
+            stance.Footwork *= w;
+            _locomotion.SetFistPose(stance);
+        }
+
+        /// <summary>This frame of the blow's clip on the body, or the body let go of once the clip has faded out.</summary>
+        private void ShowClip(float deltaTime)
+        {
+            if (_clipWeight <= 0.0f || _pose == null)
+            {
+                if (_holdsBody)
+                {
+                    Release();
+                }
+                return;
+            }
+            // A finished blow holds its last frame (standing ready) while it hands the body back.
+            _motion.Sample(FistStrikes.NameOf(_kind), _elapsed, false, _pose);
             if (_crossfadeRemaining > 0.0f)
             {
                 _crossfadeRemaining -= deltaTime;
-                frame = FistStrikes.Blend(_crossfadeFrom, frame, Mathf.SmoothStep(0.0f, 1.0f, 1.0f - _crossfadeRemaining / CrossfadeSeconds));
+                _pose.MixBodyFrom(_crossfadeFrom, Mathf.SmoothStep(0.0f, 1.0f, 1.0f - _crossfadeRemaining / CrossfadeSeconds));
             }
-            _shown = frame;
-            float w = Mathf.SmoothStep(0.0f, 1.0f, _engage);
-            frame.RightWeight *= w;
-            frame.LeftWeight *= w;
-            frame.TwistDegrees *= w;
-            frame.LeanDegrees *= w;
-            frame.HipDrop *= w;
-            frame.Footwork *= w;
-            _locomotion.SetFistPose(frame);
+            _holdsBody = true;
+            _locomotion.SetBakedPose(_pose, Mathf.SmoothStep(0.0f, 1.0f, _clipWeight));
+            _locomotion.SetFistStride(StrideShare());
+        }
+
+        /// <summary>How far the body has really been carried since the blow began, as a share of how far the clip's feet are planted for.</summary>
+        private float StrideShare()
+        {
+            float meant = FistStrikes.Carried(_kind, _elapsed);
+            if (meant < LeastCarryToMeasure)
+            {
+                return 1.0f;
+            }
+            Vector3 gone = transform.position - _beganAt;
+            gone.y = 0.0f;
+            // A giant's stride is a giant's: the clip's metres are the body's own.
+            return Mathf.Clamp(Vector3.Dot(gone, transform.forward) / (meant * transform.lossyScale.y), 0.0f, LongestStride);
         }
     }
 }

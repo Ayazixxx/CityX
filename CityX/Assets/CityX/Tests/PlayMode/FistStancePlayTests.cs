@@ -12,7 +12,9 @@ namespace CityX.Tests
     /// <summary>
     /// The fists on the real body. The stance between blows once put the hands on the hips with the elbows out (owner's screenshot, 2026-11-03: "what the
     /// fuck is this attack position"), and every test on paper passed: only the real arms can show it. And a punch taking over from one still recovering
-    /// snapped the arm that threw it from straight out to hanging, in one frame.
+    /// snapped the arm that threw it from straight out to hanging, in one frame. And the blows' clips on the real body (2026-11-09): a punch
+    /// lands at full reach over a real stride with the fists closed, its rear foot where it stood, and a body stopped short draws its feet
+    /// in instead of sliding them.
     /// </summary>
     public sealed class FistStancePlayTests
     {
@@ -114,6 +116,89 @@ namespace CityX.Tests
             }
             Debug.Log($"CityX fist chain: the arm that threw the last punch moved at most {most * 100:F0} cm in a frame as the next took over");
             Assert.Less(most, 0.35f, "the arm that threw the last punch snapped down as the next took over");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Throws a blow and plays it to <paramref name="share"/> of its length, the driver stepped a sixtieth of a second a frame. The body
+        /// is carried into it as the game carries it (MeleeAttacker.CarryIntoPunch), or left where it stands, as one stopped by whoever it
+        /// is hitting is.
+        /// </summary>
+        private IEnumerator Throw(FistKind kind, float share, bool carried)
+        {
+            var controller = _player.GetComponent<CharacterController>();
+            _fists.Begin(kind);
+            _fists.enabled = false;
+            float done = 0.0f;
+            for (float elapsed = 0.0f; elapsed < share * FistStrikes.Seconds(kind); elapsed += Dt)
+            {
+                _locomotion.Tick(default, Dt);
+                if (carried)
+                {
+                    float wanted = FistStrikes.Carried(kind, elapsed + Dt);
+                    controller.Move(_player.transform.forward * (wanted - done));
+                    done = wanted;
+                }
+                _fists.Step(Dt);
+                _fists.enabled = false;
+                yield return null;
+            }
+        }
+
+        private static float OnTheGround(Vector3 a, Vector3 b)
+        {
+            return Vector2.Distance(new Vector2(a.x, a.z), new Vector2(b.x, b.z));
+        }
+
+        [UnityTest]
+        public IEnumerator APunchLandsAtFullReachOverARealStrideWithTheFistsClosedAndTheRearFootWhereItStood()
+        {
+#if UNITY_EDITOR
+            yield return Spawn();
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot), rightFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            Assert.Less(_locomotion.RightGrip + _locomotion.LeftGrip, 0.01f, "setup: the hands are not open standing plain");
+            Vector3 rearStood = rightFoot.position;
+
+            yield return Throw(FistKind.RightStraight, FistStrikes.ContactFraction(FistKind.RightStraight), carried: true);
+            Assert.Greater(_fists.ClipWeight, 0.99f, "setup: the blow's clip does not have the body when it lands");
+
+            Vector3 fist = _player.transform.InverseTransformPoint(_rightHand.position);
+            float reach = Vector3.Distance(_rightUpper.position, _rightHand.position);
+            float stride = _player.transform.InverseTransformPoint(leftFoot.position).z - _player.transform.InverseTransformPoint(rightFoot.position).z;
+            float slid = OnTheGround(rightFoot.position, rearStood);
+            Debug.Log($"CityX fist clip: the right straight lands {fist.z:F2} m ahead of the body, the arm {reach:F2} m long, the feet {stride:F2} m apart, the rear foot {slid * 100:F0} cm from where it stood");
+            Assert.Greater(fist.z, 1.0f, "the fist lands beside the body, not ahead of it");
+            Assert.Greater(reach, 0.85f, "the punch lands with the arm bent");
+            Assert.Greater(stride, 0.3f, "the punch lands with the feet together: no stride");
+            Assert.Less(slid, 0.12f, "the rear foot slid along the ground as the body was carried past it");
+            Assert.Greater(_locomotion.RightGrip, 0.8f, "the punch is thrown with an open hand");
+            Assert.Greater(_locomotion.LeftGrip, 0.8f, "the other hand is open: a fighter's hands are both fists");
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator ABodyStoppedShortDrawsItsFeetInInsteadOfSlidingThem()
+        {
+#if UNITY_EDITOR
+            yield return Spawn();
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot), rightFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            Vector3 rearStood = rightFoot.position;
+
+            // Not carried at all: nose to nose with whoever it hits, the body has nowhere to go.
+            yield return Throw(FistKind.RightStraight, FistStrikes.ContactFraction(FistKind.RightStraight), carried: false);
+
+            float slid = OnTheGround(rightFoot.position, rearStood);
+            float lead = _player.transform.InverseTransformPoint(leftFoot.position).z;
+            Debug.Log($"CityX fist clip, stopped short: the stride is {_locomotion.FistStride:F2} of the clip's, the rear foot {slid * 100:F0} cm from where it stood, the lead foot {lead:F2} m ahead");
+            Assert.Less(_locomotion.FistStride, 0.1f, "a body that went nowhere still strides the clip's whole stride");
+            Assert.Less(slid, 0.12f, "the rear foot slid back along the ground under a body standing still");
+            Assert.Less(lead, 0.2f, "the lead foot strode on without the body");
 #else
             yield break;
 #endif

@@ -11,8 +11,9 @@ using UnityEditor;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: renders every unarmed strike on the real rig as a contact sheet (a row per punch, five moments along it) to Logs/CityShots/fist-sheet.png,
-    /// seen from the side and, in fist-sheet-front.png, from the front. The body walks up, then plants its feet and punches. Explicit; needs -Graphics.
+    /// Not a test: renders every unarmed strike on the real rig as a contact sheet (a row per punch, six moments along it) to Logs/CityShots/fist-sheet.png,
+    /// seen from the side and, in fist-sheet-front.png, from the front. The body walks up, then punches, carried into each blow as the game
+    /// carries it (FistStrikes.Carried). Explicit; needs -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class FistCapture
@@ -43,13 +44,13 @@ namespace CityX.Tests
             const float dt = 1.0f / 60.0f;
 
             FistKind[] kinds = { FistKind.RightStraight, FistKind.LeftStraight, FistKind.Overhand, FistKind.Uppercut };
-            float[] fractions = { 0.22f, -1.0f, 0.66f, 0.9f, 1.4f };   // -1 = the contact moment; the last is the stance the blow leaves it in
             foreach (bool front in new[] { false, true })
             {
-                var sheet = new Texture2D(Cell * fractions.Length, Cell * kinds.Length, TextureFormat.RGB24, false);
+                var sheet = new Texture2D(Cell * Moments, Cell * kinds.Length, TextureFormat.RGB24, false);
                 for (int row = 0; row < kinds.Length; row++)
                 {
                     FistKind kind = kinds[row];
+                    float[] fractions = MomentsOf(kind);
                     var controller = player.GetComponent<CharacterController>();
                     controller.enabled = false; player.transform.position = new Vector3(0.0f, 0.05f, -4.0f); controller.enabled = true; Physics.SyncTransforms();
                     // Walk a little so the legs have a stride, then throw the punch while still walking at the kind's pace.
@@ -67,12 +68,17 @@ namespace CityX.Tests
                     float duration = FistStrikes.Seconds(kind);
                     int col = 0;
                     float elapsed = 0.0f;
+                    float carried = 0.0f;
                     while (col < fractions.Length)
                     {
-                        float target = (fractions[col] < 0.0f ? FistStrikes.ContactFraction(kind) : fractions[col]) * duration;
+                        float target = fractions[col] * duration;
                         while (elapsed < target)
                         {
                             locomotion.Tick(new LocomotionInput { Move = Vector2.zero, YawDegrees = 0.0f }, dt);
+                            // The stride, as MeleeAttacker.CarryIntoPunch carries the body in the game.
+                            float wanted = FistStrikes.Carried(kind, elapsed + dt);
+                            controller.Move(player.transform.forward * (wanted - carried));
+                            carried = wanted;
                             animator.Update(dt);
                             fists.Step(dt);
                             fists.enabled = false;
@@ -122,6 +128,19 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        private const int Moments = 6;
+
+        /// <summary>
+        /// The moments of a blow a row shows, as shares of its length: wound up, most of the way out, landing, held, coming back, and the
+        /// stance it leaves the body in.
+        /// </summary>
+        private static float[] MomentsOf(FistKind kind)
+        {
+            float windUp = kind == FistKind.Overhand ? 0.45f : kind == FistKind.Uppercut ? 0.26f : 0.22f;
+            float lands = FistStrikes.ContactFraction(kind);
+            return new[] { windUp, windUp + (lands - windUp) * 0.6f, lands, 0.72f, 0.88f, 1.4f };
         }
 
         private static IEnumerator StepBody(PlayerLocomotion locomotion, Animator animator, FistPoseDriver fists, int frames, float dt)

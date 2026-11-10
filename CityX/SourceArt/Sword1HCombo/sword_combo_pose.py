@@ -3,7 +3,7 @@
 # the weight going onto the back foot and then over the front one, the feet planted in the world while the body lunges past them, the rear heel coming up, the back foot pulled
 # along behind a long lunge, the head staying on the target, the free arm working against the sword.
 #
-# Needs the rig (../Octaslash/octaslash_rig.py) and octaslash_pose.py's solver loaded first, with OCTASLASH_NO_BAKE set; sword_combo_build.py does both.
+# Needs the rig (../Octaslash/octaslash_rig.py), octaslash_pose.py's solver (with OCTASLASH_NO_BAKE set) and ../planted_feet.py loaded first; sword_combo_build.py does all three.
 #
 # Poses are written in the character's own frame (Unity axes: x right, y up, z forward). The FEET are written in the stage's frame, which the game's lunge carries the body through:
 # a planted foot's place in the clip is its place on the stage less how far the body has lunged by then, so it stays still on the ground as the capsule moves.
@@ -14,8 +14,6 @@ from mathutils import Vector, Quaternion
 
 ARM_METRES = 0.85 * 1.0456          # BodyRig.WristT * BodyRig.ArmLength
 SHOULDER_X, SHOULDER_Y = 0.35, 1.9
-ANKLE = 0.135
-BALL_FORWARD = 0.25                 # the ball of the foot, ahead of the ankle
 HIP_HEIGHT = 0.9
 STANCE_X = 0.20
 
@@ -102,11 +100,6 @@ STEPS = {
 }
 
 
-def smooth(u):
-    u = max(0.0, min(1.0, u))
-    return u * u * (3.0 - 2.0 * u)
-
-
 def eased(kind, u):
     u = max(0.0, min(1.0, u))
     if kind == "smooth":
@@ -175,43 +168,6 @@ def lunged(name, seconds):
     return smooth(p) * metres
 
 
-def foot_on_stage(name, side, seconds):
-    """Where the foot is on the stage, how far off the ground, and how much of a step it is through (0 planted)."""
-    at = READY_LEFT if side == "l" else READY_RIGHT
-    for t0, t1, to, lift in STEPS[name][side]:
-        if seconds <= t0:
-            break
-        u = (seconds - t0) / (t1 - t0)
-        if u >= 1.0:
-            at = to
-            continue
-        s = smooth(u)
-        x, z = at[0] + (to[0] - at[0]) * s, at[1] + (to[1] - at[1]) * s
-        return (x, z), lift * math.sin(math.pi * u), math.sin(math.pi * u)
-    return at, 0.0, 0.0
-
-
-def leg_spec(side, hip_unity, name, seconds, hips_z, rear_toe_out, stats):
-    """The ankle from the hip joint, on the stage less the lunge. A foot far behind the hips rolls up onto its ball, as far as the leg needs, and one in the air points its toes."""
-    (x, z), lift, stepping = foot_on_stage(name, side, seconds)
-    local_z = z - lunged(name, seconds)
-    behind = hips_z - local_z
-    pitch = 35.0 * smooth((behind - 0.12) / 0.33) + 25.0 * stepping
-    # The heel rises about the ball: the ankle goes up and a little forward.
-    r = math.radians(pitch)
-    y = ANKLE + lift + BALL_FORWARD * math.sin(r)
-    ankle_z = local_z + BALL_FORWARD * (1.0 - math.cos(r))
-    out = -1.0 if side == "l" else 1.0
-    yaw_out = math.radians(rear_toe_out * smooth((behind + 0.05) / 0.3) + 8.0)
-    toes = (out * math.sin(yaw_out) * math.cos(r), -math.sin(r), math.cos(yaw_out) * math.cos(r))
-    # The knee over the toes, a little more out as the leg goes behind.
-    knee = (out * (0.2 + 0.4 * smooth(behind / 0.4)), 0.25, 1.0)
-    foot = (x - hip_unity.x, y - hip_unity.y, ankle_z - hip_unity.z)
-    length = math.sqrt(foot[0] ** 2 + foot[1] ** 2 + foot[2] ** 2)
-    stats["reach"] = max(stats["reach"], length)
-    return {"foot": foot, "knee": knee, "toe": toes, "space": "root"}
-
-
 def to_unity(b):
     return V(-b.x, b.z, -b.y)
 
@@ -236,7 +192,7 @@ def pose_at(name, keys, t01, total, stats):
     }
     for side in ("l", "r"):
         hip_b = U(*hips_at) + body @ (HEAD["thigh_" + side] - HEAD["hips"])
-        P[side + "_leg"] = leg_spec(side, to_unity(hip_b), name, seconds, hips_at.z, 28.0, stats)
+        P[side + "_leg"] = planted_leg(side, to_unity(hip_b), STEPS[name][side], READY_LEFT if side == "l" else READY_RIGHT, seconds, lunged(name, seconds), hips_at.z, 28.0, stats)
     return P
 
 

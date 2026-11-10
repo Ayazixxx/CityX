@@ -128,7 +128,9 @@ def child_head(D, pos, child, parent):
 #           space: "chest" (the default: everything turns with the chest) or "root" (the character's own upright frame)}
 #          the hand is turned until the blade lies along `blade`; the elbow sits where it does easily (SWORD_ELBOW, or `elbow` in the chest's
 #          frame) unless the blade needs it elsewhere.
-#   free   {hand: where the left wrist goes, from the left shoulder; pole: which way the elbow points; space as above}
+#   free   {hand: where the left wrist goes, from the left shoulder; pole: which way the elbow points; space as above, or "world": the
+#           hand is a place in the character's own frame, not an offset from the shoulder}
+#   right  the right arm as an empty hand, written as `free` is, in place of `sword` (a punch: ../FistCombo/fist_pose.py)
 #   r_leg / l_leg  {foot: the ankle from the hip joint; knee: which way the knee points; toe: which way the foot points; space: "root" or "hips"}
 
 # Where the sword arm's elbow sits easily, in the chest's frame: down, a little out to the right and back.
@@ -165,9 +167,10 @@ def solve(P):
         l1 = (HEAD[f] - HEAD[a]).length
         l2 = (HEAD[h] - HEAD[f]).length
         u_rest = unit(HEAD[f] - HEAD[a])
-        spec = P["sword" if side == "r" else "free"]
+        empty = side == "l" or "right" in P
+        spec = P["free"] if side == "l" else P["right"] if empty else P["sword"]
         space = chest if spec.get("space", "chest") == "chest" else Quaternion()
-        target = shoulder + space @ U(*spec["hand"])
+        target = U(*spec["hand"]) if spec.get("space") == "world" else shoulder + space @ U(*spec["hand"])
         # The elbow can go anywhere on a circle about the shoulder-wrist line; `out` is the way it sticks out from that line.
         reach_dir = unit(target - shoulder)
         d = max(abs(l1 - l2) + 1e-4, min(l1 + l2 - 1e-4, (target - shoulder).length))
@@ -175,7 +178,7 @@ def solve(P):
         radius = math.sqrt(max(0.0, l1 * l1 - along_a * along_a))
         centre = shoulder + reach_dir * along_a
         wrist = shoulder + reach_dir * d
-        if side == "r":
+        if not empty:
             # THE SWORD ARM: the elbow where it sits easily (down, a little out and back) unless the blade needs it elsewhere, and the blade turned
             # about its own length to whichever way lets the wrist stay straightest. A wrist bent far shows on this body as a kink in the arm's tube,
             # an elbow pointing into the chest or up looks broken, and which way a thin blade's edge faces does not show at all in a fast cut.
@@ -223,7 +226,7 @@ def solve(P):
             P["_edge"] = (-e.x, e.z, -e.y)                     # the edge chosen, back in the spec's own Unity axes
         else:
             Dh = None
-            pole = space @ U(*spec.get("pole", (-0.3, -1.0, -0.6)))
+            pole = space @ U(*spec.get("pole", (-0.3 if side == "l" else 0.3, -1.0, -0.6)))
             out = pole - reach_dir * pole.dot(reach_dir)
             out = unit(out) if out.length > 1e-6 else unit(UP - reach_dir * UP.dot(reach_dir))
             elbow = centre + out * radius

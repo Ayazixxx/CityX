@@ -405,5 +405,25 @@ namespace CityX.Character
                 PropVisible[i] = true;
             }
         }
+
+        /// <summary>Makes this pose's bones and hips <paramref name="other"/>'s (a pose of the same motion).</summary>
+        public void CopyBodyFrom(BakedPose other)
+        {
+            System.Array.Copy(other.Rotations, Rotations, Rotations.Length);
+            Hips = other.Hips;
+        }
+
+        /// <summary>
+        /// One move taking over from another still playing: this pose's bones and hips moved back toward <paramref name="from"/>'s (a pose of
+        /// the same motion). A <paramref name="share"/> of 0 is <paramref name="from"/>, 1 leaves this pose as it is.
+        /// </summary>
+        public void MixBodyFrom(BakedPose from, float share)
+        {
+            for (int i = 0; i < Rotations.Length; i++)
+            {
+                Rotations[i] = Quaternion.Slerp(from.Rotations[i], Rotations[i], share);
+            }
+            Hips = Vector3.Lerp(from.Hips, Hips, share);
+        }
     }
 }

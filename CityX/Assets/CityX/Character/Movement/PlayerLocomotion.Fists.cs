@@ -1,15 +1,16 @@
-using CityX.Core;
-using CityX.World;
 using UnityEngine;
 
 namespace CityX.Character
 {
     /// <summary>
-    /// UNARMED STRIKES: the fists and the torso (see FistStrikes / FistPoseDriver), and the body turned to face a blow.
+    /// UNARMED STRIKES: the stance under them and their stride (see FistStrikes / FistPoseDriver; the blows themselves are baked poses), and
+    /// the body turned to face a blow.
     /// </summary>
     public sealed partial class PlayerLocomotion
     {
         private FistFrame _fistFrame;
+
+        private float _fistStride = 1.0f;
 
         public void SetFistPose(in FistFrame frame)
         {
@@ -21,7 +22,7 @@ namespace CityX.Character
             _fistFrame = default;
         }
 
-        /// <summary>True while a fist pose is being applied.</summary>
+        /// <summary>True while the fists' stance is being held (under a blow, and for a moment after the last).</summary>
         public bool FistPoseActive => _fistFrame.Active;
 
         /// <summary>How much the feet should stand in the fists' stance and step (SwordFootwork, as the sword's) this frame, 0 to 1.</summary>
@@ -29,6 +30,18 @@ namespace CityX.Character
 
         /// <summary>How far the fists' stance sinks the hips this frame, metres.</summary>
         private float FistHipDrop => _fistFrame.Active ? Mathf.Max(0.0f, _fistFrame.HipDrop) : 0.0f;
+
+        /// <summary>
+        /// How long the blow's stride really is, as a share of the clip's: a punch's clip plants its feet on ground the body is carried over,
+        /// and a body stopped short has gone less far (FistPoseDriver). 1 leaves the clip's legs as they were made.
+        /// </summary>
+        public void SetFistStride(float share)
+        {
+            _fistStride = share;
+        }
+
+        /// <summary>The stride the legs are being drawn to (for tests).</summary>
+        public float FistStride => _fistStride;
 
         // THE FACING A BLOW TURNS THE BODY TO. A punch goes where the body faces, and the body only turned to the camera while moving: standing still
         // after turning the camera, the punch went the way you USED to face. A blow asks for a quick turn to the camera (or to a target near it).
@@ -63,34 +76,34 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>After the Animator: turn and lean the torso into the blow, then put the throwing fist where the frame says (two-bone IK); the other arm stays the walk cycle's.</summary>
-        private void ApplyFistPose()
+        /// <summary>
+        /// After the baked pose: the legs of a punch's clip drawn in (or out) to the stride the body really took. Each foot keeps its height and
+        /// its turn and goes <see cref="_fistStride"/> of its distance ahead of or behind the body; the knee bends for it.
+        /// </summary>
+        private void ApplyFistStride()
         {
-            if (!_fistFrame.Active)
+            if (!_fistFrame.Active || _bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly || Mathf.Abs(_fistStride - 1.0f) < 0.02f)
             {
                 return;
             }
-            if (_spine != null && (Mathf.Abs(_fistFrame.TwistDegrees) > 0.01f || Mathf.Abs(_fistFrame.LeanDegrees) > 0.01f))
-            {
-                Quaternion twist = Quaternion.AngleAxis(_fistFrame.TwistDegrees, transform.up);
-                Quaternion lean = Quaternion.AngleAxis(_fistFrame.LeanDegrees, transform.right);
-                _spine.rotation = twist * lean * _spine.rotation;
-            }
-            PlaceFist(_rightUpperArm, _rightLowerArm, _handR, _fistFrame.RightHand, _fistFrame.RightWeight, _fistFrame.RightElbowOut, 1.0f);
-            PlaceFist(_leftUpperArm, _leftLowerArm, _handL, _fistFrame.LeftHand, _fistFrame.LeftWeight, _fistFrame.LeftElbowOut, -1.0f);
+            float share = Mathf.Lerp(1.0f, _fistStride, _bakedPoseWeight);
+            DrawFootToStride(_leftUpperLeg, _leftLowerLeg, _leftFoot, share);
+            DrawFootToStride(_rightUpperLeg, _rightLowerLeg, _rightFoot, share);
         }
 
-        private void PlaceFist(Transform upper, Transform lower, Transform hand, Vector3 offset, float weight, float elbowOut, float side)
+        private void DrawFootToStride(Transform thigh, Transform shin, Transform foot, float share)
         {
-            if (weight <= 0.001f || upper == null || lower == null || hand == null)
+            if (thigh == null || shin == null || foot == null)
             {
                 return;
             }
-            float length = Vector3.Distance(upper.position, lower.position) + Vector3.Distance(lower.position, hand.position);
-            Vector3 target = upper.position + (transform.right * offset.x + transform.up * offset.y + transform.forward * offset.z) * length;
-            // The elbow goes down and out; a blow swung across (the overhand) pushes it right out to the side.
-            Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * side * (0.55f + 0.9f * elbowOut);
-            TwoBoneIK.Solve(upper, lower, hand, target, hint, weight);
+            Vector3 place = transform.InverseTransformPoint(foot.position);
+            place.z *= share;
+            Quaternion turn = foot.rotation;
+            // The knee keeps bowing the way the clip had it.
+            Vector3 knee = shin.position - (thigh.position + foot.position) * 0.5f;
+            TwoBoneIK.Solve(thigh, shin, foot, transform.TransformPoint(place), knee.sqrMagnitude > 1e-6f ? knee : transform.forward);
+            foot.rotation = turn;
         }
     }
 }

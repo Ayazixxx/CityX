@@ -246,15 +246,23 @@ namespace CityX.Tests
             Assert.IsFalse(_attacker.TryAttack(heavy: true), "an overhand was thrown on empty");
         }
 
-        /// <summary>The body keeps part of its pace during a punch (the legs keep walking) and steps into it; it is no longer rooted.</summary>
+        /// <summary>
+        /// A punch roots the body and carries it into the blow by its own stride (its clip's feet are planted on the ground it is carried
+        /// over), and no further once it has landed.
+        /// </summary>
         [Test]
-        public void ThePlayerKeepsWalkingAndStepsIntoAPunch()
+        public void APunchRootsTheBodyAndCarriesItIntoTheBlowByItsStride()
         {
             Assert.IsTrue(_attacker.TryAttack());
-            Assert.Greater(_attacker.SwingMoveFraction, 0.3f, "the body is rooted for a punch");
-            Assert.Greater(_attacker.LungeFraction, 0.3f, "no step into the punch while the fist goes out");
-            Step(FistStrikes.Seconds(FistKind.RightStraight) * 0.9f);
-            Assert.AreEqual(0.0f, _attacker.LungeFraction, 0.001f, "still lunging after the contact");
+            Assert.AreEqual(0.0f, _attacker.SwingMoveFraction, 0.001f, "the body walks about under a punch whose feet are planted");
+            float stride = FistStrikes.CarryMetres(FistKind.RightStraight);
+            float lands = FistStrikes.Seconds(FistKind.RightStraight) * FistStrikes.ContactFraction(FistKind.RightStraight);
+            Step(lands * 0.6f);
+            Assert.That(_attacker.PunchCarried, Is.InRange(0.05f, stride - 0.05f), "part way to landing the body is not part way through its stride");
+            Step(lands * 0.4f + 0.02f);
+            Assert.AreEqual(stride, _attacker.PunchCarried, 0.001f, "the stride is not done when the blow lands");
+            Step(FistStrikes.Seconds(FistKind.RightStraight) * 0.3f);
+            Assert.AreEqual(stride, _attacker.PunchCarried, 0.001f, "the body is carried on after the blow has landed");
         }
 
         [Test]

@@ -129,9 +129,12 @@ namespace CityX.Character
                 return;
             }
             float deltaTime = Mathf.Max(_lastTickDeltaTime, Time.deltaTime);
-            bool rightHolds = RightHandHolds || LadderHandsGrip;
+            // In an unarmed fight both hands are fists: an open hand thrown at somebody is a slap.
+            bool fists = FistPoseActive;
+            bool rightHolds = RightHandHolds || LadderHandsGrip || fists;
             // The support hand is on the weapon once its reach has blended in (a sword's second hand, the pistol's once it is aimed).
-            bool leftHolds = LeftHandHolds || LadderHandsGrip || (_supportAnchor != null && _supportBlend > 0.5f && (!_supportOnlyWhenAiming || EasedGunAimBlend > 0.5f));
+            bool leftHolds = LeftHandHolds || LadderHandsGrip || fists
+                || (_supportAnchor != null && _supportBlend > 0.5f && (!_supportOnlyWhenAiming || EasedGunAimBlend > 0.5f));
             _rightGrip = Mathf.MoveTowards(_rightGrip, rightHolds ? 1.0f : 0.0f, GripBlendPerSecond * deltaTime);
             _leftGrip = Mathf.MoveTowards(_leftGrip, leftHolds ? 1.0f : 0.0f, GripBlendPerSecond * deltaTime);
             IHandGripStyle style = GripStyle;

@@ -116,13 +116,11 @@ namespace CityX.Character
         public bool IsSwinging => _swingRemaining > 0.0f || _spinState != SpinState.None;
 
         /// <summary>
-        /// How much of its normal pace the body may move at while this holds it: nothing for an ordinary swing or a ground spin,
-        /// half for the whole of an aerial spin (it can be steered a little, as in Smash -- on top of the momentum it keeps).
+        /// How much of its normal pace the body may move at while this holds it: nothing for an ordinary swing, a punch or a ground spin
+        /// (a punch is carried into its blow by its own stride, <see cref="CarryIntoPunch"/>), half for the whole of an aerial spin (it can
+        /// be steered a little, as in Smash -- on top of the momentum it keeps).
         /// </summary>
-        public float SwingMoveFraction =>
-            _spinState == SpinState.Turning && _spinKind == SpinKind.Air
-                ? AirSpinMoveFraction
-                : UnarmedMoveFraction;
+        public float SwingMoveFraction => _spinState == SpinState.Turning && _spinKind == SpinKind.Air ? AirSpinMoveFraction : 0.0f;
 
         /// <summary>Where in the swing in progress the blow lands (the contact moment): a weapon's is <see cref="ContactFraction"/>, a fist strike's is its own.</summary>
         private float _activeContact = 0.45f;
@@ -132,23 +130,36 @@ namespace CityX.Character
         /// <summary>How far through the swing in progress it is, 0 to 1.</summary>
         public float SwingProgress => _activeSwingSeconds > 0.0f && _swingRemaining > 0.0f ? Mathf.Clamp01(1.0f - _swingRemaining / _activeSwingSeconds) : 0.0f;
 
-        /// <summary>
-        /// Walking pace kept during an unarmed strike (the legs go on walking under it; only the aerial spin ever kept any before): a fist strike
-        /// slows the body, it no longer nails it to the floor.
-        /// </summary>
-        public float UnarmedMoveFraction =>
-            UnarmedSwingInProgress && FistStrikes.TryGet(_currentStage.Animation, out FistKind k) ? FistStrikes.MoveFraction(k) : 0.0f;
+        private CharacterController _controller;
 
-        /// <summary>The step INTO the blow, as a share of walking pace, while the fist is still going out; zero after the contact.</summary>
-        public float LungeFraction
+        /// <summary>How far the punch in progress has carried the body so far, metres of the clip's stride.</summary>
+        private float _carried;
+
+        /// <summary>How far the punch in progress has carried the body into its blow, metres of the clip's stride (for tests).</summary>
+        public float PunchCarried => _carried;
+
+        /// <summary>
+        /// THE STRIDE INTO A PUNCH. A punch roots the body and carries it forward by its own stride (FistStrikes.Carried), from the lead
+        /// foot leaving the ground to the blow landing: the clip's feet are planted on the ground the body is carried over. Moved by what
+        /// is still owed, so a long frame cannot carry it further, and through the controller, so a wall or a body stops it (the clip's
+        /// legs are then drawn in to the stride it really took: FistPoseDriver).
+        /// </summary>
+        private void CarryIntoPunch()
         {
-            get
+            if (!UnarmedSwingInProgress || !FistStrikes.TryGet(_currentStage.Animation, out FistKind kind))
             {
-                if (!UnarmedSwingInProgress || !FistStrikes.TryGet(_currentStage.Animation, out FistKind k))
-                {
-                    return 0.0f;
-                }
-                return SwingProgress < FistStrikes.ContactFraction(k) ? FistStrikes.LungeFraction(k) : 0.0f;
+                return;
+            }
+            float wanted = FistStrikes.Carried(kind, _activeSwingSeconds - _swingRemaining);
+            float step = wanted - _carried;
+            if (step <= 0.0f)
+            {
+                return;
+            }
+            _carried = wanted;
+            if (_controller != null && _controller.enabled)
+            {
+                _controller.Move(transform.forward * (step * transform.lossyScale.y));
             }
         }
 
@@ -205,6 +216,7 @@ namespace CityX.Character
             _vitals = GetComponent<PlayerVitals>();
             _locomotion = GetComponent<PlayerLocomotion>();
             _ragdoll = GetComponent<Ragdoll>();
+            _controller = GetComponent<CharacterController>();
         }
 
         /// <summary>Staggered, lying limp or dead: in no state to land a blow or throw one.</summary>
@@ -328,6 +340,7 @@ namespace CityX.Character
                 _swingRemaining = _activeSwingSeconds;
                 _activeContact = FistStrikes.ContactFraction(heavyKind);
                 _contactDone = false;
+                _carried = 0.0f;
                 _nextStage = 0;
                 _windowRemaining = 0.0f;
                 _heavyFollowUpRemaining = uppercut ? 0.0f : _activeSwingSeconds + _currentStage.WindowSeconds;
@@ -362,6 +375,7 @@ namespace CityX.Character
             _activeSwingSeconds = chainSeconds;
             _swingRemaining = chainSeconds;
             _contactDone = false;
+            _carried = 0.0f;
             _heavyFollowUpRemaining = 0.0f;   // a light after the overhand is the chain again, not the uppercut
 
             // A finisher closes the chain; anything else opens the window for
@@ -456,6 +470,7 @@ namespace CityX.Character
 
             float before = _swingRemaining;
             _swingRemaining -= deltaTime * SwingSpeed;   // Melee Speed runs the swing faster (2026-10-14)
+            CarryIntoPunch();
 
             // Contact is a moment inside the swing, not its start or end. Fire
             // it when the timer crosses that point, so a long frame cannot skip

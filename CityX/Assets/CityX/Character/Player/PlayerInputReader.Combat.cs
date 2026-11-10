@@ -4,15 +4,10 @@ using UnityEngine.InputSystem;
 namespace CityX.Character
 {
     /// <summary>
-    /// THE FIGHTING KEYS: punches (turned to the target, the facing remembered for the lunge, a held punch made heavy), the sword
-    /// spin's key and the soulslike sword.
+    /// THE FIGHTING KEYS: punches (turned to the target, a held punch made heavy), the sword spin's key and the soulslike sword.
     /// </summary>
     public sealed partial class PlayerInputReader
     {
-        private bool _swingFacingActive;
-
-        private float _swingYaw;
-
         private float _lastYawDegrees;
 
         /// <summary>
@@ -28,8 +23,6 @@ namespace CityX.Character
             Transform yawSource = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
             float cameraYaw = yawSource != null ? yawSource.eulerAngles.y : _lastYawDegrees;
             float yaw = _melee.TryFindMagnetYaw(cameraYaw, out float toTarget) ? toTarget : cameraYaw;
-            _swingYaw = yaw;
-            _swingFacingActive = true;
             _locomotion.SetFacingOverride(yaw, 1200.0f, 0.22f);
         }
 

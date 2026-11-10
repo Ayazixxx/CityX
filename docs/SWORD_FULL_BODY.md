@@ -8,7 +8,7 @@ Owner, 2026-11-05, asking what full-body Blender animation is, against what the 
 
 - **Kept from today's moves** (`SwordStrikes`, ported into `sword_combo_pose.py`; keep the two in step): the hand's path, the blade's direction and edge, every phase's timing, the hips' and shoulders' turn, the lean and how far the hips sink. So a click lands when it lands today.
 - **Added around them:**
-  - **The feet are planted in the world.** The game's lunge carries the body past them, and a planted foot's place in the clip is its place on the ground less how far the body has lunged, so it stays still.
+  - **The feet are planted in the world.** The game's lunge carries the body past them, and a planted foot's place in the clip is its place on the ground less how far the body has lunged, so it stays still. (`SourceArt/planted_feet.py`, shared with the punches' clips since 2026-11-09, which are in the game: docs/FIST_COMBAT.md. What they needed there, and these clips will too: a stride drawn in when the body is stopped short, `PlayerLocomotion.ApplyFistStride`.)
   - **One real step a cut.** The left foot strides on the first cut, the right passes it on the second, and the left strides again on the finisher. The rear foot comes up after each.
   - **The weight moves.** The hips go back over the rear foot in the wind-up and forward over the front one for the blow.
   - **The rear heel comes up** as the body leaves that foot, and the foot turns out.

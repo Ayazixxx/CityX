@@ -911,7 +911,8 @@ namespace CityX.Character
             // The sword arms round the body, not through it (ElbowClearance): after the support hand has its grip.
             KeepArmsOutOfTorso();
             ApplyBakedPose();
-            ApplyFistPose();
+            // A punch's clip, its legs drawn to the stride the body really took (PlayerLocomotion.Fists.cs): right after the baked pose it corrects.
+            ApplyFistStride();
             // A raised shield has the left arm (PlayerLocomotion.Shield.cs); lowered, the shield rides the forearm wherever it is.
             ApplyShieldPose();
             // A staff in the right hand: carried upright, thrust out to cast (PlayerLocomotion.Staff.cs).
