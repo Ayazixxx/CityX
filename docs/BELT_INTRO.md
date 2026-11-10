@@ -45,7 +45,9 @@ game's own.
    belt's end, both feet still on its top, the body becomes physics' as one solid body in the idle it was in (`Ragdoll.Stand`: the
    mass and middle of all its bones, round ends on its legs to stand on), moving as fast as the belt. Its back foot is snagged
    (`Ragdoll.PinStood`, a hinge that turns over the drop only): the snag rides the belt to the top of the roller and stops there,
-   and the body swings out over it by its own run. The belt never slows, before or after (owner: "make it keep going at the same
+   and the body swings out over it by its own run. The front leg, once its foot is past the top of the roller with nothing under it,
+   goes loose and hangs from the hip (`Ragdoll.LetLegHang`; owner: "his left leg (the one that reaches the edge first) hovers in mid
+   air for a bit unnaturally"; "make the physics activate sooner"). The belt never slows, before or after (owner: "make it keep going at the same
    speed even after it throws him off").
    Tried before, and why not: the feet held on the belt by IK round the drum and the body limp past the end (a leg went through the
    end, then "looks terrible"); a tip made by turning the hips ("feels animated it should be ragdoll physics"); the belt slowed to a

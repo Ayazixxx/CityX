@@ -448,9 +448,10 @@ namespace CityX.Tests
                 float tilt = Vector3.Angle(upright, neck.position - hips.position);
                 if (ragdoll.IsStood)
                 {
-                    sagged = Mathf.Max(sagged,
-                        Mathf.Abs(Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot) - leftKnee),
-                        Mathf.Abs(Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) - rightKnee));
+                    // The back leg it stands on; the front one hangs loose once it is over the roller (owner: "his left leg ... hovers in mid air").
+                    sagged = Mathf.Max(sagged, back == feet[0]
+                        ? Mathf.Abs(Knee(HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot) - leftKnee)
+                        : Mathf.Abs(Knee(HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot) - rightKnee));
                 }
                 else if (limpAfter < 0.0f)
                 {
@@ -468,7 +469,7 @@ namespace CityX.Tests
                     }
                 }
             }
-            Assert.Less(sagged, 1.0f, "a knee bent while it stood");
+            Assert.Less(sagged, 1.0f, "the knee it stood on bent");
             Assert.Greater(limpAfter, 0.0f, "it never went limp");
             Assert.Less(limpAfter, BeltIntro.LimpAfterSeconds - 0.1f, "it went limp on the clock, not pitched over");
             // Seen a frame after it went limp, turning fast.

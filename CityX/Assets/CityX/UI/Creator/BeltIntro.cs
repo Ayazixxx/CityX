@@ -115,6 +115,7 @@ namespace CityX.UI
         private float _sinceDrop;
         private Vector3 _uprightWhenStood = Vector3.up;
         private Rigidbody _snag;
+        private HumanBodyBones _frontFoot;
         private float _blackFor = -1.0f;
         private float _riderHeight;
         private bool _heightKnown;
@@ -349,7 +350,9 @@ namespace CityX.UI
             Vector3 left = animator.GetBoneTransform(HumanBodyBones.LeftFoot).position;
             Vector3 right = animator.GetBoneTransform(HumanBodyBones.RightFoot).position;
             Transform belt = Belt.transform;
-            Vector3 back = belt.InverseTransformPoint(left).x < belt.InverseTransformPoint(right).x ? left : right;
+            bool leftBehind = belt.InverseTransformPoint(left).x < belt.InverseTransformPoint(right).x;
+            Vector3 back = leftBehind ? left : right;
+            _frontFoot = leftBehind ? HumanBodyBones.RightFoot : HumanBodyBones.LeftFoot;
             _uprightWhenStood = animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position;
             if (!Ragdoll.Stand(along * BeltRide.Speed))
             {
@@ -383,6 +386,10 @@ namespace CityX.UI
                 return;
             }
             Animator animator = Ragdoll.Animator;
+            if (Belt.transform.InverseTransformPoint(animator.GetBoneTransform(_frontFoot).position).x > ConveyorBelt.Length)
+            {
+                Ragdoll.LetLegHang(_frontFoot);   // over the roller with nothing under it: it hangs, not held out in the air
+            }
             Vector3 up = animator.GetBoneTransform(HumanBodyBones.Neck).position - animator.GetBoneTransform(HumanBodyBones.Hips).position;
             if (Vector3.Angle(_uprightWhenStood, up) >= LimpAtDegrees || _sinceDrop >= LimpAfterSeconds)
             {

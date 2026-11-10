@@ -23,6 +23,7 @@ namespace CityX.Character
         private ConfigurableJoint _pin;
         private Vector3[] _placesInStood;
         private Quaternion[] _turnsInStood;
+        private readonly List<Rigidbody> _hanging = new List<Rigidbody>();
 
         /// <summary>Stood up as one body, not yet slack.</summary>
         public bool IsStood => _stood != null;
@@ -112,6 +113,40 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// The leg of <paramref name="foot"/> goes loose and hangs from the hip, the rest still stood (owner, 2026-11-10, of the stood body
+        /// going over the end: "his left leg (the one that reaches the edge first) hovers in mid air for a bit unnaturally"; "make the
+        /// physics activate sooner"). Its round end goes with it.
+        /// </summary>
+        public void LetLegHang(HumanBodyBones foot)
+        {
+            Transform bone = _stood != null && Animator != null && Animator.isHuman ? Animator.GetBoneTransform(foot) : null;
+            Rigidbody shin = bone != null ? bone.GetComponentInParent<Rigidbody>() : null;
+            Rigidbody thigh = shin != null && shin.transform.parent != null ? shin.transform.parent.GetComponentInParent<Rigidbody>() : null;
+            if (thigh == null || _hanging.Contains(shin))
+            {
+                return;
+            }
+            Follow(_stood.position, _stood.rotation);
+            Physics.SyncTransforms();
+            foreach (Rigidbody limb in new[] { thigh, shin })
+            {
+                limb.isKinematic = false;
+                limb.interpolation = RigidbodyInterpolation.Interpolate;
+                limb.linearVelocity = _stood.GetPointVelocity(limb.worldCenterOfMass);
+                limb.angularVelocity = _stood.angularVelocity;
+                _hanging.Add(limb);
+            }
+            foreach (GameObject sole in _soles)
+            {
+                if (sole != null && sole.name == SoleName(foot))
+                {
+                    sole.transform.SetParent(bone, true);
+                    sole.GetComponent<Collider>().enabled = true;
+                }
+            }
+        }
+
         /// <summary>Limp from here: every bone live, moving as it was moving as part of the stood body, the round ends of its legs on its shins.</summary>
         public void Slacken()
         {
@@ -121,12 +156,22 @@ namespace CityX.Character
             }
             Rigidbody stood = _stood;
             Follow(stood.position, stood.rotation);
+            var hung = new List<(Rigidbody, Vector3, Vector3)>();
+            foreach (Rigidbody limb in _hanging)
+            {
+                hung.Add((limb, limb.linearVelocity, limb.angularVelocity));
+            }
             ForgetFooting();
             Physics.SyncTransforms();
             SetKinematic(false);
+            foreach ((Rigidbody limb, Vector3 linear, Vector3 angular) in hung)
+            {
+                limb.linearVelocity = linear;
+                limb.angularVelocity = angular;
+            }
             foreach (Rigidbody body in Bodies)
             {
-                if (body != null)
+                if (body != null && !hung.Exists(h => h.Item1 == body))
                 {
                     body.linearVelocity = stood.GetPointVelocity(body.worldCenterOfMass);
                     body.angularVelocity = stood.angularVelocity;
@@ -156,6 +201,7 @@ namespace CityX.Character
                 }
             }
             _soles.Clear();
+            _hanging.Clear();
             if (_stood != null)
             {
                 Destroy(_stood.gameObject);
@@ -177,12 +223,14 @@ namespace CityX.Character
             // Parents come before their children in Bodies, so a bone set here is not moved again by its parent.
             for (int i = 0; i < Bodies.Length; i++)
             {
-                if (Bodies[i] != null)
+                if (Bodies[i] != null && !_hanging.Contains(Bodies[i]))
                 {
                     Bodies[i].transform.SetPositionAndRotation(position + rotation * _placesInStood[i], rotation * _turnsInStood[i]);
                 }
             }
         }
+
+        private static string SoleName(HumanBodyBones foot) => "Sole" + foot;
 
         /// <summary>
         /// The round ends of the legs, on whatever <paramref name="holder"/> gives for each foot: the ragdoll has no feet of its own, and on
@@ -202,7 +250,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                var sole = new GameObject("Sole") { layer = gameObject.layer };
+                var sole = new GameObject(SoleName(foot)) { layer = gameObject.layer };
                 sole.transform.SetParent(holder(bone), false);
                 sole.transform.position = bone.position;
                 SphereCollider round = sole.AddComponent<SphereCollider>();
