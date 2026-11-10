@@ -96,8 +96,9 @@ game's own.
 - **The world waits for the ride.** `CharacterSelect.Play` hands the loading of the world to `Departure` when one is set and the
   character is new; `BeltIntro.RollOut` plays the ride and calls it in the black.
 - **The sound** (owner, 2026-11-10, with a recording: "make this noise play when going right or left on the conveyer belt, and at the
-  end when the conveyer belt rolls your character off"). The recording fades in over its first four seconds, longer than a roll-in
-  takes, so the game plays its steady part as a loop with no seam (`UI/Audio/conveyor_belt_loop.ogg`, cut by
+  end when the conveyer belt rolls your character off"). Replaced the same day by a second recording (owner: "replace the conveyer belt noise with this one"; "no use the volume of
+  the new loop", louder than the first): it fades in and out at its ends and runs over a minute, so the game plays twenty seconds of its
+  steady middle as a loop with no seam, its loudest sample at 0.9 (`UI/Audio/conveyor_belt_loop.ogg`, cut by
   `SourceArt/BeltIntro/belt_loop.py` from the recording kept beside it). It is heard as hard as the belt runs (`BeltRide.Running`,
   `BeltIntro.HumVolume` at the full run): up and down with the belt's speed either way, silent while the character is made, on as the
   belt carries the body off and past its fall, and out with the picture as that goes black. From the wider view it is heard at
