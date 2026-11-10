@@ -9,7 +9,7 @@ namespace CityX.Weapons
     /// THE FLASHLIGHT (owner, 2026-10-29: "make a basic flashlight item. research video game flashlights and use what you learn to make it";
     /// docs/FLASHLIGHT.md). A black aluminium torch (drawn in code by FlashlightBuilder) in the right hand; left click switches it on and off
     /// with a click. Lit, the arm holds it out and points it where you look, a little late (PlayerLocomotion.Torch), and it throws its beam the
-    /// way games light theirs: a spot light shaped by a cookie (<see cref="FlashlightRules"/>: a hot spot in a soft spill, a reflector's ring),
+    /// way games light theirs: a spot light shaped by a cookie (<see cref="FlashlightRules"/>: a hot spot melting into a soft spill),
     /// warm white, casting soft shadows, so walls and bodies cut it; a faint shaft of light in the air, seen best in the dark; and a glow on its
     /// lens that flares when you look into the beam.
     ///

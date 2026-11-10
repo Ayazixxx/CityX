@@ -92,8 +92,11 @@ namespace CityX.View
         /// <summary>How often the lights are stood again, seconds.</summary>
         public const float Interval = 0.25f;
 
-        /// <summary>The light itself: a wide cone down onto the road, the orange of a sodium lamp.</summary>
-        public const float LightRange = 26.0f, ConeDegrees = 150.0f, InnerConeDegrees = 105.0f, Brightness = 26.0f;
+        /// <summary>
+        /// The light itself: a wide cone down onto the road, the orange of a sodium lamp, bright enough that its pool, which fades smoothly
+        /// from under the lamp, still reads across the road.
+        /// </summary>
+        public const float LightRange = 26.0f, ConeDegrees = 150.0f, InnerConeDegrees = 105.0f, Brightness = 40.0f;
 
         public static readonly Color Sodium = new Color(1.0f, 0.70f, 0.38f);
 

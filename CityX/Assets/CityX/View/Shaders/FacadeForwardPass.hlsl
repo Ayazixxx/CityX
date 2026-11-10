@@ -245,7 +245,7 @@ void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out ha
 
 // URP's UniversalFragmentPBR (ShaderLibrary/Lighting.hlsl, URP 17.3) with one change: the city's lights know which side of a wall they are on
 // (CITYX_INTERIOR_LIGHT_LAYER / CITYX_EXTERIOR_LIGHT_LAYER). Without it a lit room's lamps, which cast no shadows, would shine straight through
-// the building's walls onto the pavement and the building next door. Each light goes through CityXSurfaceLight, cel shaded with CITYX_TOON.
+// the building's walls onto the pavement and the building next door. The sun and the moon go through CityXSunLight, cel shaded with CITYX_TOON.
 half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoors)
 {
     #if defined(_SPECULARHIGHLIGHTS_OFF)
@@ -293,8 +293,8 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
     if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
 #endif
     {
-        lightingData.mainLightColor = CityXSurfaceLight(brdfData, brdfDataClearCoat, mainLight, inputData.normalWS,
-                                                        inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff, true);
+        lightingData.mainLightColor = CityXSunLight(brdfData, brdfDataClearCoat, mainLight, inputData.normalWS,
+                                                    inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff);
     }
 
     // The lights that belong on the other side of this surface's wall.
@@ -317,8 +317,8 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
         if ((light.layerMask & wrongSide) == 0)
 #endif
         {
-            lightingData.additionalLightsColor += CityXSurfaceLight(brdfData, brdfDataClearCoat, light, inputData.normalWS,
-                                                                    inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff, true);
+            lightingData.additionalLightsColor += CityXSunLight(brdfData, brdfDataClearCoat, light, inputData.normalWS,
+                                                                inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff);
         }
     }
     #endif
@@ -333,8 +333,9 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
         if ((light.layerMask & wrongSide) == 0)
 #endif
         {
-            lightingData.additionalLightsColor += CityXSurfaceLight(brdfData, brdfDataClearCoat, light, inputData.normalWS,
-                                                                    inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff, false);
+            // A lamp's light on a wall or a street is soft with the cel look too: flat steps drew rings round every lamp (CityXToonLighting.hlsl).
+            lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light, inputData.normalWS,
+                                                                          inputData.viewDirectionWS, surfaceData.clearCoatMask, specularHighlightsOff);
         }
     LIGHT_LOOP_END
     #endif

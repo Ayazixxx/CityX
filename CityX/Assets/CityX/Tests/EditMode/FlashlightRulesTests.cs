@@ -3,7 +3,7 @@ using NUnit.Framework;
 
 namespace CityX.Tests
 {
-    /// <summary>The flashlight's beam shape, with no scene (docs/FLASHLIGHT.md): a full hot spot, a ring past it, a spill falling to nothing.</summary>
+    /// <summary>The flashlight's beam shape, with no scene (docs/FLASHLIGHT.md): a full hot spot melting into a spill that falls to nothing.</summary>
     public sealed class FlashlightRulesTests
     {
         [Test]
@@ -22,11 +22,21 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheReflectorsRingShowsJustPastTheHotSpot()
+        public void TheBeamIsOneAreaOfLightThatOnlyFadesGoingOut()
         {
-            float hot = FlashlightRules.HotSpotShare;
-            float ring = FlashlightRules.CookieAt(hot * 1.25f);
-            Assert.Greater(ring, FlashlightRules.CookieAt(hot * 1.6f), "no ring past the hot spot");
+            // Owner, 2026-11-09: "it keeps reflecting as circles instead of just an area of light like most light sources in video games do".
+            // A ring, a ripple or a hot spot with an edge each draws a circle on the wall the beam falls on.
+            const int steps = 200;
+            const float gentlestEdge = 0.02f;   // the most the beam may lose over one step (half a percent of its width)
+            float before = FlashlightRules.CookieAt(0.0f);
+            for (int i = 1; i <= steps; i++)
+            {
+                float r = i / (float)steps;
+                float here = FlashlightRules.CookieAt(r);
+                Assert.LessOrEqual(here, before + 1e-6f, $"the beam brightens again {r:0.000} of the way out: a ring");
+                Assert.Less(before - here, gentlestEdge, $"the beam drops off an edge {r:0.000} of the way out: a circle");
+                before = here;
+            }
         }
     }
 }

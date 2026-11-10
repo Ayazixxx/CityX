@@ -12,6 +12,9 @@
   wide spill, and the rings and imperfections a real reflector throws. A plain spot reads as a stage light; the cookie is what makes it a
   torch (Valve's lighting docs list the flashlight among their preset cookies; Unity's manual suggests "dirty" cookies for horror; commercial
   cookie packs are rendered from real lens and reflector shapes). Real torches: a bright hot spot with a soft spill round it.
+  **Taken out, 2026-11-09**: the reflector's ring and ripples, and the hot spot's edge. Owner: "it keeps reflecting as circles instead of
+  just an area of light like most light sources in video games do". Each of them drew a circle on every wall and floor the beam fell on;
+  the cookie is now one area of light that only ever fades going out.
 - **Shadows**: a flashlight that casts shadows is most of the atmosphere (Doom 3, F.E.A.R.): walls and bodies cut the beam and throw long
   moving shadows. Start the shadows a little out from the lens so the hand holding it never shades it.
 - **A beam in the air**: the volumetric shaft Alan Wake is known for; cheaply, a soft additive shape along the beam that faces the camera.
@@ -33,7 +36,7 @@ flashlight retrospective (stagingpoint.com); "Creating a Flashlight for Z4CH" (i
   out before the shoulder and points it where you look, catching up a little late (`PlayerLocomotion.Torch`, TwoBoneIK after the Animator).
 - **The beam** (`FlashlightItem`, numbers in `FlashlightRules`, drawn with `FlashlightLook`): a spot light, warm white (1, 0.92, 0.78), 90 bright,
   45 m, 55 degrees across with a 16 degree hot spot, soft shadows from 25 cm out, shaped by a cookie made in code (`FlashlightRules.CookieAt`:
-  the full hot spot, a faint reflector's ring just past it, the spill falling smoothly to nothing at the edge, faint ripples); a faint
+  the hot spot full in its middle and melting into the spill, the spill falling smoothly to nothing at the edge, no rings); a faint
   shaft of light in the air along the first 10 m, as wide as the hot spot's cone and a little more (three soft wedges crossed about the beam,
   fading along it and to their sides, so it reads as a volume from every side; seen best in the dark; it fades out as the beam turns toward
   the camera, where looked at from inside it its wedges would show as flat slabs); a glow on the lens that grows and brightens as the beam
@@ -48,7 +51,7 @@ copy's torch switches and points by that word (`ITorch.ShowLit`), the arm with i
 
 ## Tests
 
-`FlashlightRulesTests` (the cookie's shape), `FlashlightPlayTests` (click on and off, pointed where you look and a little late, a shadowed
+`FlashlightRulesTests` (the cookie's shape, and that it only fades going out), `FlashlightPlayTests` (click on and off, pointed where you look and a little late, a shadowed
 spot with its cookie, the sync and a copy lit and pointed by it); pictures `FlashlightCapture` (`flashlight-*.png`).
 
 ## Not yet

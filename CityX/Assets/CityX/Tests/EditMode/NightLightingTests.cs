@@ -393,5 +393,43 @@ namespace CityX.Tests
                 RenderSettings.reflectionIntensity = oldReflection;
             }
         }
+
+        [Test]
+        public void TheSunsFlareIsOnlyDrawnWhileTheSunIsUp()
+        {
+            // With the sun under the ground its flare still drew, through the street, as a pale disc on the road at night.
+            var go = new GameObject("Cycle");
+            var sunObject = new GameObject("Sun");
+            var dome = new Material(Shader.Find("CityX/ProceduralSky"));
+            Color oldFog = RenderSettings.fogColor;
+            Color oldAmbient = RenderSettings.ambientLight;
+            float oldReflection = RenderSettings.reflectionIntensity;
+            var oldAmbientMode = RenderSettings.ambientMode;
+            try
+            {
+                var cycle = go.AddComponent<DayNightCycle>();
+                cycle.SkyDome = dome;
+                cycle.Sun = sunObject.AddComponent<Light>();
+                cycle.Sun.type = LightType.Directional;
+                var flare = sunObject.AddComponent<UnityEngine.Rendering.LensFlareComponentSRP>();
+
+                cycle.Apply(SkyCycle.At(SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f));
+                Assert.IsFalse(flare.enabled, "the sun's flare is drawn at midnight");
+
+                cycle.Apply(SkyCycle.At(SkyCycle.DaySeconds * 0.5f));
+                Assert.IsTrue(flare.enabled, "no flare round the sun at noon");
+            }
+            finally
+            {
+                RenderSettings.fogColor = oldFog;
+                RenderSettings.ambientMode = oldAmbientMode;
+                RenderSettings.ambientLight = oldAmbient;
+                RenderSettings.reflectionIntensity = oldReflection;
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(sunObject);
+                Object.DestroyImmediate(dome);
+                Shader.SetGlobalFloat("_CityXIndoorShade", 0.0f);
+            }
+        }
     }
 }

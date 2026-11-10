@@ -28,8 +28,12 @@ everything, including whatever is made later. With the keyword off every surface
 **The light** (`View/Shaders/CityXToonLighting.hlsl`), on every lit surface:
 - **The sun or the moon** lights a surface fully or not at all: the lit side a flat 0.8 of the light, the shade side 0.08, split where the
   surface turns away from it (N.L 0.12) or falls in shadow, the edge a pixel or two wide. The sky's ambient lights both sides as before.
-- **A lamp** (a room light, a door lamp, a billboard's floodlight) lights its pool in three flat steps, brightest under it.
-- **A shiny surface** (wet in the rain, metal) gets one hard highlight, no soft sheen.
+- **A lamp** (a street light, a room light, a flashlight) is a soft area of light. On a body or a prop the side that faces it is one flat
+  tone (split at the sun's edge, the sun's 0.8), the side that faces away gets none, and the whole fades with distance as the light does.
+  On the walls, roofs and ground it is URP's own soft light: a pool that fades out, and on a wet street a soft reflection. (Until
+  2026-11-09 a lamp lit in three flat steps, which drew three rings round every street lamp and every flashlight beam; owner: "it keeps
+  reflecting as circles instead of just an area of light like most light sources in video games do".)
+- **A shiny surface** (wet in the rain, metal) gets one hard highlight from the sun or the moon, and on a body from a lamp too; no soft sheen.
 - The soft dark corners of the screen-space ambient occlusion are left out, and normal maps (the bricks, the paving) do not light the
   surface: a cel surface is flat.
 
@@ -37,7 +41,7 @@ It goes through two shaders, which between them draw every lit surface in the ga
 - **`CityX/Lit`** (`View/Shaders/CityXLit.shader`): URP's Lit shader copied whole, its one lighting call going through the cel light. Every
   material that was on URP's Lit (characters, clothes, weapons, props, the ground and pavement, glass, the imported map) moved onto it with
   every property it had. Code makes materials with `CityX.Core.LitShader`, never URP's Lit by name (`CelShadingTests` guards both).
-- **`CityX/Facade`**: the walls, roofs and ground of every building, each light through the cel light.
+- **`CityX/Facade`**: the walls, roofs and ground of every building, the sun and the moon through the cel light, lamps soft.
 
 **The lines** (`View/Shaders/CityXOutline.shader`, put on both renderers by `View/Editor/OutlineSetup.cs` with the scene build): a full-screen
 pass after the opaque world, before the glass and the air, from the depth and the normals the frame already has (the ambient occlusion

@@ -9,7 +9,10 @@
 // turned off) a light is a toon light:
 //   the sun (or the moon) lights a surface fully or not at all, split where the surface turns away from it or falls in shadow; the shade
 //     side keeps only the sky's light and a little of the sun's;
-//   a lamp (a room light, a door lamp, a floodlight) lights its pool in flat steps, brightest under it;
+//   a lamp (a street light, a room light, a flashlight) lights the side of a body or a prop that faces it one flat tone, split as the sun's
+//     is, and fades with distance as its light does; on the walls, roofs and ground (CityX/Facade) it is URP's own soft light, so its pool
+//     on a street is an area of light that fades out (flat steps drew rings round every lamp: owner, 2026-11-09, "it keeps reflecting as
+//     circles instead of just an area of light like most light sources in video games do");
 //   a shiny surface (wet in the rain, metal) gets one hard highlight, no soft sheen;
 //   the soft dark corners of screen-space ambient occlusion are left out, and a normal map's fine bumps are not lit (a cel surface is flat).
 // Without the keyword everything here is URP's own lighting, called as before, so the game looks exactly as it did with cel shading off.
@@ -24,9 +27,6 @@
 // The sun or the moon. x: the light (N.L times its shadow, 0..1) at which a surface turns from its shade side to its lit side; y: half the
 // width of that edge; z: how much of the light the shade side gets; w: how much the lit side gets.
 float4 _CityXToonSun;
-// A lamp. x, y, z: the light (its colour's brightest channel times N.L times its falloff) at which its pool's three steps start; w: half the
-// width of a step's edge, as a share of where it starts.
-float4 _CityXToonLamp;
 // x: the specular (URP's DirectBRDFSpecular times the light) at which a hard highlight shows, y: its strength.
 float4 _CityXToonShine;
 
@@ -42,26 +42,13 @@ half CityXToonSunLevel(half amount)
     return _CityXToonSun.w > 0.0 ? lerp(_CityXToonSun.z, _CityXToonSun.w, lit) : 1.0;
 }
 
-// The share of a lamp's light a surface gets: its pool in flat steps (each step as bright as the middle, in brightness, of the light it
-// spans: none past the first step, then the first two steps' middle, then the next two's), and under the lamp, past the last step, the
-// lamp's own light, so a bright lamp still glows at its heart.
-half CityXToonLampLevel(half amount, half3 colour)
+// The share of a lamp's light a surface gets. The side that faces the lamp (facing: N.L times the lamp's shadow) gets the sun's lit share,
+// the side that faces away or stands in its shadow none, split as the sun's is; and the whole of it fades with distance (falloff: the
+// lamp's own, and a spot's cone) smoothly, so what a lamp lights is an area that fades out and never a set of rings.
+half CityXToonLampLevel(half facing, half falloff)
 {
-    half brightest = max(colour.r, max(colour.g, colour.b));
-    half light = amount * brightest;
-    half3 starts = _CityXToonLamp.xyz;
-    if (starts.z <= 0.0 || brightest <= 1e-4)
-    {
-        return amount;
-    }
-    half w = _CityXToonLamp.w;
-    half first = CityXToonEdge(light, starts.x, starts.x * w);
-    half second = CityXToonEdge(light, starts.y, starts.y * w);
-    half third = CityXToonEdge(light, starts.z, starts.z * w);
-    half stepped = first * sqrt(starts.x * starts.y)
-                 + second * (sqrt(starts.y * starts.z) - sqrt(starts.x * starts.y))
-                 + third * (max(light, starts.z) - sqrt(starts.y * starts.z));
-    return stepped / brightest;
+    half lit = _CityXToonSun.w > 0.0 ? CityXToonEdge(facing, _CityXToonSun.x, _CityXToonSun.y) * _CityXToonSun.w : facing;
+    return lit * falloff;
 }
 
 // One light on a surface, cel shaded: what LightingPhysicallyBased gives in URP's own lighting.
@@ -69,7 +56,7 @@ half3 CityXToonLight(BRDFData brdfData, Light light, half3 normalWS, half3 viewD
 {
     half NdotL = saturate(dot(normalWS, light.direction));
     half amount = NdotL * light.distanceAttenuation * light.shadowAttenuation;
-    half level = sun ? CityXToonSunLevel(amount) : CityXToonLampLevel(amount, light.color);
+    half level = sun ? CityXToonSunLevel(amount) : CityXToonLampLevel(NdotL * light.shadowAttenuation, light.distanceAttenuation);
     half3 colour = brdfData.diffuse * light.color * level;
 #ifndef _SPECULARHIGHLIGHTS_OFF
     [branch] if (!specularHighlightsOff && _CityXToonShine.x > 0.0)
@@ -81,12 +68,12 @@ half3 CityXToonLight(BRDFData brdfData, Light light, half3 normalWS, half3 viewD
     return colour;
 }
 
-// One light on a surface: the toon light with cel shading on, URP's LightingPhysicallyBased (exactly as URP calls it) with it off.
-half3 CityXSurfaceLight(BRDFData brdfData, BRDFData brdfDataClearCoat, Light light, half3 normalWS, half3 viewDirectionWS,
-    half clearCoatMask, bool specularHighlightsOff, bool sun)
+// The sun or the moon on a surface: the toon light with cel shading on, URP's LightingPhysicallyBased (exactly as URP calls it) with it off.
+half3 CityXSunLight(BRDFData brdfData, BRDFData brdfDataClearCoat, Light light, half3 normalWS, half3 viewDirectionWS,
+    half clearCoatMask, bool specularHighlightsOff)
 {
 #if defined(CITYX_TOON)
-    return CityXToonLight(brdfData, light, normalWS, viewDirectionWS, specularHighlightsOff, sun);
+    return CityXToonLight(brdfData, light, normalWS, viewDirectionWS, specularHighlightsOff, true);
 #else
     return LightingPhysicallyBased(brdfData, brdfDataClearCoat, light, normalWS, viewDirectionWS, clearCoatMask, specularHighlightsOff);
 #endif

@@ -187,6 +187,12 @@ namespace CityX.View
                 Sun.intensity = state.SunIntensity;
                 Sun.shadows = state.SunCastsShadow ? LightShadows.Soft : LightShadows.None;
                 CurrentSky.TowardSun = -Sun.transform.forward;
+                // The flare is drawn at the sun's place on the screen whatever the sun's brightness, and the ground does not hide it: with the
+                // sun down, an eye looking at the street at night saw it as a pale disc lying on the road.
+                if (Sun.TryGetComponent(out UnityEngine.Rendering.LensFlareComponentSRP flare))
+                {
+                    flare.enabled = state.SunElevationSine > 0.0f;
+                }
             }
             CurrentSky.Sunshine = CurrentSky.SunshineOf(state.SunElevationSine, Overcast);
 

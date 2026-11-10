@@ -25,12 +25,8 @@ namespace CityX.View
         public const float LitShare = 0.8f;
         public const float ShadeShare = 0.08f;
 
-        // A LAMP lights its pool in three flat steps. The light (its colour's brightest channel times N.L times its falloff) each starts at,
-        // and the width of a step's edge as a share of where it starts.
-        public const float LampFirstStep = 0.05f;
-        public const float LampSecondStep = 0.22f;
-        public const float LampThirdStep = 0.8f;
-        public const float LampEdgeShare = 0.12f;
+        // A LAMP has no numbers of its own: on a body it splits at the sun's edge into the sun's lit share and nothing, and fades with distance
+        // as the light itself does; on the walls and the ground it is URP's own soft light (flat steps drew rings round every lamp).
 
         // A SHINY surface (wet, metal): one hard highlight where URP's specular passes this, this strong.
         public const float ShineAt = 3.0f;
@@ -47,7 +43,6 @@ namespace CityX.View
         public static readonly Color OutlineColour = Color.black;
 
         private static readonly int SunId = Shader.PropertyToID("_CityXToonSun");
-        private static readonly int LampId = Shader.PropertyToID("_CityXToonLamp");
         private static readonly int ShineId = Shader.PropertyToID("_CityXToonShine");
         private static readonly int OutlineId = Shader.PropertyToID("_CityXOutline");
         private static readonly int OutlineFadeId = Shader.PropertyToID("_CityXOutlineFade");
@@ -83,7 +78,6 @@ namespace CityX.View
         private static void SetLook()
         {
             Shader.SetGlobalVector(SunId, new Vector4(SunEdge, SunEdgeHalfWidth, ShadeShare, LitShare));
-            Shader.SetGlobalVector(LampId, new Vector4(LampFirstStep, LampSecondStep, LampThirdStep, LampEdgeShare));
             Shader.SetGlobalVector(ShineId, new Vector4(ShineAt, ShineStrength, 0.0f, 0.0f));
             Shader.SetGlobalVector(OutlineId, new Vector4(OutlineWidth, OutlineStep, FoldThreshold, OutlineWidth > 0.0f ? 1.0f : 0.0f));
             Shader.SetGlobalVector(OutlineFadeId, new Vector4(OutlineFadeStart, OutlineFadeEnd, 0.0f, 0.0f));

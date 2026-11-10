@@ -3,8 +3,8 @@ using UnityEngine;
 namespace CityX.Weapons
 {
     /// <summary>
-    /// The flashlight's beam (docs/FLASHLIGHT.md), from how games light theirs: a spot light whose shape is a cookie -- a bright hot spot in a
-    /// soft wide spill, the faint ring a reflector's rim throws and its faint ripples -- warm white, reaching far, casting soft shadows.
+    /// The flashlight's beam (docs/FLASHLIGHT.md), from how games light theirs: a spot light whose shape is a cookie -- a bright hot spot
+    /// melting into a soft wide spill -- warm white, reaching far, casting soft shadows.
     /// </summary>
     public static class FlashlightRules
     {
@@ -45,10 +45,18 @@ namespace CityX.Weapons
         /// <summary>How far the hot spot reaches out across the cookie (0 the beam's middle, 1 its edge).</summary>
         public static float HotSpotShare => Mathf.Tan(HotSpotDegrees * 0.5f * Mathf.Deg2Rad) / Mathf.Tan(SpillDegrees * 0.5f * Mathf.Deg2Rad);
 
+        /// <summary>How bright the spill is beside the hot spot (the hot spot 1).</summary>
+        public const float SpillShare = 0.4f;
+
+        /// <summary>The hot spot is full across this share of its own width, and has melted into the spill by this many of them.</summary>
+        public const float HotSpotFullShare = 0.4f;
+
+        public const float HotSpotMeltShare = 1.8f;
+
         /// <summary>
-        /// The cookie's brightness <paramref name="r"/> of the way out from the beam's middle (1 its edge): the hot spot, full and soft-edged; a faint
-        /// ring just past it where the reflector's rim throws its light; the spill falling smoothly away to nothing at the edge; and the reflector's
-        /// faint ripples over it all (what makes a game's torch read as a torch and not a stage light).
+        /// The cookie's brightness <paramref name="r"/> of the way out from the beam's middle (1 its edge): the hot spot, full in its middle,
+        /// melting into the spill, and the spill falling smoothly away to nothing at the edge. One area of light that only ever fades going
+        /// out: a reflector's ring and ripples, and a hot spot with an edge, all drew circles on whatever the beam fell on.
         /// </summary>
         public static float CookieAt(float r)
         {
@@ -57,11 +65,9 @@ namespace CityX.Weapons
                 return 0.0f;
             }
             float hot = HotSpotShare;
-            float spot = 1.0f - Mathf.SmoothStep(0.0f, 1.0f, (r - hot * 0.7f) / (hot * 0.6f));
-            float ring = (r - hot * 1.25f) / 0.035f;
-            float spill = 0.4f * (1.0f - Mathf.SmoothStep(0.0f, 1.0f, r));
-            float ripples = 1.0f + 0.04f * Mathf.Sin(r * 48.0f);
-            return Mathf.Clamp01((Mathf.Max(spot, spill) + 0.14f * Mathf.Exp(-ring * ring)) * ripples);
+            float spot = 1.0f - Mathf.SmoothStep(0.0f, 1.0f, (r - hot * HotSpotFullShare) / (hot * (HotSpotMeltShare - HotSpotFullShare)));
+            float spill = SpillShare * (1.0f - Mathf.SmoothStep(0.0f, 1.0f, r));
+            return spill + (1.0f - spill) * spot;
         }
     }
 }
