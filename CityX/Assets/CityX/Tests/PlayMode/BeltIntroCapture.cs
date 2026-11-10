@@ -80,6 +80,11 @@ namespace CityX.Tests
             Shoot("tools-fading-in");
             yield return Frames(60);
             Shoot("making-alive");
+            for (int i = 0; i < 6; i++)
+            {
+                ShootLegs(i);
+                yield return Frames(40);
+            }
 
             _belt.TogglePose();
             yield return Frames(12);
@@ -128,6 +133,20 @@ namespace CityX.Tests
             {
                 yield return null;
             }
+        }
+
+        /// <summary>Close on the legs, the belt under them, to see the feet stay put through the idle (beltfeet-N.png).</summary>
+        private void ShootLegs(int index)
+        {
+            Camera camera = _belt.MakingCamera;
+            Transform stage = _belt.Rider.parent;
+            Vector3 place = camera.transform.position;
+            Quaternion turn = camera.transform.rotation;
+            float fieldWas = camera.fieldOfView;
+            camera.fieldOfView = 30.0f;
+            BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"beltfeet-{index}", stage.TransformPoint(new Vector3(0.0f, 0.7f, 3.4f)), stage.TransformPoint(new Vector3(0.0f, 0.55f, 0.0f)));
+            camera.fieldOfView = fieldWas;
+            camera.transform.SetPositionAndRotation(place, turn);
         }
 
         /// <summary>The belt's camera that is on, with the title's interface drawn into the picture.</summary>

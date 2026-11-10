@@ -46,6 +46,12 @@ game's own.
 - **Alive against holding still.** The brush and the click target are the body as it stood when the creator woke, arms out
   (docs/CHARACTER_CREATOR.md). So paint only lands while it holds exactly that pose (`CharacterCreator.HoldingStill`); alive, a press
   on it asks it to hold still (`WantedStill`) and a press beside it turns it, as always.
+- **The feet are stuck to the belt** while it is alive (owner, 2026-11-10: "make the bottom of his feet actually stuck to the conveyer
+  belt with IK ... it appears as if his feet are gliding back and forth on the ground"). The idle clip moves the feet up to 15 cm with the
+  hips; `PlantedFeet` plays the clip once round when the body first comes alive, sets each foot on the middle of its sway, sole flat on
+  the belt, and bends the legs back onto those spots after the Animator every frame (`CreatorLife`), the hips still swaying over them.
+  Held in the body's own space, so they ride the belt and turn with the turntable. Holding still, the body is in the exact pose it is
+  painted in, feet and all, so they ease over to that; at the belt's end `CreatorLife.LetGo` hands them to the ragdoll with the rest.
 - **The belt** (`ConveyorBelt`) builds itself when it wakes: 60 m of rubber slats (laid out again from how far the belt has run, and
   turning down round the drum at its end), a grey steel frame with hubs that turn (grey at the owner's word, 2026-11-10: "make the yellow part of the conveyer belt grey"), and the colliders the limp body lands on. **The sky**
   (`BeltSky`): one wall of open sky behind it. Both are on the creator's own layer, the only one its two cameras see.
@@ -74,5 +80,5 @@ game's own.
 
 ## Tests
 
-`BeltRideTests` (the rules of the ride), `BeltIntroPlayTests` (in the real title scene with real keys: the empty belt, rolling in either way, the tools fading in, the arms lifting before paint lands, the ride off, the wider view, the drop, the black, the world waiting for the ride, a first start, the belt heard while it runs),
+`BeltRideTests` (the rules of the ride), `BeltIntroPlayTests` (in the real title scene with real keys: the empty belt, rolling in either way, the tools fading in, the arms lifting before paint lands, the ride off, the wider view, the drop, the black, the world waiting for the ride, a first start, the belt heard while it runs, the feet stuck to it),
 `BeltIntroCapture` (Explicit, `-Graphics`: `Logs/CityShots/belt-NN-*.png`, every beat).

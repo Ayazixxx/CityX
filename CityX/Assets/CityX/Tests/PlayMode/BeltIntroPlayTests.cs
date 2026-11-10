@@ -255,6 +255,84 @@ namespace CityX.Tests
             Assert.Less(ragdoll.Torso.position.y, top - 2.0f, "the body did not fall off the belt");
         }
 
+        /// <summary>The furthest either foot strays over <paramref name="frames"/>, metres, in the body's own space: on the belt, in the turntable's turn.</summary>
+        private IEnumerator MeasureFeet(int frames, Action<float, float, float> done)
+        {
+            Animator animator = _belt.Life.Animator;
+            Transform root = animator.transform;
+            Transform left = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+            Transform right = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            Vector3 leftFirst = Vector3.zero, rightFirst = Vector3.zero;
+            float stray = 0.0f, highest = float.MinValue, tilt = 0.0f;
+            for (int i = 0; i < frames; i++)
+            {
+                yield return null;
+                Vector3 leftNow = root.InverseTransformPoint(left.position);
+                Vector3 rightNow = root.InverseTransformPoint(right.position);
+                if (i == 0)
+                {
+                    leftFirst = leftNow;
+                    rightFirst = rightNow;
+                }
+                stray = Mathf.Max(stray, Vector3.Distance(leftNow, leftFirst), Vector3.Distance(rightNow, rightFirst));
+                highest = Mathf.Max(highest, leftNow.y, rightNow.y);
+                tilt = Mathf.Max(tilt, Vector3.Angle(left.up, root.up), Vector3.Angle(right.up, root.up));
+            }
+            done(stray, highest, tilt);
+        }
+
+        /// <summary>Owner, 2026-11-10, of the body idling on the belt: "make the bottom of his feet actually stuck to the conveyer belt with IK
+        /// ... it appears as if his feet are gliding back and forth on the ground instead of his feet being to the floor".</summary>
+        [UnityTest]
+        public IEnumerator AliveItsFeetAreStuckToTheBeltAndLetGoAtItsEnd()
+        {
+            yield return Begin();
+            yield return RollIn();
+
+            float bare = 0.0f;
+            _belt.Life.enabled = false;
+            yield return MeasureFeet(300, (stray, height, tilt) => bare = stray);
+            _belt.Life.enabled = true;
+            yield return null;
+            Assert.Greater(bare, 0.01f, "the idle no longer moves the feet, so this test shows nothing");
+
+            float soleUnderAnkle = BodyRig.FootY * _belt.Life.Animator.GetBoneTransform(HumanBodyBones.LeftFoot).lossyScale.y;
+            yield return MeasureFeet(300, (stray, height, tilt) =>
+            {
+                Assert.Less(stray, 0.002f, "the feet still glide as it idles");
+                Assert.AreEqual(_belt.Belt.transform.position.y, _belt.Life.Animator.transform.position.y, 1e-3f, "the body's floor is not the belt's top");
+                Assert.AreEqual(soleUnderAnkle, height * _belt.Life.Animator.transform.lossyScale.y, 0.005f, "the soles are not on the belt");
+                Assert.Less(tilt, 0.5f, "the soles are not flat on the belt");
+            });
+
+            bool entered = false;
+            _belt.RollOut(() => entered = true);
+            yield return MeasureFeet(90, (stray, height, tilt) => Assert.Less(stray, 0.002f, "the feet glide as the belt carries it off"));
+            Assert.IsFalse(_belt.Ragdoll.IsLimp);
+
+            yield return Until(() => _belt.Ride.Now == BeltRide.Stage.Fallen, 12.0f, "the body never reached the belt's end");
+            yield return Frames(30);
+            Assert.IsTrue(_belt.Ragdoll.IsLimp);
+            Animator animator = _belt.Life.Animator;
+            Assert.Greater(Vector3.Distance(animator.GetBoneTransform(HumanBodyBones.LeftFoot).position, animator.transform.TransformPoint(Vector3.up * BodyRig.FootY)), 0.1f,
+                "the feet are still held to the belt in the fall");
+            yield return Until(() => entered, 8.0f, "the world was never entered after the fall");
+        }
+
+        [UnityTest]
+        public IEnumerator HoldingStillItsFeetAreExactlyWhereTheyArePainted()
+        {
+            yield return Begin();
+            yield return RollIn();
+            yield return Frames(30);
+            Animator animator = _belt.Life.Animator;
+            _belt.TogglePose();
+            yield return Until(() => _belt.Life.Still, 3.0f, "the arms never finished coming up");
+            Vector3 left = animator.GetBoneTransform(HumanBodyBones.LeftFoot).position;
+            yield return Frames(10);
+            Assert.AreEqual(0.0f, Vector3.Distance(left, animator.GetBoneTransform(HumanBodyBones.LeftFoot).position), 1e-5f, "the planted feet moved a body being painted");
+        }
+
         /// <summary>Owner, 2026-11-10: "make this noise play when going right or left on the conveyer belt, and at the end when the
         /// conveyer belt rolls your character off".</summary>
         [UnityTest]

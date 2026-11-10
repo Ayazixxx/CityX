@@ -31,6 +31,9 @@ namespace CityX.Character
         /// <summary>In the pose it is painted in, every bone arrived.</summary>
         public bool Still => !Alive && _eased >= 1.0f;
 
+        /// <summary>Its soles, stuck where they stand while it is alive; let go with the body at the belt's end (<see cref="LetGo"/>).</summary>
+        public PlantedFeet Feet { get; private set; }
+
         private void Awake()
         {
             Remember();
@@ -43,6 +46,7 @@ namespace CityX.Character
             {
                 return;
             }
+            Feet = new PlantedFeet(Animator);
             _bones = Animator.GetComponentsInChildren<Transform>(true);
             _stillPlaces = new Vector3[_bones.Length];
             _stillTurns = new Quaternion[_bones.Length];
@@ -131,22 +135,34 @@ namespace CityX.Character
         /// <summary>After the Animator: each bone eased from where the change found it to where it is going.</summary>
         private void LateUpdate()
         {
-            if (_eased >= 1.0f || _bones == null)
+            if (_bones == null)
             {
                 return;
             }
-            _eased = Mathf.Min(1.0f, _eased + Time.deltaTime / LiftSeconds);
-            float share = Mathf.SmoothStep(0.0f, 1.0f, _eased);
-            for (int i = 0; i < _bones.Length; i++)
+            if (Alive && !Feet.IsDown)
             {
-                // Alive, the Animator has just put the bone where the idle has it; still, it goes to where it is painted.
-                Vector3 place = Alive ? _bones[i].localPosition : _stillPlaces[i];
-                Quaternion turn = Alive ? _bones[i].localRotation : _stillTurns[i];
-                _bones[i].SetLocalPositionAndRotation(Vector3.Lerp(_fromPlaces[i], place, share), Quaternion.Slerp(_fromTurns[i], turn, share));
+                Feet.SetDown();   // not before now: this is the first frame the Animator has it in the idle
             }
-            if (_eased >= 1.0f && !Alive && Creator != null)
+            float share = 1.0f;
+            if (_eased < 1.0f)
             {
-                Creator.HoldingStill = true;
+                _eased = Mathf.Min(1.0f, _eased + Time.deltaTime / LiftSeconds);
+                share = Mathf.SmoothStep(0.0f, 1.0f, _eased);
+                for (int i = 0; i < _bones.Length; i++)
+                {
+                    // Alive, the Animator has just put the bone where the idle has it; still, it goes to where it is painted.
+                    Vector3 place = Alive ? _bones[i].localPosition : _stillPlaces[i];
+                    Quaternion turn = Alive ? _bones[i].localRotation : _stillTurns[i];
+                    _bones[i].SetLocalPositionAndRotation(Vector3.Lerp(_fromPlaces[i], place, share), Quaternion.Slerp(_fromTurns[i], turn, share));
+                }
+                if (_eased >= 1.0f && !Alive && Creator != null)
+                {
+                    Creator.HoldingStill = true;
+                }
+            }
+            if (Alive)
+            {
+                Feet.Hold(share);   // holding still it is in the exact pose it is painted in, feet and all
             }
         }
     }
