@@ -53,6 +53,9 @@ namespace CityX.UIEditor
         private static readonly float TimeOfDay =
             SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.34f;
 
+        /// <summary>Whether the title's rain falls (its streaks and its sound).</summary>
+        public const bool TitleRainOn = false;
+
         /// <summary>Vertical field of view of the fixed camera.</summary>
         private const float FieldOfView = 42.0f;
 
@@ -321,6 +324,10 @@ namespace CityX.UIEditor
             ambience.Filter = rainMuffle;
             ambience.Rain = rainLayer;
             title.Ambience = ambience;
+            // Off for now, its sound too (owner, 2026-11-11: "maybe get rid of the rain for now it will help run a little easier"); all of
+            // it is still built, so turning it back on is this switch.
+            rain.SetActive(TitleRainOn);
+            rainSound.playOnAwake = TitleRainOn;
 
             var vignette = new GameObject("Vignette", typeof(RectTransform));
             vignette.transform.SetParent(root.transform, false);

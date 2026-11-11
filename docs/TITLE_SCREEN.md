@@ -33,6 +33,11 @@ stuff like that just the look of the ingame buildings".
 - While the character list or the creator (each with its own stage and camera) is up, the title camera draws nothing: their stage lights
   would light the city, and drawing it under them is work for nothing.
 
+The rain is off for now, streaks and sound (owner, 2026-11-11: "maybe get rid of the rain for now it will help run a little easier"):
+`TitleScreenBuilder.TitleRainOn` puts it back. The spot is searched for again more loosely (any box of a building within 900 m), and
+failing everything over where the game starts, so the title stands somewhere in any world: in the city the game plays it once found no
+plain roof of the right height and the camera stayed in the middle of nowhere, a wall filling the screen.
+
 The night was kept over the mock-up's light blue sky because the neon is what the logo is about, and neon reads in the dark (ask the owner
 if a day sky is wanted after all).
 

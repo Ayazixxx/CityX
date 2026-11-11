@@ -27,6 +27,9 @@ namespace CityX.UI
         /// <summary>The roof's shortest side, metres: room for the camera behind the character.</summary>
         public const float MinSide = 17.0f;
 
+        /// <summary>The shortest side of a building the looser second search takes.</summary>
+        public const float LooseSide = 10.0f;
+
         /// <summary>
         /// How far in from the front edge the character stands, and from the left one as the camera sees it, metres: near the corner, so the
         /// roof fills only the lower right of the view and the city drops away past its left edge (owner, 2026-11-11, of the first rooftop:
@@ -100,52 +103,69 @@ namespace CityX.UI
 
             var best = new Pick();
             var walled = new Pick();   // the best edge with a wall in front, should every edge have one
-            foreach (int i in near)
+            // The plain roofs near the start first; failing those (the game's bigger city can have none of that height), any box of a
+            // building further out: the title stands its own roof over the spot anyway.
+            for (int tier = 0; tier < 2 && !best.Found && !walled.Found; tier++)
             {
-                BuildingSite site = buildings[i];
-                if (!Standable(site) || Distance(site, centreX, centreZ) > SearchRadius)
+                foreach (int i in near)
                 {
-                    continue;
-                }
-                for (int side = 0; side < 4; side++)
-                {
-                    // The way out over the edge, and the way to its left as the camera sees it, in the building's own frame; the feet just in
-                    // from that front edge and from its left end (the corner), the camera behind them just inside the left edge.
-                    double outX = side == 0 ? 1.0 : side == 1 ? -1.0 : 0.0;
-                    double outZ = side == 2 ? 1.0 : side == 3 ? -1.0 : 0.0;
-                    double leftX = -outZ, leftZ = outX;
-                    double half = outX != 0.0 ? site.Params.Width * 0.5 : site.Params.Depth * 0.5;
-                    double halfAlong = outX != 0.0 ? site.Params.Depth * 0.5 : site.Params.Width * 0.5;
-                    double ahead = half - EdgeGap, aside = halfAlong - SideGap;
-                    site.LocalToWorld(outX * ahead + leftX * aside, outZ * ahead + leftZ * aside, out double feetX, out double feetZ);
-                    site.LocalToWorld(outX, outZ, out double tipX, out double tipZ);
-                    site.LocalToWorld(leftX, leftZ, out double leftTipX, out double leftTipZ);
-                    double dirX = tipX - site.CentreX, dirZ = tipZ - site.CentreZ;
-                    double score = View(buildings, near, i, feetX, feetZ, dirX, dirZ, site.Top + EyeHeight, out bool blocked);
-                    blocked |= SideBlocked(buildings, near, i, feetX, feetZ, leftTipX - site.CentreX, leftTipZ - site.CentreZ, site.Top);
-                    ref Pick into = ref blocked ? ref walled : ref best;
-                    if (!into.Found || score > into.Score)
+                    BuildingSite site = buildings[i];
+                    bool candidate = tier == 0
+                        ? Standable(site) && Distance(site, centreX, centreZ) <= SearchRadius
+                        : Loose(site) && Distance(site, centreX, centreZ) <= SearchRadius * 2.0;
+                    if (!candidate)
                     {
-                        into = new Pick
+                        continue;
+                    }
+                    for (int side = 0; side < 4; side++)
+                    {
+                        // The way out over the edge, and the way to its left as the camera sees it, in the building's own frame; the feet just in
+                        // from that front edge and from its left end (the corner), the camera behind them just inside the left edge.
+                        double outX = side == 0 ? 1.0 : side == 1 ? -1.0 : 0.0;
+                        double outZ = side == 2 ? 1.0 : side == 3 ? -1.0 : 0.0;
+                        double leftX = -outZ, leftZ = outX;
+                        double half = outX != 0.0 ? site.Params.Width * 0.5 : site.Params.Depth * 0.5;
+                        double halfAlong = outX != 0.0 ? site.Params.Depth * 0.5 : site.Params.Width * 0.5;
+                        double ahead = half - EdgeGap, aside = halfAlong - SideGap;
+                        site.LocalToWorld(outX * ahead + leftX * aside, outZ * ahead + leftZ * aside, out double feetX, out double feetZ);
+                        site.LocalToWorld(outX, outZ, out double tipX, out double tipZ);
+                        site.LocalToWorld(leftX, leftZ, out double leftTipX, out double leftTipZ);
+                        double dirX = tipX - site.CentreX, dirZ = tipZ - site.CentreZ;
+                        double score = View(buildings, near, i, feetX, feetZ, dirX, dirZ, site.Top + EyeHeight, out bool blocked);
+                        blocked |= SideBlocked(buildings, near, i, feetX, feetZ, leftTipX - site.CentreX, leftTipZ - site.CentreZ, site.Top);
+                        ref Pick into = ref blocked ? ref walled : ref best;
+                        if (!into.Found || score > into.Score)
                         {
-                            Found = true,
-                            Building = i,
-                            Feet = new Vector3((float)feetX, site.Top, (float)feetZ),
-                            Out = new Vector3((float)dirX, 0.0f, (float)dirZ).normalized,
-                            Score = score,
-                            Walled = blocked,
-                        };
+                            into = new Pick
+                            {
+                                Found = true,
+                                Building = i,
+                                Feet = new Vector3((float)feetX, site.Top, (float)feetZ),
+                                Out = new Vector3((float)dirX, 0.0f, (float)dirZ).normalized,
+                                Score = score,
+                                Walled = blocked,
+                            };
+                        }
                     }
                 }
             }
             Pick pick = best.Found ? best : walled;
-            if (pick.Found)
+            if (!pick.Found)
             {
-                // The title's own rooftop stands a little over everything close round it, so none of the real city comes up through it or
-                // beside it: past its left edge the view only drops away.
-                pick.Feet.y = Mathf.Max(pick.Feet.y, ClearOfAround(buildings, near, pick.Feet.x, pick.Feet.z) + AboveAround);
+                // Nothing at all to stand over: where the game starts, looking north.
+                var start = new Vector3((float)centreX, (float)plan.GroundHeight(centreX, centreZ), (float)centreZ);
+                pick = new Pick { Found = true, Building = -1, Feet = start, Out = Vector3.forward };
             }
+            // The title's own rooftop stands a little over everything close round it, so none of the real city comes up through it or beside
+            // it: past its left edge the view only drops away.
+            pick.Feet.y = Mathf.Max(pick.Feet.y, ClearOfAround(buildings, near, pick.Feet.x, pick.Feet.z) + AboveAround);
             return pick;
+        }
+
+        /// <summary>Any box of a building wide enough to stand a roof over.</summary>
+        private static bool Loose(BuildingSite site)
+        {
+            return site.Exists && !site.Shell && site.Sides == 0 && site.Params.Width >= LooseSide && site.Params.Depth >= LooseSide;
         }
 
         /// <summary>A plain box of a building of the right height, whose roof is its own and has room on it.</summary>

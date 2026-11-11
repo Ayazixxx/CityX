@@ -24,6 +24,7 @@ namespace CityX.Tests
 
         private string _directory;
         private Scene _title;
+        private World.Plan.CityScale _scaleWas = World.Plan.CityScale.Active;
 
         [UnityTearDown]
         public IEnumerator CloseTheTitle()
@@ -35,6 +36,7 @@ namespace CityX.Tests
             }
             LogAssert.ignoreFailingMessages = false;
             CharacterStore.DirectoryOverride = ScratchDataFixture.Folder;
+            World.Plan.CityScale.Active = _scaleWas;
             if (_directory != null && Directory.Exists(_directory))
             {
                 Directory.Delete(_directory, recursive: true);
@@ -45,6 +47,9 @@ namespace CityX.Tests
         public IEnumerator RenderTheTitle()
         {
             CaptureGuard.NeedsGraphics();
+            // The city the game plays, not the tests' classic one: the title once found no roof in it and showed a wall.
+            _scaleWas = World.Plan.CityScale.Active;
+            World.Plan.CityScale.Active = World.Plan.CityScale.Default;
             Time.captureFramerate = 60;
             _directory = Path.Combine(Path.GetTempPath(), "CityXShot", Path.GetRandomFileName());
             Directory.CreateDirectory(_directory);

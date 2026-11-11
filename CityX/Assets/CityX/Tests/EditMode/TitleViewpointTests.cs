@@ -44,6 +44,27 @@ namespace CityX.Tests
             Assert.Greater(pick.Score, 0.0, "nothing to look at");
         }
 
+        /// <summary>
+        /// In the city the game plays (not the tests' classic one) too: the title once found no roof there to stand on and showed a wall
+        /// filling the screen (owner, 2026-11-11: "its not working properly").
+        /// </summary>
+        [Test]
+        public void InTheCityTheGamePlaysItFindsASpotToo()
+        {
+            CityScale was = CityScale.Active;
+            CityScale.Active = CityScale.Default;
+            try
+            {
+                TitleViewpoint.Pick pick = TitleViewpoint.Choose(new CityWorld(Seed).Plan);
+                Assert.IsTrue(pick.Found, "no spot in the game's city for the title's rooftop");
+                Assert.AreEqual(1.0f, pick.Out.magnitude, 1e-4f);
+            }
+            finally
+            {
+                CityScale.Active = was;
+            }
+        }
+
         [Test]
         public void TheSameWorldChoosesTheSameRoof()
         {
