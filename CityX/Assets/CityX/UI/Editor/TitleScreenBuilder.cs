@@ -363,13 +363,13 @@ namespace CityX.UIEditor
             title.Backdrop = camera;
             title.BackdropMask = camera.cullingMask;
 
-            title.CharacterSelectPanel = CharacterSelectBuilder.Build(root.transform, title, playerPrefab);
-
+            // The creator first: the character list stands its characters on the creator's belt.
             if (playerPrefab != null)
             {
                 title.CreatorPanel = CharacterCreatorBuilder.Build(
                     root.transform, title, playerPrefab);
             }
+            title.CharacterSelectPanel = CharacterSelectBuilder.Build(root.transform, title, playerPrefab, title.CreatorPanel);
 
             title.MultiplayerPanel = BuildMultiplayerPanel(root.transform, title, bootstrap);
             title.SettingsPanel = BuildSettings(root.transform, title);

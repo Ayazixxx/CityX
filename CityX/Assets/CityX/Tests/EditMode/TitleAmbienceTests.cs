@@ -4,15 +4,14 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 namespace CityX.Tests
 {
     /// <summary>
-    /// The title screen's rain, heard and seen: full on the menu, a muffled murmur on
-    /// the character list (a room out of the weather), nothing on the creator -- and
-    /// the city still drawn behind the character list.
+    /// The title screen's rain, heard and seen: full on the menu, nothing on the
+    /// character list and the creator (the belt in the sky).
+    /// The muffled murmur (Indoors) still works, for whichever panel wants it.
     /// </summary>
     public sealed class TitleAmbienceTests
     {
@@ -54,8 +53,8 @@ namespace CityX.Tests
             Assert.AreEqual(TitleAmbience.Mood.Outdoors, TitleAmbience.MoodFor(TitleScreen.Panel.Menu));
             Assert.AreEqual(TitleAmbience.Mood.Outdoors, TitleAmbience.MoodFor(TitleScreen.Panel.Settings));
             Assert.AreEqual(TitleAmbience.Mood.Outdoors, TitleAmbience.MoodFor(TitleScreen.Panel.Multiplayer));
-            Assert.AreEqual(TitleAmbience.Mood.Indoors, TitleAmbience.MoodFor(TitleScreen.Panel.CharacterSelect),
-                "the character list is not heard from indoors");
+            Assert.AreEqual(TitleAmbience.Mood.Silent, TitleAmbience.MoodFor(TitleScreen.Panel.CharacterSelect),
+                "the character list, on the belt in the sky with the creator, still has weather in it");
             Assert.AreEqual(TitleAmbience.Mood.Silent, TitleAmbience.MoodFor(TitleScreen.Panel.Creator),
                 "the creator still has weather in it");
         }
@@ -168,8 +167,8 @@ namespace CityX.Tests
                 Assert.IsNotNull(title.Ambience.Rain, "the ambience cannot hide the streaks");
 
                 title.Show(TitleScreen.Panel.CharacterSelect);
-                Assert.AreEqual(TitleAmbience.Mood.Indoors, title.Ambience.Current);
-                Assert.IsTrue(title.Ambience.Rain.enabled, "the character list lost its rain");
+                Assert.AreEqual(TitleAmbience.Mood.Silent, title.Ambience.Current);
+                Assert.IsFalse(title.Ambience.Rain.enabled, "the character list, on the belt in the sky, still draws rain");
 
                 title.Show(TitleScreen.Panel.Creator);
                 Assert.AreEqual(TitleAmbience.Mood.Silent, title.Ambience.Current);
@@ -178,45 +177,6 @@ namespace CityX.Tests
                 title.Show(TitleScreen.Panel.Menu);
                 Assert.AreEqual(TitleAmbience.Mood.Outdoors, title.Ambience.Current);
                 Assert.IsTrue(title.Ambience.Rain.enabled);
-            }
-            finally
-            {
-                EditorSceneManager.CloseScene(scene, removeScene: true);
-            }
-        }
-
-        /// <summary>
-        /// The character list's camera must be an OVERLAY stacked on the title's camera. As a
-        /// second base camera it cleared to Unity's stock blue and the city behind the
-        /// characters vanished -- and the screenshot tool never drew that camera, so nothing
-        /// noticed.
-        /// </summary>
-        [Test]
-        public void TheCharacterListsCameraIsAnOverlayOnTheCityCamera()
-        {
-            Scene scene = OpenTitle();
-            try
-            {
-                Camera cityCamera = scene.GetRootGameObjects()
-                    .SelectMany(root => root.GetComponentsInChildren<Camera>(true))
-                    .First(c => c.CompareTag("MainCamera"));
-
-                var select = FindIn<CharacterSelect>(scene);
-                Camera listCamera = select.GetComponentInParent<Canvas>(true)
-                    .GetComponentsInChildren<CreatorStage>(true)
-                    .Select(relay => relay.Stage)
-                    .Where(stage => stage != null && stage.GetComponent<Character.CharacterCreator>() == null)
-                    .Select(stage => stage.GetComponentInChildren<Camera>(true))
-                    .FirstOrDefault();
-                Assert.IsNotNull(listCamera, "the character list has no camera");
-
-                UniversalAdditionalCameraData listData = listCamera.GetUniversalAdditionalCameraData();
-                Assert.AreEqual(CameraRenderType.Overlay, listData.renderType,
-                    "the character list's camera is a base camera -- it will clear away the city behind it");
-
-                UniversalAdditionalCameraData cityData = cityCamera.GetUniversalAdditionalCameraData();
-                Assert.IsTrue(cityData.cameraStack.Contains(listCamera),
-                    "the character list's camera is not stacked on the city camera, so it draws nothing");
             }
             finally
             {

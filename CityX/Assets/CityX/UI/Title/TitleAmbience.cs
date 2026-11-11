@@ -7,10 +7,10 @@ namespace CityX.UI
     /// whichever panel is up.
     ///
     /// The rain is one looping recording that used to play at full volume under every
-    /// panel. The menu is standing in it; the character list is a room you have stepped
-    /// into out of it (quieter, and dull, the way rain sounds through a wall); the
-    /// creator is somewhere with no weather at all (the sound fades out, and the streaks
-    /// over the screen go with it). TitleScreen.Show says which, through
+    /// panel. The menu is standing in it; the character list and the creator are on the
+    /// conveyor belt in the sky, with no weather at all (the sound fades out, and the
+    /// streaks over the screen go with it). Under cover (quieter, and dull, the way rain
+    /// sounds through a wall) was the list's before it moved onto the belt. TitleScreen.Show says which, through
     /// <see cref="MoodFor"/>, and this eases there.
     ///
     /// The rain recording carries the wind with it, so silencing it silences both.
@@ -22,7 +22,7 @@ namespace CityX.UI
             /// <summary>Out in it: the menu, settings, multiplayer.</summary>
             Outdoors,
 
-            /// <summary>Under cover: quieter and muffled. The character list.</summary>
+            /// <summary>Under cover: quieter and muffled. No panel since the character list moved onto the belt (2026-11-11).</summary>
             Indoors,
 
             /// <summary>Nothing: no sound, no streaks. The creator.</summary>
@@ -72,7 +72,7 @@ namespace CityX.UI
         {
             switch (panel)
             {
-                case TitleScreen.Panel.CharacterSelect: return Mood.Indoors;
+                case TitleScreen.Panel.CharacterSelect: return Mood.Silent;   // on the belt in the sky with the creator
                 case TitleScreen.Panel.Creator: return Mood.Silent;
                 default: return Mood.Outdoors;
             }

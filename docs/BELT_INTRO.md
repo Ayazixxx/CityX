@@ -18,7 +18,7 @@ game's own.
 ## When it plays
 
 - **A start with nobody made yet**: no logo and no menu, the empty belt (`TitleScreen.OnEnable`, `BeltOnFirstStart`).
-- **CREATE NEW on the character list** (`TitleScreen.BeginCreator`).
+- **CREATE NEW on the character list** (`TitleScreen.BringNewCharacter`, `BeltIntro.Bring`): the belt brings the body in by itself, behind the characters standing on it, with no prompt (docs/CHARACTER_SELECT.md). F8 on the title, or CityX > Play Title As First Start, opens the first boot's empty belt with characters made.
 - With characters made the title screen is as it was. (What a returning player's title looks like is still to be talked through.)
 - `TitleScreen.Show(Panel.Creator)` alone, which the creator's tests and pictures use, shows the creator as it always was: the body in
   the middle holding still, the tools up, no ride (`BeltIntro.Stand`).

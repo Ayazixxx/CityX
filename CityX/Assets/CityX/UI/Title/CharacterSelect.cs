@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using CityX.Character;
 using CityX.Core;
-using CityX.Items;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -9,73 +8,53 @@ using UnityEngine.UI;
 namespace CityX.UI
 {
     /// <summary>
-    /// Choosing, making and deleting characters, and entering the world.
+    /// Choosing, making and deleting characters, and entering the world (docs/CHARACTER_SELECT.md): the player's characters stand in a row on
+    /// the conveyor belt they were made on, and the belt rolls one to the middle (<see cref="CharacterSelect"/>'s belt half,
+    /// CharacterSelect.Belt.cs). Chosen, the view closes in on it with its card: PLAY, delete, BACK. CREATE NEW is always there, and rolls a
+    /// blank body in behind the row to be made.
     ///
-    /// ONE COMPONENT FOR ALL THREE, deliberately. They are the same screen with
-    /// different rows on it: making a character is what the empty list offers,
-    /// and deleting is a mode the list goes into. Splitting them would mean
-    /// three scripts passing the same list between each other and agreeing on
-    /// who owns it.
+    /// ONE COMPONENT FOR CHOOSING, MAKING AND DELETING, deliberately: they are the same screen in different modes, and splitting them would
+    /// mean three scripts passing the same list between each other and agreeing on who owns it.
     ///
-    /// It asks the server played on (<see cref="CharacterSources.Current"/>:
-    /// this PC's own, or the one joined) on every change rather than holding an
-    /// unsaved list, so backing out of the screen can never lose a character
-    /// and there is no "are you sure you want to discard" to get wrong.
+    /// It asks the server played on (<see cref="CharacterSources.Current"/>: this PC's own, or the one joined) for the list each time it opens
+    /// rather than holding an unsaved one, so backing out of the screen can never lose a character.
     /// </summary>
-    public sealed class CharacterSelect : MonoBehaviour
+    public sealed partial class CharacterSelect : MonoBehaviour
     {
         public enum Mode
         {
-            /// <summary>The list, with a row per character.</summary>
+            /// <summary>The row on the belt.</summary>
             List,
 
             /// <summary>Typing a name for a new one.</summary>
             Creating,
 
-            /// <summary>Confirming a delete.</summary>
+            /// <summary>Confirming a delete, over the chosen character's card.</summary>
             Confirming,
+
+            /// <summary>Closed in on the chosen character, its card up.</summary>
+            Inspecting,
         }
 
         [Header("Wired by CharacterSelectBuilder")]
+        [Tooltip("The row's own controls: the name over the middle character, the arrows, BACK.")]
         public GameObject ListPanel;
 
         public GameObject CreatePanel;
         public GameObject ConfirmPanel;
 
+        [Tooltip("The chosen character's card, beside it once the view has closed in: name, level, play time, stats, PLAY, the bin, BACK.")]
+        public GameObject CardPanel;
+
         public InputField NameField;
         public Text ConfirmText;
         public Text EmptyNotice;
 
-        /// <summary>
-        /// How many pedestals stand in the row (owner, 2026-10-26: "make it display 5 character ... the back 2 on the right and left are dark just
-        /// dark and shadowy figures"), and which of them is the centre one.
-        /// </summary>
-        public const int SlotCount = 5;
-
-        public const int CentreSlot = 2;
-
-        [Header("Carousel, wired by CharacterSelectBuilder")]
-        [Tooltip("The pedestal anchors on the 3D stage, left to right as the camera sees them. A body is instantiated as a child of each one that has a character to show.")]
-        public Transform[] PedestalAnchors = new Transform[SlotCount];
-
-        [Tooltip("What the two furthest pedestals' bodies are drawn in: a dark, shadowy figure.")]
-        public Material SilhouetteMaterial;
-
-        [Tooltip("Cloned per pedestal slot, then stripped down to a static display body -- see StripWorldComponents.")]
-        public GameObject CarouselBodyPrefab;
-
-        [Tooltip("Loaded once by the builder -- runtime code has no AssetDatabase to load these itself. Same asset CharacterCreatorBuilder wires.")]
-        public Mesh[] HairStyleMeshes = new Mesh[0];
-
-        public Material HairMaterialAsset;
-
-        [Tooltip("The clothes a pedestal body can wear, by item id. Loaded by the builder, as the hair is.")]
-        public Inventory.ItemPrefabEntry[] ClothingPrefabs = new Inventory.ItemPrefabEntry[0];
-
+        [Tooltip("On the card.")]
         public Text NameLabel;
+
         public Text DetailLabel;
         public Text StatsLabel;
-        public Text IndexLabel;
 
         [Tooltip("Swatches the creator offers. Chosen by CharacterSelectBuilder.")]
         public Image[] Swatches = new Image[0];
@@ -83,8 +62,6 @@ namespace CityX.UI
         [Tooltip("The scene the world lives in.")]
         public string WorldScene = "CityMassing";
 
-        private readonly GameObject[] _pedestalBodies = new GameObject[SlotCount];
-        private readonly int[] _shownAt = { -1, -1, -1, -1, -1 };
         private List<CharacterSave> _characters = new List<CharacterSave>();
         private Mode _mode = Mode.List;
         private int _selectedIndex;
@@ -93,12 +70,13 @@ namespace CityX.UI
 
         public Mode Showing => _mode;
 
-        /// <summary>Which loaded character the centre pedestal is showing. Public so a test can read it.</summary>
+        /// <summary>Which slot of the row is chosen (the one in the middle, or being rolled there).</summary>
         public int SelectedIndex => _selectedIndex;
 
+        /// <summary>The row, slot by slot; a slot whose character was deleted while the screen was up holds null.</summary>
         public IReadOnlyList<CharacterSave> Characters => _characters;
 
-        /// <summary>The character the centre pedestal is on, or null with nothing saved yet.</summary>
+        /// <summary>The chosen character, or null with nobody there.</summary>
         public CharacterSave Selected =>
             _selectedIndex >= 0 && _selectedIndex < _characters.Count ? _characters[_selectedIndex] : null;
 
@@ -127,22 +105,24 @@ namespace CityX.UI
 
         private void OnEnable()
         {
-            Refresh();
+            OpenTheBelt();
             Show(Mode.List);
+            Refresh();
         }
 
-        /// <summary>Asks the server for the player's characters again and rebuilds the carousel.</summary>
+        /// <summary>Asks the server for the player's characters again and stands them on the belt.</summary>
         public void Refresh()
         {
             CharacterSources.Current.List(characters =>
             {
-                if (this == null)
+                if (this == null || !isActiveAndEnabled)
                 {
                     return;   // a server's late answer, after the screen has gone
                 }
-                _characters = characters;
+                _characters = characters ?? new List<CharacterSave>();
                 _selectedIndex = Mathf.Clamp(_selectedIndex, 0, Mathf.Max(0, _characters.Count - 1));
-                UpdateCarousel();
+                StandTheRow();
+                ShowEmptyNotice();
             });
         }
 
@@ -152,26 +132,75 @@ namespace CityX.UI
             if (ListPanel != null) ListPanel.SetActive(mode == Mode.List);
             if (CreatePanel != null) CreatePanel.SetActive(mode == Mode.Creating);
             if (ConfirmPanel != null) ConfirmPanel.SetActive(mode == Mode.Confirming);
+            if (CardPanel != null) CardPanel.SetActive(mode == Mode.Inspecting || mode == Mode.Confirming);
+            if (mode == Mode.Inspecting)
+            {
+                SetCard(Selected);
+            }
         }
 
         /// <summary>
-        /// Steps back one sub-mode, to the list.
+        /// Steps back one mode: from a delete being confirmed to the card, from the card to the row.
         ///
-        /// It does NOT hide itself when already at the list. Which panel is on
-        /// screen is TitleScreen's to decide -- two things setting the same
-        /// GameObject active is exactly the bug TitleScreen's enum exists to
-        /// prevent.
+        /// It does NOT hide itself when already at the row. Which panel is on screen is TitleScreen's to decide -- two things setting the same
+        /// GameObject active is exactly the bug TitleScreen's enum exists to prevent.
         /// </summary>
         public void Back()
         {
-            if (_mode != Mode.List)
+            switch (_mode)
             {
-                Show(Mode.List);
+                case Mode.Confirming:
+                    CancelDelete();
+                    break;
+                case Mode.Inspecting:
+                case Mode.Creating:
+                    Show(Mode.List);
+                    break;
             }
+        }
+
+        /// <summary>The chosen character's card, closed in on: from the row, with somebody in the middle and the belt stopped.</summary>
+        public void Inspect()
+        {
+            if (_mode == Mode.List && Selected != null && (_line == null || _line.Settled) && !_creating)
+            {
+                Show(Mode.Inspecting);
+            }
+        }
+
+        private void SetCard(CharacterSave character)
+        {
+            if (NameLabel != null)
+            {
+                NameLabel.text = character != null ? character.Name : string.Empty;
+            }
+            if (DetailLabel != null)
+            {
+                DetailLabel.text = character != null ? $"Level {character.Level}   {character.PlaytimeText()}" : string.Empty;
+            }
+            if (StatsLabel != null)
+            {
+                StatsLabel.text = character != null ? CharacterStats.Summary(character) : string.Empty;
+            }
+        }
+
+        /// <summary>What the empty belt says: what it was built saying, before any refusal was written over it.</summary>
+        private string _emptyText;
+
+        private void ShowEmptyNotice()
+        {
+            if (EmptyNotice == null)
+            {
+                return;
+            }
+            _emptyText ??= EmptyNotice.text;
+            EmptyNotice.text = _emptyText;
+            EmptyNotice.gameObject.SetActive(!_characters.Exists(character => character != null));
         }
 
         // --- making one ---
 
+        /// <summary>The old name-and-skin box (Creating). The creator names its own characters now.</summary>
         public void BeginCreate()
         {
             _pendingSkin = CharacterSave.DefaultSkin;
@@ -257,7 +286,6 @@ namespace CityX.UI
                 }
                 _characters.Insert(0, made);
                 _selectedIndex = 0;
-                UpdateCarousel();
                 Play(made, isNew: true);
             });
             return answered;
@@ -266,9 +294,11 @@ namespace CityX.UI
         private void Refuse(string why)
         {
             Debug.LogWarning($"CityX: {why}");
-            if (DetailLabel != null)
+            if (EmptyNotice != null)
             {
-                DetailLabel.text = why;
+                _emptyText ??= EmptyNotice.text;
+                EmptyNotice.text = why;
+                EmptyNotice.gameObject.SetActive(true);
             }
             Show(Mode.List);
         }
@@ -278,7 +308,7 @@ namespace CityX.UI
         public void BeginDelete(string id)
         {
             _pendingDeleteId = id;
-            CharacterSave character = _characters.Find(c => c.Id == id);
+            CharacterSave character = _characters.Find(c => c != null && c.Id == id);
             if (ConfirmText != null)
             {
                 ConfirmText.text = character == null
@@ -288,7 +318,7 @@ namespace CityX.UI
             Show(Mode.Confirming);
         }
 
-        /// <summary>Deletes whichever character the centre pedestal is currently showing.</summary>
+        /// <summary>Deletes the chosen character (after asking).</summary>
         public void BeginDeleteSelected()
         {
             CharacterSave character = Selected;
@@ -298,18 +328,29 @@ namespace CityX.UI
             }
         }
 
+        /// <summary>
+        /// Deletes it on the server, and it leaves the belt: its spot stays empty while the screen is up (a gap on a belt closes only by
+        /// everything on it moving), and the belt rolls the next one to the middle.
+        /// </summary>
         public void ConfirmDelete()
         {
             if (!string.IsNullOrEmpty(_pendingDeleteId))
             {
-                CharacterSources.Current.Delete(_pendingDeleteId, _ =>
+                CharacterSources.Current.Delete(_pendingDeleteId, deleted =>
                 {
-                    if (this != null)
+                    if (!deleted && this != null && isActiveAndEnabled)
                     {
-                        Refresh();
+                        Refresh();   // the server kept it: show the row as it really is
                     }
                 });
+                int slot = _characters.FindIndex(c => c != null && c.Id == _pendingDeleteId);
+                if (slot >= 0)
+                {
+                    _characters[slot] = null;
+                    LeaveTheBelt(slot);
+                }
                 _pendingDeleteId = null;
+                ShowEmptyNotice();
             }
             Show(Mode.List);
         }
@@ -317,7 +358,7 @@ namespace CityX.UI
         public void CancelDelete()
         {
             _pendingDeleteId = null;
-            Show(Mode.List);
+            Show(Selected != null ? Mode.Inspecting : Mode.List);
         }
 
         // --- playing one ---
@@ -369,370 +410,10 @@ namespace CityX.UI
             }
         }
 
-        /// <summary>Plays whichever character the centre pedestal is currently showing.</summary>
+        /// <summary>Plays the chosen character.</summary>
         public void PlaySelected()
         {
             Play(Selected, isNew: false);
-        }
-
-        // --- the carousel ---
-
-        /// <summary>
-        /// Steps to the next character, wrapping back to the start -- a carousel is meant to be cycled, not a list that stops at its own ends.
-        /// The next character stands on the RIGHT, so the right arrow brings it in from the right and the row slides left (owner, 2026-10-26:
-        /// "make it so the direction it scrolls through the characters when you press the buttons on the right and left are inverted": it came
-        /// in from the left, the stage's anchors having been laid out mirrored to the camera looking back at them).
-        /// </summary>
-        public void Next()
-        {
-            if (_characters.Count == 0)
-            {
-                return;
-            }
-            _selectedIndex = (_selectedIndex + 1) % _characters.Count;
-            UpdateCarousel();
-        }
-
-        public void Previous()
-        {
-            if (_characters.Count == 0)
-            {
-                return;
-            }
-            _selectedIndex = (_selectedIndex - 1 + _characters.Count) % _characters.Count;
-            UpdateCarousel();
-        }
-
-        /// <summary>Which character a pedestal (0 to SlotCount - 1, left to right) is showing, or -1 for none. Public so a test can read it.</summary>
-        public int ShownAt(int slot) => slot >= 0 && slot < SlotCount ? _shownAt[slot] : -1;
-
-        /// <summary>
-        /// The character a pedestal shows, given how many there are, or -1 for none: the chosen one in the centre, the next ones to its right and
-        /// the previous ones to its left (see Next). The pair beside the centre need two characters (with two, both show the other one); the
-        /// furthest pair five, so nobody stands on the row twice.
-        /// </summary>
-        public static int CharacterFor(int slot, int selected, int count)
-        {
-            int offset = slot - CentreSlot;
-            int reach = Mathf.Abs(offset);
-            if (count == 0 || (reach == 1 && count < 2) || (reach == 2 && count < SlotCount))
-            {
-                return -1;
-            }
-            return ((selected + offset) % count + count) % count;
-        }
-
-        /// <summary>
-        /// Repopulates the pedestals round _selectedIndex and refreshes the stat panel. Called on every
-        /// selection change rather than animated into place -- with typically
-        /// a handful of saves, instantiating up to five bodies is cheap
-        /// enough to just redo outright, and it keeps this in step with
-        /// Refresh() rebuilding the whole list the same way a delete or a
-        /// new character already did before the carousel existed.
-        /// </summary>
-        private void UpdateCarousel()
-        {
-            DestroyPedestalBodies();
-
-            if (EmptyNotice != null)
-            {
-                EmptyNotice.gameObject.SetActive(_characters.Count == 0);
-            }
-
-            if (_characters.Count == 0)
-            {
-                SetStatPanel(null);
-                return;
-            }
-
-            for (int slot = 0; slot < SlotCount; slot++)
-            {
-                int character = CharacterFor(slot, _selectedIndex, _characters.Count);
-                if (character >= 0)
-                {
-                    PopulateSlot(slot, character);
-                }
-            }
-
-            SetStatPanel(_characters[_selectedIndex]);
-        }
-
-        private void SetStatPanel(CharacterSave character)
-        {
-            if (NameLabel != null)
-            {
-                NameLabel.text = character != null ? character.Name : string.Empty;
-            }
-            if (DetailLabel != null)
-            {
-                DetailLabel.text = character != null
-                    ? $"Level {character.Level}   {character.PlaytimeText()}"
-                    : string.Empty;
-            }
-            if (StatsLabel != null)
-            {
-                StatsLabel.text = character != null
-                    ? CityX.Character.CharacterStats.Summary(character)
-                    : string.Empty;
-            }
-            if (IndexLabel != null)
-            {
-                IndexLabel.text = character != null
-                    ? $"{_selectedIndex + 1} / {_characters.Count}"
-                    : string.Empty;
-            }
-        }
-
-        private void DestroyPedestalBodies()
-        {
-            for (int i = 0; i < _pedestalBodies.Length; i++)
-            {
-                if (_pedestalBodies[i] != null)
-                {
-                    Destroy(_pedestalBodies[i]);
-                    _pedestalBodies[i] = null;
-                }
-                _shownAt[i] = -1;
-            }
-        }
-
-        /// <summary>Stands a static preview of _characters[characterIndex] on a pedestal slot (0 to SlotCount - 1, left to right).</summary>
-        private void PopulateSlot(int slot, int characterIndex)
-        {
-            if (PedestalAnchors == null || slot >= PedestalAnchors.Length
-                || PedestalAnchors[slot] == null || CarouselBodyPrefab == null)
-            {
-                return;
-            }
-
-            GameObject body = Instantiate(CarouselBodyPrefab, PedestalAnchors[slot]);
-            body.name = $"Pedestal_{slot}";
-            body.transform.localPosition = Vector3.zero;
-            body.transform.localRotation = Quaternion.identity;
-
-            StripWorldComponents(body);
-            ApplyCosmetics(body, _characters[characterIndex]);
-            PutOnClothes(body, _characters[characterIndex]);
-
-            // ONTO THE STAGE'S OWN LAYER, NOT WHATEVER Player.prefab SHIPS
-            // ON. The anchors were put on the carousel's dedicated layer at
-            // build time (CharacterSelectBuilder.BuildCarouselStage), but a
-            // body cloned from the prefab at RUNTIME still carries the
-            // prefab's own default layer -- invisible to a camera whose
-            // cullingMask only shows the stage's layer, confirmed directly:
-            // a render showed the pedestals lit and in frame with no body
-            // on any of them, and every stripped-down component came back
-            // present and active except the layer never having been
-            // touched.
-            int layer = PedestalAnchors[slot].gameObject.layer;
-            foreach (Transform t in body.GetComponentsInChildren<Transform>(true))
-            {
-                t.gameObject.layer = layer;   // the clothes' own renderers too, so after they are put on
-            }
-
-            if (Mathf.Abs(slot - CentreSlot) == 2)
-            {
-                InShadow(body);
-            }
-
-            _pedestalBodies[slot] = body;
-            _shownAt[slot] = characterIndex;
-        }
-
-        /// <summary>A body in the back row: every part of it (skin, hair, clothes) in the one dark silhouette material, its own colours cleared.</summary>
-        private void InShadow(GameObject body)
-        {
-            if (SilhouetteMaterial == null)
-            {
-                return;
-            }
-            foreach (Renderer renderer in body.GetComponentsInChildren<Renderer>(true))
-            {
-                var shadow = new Material[Mathf.Max(1, renderer.sharedMaterials.Length)];
-                for (int i = 0; i < shadow.Length; i++)
-                {
-                    shadow[i] = SilhouetteMaterial;
-                }
-                renderer.sharedMaterials = shadow;
-                renderer.SetPropertyBlock(null);
-                for (int i = 0; i < shadow.Length; i++)
-                {
-                    renderer.SetPropertyBlock(null, i);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Leaves a still, undirected display body -- everything that would
-        /// make it walk, swing, ragdoll or physically collide with the
-        /// pedestal has to come off. The same order and the same list
-        /// CharacterCreatorBuilder.BuildStage already uses for its own
-        /// preview body, and for the same reason: PlayerLocomotion,
-        /// PlayerClimbing and GrappleSwing all require the CharacterController
-        /// and PlayerAnimationDriver requires MeleeAttacker, so the thing
-        /// depended on has to go second or Unity silently refuses to remove
-        /// the one that needs it.
-        /// </summary>
-        private static void StripWorldComponents(GameObject body)
-        {
-            Strip<PlayerInputReader>(body);
-            Strip<PlayerLocomotion>(body);
-            Strip<PlayerClimbing>(body);
-            Strip<PlayerVaulting>(body);
-            Strip<WallStick>(body);
-            Strip<GrappleSwing>(body);
-            Strip<CharacterController>(body);
-            Strip<PlayerAnimationDriver>(body);
-            Strip<MeleeAttacker>(body);
-            Strip<Ragdoll>(body);
-            Strip<CharacterIdentity>(body);
-            Strip<PlayerVitals>(body);
-            Strip<Joint>(body);
-            Strip<Rigidbody>(body);
-            Strip<Collider>(body);
-
-            // THE REPORTED "WIND KEEPS PLAYING ON THE SELECT SCREEN AND
-            // RESETS EVERY TIME YOU PICK A NEW CHARACTER" BUG. PlayerAudio's
-            // own Awake() runs synchronously during Instantiate() --  before
-            // this method ever gets a chance to strip it -- and immediately
-            // AddComponent<AudioSource>()s and Play()s the looping city
-            // ambience right there, fading it in. Destroying PlayerAudio
-            // alone stops its per-frame fade logic but does nothing to the
-            // AudioSource it already created and started, which keeps
-            // looping on its own with nothing left managing it. Every
-            // UpdateCarousel() rebuilds the pedestal bodies from scratch, so
-            // a fresh one of these starts on top of the last every time the
-            // selection changes -- the reported "resets." A pedestal is a
-            // silent display prop; it has no legitimate reason to carry any
-            // audio at all.
-            Strip<PlayerAudio>(body);
-            Strip<AudioSource>(body);
-
-            // Held still rather than animated -- there is no locomotion
-            // driving it, so an enabled Animator would just hold whichever
-            // frame its default state happened to start on. UNLIKE the
-            // creator's own body, this is not left at the bare bind pose:
-            // that is a T-pose, arms straight out, which reads as broken on
-            // a screen whose whole point is showing off the character
-            // rather than exposing it for painting. Posed to a natural
-            // arms-down stance instead, the same fixed rotations the
-            // weapon builders' grip renders use.
-            foreach (Animator animator in body.GetComponentsInChildren<Animator>(true))
-            {
-                animator.enabled = false;
-            }
-            StillPose.ArmsDown(body.transform);
-        }
-
-        /// <summary>
-        /// The character's saved clothes (owner, 2026-10-20: "make sure they have the items equipped on the character select screen (not
-        /// weapons yet just wearables)"), put on the display body by each one's own OnEquip, which only dresses the body, the way the game
-        /// puts them on. After the paint: painting recolours every renderer under the body.
-        /// </summary>
-        private void PutOnClothes(GameObject body, CharacterSave character)
-        {
-            if (character.Wearing == null)
-            {
-                return;
-            }
-            foreach (string itemId in character.Wearing)
-            {
-                bool clothing = ItemRegistry.TryGet(itemId, out ItemDefinition definition) && definition.IsWearable;
-                GameObject prefab = clothing ? ClothingPrefab(itemId) : null;
-                if (prefab == null)
-                {
-                    continue;
-                }
-                GameObject worn = Instantiate(prefab, body.transform, false);
-                var equippable = worn.GetComponent<IEquippableItem>();
-                if (equippable == null)
-                {
-                    Destroy(worn);
-                    continue;
-                }
-                equippable.OnEquip(body, ItemInstanceData.None);
-                foreach (Collider pickup in worn.GetComponentsInChildren<Collider>(true))
-                {
-                    pickup.enabled = false;
-                }
-            }
-        }
-
-        private GameObject ClothingPrefab(string itemId)
-        {
-            foreach (Inventory.ItemPrefabEntry entry in ClothingPrefabs)
-            {
-                if (entry.ItemId == itemId)
-                {
-                    return entry.Prefab;
-                }
-            }
-            return null;
-        }
-
-        private static void Strip<T>(GameObject root) where T : Component
-        {
-            foreach (T found in root.GetComponentsInChildren<T>(includeInactive: true))
-            {
-                Destroy(found);
-            }
-        }
-
-        /// <summary>
-        /// Paints the body the way CharacterIdentity.Apply paints the live
-        /// in-world one -- deliberately NOT by adding a CharacterIdentity
-        /// component and calling it, though. That component also tracks
-        /// playtime and autosaves back to the store on its own timer, and a
-        /// character sitting on a pedestal being idly looked at is not being
-        /// played -- attaching the real thing here would silently rack up
-        /// playtime and touch LastPlayedUnixSeconds just from browsing the
-        /// menu. This reimplements only the cosmetic half.
-        /// </summary>
-        private void ApplyCosmetics(GameObject body, CharacterSave character)
-        {
-            byte[] painted = character.GetPaint();
-            Texture2D atlas = null;
-            if (painted != null)
-            {
-                var paint = new BodyPaint(character.Skin);
-                if (paint.Decode(painted))
-                {
-                    paint.ShrinkForWearing();
-                    atlas = paint.Atlas;
-                }
-            }
-
-            foreach (Renderer renderer in BodySurface.Renderers(body.transform))
-            {
-                Material instance = renderer.material;
-                if (instance == null)
-                {
-                    continue;
-                }
-                if (atlas != null)
-                {
-                    if (instance.HasProperty("_BaseMap")) instance.SetTexture("_BaseMap", atlas);
-                    instance.mainTexture = atlas;
-                    if (instance.HasProperty("_BaseColor")) instance.SetColor("_BaseColor", Color.white);
-                    if (instance.HasProperty("_Color")) instance.SetColor("_Color", Color.white);
-                }
-                else
-                {
-                    if (instance.HasProperty("_BaseColor")) instance.SetColor("_BaseColor", character.Skin);
-                    if (instance.HasProperty("_Color")) instance.SetColor("_Color", character.Skin);
-                }
-            }
-
-            Transform head = TransformSearch.FindDeep(body.transform, "head");
-            if (head != null && HairStyleMeshes != null && HairStyleMeshes.Length > 0)
-            {
-                var hair = body.AddComponent<CharacterHair>();
-                hair.Head = head;
-                hair.StyleMeshes = HairStyleMeshes;
-                hair.HairMaterial = HairMaterialAsset;
-                hair.SetStyle(string.IsNullOrEmpty(character.HairStyle) ? "none" : character.HairStyle);
-                hair.SetColour(character.HairColour);
-            }
         }
     }
 }

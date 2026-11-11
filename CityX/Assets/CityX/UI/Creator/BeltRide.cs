@@ -39,16 +39,19 @@ namespace CityX.UI
         private readonly float _start;
         private readonly float _cut;
         private readonly float _end;
+        private readonly float _rollInSpeed;
 
         /// <summary>
         /// The body waits at <paramref name="start"/> (off the screen's left, negative), the view changes when it passes
-        /// <paramref name="cut"/> (off its right) and the belt ends at <paramref name="end"/>.
+        /// <paramref name="cut"/> (off its right) and the belt ends at <paramref name="end"/>. Rolling in, the belt runs at up to
+        /// <paramref name="rollInSpeed"/>: the player's run, or faster when the belt brings a body in by itself.
         /// </summary>
-        public BeltRide(float start, float cut, float end)
+        public BeltRide(float start, float cut, float end, float rollInSpeed = Speed)
         {
             _start = Mathf.Min(start, -0.5f);
             _cut = Mathf.Max(cut, 0.5f);
             _end = Mathf.Max(end, _cut + 0.5f);
+            _rollInSpeed = Mathf.Max(rollInSpeed, 0.1f);
             BodyAt = _start;
         }
 
@@ -60,8 +63,8 @@ namespace CityX.UI
         /// <summary>The belt's speed now, m/s, positive to the right.</summary>
         public float BeltSpeed { get; private set; }
 
-        /// <summary>How hard the belt is running, either way: 0 stopped to 1 at its full run. What it is heard by.</summary>
-        public float Running => Mathf.Abs(BeltSpeed) / Speed;
+        /// <summary>How hard the belt is running, either way: 0 stopped to 1 at its full run (or faster). What it is heard by.</summary>
+        public float Running => Mathf.Clamp01(Mathf.Abs(BeltSpeed) / Speed);
 
         /// <summary>How far the belt's surface has run in all, metres, positive to the right: what its slats and rollers are drawn by.</summary>
         public float Travel { get; private set; }
@@ -81,7 +84,7 @@ namespace CityX.UI
             switch (Now)
             {
                 case Stage.RollingIn:
-                    wanted = Mathf.Clamp(push, -1.0f, 1.0f) * Speed;
+                    wanted = Mathf.Clamp(push, -1.0f, 1.0f) * _rollInSpeed;
                     // No faster than it can still stop from by the middle.
                     wanted = Mathf.Min(wanted, Mathf.Sqrt(2.0f * Acceleration * Mathf.Max(0.0f, -BodyAt)));
                     break;

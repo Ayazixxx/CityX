@@ -29,8 +29,8 @@ namespace CityX.Tests
         private ICharacterSource _sourceWas;
         private bool _firstStartWas;
 
-        /// <summary>A server with a given number of characters, which makes and serves whatever it is asked for.</summary>
-        private sealed class Server : ICharacterSource
+        /// <summary>A server with a given number of characters, which makes, serves and deletes whatever it is asked to.</summary>
+        internal sealed class Server : ICharacterSource
         {
             public readonly List<CharacterSave> Characters = new List<CharacterSave>();
 
@@ -42,7 +42,7 @@ namespace CityX.Tests
                 done(requested);
             }
 
-            public void Delete(string characterId, Action<bool> done) => done(true);
+            public void Delete(string characterId, Action<bool> done) => done(Characters.RemoveAll(c => c.Id == characterId) > 0);
 
             public void Play(string characterId, Action<CharacterSave, bool> done) => done(Characters.Find(c => c.Id == characterId), false);
 

@@ -108,6 +108,9 @@ namespace CityX.UI
 
             /// <summary>The creator's T-POSE / RELAX button: lifts the body's arms to be painted, or lets them down (BeltIntro). Needs Title. Appended.</summary>
             CreatorTogglePose,
+
+            /// <summary>The character list's CREATE NEW: the belt rolls a blank body in behind the characters on it (CharacterSelect.CreateNew). Needs Select. Appended.</summary>
+            SelectCreateNew,
         }
 
         public Kind Action;
@@ -303,6 +306,10 @@ namespace CityX.UI
                     {
                         belt.TogglePose();
                     }
+                    break;
+
+                case Kind.SelectCreateNew:
+                    if (Select != null) Select.CreateNew();
                     break;
 
                 case Kind.CreatorAskName:

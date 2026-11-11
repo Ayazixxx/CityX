@@ -107,39 +107,45 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Owner, 2026-10-26: "move the delete button to just a little trash icon that is in the top right of that little panel that says Happy
-        /// Level 1 ...": the list has no DELETE button beside PLAY; the bin in the stat card's top-right corner starts the (confirmed) delete; and
-        /// the row has five pedestals, the back pair drawn in the silhouette.
+        /// The character list stands its characters on the creator's belt (docs/CHARACTER_SELECT.md): its row is on the creator's stage, seen
+        /// through the creator's camera, and the creator's belt sequence brings a new body in behind it. CREATE NEW is up whatever else is (owner,
+        /// 2026-11-11: "make it so a create new button is on screen always"); deleting is a little bin on the card (owner, 2026-10-26: "move the
+        /// delete button to just a little trash icon"), with no DELETE beside PLAY.
         /// </summary>
         [Test]
-        public void TheCharacterListDeletesFromABinInTheCardsCornerAndStandsFive()
+        public void TheCharacterListStandsOnTheCreatorsBeltWithCreateNewAlwaysUp()
         {
-            GameObject list = Everything().First(go => go.name == "ListPanel");
-            Assert.IsNull(list.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "DeleteButton"),
-                "the list still has its DELETE button");
-            Transform card = list.GetComponentsInChildren<Transform>(true).First(t => t.name == "StatCard");
-            Transform bin = card.Find("TrashButton");
-            Assert.IsNotNull(bin, "no bin on the stat card");
-            Assert.AreEqual(ButtonAction.Kind.SelectBeginDeleteSelected, bin.GetComponent<ButtonAction>().Action);
-            var binRect = (RectTransform)bin;
-            Assert.AreEqual(new Vector2(1.0f, 1.0f), binRect.anchorMin, "the bin is not in the card's top-right corner");
-            Assert.LessOrEqual(binRect.sizeDelta.x, 32.0f, "the bin is not little");
-            // Owner, 2026-10-27: "instead of "new character" make the button say "CREATE NEW"".
-            Transform create = list.GetComponentsInChildren<Transform>(true).First(t => t.name == "NewButton");
+            var select = Find<CharacterSelect>();
+            var intro = Find<BeltIntro>();
+            Assert.IsNotNull(select.Lineup, "the character list stands nobody on the belt");
+            Assert.AreSame(intro, select.Intro, "the character list cannot hand the belt to the creator");
+            Assert.AreSame(select.Lineup, intro.Lineup, "the creator does not know the row it brings a new body in behind");
+            Assert.AreSame(intro.MakingCamera, select.Lineup.View, "the row is not seen through the creator's camera");
+            Assert.AreSame(intro.Belt, select.Lineup.Belt, "the row does not ride the creator's belt");
+            Assert.AreSame(intro.GetComponent<CreatorStage>().Stage, select.GetComponent<CreatorStage>().Stage, "the list and the creator are on two stages");
+            Assert.AreSame(intro.GetComponent<CreatorStage>().Stage, select.Lineup.gameObject);
+            Component[] parts = select.GetComponents<Component>();
+            Assert.Less(System.Array.IndexOf(parts, select.GetComponent<CreatorStage>()), System.Array.IndexOf(parts, select),
+                "the stage comes up after the list stands its figures on it (an inactive stage wakes them after they were stripped)");
+            Assert.IsNotNull(select.Lineup.BodyPrefab, "the row has no body to make figures of");
+            Assert.IsNull(Everything().Select(go => go.GetComponent<Camera>()).FirstOrDefault(c => c != null && c.name == "SelectCamera"),
+                "the old pedestals' camera is still in the scene");
+
+            Transform create = select.transform.Find("NewButton");
+            Assert.IsNotNull(create, "CREATE NEW is not on the list itself, so it is not always up");
+            Assert.AreEqual(ButtonAction.Kind.SelectCreateNew, create.GetComponent<ButtonAction>().Action);
             Assert.AreEqual("CREATE NEW", create.GetComponentInChildren<Text>(true).text);
 
-            var select = Find<CharacterSelect>();
-            Assert.AreEqual(CharacterSelect.SlotCount, select.PedestalAnchors.Length);
-            Assert.IsTrue(select.PedestalAnchors.All(anchor => anchor != null), "a pedestal has no anchor");
-            Assert.IsNotNull(select.SilhouetteMaterial, "the back pair have no dark material to be drawn in");
-
-            // Left to right as the camera sees them, so the next character (CharacterSelect.Next) really stands on the right.
-            Camera stage = Everything().Select(go => go.GetComponent<Camera>()).First(c => c != null && c.name == "SelectCamera");
-            for (int slot = 1; slot < CharacterSelect.SlotCount; slot++)
-            {
-                Assert.Greater(stage.WorldToViewportPoint(select.PedestalAnchors[slot].position).x,
-                    stage.WorldToViewportPoint(select.PedestalAnchors[slot - 1].position).x, $"pedestal {slot} is not right of pedestal {slot - 1} on screen");
-            }
+            Transform[] card = select.CardPanel.GetComponentsInChildren<Transform>(true);
+            Transform bin = card.First(t => t.name == "TrashButton");
+            Assert.AreEqual(ButtonAction.Kind.SelectBeginDeleteSelected, bin.GetComponent<ButtonAction>().Action);
+            Assert.LessOrEqual(((RectTransform)bin).sizeDelta.x, 32.0f, "the bin is not little");
+            Assert.AreEqual(ButtonAction.Kind.SelectPlaySelected, card.First(t => t.name == "PlayButton").GetComponent<ButtonAction>().Action);
+            Assert.IsNull(card.FirstOrDefault(t => t.name == "DeleteButton"), "the card has a DELETE button beside PLAY");
+            Assert.AreEqual(ButtonAction.Kind.TitleBack, card.First(t => t.name == "BackButton").GetComponent<ButtonAction>().Action);
+            Assert.IsNotNull(select.Tag, "no name over the middle character");
+            Assert.AreEqual(ButtonAction.Kind.SelectPrevious, select.PreviousButton.GetComponent<ButtonAction>().Action);
+            Assert.AreEqual(ButtonAction.Kind.SelectNext, select.NextButton.GetComponent<ButtonAction>().Action);
         }
 
         [Test]
@@ -207,6 +213,7 @@ namespace CityX.Tests
                     case ButtonAction.Kind.SelectPrevious:
                     case ButtonAction.Kind.SelectPlaySelected:
                     case ButtonAction.Kind.SelectBeginDeleteSelected:
+                    case ButtonAction.Kind.SelectCreateNew:
                         Require(unwired, go, action.Select, "a CharacterSelect");
                         break;
 
@@ -717,7 +724,7 @@ namespace CityX.Tests
                 {
                     continue;
                 }
-                Assert.IsTrue(select.ClothingPrefabs.Any(worn => worn.ItemId == entry.ItemId && worn.Prefab != null),
+                Assert.IsTrue(select.Lineup.ClothingPrefabs.Any(worn => worn.ItemId == entry.ItemId && worn.Prefab != null),
                     $"the select screen cannot show a character wearing {item.DisplayName} -- rebuild the title screen");
             }
         }

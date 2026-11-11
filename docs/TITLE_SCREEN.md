@@ -30,7 +30,7 @@ stuff like that just the look of the ingame buildings".
   time for a world; a reroll of the seed chooses again.
 - `TitleStage` (after the streamer's Awake) puts the character 4.2 m in from that edge and 2.4 m from the left one, the title's own rooftop there lined up with the view (below), the camera behind them so their feet are at 76%
   across and 10% up a 16:9 view 5.6 m away, looking out over the edge 2.6 degrees down (the first rooftop's).
-- While the character list or the creator (each with its own stage and camera) is up, the title camera draws nothing: their stage lights
+- While the character list or the creator (both on the creator's belt, with its own camera) is up, the title camera draws nothing: their stage lights
   would light the city, and drawing it under them is work for nothing.
 
 The rain is off for now, streaks and sound (owner, 2026-11-11: "maybe get rid of the rain for now it will help run a little easier"):
@@ -82,10 +82,11 @@ idle, dressed, with their primary weapon in their hands. It is a whole player's 
 inventory and hair), because only a live body breathes in its idle and holds each weapon the way the game does. It is saved switched off
 and woken only after `CharacterIdentity.StandBy`, so it is nobody's to play: it counts no playtime and saves nothing, even with a character
 still chosen from the game just left (`TitleHeroPlayTests`). Nobody made yet, the roof stands empty (and the belt opens anyway). It goes
-while the character list or the creator, each with its own stage, is up.
+while the character list or the creator, both on the creator's belt (docs/CHARACTER_SELECT.md), is up.
 
 **The primary weapon is now kept with the character** (`CharacterSave.PrimaryWeapon`): `CharacterIdentity` puts it back in the hands on the
-next play and saves whatever is in the primary slot.
+next play and saves whatever is in the primary slot. The save server keeps it with the clothes and the hotbar (`CharacterService.Save`; until
+2026-11-11 it dropped it, so the weapon was gone after a restart).
 
 They stand on a roof of the title's own over the spot the title chose (above), 8 m over every roof within 80 m so none of the real city comes up through it or beside it (laid level with a real roof, the two buildings clipped into each other): the first rooftop the
 owner saw, kept (owner, 2026-11-11: "i like the positioning on this screenshot. also i like the wall behind him. keep this building in

@@ -284,11 +284,14 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>The size of every picture <see cref="Shoot"/> takes, pixels.</summary>
+        internal const int ShotWidth = 1280, ShotHeight = 800;
+
         internal static void Shoot(Camera camera, string directory, string name, Vector3 position, Vector3 lookAt)
         {
             camera.transform.position = position;
             camera.transform.rotation = Quaternion.LookRotation(lookAt - position, Vector3.up);
-            const int w = 1280, h = 800;
+            const int w = ShotWidth, h = ShotHeight;
             RenderTexture rt = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32);
             camera.targetTexture = rt;
             camera.Render();

@@ -80,6 +80,19 @@ namespace CityX.Tests
             showing[0].onClick.Invoke();
         }
 
+        /// <summary>
+        /// Presses CREATE NEW and waits for the creator: the character list hands the belt over once its view is back and the belt stands
+        /// still (CharacterSelect.CreateNew), a frame or more later.
+        /// </summary>
+        private IEnumerator CreateNew()
+        {
+            Press("NewButton");
+            for (int frame = 0; frame < 120 && _screen.Showing != TitleScreen.Panel.Creator; frame++)
+            {
+                yield return null;
+            }
+        }
+
         [UnityTest]
         public IEnumerator SingleplayerReachesTheCharacterList()
         {
@@ -97,7 +110,7 @@ namespace CityX.Tests
         {
             Press("SingleplayerButton");
             yield return null;
-            Press("NewButton");
+            yield return CreateNew();
             yield return null;
 
             Assert.AreEqual(TitleScreen.Panel.Creator, _screen.Showing,
@@ -118,7 +131,7 @@ namespace CityX.Tests
         {
             Press("SingleplayerButton");
             yield return null;
-            Press("NewButton");
+            yield return CreateNew();
             yield return null;
 
             var overlays = Object.FindFirstObjectByType<CreatorOverlays>();
@@ -143,7 +156,7 @@ namespace CityX.Tests
         {
             Press("SingleplayerButton");
             yield return null;
-            Press("NewButton");
+            yield return CreateNew();
             yield return null;
 
             var creator = Object.FindFirstObjectByType<CharacterCreator>();
@@ -198,7 +211,7 @@ namespace CityX.Tests
         {
             Press("SingleplayerButton");
             yield return null;
-            Press("NewButton");
+            yield return CreateNew();
             yield return null;
 
             var overlays = Object.FindFirstObjectByType<CreatorOverlays>();

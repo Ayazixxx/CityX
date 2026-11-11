@@ -371,7 +371,8 @@ namespace CityX.Character
             view.localPosition = CreatorZoom.Step(view.localPosition, CreatorZoom.UpAndDownOnly(FocusUnder(screenPosition), home), closer, home, MinimumCameraDistance, MaximumCameraDistance);
         }
 
-        private Vector3 CameraHome
+        /// <summary>Where the camera stands, in its parent's space, before it is zoomed: where the belt is seen from (the character list's view too).</summary>
+        public Vector3 CameraHome
         {
             get
             {

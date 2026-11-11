@@ -16,7 +16,7 @@
   scrolls. The worn style's tile is framed in gold (`HairStyleTiles`). The
   pictures are baked into `UI/Resources/HairIcons/` by CityX/Bake Hair Icons
   (`HairIconBaker`): a NEW STYLE NEEDS A REBAKE, and until then its tile shows its
-  short label. The same list is wired onto the character list's carousel heads,
+  short label. The same list is wired onto the character list's figures on the belt,
   the player in the world and the in-game redraw creator
   (`HairAssets.StyleMeshes`, which walks `ValidStyles`, so the lists cannot drift
   out of order).
@@ -39,7 +39,7 @@
   has its own colour. (The cost is that those few renderers do not batch, which
   is nothing for a head.)
 - It is applied everywhere hair is shown: the creator, the character list's
-  pedestal bodies, the world player (`CharacterIdentity.Apply`), the ReDraw
+  figures on the belt, the world player (`CharacterIdentity.Apply`), the ReDraw
   creator (which opens on the character's own colour and saves a new one back)
   and other players over the network (`NetworkedPlayerIdentity` sends it with
   the style).
@@ -132,8 +132,8 @@ ONLY in the real game, fine everywhere else) is a confusing one to hit by surpri
 - `CharacterCreatorPlayTests` (PlayMode): Hair1 on the real head, each button
   selecting its style, the colour card appearing only with hair, every swatch
   dyeing the hair, the square reaching an arbitrary colour, saving a fit.
-- `CharacterSelectCarouselPlayTests`, `PlayerRedrawStarterPlayTests` (PlayMode):
-  a saved colour on the pedestal body; ReDraw opening on it and saving a new one.
+- `BeltLineupPlayTests`, `PlayerRedrawStarterPlayTests` (PlayMode):
+  a saved colour on a figure on the belt; ReDraw opening on it and saving a new one.
 - `TitleScreenCapture.CaptureHair1` writes front / side / back head close-ups to
   `Logs/CityShots/`; the `creator-hair` shot wears blue hair with the card open.
 

@@ -84,27 +84,10 @@ where its hair and its layer come from, ENTER THE CITY/BACK against SAVE/CANCEL,
 builder writes came out identical, object for object. See docs/CODE_STYLE.md.
 
 
-## The character list: five on the row, a bin on the card (2026-10-26)
+## The character list
 
-Owner: "make it display 5 character (assuming you have made 5) and the back 2 on the right and left are dark just dark and shadowy figures,
-also make it so the direction it scrolls through the characters when you press the buttons on the right and left are inverted. move the
-delete button to just a little trash icon that is in the top right of that little panel".
-
-- **Five pedestals** (`CharacterSelect.SlotCount`, `CentreSlot`), laid out by `CharacterSelectBuilder` left to right as the camera sees them
-  (it looks back down -Z, so +X is the screen's left: the old "left" anchor stood on the right of the screen). The furthest pair stand further
-  out (4.5 m) and back (1.4 m), smaller; their bodies are drawn all in `UI/SelectSilhouette.mat`, an unlit near-black, every colour and
-  property block cleared (`CharacterSelect.InShadow`). They only stand with five or more characters, so nobody is on the row twice
-  (`CharacterSelect.CharacterFor`).
-- **The arrows the other way round:** the next character now stands on the right, so the right arrow brings it in from the right and the
-  row slides left (it came in from the left); the count still goes up with the right arrow.
-- **Delete is a bin** in the stat card's top-right corner (`MakeTrashButton`, drawn from rectangles, red under the pointer), still asking
-  first; PLAY and CREATE NEW close up in the middle.
-
-Tests: `CharacterSelectCarouselPlayTests.FiveStandOnTheRowTheBackPairInShadowAndTheNextOneOnTheRight` (five filled with
-six saved, the back pair in shadow, the next one on the right and brought in by the right arrow), `TheBackPairOnlyStandsWithFiveSoNobodyIsOnTheRowTwice`,
-`TitleScreenWiringTests.TheCharacterListDeletesFromABinInTheCardsCornerAndStandsFive` (no DELETE button, the bin's place and action, five
-anchors in screen order, the silhouette material). Picture: `CharacterSelectCapture` (`Logs/CityShots/select-*.png`, the menu on its own in
-`select-*-menu.png`).
+Five pedestals in the night city from 2026-10-26, the furthest pair dark figures, the next one on the right, a bin on the card. Replaced on
+2026-11-11 by the row on the creator's own conveyor belt (docs/CHARACTER_SELECT.md), which keeps the next one on the right and the bin.
 
 ## Tabs: DRAW, HAIR, FACE (2026-11-05)
 

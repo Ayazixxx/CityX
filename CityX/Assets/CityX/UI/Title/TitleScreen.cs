@@ -68,7 +68,11 @@ namespace CityX.UI
             // Straight to the menu (owner, 2026-11-11: "get rid of the press any key to start thing just make it go straight to the screen
             // with the buttons").
             Show(Panel.Menu);
-            if (Application.isPlaying && BeltOnFirstStart)
+            if (Application.isPlaying && TakeFirstStartRequest())
+            {
+                BeginCreator();   // CityX > Play Title As First Start: the first boot's empty belt, characters made or not
+            }
+            else if (Application.isPlaying && BeltOnFirstStart)
             {
                 // Nobody made yet: no logo and no menu, the empty belt (docs/BELT_INTRO.md).
                 CityX.Core.CharacterSources.Current.List(characters =>
@@ -87,6 +91,23 @@ namespace CityX.UI
         /// </summary>
         public static bool BeltOnFirstStart = true;
 
+        /// <summary>
+        /// Set (to 1) in PlayerPrefs by the editor's CityX > Play Title As First Start, and taken the next time the title comes up: it opens on
+        /// the first boot's empty belt even with characters made (owner, 2026-11-11: "make it so i can still boot from the first start scene
+        /// where you control the conveyer belt somehow (for test purposes)").
+        /// </summary>
+        public const string FirstStartRequest = "CityX.PlayTitleAsFirstStart";
+
+        private static bool TakeFirstStartRequest()
+        {
+            if (PlayerPrefs.GetInt(FirstStartRequest, 0) != 1)
+            {
+                return false;
+            }
+            PlayerPrefs.DeleteKey(FirstStartRequest);
+            return true;
+        }
+
         /// <summary>Making a new character: the creator, from the empty conveyor belt (BeltIntro).</summary>
         public void BeginCreator()
         {
@@ -94,6 +115,19 @@ namespace CityX.UI
             if (CreatorPanel != null && CreatorPanel.TryGetComponent(out BeltIntro belt))
             {
                 belt.Begin();
+            }
+        }
+
+        /// <summary>
+        /// Making a new character from the character list: the creator, its body rolled in by the belt itself behind the characters standing on
+        /// it (BeltIntro.Bring), from <paramref name="start"/> metres along, the belt stopped having run <paramref name="travel"/>.
+        /// </summary>
+        public void BringNewCharacter(float start, float travel)
+        {
+            Show(Panel.Creator);
+            if (CreatorPanel != null && CreatorPanel.TryGetComponent(out BeltIntro belt))
+            {
+                belt.Bring(start, travel);
             }
         }
 
@@ -106,33 +140,46 @@ namespace CityX.UI
                 settings.CloseGraphics();
             }
             _showing = panel;
-            if (MenuPanel != null) MenuPanel.SetActive(panel == Panel.Menu);
-            if (CharacterSelectPanel != null)
+            // The one coming up goes up before the rest come down: the character list and the creator share the creator's stage
+            // (CreatorStage), which must not go down and up again between them, its belt and bodies starting over.
+            GameObject shown = PanelObject(panel);
+            if (shown != null) shown.SetActive(true);
+            foreach (Panel other in AllPanels)
             {
-                CharacterSelectPanel.SetActive(panel == Panel.CharacterSelect);
+                GameObject hidden = PanelObject(other);
+                if (other != panel && hidden != null) hidden.SetActive(false);
             }
-            if (CreatorPanel != null)
+            // Shown this way the creator stands ready, whatever ride was under way; BeginCreator starts one on the empty belt.
+            if (panel == Panel.Creator && CreatorPanel != null && CreatorPanel.TryGetComponent(out BeltIntro belt))
             {
-                CreatorPanel.SetActive(panel == Panel.Creator);
-                // Shown this way the creator stands ready, whatever ride was under way; BeginCreator starts one on the empty belt.
-                if (panel == Panel.Creator && CreatorPanel.TryGetComponent(out BeltIntro belt))
-                {
-                    belt.Stand();
-                }
+                belt.Stand();
             }
-            if (MultiplayerPanel != null) MultiplayerPanel.SetActive(panel == Panel.Multiplayer);
-            if (SettingsPanel != null) SettingsPanel.SetActive(panel == Panel.Settings);
 
             // The logo is only for the menu: every other panel is a box in the middle of the screen, which reaches up into the logo's
             // corner, and a panel under the logo cannot be read. The city and the rooftop stay behind the boxes; the character list and the
             // creator stand their own bodies on their own stages, so they go for those.
             SetLogoShown(panel == Panel.Menu);
-            ShowBackdrop(panel != Panel.CharacterSelect && panel != Panel.Creator);
-            if (Vignette != null) Vignette.SetActive(panel != Panel.Creator);
+            bool onTheBelt = panel == Panel.CharacterSelect || panel == Panel.Creator;
+            ShowBackdrop(!onTheBelt);
+            if (Vignette != null) Vignette.SetActive(!onTheBelt);   // the belt hangs in a daylight sky, which the dark corners turned grey
 
             // The rain's sound follows where you are: the list is a room out of it, the creator
             // is somewhere with no weather at all.
             if (Ambience != null) Ambience.SetMood(TitleAmbience.MoodFor(panel));
+        }
+
+        private static readonly Panel[] AllPanels = (Panel[])System.Enum.GetValues(typeof(Panel));
+
+        private GameObject PanelObject(Panel panel)
+        {
+            switch (panel)
+            {
+                case Panel.Menu: return MenuPanel;
+                case Panel.CharacterSelect: return CharacterSelectPanel;
+                case Panel.Creator: return CreatorPanel;
+                case Panel.Multiplayer: return MultiplayerPanel;
+                default: return SettingsPanel;
+            }
         }
 
         /// <summary>The city behind the title, and the character on its roof: drawn, or not at all.</summary>
@@ -183,6 +230,11 @@ namespace CityX.UI
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame && _showing != Panel.Menu)
             {
                 Back();
+            }
+            // F8, in the editor and development builds: the first boot's empty belt, to try it with characters already made.
+            if (keyboard != null && keyboard.f8Key.wasPressedThisFrame && (Application.isEditor || Debug.isDebugBuild) && _showing != Panel.Creator)
+            {
+                BeginCreator();
             }
         }
     }

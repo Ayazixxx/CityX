@@ -12,14 +12,14 @@ sure they have the items equipped on the character select screen (not weapons ye
   - Any change to what is worn is saved at once (`Inventory.EquipmentChanged`).
 - **Put back on:** `CharacterIdentity.Start` equips each saved piece through `Inventory.EquipItemId`. This runs after `Awake` has painted
   the body, because painting recolours every renderer under it.
-- **Select screen:** `CharacterSelect.PutOnClothes` puts the saved pieces on each pedestal body with the item's own `OnEquip`, which only
+- **Select screen:** `BeltLineup.PutOnClothes` puts the saved pieces on each figure on the belt with the item's own `OnEquip`, which only
   dresses the body. It runs after the paint and before the bodies are moved onto the stage's layer. The prefabs come from
-  `CharacterSelect.ClothingPrefabs`, filled by `CharacterSelectBuilder` from `NetworkedPlayerWiring.ItemPrefabEntries(IsWearable)`.
+  `BeltLineup.ClothingPrefabs`, filled by `CharacterSelectBuilder` from `NetworkedPlayerWiring.ItemPrefabEntries(IsWearable)`.
   That is the one item list shared with `NetworkedPlayer.prefab`, which now lists the clothes too, so a joining player can wear them. The
   list is baked into Title.unity, so a new garment needs the title screen rebuilt (`TitleScreenBuilder.Build`):
   `TitleScreenWiringTests.TheSelectScreenCanDressACharacterInEveryGarment` fails until it is (the jeans were missing from it until 2026-10-25).
 - **Tests:** `CharacterSaveTests` (round trip, old saves), `WornClothesPlayTests` (put back on, change saved) and
-  `CharacterSelectCarouselPlayTests.ACharactersClothesAreOnTheirPedestalBody`.
+  `BeltLineupPlayTests.ACharactersClothesAreOnTheirFigure`.
 
 ## Known gaps
 

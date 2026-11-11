@@ -59,6 +59,9 @@ namespace CityX.UI
 
         public TitleScreen Title;
 
+        [Tooltip("The player's characters standing in a row on the belt (the character list): a new body is rolled in behind them.")]
+        public BeltLineup Lineup;
+
         /// <summary>How far past the edge of the screen the body waits, and how far past the other edge the view changes, metres.</summary>
         public const float BeyondTheEdge = 1.7f;
 
@@ -68,6 +71,12 @@ namespace CityX.UI
         /// for him to appear onto the screen where holding D").
         /// </summary>
         public const float WaitsFurtherOff = 2.0f * BeltRide.Speed;
+
+        /// <summary>
+        /// How fast the belt runs bringing a new body in by itself, m/s (owner, 2026-11-11: CREATE NEW "just rolls in an empty character to the
+        /// center of the screen for you"): faster than a player runs it, so the wait is two or three seconds.
+        /// </summary>
+        public const float BringSpeed = 5.0f;
 
         /// <summary>From where the view changes to the belt's end, metres: about two and a half seconds' ride.</summary>
         public const float EdgeToEnd = 6.0f;
@@ -145,6 +154,8 @@ namespace CityX.UI
         private float _blackFor = -1.0f;
         private float _riderHeight;
         private bool _heightKnown;
+        private float _travelBase;
+        private bool _brought;
 
         /// <summary>The ride under way, or null while the creator stands as it always did.</summary>
         public BeltRide Ride => _ride;
@@ -172,6 +183,8 @@ namespace CityX.UI
             _ride = null;
             _enterWorld = null;
             _blackFor = -1.0f;
+            _travelBase = 0.0f;
+            _brought = false;
             SoundTheBelt();
             if (Title != null && Title.Select != null)
             {
@@ -216,8 +229,67 @@ namespace CityX.UI
         public void Begin()
         {
             Stand();
+            if (Lineup != null)
+            {
+                Lineup.Clear();
+            }
             float edge = EdgeOfScreen();
-            _ride = new BeltRide(-(edge + BeyondTheEdge + WaitsFurtherOff), edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd + ThroughTheEnd);
+            StartRide(new BeltRide(-(edge + BeyondTheEdge + WaitsFurtherOff), edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd + ThroughTheEnd));
+            _promptElapsed = 0.0f;
+            if (Prompt != null)
+            {
+                Prompt.text = PromptArrow;
+            }
+            ShowPrompt(true);
+            if (PromptKey != null)
+            {
+                PromptKey.alpha = 0.0f;   // shown after PromptDelaySeconds (PulsePrompt)
+                _promptHeld = 0.0f;
+            }
+        }
+
+        /// <summary>
+        /// A new body rolled in by the belt itself, from the character list (owner, 2026-11-11: CREATE NEW "just rolls in an empty character
+        /// to the center of the screen for you and you start the customizing"): it waits at <paramref name="start"/> (metres along, off the
+        /// screen's left, behind the characters standing on the belt), the belt stopped having run <paramref name="travel"/>, and comes in
+        /// with no key pressed and no prompt.
+        /// </summary>
+        public void Bring(float start, float travel)
+        {
+            Stand();
+            float edge = EdgeOfScreen();
+            _travelBase = travel;
+            _brought = true;
+            StartRide(new BeltRide(start, edge + BeyondTheEdge, edge + BeyondTheEdge + EdgeToEnd + ThroughTheEnd, BringSpeed));
+            if (Belt != null)
+            {
+                Belt.Travel = _travelBase;
+            }
+        }
+
+        /// <summary>
+        /// The belt with nobody in the middle, for the character list standing its characters on it (CharacterSelect): the body waits off the
+        /// screen's left, alive, where nobody sees it, and nothing of the creator is up or listening.
+        /// </summary>
+        public void Empty()
+        {
+            Stand();
+            PlaceRider(-(EdgeOfScreen() + BeyondTheEdge + WaitsFurtherOff));
+            if (Life != null)
+            {
+                Life.ComeAlive(atOnce: true);
+            }
+            if (Creator != null)
+            {
+                Creator.enabled = false;
+            }
+            SetTools(0.0f);
+        }
+
+        /// <summary>The body waiting where <paramref name="ride"/> starts it, alive, the tools away until it is in the middle.</summary>
+        private void StartRide(BeltRide ride)
+        {
+            _ride = ride;
             _shown = _ride.Now;
             PlaceRider(_ride.BodyAt);
             if (Life != null)
@@ -233,17 +305,6 @@ namespace CityX.UI
                 Title.Select.Departure = RollOut;
             }
             SetTools(0.0f);
-            _promptElapsed = 0.0f;
-            if (Prompt != null)
-            {
-                Prompt.text = PromptArrow;
-            }
-            ShowPrompt(true);
-            if (PromptKey != null)
-            {
-                PromptKey.alpha = 0.0f;   // shown after PromptDelaySeconds (PulsePrompt)
-                _promptHeld = 0.0f;
-            }
             ShowPose();
         }
 
@@ -281,13 +342,14 @@ namespace CityX.UI
                 return;
             }
             float deltaTime = Time.deltaTime;
-            _ride.Step(_ride.Now == BeltRide.Stage.RollingIn ? Push() : 0.0f, deltaTime);
+            float push = _brought ? 1.0f : Push();
+            _ride.Step(_ride.Now == BeltRide.Stage.RollingIn ? push : 0.0f, deltaTime);
             BeltRide.Stage now = _ride.Now;
             BeltRide.Stage before = _shown;
             _shown = now;
             if (Belt != null)
             {
-                Belt.Travel = _ride.Travel;
+                Belt.Travel = _travelBase + _ride.Travel;
                 Belt.Speed = _ride.BeltSpeed;
             }
             if (now != BeltRide.Stage.Fallen)
@@ -314,7 +376,10 @@ namespace CityX.UI
             switch (now)
             {
                 case BeltRide.Stage.RollingIn:
-                    PulsePrompt(deltaTime);
+                    if (!_brought)
+                    {
+                        PulsePrompt(deltaTime);
+                    }
                     break;
                 case BeltRide.Stage.Making:
                     if (_toolsShown < 1.0f)
@@ -352,6 +417,10 @@ namespace CityX.UI
             if (Creator != null)
             {
                 Creator.enabled = true;
+            }
+            if (Lineup != null)
+            {
+                Lineup.Clear();   // the characters it came in behind are off the screen's right by now, and are not made on this belt
             }
         }
 
@@ -505,10 +574,6 @@ namespace CityX.UI
         /// </summary>
         private void SoundTheBelt()
         {
-            if (Hum == null)
-            {
-                return;
-            }
             float heard = _ride != null ? _ride.Running : 0.0f;
             if (WideCamera != null && WideCamera.enabled)
             {
@@ -518,14 +583,24 @@ namespace CityX.UI
             {
                 heard *= 1.0f - Mathf.Clamp01(_blackFor / BlackFadeSeconds);
             }
-            Hum.volume = HumVolume * heard;
-            if (heard > 0.0f && !Hum.isPlaying)
+            Sound(Hum, heard);
+        }
+
+        /// <summary>The belt's <paramref name="hum"/> at <paramref name="heard"/> (0 silent to 1 at its full run): playing while it is heard at all.</summary>
+        public static void Sound(AudioSource hum, float heard)
+        {
+            if (hum == null)
             {
-                Hum.Play();
+                return;
             }
-            else if (heard <= 0.0f && Hum.isPlaying)
+            hum.volume = HumVolume * heard;
+            if (heard > 0.0f && !hum.isPlaying)
             {
-                Hum.Stop();
+                hum.Play();
+            }
+            else if (heard <= 0.0f && hum.isPlaying)
+            {
+                hum.Stop();
             }
         }
 
@@ -594,14 +669,17 @@ namespace CityX.UI
         }
 
         /// <summary>How far from the middle of the screen its edge is, at the body, metres.</summary>
-        private float EdgeOfScreen()
+        private float EdgeOfScreen() => EdgeOfScreen(MakingCamera);
+
+        /// <summary>How far from the middle of the screen its edge is, metres, on the belt as <paramref name="view"/> sees it from its place on the stage.</summary>
+        public static float EdgeOfScreen(Camera view)
         {
-            if (MakingCamera == null)
+            if (view == null)
             {
                 return 5.5f;
             }
-            float away = Mathf.Abs(MakingCamera.transform.localPosition.z);
-            return away * Mathf.Tan(MakingCamera.fieldOfView * 0.5f * Mathf.Deg2Rad) * MakingCamera.aspect;
+            float away = Mathf.Abs(view.transform.localPosition.z);
+            return away * Mathf.Tan(view.fieldOfView * 0.5f * Mathf.Deg2Rad) * view.aspect;
         }
 
         /// <summary>The body <paramref name="along"/> the belt. The stage's cameras look back along -Z, so the screen's right is the stage's -X.</summary>
