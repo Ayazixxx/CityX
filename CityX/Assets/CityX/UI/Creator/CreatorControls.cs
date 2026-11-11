@@ -204,6 +204,14 @@ namespace CityX.UI
             {
                 return;
             }
+            // This sits on the whole tool column: a click on anything there that takes no click of its own (the brush slider) arrives here
+            // too, and clamped onto the square it picked black (owner, 2026-11-10: "when you adjust paint brush size it resets whatever color
+            // you had selected to black"). Only a press that began on the square picks.
+            GameObject pressed = eventData.pointerPressRaycast.gameObject;
+            if (pressed == null || !pressed.transform.IsChildOf(SVSquare.transform))
+            {
+                return;
+            }
 
             var rect = (RectTransform)SVSquare.transform;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(

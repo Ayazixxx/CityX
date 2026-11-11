@@ -9,8 +9,8 @@ namespace CityX.Tests
     /// <summary>
     /// THE PAINT BUCKET ON THE REAL BODY (owner, 2026-10-15: a bucket of colour on the torso left "a white sliver around the neck that visibly
     /// wasnt reached by the paint bucket, but is apart of the torso ... make the paint bucket color the whole torso unless being clicked in a
-    /// contained area"): a bucket on the chest fills the neck above it too (two rows of the paint, one surface on the body), not the arms; and
-    /// inside an outline drawn on the chest it fills only the inside.
+    /// contained area"; 2026-11-10: "make the paint bucket tool work across the entire body instead separated by limb"): a bucket on
+    /// the chest fills the whole body, every part of the paint, across the seams between them; and inside an outline drawn on the chest it fills only the inside.
     /// </summary>
     public sealed class BodyPaintBucketTests
     {
@@ -64,20 +64,60 @@ namespace CityX.Tests
 
         private static bool Near(Color a, Color b) => Mathf.Abs(a.r - b.r) + Mathf.Abs(a.g - b.g) + Mathf.Abs(a.b - b.b) < 0.05f;
 
+        /// <summary>Binds the body and its head as the creator does (CharacterCreator: the head in the body's space), returning the head.</summary>
+        private Mesh BindWithTheHead(BodyPaint paint, out Matrix4x4 headToBody)
+        {
+#if UNITY_EDITOR
+            var head = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/Head.asset");
+            var player = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            SkinnedMeshRenderer body = player.GetComponentInChildren<SkinnedMeshRenderer>(true);
+            MeshFilter onTheHead = player.GetComponentsInChildren<MeshFilter>(true).FirstOrDefault(f => f.sharedMesh == head);
+            Assert.IsNotNull(onTheHead, "the player has no head mesh");
+            headToBody = body.transform.worldToLocalMatrix * onTheHead.transform.localToWorldMatrix;
+            paint.Bind(_mesh, head, headToBody);
+            return head;
+#else
+            headToBody = Matrix4x4.identity;
+            paint.Bind(_mesh);
+            return null;
+#endif
+        }
+
+        /// <summary>The front of the face, in the body's space.</summary>
+        private static Vector3 HeadFront(Mesh head, Matrix4x4 headToBody)
+        {
+            Vector3[] vertices = head.vertices, normals = head.normals;
+            Vector3 best = Vector3.zero;
+            bool found = false;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3 at = headToBody.MultiplyPoint3x4(vertices[i]);
+                if (headToBody.MultiplyVector(normals[i]).normalized.z > 0.7f && (!found || at.z > best.z))
+                {
+                    best = at;
+                    found = true;
+                }
+            }
+            Assert.IsTrue(found, "no forward-facing head");
+            return best;
+        }
+
         [Test]
-        public void ABucketOnTheChestFillsTheNeckAboveItButNotTheArms()
+        public void ABucketOnTheChestFillsTheWholeBody()
         {
             var paint = new BodyPaint(Color.white);
-            paint.Bind(_mesh);
+            Mesh head = BindWithTheHead(paint, out Matrix4x4 headToBody);
             float middle = _mesh.bounds.center.y;
             Vector3 chest = Front(HumanBodyBones.Hips, v => Mathf.Abs(v.x) < 0.06f && v.y > middle);
-            Vector3 neck = Front(HumanBodyBones.Neck, v => Mathf.Abs(v.x) < 0.05f);
-            Vector3 arm = Front(HumanBodyBones.LeftUpperArm, v => true);
 
             paint.BucketFillAt(chest, paint.FindTriangle(chest, 0.03f), Color.red);
             Assert.IsTrue(Near(At(paint, chest), Color.red), "the chest was not filled");
-            Assert.IsTrue(Near(At(paint, neck), Color.red), "the neck above the torso was not reached: the white sliver");
-            Assert.IsTrue(Near(At(paint, arm), Color.white), "a bucket on the torso filled an arm");
+            Assert.IsTrue(Near(At(paint, Front(HumanBodyBones.Neck, v => Mathf.Abs(v.x) < 0.05f)), Color.red), "the neck above the torso was not reached: the white sliver");
+            foreach (HumanBodyBones part in PaintAtlas.Parts)
+            {
+                Vector3 front = part == HumanBodyBones.Head ? HeadFront(head, headToBody) : Front(part, v => true);
+                Assert.IsTrue(Near(At(paint, front), Color.red), $"a bucket on the torso did not reach the {part}");
+            }
         }
 
         [Test]

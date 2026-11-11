@@ -402,10 +402,43 @@ namespace CityX.Character
                 return stage != null ? stage.InverseTransformPoint(point) : point;
             }
 
+            return OnTheBodysPlane(ray);
+        }
+
+        /// <summary>Where <paramref name="ray"/> crosses the upright plane through the body's middle, in the stage's frame.</summary>
+        private Vector3 OnTheBodysPlane(Ray ray)
+        {
+            Transform stage = Camera.transform.parent;
             Vector3 from = stage != null ? stage.InverseTransformPoint(ray.origin) : ray.origin;
             Vector3 way = stage != null ? stage.InverseTransformDirection(ray.direction) : ray.direction;
             float along = Mathf.Abs(way.z) > 1e-4f ? -from.z / way.z : -1.0f;
             return along > 0.0f ? from + way * along : from + way;
+        }
+
+        /// <summary>
+        /// The view the body is painted from, as a share of the camera's distance from where it starts: close enough for detail, the whole body
+        /// still in sight (owner, 2026-11-10: "make it zoom into this camera angle when as the editor tools fade in, at the current pov it is too
+        /// far back for any detailed painting"; the screenshot had the body at 62% of the screen's height, against 43%).
+        /// </summary>
+        public const float PaintingViewShare = 0.69f;
+
+        /// <summary>What the painting view closes in on: the point this far up the screen from where the camera starts (the body's middle).</summary>
+        private const float PaintingViewFocusHeight = 0.44f;
+
+        /// <summary>The camera <paramref name="share"/> of the way (eased) from where it starts to the painting view.</summary>
+        public void EaseIntoPaintingView(float share)
+        {
+            if (Camera == null)
+            {
+                return;
+            }
+            Vector3 home = CameraHome;
+            Transform view = Camera.transform;
+            view.localPosition = home;
+            Vector3 focus = CreatorZoom.UpAndDownOnly(
+                OnTheBodysPlane(Camera.ViewportPointToRay(new Vector3(0.5f, PaintingViewFocusHeight, 0.0f))), home);
+            Vector3 painting = CreatorZoom.Kept(focus + (home - focus) * PaintingViewShare, home, MinimumCameraDistance, MaximumCameraDistance);
+            view.localPosition = Vector3.Lerp(home, painting, Mathf.SmoothStep(0.0f, 1.0f, share));
         }
 
         /// <summary>

@@ -165,6 +165,9 @@ namespace CityX.Tests
 
             controls.BrushSize.value = 7.0f;
             Assert.AreEqual(7, creator.BrushRadiusPixels, "the brush size slider does nothing");
+            // Owner, 2026-11-10: "when you adjust paint brush size it resets whatever color you had selected to black".
+            yield return ClickAt(RectTransformUtility.WorldToScreenPoint(null, controls.BrushSize.transform.position));
+            AssertColour(red, creator.Colour, "a click on the brush size slider changed the colour");
             Color before = creator.Colour;
             controls.Hue.value = 0.6f;
             Assert.Greater(Vector4.Distance(before, creator.Colour), 0.05f, "the hue slider does nothing");

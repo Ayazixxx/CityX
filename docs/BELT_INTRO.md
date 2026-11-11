@@ -31,7 +31,7 @@ game's own.
 2. **Rolling in.** A / D, the arrows, or a controller's stick or pad run the belt either way at up to 2.4 m/s (it takes 0.4 s to get
    there). The body rides it; held right, the belt slows to set it down exactly in the middle; let go, the belt stops where it is; left
    runs it back, never past where it waited.
-3. **Making.** The belt stops, the tools fade in over 0.6 s, and the creator works as before. The body is **alive**: it stands and idles (at a tenth of the clip's speed, held still while a stroke is drawn: `CreatorLife.IdleSpeed`, owner 2026-11-10),
+3. **Making.** The belt stops, the tools fade in over 0.6 s, and the creator works as before. The body is **alive**: it stands and idles (at a tenth of the clip's speed, held still while a stroke is drawn: `CreatorLife.IdleSpeed`, owner 2026-11-10), and the camera glides in with the tools to 0.69 of its distance, close enough to paint detail (`CharacterCreator.EaseIntoPaintingView`),
    and is painted as it stands. The button in the top right corner with a T-posing figure on it (lit while the arms are up), or the T key,
    **lifts its arms**: every bone eases to the T-pose over 0.55 s (`CreatorLife`), and the same button lets them down again the same way.
    Only those two do (owner, 2026-11-10: "i dont like the auto tpose when you try to draw. make a t pose icon in the top right and make

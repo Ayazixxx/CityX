@@ -568,26 +568,15 @@ namespace CityX.Character
             return a.x * b.y - a.y * b.x;
         }
 
-        /// <summary>
-        /// The parts a bucket fill may cross between, over the body itself (owner, 2026-10-15: a torso bucketed a colour kept "a white sliver
-        /// around the neck that visibly wasnt reached by the paint bucket, but is apart of the torso ... make the paint bucket color the whole
-        /// torso unless being clicked in a contained area"). The torso and its neck are one surface on the body but two rows of the atlas, and a
-        /// fill used to stop at the row's edge: the strip of neck showing above the collar stayed as it was. Arms, legs and the head stay their
-        /// own fills.
-        /// </summary>
-        public static readonly HumanBodyBones[][] BucketGroups =
-        {
-            new[] { HumanBodyBones.Hips, HumanBodyBones.Neck },
-        };
-
         /// <summary>How near on the body a texel of the other part must be for a fill to cross to it, metres (a texel is 2 to 8 mm).</summary>
         public const float BucketBridgeMetres = 0.012f;
 
         /// <summary>
-        /// Paint-bucket: floods the contiguous same-colour region touching the hit. Through the atlas within the part's own row, as it always
-        /// did, and -- for the torso and its neck (<see cref="BucketGroups"/>) -- across their seam on the body too: from a texel at the edge of
-        /// its row's painted area to the texels of the other part lying within <see cref="BucketBridgeMetres"/> of it, facing the same way. Still
-        /// only through the colour clicked, so an outline drawn round an area keeps the fill inside it.
+        /// Paint-bucket: floods the contiguous same-colour region touching the hit, over the whole body (owner, 2026-11-10: "make the paint
+        /// bucket tool work across the entire body instead separated by limb"; 2026-10-15, of the white sliver a torso fill left round the
+        /// neck). Through the atlas within each part's own row, and across the seams between parts on the body: from a texel at the edge of its
+        /// row's painted area to the texels of any other part lying within <see cref="BucketBridgeMetres"/> of it, facing the same way. Still only
+        /// through the colour clicked, so an outline drawn round an area keeps the fill inside it.
         /// </summary>
         public void BucketFillAt(Vector3 localPoint, int triangle, Color colour)
         {
@@ -611,18 +600,7 @@ namespace CityX.Character
                 return;
             }
 
-            // The rows this fill may reach: its own, and the other parts of its group.
-            int startRow = startY / PaintAtlas.RowHeight;
-            bool[] rows = BucketRows(startRow);
-            bool bridging = false;
-            for (int r = 0; r < rows.Length; r++)
-            {
-                bridging |= rows[r] && r != startRow;
-            }
-            if (bridging)
-            {
-                EnsureTexelIndex();
-            }
+            EnsureTexelIndex();   // where each texel lies on the body, to cross from one part to the next
 
             var queue = new Queue<int>();
             int start = PixelIndex(startX, startY);
@@ -641,34 +619,11 @@ namespace CityX.Character
                 TryFlood(queue, x - 1, y, y0, y1, target, colour);
                 TryFlood(queue, x, y + 1, y0, y1, target, colour);
                 TryFlood(queue, x, y - 1, y0, y1, target, colour);
-                if (bridging && AtTheEdgeOfItsRow(x, y, y0, y1))
+                if (AtTheEdgeOfItsRow(x, y, y0, y1))
                 {
-                    Bridge(queue, texel, rows, target, colour);
+                    Bridge(queue, texel, target, colour);
                 }
             }
-        }
-
-        private static bool[] BucketRows(int startRow)
-        {
-            var rows = new bool[PaintAtlas.PartCount];
-            rows[startRow] = true;
-            HumanBodyBones part = PaintAtlas.Parts[startRow];
-            foreach (HumanBodyBones[] group in BucketGroups)
-            {
-                if (System.Array.IndexOf(group, part) < 0)
-                {
-                    continue;
-                }
-                foreach (HumanBodyBones member in group)
-                {
-                    int r = System.Array.IndexOf(PaintAtlas.Parts, member);
-                    if (r >= 0)
-                    {
-                        rows[r] = true;
-                    }
-                }
-            }
-            return rows;
         }
 
         /// <summary>A texel on its row's first or last line, or beside a texel no triangle uses: where a part's paint meets another part on the body.</summary>
@@ -683,8 +638,8 @@ namespace CityX.Character
                 || _texelFirstPoint[PixelIndex(x, y + 1)] < 0 || _texelFirstPoint[PixelIndex(x, y - 1)] < 0;
         }
 
-        /// <summary>Fills (and queues) the texels of the group's other rows lying on the body right beside this one, facing the same way.</summary>
-        private void Bridge(Queue<int> queue, int texel, bool[] rows, Color target, Color colour)
+        /// <summary>Fills (and queues) the texels lying on the body right beside this one, facing the same way.</summary>
+        private void Bridge(Queue<int> queue, int texel, Color target, Color colour)
         {
             float reach = BucketBridgeMetres * BucketBridgeMetres;
             for (int p = _texelFirstPoint[texel]; p >= 0; p = _texelNextPoint[p])
@@ -706,8 +661,7 @@ namespace CityX.Character
                             {
                                 TexelPoint there = _texelPoints[q];
                                 int other = there.Texel;
-                                if (other == texel || !rows[other / PaintAtlas.Width / PaintAtlas.RowHeight]
-                                    || (there.Position - here.Position).sqrMagnitude > reach || Vector3.Dot(there.Normal, here.Normal) < 0.0f
+                                if (other == texel || (there.Position - here.Position).sqrMagnitude > reach || Vector3.Dot(there.Normal, here.Normal) < 0.0f
                                     || !Same(_pixels[other], target))
                                 {
                                     continue;

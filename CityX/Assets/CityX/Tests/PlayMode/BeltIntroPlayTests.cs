@@ -172,6 +172,17 @@ namespace CityX.Tests
             }
             Assert.Greater(high, 0.9f, "the key does not come back once D is let go");
 
+            // Owner, 2026-11-10: "make the key flashing stay on screen when you are going the wrong way (holding A or left arrow)".
+            Press(_keyboard.leftArrowKey);
+            high = 0.0f;
+            for (int i = 0; i < 90; i++)
+            {
+                yield return null;
+                high = Mathf.Max(high, _belt.PromptKey.alpha);
+            }
+            Release(_keyboard.leftArrowKey);
+            Assert.Greater(high, 0.9f, "the key went away while the belt was held the wrong way");
+
             Press(_keyboard.wKey);
             yield return null;
             Release(_keyboard.wKey);
@@ -253,7 +264,11 @@ namespace CityX.Tests
         {
             yield return Begin();
             yield return RollIn();
+            float startDepth = Mathf.Abs(_belt.MakingCamera.transform.localPosition.z);
             yield return Until(() => _belt.Tools.alpha >= 1.0f, 2.0f, "the tools never came up");
+            // Owner, 2026-11-10: "make it zoom into this camera angle when as the editor tools fade in".
+            Assert.AreEqual(CharacterCreator.PaintingViewShare, Mathf.Abs(_belt.MakingCamera.transform.localPosition.z) / startDepth, 0.03f,
+                "the camera did not close in on the body with the tools");
             yield return Frames(30);
             CharacterCreator creator = _belt.Creator;
             Animator animator = _belt.Life.Animator;

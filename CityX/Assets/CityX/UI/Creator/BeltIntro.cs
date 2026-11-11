@@ -122,7 +122,7 @@ namespace CityX.UI
         /// <summary>How long the key cap takes to come up once it shows, seconds.</summary>
         private const float PromptFadeInSeconds = 0.3f;
 
-        /// <summary>How long the key cap takes to fade away while the belt is run, and to come back once it is let go, seconds (owner, 2026-11-10:
+        /// <summary>How long the key cap takes to fade away while the belt is run the right way, and to come back once it is let go, seconds (owner, 2026-11-10:
         /// "make it fade away when you hold it").</summary>
         private const float PromptHeldFadeSeconds = 0.3f;
 
@@ -317,7 +317,14 @@ namespace CityX.UI
                     PulsePrompt(deltaTime);
                     break;
                 case BeltRide.Stage.Making:
-                    SetTools(Mathf.MoveTowards(_toolsShown, 1.0f, deltaTime / ToolsFadeSeconds));
+                    if (_toolsShown < 1.0f)
+                    {
+                        SetTools(Mathf.MoveTowards(_toolsShown, 1.0f, deltaTime / ToolsFadeSeconds));
+                        if (Creator != null)
+                        {
+                            Creator.EaseIntoPaintingView(_toolsShown);   // in with the tools; from then on the wheel zooms it
+                        }
+                    }
                     if (PoseKeyPressed())
                     {
                         TogglePose();
@@ -690,7 +697,8 @@ namespace CityX.UI
             }
             float shown = Mathf.Clamp01((_promptElapsed - PromptDelaySeconds) / PromptFadeInSeconds);
             float flash = Mathf.Lerp(0.45f, 1.0f, (Mathf.Sin((_promptElapsed - PromptDelaySeconds) * 2.8f + Mathf.PI * 0.5f) + 1.0f) * 0.5f);
-            _promptHeld = Mathf.MoveTowards(_promptHeld, Mathf.Abs(Push()) > 0.0f ? 1.0f : 0.0f, deltaTime / PromptHeldFadeSeconds);
+            // Gone only while the belt runs the right way: held the wrong way (A, the left arrow) it stays, flashing (owner, 2026-11-10).
+            _promptHeld = Mathf.MoveTowards(_promptHeld, Push() > 0.0f ? 1.0f : 0.0f, deltaTime / PromptHeldFadeSeconds);
             PromptKey.alpha = shown * flash * (1.0f - _promptHeld);
         }
     }

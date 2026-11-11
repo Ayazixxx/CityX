@@ -108,11 +108,10 @@ namespace CityX.UIEditor
             ClearTheColumn(belt.Tools.transform);
         }
 
-        /// <summary>One piece of the T-posing figure on the pose button, out of plain shapes. Clicks go to the button under it.</summary>
-        /// <summary>The empty belt's prompt: a key cap in the middle of the screen, a white box round a white key, each edged dark to read on the pale sky.</summary>
+        /// <summary>The empty belt's prompt: a key cap in the middle of the screen, a smooth white box round a white key edged dark to read on the pale sky.</summary>
         private static void BuildPromptKey(Transform panel, BeltIntro belt)
         {
-            const float Size = 96.0f, Edge = 5.0f;
+            const float Size = 96.0f;
             var key = new GameObject("BeltPromptKey", typeof(RectTransform));
             var keyRect = (RectTransform)key.transform;
             keyRect.SetParent(panel, false);
@@ -121,26 +120,15 @@ namespace CityX.UIEditor
             var group = key.AddComponent<CanvasGroup>();
             group.blocksRaycasts = false;
             group.interactable = false;
-            // The box: four white sides.
-            (Vector2 min, Vector2 max)[] sides =
-            {
-                (new Vector2(0.0f, 0.0f), new Vector2(1.0f, 0.0f)), (new Vector2(0.0f, 1.0f), new Vector2(1.0f, 1.0f)),
-                (new Vector2(0.0f, 0.0f), new Vector2(0.0f, 1.0f)), (new Vector2(1.0f, 0.0f), new Vector2(1.0f, 1.0f)),
-            };
-            for (int i = 0; i < sides.Length; i++)
-            {
-                var side = new GameObject("Side" + i, typeof(RectTransform));
-                var sideRect = (RectTransform)side.transform;
-                sideRect.SetParent(keyRect, false);
-                sideRect.anchorMin = sides[i].min;
-                sideRect.anchorMax = sides[i].max;
-                sideRect.pivot = new Vector2(0.5f, 0.5f);
-                sideRect.sizeDelta = new Vector2(Edge, Edge);   // along its side, the length and one edge more, so the corners close
-                var image = side.AddComponent<Image>();
-                image.color = Color.white;
-                image.raycastTarget = false;
-                side.AddComponent<Outline>().effectColor = new Color(0.0f, 0.0f, 0.0f, 0.45f);
-            }
+            var box = new GameObject("Box", typeof(RectTransform));
+            var boxRect = (RectTransform)box.transform;
+            boxRect.SetParent(keyRect, false);
+            boxRect.anchorMin = Vector2.zero;
+            boxRect.anchorMax = Vector2.one;
+            boxRect.offsetMin = boxRect.offsetMax = Vector2.zero;
+            var frame = box.AddComponent<KeyFrame>();
+            frame.color = Color.white;
+            frame.raycastTarget = false;
             Text glyph = UiKit.MakeText(keyRect, "Key", BeltIntro.PromptArrow, 56, Color.white);
             var glyphRect = (RectTransform)glyph.transform;
             glyphRect.anchorMin = Vector2.zero;
@@ -154,6 +142,7 @@ namespace CityX.UIEditor
             belt.PromptKey = group;
         }
 
+        /// <summary>One piece of the T-posing figure on the pose button, out of plain shapes. Clicks go to the button under it.</summary>
         private static Graphic PoseIconPart(Transform button, string name, Vector2 at, Vector2 size, Sprite sprite)
         {
             var part = new GameObject(name, typeof(RectTransform));
