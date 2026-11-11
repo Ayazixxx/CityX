@@ -645,6 +645,15 @@ namespace CityX.Tests
             Assert.AreEqual((int)UIEditor.TitleScreenBuilder.DefaultRenderingLayer, logo.Glow.renderingLayerMask, "the neon's light reaches the city");
             Assert.Greater(logo.Bounds.size.x, logo.Bounds.size.y, "the logo's extent is not its own (wider than tall)");
             Assert.Greater(logo.Bounds.size.y, logo.Bounds.size.z, "the logo stands deeper than it is tall: turned the wrong way");
+
+            // Its hum, low and looped, and the owner's two flicker sounds (owner, 2026-11-11).
+            Assert.IsNotNull(logo.Hum, "the sign has no hum");
+            Assert.IsNotNull(logo.Hum.clip, "the sign's hum has no sound");
+            Assert.IsTrue(logo.Hum.loop && logo.Hum.playOnAwake, "the hum does not loop from the start");
+            Assert.LessOrEqual(logo.Hum.volume, 0.25f, "the hum is not low");
+            Assert.IsNotNull(logo.Faulting, "nothing plays the flickers");
+            Assert.AreEqual(2, logo.FlickerSounds.Length, "not the two flicker sounds");
+            Assert.IsTrue(logo.FlickerSounds.All(clip => clip != null), "a flicker sound is missing");
         }
 
         /// <summary>

@@ -67,6 +67,10 @@ at 3% in, 4% down, 40% of the view tall, 6 m ahead, turned 14 degrees so it read
 second or so). Its emission and a magenta light on the letters follow it together; the game's grade's bloom makes it glow.
 It shows on the idle screen and the menu only: every other panel is a box in the middle of the screen
 reaching up into its corner.
+The sign hums, low and looped, and as each of its faults begins one of two flicker sounds plays at even odds (owner, 2026-11-11, with
+the sounds: "make this play at low volume on the title screen and make it a clean loop", "make one of these two sound effects play when
+the magenta neon sign part flickers, make it 50/50"). `SourceArt/TitleSound/title_sounds.py` cuts the mp3s' silent padding and
+crossfades the hum's end into its start; the hum is kept uncompressed so nothing opens a gap where it comes round.
 
 ## The rooftop (`TitleHero`)
 

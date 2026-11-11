@@ -26,6 +26,12 @@ namespace CityX.UIEditor
         private const float DropOnto = 0.06f;
 
         private const string AssetFolder = "Assets/CityX/UI/Title";
+        private const string SoundFolder = "Assets/CityX/UI/Audio";
+
+        /// <summary>How loud the sign's hum and its flickers are (the sounds are brought up to one peak).</summary>
+        private const float HumVolume = 0.12f;
+
+        private const float FlickerVolume = 0.35f;
 
         /// <summary>The roof round the character, metres: how far it reaches right (off the screen) and toward the camera (past it), how far the
         /// building under it goes down, how far over the real roof it stands, and its parapet's height and thickness.</summary>
@@ -228,6 +234,21 @@ namespace CityX.UIEditor
             logo.Glow.color = NeonGlowColour;
             logo.Glow.shadows = LightShadows.None;
             logo.Glow.renderingLayerMask = (int)TitleScreenBuilder.DefaultRenderingLayer;
+            // Its hum, low and looped, and a flicker sound as each fault begins (SourceArt/TitleSound/title_sounds.py makes them).
+            logo.Hum = root.AddComponent<AudioSource>();
+            logo.Hum.clip = Sound($"{SoundFolder}/TitleNeonHum.wav", uncompressed: true);
+            logo.Hum.loop = true;
+            logo.Hum.playOnAwake = true;
+            logo.Hum.volume = HumVolume;
+            logo.Hum.spatialBlend = 0.0f;
+            logo.Faulting = root.AddComponent<AudioSource>();
+            logo.Faulting.playOnAwake = false;
+            logo.Faulting.volume = FlickerVolume;
+            logo.Faulting.spatialBlend = 0.0f;
+            logo.FlickerSounds = new[]
+            {
+                Sound($"{SoundFolder}/TitleNeonFlicker1.wav", uncompressed: false), Sound($"{SoundFolder}/TitleNeonFlicker2.wav", uncompressed: false),
+            };
             logo.Hold();
             logo.Flicker(0.0f);
             // Reaching across the letters and no further (not over to the rooftop).
@@ -236,6 +257,32 @@ namespace CityX.UIEditor
             signLight.range = 1.6f * across;
             signLight.intensity = SignLightIntensity;
             return logo;
+        }
+
+        /// <summary>
+        /// A sound, <paramref name="uncompressed"/> for a loop (a compressed one can open a hair of a gap where it comes round), kept in memory
+        /// either way (they are short).
+        /// </summary>
+        private static AudioClip Sound(string path, bool uncompressed)
+        {
+            if (AssetImporter.GetAtPath(path) is AudioImporter importer)
+            {
+                AudioImporterSampleSettings settings = importer.defaultSampleSettings;
+                AudioCompressionFormat format = uncompressed ? AudioCompressionFormat.PCM : AudioCompressionFormat.Vorbis;
+                if (settings.compressionFormat != format || settings.loadType != AudioClipLoadType.DecompressOnLoad)
+                {
+                    settings.compressionFormat = format;
+                    settings.loadType = AudioClipLoadType.DecompressOnLoad;
+                    importer.defaultSampleSettings = settings;
+                    importer.SaveAndReimport();
+                }
+            }
+            AudioClip clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            if (clip == null)
+            {
+                Debug.LogError($"CityX: no sound at {path} (SourceArt/TitleSound/title_sounds.py makes it).");
+            }
+            return clip;
         }
 
         private static Material Glowing(Material material, Color? glow = null)

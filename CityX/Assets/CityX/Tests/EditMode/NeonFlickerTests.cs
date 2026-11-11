@@ -41,6 +41,33 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>The faults are counted as each begins, once a fault (its flicker sound plays once, not for each of its flashes).</summary>
+        [Test]
+        public void EachFaultIsCountedOnceAsItBegins()
+        {
+            var flicker = new NeonFlicker(7);
+            int counted = 0, darkenings = 0;
+            bool wasDark = false, darkSinceCount = false;
+            for (float time = 0.0f; time < 60.0f; time += Step)
+            {
+                bool dark = flicker.Brightness(time) < 0.5f;
+                if (flicker.FaultsBegun > counted)
+                {
+                    Assert.AreEqual(counted + 1, flicker.FaultsBegun, $"two faults began at once at {time:0.00} s");
+                    counted = flicker.FaultsBegun;
+                    darkSinceCount = false;
+                }
+                if (dark && !wasDark && !darkSinceCount)
+                {
+                    darkenings++;
+                    darkSinceCount = true;
+                }
+                wasDark = dark;
+            }
+            Assert.Greater(counted, 5, "a minute and hardly a fault");
+            Assert.AreEqual(counted, darkenings, 1, "a fault counted where the sign did not falter, or one it did missed");
+        }
+
         [Test]
         public void TheSameSeedIsTheSameSignAndAskingAgainFromTheStartGivesTheSame()
         {

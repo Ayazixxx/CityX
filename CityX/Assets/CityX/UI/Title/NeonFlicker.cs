@@ -56,6 +56,10 @@ namespace CityX.UI
         private float _dark;          // a drop-out's dark part, seconds
         private float[] _flashLows;   // each flash's low
         private float _lastAsked;
+        private int _faultsMade;
+
+        /// <summary>How many faults have begun by the time last asked: it counts up as each one starts (a sound for each, TitleLogo).</summary>
+        public int FaultsBegun { get; private set; }
 
         public NeonFlicker(int seed)
         {
@@ -79,6 +83,7 @@ namespace CityX.UI
             {
                 Next(_faultEnd);
             }
+            FaultsBegun = time < _faultStart ? _faultsMade - 1 : _faultsMade;
             if (time < _faultStart)
             {
                 return Lit(time);
@@ -105,6 +110,7 @@ namespace CityX.UI
             _random = new System.Random(_seed);
             _lastAsked = float.NegativeInfinity;
             _faultEnd = 0.0f;
+            _faultsMade = 0;
             Next(0.0f);
         }
 
@@ -112,6 +118,7 @@ namespace CityX.UI
         private void Next(float from)
         {
             _faultStart = from + Range(SteadyMin, SteadyMax);
+            _faultsMade++;
             double roll = _random.NextDouble();
             _fault = roll < 0.55 ? Fault.Stutter : roll < 0.85 ? Fault.DropOut : Fault.BrownOut;
             int flashes = _random.Next(StutterFlashesMin, StutterFlashesMax + 1);

@@ -47,7 +47,17 @@ namespace CityX.UI
         [Tooltip("Which sign it is: the same seed flickers the same way.")]
         public int Seed = 3;
 
+        [Tooltip("The sign's hum, looped, low (owner, 2026-11-11: \"make this play at low volume on the title screen and make it a clean loop\").")]
+        public AudioSource Hum;
+
+        [Tooltip("Plays a flicker sound as each fault of the sign begins.")]
+        public AudioSource Faulting;
+
+        [Tooltip("The flicker sounds, one of them at even odds each time (owner, 2026-11-11: \"make it 50/50 which one plays\").")]
+        public AudioClip[] FlickerSounds = System.Array.Empty<AudioClip>();
+
         private NeonFlicker _flicker;
+        private int _faultsSounded;
         private MaterialPropertyBlock _block;
 
         /// <summary>The neon's brightness last shown, 0 to 1.</summary>
@@ -108,6 +118,13 @@ namespace CityX.UI
             {
                 Glow.intensity = GlowIntensity * Brightness;
             }
+            // A sound as each fault begins (once for a fault, not for each of its flashes).
+            int begun = _flicker.FaultsBegun;
+            if (begun > _faultsSounded && Application.isPlaying && Faulting != null && FlickerSounds.Length > 0)
+            {
+                Faulting.PlayOneShot(FlickerSounds[Random.Range(0, FlickerSounds.Length)]);
+            }
+            _faultsSounded = begun;
         }
     }
 }
