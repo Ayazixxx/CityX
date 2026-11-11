@@ -73,16 +73,7 @@ namespace CityX.UIEditor
             belt.Overlays = overlays;
             belt.Title = title;
 
-            Text prompt = UiKit.MakeText(panel.transform, "BeltPrompt", BeltIntro.PromptText, 30, new Color(0.09f, 0.13f, 0.22f));   // dark, on the pale sky under the belt
-            var promptRect = (RectTransform)prompt.transform;
-            promptRect.anchorMin = promptRect.anchorMax = new Vector2(0.5f, 0.0f);
-            promptRect.pivot = new Vector2(0.5f, 0.5f);
-            promptRect.anchoredPosition = new Vector2(0.0f, 72.0f);   // in the open sky under the belt
-            promptRect.sizeDelta = new Vector2(520.0f, 48.0f);
-            prompt.alignment = TextAnchor.MiddleCenter;
-            prompt.fontStyle = FontStyle.Bold;
-            prompt.gameObject.SetActive(false);
-            belt.Prompt = prompt;
+            BuildPromptKey(panel.transform, belt);
 
             // Built here and not by CreatorKit: the belt's body is the only one with a pose to toggle, and BeltIntro lights the icon.
             var pose = new GameObject("PoseButton", typeof(RectTransform));
@@ -118,6 +109,51 @@ namespace CityX.UIEditor
         }
 
         /// <summary>One piece of the T-posing figure on the pose button, out of plain shapes. Clicks go to the button under it.</summary>
+        /// <summary>The empty belt's prompt: a key cap in the middle of the screen, a white box round a white key, each edged dark to read on the pale sky.</summary>
+        private static void BuildPromptKey(Transform panel, BeltIntro belt)
+        {
+            const float Size = 96.0f, Edge = 5.0f;
+            var key = new GameObject("BeltPromptKey", typeof(RectTransform));
+            var keyRect = (RectTransform)key.transform;
+            keyRect.SetParent(panel, false);
+            keyRect.anchorMin = keyRect.anchorMax = keyRect.pivot = new Vector2(0.5f, 0.5f);
+            keyRect.sizeDelta = new Vector2(Size, Size);
+            var group = key.AddComponent<CanvasGroup>();
+            group.blocksRaycasts = false;
+            group.interactable = false;
+            // The box: four white sides.
+            (Vector2 min, Vector2 max)[] sides =
+            {
+                (new Vector2(0.0f, 0.0f), new Vector2(1.0f, 0.0f)), (new Vector2(0.0f, 1.0f), new Vector2(1.0f, 1.0f)),
+                (new Vector2(0.0f, 0.0f), new Vector2(0.0f, 1.0f)), (new Vector2(1.0f, 0.0f), new Vector2(1.0f, 1.0f)),
+            };
+            for (int i = 0; i < sides.Length; i++)
+            {
+                var side = new GameObject("Side" + i, typeof(RectTransform));
+                var sideRect = (RectTransform)side.transform;
+                sideRect.SetParent(keyRect, false);
+                sideRect.anchorMin = sides[i].min;
+                sideRect.anchorMax = sides[i].max;
+                sideRect.pivot = new Vector2(0.5f, 0.5f);
+                sideRect.sizeDelta = new Vector2(Edge, Edge);   // along its side, the length and one edge more, so the corners close
+                var image = side.AddComponent<Image>();
+                image.color = Color.white;
+                image.raycastTarget = false;
+                side.AddComponent<Outline>().effectColor = new Color(0.0f, 0.0f, 0.0f, 0.45f);
+            }
+            Text glyph = UiKit.MakeText(keyRect, "Key", BeltIntro.PromptArrow, 56, Color.white);
+            var glyphRect = (RectTransform)glyph.transform;
+            glyphRect.anchorMin = Vector2.zero;
+            glyphRect.anchorMax = Vector2.one;
+            glyphRect.offsetMin = glyphRect.offsetMax = Vector2.zero;
+            glyph.alignment = TextAnchor.MiddleCenter;
+            glyph.fontStyle = FontStyle.Bold;
+            glyph.gameObject.AddComponent<Outline>().effectColor = new Color(0.0f, 0.0f, 0.0f, 0.45f);
+            key.SetActive(false);
+            belt.Prompt = glyph;
+            belt.PromptKey = group;
+        }
+
         private static Graphic PoseIconPart(Transform button, string name, Vector2 at, Vector2 size, Sprite sprite)
         {
             var part = new GameObject(name, typeof(RectTransform));

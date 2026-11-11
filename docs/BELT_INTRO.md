@@ -27,7 +27,7 @@ game's own.
 
 1. **The empty belt.** The body waits 6 m past the screen's left edge, alive (idling): held right, it is about three seconds before it
    comes into sight (owner, 2026-11-10: "make the player model placed a little bit farther to the left off screen so it takes about +2
-   seconds for him to appear onto the screen where holding D"; `WaitsFurtherOff`). The prompt PRESS D OR → pulses.
+   seconds for him to appear onto the screen where holding D"; `WaitsFurtherOff`). The prompt is a key cap in the middle of the screen, white, flashing, shown after 2 s: "→", or "D" once a WASD key is pressed and the arrow again on an arrow key (owner, 2026-11-10; `BeltIntro.PulsePrompt`).
 2. **Rolling in.** A / D, the arrows, or a controller's stick or pad run the belt either way at up to 2.4 m/s (it takes 0.4 s to get
    there). The body rides it; held right, the belt slows to set it down exactly in the middle; let go, the belt stops where it is; left
    runs it back, never past where it waited.

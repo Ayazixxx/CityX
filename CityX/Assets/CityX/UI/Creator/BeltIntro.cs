@@ -43,8 +43,11 @@ namespace CityX.UI
         [Tooltip("The creator's tool column: faded in when the body arrives, out when it leaves.")]
         public CanvasGroup Tools;
 
-        [Tooltip("PRESS D OR the right arrow, on the empty belt.")]
+        [Tooltip("The key to press on the empty belt, drawn as a key cap: the right arrow, or D once a WASD key has been pressed.")]
         public Text Prompt;
+
+        [Tooltip("The key cap round the prompt: shown, hidden and flashed as one.")]
+        public CanvasGroup PromptKey;
 
         [Tooltip("Lifts the arms, or lets them down (its ButtonAction calls TogglePose).")]
         public Button PoseButton;
@@ -105,7 +108,19 @@ namespace CityX.UI
         /// <summary>The share of that it is heard at from the wider view, the camera being further from it.</summary>
         public const float WideHumShare = 0.65f;
 
-        public const string PromptText = "PRESS  D  OR  →";
+        /// <summary>
+        /// The key on the empty belt's key cap (owner, 2026-11-10: "just make it say \"→\" with a box around it so its visibly a key ... if you
+        /// press a or any of the wasd keys then it changes to a D key ... and if you press the arrow keys then it goes back").
+        /// </summary>
+        public const string PromptArrow = "→";
+
+        public const string PromptLetter = "D";
+
+        /// <summary>How long the empty belt waits before the key cap shows, seconds.</summary>
+        public const float PromptDelaySeconds = 2.0f;
+
+        /// <summary>How long the key cap takes to come up once it shows, seconds.</summary>
+        private const float PromptFadeInSeconds = 0.3f;
 
         /// <summary>The pose button's background while the arms are up: CreatorControls' lit tool.</summary>
         private static readonly Color PoseOnBackground = new Color(0.30f, 0.26f, 0.12f, 1.0f);
@@ -188,10 +203,7 @@ namespace CityX.UI
                 Belt.Speed = 0.0f;
             }
             SetTools(1.0f);
-            if (Prompt != null)
-            {
-                Prompt.gameObject.SetActive(false);
-            }
+            ShowPrompt(false);
             ShowPose();
         }
 
@@ -219,8 +231,12 @@ namespace CityX.UI
             _promptElapsed = 0.0f;
             if (Prompt != null)
             {
-                Prompt.text = PromptText;
-                Prompt.gameObject.SetActive(true);
+                Prompt.text = PromptArrow;
+            }
+            ShowPrompt(true);
+            if (PromptKey != null)
+            {
+                PromptKey.alpha = 0.0f;   // shown after PromptDelaySeconds (PulsePrompt)
             }
             ShowPose();
         }
@@ -319,10 +335,7 @@ namespace CityX.UI
 
         private void Arrive()
         {
-            if (Prompt != null)
-            {
-                Prompt.gameObject.SetActive(false);
-            }
+            ShowPrompt(false);
             if (Creator != null)
             {
                 Creator.enabled = true;
@@ -638,16 +651,39 @@ namespace CityX.UI
             }
         }
 
+        /// <summary>Shows or hides the key cap with its key.</summary>
+        private void ShowPrompt(bool shown)
+        {
+            if (PromptKey != null)
+            {
+                PromptKey.gameObject.SetActive(shown);
+            }
+        }
+
+        /// <summary>The key cap: nothing for its first seconds, then flashing; D once a WASD key is pressed, the arrow again on an arrow key.</summary>
         private void PulsePrompt(float deltaTime)
         {
-            if (Prompt == null)
+            if (Prompt == null || PromptKey == null)
             {
                 return;
             }
             _promptElapsed += deltaTime;
-            Color colour = Prompt.color;
-            colour.a = Mathf.Lerp(0.45f, 1.0f, (Mathf.Sin(_promptElapsed * 2.8f) + 1.0f) * 0.5f);
-            Prompt.color = colour;
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null)
+            {
+                if (keyboard.wKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame)
+                {
+                    Prompt.text = PromptLetter;
+                }
+                else if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame ||
+                         keyboard.rightArrowKey.wasPressedThisFrame)
+                {
+                    Prompt.text = PromptArrow;
+                }
+            }
+            float shown = Mathf.Clamp01((_promptElapsed - PromptDelaySeconds) / PromptFadeInSeconds);
+            float flash = Mathf.Lerp(0.45f, 1.0f, (Mathf.Sin((_promptElapsed - PromptDelaySeconds) * 2.8f + Mathf.PI * 0.5f) + 1.0f) * 0.5f);
+            PromptKey.alpha = shown * flash;
         }
     }
 }

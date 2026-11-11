@@ -12,7 +12,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: plays the conveyor belt a character is made on (BeltIntro, docs/BELT_INTRO.md) in the real title scene with a held key,
-    /// and renders each beat to Logs/CityShots/belt-NN-*.png: the empty belt and its prompt, the body rolled in, set down, the tools up,
+    /// and renders each beat to Logs/CityShots/belt-NN-*.png: the empty belt, its key a moment later, the body rolled in, set down, the tools up,
     /// the arms lifting, the ride off, the wider view, the fall. Explicit; run by name with -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -61,6 +61,11 @@ namespace CityX.Tests
             Assert.IsNotNull(_belt.Ride, "the belt did not begin");
 
             Shoot("empty");
+            for (float t = 0.0f; t < BeltIntro.PromptDelaySeconds + 0.6f; t += Time.deltaTime)
+            {
+                yield return null;
+            }
+            Shoot("key");
 
             Press(_keyboard.dKey);
             float waited = 0.0f;

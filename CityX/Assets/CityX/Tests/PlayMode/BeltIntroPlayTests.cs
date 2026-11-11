@@ -131,6 +131,46 @@ namespace CityX.Tests
             yield return null;
         }
 
+        /// <summary>
+        /// Owner, 2026-11-10: "just make it say \"→\" with a box around it so its visibly a key, and have it appear in the center of the screen
+        /// after two seconds with white text ... keep the flashing effect ... if you press a or any of the wasd keys then it changes to a D key
+        /// ... and if you press the arrow keys then it goes back".
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheKeyShowsInTheMiddleAfterTwoSecondsAndFollowsTheKeysPressed()
+        {
+            yield return Begin();
+            var key = (RectTransform)_belt.PromptKey.transform;
+            Assert.AreEqual(new Vector2(0.5f, 0.5f), key.anchorMin, "the key is not in the middle of the screen");
+            Assert.AreEqual(Vector2.zero, key.anchoredPosition, "the key is not in the middle of the screen");
+            Assert.AreEqual(Color.white, _belt.Prompt.color, "the key is not white");
+            Assert.AreEqual(BeltIntro.PromptArrow, _belt.Prompt.text);
+            yield return Frames(30);
+            Assert.AreEqual(0.0f, _belt.PromptKey.alpha, 1e-3f, "the key shows before two seconds are up");
+
+            yield return Frames(Mathf.CeilToInt((BeltIntro.PromptDelaySeconds + 0.2f) * 60.0f));
+            float low = 1.0f, high = 0.0f;
+            for (int i = 0; i < 90; i++)
+            {
+                yield return null;
+                low = Mathf.Min(low, _belt.PromptKey.alpha);
+                high = Mathf.Max(high, _belt.PromptKey.alpha);
+            }
+            Assert.Greater(high, 0.9f, "the key never shows in full");
+            Assert.Less(low, 0.6f, "the key does not flash");
+
+            Press(_keyboard.wKey);
+            yield return null;
+            Release(_keyboard.wKey);
+            yield return null;
+            Assert.AreEqual(BeltIntro.PromptLetter, _belt.Prompt.text, "a WASD key did not turn the key into D");
+            Press(_keyboard.upArrowKey);
+            yield return null;
+            Release(_keyboard.upArrowKey);
+            yield return null;
+            Assert.AreEqual(BeltIntro.PromptArrow, _belt.Prompt.text, "an arrow key did not turn the key back into the arrow");
+        }
+
         [UnityTest]
         public IEnumerator TheBeltStandsEmptyUntilAKeyIsHeldAndThenRollsTheBodyInToTheMiddle()
         {
@@ -138,7 +178,7 @@ namespace CityX.Tests
             Assert.IsNotNull(_belt.Ride, "making a character did not start on the belt");
             Assert.AreEqual(TitleScreen.Panel.Creator, _title.Showing);
             Assert.IsTrue(_belt.Prompt.gameObject.activeInHierarchy, "no prompt on the empty belt");
-            StringAssert.Contains("D", _belt.Prompt.text);
+            Assert.AreEqual(BeltIntro.PromptArrow, _belt.Prompt.text);
             Assert.AreEqual(0.0f, _belt.Tools.alpha, "the tools are up before there is anybody to make");
             Assert.IsFalse(_belt.Tools.interactable);
             Assert.Less(BodyAcrossTheScreen(), -0.05f, "the body is on the screen before it has been rolled in");
