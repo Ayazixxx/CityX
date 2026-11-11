@@ -120,6 +120,88 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// And the other way: a bucket on the face fills the body too (owner, 2026-11-11: "make the paint bucket tool work across the entire
+        /// body right now head and body our separated"). The head is a ball the neck's tube goes up into, and the fill found its way only from
+        /// the neck up.
+        /// </summary>
+        [Test]
+        public void ABucketOnTheFaceFillsTheWholeBody()
+        {
+            var paint = new BodyPaint(Color.white);
+            Mesh head = BindWithTheHead(paint, out Matrix4x4 headToBody);
+            Vector3 face = HeadFront(head, headToBody);
+
+            paint.BucketFillAt(face, paint.FindTriangle(face, 0.03f), Color.red);
+            Assert.IsTrue(Near(At(paint, face), Color.red), "the face was not filled");
+            foreach (HumanBodyBones part in PaintAtlas.Parts)
+            {
+                if (part != HumanBodyBones.Head)
+                {
+                    Assert.IsTrue(Near(At(paint, Front(part, v => true)), Color.red), $"a bucket on the face did not reach the {part}");
+                }
+            }
+        }
+
+        /// <summary>A fill poured a little at a time (the creator pours it over frames) ends exactly as one done at once.</summary>
+        [Test]
+        public void AFillPouredALittleAtATimeEndsAsOneDoneAtOnce()
+        {
+            var atOnce = new BodyPaint(Color.white);
+            BindWithTheHead(atOnce, out _);
+            var poured = new BodyPaint(Color.white);
+            BindWithTheHead(poured, out _);
+            float middle = _mesh.bounds.center.y;
+            Vector3 chest = Front(HumanBodyBones.Hips, v => Mathf.Abs(v.x) < 0.06f && v.y > middle);
+            Vector3 arm = Front(HumanBodyBones.LeftUpperArm, v => true);
+            foreach (BodyPaint paint in new[] { atOnce, poured })
+            {
+                paint.PaintAt(arm, paint.FindTriangle(arm, 0.03f), Color.blue, 6);   // something the fill must go round
+            }
+
+            atOnce.BucketFillAt(chest, atOnce.FindTriangle(chest, 0.03f), Color.green);
+            Assert.IsTrue(poured.BeginBucketFill(chest, poured.FindTriangle(chest, 0.03f), Color.green));
+            int steps = 0;
+            while (poured.ContinueBucketFill(5000))
+            {
+                steps++;
+            }
+            Assert.Greater(steps, 20, "the fill was not poured a little at a time");
+            Assert.IsFalse(poured.BucketFilling);
+            CollectionAssert.AreEqual(atOnce.Encode(), poured.Encode(), "pouring it over frames painted something else");
+        }
+
+        /// <summary>
+        /// Once the brush is ready, a fill and the snapshot taken for undoing it make no garbage (owner, 2026-11-11: "there is a small drop in
+        /// frames whenever i use the paint bucket tool"): each snapshot was a new 5.5 MB atlas, the fill a new queue.
+        /// </summary>
+        [Test]
+        public void AFillAndItsUndoSnapshotMakeNoGarbage()
+        {
+            var paint = new BodyPaint(Color.white);
+            BindWithTheHead(paint, out _);
+            paint.PrepareBrush();
+            float middle = _mesh.bounds.center.y;
+            Vector3 chest = Front(HumanBodyBones.Hips, v => Mathf.Abs(v.x) < 0.06f && v.y > middle);
+            int triangle = paint.FindTriangle(chest, 0.03f);
+            for (int i = 0; i <= BodyPaint.UndoDepth; i++)
+            {
+                paint.PushUndoSnapshot();   // the history full, so the oldest is written over from here
+                paint.BucketFillAt(chest, triangle, i % 2 == 0 ? Color.red : Color.blue);
+                paint.Undo();
+                paint.Redo();
+            }
+
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            paint.PushUndoSnapshot();
+            paint.BucketFillAt(chest, triangle, Color.green);
+            paint.Undo();
+            paint.Redo();
+            long allocated = System.GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.AreEqual(0, allocated, "a fill and its undo made garbage");
+            Assert.IsTrue(Near(At(paint, chest), Color.green), "redo did not bring the fill back");
+        }
+
         [Test]
         public void InsideAnOutlineDrawnOnTheChestTheBucketFillsOnlyTheInside()
         {

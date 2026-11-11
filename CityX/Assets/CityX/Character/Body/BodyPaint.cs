@@ -8,7 +8,7 @@ namespace CityX.Character
     /// brush stamp in it. Ported from character.gd's paint_at / sample_color_at
     /// / bucket_fill_at.
     /// </summary>
-    public sealed class BodyPaint
+    public sealed partial class BodyPaint
     {
         public Texture2D Atlas { get; private set; }
 
@@ -67,6 +67,7 @@ namespace CityX.Character
             public Dictionary<Vector3Int, List<int>> Grid;
             public int[] FirstPoint;
             public int[] NextPoint;
+            public System.Threading.Tasks.Task<BucketLinks> Links;
         }
 
         /// <summary>
@@ -379,10 +380,11 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>Builds the texel map ahead of the first stroke, so the first click does not stall on it.</summary>
+        /// <summary>Builds the texel map and the bucket's links ahead of the first stroke, so the first click does not stall on them.</summary>
         public void PrepareBrush()
         {
             EnsureTexelMap();
+            StartBuildingLinks();
         }
 
         /// <summary>One place on the surface that a texel of the atlas is drawn at.</summary>
@@ -421,11 +423,15 @@ namespace CityX.Character
                     _texelGrid = shared.Grid;
                     _texelFirstPoint = shared.FirstPoint;
                     _texelNextPoint = shared.NextPoint;
+                    _linkStart = null;   // taken from the map's own when the bucket first needs them (EnsureBucketLinks)
+                    _linkTo = null;
                     return;
                 }
             }
-            _texelFirstPoint = null;   // the bucket's index of these points is rebuilt from them (EnsureTexelIndex)
+            _texelFirstPoint = null;   // the bucket's index of these points, and its links, are rebuilt from them (EnsureBucketLinks)
             _texelNextPoint = null;
+            _linkStart = null;
+            _linkTo = null;
             int width = PaintAtlas.Width;
             int height = PaintAtlas.Height;
             var points = new List<TexelPoint>(width * height);
@@ -568,170 +574,6 @@ namespace CityX.Character
             return a.x * b.y - a.y * b.x;
         }
 
-        /// <summary>How near on the body a texel of the other part must be for a fill to cross to it, metres (a texel is 2 to 8 mm).</summary>
-        public const float BucketBridgeMetres = 0.012f;
-
-        /// <summary>
-        /// Paint-bucket: floods the contiguous same-colour region touching the hit, over the whole body (owner, 2026-11-10: "make the paint
-        /// bucket tool work across the entire body instead separated by limb"; 2026-10-15, of the white sliver a torso fill left round the
-        /// neck). Through the atlas within each part's own row, and across the seams between parts on the body: from a texel at the edge of its
-        /// row's painted area to the texels of any other part lying within <see cref="BucketBridgeMetres"/> of it, facing the same way. Still only
-        /// through the colour clicked, so an outline drawn round an area keeps the fill inside it.
-        /// </summary>
-        public void BucketFillAt(Vector3 localPoint, int triangle, Color colour)
-        {
-            if (!Corners(triangle, out Vector3 a, out Vector3 b, out Vector3 c,
-                out Vector2 ua, out Vector2 ub, out Vector2 uc))
-            {
-                return;
-            }
-
-            Vector2 uv = Barycentric(localPoint, a, b, c, ua, ub, uc);
-            uv.x = Mathf.Repeat(uv.x, 1.0f);
-
-            int startX = Mathf.Clamp(
-                Mathf.FloorToInt(uv.x * PaintAtlas.Width), 0, PaintAtlas.Width - 1);
-            int startY = Mathf.Clamp(
-                Mathf.FloorToInt(uv.y * PaintAtlas.Height), 0, PaintAtlas.Height - 1);
-
-            Color target = _pixels[PixelIndex(startX, startY)];
-            if (Same(target, colour))
-            {
-                return;
-            }
-
-            EnsureTexelIndex();   // where each texel lies on the body, to cross from one part to the next
-
-            var queue = new Queue<int>();
-            int start = PixelIndex(startX, startY);
-            _pixels[start] = colour;
-            queue.Enqueue(start);
-
-            while (queue.Count > 0)
-            {
-                int texel = queue.Dequeue();
-                int x = texel % PaintAtlas.Width;
-                int y = texel / PaintAtlas.Width;
-                int row = y / PaintAtlas.RowHeight;
-                int y0 = row * PaintAtlas.RowHeight;
-                int y1 = y0 + PaintAtlas.RowHeight - 1;
-                TryFlood(queue, x + 1, y, y0, y1, target, colour);
-                TryFlood(queue, x - 1, y, y0, y1, target, colour);
-                TryFlood(queue, x, y + 1, y0, y1, target, colour);
-                TryFlood(queue, x, y - 1, y0, y1, target, colour);
-                if (AtTheEdgeOfItsRow(x, y, y0, y1))
-                {
-                    Bridge(queue, texel, target, colour);
-                }
-            }
-        }
-
-        /// <summary>A texel on its row's first or last line, or beside a texel no triangle uses: where a part's paint meets another part on the body.</summary>
-        private bool AtTheEdgeOfItsRow(int x, int y, int y0, int y1)
-        {
-            if (y == y0 || y == y1)
-            {
-                return true;
-            }
-            int width = PaintAtlas.Width;
-            return _texelFirstPoint[PixelIndex((x + 1) % width, y)] < 0 || _texelFirstPoint[PixelIndex((x - 1 + width) % width, y)] < 0
-                || _texelFirstPoint[PixelIndex(x, y + 1)] < 0 || _texelFirstPoint[PixelIndex(x, y - 1)] < 0;
-        }
-
-        /// <summary>Fills (and queues) the texels lying on the body right beside this one, facing the same way.</summary>
-        private void Bridge(Queue<int> queue, int texel, Color target, Color colour)
-        {
-            float reach = BucketBridgeMetres * BucketBridgeMetres;
-            for (int p = _texelFirstPoint[texel]; p >= 0; p = _texelNextPoint[p])
-            {
-                TexelPoint here = _texelPoints[p];
-                Vector3Int low = GridCellOf(here.Position - Vector3.one * BucketBridgeMetres);
-                Vector3Int high = GridCellOf(here.Position + Vector3.one * BucketBridgeMetres);
-                for (int cx = low.x; cx <= high.x; cx++)
-                {
-                    for (int cy = low.y; cy <= high.y; cy++)
-                    {
-                        for (int cz = low.z; cz <= high.z; cz++)
-                        {
-                            if (!_texelGrid.TryGetValue(new Vector3Int(cx, cy, cz), out List<int> near))
-                            {
-                                continue;
-                            }
-                            foreach (int q in near)
-                            {
-                                TexelPoint there = _texelPoints[q];
-                                int other = there.Texel;
-                                if (other == texel || (there.Position - here.Position).sqrMagnitude > reach || Vector3.Dot(there.Normal, here.Normal) < 0.0f
-                                    || !Same(_pixels[other], target))
-                                {
-                                    continue;
-                                }
-                                _pixels[other] = colour;
-                                queue.Enqueue(other);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        private int[] _texelFirstPoint;
-        private int[] _texelNextPoint;
-
-        /// <summary>For every texel, the places on the body it is drawn at (<see cref="EnsureTexelMap"/>'s points), as a linked list.</summary>
-        private void EnsureTexelIndex()
-        {
-            EnsureTexelMap();
-            if (_texelFirstPoint != null)
-            {
-                return;
-            }
-            if (_map != null && _map.FirstPoint != null && ReferenceEquals(_map.Points, _texelPoints))
-            {
-                // Another brush on this surface built it already.
-                _texelFirstPoint = _map.FirstPoint;
-                _texelNextPoint = _map.NextPoint;
-                return;
-            }
-            _texelFirstPoint = new int[PaintAtlas.Width * PaintAtlas.Height];
-            for (int i = 0; i < _texelFirstPoint.Length; i++)
-            {
-                _texelFirstPoint[i] = -1;
-            }
-            _texelNextPoint = new int[_texelPoints.Length];
-            for (int p = _texelPoints.Length - 1; p >= 0; p--)
-            {
-                int texel = _texelPoints[p].Texel;
-                _texelNextPoint[p] = _texelFirstPoint[texel];
-                _texelFirstPoint[texel] = p;
-            }
-            if (_map != null && ReferenceEquals(_map.Points, _texelPoints))
-            {
-                // Shared with the map's other brushes, like the map itself.
-                _map.FirstPoint = _texelFirstPoint;
-                _map.NextPoint = _texelNextPoint;
-            }
-        }
-
-        private void TryFlood(Queue<int> queue, int x, int y, int y0, int y1,
-            Color target, Color colour)
-        {
-            if (y < y0 || y > y1)
-            {
-                return;   // never leave this part's row
-            }
-            // Wraps in x for the same reason the stamp does.
-            x = ((x % PaintAtlas.Width) + PaintAtlas.Width) % PaintAtlas.Width;
-
-            int index = PixelIndex(x, y);
-            if (!Same(_pixels[index], target))
-            {
-                return;
-            }
-            _pixels[index] = colour;
-            queue.Enqueue(index);
-        }
-
         // --- undo, mirroring and relocating a point on the mesh ---
 
         private readonly List<Color32[]> _undo = new List<Color32[]>();
@@ -756,23 +598,37 @@ namespace CityX.Character
         /// </summary>
         public void PushUndoSnapshot()
         {
-            _undo.Add((Color32[])_pixels.Clone());
+            FinishBucketFill();
+            // Into an atlas-sized array kept from before: a fresh 5.5 MB one each stroke was 30 ms and the garbage of every stroke.
+            Color32[] copy = _spare.Count > 0 ? _spare.Pop() : new Color32[_pixels.Length];
+            System.Array.Copy(_pixels, copy, _pixels.Length);
+            _undo.Add(copy);
             if (_undo.Count > UndoDepth)
             {
+                _spare.Push(_undo[0]);
                 _undo.RemoveAt(0);
             }
             // A new edit makes any redone-away future unreachable, which is
             // what every other editor does.
+            foreach (Color32[] future in _redo)
+            {
+                _spare.Push(future);
+            }
             _redo.Clear();
         }
 
+        /// <summary>Atlases no longer in the history, kept to be written over by the next snapshot.</summary>
+        private readonly Stack<Color32[]> _spare = new Stack<Color32[]>();
+
+        /// <summary>Back one edit: the atlas before it becomes the one painted on, and the one now is kept to redo (swapped, not copied).</summary>
         public void Undo()
         {
+            FinishBucketFill();
             if (_undo.Count == 0)
             {
                 return;
             }
-            _redo.Add((Color32[])_pixels.Clone());
+            _redo.Add(_pixels);
             _pixels = _undo[_undo.Count - 1];
             _undo.RemoveAt(_undo.Count - 1);
             Apply();
@@ -780,11 +636,12 @@ namespace CityX.Character
 
         public void Redo()
         {
+            FinishBucketFill();
             if (_redo.Count == 0)
             {
                 return;
             }
-            _undo.Add((Color32[])_pixels.Clone());
+            _undo.Add(_pixels);
             _pixels = _redo[_redo.Count - 1];
             _redo.RemoveAt(_redo.Count - 1);
             Apply();
@@ -837,6 +694,7 @@ namespace CityX.Character
         {
             // The bytes the texture shows, exactly: the pixels are kept as bytes (they were floats, and rounding a float channel to a byte a
             // second time on the way out -- 0.7 is 178.4999... -- brought every saved character back a step darker).
+            FinishBucketFill();   // a fill still pouring is saved whole
             Color32[] texels = _pixels;
 
             var raw = new byte[texels.Length * 4];

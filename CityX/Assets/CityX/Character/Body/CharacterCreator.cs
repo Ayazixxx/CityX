@@ -215,8 +215,41 @@ namespace CityX.Character
         /// </summary>
         public bool HoldingStill = true;
 
+        /// <summary>
+        /// How long a frame spends pouring a bucket fill, milliseconds (owner, 2026-11-11: "there is a small drop in frames whenever i use the
+        /// paint bucket tool"): the whole body pours over in a few tenths of a second instead of the game stopping while it is done.
+        /// </summary>
+        public const double BucketMillisecondsPerFrame = 5.0;
+
+        /// <summary>How many texels are poured between looks at the clock.</summary>
+        private const int BucketTexelsAtATime = 8192;
+
+        /// <summary>Switched off with a fill still pouring (PROCEED as it spreads): it is finished, so what is saved and seen is the whole of it.</summary>
+        private void OnDisable()
+        {
+            if (_paint != null && _paint.BucketFilling)
+            {
+                _paint.FinishBucketFill();
+                _paint.Apply();
+            }
+        }
+
+        /// <summary>Pours the fill under way for <see cref="BucketMillisecondsPerFrame"/>, and shows it.</summary>
+        private void PourTheBucket()
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (_paint.ContinueBucketFill(BucketTexelsAtATime) && clock.Elapsed.TotalMilliseconds < BucketMillisecondsPerFrame)
+            {
+            }
+            _paint.Apply();
+        }
+
         private void Update()
         {
+            if (_paint != null && _paint.BucketFilling)
+            {
+                PourTheBucket();
+            }
             Mouse mouse = Mouse.current;
             if (mouse == null || Camera == null || InputBlocked)
             {
@@ -481,7 +514,7 @@ namespace CityX.Character
                 // A single click, not a stroke -- leaving _painting false stops
                 // the drag afterwards re-flooding the same region every frame.
                 Fill(local, triangle);
-                _paint.Apply();
+                PourTheBucket();   // its first share at once; Update pours the rest
                 return;
             }
 
@@ -718,9 +751,10 @@ namespace CityX.Character
             return _ring;
         }
 
+        /// <summary>Starts the fill at the hit (and its mirror's); it pours over the body a share a frame (Update).</summary>
         private void Fill(Vector3 local, int triangle)
         {
-            _paint.BucketFillAt(local, triangle, ActiveColour);
+            _paint.BeginBucketFill(local, triangle, ActiveColour);
             if (!Mirroring)
             {
                 return;
@@ -730,7 +764,7 @@ namespace CityX.Character
             int face = _paint.FindTriangle(mirrored);
             if (face >= 0)
             {
-                _paint.BucketFillAt(mirrored, face, ActiveColour);
+                _paint.BeginBucketFill(mirrored, face, ActiveColour);
             }
         }
 

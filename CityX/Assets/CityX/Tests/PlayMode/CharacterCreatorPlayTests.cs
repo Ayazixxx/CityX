@@ -395,6 +395,44 @@ namespace CityX.Tests
         /// offset into the shared index space wrong does not throw -- it paints
         /// somewhere else on the body entirely.
         /// </summary>
+        /// <summary>
+        /// The bucket on the face pours over the whole body, a little each frame (owner, 2026-11-11: "make the paint bucket tool work across
+        /// the entire body right now head and body our separated. also there is a small drop in frames whenever i use the paint bucket tool"):
+        /// on the creator's own body, as it stands to be painted.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheBucketOnTheFacePoursOverTheWholeBodyOverFrames()
+        {
+            _creator.Colour = Color.red;
+            _creator.Current = CharacterCreator.Tool.Bucket;
+            Vector3 face = _creator.HeadCollider.transform.position + new Vector3(0.03f, 0.04f, 0.0f);
+            _creator.PressAt(_creator.Camera.WorldToScreenPoint(face));
+            Assert.IsTrue(_creator.Paint.BucketFilling, "the whole body was filled in the frame of the click: the game stops while it is done");
+            int frames = 0;
+            while (_creator.Paint.BucketFilling && frames < 300)
+            {
+                frames++;
+                yield return null;
+            }
+            Assert.IsFalse(_creator.Paint.BucketFilling, "the fill never finished pouring");
+
+            Color32[] atlas = _creator.Paint.Atlas.GetPixels32();
+            foreach (HumanBodyBones part in PaintAtlas.Parts)
+            {
+                int y = PaintAtlas.RowOf(part) * PaintAtlas.RowHeight + PaintAtlas.RowHeight / 2;
+                int red = 0;
+                for (int x = 0; x < PaintAtlas.Width; x++)
+                {
+                    Color32 texel = atlas[y * PaintAtlas.Width + x];
+                    if (texel.r > 200 && texel.g < 40 && texel.b < 40)
+                    {
+                        red++;
+                    }
+                }
+                Assert.Greater(red, PaintAtlas.Width / 4, $"the bucket on the face did not pour onto the {part}");
+            }
+        }
+
         [UnityTest]
         public IEnumerator AClickOnTheFaceLandsPaintOnTheHead()
         {

@@ -51,15 +51,31 @@ Owner: "scrolling in and out only zooms into the center of the playermodel but c
 - `BodyPaintTests`: round on a 7:1 stretched surface, size 1 is a dot, equal size steps, an unbroken stroke, no paint through to the back, hidden shared texels, mirror, old saves, and save size.
 - `CharacterCreatorPlayTests`: a click on an outstretched arm paints the arm, and the ring has the brush's size. The explicit `BrushCapture` renders `Logs/CityShots/brush-sizes.png`; look at it after any brush change.
 
-## The bucket fills the torso's neck too (2026-10-15)
+## The bucket: the whole body as one, poured over frames
 
-Owner: "when you do paint bucket fill on torso during character creator with a color, once you load into the game there is like a white
-sliver around the neck that visibly wasnt reached by the paint bucket, but is apart of the torso ... make the paint bucket color the whole
-torso unless being clicked in a contained area". The torso (the Hips row) and the neck (the Neck row) are one surface on the body but two
-rows of the paint atlas, and the fill stopped at its row. `BodyPaint.BucketFillAt` now also crosses between the parts of a group
-(`BucketGroups`: torso and neck) over the body itself: from a texel at the edge of its row's painted area to the other part's texels within
-1.2 cm of it on the surface, facing the same way, still only through the colour that was clicked -- so an outline drawn round an area keeps
-the fill inside, and the arms, legs and head stay fills of their own. Tests: `BodyPaintBucketTests`.
+- 2026-10-15, owner: a torso fill left "a white sliver around the neck". The torso and the neck are one surface on the body but two rows of
+  the paint atlas; the fill learned to cross from one to the other over the body itself.
+- 2026-11-10, owner: "make the paint bucket tool work across the entire body instead separated by limb": every part, not only torso and neck.
+- 2026-11-11, owner: "make the paint bucket tool work across the entire body right now head and body our separated. also there is a small
+  drop in frames whenever i use the paint bucket tool". A fill from the face never reached the body: the crossings were looked for only from
+  texels at the edge of a part's row, and the head's row has none near the neck (the neck's tube goes up into the ball of the head). And the
+  "small drop" was the game stopping: a whole-body fill took over a second in the editor (most of it looking for those crossings again on every
+  fill), and the snapshot for undo was a fresh 5.5 MB copy, 30 ms, on every click.
+
+How it works now (`BodyPaint.Bucket.cs`):
+
+- **The crossings are worked out once**, on a worker thread as the creator opens (`PrepareBrush` starts it, about 0.75 s in the editor, and
+  the first fill waits for it if it is clicked sooner): every other texel along a seam between two parts keeps one texel of the other part
+  within 1.2 cm of it on the body, facing the same way; a texel at the edge of its row's paint keeps one of its own part that near on the
+  body but far off in the atlas. Shared by every brush on the same body, like the texel map.
+- **A fill** spreads outward from the click through the atlas within each part's row and along those links, still only through the colour
+  that was clicked, so an outline keeps it inside. About 60 ms for the whole body in the editor (it was over a second).
+- **It pours over frames** (`CharacterCreator.BucketMillisecondsPerFrame`, 5 ms of it a frame): the paint spreads from the click over a few
+  tenths of a second, and the frame rate holds. A new stroke, undo, redo or saving finishes a fill still pouring first.
+- **Undo snapshots** are copied into atlases kept from before, and undo and redo swap atlases rather than copy them: no garbage, 1 ms.
+
+Tests: `BodyPaintBucketTests` (a chest fill reaches every part, a face fill reaches every part, a fill poured a little at a time ends as one
+done at once, a fill and its undo make no garbage, an outline keeps a fill inside).
 
 ## ReDraw's tools did nothing (2026-10-17)
 
