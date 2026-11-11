@@ -104,6 +104,26 @@ namespace CityX.Tests
                 "the title saved the character");
         }
 
+        /// <summary>The idle at half speed and the feet on one spot through it (owner, 2026-11-11: "his feet glide to the left and right over the floor").</summary>
+        [UnityTest]
+        public IEnumerator ItIdlesAtHalfSpeedWithItsFeetStill()
+        {
+            var hero = Object.FindFirstObjectByType<TitleHero>();
+            yield return Seconds(1.0f);
+            Assert.IsNotNull(hero.Feet, "the feet were never set down");
+            Animator animator = hero.Body.GetComponentInChildren<Animator>();
+            Assert.AreEqual(TitleHero.IdleSpeed, animator.speed, 1e-4f, "the idle is not at half speed");
+            Transform left = animator.GetBoneTransform(HumanBodyBones.LeftFoot), right = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            Vector3 leftAt = left.position, rightAt = right.position;
+            float drift = 0.0f;
+            for (float waited = 0.0f; waited < 3.0f; waited += Time.deltaTime)
+            {
+                yield return null;
+                drift = Mathf.Max(drift, Vector3.Distance(leftAt, left.position), Vector3.Distance(rightAt, right.position));
+            }
+            Assert.Less(drift, 0.02f, "the feet glide over the roof through the idle");
+        }
+
         [UnityTest]
         public IEnumerator TheCharacterScreensTakeItAwayAndTheMenuBringsItBack()
         {

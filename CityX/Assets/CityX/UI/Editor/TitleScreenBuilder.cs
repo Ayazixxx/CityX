@@ -345,7 +345,6 @@ namespace CityX.UIEditor
             logoGroup.transform.SetParent(root.transform, false);
             title.LogoGroup = logoGroup;
 
-            title.PromptLabel = BuildPromptLabel(root.transform);
             title.MenuPanel = BuildMenu(root.transform, title);
 
             // Loaded once, up here, because both the select carousel and the
@@ -425,40 +424,6 @@ namespace CityX.UIEditor
             importer.wrapMode = TextureWrapMode.Clamp;
             importer.SaveAndReimport();
             return AssetDatabase.LoadAssetAtPath<Sprite>(path);
-        }
-
-        /// <summary>
-        /// title_screen.gd's own PromptLabel: "PRESS ANY KEY TO START",
-        /// bottom-centre, pulsing (TitleScreen.TickPrompt drives the alpha).
-        /// A soft blue Shadow behind the text matches the Godot original's
-        /// own theme_override_colors/font_shadow_color -- legacy UI.Text has
-        /// no shadow colour of its own, so it needs a real Shadow component
-        /// rather than a Text property.
-        /// </summary>
-        private static Text BuildPromptLabel(Transform parent)
-        {
-            var labelObject = new GameObject("PromptLabel", typeof(RectTransform));
-            var rect = (RectTransform)labelObject.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = new Vector2(0.5f, 0.0f);
-            rect.anchorMax = new Vector2(0.5f, 0.0f);
-            rect.pivot = new Vector2(0.5f, 0.0f);
-            rect.anchoredPosition = new Vector2(0.0f, 40.0f);
-            rect.sizeDelta = new Vector2(400.0f, 40.0f);
-
-            Text text = labelObject.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 20;
-            text.color = new Color(0.812f, 0.839f, 1.0f, 0.15f);
-            text.alignment = TextAnchor.MiddleCenter;
-            text.raycastTarget = false;
-            text.text = "PRESS ANY KEY TO START";
-
-            Shadow shadow = labelObject.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0.55f, 0.63f, 1.0f, 0.6f);
-            shadow.effectDistance = new Vector2(1.5f, -1.5f);
-
-            return text;
         }
 
         /// <summary>Where the menu's top is, as a share of the screen's height up from its bottom: just under the logo (TitleLogo).</summary>

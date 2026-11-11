@@ -82,9 +82,20 @@ namespace CityX.Tests
             word.OnPointerExit(null);
             yield return Until(() => logo.Brightness < 0.25f);
             Shoot("title-neon-faltering", logo);
-            title.ShowIdlePrompt();
-            yield return Until(() => logo.Brightness > 0.97f);
-            Shoot("title-idle", logo);
+
+            // The feet close, through the idle: they should not move (owner, 2026-11-11: "the bottom of the feet should be glued to the floor").
+            Transform body = Object.FindFirstObjectByType<TitleHero>().Body.transform;
+            Camera eye = Camera.main;
+            Vector3 place = eye.transform.position;
+            Quaternion turn = eye.transform.rotation;
+            Vector3 toEye = Vector3.ProjectOnPlane(place - body.position, Vector3.up).normalized;
+            for (int i = 0; i < 4; i++)
+            {
+                BuildingShapeCapture.Shoot(eye, BuildingShapeCapture.ShotsFolder, $"title-feet-{i}", body.position + toEye * 2.2f + Vector3.up * 0.6f,
+                    body.position + Vector3.up * 0.15f);
+                eye.transform.SetPositionAndRotation(place, turn);
+                yield return Frames(45);
+            }
         }
 
         private static IEnumerator Frames(int count)

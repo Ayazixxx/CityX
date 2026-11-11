@@ -9,7 +9,7 @@ led neon sign"; then "maybe just try building the same thing using the original 
 
 Built by `UI/Editor/TitleScreenBuilder` (the scene, the interface), `UI/Editor/TitleCityBuilder` (the city) and
 `UI/Editor/TitleRooftopBuilder` (the character, their lamps, the logo); rebuild with `CityX.UIEditor.TitleScreenBuilder.Build`. Picture: `TitleRooftopCapture` (PlayMode, Explicit, `-Graphics`):
-`Logs/CityShots/title-menu.png`, `-pointed-at`, `-neon-faltering`, `-idle`.
+`Logs/CityShots/title-menu.png`, `-pointed-at`, `-neon-faltering`.
 
 ## The backdrop: the game's own city (`TitleCityBuilder`, `TitleStage`, `TitleViewpoint`)
 
@@ -85,8 +85,14 @@ owner saw, kept (owner, 2026-11-11: "i like the positioning on this screenshot. 
 this positioning"): a dark slab with a parapet behind them and along its left edge, a stair housing behind them on the right and an aerial.
 They are turned 28 degrees from facing the camera toward the middle of the screen, with two lamps of their own: a warm key from the front
 left and a cold rim from behind.
+The idle runs at half its speed and the feet are held flat on one spot through it (`PlantedFeet`, as the creator's body on its belt;
+owner, 2026-11-11: "his feet glide to the left and right over the floor ... slow the idle animation down by 50%", "the bottom of the feet
+should be glued to the floor").
 
 ## The menu
+
+The title opens straight on it: the old "PRESS ANY KEY TO START" first screen is gone (owner, 2026-11-11), and Escape on the menu does
+nothing.
 
 SINGLEPLAYER, MULTIPLAYER and SETTINGZ down the left under the logo, each the owner's own drawing (owner, 2026-11-11: "replace the
 singleplayer, multiplayer, and settings buttons with these new drawings i made"; the drawings in `SourceArt/TitleMenu`, which

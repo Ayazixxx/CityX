@@ -218,8 +218,8 @@ namespace CityX.Tests
                 Assert.AreEqual(!ownStage, heroObject.activeSelf, $"the rooftop on {panel}");
                 Assert.AreEqual(ownStage ? 0 : 0x5, title.Backdrop.cullingMask, $"the city on {panel}");
             }
-            title.ShowIdlePrompt();
-            Assert.IsTrue(title.Logo.Shown, "the logo is the first thing seen");
+            title.Show(TitleScreen.Panel.Menu);
+            Assert.IsTrue(title.Logo.Shown, "the logo went with the panels and did not come back on the menu");
             Assert.IsTrue(heroObject.activeSelf);
             Assert.AreEqual(0x5, title.Backdrop.cullingMask);
         }

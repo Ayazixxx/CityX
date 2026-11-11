@@ -29,25 +29,13 @@ namespace CityX.UIEditor
         }
 
         /// <summary>
-        /// The idle "PRESS ANY KEY TO START" state -- rain, the flickering
-        /// logo, the pulsing prompt, no menu yet. Requested: "recreate
-        /// the godot title screen instead of the one you have now."
-        /// </summary>
-        [MenuItem("CityX/Capture Title Idle Screenshot")]
-        public static void CaptureIdle()
-        {
-            Shoot("title-idle", TitleScreen.Panel.Menu, seedCharacters: false, showIdlePrompt: true);
-        }
-
-        /// <summary>
-        /// Rebuilds the title scene, then photographs the idle and menu states in the
+        /// Rebuilds the title scene, then photographs the menu in the
         /// SAME Unity session -- tuning the look means change, rebuild, look, and one
         /// editor start-up instead of two.
         /// </summary>
         public static void RebuildAndCapture()
         {
             TitleScreenBuilder.Build();
-            CaptureIdle();
             Capture();
         }
 
@@ -247,7 +235,7 @@ namespace CityX.UIEditor
 
         private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,
             CharacterSelect.Mode selectMode = CharacterSelect.Mode.List,
-            string hairStyle = null, bool showIdlePrompt = false, string headView = null,
+            string hairStyle = null, string headView = null,
             Color? hairColour = null, int creatorTab = CreatorTabs.Paint, bool graphicsPage = false)
         {
             string outputDirectory = Path.Combine(
@@ -298,14 +286,7 @@ namespace CityX.UIEditor
             var title = Object.FindFirstObjectByType<TitleScreen>();
             if (title != null)
             {
-                if (showIdlePrompt)
-                {
-                    title.ShowIdlePrompt();
-                }
-                else
-                {
-                    title.Show(panel);
-                }
+                title.Show(panel);
                 if (graphicsPage && title.SettingsPanel != null && title.SettingsPanel.TryGetComponent(out TitleSettingsView settings) &&
                     settings.Graphics != null)
                 {

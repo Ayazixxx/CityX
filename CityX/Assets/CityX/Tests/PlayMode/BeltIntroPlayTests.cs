@@ -726,7 +726,7 @@ namespace CityX.Tests
             yield return Open(2, beltOnFirstStart: true);
             yield return null;
             Assert.IsFalse(_title.CreatorPanel.activeSelf, "a start with characters made opens on the belt");
-            Assert.IsTrue(_title.PromptLabel.gameObject.activeSelf, "the title's own first screen is gone");
+            Assert.IsTrue(_title.MenuPanel.activeSelf, "a start with characters made does not open on the menu");
         }
     }
 }
