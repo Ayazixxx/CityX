@@ -122,6 +122,10 @@ namespace CityX.UI
         /// <summary>How long the key cap takes to come up once it shows, seconds.</summary>
         private const float PromptFadeInSeconds = 0.3f;
 
+        /// <summary>How long the key cap takes to fade away while the belt is run, and to come back once it is let go, seconds (owner, 2026-11-10:
+        /// "make it fade away when you hold it").</summary>
+        private const float PromptHeldFadeSeconds = 0.3f;
+
         /// <summary>The pose button's background while the arms are up: CreatorControls' lit tool.</summary>
         private static readonly Color PoseOnBackground = new Color(0.30f, 0.26f, 0.12f, 1.0f);
 
@@ -130,6 +134,7 @@ namespace CityX.UI
         private System.Action _enterWorld;
         private float _toolsShown = 1.0f;
         private float _promptElapsed;
+        private float _promptHeld;
         private float _sinceDrop;
         private Rigidbody _snag;
         private HumanBodyBones _backFoot;
@@ -237,6 +242,7 @@ namespace CityX.UI
             if (PromptKey != null)
             {
                 PromptKey.alpha = 0.0f;   // shown after PromptDelaySeconds (PulsePrompt)
+                _promptHeld = 0.0f;
             }
             ShowPose();
         }
@@ -660,7 +666,8 @@ namespace CityX.UI
             }
         }
 
-        /// <summary>The key cap: nothing for its first seconds, then flashing; D once a WASD key is pressed, the arrow again on an arrow key.</summary>
+        /// <summary>The key cap: nothing for its first seconds, then flashing, faded away while the belt is run; D once a WASD key is pressed, the
+        /// arrow again on an arrow key.</summary>
         private void PulsePrompt(float deltaTime)
         {
             if (Prompt == null || PromptKey == null)
@@ -683,7 +690,8 @@ namespace CityX.UI
             }
             float shown = Mathf.Clamp01((_promptElapsed - PromptDelaySeconds) / PromptFadeInSeconds);
             float flash = Mathf.Lerp(0.45f, 1.0f, (Mathf.Sin((_promptElapsed - PromptDelaySeconds) * 2.8f + Mathf.PI * 0.5f) + 1.0f) * 0.5f);
-            PromptKey.alpha = shown * flash;
+            _promptHeld = Mathf.MoveTowards(_promptHeld, Mathf.Abs(Push()) > 0.0f ? 1.0f : 0.0f, deltaTime / PromptHeldFadeSeconds);
+            PromptKey.alpha = shown * flash * (1.0f - _promptHeld);
         }
     }
 }

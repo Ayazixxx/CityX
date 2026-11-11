@@ -159,6 +159,19 @@ namespace CityX.Tests
             Assert.Greater(high, 0.9f, "the key never shows in full");
             Assert.Less(low, 0.6f, "the key does not flash");
 
+            // Owner, 2026-11-10: "make it fade away when you hold it".
+            Press(_keyboard.dKey);
+            yield return Frames(30);
+            Assert.Less(_belt.PromptKey.alpha, 0.02f, "the key stays up while D is held");
+            Release(_keyboard.dKey);
+            high = 0.0f;
+            for (int i = 0; i < 90; i++)
+            {
+                yield return null;
+                high = Mathf.Max(high, _belt.PromptKey.alpha);
+            }
+            Assert.Greater(high, 0.9f, "the key does not come back once D is let go");
+
             Press(_keyboard.wKey);
             yield return null;
             Release(_keyboard.wKey);
