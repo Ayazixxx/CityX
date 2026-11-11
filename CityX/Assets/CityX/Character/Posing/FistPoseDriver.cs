@@ -66,6 +66,7 @@ namespace CityX.Character
         private bool _holdsBody;
         private Vector3 _beganAt;
         private Vector3 _lastPosition;
+        private int _keptReadyFrame = -10;
 
         /// <summary>A blow is in progress.</summary>
         public bool IsStriking => _striking;
@@ -149,6 +150,20 @@ namespace CityX.Character
         public void SetSpeed(float speed)
         {
             _speed = Mathf.Max(0.0f, float.IsNaN(speed) ? 1.0f : speed);
+        }
+
+        /// <summary>
+        /// Keeps the ready stance for as long as this is called each frame (a held guard: FistGuardDriver). The body walking still lets it
+        /// go, as after a blow: the guard walks the plain walk.
+        /// </summary>
+        public void KeepReady()
+        {
+            _keptReadyFrame = Time.frameCount;
+            if (!enabled)
+            {
+                _lastPosition = transform.position;
+                enabled = true;
+            }
         }
 
         /// <summary>Ends any blow and drops the stance at once (a block, a ragdoll, an equipped weapon).</summary>
@@ -239,13 +254,16 @@ namespace CityX.Character
             {
                 _readyRemaining -= deltaTime;
             }
-            if (!_striking && IsMoving(deltaTime))
+            bool moving = !_striking && IsMoving(deltaTime);
+            if (moving)
             {
                 _readyRemaining = 0.0f;
             }
             _lastPosition = transform.position;
+            // Kept by a held guard while it stands; walking, the guard walks the plain walk (its feet planted in the stance, the legs barely stepped).
+            bool kept = Time.frameCount - _keptReadyFrame <= 1 && !moving;
 
-            bool wantsStance = _striking || _readyRemaining > 0.0f;
+            bool wantsStance = _striking || _readyRemaining > 0.0f || kept;
             _engage = Mathf.MoveTowards(_engage, wantsStance ? 1.0f : 0.0f, deltaTime / (wantsStance ? EngageSeconds : DisengageSeconds));
             _clipWeight = Mathf.MoveTowards(_clipWeight, _striking ? 1.0f : 0.0f, deltaTime / (_striking ? EngageSeconds : ReleaseSeconds));
 

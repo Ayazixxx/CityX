@@ -160,6 +160,17 @@ def pose_at(punch, t01, stats):
     s = sample(punch["keys"], t01)
     seconds = t01 * punch["seconds"]
     side = -1.0 if punch.get("mirrored") else 1.0
+    P, hips_at, body = body_pose(s, side)
+    lead, rear = ("l", "r") if side > 0.0 else ("r", "l")
+    for leg, steps, x in ((lead, punch["lead"], -STANCE_X * side), (rear, punch["rear"], STANCE_X * side)):
+        hip_b = U(*hips_at) + body @ (HEAD["thigh_" + leg] - HEAD["hips"])
+        on_stage = [(t0, t1, (to[0] * side, to[1]), lift) for t0, t1, to, lift in steps]
+        P[leg + "_leg"] = planted_leg(leg, to_unity(hip_b), on_stage, (x, 0.0), seconds, carried(punch, seconds), hips_at.z, 28.0, stats)
+    return P
+
+
+def body_pose(s, side):
+    """A sampled key as the solver's pose, all but the legs (the guard, ../FistGuard, stands on its own): the pose, where the hips are, and their turn."""
 
     def handed(v):
         return (v.x * side, v.y, v.z)
@@ -181,12 +192,7 @@ def pose_at(punch, t01, stats):
         "right": fist if side > 0.0 else off,
         "free": off if side > 0.0 else fist,
     }
-    lead, rear = ("l", "r") if side > 0.0 else ("r", "l")
-    for leg, steps, x in ((lead, punch["lead"], -STANCE_X * side), (rear, punch["rear"], STANCE_X * side)):
-        hip_b = U(*hips_at) + body @ (HEAD["thigh_" + leg] - HEAD["hips"])
-        on_stage = [(t0, t1, (to[0] * side, to[1]), lift) for t0, t1, to, lift in steps]
-        P[leg + "_leg"] = planted_leg(leg, to_unity(hip_b), on_stage, (x, 0.0), seconds, carried(punch, seconds), hips_at.z, 28.0, stats)
-    return P
+    return P, hips_at, body
 
 
 def bake_punches():

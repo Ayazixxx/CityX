@@ -1127,6 +1127,11 @@ namespace CityX.Character
                 move *= 0.5f;
                 sprinting = false;
             }
+            else if (_melee != null && _melee.IsGuarding)
+            {
+                move *= FistGuard.MoveFraction;   // the bare-handed guard walks as the sword's does
+                sprinting = false;
+            }
 
             float yawDegrees = yawSource != null ? yawSource.eulerAngles.y : 0.0f;
             _lastYawDegrees = yawDegrees;

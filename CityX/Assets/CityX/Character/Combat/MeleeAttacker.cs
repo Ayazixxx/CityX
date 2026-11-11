@@ -412,6 +412,7 @@ namespace CityX.Character
         /// </summary>
         public void Tick(float deltaTime)
         {
+            TickGuard();
             if (_heavyFollowUpRemaining > 0.0f)
             {
                 _heavyFollowUpRemaining = Mathf.Max(0.0f, _heavyFollowUpRemaining - deltaTime);

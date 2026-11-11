@@ -107,6 +107,32 @@ lean, how far the hips sink and where they are over the feet; the feet are steps
 It prints how far each arm reaches, the tightest knee and the furthest a leg is asked to reach, and renders every punch's moments from
 the side, the front and the game's camera. A blow's length, landing or stride changed there must be changed in `FistStrikes` too.
 
+## The guard (2026-11-10)
+
+Owner: "improve upon the blocking no weapon in hand animation right now the legs dont even move and it isnt timed right at all. redo the
+hole thing like a souls like game". It was a block thrown for a fixed 0.7 s on a press, with a borrowed full-body clip that stood the legs
+still. Now, with nothing in hand, right-click **held** is a guard, the sword's way (`FistGuard`, `MeleeAttacker.Guard`):
+
+- **Up as long as the button is.** Raised in 0.15 s; let go, it comes down over 0.2 s.
+- **Its first 0.2 s parries** (`FistGuard.ParrySeconds`): a blow caught then does nothing and leaves the attacker open; the lead forearm
+  swats it out and aside.
+- **Held, it soaks:** a quarter of the blow through, stamina for the rest at 1.5 per point (forearms are a poorer guard than steel); a blow
+  it cannot afford breaks it open, 1 s staggered. A soaked blow knocks the forearms back at the face and up again.
+- **The legs walk on under it** at half pace: the clips are on the upper body only (`BakedPose.UpperBodyOnly`); standing, the fists' ready
+  stance is under it, walking, the plain walk (`FistPoseDriver.KeepReady`).
+- **A punch drops it** for as long as the punch lasts; still held, it comes back up after.
+- Told by name (`fist_guard`, `fist_guard_lower`, `fist_guard_hit`, `fist_guard_parry`), so other players' copies raise, lower, swat and
+  are knocked back the same (`FistGuardDriver` on every body).
+- A club in hand keeps the old timed block.
+
+The clips: `CityX/SourceArt/FistGuard` (`guard_raise`, `guard_hold` looped, `guard_hit`, `guard_parry`), on the punches' pose helpers
+(`fist_pose.body_pose`), exported to `Character/Resources/Fists/FistGuardMotion.json`:
+`blender --background --factory-startup --python CityX/SourceArt/FistGuard/guard_build.py -- --render <folder> --export <json>`.
+
+Tests: `FistGuardMotionTests` (every clip hands over to the held guard without a pop), `FistGuardPlayTests` (held as long as the button,
+the parry, the soak; fists before the face; the thighs swing as far guarded as plain; a punch drops it and it comes back). Pictures:
+`FistGuardCapture`.
+
 ## Tests
 
 `FistStrikesTests` (the clips read on the skeleton: on the game's bones and as long as their blows; whole poses, nothing snapping; every

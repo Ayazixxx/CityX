@@ -314,11 +314,13 @@ namespace CityX.Character
                 return;
             }
 
-            // Right-click, timed, NOT holdable. There is no start/stop pair the
-            // way crouch has one: a press throws the block, and the window is
-            // exactly as long as the clip. Holding the button past that does
-            // nothing -- you cannot hold a block, you have to time it.
-            if (Mouse.current.rightButton.wasPressedThisFrame && _vitals != null && !ShieldInHand)
+            // BARE HANDS: right-click HELD is the guard (FistGuard, the sword's way: its first instant parries, the body walks on at half pace).
+            if (weapon == null && !ShieldInHand)
+            {
+                _melee.SetGuardHeld(Mouse.current.rightButton.isPressed);
+            }
+            // A club in hand: right-click, timed, NOT holdable. A press throws the block, and the window is exactly as long as the clip.
+            else if (Mouse.current.rightButton.wasPressedThisFrame && _vitals != null && !ShieldInHand)
             {
                 _vitals.StartBlock();
                 _melee.PlayBlock();

@@ -43,6 +43,7 @@ namespace CityX.Character
         private int _torsoLayer = -1;
         private int _armsLayer = -1;
         private FistPoseDriver _fist;
+        private FistGuardDriver _guard;
         private SwordPoseDriver _sword;
         private FlinchPoseDriver _flinch;
         private GunReloadDriver _gunReload;
@@ -93,7 +94,7 @@ namespace CityX.Character
         /// <summary>True when this body's Animator has a state of that name (on whichever layer owns it), or it is a procedural one (a punch, a sword attack or guard).</summary>
         public bool HasState(string stateName)
         {
-            if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName) || GunReload.Has(stateName))
+            if (FistStrikes.Has(stateName) || FistGuard.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName) || GunReload.Has(stateName))
             {
                 return true;
             }
@@ -151,6 +152,12 @@ namespace CityX.Character
             {
                 _fist = gameObject.AddComponent<FistPoseDriver>();
             }
+            // And the bare-handed guard (FistGuard).
+            _guard = GetComponent<FistGuardDriver>();
+            if (_guard == null)
+            {
+                _guard = gameObject.AddComponent<FistGuardDriver>();
+            }
             // So are the sword attacks and guards (SwordStrikes), on every body the same way.
             _sword = GetComponent<SwordPoseDriver>();
             if (_sword == null)
@@ -172,6 +179,9 @@ namespace CityX.Character
             _vitals = GetComponent<PlayerVitals>();
             _locomotion = GetComponent<PlayerLocomotion>();
         }
+
+        /// <summary>The bare-handed guard's poser on this body (whether it is up), for the guard's rules and tests.</summary>
+        public FistGuardDriver FistGuardPose => _guard;
 
         /// <summary>The procedural sword poser on this body (an attack's progress, a guard held), for tests and captures.</summary>
         public SwordPoseDriver SwordPoser => _sword;
@@ -476,7 +486,7 @@ namespace CityX.Character
                 RemoteWounded?.Invoke(woundDirection, woundHeavy);   // the copy bleeds, flashes and is held still the same way
                 return;
             }
-            if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName) || GunReload.Has(stateName))
+            if (FistStrikes.Has(stateName) || FistGuard.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName) || GunReload.Has(stateName))
             {
                 PlayState(stateName);   // a copy of someone else's body throws the same procedural strike (or raises the same guard, or flinches, or reloads)
                 // ...at the owner's pace (Melee Speed, Reload Speed: 2026-10-14). A garbled speed is ignored.
@@ -506,6 +516,21 @@ namespace CityX.Character
                 _flinch?.Begin(hitDirection, stagger);
                 return;
             }
+            // The bare-handed guard (FistGuard): up, down, knocked back by a blow, swatting one aside. On the upper body: the legs walk on.
+            if (FistGuard.Has(stateName))
+            {
+                switch (stateName)
+                {
+                    case FistGuard.RaiseName:
+                        _sword?.Cancel();
+                        _guard?.Raise();
+                        break;
+                    case FistGuard.LowerName: _guard?.Lower(); break;
+                    case FistGuard.HitName: _guard?.Hit(); break;
+                    default: _guard?.Parry(); break;
+                }
+                return;
+            }
             if (stateName == SwordStrikes.ParryName)
             {
                 _sword?.Parry();
@@ -515,6 +540,7 @@ namespace CityX.Character
             if (GunReload.TryGet(stateName, out bool reloadEmpty))
             {
                 _fist?.Cancel();
+                _guard?.Cancel();
                 _sword?.Cancel();
                 _gunReload?.Begin(reloadEmpty);
                 return;
@@ -522,6 +548,7 @@ namespace CityX.Character
             // An unarmed strike has no clip: the fists and torso are posed by FistPoseDriver (and the legs go on walking).
             if (FistStrikes.TryGet(stateName, out FistKind fistKind))
             {
+                _guard?.Cancel();
                 _sword?.Cancel();
                 _fist?.Begin(fistKind);
                 return;
@@ -530,12 +557,14 @@ namespace CityX.Character
             if (SwordStrikes.TryGet(stateName, out SwordStrikeKind swordKind))
             {
                 _fist?.Cancel();
+                _guard?.Cancel();
                 _sword?.Begin(swordKind);
                 return;
             }
             if (SwordStrikes.TryGetGuard(stateName, out bool guardOneHanded))
             {
                 _fist?.Cancel();
+                _guard?.Cancel();
                 _sword?.BeginGuard(guardOneHanded);
                 return;
             }
@@ -543,12 +572,14 @@ namespace CityX.Character
             if (SwordStrikes.TryGetRebound(stateName, out bool reboundOneHanded))
             {
                 _fist?.Cancel();
+                _guard?.Cancel();
                 _sword?.BeginRebound(reboundOneHanded);
                 return;
             }
             // Anything else takes the arms back from the guard. The upper body's empty state is how a sword attack or guard is ended (the
             // ready stance lingers after it); any other state (a clip) drops the sword pose at once.
             _fist?.Cancel();
+                _guard?.Cancel();
             if (stateName == UpperEmptyStateName)
             {
                 _sword?.Release();
