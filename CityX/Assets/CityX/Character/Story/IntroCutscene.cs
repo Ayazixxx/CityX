@@ -111,14 +111,13 @@ namespace CityX.Character
         public const float LyingStillSeconds = 2.0f;
         public const float MaxLyingSeconds = 5.0f;
 
-        /// <summary>How long the whole get-up clip takes here: its own length, a slow waking-up, against a quick recovery in play.</summary>
-        public const float GettingUpPaceSeconds = GettingUpClipSeconds;
+        /// <summary>How fast the get-up runs here, against its own speed: a slow waking-up, against a quick recovery in play (GetUpPace.QuickSpeed).</summary>
+        public const float GettingUpSpeed = 0.85f;
 
         /// <summary>A body fallen through the ground (a collider not there yet) is put back on it at this height over where it should have landed.</summary>
         public const float FellThroughMargin = 3.0f;
 
         // --- the baked clips' real lengths, read off the built controller (every clip shares Mixamo's take name) ---
-        public const float GettingUpClipSeconds = 7.6f;
         public const float LookingAroundClipSeconds = 12.667f;
 
         /// <summary>The stood-up body eases into looking around over this long, rather than popping into the clip's first frame.</summary>
@@ -536,7 +535,7 @@ namespace CityX.Character
             _stillSeconds = _ragdoll.IsRestingOnGround ? _stillSeconds + deltaTime : 0.0f;
             if (_stillSeconds >= LyingStillSeconds || _phaseElapsed >= MaxLyingSeconds)
             {
-                _ragdoll.BeginStandingUp(force: true, paceSeconds: GettingUpPaceSeconds);
+                _ragdoll.BeginStandingUp(force: true, speed: GettingUpSpeed);
                 _phase = Phase.GettingUp;
             }
         }

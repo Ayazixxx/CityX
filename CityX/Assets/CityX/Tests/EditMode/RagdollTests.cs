@@ -298,10 +298,9 @@ namespace CityX.Tests
         /// <summary>
         /// A minimal rig, built by hand rather than loaded from the prefab
         /// -- JetpackTests' own "no Animator, deliberately" reasoning
-        /// applies here too: leaving Animator null skips BeginStandingUp's
-        /// visual Play("GettingUp") call entirely, which is what makes the
-        /// underlying timing/repositioning logic testable without a real
-        /// rig or a "GettingUp" state to actually exist.
+        /// applies here too: leaving Animator null skips posing the get-up clip
+        /// entirely, which is what makes the underlying timing/repositioning
+        /// logic testable without a real rig.
         /// </summary>
         private static Ragdoll BuildTestRig(out GameObject player, out Rigidbody torso)
         {

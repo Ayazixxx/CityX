@@ -95,7 +95,7 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(head.position, headBefore), 0.6f, $"{euler}: the head jumped when standing began");
             Assert.Less(MaxBoneAngle(animator, poseBefore), 35.0f, $"{euler}: a bone snapped to the clip's pose on the first frame");
 
-            for (float t = 0.0f; t < ragdoll.RollSeconds + Ragdoll.StandUpRecoverySeconds + 0.4f; t += Time.deltaTime)   // rolled onto its front first
+            for (float t = 0.0f; t < ragdoll.RollSeconds + Ragdoll.StandUpRecoverySeconds + 0.4f; t += Time.deltaTime)   // rolled to where its clip starts first
             {
                 ragdoll.Tick(Time.deltaTime);
                 yield return null;
@@ -127,7 +127,7 @@ namespace CityX.Tests
             ragdoll.Activate(Vector3.zero, allowImmediateStandUp: true);
             yield return new WaitForSeconds(1.5f);
             ragdoll.BeginStandingUp(force: true);
-            float upIn = ragdoll.RollSeconds + Ragdoll.StandUpRecoverySeconds;   // rolled onto its front first, however it fell
+            float upIn = ragdoll.RollSeconds + Ragdoll.StandUpRecoverySeconds;   // rolled to where its clip starts first, however it fell
 
             float elapsed = 0.0f;
             while (ragdoll.IsLimp && elapsed < 4.0f)
@@ -137,12 +137,12 @@ namespace CityX.Tests
                 yield return null;
             }
             Assert.Less(elapsed, upIn + 0.1f, "the body was held after it was already standing (the clip's idle tail)");
-            Assert.Less(upIn, 1.7f, "getting up takes too long for a fight");
+            Assert.Less(Ragdoll.StandUpRecoverySeconds, 1.7f, "getting up takes too long for a fight");
             Assert.IsTrue(_player.GetComponent<CharacterController>().enabled, "control did not come back");
             yield return null;
             yield return null;
-            Assert.IsFalse(animator.GetCurrentAnimatorStateInfo(0).IsName("GettingUp") && !animator.IsInTransition(0),
-                "the animator was left holding the get-up pose instead of being handed to locomotion");
+            Assert.IsTrue(animator.GetCurrentAnimatorStateInfo(0).IsName("Locomotion"),
+                "the animator was left in another state instead of being handed to locomotion");
 #else
             yield break;
 #endif

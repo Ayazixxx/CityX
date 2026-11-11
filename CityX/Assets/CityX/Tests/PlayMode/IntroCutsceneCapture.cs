@@ -8,8 +8,9 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: the intro in the real city, through the game's own camera, a picture every second and a half from the drop to the hand-off
-    /// (Logs/CityShots/intro-NN.png), to look at the cloud thinning, the ragdoll's fall and landing, the get-up and the camera's glide.
+    /// Not a test: the intro in the real city, through the game's own camera, a picture every second and a half from the drop to the hand-off,
+    /// every quarter second while the body gets up (Logs/CityShots/intro-NN.png), to look at the cloud thinning, the ragdoll's fall and
+    /// landing, the get-up and the camera's glide.
     /// Explicit; run by name with -Graphics: ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.IntroCutsceneCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -17,6 +18,7 @@ namespace CityX.Tests
     {
         private const string ScenePath = "Assets/CityX/Scenes/CityMassing.unity";
         private const int FramesBetweenShots = 90;
+        private const int FramesBetweenGetUpShots = 15;
         private const int MaxFrames = 60 * 60;
 
         private Scene _scene;
@@ -57,6 +59,7 @@ namespace CityX.Tests
             follow.enabled = false;
             Camera camera = follow.GetComponent<Camera>();
 
+            var ragdoll = player.GetComponent<Ragdoll>();
             var cutscene = player.AddComponent<IntroCutscene>();
             bool finished = false;
             cutscene.Finished += () => finished = true;
@@ -64,7 +67,7 @@ namespace CityX.Tests
             for (int frame = 0, shot = 0; frame < MaxFrames && !finished; frame++)
             {
                 yield return null;
-                if (frame % FramesBetweenShots == 0)
+                if (frame % (ragdoll.IsStandingUp ? FramesBetweenGetUpShots : FramesBetweenShots) == 0)
                 {
                     Transform view = camera.transform;
                     BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"intro-{shot++:00}", view.position, view.position + view.forward);

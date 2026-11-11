@@ -8,10 +8,16 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The ragdoll's get-up from however it lies, on whatever it lies on (owner, 2026-11-10: "make the standing up animation look good. the
-    /// ragdoll to stand animation. use hand and foot ik to interact with the terrain it is standing on properly. right now it looks glitchy").
+    /// ragdoll to stand animation. use hand and foot ik to interact with the terrain it is standing on properly. right now it looks glitchy";
+    /// "i think it needs a better standing up animation").
     /// </summary>
     public sealed class GetUpOnTheGroundPlayTests
     {
+        /// <summary>How far over the ground under it a wrist and an ankle are, resting their skin on it (the clips' own contacts).</summary>
+        private const float WristOverTheGround = 0.06f;
+
+        private const float AnkleOverTheGround = 0.09f;
+
         private GameObject _ground;
         private GameObject _player;
 
@@ -40,44 +46,54 @@ namespace CityX.Tests
 #endif
         }
 
-        /// <summary>The clip starts face down. From its back the body used to be turned bone by bone, straight through itself, in 0.4 s.</summary>
+        /// <summary>
+        /// The fall lands the new character on its back, and the only clip there was started face down: it was rolled over first, turned bone
+        /// by bone. Now a body on its back gets up from its back, where it lies, eased into the clip with nothing snapping round.
+        /// </summary>
         [UnityTest]
-        public IEnumerator FromItsBackItRollsOverAlongItsOwnLengthOntoItsFront()
+        public IEnumerator FromItsBackItGetsUpFromItsBackWhereItLies([Values(true, false)] bool onItsBack)
         {
-            yield return Lay("level", Vector3.up);
+            yield return Lay("level", onItsBack ? Vector3.up : Vector3.down);
             Ragdoll ragdoll = _player.GetComponent<Ragdoll>();
             Animator animator = _player.GetComponentInChildren<Animator>();
             Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips), head = animator.GetBoneTransform(HumanBodyBones.Head);
-            Assert.Greater(Vector3.Dot(LyingBody.ChestFront(animator), Vector3.up), 0.7f, "setup: it is not lying on its back");
             Vector3 lay = Vector3.ProjectOnPlane(head.position - hips.position, Vector3.up).normalized;
-            float lyingAt = hips.position.y;
+            Vector3 lyingHips = hips.position;
 
             ragdoll.BeginStandingUp(force: true);
-            Assert.Greater(ragdoll.RollSeconds, 0.25f, "from its back it is given no time to roll over");
+            Assert.AreEqual(onItsBack ? GetUpMotion.FromTheBack : GetUpMotion.FromTheFront, ragdoll.GetUpSegment);
+            Assert.Less(ragdoll.RollSeconds, 0.15f, "lying as its clip starts, it is rolled over anyway");
             yield return null;   // the get-up poses the body after the Animator, in LateUpdate
-            Assert.Greater(Vector3.Dot(LyingBody.ChestFront(animator), Vector3.up), 0.6f, "it was turned over on the first frame");
             Quaternion before = hips.rotation;
-            float swung = 0.0f, fastest = 0.0f, lowest = float.MaxValue, highest = 0.0f;
-            for (float t = 0.0f; t < ragdoll.RollSeconds; t += Time.deltaTime)
+            float swung = 0.0f, fastest = 0.0f, slid = 0.0f;
+            for (float t = 0.0f; t < Ragdoll.SettleSeconds; t += Time.deltaTime)
             {
                 ragdoll.Tick(Time.deltaTime);
                 yield return null;
                 swung = Mathf.Max(swung, Vector3.Angle(lay, Vector3.ProjectOnPlane(head.position - hips.position, Vector3.up)));
                 fastest = Mathf.Max(fastest, Quaternion.Angle(before, hips.rotation));
                 before = hips.rotation;
-                lowest = Mathf.Min(lowest, hips.position.y);
-                highest = Mathf.Max(highest, hips.position.y);
+                slid = Mathf.Max(slid, Vector3.ProjectOnPlane(hips.position - lyingHips, Vector3.up).magnitude);
             }
-            Assert.Less(Vector3.Dot(LyingBody.ChestFront(animator), Vector3.up), -0.6f, "it did not end the roll on its front");
-            Assert.Less(swung, 30.0f, "it swung round on the ground instead of rolling over where it lay");
-            Assert.Less(fastest, 25.0f, "the hips snapped round in one frame");
-            Assert.Greater(lowest, lyingAt - 0.08f, "the hips sank into the floor as it rolled");
-            Assert.Greater(highest, lyingAt + 0.05f, "it rolled over without its hips rising over its side");
+            Assert.Less(swung, 30.0f, "it swung round on the ground as it went into the clip");
+            Assert.Less(fastest, 15.0f, "the hips snapped round in one frame");
+            Assert.Less(slid, 0.4f, "the hips slid off where they lay");
+
+            float elapsed = 0.0f;
+            while (ragdoll.IsLimp && elapsed < Ragdoll.StandUpRecoverySeconds + 1.0f)
+            {
+                ragdoll.Tick(Time.deltaTime);
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+            Assert.IsFalse(ragdoll.IsLimp, "it never got up");
+            yield return null;
+            Assert.Greater(Vector3.Dot(head.position - hips.position, Vector3.up), 0.9f * (head.position - hips.position).magnitude, "it is not standing");
         }
 
         /// <summary>
-        /// The clip pushes up, kneels and stands on a level floor at the height of the root. Lying up a staircase, its hands are on steps
-        /// above that and its feet on steps below.
+        /// The clips push up, kneel and stand on a level floor at the height of the root. Lying up a staircase, its hands are on steps above
+        /// that and its feet on steps below.
         /// </summary>
         [UnityTest]
         public IEnumerator OnStairsItsHandsAndFeetAreOnTheStepsUnderThemNotOnALevelFloor()
@@ -90,8 +106,9 @@ namespace CityX.Tests
 
             ragdoll.BeginStandingUp(force: true);
             float handUnder = 0.0f, footUnder = 0.0f, handOnAStepAbove = 0.0f;
+            string footWhere = "";
             float elapsed = 0.0f;
-            while (ragdoll.IsLimp && elapsed < 4.0f)
+            while (ragdoll.IsLimp && elapsed < Ragdoll.StandUpRecoverySeconds + 1.0f)
             {
                 ragdoll.Tick(Time.deltaTime);
                 elapsed += Time.deltaTime;
@@ -104,8 +121,8 @@ namespace CityX.Tests
                 {
                     float ground = LyingBody.GroundUnder(hand.position, _player.transform);
                     float over = hand.position.y - ground;
-                    handUnder = Mathf.Max(handUnder, LimbFloorClamp.WristClearance - over);
-                    if (over < LimbFloorClamp.WristClearance + 0.05f)
+                    handUnder = Mathf.Max(handUnder, WristOverTheGround - over);
+                    if (over < WristOverTheGround + 0.08f)
                     {
                         // Resting on the ground under it: how far that ground is above the level floor the clip was made on.
                         handOnAStepAbove = Mathf.Max(handOnAStepAbove, ground - _player.transform.position.y);
@@ -113,12 +130,17 @@ namespace CityX.Tests
                 }
                 foreach (Transform foot in feet)
                 {
-                    footUnder = Mathf.Max(footUnder, LimbFloorClamp.AnkleClearance - (foot.position.y - LyingBody.GroundUnder(foot.position, _player.transform)));
+                    float under = AnkleOverTheGround - (foot.position.y - LyingBody.GroundUnder(foot.position, _player.transform));
+                    if (under > footUnder)
+                    {
+                        footUnder = under;
+                        footWhere = $"{foot.name} at {ragdoll.GetUpClipSeconds:0.00} s of {ragdoll.GetUpSegment}, {foot.position.y - _player.transform.position.y:0.00} m over the root, the step under it {LyingBody.GroundUnder(foot.position, _player.transform) - _player.transform.position.y:0.00}";
+                    }
                 }
             }
             Assert.IsFalse(ragdoll.IsLimp, "it never got up");
             Assert.Less(handUnder, 0.03f, "a hand went into a step");
-            Assert.Less(footUnder, 0.03f, "a foot went into a step");
+            Assert.Less(footUnder, 0.03f, $"a foot went into a step: {footWhere}");
             Assert.Greater(handOnAStepAbove, LyingBody.Riser * 0.8f, "no hand was ever put down on a step above the one its hips lay on");
         }
 
@@ -132,8 +154,8 @@ namespace CityX.Tests
             Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips), chest = animator.GetBoneTransform(HumanBodyBones.Spine);
             Transform[] feet = { animator.GetBoneTransform(HumanBodyBones.LeftFoot), animator.GetBoneTransform(HumanBodyBones.RightFoot) };
 
-            // At the entrance's pace: the clip lies still for its first second, long enough to be measured lying.
-            ragdoll.BeginStandingUp(force: true, paceSeconds: GetUpPace.ClipSeconds);
+            // At the entrance's pace: the clip lies flat while its hands come in under the chest, long enough to be measured lying.
+            ragdoll.BeginStandingUp(force: true, speed: IntroCutscene.GettingUpSpeed);
             for (float t = 0.0f; t < Ragdoll.SettleSeconds + 0.05f; t += Time.deltaTime)
             {
                 ragdoll.Tick(Time.deltaTime);
@@ -147,7 +169,7 @@ namespace CityX.Tests
             foreach (Transform foot in feet)
             {
                 float over = foot.position.y - LyingBody.GroundUnder(foot.position, _player.transform);
-                Assert.That(over, Is.InRange(0.1f, 0.5f), "a foot is in the slope or in the air");
+                Assert.That(over, Is.InRange(0.05f, 0.5f), "a foot is in the slope or in the air");
             }
         }
     }

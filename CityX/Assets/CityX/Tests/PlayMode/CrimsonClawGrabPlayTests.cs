@@ -87,7 +87,7 @@ namespace CityX.Tests
             Vector3 flew = ragdoll.Torso.position - thrownFrom;
             Assert.Greater(Vector3.Dot(flew, _claw.transform.forward), 2.5f, "the player was not thrown ahead of it");
 
-            yield return Frames(CrimsonClaw.ThrownLimpSeconds + Ragdoll.StandUpPaceSeconds + 1.0f, () => !ragdoll.IsLimp);
+            yield return Frames(CrimsonClaw.ThrownLimpSeconds + Ragdoll.StandUpRecoverySeconds + 1.0f, () => !ragdoll.IsLimp);
             Assert.IsFalse(ragdoll.IsLimp, "thrown, the player never got up");
         }
 
@@ -210,7 +210,7 @@ namespace CityX.Tests
             ((IDamageable)_claw).ApplyHit(CrimsonClaw.MaxHealth, _claw.transform.position, 0.0f);
             Assert.IsFalse(_claw.IsHolding);
             Assert.IsFalse(ragdoll.IsHeld, "its body still holds the player");
-            yield return Frames(CrimsonClaw.ThrownLimpSeconds + Ragdoll.StandUpPaceSeconds + 1.0f, () => !ragdoll.IsLimp);
+            yield return Frames(CrimsonClaw.ThrownLimpSeconds + Ragdoll.StandUpRecoverySeconds + 1.0f, () => !ragdoll.IsLimp);
             Assert.IsFalse(ragdoll.IsLimp, "dropped, the player never got up");
         }
 

@@ -510,7 +510,7 @@ namespace CityX.Character
                 // never runs while this branch keeps returning early -- so
                 // whatever lean was baked in at the exact instant of the
                 // crash used to sit there completely frozen through the
-                // whole limp ragdoll AND the entire "GettingUp" clip,
+                // whole limp ragdoll AND the entire get-up clip,
                 // several frames longer than it took the player to actually
                 // regain control. See ResetTilt's own doc comment for the
                 // full reasoning; called every frame while limp (same as

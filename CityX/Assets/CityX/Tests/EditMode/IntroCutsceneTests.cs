@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.World;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.Animations;
@@ -16,6 +17,7 @@ namespace CityX.Tests
         private const float TickStepSeconds = 0.05f;
 
         private GameObject _playerObject;
+        private CityWorld _worldBefore;
         private GameObject _cameraObject;
         private CharacterController _controller;
         private ThirdPersonCamera _thirdPersonCamera;
@@ -26,6 +28,9 @@ namespace CityX.Tests
         [SetUp]
         public void SetUp()
         {
+            // A world another test left loaded would move the drop onto open ground near the spawn: these tests are of the cutscene alone.
+            _worldBefore = CurrentWorld.Instance;
+            CurrentWorld.Instance = null;
             var runtimeController = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
             Assert.IsNotNull(runtimeController, $"no controller at {ControllerPath} -- run CityX/Rebuild Player Rig");
 
@@ -50,6 +55,7 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
+            CurrentWorld.Instance = _worldBefore;
             Object.DestroyImmediate(_playerObject);
             Object.DestroyImmediate(_cameraObject);
         }

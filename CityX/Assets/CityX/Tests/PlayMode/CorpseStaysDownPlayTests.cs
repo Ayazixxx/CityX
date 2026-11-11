@@ -118,7 +118,7 @@ namespace CityX.Tests
             {
                 yield return null;
             }
-            Assert.IsFalse(_animator.GetCurrentAnimatorStateInfo(0).IsName("GettingUp"), "the new life goes on playing the get-up");
+            Assert.IsTrue(_animator.GetCurrentAnimatorStateInfo(0).IsName("Locomotion"), "the new life is left in another state than locomotion");
 
             // The next knockdown is a knockdown: the body lies until its timer, it does not pop straight up.
             _vitals.KnockDown(new Vector3(0.0f, 2.0f, -3.0f));

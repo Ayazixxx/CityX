@@ -1,22 +1,24 @@
+using CityX.Core;
 using UnityEngine;
 
 namespace CityX.Character
 {
     /// <summary>
-    /// FROM HOWEVER IT LIES TO THE GET-UP CLIP (owner, 2026-11-10: "make the standing up animation look good. the ragdoll to stand animation
-    /// ... right now it looks glitchy"). The clip starts face down. The body is first brought onto its front as a body turns over: rolled
-    /// about its own length by however far it lies from face down (half a turn from its back, a quarter from its side, none from its front),
-    /// its hips rising over its shoulder width on the way, while every joint eases from the angle the ragdoll left it at to the clip's
-    /// (<see cref="PoseFromLying"/>). Then the clip runs, at <see cref="GetUpPace"/>.
-    /// Before, every bone was turned straight from where it lay to where the clip had it, in half a second: from its back the body went
-    /// through itself.
+    /// FROM HOWEVER IT LIES TO STANDING, on the get-up clips made for this body (<see cref="GetUpMotion"/>; owner, 2026-11-10: "the limbs
+    /// bend all awkwardly clearly in an unintented way", "its like the knees bend the wrong way"). The clip nearer how the body lies is
+    /// played on its bones after the Animator (<see cref="PoseGetUp"/>), at <see cref="GetUpPace"/>. The body is first brought to the clip's
+    /// first pose as a body turns over: rolled about its own length by however far it lies from it (none on its back or front, a quarter
+    /// turn on its side), every joint easing from the angle the ragdoll left it at to the clip's (<see cref="PoseFromLying"/>). Then it is
+    /// held on the ground it is really on (<see cref="HoldOnTheGround"/>).
+    /// Before, a clip made for another body, face down only, was played through the Animator, and a floor clamp bowed every knee near the
+    /// ground upward: on a kneeling leg that bent the knee backward.
     /// </summary>
     public sealed partial class Ragdoll
     {
         /// <summary>How much higher the hips are carried at the middle of a roll than lying flat, metres on a body of the player's size.</summary>
         public const float RollLift = 0.14f;
 
-        /// <summary>The least time the joints take to ease from the ragdoll's angles to the clip's, seconds: a body already on its front.</summary>
+        /// <summary>The least time the joints take to ease from the ragdoll's angles to the clip's, seconds.</summary>
         public const float SettleSeconds = 0.4f;
 
         private Transform[] _lyingBones;
@@ -27,13 +29,55 @@ namespace CityX.Character
         private float _rollDegrees;
         private Vector3 _rollAxis;
         private Quaternion _rollRest;
-        private GetUpPace _pace = new GetUpPace(StandUpPaceSeconds);
+        private GetUpPace _pace = new GetUpPace(GetUpPace.QuickSpeed, 0.0f);
+        private string _getUpSegment = GetUpMotion.FromTheBack;
+        private BakedPose _getUpPose;
+        private Transform[] _getUpBones;
 
-        /// <summary>How long this get-up's roll onto its front takes, seconds (0 lying on its front).</summary>
+        /// <summary>The clip this get-up plays (<see cref="GetUpMotion.FromTheBack"/> or <see cref="GetUpMotion.FromTheFront"/>).</summary>
+        public string GetUpSegment => _getUpSegment;
+
+        /// <summary>How long this get-up's roll to the clip's first pose takes, seconds (0 lying as the clip starts).</summary>
         public float RollSeconds => _pace.RollSeconds(_rollDegrees);
 
         /// <summary>How long the joints take to ease into the clip: the roll, or the least time.</summary>
         private float SettleFor => Mathf.Max(RollSeconds, SettleSeconds);
+
+        /// <summary>Where in its clip the get-up is, seconds at the clip's own speed: on its first pose until the roll is done.</summary>
+        public float GetUpClipSeconds => _pace.ClipSecondsAt(_standingUpElapsed - RollSeconds);
+
+        /// <summary>The clip's pose where the get-up has got to, on the bones; the hips placed in the body's own frame.</summary>
+        private void PoseGetUp()
+        {
+            BakedMotion motion = GetUpMotion.Motion;
+            if (motion == null || Animator == null || !motion.HasSegment(_getUpSegment))
+            {
+                return;
+            }
+            if (_getUpPose == null)
+            {
+                _getUpPose = motion.NewPose();
+                _getUpBones = new Transform[_getUpPose.Bones.Count];
+                for (int i = 0; i < _getUpBones.Length; i++)
+                {
+                    _getUpBones[i] = TransformSearch.FindDeep(Animator.transform, _getUpPose.Bones[i]);
+                }
+            }
+            motion.Sample(_getUpSegment, GetUpClipSeconds, false, _getUpPose);
+            for (int i = 0; i < _getUpBones.Length; i++)
+            {
+                Transform bone = _getUpBones[i];
+                if (bone == null)
+                {
+                    continue;
+                }
+                if (_getUpPose.Bones[i] == BakedMotion.RootBone)
+                {
+                    bone.localPosition = _getUpPose.Hips;
+                }
+                bone.localRotation = _getUpPose.Rotations[i];
+            }
+        }
 
         /// <summary>The pose the ragdoll lies in: each joint's own angle, where the hips are and how they are turned, which way the chest faces.</summary>
         private void CaptureLying()
@@ -104,7 +148,7 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// After the Animator has posed the clip: the body between how it lay and that pose, rolled as far as it still has to go. Returns
+        /// After <see cref="PoseGetUp"/>: the body between how it lay and that pose, rolled as far as it still has to go. Returns
         /// how much of the pose is the clip's (1 once it is all the clip's).
         /// </summary>
         private float PoseFromLying()
@@ -138,11 +182,6 @@ namespace CityX.Character
 
         // --- on the ground it lies on ---
 
-        /// <summary>The clip lies on the ground until this second of it, and is on its feet from <see cref="OnItsFeetClipSeconds"/>.</summary>
-        private const float LyingClipSeconds = 2.0f;
-
-        private const float OnItsFeetClipSeconds = 4.0f;
-
         /// <summary>How far along and across the lying body the ground is looked at for its slope, metres on a body of the player's size.</summary>
         private const float SlopeAlong = 0.9f;
 
@@ -153,13 +192,41 @@ namespace CityX.Character
 
         private const float FloorProbeDown = 2.5f;
 
-        private LimbFloorClamp.FloorUnder _floorUnder;
+        /// <summary>
+        /// A hand or foot the clip has within <see cref="OnTheFloor"/> of its own floor is on it and goes with the ground under it in full;
+        /// above <see cref="OffTheFloor"/> it is in the air and is left where the clip has it; between, part of the way. Metres.
+        /// </summary>
+        public const float OnTheFloor = 0.3f;
+
+        public const float OffTheFloor = 0.7f;
+
+        /// <summary>A hand or foot the ground moves less than this is left alone, metres.</summary>
+        private const float FollowsAtLeast = 0.01f;
+
+        /// <summary>How many times a hand or foot is put on the ground under where it has got to.</summary>
+        private const int FollowPasses = 2;
+
+        /// <summary>Each limb's upper bone, lower bone and hand or foot: the left arm, the right arm, the left leg, the right leg.</summary>
+        private static readonly HumanBodyBones[] Limbs =
+        {
+            HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand,
+            HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand,
+            HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot,
+            HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot,
+        };
+
+        private readonly float[] _overTheClipFloor = new float[4];
+
+        /// <summary>How much of the way a hand or foot the clip has <paramref name="overItsFloor"/> metres over its floor goes with the ground under it.</summary>
+        public static float OnTheGroundShare(float overItsFloor) =>
+            1.0f - Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(OnTheFloor, OffTheFloor, overItsFloor));
 
         /// <summary>
         /// After the pose is the clip's (as much of it as <paramref name="clipShare"/>): put on the ground the body is really on (owner,
-        /// 2026-11-10: "use hand and foot ik to interact with the terrain it is standing on properly"). The clip lies, kneels and stands on a
+        /// 2026-11-10: "use hand and foot ik to interact with the terrain it is standing on properly"). The clips lie, kneel and stand on a
         /// level floor at the root's feet. While it lies, the whole pose is tipped to the slope of the ground under it; as it stands, the hips
-        /// come down to the lower foot's ground; and each hand and foot goes on the ground under itself (LimbFloorClamp).
+        /// come down to the lower foot's ground; and each hand and foot the clip has on its floor is put as high over the ground under it as
+        /// the clip has it over its floor, its elbow or knee bending the way the clip bends it.
         /// </summary>
         private void HoldOnTheGround(float clipShare)
         {
@@ -167,12 +234,49 @@ namespace CityX.Character
             {
                 return;
             }
-            _floorUnder ??= FloorUnder;
-            float clip = _pace.ClipSecondsAt(_standingUpElapsed - RollSeconds);
-            float lying = 1.0f - Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(LyingClipSeconds, OnItsFeetClipSeconds, clip));
+            float clipFloor = transform.position.y;
+            for (int limb = 0; limb < _overTheClipFloor.Length; limb++)
+            {
+                Transform end = Animator.GetBoneTransform(Limbs[limb * 3 + 2]);
+                _overTheClipFloor[limb] = end != null ? end.position.y - clipFloor : float.MaxValue;
+            }
+            float last = GetUpMotion.Seconds(_getUpSegment);
+            float lying = 1.0f - Mathf.SmoothStep(0.0f, 1.0f,
+                Mathf.InverseLerp(last - GetUpMotion.KneelingBeforeTheEnd, last - GetUpMotion.StandingBeforeTheEnd, GetUpClipSeconds));
             LieAlongTheGround(lying * clipShare);
-            StandOnTheLowerFoot((1.0f - lying) * clipShare);
-            LimbFloorClamp.Apply(Animator, _floorUnder, transform.position.y, clipShare);
+            StandOnTheLowerFoot((1.0f - lying) * clipShare, clipFloor);
+            for (int limb = 0; limb < _overTheClipFloor.Length; limb++)
+            {
+                FollowTheGround(limb, clipShare);
+            }
+        }
+
+        /// <summary>Puts one hand or foot (<paramref name="limb"/>: see <see cref="Limbs"/>) as high over the ground under it as the clip had it over its floor.</summary>
+        private void FollowTheGround(int limb, float share)
+        {
+            Transform upper = Animator.GetBoneTransform(Limbs[limb * 3]), lower = Animator.GetBoneTransform(Limbs[limb * 3 + 1]);
+            Transform end = Animator.GetBoneTransform(Limbs[limb * 3 + 2]);
+            float over = _overTheClipFloor[limb];
+            if (upper == null || lower == null || end == null || over == float.MaxValue)
+            {
+                return;
+            }
+            float follows = OnTheGroundShare(over / transform.lossyScale.y) * share;
+            Quaternion held = end.rotation;
+            // Reaching down a step can swing a foot over the step above it, into its riser: the ground is looked at again where it went, and the
+            // hand or foot lifted out of whatever it went into.
+            for (int pass = 0; pass < FollowPasses; pass++)
+            {
+                float rise = (FloorUnder(end.position) + over - end.position.y) * follows;
+                if (Mathf.Abs(rise) < FollowsAtLeast * transform.lossyScale.y || (pass > 0 && rise < 0.0f))
+                {
+                    break;
+                }
+                // The joint bows the way the clip bows it, never turned about: on a kneeling leg that bends the knee backward.
+                Vector3 bow = lower.position - 0.5f * (upper.position + end.position);
+                TwoBoneIK.Solve(upper, lower, end, end.position + Vector3.up * rise, bow.sqrMagnitude > 1e-8f ? bow.normalized : transform.forward);
+            }
+            end.rotation = held;
         }
 
         /// <summary>Tips the pose, about the ground under its hips, to the slope of the ground along and across the lying body.</summary>
@@ -203,7 +307,7 @@ namespace CityX.Character
         }
 
         /// <summary>On its feet: the hips go down (or up) with the ground under the lower foot, so that foot's leg still reaches it.</summary>
-        private void StandOnTheLowerFoot(float share)
+        private void StandOnTheLowerFoot(float share, float clipFloor)
         {
             Transform hips = Animator.GetBoneTransform(HumanBodyBones.Hips);
             Transform left = Animator.GetBoneTransform(HumanBodyBones.LeftFoot), right = Animator.GetBoneTransform(HumanBodyBones.RightFoot);
@@ -211,9 +315,29 @@ namespace CityX.Character
             {
                 return;
             }
-            float clipFloor = transform.position.y;
             float lower = Mathf.Min(FloorUnder(left.position), FloorUnder(right.position)) - clipFloor;
             hips.position += Vector3.up * (lower * share);
+        }
+
+        /// <summary>
+        /// Up: the root goes onto the ground under the lower foot, where <see cref="StandOnTheLowerFoot"/> has been holding the hips, so that
+        /// nothing moves and the feet stay on that ground once the get-up lets go. The root was put on the ground under the hips as they lay:
+        /// lying across a kerb that was the road, and the body stood out the intro's look-around with its feet in the sidewalk.
+        /// </summary>
+        private void StandTheRootOnTheGround()
+        {
+            if (Animator == null || !Animator.isHuman)
+            {
+                return;
+            }
+            Transform left = Animator.GetBoneTransform(HumanBodyBones.LeftFoot), right = Animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            if (left == null || right == null)
+            {
+                return;
+            }
+            Vector3 root = transform.position;
+            root.y = Mathf.Min(FloorUnder(left.position), FloorUnder(right.position));
+            transform.position = root;
         }
 
         /// <summary>The height of the ground under <paramref name="at"/>, the body itself looked through; the root's own height where there is none.</summary>
@@ -231,17 +355,6 @@ namespace CityX.Character
                 }
             }
             return nearest < float.MaxValue ? from.y - nearest : transform.position.y;
-        }
-
-        /// <summary>The clip at where this get-up has got to: held on its first pose until the body is on its front.</summary>
-        private void PlayGetUpClip()
-        {
-            if (Animator == null || !Animator.isActiveAndEnabled)
-            {
-                return;
-            }
-            Animator.speed = 0.0f;   // the pace is not the clip's own: each frame it is put where the get-up is
-            Animator.Play("GettingUp", 0, _pace.ClipSecondsAt(_standingUpElapsed - RollSeconds) / GetUpPace.ClipSeconds);
         }
     }
 }

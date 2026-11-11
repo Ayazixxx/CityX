@@ -129,7 +129,8 @@ def child_head(D, pos, child, parent):
 #          the hand is turned until the blade lies along `blade`; the elbow sits where it does easily (SWORD_ELBOW, or `elbow` in the chest's
 #          frame) unless the blade needs it elsewhere.
 #   free   {hand: where the left wrist goes, from the left shoulder; pole: which way the elbow points; space as above, or "world": the
-#           hand is a place in the character's own frame, not an offset from the shoulder}
+#           hand is a place in the character's own frame, not an offset from the shoulder; fingers: optionally, which way the hand points,
+#           else it carries on the forearm's line}
 #   right  the right arm as an empty hand, written as `free` is, in place of `sword` (a punch: ../FistCombo/fist_pose.py)
 #   r_leg / l_leg  {foot: the ankle from the hip joint; knee: which way the knee points; toe: which way the foot points; space: "root" or "hips"}
 
@@ -239,6 +240,9 @@ def solve(P):
         Df = upper.rotation_difference(forearm) @ Du
         if Dh is None:
             Dh = Df
+            if spec.get("fingers") is not None:
+                # A hand laid on something (a palm on the ground): turned off the forearm's line to point its fingers this way.
+                Dh = unit(Df @ (TAIL[h] - HEAD[h])).rotation_difference(unit(space @ U(*spec["fingers"]))) @ Df
         D[a], D[f], D[h], D[t] = Du, Df, Dh, Dh
         pos[a], pos[f], pos[h] = shoulder, elbow, wrist
         pos[t] = wrist + Dh @ (HEAD[t] - HEAD[h])

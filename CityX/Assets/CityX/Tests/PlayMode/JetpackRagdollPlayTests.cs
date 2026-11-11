@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// ragdoll branch returns before ever calling Jetpack.Tick (see
     /// StopThrustEffects' own doc comment), so whatever lean the body had at
     /// the exact instant of the crash stayed frozen through the entire limp
-    /// ragdoll AND the whole "GettingUp" clip -- several real seconds longer
+    /// ragdoll AND the whole get-up clip -- several real seconds longer
     /// than the earlier fix's own landing case. See Jetpack.ResetTilt's own
     /// doc comment for the actual fix. Driven through the real
     /// PlayerInputReader dispatch, not a direct Jetpack.Tick call, since

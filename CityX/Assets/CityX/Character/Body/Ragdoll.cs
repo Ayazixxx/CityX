@@ -71,42 +71,11 @@ namespace CityX.Character
         public const float StandUpRestSeconds = 2.0f;
 
         /// <summary>
-        /// How long the recovery actually locks movement for, once
-        /// standing-up starts -- Bug report: "whenever i ragdoll
-        /// and then get up my character is stuck standing still for a
-        /// bit." BeginStandingUp plays the SAME "GettingUp" Animator state
-        /// IntroCutscene uses for its own one-time fall-from-the-sky
-        /// intro, and this used to wait out that clip's own real,
-        /// measured length (IntroCutscene.GettingUpClipSeconds, 7.6
-        /// seconds) before returning control on EVERY ordinary ragdoll
-        /// recovery -- a jetpack crash, a finisher knockdown, /sleep, all
-        /// of them. Checked against the Godot original: character.gd's own
-        /// reset_ragdoll() (the real in-game recovery) is INSTANT, no
-        /// animation at all -- "getting_up" there is exclusively
-        /// intro_cutscene.gd's own slow, deliberate "waking up in a new
-        /// world" beat, never reused for ordinary knockdowns. Locking
-        /// routine movement for a one-time cinematic's own full clip
-        /// length is what read as "stuck" -- the player is done watching
-        /// long before 7.6 real seconds pass.
-        ///
-        /// Rather than skip the clip entirely (a visible pop straight from
-        /// limp to standing), BeginStandingUp now plays the SAME clip at
-        /// the quick pace (GetUpPace) so the full motion still completes before
-        /// control returns -- just quickly, the way an ordinary in-game
-        /// recovery should feel, without needing a second baked animation.
+        /// How long a knockdown in play keeps the body once it lies as its clip starts, longest (from its back): the get-up clip at
+        /// <see cref="GetUpPace.QuickSpeed"/>. Control comes back as it stands. (Bug report: "whenever i ragdoll and then get up my character
+        /// is stuck standing still for a bit": the Godot original gets up instantly; a quick clip is the middle way.)
         /// </summary>
-        public const float StandUpPaceSeconds = 1.8f;
-
-        /// <summary>
-        /// The get-up clip's last stretch (from about 5.0 of its 7.6 seconds, measured by sampling the pose) is the character standing perfectly
-        /// still: the clip was cut for a cutscene that then looks around. Holding the player through it was the reported "freezes for a second
-        /// and can't move after standing up". Control comes back when the body is up, which at this pace is after 5.0/7.6 of the clip, and the
-        /// animator is cross-faded to locomotion so the tail never plays.
-        /// </summary>
-        public const float StandUpRecoverySeconds = StandUpPaceSeconds * UprightShare;
-
-        /// <summary>How much of the get-up clip has passed when the body is up (5.0 of its 7.6 seconds).</summary>
-        public const float UprightShare = 5.0f / 7.6f;
+        public static float StandUpRecoverySeconds => GetUpMotion.LongestSeconds / GetUpPace.QuickSpeed;
 
         /// <summary>How long the hand-back from the get-up clip to ordinary locomotion blends, in seconds.</summary>
         public const float StandUpHandBackBlendSeconds = 0.25f;
@@ -178,7 +147,7 @@ namespace CityX.Character
 
         private static readonly RaycastHit[] GroundHits = new RaycastHit[16];
 
-        /// <summary>True from BeginStandingUp until the GettingUp clip finishes -- see FinishStandingUp.</summary>
+        /// <summary>True from BeginStandingUp until the get-up clip finishes -- see FinishStandingUp.</summary>
         public bool IsStandingUp => _standingUpElapsed >= 0.0f;
 
         /// <summary>
@@ -779,15 +748,6 @@ namespace CityX.Character
             _snapshotBones = null;
             _lyingBones = null;
             _limp = false;
-            if (Animator != null)
-            {
-                Animator.speed = 1.0f;
-                // The GettingUp state has no exit of its own: left in it, the body would hold the clip's pose.
-                if (Animator.isActiveAndEnabled && Animator.HasState(0, Animator.StringToHash("Locomotion")))
-                {
-                    Animator.Play("Locomotion", 0);
-                }
-            }
         }
 
         /// <summary>Stands the body back up, for respawn.</summary>
@@ -835,7 +795,7 @@ namespace CityX.Character
         /// gets ticked here at all).
         ///
         /// Tracks how long the torso has been resting (for CanStandUp/
-        /// StandUpRestSeconds), and drives the GettingUp recovery once
+        /// StandUpRestSeconds), and drives the get-up once
         /// BeginStandingUp has started one.
         /// </summary>
         public void Tick(float deltaTime)
@@ -859,10 +819,6 @@ namespace CityX.Character
                 {
                     FinishStandingUp();
                 }
-                else
-                {
-                    PlayGetUpClip();
-                }
                 return;
             }
 
@@ -876,8 +832,7 @@ namespace CityX.Character
         /// RepositionToRagdollRest's own doc comment), goes kinematic
         /// again so the Animator stops fighting live physics the same way
         /// Activate's own doc comment already covers for the grapple-swing
-        /// case, and plays the same "GettingUp" clip IntroCutscene uses for
-        /// its own stand-from-lying-down beat.
+        /// case, and plays the get-up clip nearer how it lies (GetUpMotion: from its back or from its front).
         ///
         /// THE CONTROLLER AND LOCOMOTION STAY DISABLED FOR THE WHOLE CLIP,
         /// matching IntroCutscene's own reasoning for its own topping-out/
@@ -889,31 +844,35 @@ namespace CityX.Character
         /// own ragdoll branch (and this Tick) instead of ordinary movement
         /// while the clip plays.
         /// </summary>
-        /// <param name="paceSeconds">How long the whole get-up clip takes: an ordinary recovery is quick (StandUpPaceSeconds); the intro takes
+        /// <param name="speed">How many times its own speed the clip runs: a knockdown in play is quick (GetUpPace.QuickSpeed); the intro takes
         /// its time.</param>
-        public void BeginStandingUp(bool force = false, float paceSeconds = StandUpPaceSeconds)
+        public void BeginStandingUp(bool force = false, float speed = GetUpPace.QuickSpeed)
         {
             if (!(force ? _limp && !IsStandingUp && !IsRecovering : CanStandUp))
             {
                 return;
             }
-            _pace = new GetUpPace(paceSeconds);
             _standingUpElapsed = 0.0f;
             _blendElapsed = -1.0f;
             _snapshotBones = null;
 
-            // FROM ANY POSITION: the pose the ragdoll is in RIGHT NOW is captured, the body is turned and moved so the get-up clip starts
-            // where the ragdoll is lying (head the same way, hips on the same spot), and the body is brought from the captured pose onto
-            // its front, where the clip starts (LateUpdate, Ragdoll.GetUp).
+            // FROM ANY POSITION: the pose the ragdoll is in RIGHT NOW is captured, the clip nearer it is chosen, the body is turned and moved
+            // so the clip starts where the ragdoll is lying (head the same way, hips on the same spot), and the body is brought from the
+            // captured pose to the clip's first (LateUpdate, Ragdoll.GetUp).
             CaptureLying();
+            _getUpSegment = GetUpMotion.For(_lyingFront);
+            _pace = new GetUpPace(speed, GetUpMotion.Seconds(_getUpSegment));
             SetKinematic(true);
 
             if (Animator != null)
             {
                 Animator.enabled = true;
-                PlayGetUpClip();
-                Animator.Update(0.0f);   // the clip's first pose is on the bones now, so it can be measured
+                if (Animator.HasState(0, Animator.StringToHash("Locomotion")))
+                {
+                    Animator.Play("Locomotion", 0);   // under the clip, and what the body is handed back to standing
+                }
             }
+            PoseGetUp();   // the clip's first pose is on the bones now, so it can be measured
             RepositionToRagdollRest();
             MeasureRoll();
         }
@@ -960,12 +919,15 @@ namespace CityX.Character
         private void LateUpdate()
         {
             PoseFlip();
+            if (IsStandingUp)
+            {
+                PoseGetUp();
+            }
             float clipShare = IsStandingUp ? PoseFromLying() : BlendFromSnapshot();
             if (IsStandingUp)
             {
-                // The get-up was made on a body with shorter arms, on a level floor: its hands went under the floor, and the ground a body
-                // falls on is not level. Faded in with the clip: the pose the ragdoll lay in is on the ground already, and holding it there
-                // in full swung its elbows and knees on the first frame.
+                // The clips were made on a level floor, and the ground a body falls on is not level. Faded in with the clip: the pose the
+                // ragdoll lay in is on the ground already.
                 HoldOnTheGround(clipShare);
             }
         }
@@ -1002,29 +964,16 @@ namespace CityX.Character
 
         private void FinishStandingUp()
         {
+            // The clip's last pose is eased into the Animator's standing one (BlendFromSnapshot), taken before the root moves under it.
+            CapturePose();
+            _blendElapsed = _snapshotBones != null ? 0.0f : -1.0f;
+            _snapshotBlendSeconds = StandUpHandBackBlendSeconds;
+            StandTheRootOnTheGround();
             _standingUpElapsed = -1.0f;
             _lyingBones = null;
             _limp = false;
             _restSeconds = 0.0f;
             _allowImmediateStandUp = false;
-
-            // Back to its own pace for whatever plays next (Locomotion): the
-            // get-up holds the Animator still and places the clip itself
-            // (PlayGetUpClip). Set unconditionally,
-            // not only when Animator != null was true in BeginStandingUp:
-            // Animator can be reassigned/rebound between the two calls, and
-            // a stale sped-up multiplier left on it would speed up every
-            // other animation this rig ever plays afterward.
-            if (Animator != null)
-            {
-                Animator.speed = 1.0f;
-                // The GettingUp state has no exit of its own (the cutscene states are driven by name), so it would hold its last pose for
-                // good: hand the body back to locomotion explicitly, blended.
-                if (Animator.HasState(0, Animator.StringToHash("Locomotion")))
-                {
-                    Animator.CrossFadeInFixedTime("Locomotion", StandUpHandBackBlendSeconds, 0);
-                }
-            }
 
             if (_controller != null)
             {
@@ -1162,7 +1111,7 @@ namespace CityX.Character
             }
 
             // NOT WHILE STANDING UP -- bodies are kinematic again and being
-            // driven by RepositionToRagdollRest/the GettingUp clip at that
+            // driven by RepositionToRagdollRest/the get-up clip at that
             // point; a depenetration correction has no business fighting
             // either one.
             if (!IsStandingUp && !IsHeld && !IsRecovering)
