@@ -250,6 +250,44 @@ namespace CityX.Tests
             Assert.Greater(biggest, 0.02f, "the big shake was cut short by the small one");
         }
 
+        /// <summary>Stands in for the Wraith: something the camera goes through as if it were air.</summary>
+        private sealed class AirToTheCamera : MonoBehaviour, ICameraPassesThrough
+        {
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-10: "make the ingame camera move through the wraith as if it were air, not an object that would switch the camera
+        /// angle if it blocks the view". Something marked so, between the camera and the body, leaves the camera where it was; a block there
+        /// still brings it in.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheCameraGoesThroughTheWraithButNotThroughAWall()
+        {
+            yield return null;
+            float clear = Vector3.Distance(_cameraObject.transform.position, _target.transform.position);
+            var wraith = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            wraith.transform.position = _target.transform.position - Vector3.forward * 2.0f + Vector3.up * 1.5f;
+            wraith.transform.localScale = new Vector3(2.0f, 2.0f, 2.0f);
+            try
+            {
+                wraith.AddComponent<AirToTheCamera>();
+                yield return null;
+                yield return null;
+                Assert.AreEqual(clear, Vector3.Distance(_cameraObject.transform.position, _target.transform.position), 0.01f,
+                    "the camera came in front of the Wraith");
+
+                Object.DestroyImmediate(wraith.GetComponent<AirToTheCamera>());
+                yield return null;
+                yield return null;
+                Assert.Less(Vector3.Distance(_cameraObject.transform.position, _target.transform.position), clear - 0.3f,
+                    "setup: the same shape, unmarked, does not bring the camera in, so this shows nothing");
+            }
+            finally
+            {
+                Object.Destroy(wraith);
+            }
+        }
+
         /// <summary>
         /// THE ACTUAL BUG this exists to catch: a wall right on top of the
         /// pivot used to clamp the camera down to its old 0.4m minimum,

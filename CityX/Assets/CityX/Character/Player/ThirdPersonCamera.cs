@@ -851,9 +851,9 @@ namespace CityX.Character
             float nearest = wantedDistance;
             foreach (RaycastHit hit in hits)
             {
-                if (hit.transform.IsChildOf(Target) || hit.transform == Target)
+                if (hit.transform.IsChildOf(Target) || hit.transform == Target || hit.collider.GetComponentInParent<ICameraPassesThrough>() != null)
                 {
-                    continue;
+                    continue;   // its own body, and what the camera goes through as if it were air (the Wraith)
                 }
                 // A zero distance means the sphere began already overlapping,
                 // which carries no useful direction information.

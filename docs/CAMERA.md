@@ -57,6 +57,13 @@ The scene's camera is generated (`CityMassingSceneBuilder`). A changed default n
 differed from the old one in that one component only: `FramingHeight` 1.3, `Distance` 4.8. The same day the owner set the height to 1.0
 ("set the camera height to 1"); the rebuilt scene changed in that value only.
 
+## 2026-11-10: through the Wraith
+
+Owner: "make the ingame camera move through the wraith as if it were air, not an object that would switch the camera angle if it blocks the
+view". The camera comes in close in front of anything between it and the body, but not in front of something marked
+`ICameraPassesThrough` (on its component; its colliders and its children's count as it). The Wraith is, its summoned kind too; any other
+creature can be given the same in one line. Test: `ThirdPersonCameraPlayTests.TheCameraGoesThroughTheWraithButNotThroughAWall`.
+
 ## Tests and renders
 
 - `ThirdPersonCameraPlayTests`:
