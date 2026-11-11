@@ -272,12 +272,19 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(ring, animator.GetBoneTransform(HumanBodyBones.RightLowerArm).position), 0.35f, "the ring is not on the arm where it is now");
 
             creator.Colour = Color.magenta;
+            Assert.AreEqual(CreatorLife.IdleSpeed, animator.speed, 1e-4f, "the idle does not play at a tenth of its speed");
             creator.BrushRadiusPixels = CharacterCreator.MaximumBrushSize;
             creator.PressAt(elbow);
             Assert.IsTrue(creator.HasEdits, "a press on the living body painted nothing");
             Assert.IsTrue(_belt.Life.Alive, "painting lifted its arms");
             Assert.IsTrue(animator.enabled, "painting stopped it idling");
             yield return Frames(2);
+            Assert.AreEqual(0.0f, animator.speed, "the idle goes on while a stroke is drawn on it");
+            Press(Mouse.current.leftButton);
+            yield return null;
+            Release(Mouse.current.leftButton);
+            yield return Frames(2);
+            Assert.AreEqual(CreatorLife.IdleSpeed, animator.speed, 1e-4f, "the idle stays frozen once the button is let go");
 
             Color Sampled(Vector2 at)
             {
@@ -381,6 +388,7 @@ namespace CityX.Tests
 
             float bare = 0.0f;
             _belt.Life.enabled = false;
+            _belt.Life.Animator.speed = 1.0f;   // the idle at its own speed, to move the feet as much as it can (in the creator it plays slowly)
             yield return MeasureFeet(300, (stray, height, tilt) => bare = stray);
             _belt.Life.enabled = true;
             yield return null;

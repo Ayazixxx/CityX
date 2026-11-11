@@ -14,6 +14,13 @@ namespace CityX.Character
         /// <summary>How long the arms take to come up, or to go back down, seconds.</summary>
         public const float LiftSeconds = 0.55f;
 
+        /// <summary>
+        /// How fast the idle plays, against its own speed: slow, and stopped while a stroke is drawn on the body (owner, 2026-11-10: "make the
+        /// idle animation on the character creator play at 10% of the speed it is now and make it freeze when you are holding click drawing
+        /// on it").
+        /// </summary>
+        public const float IdleSpeed = 0.1f;
+
         public CharacterCreator Creator;
 
         public Animator Animator;
@@ -118,6 +125,10 @@ namespace CityX.Character
         /// <summary>The body is somebody else's from here (the ragdoll's, at the belt's end): nothing more is eased.</summary>
         public void LetGo()
         {
+            if (Animator != null)
+            {
+                Animator.speed = 1.0f;
+            }
             _eased = 1.0f;
             enabled = false;
         }
@@ -129,6 +140,15 @@ namespace CityX.Character
             {
                 _fromPlaces[i] = _bones[i].localPosition;
                 _fromTurns[i] = _bones[i].localRotation;
+            }
+        }
+
+        /// <summary>Before the Animator: the idle's pace.</summary>
+        private void Update()
+        {
+            if (Alive && Animator != null)
+            {
+                Animator.speed = Creator != null && Creator.IsPainting ? 0.0f : IdleSpeed;
             }
         }
 

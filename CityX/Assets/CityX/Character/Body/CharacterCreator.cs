@@ -770,6 +770,9 @@ namespace CityX.Character
         /// Whether anything has been painted, so Back can leave without asking
         /// when there is nothing to lose.
         /// </summary>
+        /// <summary>A stroke is being drawn: the button held down on the body.</summary>
+        public bool IsPainting => _painting;
+
         public bool HasEdits => _paint != null && _paint.CanUndo;
 
         public bool CanUndo => _paint != null && _paint.CanUndo;
