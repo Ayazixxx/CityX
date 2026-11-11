@@ -71,3 +71,27 @@ Left quick, at 60, on purpose: aiming, firing, casting, a lock-on, a blow (a fig
 `FreeMovementTests` and `FreeMovementPlayTests` (the player: S backs up with anything in hand and slower, side-steps, sprint forward only, the light weight), `MovementTurnTests` (a brain's rates and braking), `MovementWeightTests` (the build-up, the stop, the grip), `PlayerLocomotionPlayTests` (a brain's body: steering left turns and walks left; a sprint curves round and runs
 full speed any way; a reversal brakes; locked on still side-steps and backs up). Renders: `MovementWeightCapture` (a start, a stop, a reversal), `StrafeCapture` (every
 side-step and the diagonal, from the front).
+
+## The body against walls (2026-11-10)
+
+Owner: "make it so body parts cant clip through walls and other objects, make the hitbox the exact size of the body and stop at contact
+with the wall" (screenshots of an arm and a shoulder in the bricks, walking along a building). The moving capsule is 0.5 m round: the trunk,
+head and legs are inside it, the arms reach past it, further as they swing.
+
+- Once the body is posed each frame (`PlayerLocomotion.WallClearance`, after `PoseAfterTheAnimator`), the arms' and the head's own ragdoll
+  colliders, kinematic on the bones, are asked how far they are into the world (`Ragdoll.WallContacts`: static colliders only, no bodies,
+  nothing with a rigid body, floors and ceilings left out), and the body is moved through its capsule as far as takes them out.
+- Only walls beside the body push it, and only sideways (`BesideTheBody`): pushed head-on too, the body could not run into a window opening
+  narrower than its arms (1.16 m against 1.25 m), and an arm on the corner of an opening pushed it back out.
+- A wall walked along is remembered (`WallStandoff`): the body is kept as far off as its widest swing needed and let back at 2 cm a second;
+  kept off by each frame's arms alone it went in and out 13 cm a stride. Forgotten 1.2 s after the last touch, or once 0.3 m clear.
+- Two walls pushing opposite ways (a gap narrower than the arms) push it neither way (`WallClearance.Combined`).
+- The push is not the body's own going: the lean does not count it (counted, it swung the shoulders out further, 19 cm off between two
+  walls that should not have moved it).
+- Not seated, in a car, climbing, on a ladder or limp; a network copy follows its owner.
+
+Head-on the capsule still stops the body some 24 cm short of a wall (it is rounder than the chest is deep); making that exact means a
+smaller capsule, which touches stairs, climbing, crouching and doors.
+
+Tests: `WallClearanceTests`, `BodyWallClearancePlayTests` (standing, walking along, squeezed), `RealCityDoorwayPlayTests`. Picture:
+`BodyWallCapture`.

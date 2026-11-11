@@ -815,7 +815,7 @@ namespace CityX.Character
         /// off its current rotation" are not stale, they are MEANINGLESS,
         /// since there is no live pose left to correct.
         /// </summary>
-        private void LateUpdate()
+        private void PoseAfterTheAnimator()
         {
             // A copy of another player's body is never Ticked (nothing drives it): its impact freeze is counted down here instead.
             if (_impactFrozen && _freezeTickedFrame != Time.frameCount)
@@ -1594,6 +1594,8 @@ namespace CityX.Character
             }
 
             TickFacingOverride(deltaTime);
+            // Moved and turned under its own steam: once posed, its arms and head are taken out of any wall they reach into (PlayerLocomotion.WallClearance).
+            _steppedFrame = Time.frameCount;
 
             Vector3 local = transform.InverseTransformDirection(horizontal);
             LocalVelocity = new Vector2(local.x, local.z);
