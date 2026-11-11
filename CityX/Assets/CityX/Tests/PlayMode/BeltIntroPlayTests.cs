@@ -607,8 +607,9 @@ namespace CityX.Tests
                     Mathf.Abs(ElbowBend(animator, HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand) - right));
             }
             TestContext.WriteLine($"elbows moved {worst:0.0} degrees in the first 8 frames limp");
-            // Wrenched to the limits measured from the T-pose they moved 46 degrees; pitching over the roller, limp arms swing some 20 of their own.
-            Assert.Less(worst, 30.0f, "the arms snapped into another shape as the body went limp");
+            // Wrenched to the limits measured from the T-pose they moved 46 and 54 degrees; pitching over the roller, limp arms swing 23 to 32 of
+            // their own (measured 2026-11-10, the swing over several runs; neither moves more than 16 in a frame, so the eight frames tell them apart).
+            Assert.Less(worst, 40.0f, "the arms snapped into another shape as the body went limp");
         }
 
         [UnityTest]
