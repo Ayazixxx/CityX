@@ -32,12 +32,13 @@ namespace CityX.Tests
             Object.DestroyImmediate(_logoGroup);
         }
 
+        /// <summary>The logo is the menu's alone: every other panel is a box in the middle of the screen reaching up into its corner (2026-11-11).</summary>
         [TestCase(TitleScreen.Panel.Menu, true)]
-        [TestCase(TitleScreen.Panel.Multiplayer, true)]
+        [TestCase(TitleScreen.Panel.Multiplayer, false)]
         [TestCase(TitleScreen.Panel.CharacterSelect, false)]
         [TestCase(TitleScreen.Panel.Creator, false)]
         [TestCase(TitleScreen.Panel.Settings, false)]
-        public void TheLogoIsHiddenOnlyBehindAFullScreenOfControls(TitleScreen.Panel panel, bool logoVisible)
+        public void TheLogoShowsOnTheMenuAlone(TitleScreen.Panel panel, bool logoVisible)
         {
             _title.Show(panel);
 

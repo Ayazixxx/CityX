@@ -18,24 +18,14 @@ using UnityEngine.UI;
 namespace CityX.UIEditor
 {
     /// <summary>
-    /// Builds the title screen: a row of the game's own generated buildings at
-    /// night, the logo hanging in the sky above them, rain over the top, and a
-    /// menu.
+    /// Builds the title screen (docs/TITLE_SCREEN.md; owner, 2026-11-11, from a
+    /// mock-up): the game's own city at night (TitleCityBuilder), the last
+    /// played character on one of its roofs (TitleRooftopBuilder, TitleStage),
+    /// the 3D logo in the top left corner, the menu under it, rain over the top.
     ///
-    /// THE COMPOSITION IS THE GODOT TITLE'S -- a handful of towers of uneven
-    /// height standing shoulder to shoulder, the logo over the tallest, rain
-    /// falling across all of it, a fixed camera -- BUT THE BUILDINGS ARE THIS
-    /// GAME'S. They are real buildings from the city generator (see
-    /// TitleSkylineBaker), so the concrete facades, the real window openings
-    /// with lit glass, the roof details and the night sky are exactly what the
-    /// player will then see in the world. An earlier pass copied Godot's
-    /// palette and hand-made towers to match a screenshot pixel for pixel;
-    /// that was the wrong target -- what was wanted was Unity's own art style,
-    /// not Godot's colours.
-    ///
-    /// Layers, bottom to top: the 3D scene (buildings, ground, sky, fog,
-    /// moonlight, the logo quad) -> rain -> vignette -> the eyes -> prompt,
-    /// menu and panels -> the lightning flash over everything.
+    /// Layers, bottom to top: the 3D scene (the city, the sky, the fog, the
+    /// moonlight, the rooftop, the logo) -> rain -> vignette -> prompt, menu
+    /// and panels.
     ///
     /// Run headlessly:
     ///   Unity.exe -batchmode -quit -projectPath &lt;proj&gt;
@@ -45,14 +35,11 @@ namespace CityX.UIEditor
     {
         private const string ScenePath = "Assets/CityX/Scenes/Title.unity";
 
+
         /// <summary>The rendering layer everything lights and renders on by default (bit 0).</summary>
         public const uint DefaultRenderingLayer = 1u << 0;
 
-        /// <summary>The rendering layer of the title's city -- lit by the sun and moon and by nothing else.</summary>
-        public const uint CityRenderingLayer = 1u << 1;
-        private const string LogoPath = "Assets/CityX/UI/Textures/LogoCityX.png";
-
-        /// <summary>Everything the title generates -- the baked row of buildings, the logo's material, the vignette -- lives here, so a rebuild rewrites one folder.</summary>
+        /// <summary>Everything the title generates -- the logo's materials, the vignette -- lives here, so a rebuild rewrites one folder.</summary>
         private const string TitleAssets = "Assets/CityX/UI/Title";
 
         /// <summary>The one project-wide FishNet prefab collection -- see BuildNetworkRoot's own comment.</summary>
@@ -65,12 +52,6 @@ namespace CityX.UIEditor
         /// </summary>
         private static readonly float TimeOfDay =
             SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.34f;
-
-        /// <summary>The logo's shape (the art is 942x714).</summary>
-        private const float LogoAspect = 942.0f / 714.0f;
-
-        /// <summary>Where the logo hangs on z: in FRONT of every building (negative), so it draws over the rooftops rather than under them.</summary>
-        private const float LogoDepthBehind = -8.0f;
 
         /// <summary>Vertical field of view of the fixed camera.</summary>
         private const float FieldOfView = 42.0f;
@@ -95,13 +76,8 @@ namespace CityX.UIEditor
         {
             Directory.CreateDirectory("Assets/CityX/Scenes");
             Directory.CreateDirectory(TitleAssets);
-
-            Material ground = LoadMaterial("CityGround");
-            Material pavement = LoadMaterial("CityPavement");
-            Material structure = LoadMaterial("CityConcrete");
-            Material darkGlass = LoadMaterial("CityGlassDark");
-            Material litGlass = LoadMaterial("CityGlassLit");
-            if (structure == null || litGlass == null)
+            Material litGlass = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/CityGlassLit.mat");
+            if (litGlass == null)
             {
                 Debug.LogError("CityX: run CityX/Rebuild Massing Scene first -- the title screen " +
                                "uses the city's own materials.");
@@ -109,16 +85,13 @@ namespace CityX.UIEditor
             }
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
-            // The framing decides how wide the row has to be, so it is worked out first.
-            Framing frame = Frame();
-            Mesh skylineMesh = SkylineMesh(frame);
-
-            BuildScene(skylineMesh, frame, ground, pavement, structure, darkGlass, litGlass);
-
+            Camera camera = BuildScene(litGlass, out DayNightCycle cycle);
+            (TitleHero hero, TitleLogo logo, Transform rooftop) = TitleRooftopBuilder.Build(camera, TitleAssets);
+            TitleCityBuilder.Build(camera, cycle, rooftop);
+            cycle.Apply(SkyCycle.At(TimeOfDay));
 
             NetworkBootstrap bootstrap = BuildNetworkRoot();
-            BuildInterface(bootstrap);
+            BuildInterface(bootstrap, camera, hero, logo);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EnsureBuildScenes();
@@ -126,87 +99,8 @@ namespace CityX.UIEditor
             Debug.Log($"CityX: title screen written to {ScenePath}");
         }
 
-        /// <summary>Where the backdrop's baked buildings are kept.</summary>
-        public const string SkylinePath = TitleAssets + "/TitleSkyline.asset";
-
-        /// <summary>
-        /// Throws the kept backdrop away and rebuilds the title with a new one, baked from the city as it generates now
-        /// (TitleSkylineBaker.Seed). The only way the row behind the logo changes.
-        /// </summary>
-        [MenuItem("CityX/Rebake Title Skyline")]
-        public static void RebakeSkyline()
-        {
-            AssetDatabase.DeleteAsset(SkylinePath);
-            Build();
-        }
-
-        /// <summary>
-        /// The row of buildings behind the logo: the one already baked, KEPT as it is. Most title rebuilds are for the
-        /// interface (a new hairstyle's button, a body change) and must not reshuffle the city behind the logo -- every
-        /// city-generation change rerolls the world seed and reshapes buildings, so baking afresh each time made the title
-        /// picture change whenever anything was rebuilt (owner, 2026-10-12: leave the title screen as it is). A missing
-        /// row is baked; <see cref="RebakeSkyline"/> makes a new one on purpose.
-        /// </summary>
-        private static Mesh SkylineMesh(Framing frame)
-        {
-            var kept = AssetDatabase.LoadAssetAtPath<Mesh>(SkylinePath);
-            if (kept != null)
-            {
-                Debug.Log($"CityX: title row kept as baked ({kept.vertexCount} vertices) -- CityX/Rebake Title Skyline makes a new one");
-                return kept;
-            }
-
-            TitleSkylineBaker.Baked row = TitleSkylineBaker.Bake(frame.HalfWidthToCover);
-            AssetDatabase.CreateAsset(row.Mesh, SkylinePath);
-            Debug.Log($"CityX: title row baked -- {row.BuildingCount} buildings across {frame.HalfWidthToCover * 2.0f:0}m");
-            return row.Mesh;
-        }
-
-        private static Material LoadMaterial(string name)
-        {
-            return AssetDatabase.LoadAssetAtPath<Material>($"Assets/CityX/View/Materials/{name}.mat");
-        }
-
-        /// <summary>
-        /// The 3D picture: the row of buildings, a ground, the night sky and
-        /// moon (the game's own DayNightCycle, frozen), fog, the logo, and the
-        /// fixed camera that frames it all.
-        /// </summary>
-        private struct Framing
-        {
-            public float Distance, LogoWidth, LogoHeight, LogoCentreY, AimY, CameraY, HalfWidthToCover;
-        }
-
-        /// <summary>
-        /// Where the camera stands and how big the logo is, from the tallest tower
-        /// and the fixed field of view alone -- so the row can then be made wide
-        /// enough to run off BOTH edges of the screen, even a very wide one.
-        /// </summary>
-        private static Framing Frame()
-        {
-            float tallest = TitleSkylineBaker.TallestHeight;
-            var f = new Framing();
-            f.LogoHeight = tallest * 0.30f;
-            f.LogoWidth = f.LogoHeight * LogoAspect;
-            // The logo's foot dips behind the tallest roof, as in the Godot title.
-            f.LogoCentreY = tallest + f.LogoHeight * 0.12f;
-            float logoTop = f.LogoCentreY + f.LogoHeight * 0.5f;
-
-            float tanHalfV = Mathf.Tan(FieldOfView * 0.5f * Mathf.Deg2Rad);
-            float bottomY = tallest * 0.10f;
-            float viewHeight = logoTop - bottomY;
-            f.Distance = viewHeight * 0.5f / tanHalfV;
-            f.AimY = (logoTop + bottomY) * 0.5f;
-            f.CameraY = f.AimY + viewHeight * 0.06f;
-
-            // 21:9, the widest screen worth covering, plus a margin.
-            const float widestAspect = 21.0f / 9.0f;
-            f.HalfWidthToCover = f.Distance * tanHalfV * widestAspect * 1.15f;
-            return f;
-        }
-
-        private static void BuildScene(Mesh skylineMesh, Framing frame, Material ground, Material pavement,
-            Material structure, Material darkGlass, Material litGlass)
+        /// <summary>The sun and the moon, the fixed camera (TitleStage puts it on its roof when the title opens), and the night.</summary>
+        private static Camera BuildScene(Material litGlass, out DayNightCycle cycle)
         {
             var sunObject = new GameObject("Sun");
             Light sun = sunObject.AddComponent<Light>();
@@ -217,129 +111,34 @@ namespace CityX.UIEditor
             moon.type = LightType.Directional;
             moon.shadows = LightShadows.Soft;
 
-            // THE CITY IS ON ITS OWN RENDERING LAYER, AND ONLY THE SUN AND MOON LIGHT IT. The
-            // character list and the creator each stand a few directional lights around their
-            // bodies -- and URP ignores a light's culling mask, so those lights lit the city
-            // too, the moment the character list's camera was drawn over it (the buildings went
-            // from dark night faces to washed-out grey). Light layers are how URP says "this
-            // light is not for that": the city is on a layer only the sun and moon include, so
-            // the stage lights (on the default layer) leave it alone.
-            sun.renderingLayerMask = (int)(DefaultRenderingLayer | CityRenderingLayer);
-            moon.renderingLayerMask = (int)(DefaultRenderingLayer | CityRenderingLayer);
-
-            var skyline = new GameObject("Skyline");
-            skyline.AddComponent<MeshFilter>().sharedMesh = skylineMesh;
-            MeshRenderer renderer = skyline.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = new[] { ground, pavement, structure, darkGlass, litGlass };
-            renderer.renderingLayerMask = CityRenderingLayer;
-
-            GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            plane.name = "Ground";
-            Object.DestroyImmediate(plane.GetComponent<Collider>());
-            plane.transform.position = new Vector3(0.0f, -0.05f, 0.0f);
-            plane.transform.localScale = new Vector3(300.0f, 1.0f, 300.0f);
-            plane.GetComponent<MeshRenderer>().sharedMaterial = ground;
-            plane.GetComponent<MeshRenderer>().renderingLayerMask = CityRenderingLayer;
-
-            float distance = frame.Distance;
-            Vector3 cameraPosition = new Vector3(0.0f, frame.CameraY, -distance);
-
             var cameraObject = new GameObject("TitleCamera");
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.tag = "MainCamera";
             camera.nearClipPlane = 0.5f;
             camera.farClipPlane = 4000.0f;
-            camera.clearFlags = CameraClearFlags.SolidColor;
             camera.fieldOfView = FieldOfView;
             camera.allowMSAA = true;
-            cameraObject.transform.position = cameraPosition;
-            cameraObject.transform.rotation = Quaternion.LookRotation(
-                new Vector3(0.0f, frame.AimY, 0.0f) - cameraPosition, Vector3.up);
             var cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
             cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             cameraData.antialiasingQuality = AntialiasingQuality.High;
+            cameraData.renderPostProcessing = true;   // the game's grade, and the bloom the neon glows by
             cameraObject.AddComponent<AudioListener>();
-
-            // The logo: dead centre (x = 0, where the camera looks), in front of the towers.
-            GameObject logo = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            logo.name = "Logo";
-            Object.DestroyImmediate(logo.GetComponent<Collider>());
-            logo.transform.SetParent(skyline.transform, false);
-            // Pulled toward the camera ALONG THE LINE OF SIGHT, so it lands on screen exactly
-            // where it would at the buildings' depth, just drawn in front of them.
-            Vector3 atBuildings = new Vector3(0.0f, frame.LogoCentreY, 0.0f);
-            float scaleForDepth = (distance + LogoDepthBehind) / distance;
-            logo.transform.position = cameraPosition + (atBuildings - cameraPosition) * scaleForDepth;
-            logo.transform.localScale = new Vector3(
-                frame.LogoWidth * scaleForDepth, frame.LogoHeight * scaleForDepth, 1.0f);
-            var logoRenderer = logo.GetComponent<MeshRenderer>();
-            logoRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            logoRenderer.sharedMaterial = MakeLogoMaterial();
-
-
-            var live = skyline.AddComponent<TitleSkyline>();
-            live.LogoRenderer = logoRenderer;
 
             // --- the night, from the game's own day/night cycle, held still.
             var cycleObject = new GameObject("DayNightCycle");
-            DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+            cycle = cycleObject.AddComponent<DayNightCycle>();
             cycle.Sun = sun;
             cycle.Moon = moon;
             cycle.Sky = camera;
-            // NOT SkyDome -- this camera clears to a solid colour, not a skybox, so
-            // a sky material would never actually be drawn here. LitWindows is the
-            // real gap: without it nothing ever raises the glass's emission, so even
-            // the "lit" windows sit flat and dark.
+            // Without it nothing ever raises the glass's emission, so even the
+            // "lit" windows sit flat and dark.
             cycle.LitWindows = litGlass;
             cycle.TimeOfDay = TimeOfDay;
             // FROZEN. A title screen that gets brighter while somebody reads the
             // menu is a title screen with two different looks depending on how
             // long you took to press a button.
             cycle.Running = false;
-            cycle.Apply(SkyCycle.At(TimeOfDay));
-
-            // Haze that thickens with distance, scaled to how far the camera stands
-            // (the buildings are tens of metres tall, so this is a long way back).
-            RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = distance * 0.9f;
-            RenderSettings.fogEndDistance = distance * 3.2f;
-        }
-
-        /// <summary>The logo art on an unlit, alpha-blended material.</summary>
-        private static Material MakeLogoMaterial()
-        {
-            string path = $"{TitleAssets}/TitleLogo.mat";
-            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (material == null)
-            {
-                material = new Material(shader);
-                AssetDatabase.CreateAsset(material, path);
-            }
-            else
-            {
-                material.shader = shader;
-            }
-
-            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(LogoPath);
-            if (texture == null)
-            {
-                Debug.LogWarning($"CityX: no logo at {LogoPath}.");
-            }
-            material.SetTexture("_BaseMap", texture);
-            material.SetColor("_BaseColor", Color.white);
-            material.SetFloat("_Surface", 1.0f);
-            material.SetFloat("_Blend", 0.0f);
-            material.SetFloat("_ZWrite", 0.0f);
-            material.SetFloat("_Cull", 0.0f);
-            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-            material.SetOverrideTag("RenderType", "Transparent");
-            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            EditorUtility.SetDirty(material);
-            return material;
+            return camera;
         }
 
         /// <summary>
@@ -471,7 +270,7 @@ namespace CityX.UIEditor
             return bootstrap;
         }
 
-        private static void BuildInterface(NetworkBootstrap bootstrap)
+        private static void BuildInterface(NetworkBootstrap bootstrap, Camera camera, TitleHero hero, TitleLogo logo)
         {
             var root = new GameObject("TitleInterface", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -490,8 +289,6 @@ namespace CityX.UIEditor
             // whole title flow; Requested: "remove the title screen music also." The
             // rain sound below is ambience, not music, and stays. TitleScreen.MusicPlayer
             // is left null on purpose -- the settings panel's music slider guards for it.
-
-            title.Skyline = Object.FindFirstObjectByType<TitleSkyline>();
 
             // title_screen.tscn's own RainPlayer: rain_noises.mp3, looping from
             // the moment the screen loads. (StarsPlayer above is the music.)
@@ -533,9 +330,9 @@ namespace CityX.UIEditor
             vignetteImage.raycastTarget = false;
             title.Vignette = vignette;
 
-            // The logo itself is a quad in the skyline scene (behind the rooftop
-            // tank), so this group holds nothing to draw -- it is the switch the
-            // panels and the tests flip to say "the logo is showing".
+            // The logo itself is a model in the 3D scene, so this group holds
+            // nothing to draw -- it is the switch the panels and the tests flip
+            // to say "the logo is showing".
             var logoGroup = new GameObject("LogoGroup", typeof(RectTransform));
             Stretch((RectTransform)logoGroup.transform, 0.0f);
             logoGroup.transform.SetParent(root.transform, false);
@@ -555,6 +352,10 @@ namespace CityX.UIEditor
                 Debug.LogWarning("CityX: no player prefab -- the select carousel and the " +
                                  "creator will not be built. Run CityX/Rebuild Player Rig first.");
             }
+            title.Hero = hero;
+            title.Logo = logo;
+            title.Backdrop = camera;
+            title.BackdropMask = camera.cullingMask;
 
             title.CharacterSelectPanel = CharacterSelectBuilder.Build(root.transform, title, playerPrefab);
 
@@ -653,27 +454,113 @@ namespace CityX.UIEditor
             return text;
         }
 
+        /// <summary>Where the menu's top is, as a share of the screen's height up from its bottom: just under the logo (TitleLogo).</summary>
+        private const float MenuTop = 0.53f;
+
+        /// <summary>The menu's drawings: in from the left edge (their own room for the aura makes up the rest), one under the next, how tall (canvas units).</summary>
+        private const float MenuLeft = 14.0f;
+
+        private const float MenuRowStep = 76.0f;
+        private const float MenuDrawingHeight = 84.0f;
+
+        /// <summary>The owner's drawings of the three ways in and their auras (SourceArt/TitleMenu/menu_buttons.py makes them).</summary>
+        private const string MenuArt = "Assets/CityX/UI/Textures/Menu";
+
+        /// <summary>
+        /// The three ways in, down the left under the logo, each the owner's own drawing (owner, 2026-11-11: "replace the singleplayer,
+        /// multiplayer, and settings buttons with these new drawings i made"), buttons of the new style (DrawnFace): pointed at, a red aura
+        /// comes in round the drawing and waves of it go out from it, and it grows a little.
+        /// </summary>
         private static GameObject BuildMenu(Transform parent, TitleScreen title)
         {
             var panel = new GameObject("MenuPanel", typeof(RectTransform));
             var rect = (RectTransform)panel.transform;
             rect.SetParent(parent, false);
-            // Bottom-centre, as in title_screen.tscn, so the row of buildings above
-            // it stays in view rather than being sat on by three buttons.
-            rect.anchorMin = new Vector2(0.5f, 0.0f);
-            rect.anchorMax = new Vector2(0.5f, 0.0f);
-            rect.pivot = new Vector2(0.5f, 0.0f);
-            rect.anchoredPosition = new Vector2(0.0f, 30.0f);
-            rect.sizeDelta = new Vector2(280.0f, 190.0f);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.0f, MenuTop);
+            rect.pivot = new Vector2(0.0f, 1.0f);
+            rect.anchoredPosition = new Vector2(MenuLeft, 0.0f);
+            rect.sizeDelta = new Vector2(MenuDrawingHeight * 4.0f, 3.0f * MenuRowStep);
 
-            MakeButton(panel.transform, "SingleplayerButton", "SINGLEPLAYER", 0,
-                title, ButtonAction.Kind.ShowCharacterSelect);
-            MakeButton(panel.transform, "MultiplayerButton", "MULTIPLAYER", 1,
-                title, ButtonAction.Kind.ShowMultiplayer);
-            MakeButton(panel.transform, "SettingsButton", "SETTINGS", 2,
-                title, ButtonAction.Kind.ShowSettings);
-
+            MenuDrawing(panel.transform, "SingleplayerButton", "MenuSingleplayer", 0, title, ButtonAction.Kind.ShowCharacterSelect);
+            MenuDrawing(panel.transform, "MultiplayerButton", "MenuMultiplayer", 1, title, ButtonAction.Kind.ShowMultiplayer);
+            MenuDrawing(panel.transform, "SettingsButton", "MenuSettings", 2, title, ButtonAction.Kind.ShowSettings);
             return panel;
+        }
+
+        private static void MenuDrawing(Transform parent, string name, string art, int row, TitleScreen title, ButtonAction.Kind action)
+        {
+            string drawing = $"{MenuArt}/{art}.png";
+            Button button = DrawnFace.Make(parent, name, MenuSprite(drawing), MenuSprite($"{MenuArt}/{art}Aura.png"),
+                AssetDatabase.LoadAssetAtPath<Texture2D>(CharacterEditor.BloodrageAuraBuilder.TexturePath), DrawnPoints(drawing), MenuDrawingHeight);
+            var rect = (RectTransform)button.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.0f, 1.0f);
+            rect.pivot = new Vector2(0.0f, 0.5f);   // so it grows from its left end, pointed at
+            rect.anchoredPosition = new Vector2(0.0f, -(row + 0.5f) * MenuRowStep);
+            // A component, not a listener: see MakeButton.
+            var wiring = button.gameObject.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Title = title;
+        }
+
+        /// <summary>How many points of a drawing its embers come off, and how far apart they are looked for, pixels.</summary>
+        private const int EmberSourceCount = 240;
+
+        private const int EmberSourceStep = 4;
+
+        /// <summary>Points inside the drawing at <paramref name="path"/> (where it is solid), as shares of the picture (0,0 bottom left), spread over it.</summary>
+        private static Vector2[] DrawnPoints(string path)
+        {
+            var picture = new Texture2D(2, 2);
+            try
+            {
+                if (!picture.LoadImage(File.ReadAllBytes(path)))
+                {
+                    return System.Array.Empty<Vector2>();
+                }
+                var solid = new List<Vector2>();
+                for (int y = 0; y < picture.height; y += EmberSourceStep)
+                {
+                    for (int x = 0; x < picture.width; x += EmberSourceStep)
+                    {
+                        if (picture.GetPixel(x, y).a > 0.5f)
+                        {
+                            solid.Add(new Vector2((x + 0.5f) / picture.width, (y + 0.5f) / picture.height));
+                        }
+                    }
+                }
+                // Every so many, so they spread over the whole word.
+                int every = Mathf.Max(1, solid.Count / EmberSourceCount);
+                var points = new List<Vector2>();
+                for (int i = 0; i < solid.Count; i += every)
+                {
+                    points.Add(solid[i]);
+                }
+                return points.ToArray();
+            }
+            finally
+            {
+                Object.DestroyImmediate(picture);
+            }
+        }
+
+        /// <summary>A drawing for the menu, imported as a sprite: no mipmaps, clamped, its clear parts clear.</summary>
+        private static Sprite MenuSprite(string path)
+        {
+            if (!(AssetImporter.GetAtPath(path) is TextureImporter importer))
+            {
+                Debug.LogError($"CityX: no menu drawing at {path} -- run SourceArt/TitleMenu/menu_buttons.py.");
+                return null;
+            }
+            if (importer.textureType != TextureImporterType.Sprite || importer.mipmapEnabled || !importer.alphaIsTransparency)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.alphaIsTransparency = true;
+                importer.mipmapEnabled = false;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
         /// <summary>

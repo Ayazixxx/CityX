@@ -1,4 +1,3 @@
-using CityX.View;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -32,8 +31,17 @@ namespace CityX.UI
         public GameObject CreatorPanel;
         public GameObject MultiplayerPanel;
         public GameObject SettingsPanel;
-        [Tooltip("The skyline the logo hangs over. The logo is a quad in that scene (behind the rooftop tank), so it flickers and hides through here, not as a UI image.")]
-        public TitleSkyline Skyline;
+        [Tooltip("The 3D logo in the top left corner, its neon flickering on its own; hidden through here where a panel covers its corner.")]
+        public TitleLogo Logo;
+
+        [Tooltip("The last played character on the rooftop; away while the character list or the creator, each with its own stage, is up.")]
+        public TitleHero Hero;
+
+        [Tooltip("The title's camera, which draws the city: it draws nothing while the character list or the creator, each with its own stage and camera, is up (their stage lights would light the city, and drawing it under them is work for nothing).")]
+        public Camera Backdrop;
+
+        [Tooltip("What the title's camera draws the rest of the time.")]
+        public int BackdropMask = ~0;
 
         [Tooltip("The character select's own component, so Back can step within it.")]
         public CharacterSelect Select;
@@ -50,9 +58,6 @@ namespace CityX.UI
         [Tooltip("The dark corners over the night city. Off over the creator: its belt hangs in a daylight sky, which they turned grey.")]
         public GameObject Vignette;
 
-        [Tooltip("Seconds for one full pulse of the logo. The Godot build's own period.")]
-        public float LogoFlickerPeriod = 6.5f;
-
         [Tooltip("title_screen.gd's own PromptLabel -- 'PRESS ANY KEY TO START', shown before the menu is revealed and hidden the moment it is.")]
         public Text PromptLabel;
 
@@ -60,7 +65,6 @@ namespace CityX.UI
         public float PromptPulsePeriod = 2.2f;
 
         private Panel _showing = Panel.Menu;
-        private float _elapsed;
         private float _promptElapsed;
 
         // Godot's own _menu_revealed: any key or click reveals the menu
@@ -130,6 +134,7 @@ namespace CityX.UI
             if (SettingsPanel != null) SettingsPanel.SetActive(false);
             if (PromptLabel != null) PromptLabel.gameObject.SetActive(true);
             SetLogoShown(true);
+            ShowBackdrop(true);
             if (Vignette != null) Vignette.SetActive(true);
             if (Ambience != null) Ambience.SetMood(TitleAmbience.MoodFor(Panel.Menu));
         }
@@ -173,16 +178,11 @@ namespace CityX.UI
             if (MultiplayerPanel != null) MultiplayerPanel.SetActive(panel == Panel.Multiplayer);
             if (SettingsPanel != null) SettingsPanel.SetActive(panel == Panel.Settings);
 
-            // The character list, the creator, and settings all carry real
-            // controls dead centre -- exactly where the logo sits -- and the
-            // logo over them makes everything behind it unreadable
-            // (confirmed live: SETTINGS's own heading and resolution value
-            // both landed right under the X). The Godot build hid its logo
-            // the same way for its own equivalent screens. Multiplayer stays
-            // a sparse stub with nothing under the logo yet, so it is left
-            // alone rather than hidden pre-emptively.
-            SetLogoShown(panel != Panel.CharacterSelect && panel != Panel.Creator
-                && panel != Panel.Settings);
+            // The logo is only for the menu: every other panel is a box in the middle of the screen, which reaches up into the logo's
+            // corner, and a panel under the logo cannot be read. The city and the rooftop stay behind the boxes; the character list and the
+            // creator stand their own bodies on their own stages, so they go for those.
+            SetLogoShown(panel == Panel.Menu);
+            ShowBackdrop(panel != Panel.CharacterSelect && panel != Panel.Creator);
             if (Vignette != null) Vignette.SetActive(panel != Panel.Creator);
 
             // The rain's sound follows where you are: the list is a room out of it, the creator
@@ -190,14 +190,18 @@ namespace CityX.UI
             if (Ambience != null) Ambience.SetMood(TitleAmbience.MoodFor(panel));
         }
 
-        /// <summary>
-        /// Shows or hides the logo: the group the UI tests and the panels see, and
-        /// the quad in the skyline scene that is the logo itself.
-        /// </summary>
+        /// <summary>The city behind the title, and the character on its roof: drawn, or not at all.</summary>
+        private void ShowBackdrop(bool shown)
+        {
+            if (Hero != null) Hero.gameObject.SetActive(shown);
+            if (Backdrop != null) Backdrop.cullingMask = shown ? BackdropMask : 0;
+        }
+
+        /// <summary>Shows or hides the logo: the group the UI tests and the panels see, and the 3D logo itself.</summary>
         private void SetLogoShown(bool shown)
         {
             if (LogoGroup != null) LogoGroup.SetActive(shown);
-            if (Skyline != null) Skyline.SetLogoVisible(shown);
+            if (Logo != null) Logo.SetShown(shown);
         }
 
         /// <summary>
@@ -229,19 +233,6 @@ namespace CityX.UI
 
         private void Update()
         {
-            if (Skyline != null)
-            {
-                // title_screen.gd's own _flicker_opacity, ported exactly (a
-                // failing-neon-sign look: mostly full opacity, with a couple
-                // of quick dips/flares) -- Requested: "recreate the godot
-                // title screen instead of the one you have now." The logo is
-                // a quad in the skyline scene now, so this drives its opacity
-                // rather than a UI image's.
-                _elapsed += Time.deltaTime;
-                float flickerPercent = Mathf.Repeat(_elapsed, LogoFlickerPeriod) / LogoFlickerPeriod * 100.0f;
-                Skyline.SetLogoFlicker(FlickerOpacity(flickerPercent));
-            }
-
             // Escape is handled on its own and never also counts as "any
             // key" for the reveal below -- title_screen.gd's own
             // _unhandled_input checks Escape first and always returns
@@ -282,22 +273,6 @@ namespace CityX.UI
                 return;
             }
             Back();
-        }
-
-        /// <summary>
-        /// title_screen.gd's own _flicker_opacity, verbatim: full opacity
-        /// for the first 92% of the period, then two quick dip-and-recover
-        /// pairs (a bigger one, then a smaller one) before settling back to
-        /// full for the rest of the cycle.
-        /// </summary>
-        private static float FlickerOpacity(float percent)
-        {
-            if (percent < 92.0f) return 1.0f;
-            if (percent < 93.0f) return Mathf.Lerp(1.0f, 0.8f, percent - 92.0f);
-            if (percent < 94.0f) return Mathf.Lerp(0.8f, 1.0f, percent - 93.0f);
-            if (percent < 95.0f) return Mathf.Lerp(1.0f, 0.55f, percent - 94.0f);
-            if (percent < 96.0f) return Mathf.Lerp(0.55f, 1.0f, percent - 95.0f);
-            return 1.0f;
         }
 
         /// <summary>

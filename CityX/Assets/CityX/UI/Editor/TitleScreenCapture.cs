@@ -279,6 +279,13 @@ namespace CityX.UIEditor
             // alone, the shot shows whatever the last tool to touch them left behind
             // (cool-white windows after a city capture, say). Neither is what the game
             // does, so apply the frozen night by hand.
+            // The camera on its roof and the city round it: the stage does it as the title opens, which edit mode does not.
+            var stage = Object.FindFirstObjectByType<TitleStage>();
+            if (stage != null)
+            {
+                stage.Place();
+            }
+
             var cycle = Object.FindFirstObjectByType<View.DayNightCycle>();
             if (cycle != null)
             {

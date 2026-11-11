@@ -186,49 +186,6 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The stage lights the character list and the creator put round their bodies must not
-        /// light the city. URP ignores a light's culling mask, so once the list's camera drew
-        /// over the city those lights washed the night buildings out to grey; light layers are
-        /// what keep them apart.
-        /// </summary>
-        [Test]
-        public void OnlyTheSunAndMoonLightTheCity()
-        {
-            Scene scene = OpenTitle();
-            try
-            {
-                uint city = UIEditor.TitleScreenBuilder.CityRenderingLayer;
-
-                var everyRenderer = scene.GetRootGameObjects()
-                    .SelectMany(root => root.GetComponentsInChildren<MeshRenderer>(true))
-                    .ToList();
-                MeshRenderer skyline = everyRenderer.First(r => r.name == "Skyline");
-                MeshRenderer ground = everyRenderer.First(r => r.name == "Ground");
-                Assert.AreEqual(city, skyline.renderingLayerMask & city, "the skyline is not on the city's layer");
-                Assert.AreEqual(city, ground.renderingLayerMask & city, "the ground is not on the city's layer");
-
-                var lights = scene.GetRootGameObjects()
-                    .SelectMany(root => root.GetComponentsInChildren<Light>(true))
-                    .ToList();
-                foreach (string celestial in new[] { "Sun", "Moon" })
-                {
-                    Light light = lights.First(l => l.name == celestial);
-                    Assert.AreNotEqual(0u, (uint)light.renderingLayerMask & city, $"the {celestial} no longer lights the city");
-                }
-
-                foreach (Light light in lights.Where(l => l.name != "Sun" && l.name != "Moon"))
-                {
-                    Assert.AreEqual(0u, (uint)light.renderingLayerMask & city,
-                        $"{light.name} (a stage light) lights the city behind the characters");
-                }
-            }
-            finally
-            {
-                EditorSceneManager.CloseScene(scene, removeScene: true);
-            }
-        }
-
-        /// <summary>
         /// The character list's camera must be an OVERLAY stacked on the title's camera. As a
         /// second base camera it cleared to Unity's stock blue and the city behind the
         /// characters vanished -- and the screenshot tool never drew that camera, so nothing

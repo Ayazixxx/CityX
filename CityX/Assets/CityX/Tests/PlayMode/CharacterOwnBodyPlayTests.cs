@@ -55,7 +55,7 @@ namespace CityX.Tests
             return save;
         }
 
-        /// <summary>A player's body with a bag that knows the T-shirt; <paramref name="anothers"/> is some other player's body, as a session marks it before it wakes.</summary>
+        /// <summary>A player's body with a bag that knows the T-shirt and the bat; <paramref name="anothers"/> is some other player's body, as a session marks it before it wakes.</summary>
         private GameObject Body(bool anothers)
         {
 #if UNITY_EDITOR
@@ -68,6 +68,7 @@ namespace CityX.Tests
             inventory.ItemPrefabs = new[]
             {
                 new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.TShirt, Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/TShirt.prefab") },
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.BaseballBat, Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/BaseballBat.prefab") },
             };
             if (anothers)
             {
@@ -101,6 +102,28 @@ namespace CityX.Tests
             Assert.AreSame(ours.GetComponent<CharacterIdentity>(), CharacterIdentity.Ours);
             Assert.IsNull(theirs.GetComponent<CharacterIdentity>().Character, "another player's body is this machine's character");
             Assert.IsFalse(theirs.GetComponent<CharacterIdentity>().Write(), "another player's body wrote over this machine's character");
+        }
+
+        /// <summary>
+        /// The primary weapon is kept with the character (owner, 2026-11-11: the title screen shows the last played character "holding their
+        /// primary weapon equipped"): put back in the hands on the next play, and saved as whatever is in the primary slot.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ThePrimaryWeaponIsPutBackInTheHandsAndSaved()
+        {
+            CharacterSave save = Begin();
+            save.PrimaryWeapon = ItemRegistry.BaseballBat;
+            GameObject ours = Body(anothers: false);
+            var inventory = ours.GetComponent<Inventory>();
+            for (int i = 0; i < 10; i++)
+            {
+                yield return null;
+            }
+            Assert.AreEqual(ItemRegistry.BaseballBat, inventory.EquippedItemId(Inventory.PrimarySlot), "the saved primary weapon was not put back in the hands");
+
+            inventory.UnequipToSlot(Inventory.PrimarySlot, ours);
+            Assert.IsTrue(ours.GetComponent<CharacterIdentity>().Write());
+            Assert.IsEmpty(save.PrimaryWeapon, "putting the weapon away was not saved");
         }
 
         [UnityTest]

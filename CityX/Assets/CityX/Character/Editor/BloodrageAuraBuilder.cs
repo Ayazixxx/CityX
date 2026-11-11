@@ -11,7 +11,7 @@ namespace CityX.CharacterEditor
     public static class BloodrageAuraBuilder
     {
         private const string PrefabPath = "Assets/CityX/Character/BloodrageAura.prefab";
-        private const string TexturePath = "Assets/CityX/Character/BloodrageAuraDot.png";
+        public const string TexturePath = "Assets/CityX/Character/BloodrageAuraDot.png";
         private const string MaterialPath = "Assets/CityX/Character/BloodrageAura.mat";
 
         private static readonly Color Red = new Color(1.0f, 0.08f, 0.04f, 1.0f);

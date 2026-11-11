@@ -134,9 +134,16 @@ namespace CityX.Core
 
         /// <summary>
         /// The ids of the clothes the character has on (owner, 2026-10-20: "make it so items you equipped stay equipped when you close the
-        /// game"). Weapons are not kept yet.
+        /// game"). The primary weapon is kept in <see cref="PrimaryWeapon"/>; the rest of the inventory is not kept yet.
         /// </summary>
         public List<string> Wearing = new List<string>();
+
+        /// <summary>
+        /// The id of the weapon in the primary slot, or empty: put back in the hands on the next play, and what the character holds on the title
+        /// screen (owner, 2026-11-11: "your most recently played character standing on top of a building in idle stance, holding their primary
+        /// weapon equipped").
+        /// </summary>
+        public string PrimaryWeapon = "";
 
         /// <summary>Seconds played, shown on the select screen.</summary>
         public double PlaytimeSeconds;

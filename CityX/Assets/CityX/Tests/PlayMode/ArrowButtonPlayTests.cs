@@ -34,21 +34,21 @@ namespace CityX.Tests
         public IEnumerator PointedAtTheYellowBandComesInAndTheArrowGrowsThenBothGo()
         {
             Button button = Make(false);
-            var look = button.GetComponent<ArrowButtonLook>();
+            var look = button.GetComponent<ButtonLook>();
             var arrow = button.GetComponent<ArrowGraphic>();
             yield return null;
             Assert.AreEqual(0.0f, arrow.Highlight, "the band shows before anything points at it");
 
             look.OnPointerEnter(null);
-            for (float t = 0.0f; t < ArrowButtonLook.EaseSeconds + 0.1f; t += Time.unscaledDeltaTime)
+            for (float t = 0.0f; t < ButtonLook.EaseSeconds + 0.1f; t += Time.unscaledDeltaTime)
             {
                 yield return null;
             }
             Assert.AreEqual(1.0f, arrow.Highlight, 1e-3f, "the band did not come in");
-            Assert.AreEqual(ArrowButtonLook.HoverScale, button.transform.localScale.x, 1e-3f, "the arrow did not grow");
+            Assert.AreEqual(ButtonLook.HoverScale, button.transform.localScale.x, 1e-3f, "the arrow did not grow");
 
             look.OnPointerExit(null);
-            for (float t = 0.0f; t < ArrowButtonLook.EaseSeconds + 0.1f; t += Time.unscaledDeltaTime)
+            for (float t = 0.0f; t < ButtonLook.EaseSeconds + 0.1f; t += Time.unscaledDeltaTime)
             {
                 yield return null;
             }

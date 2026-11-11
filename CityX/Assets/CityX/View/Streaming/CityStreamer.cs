@@ -2038,7 +2038,10 @@ namespace CityX.View
             // warning about, reintroduced one level down.
             foreach (MeshFilter filter in go.GetComponentsInChildren<MeshFilter>(true))
             {
-                if (filter.sharedMesh == null)
+                // Only what was made for the chunk: a bench's, a book stand's or a door's pieces are Unity's own cube, an asset, and freeing it
+                // was refused with an error each time a city was closed (the title's, every time its scene was unloaded). Meshes made at run
+                // time have negative instance ids; assets positive.
+                if (filter.sharedMesh == null || filter.sharedMesh.GetInstanceID() > 0)
                 {
                     continue;
                 }

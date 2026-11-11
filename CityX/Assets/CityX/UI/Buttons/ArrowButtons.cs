@@ -4,7 +4,7 @@ using UnityEngine.UI;
 namespace CityX.UI
 {
     /// <summary>
-    /// Builds the arrow buttons (<see cref="ArrowGraphic"/>, <see cref="ArrowButtonLook"/>): a straight one with its word along the shaft, and
+    /// Builds the arrow buttons (<see cref="ArrowGraphic"/>, <see cref="ButtonLook"/>): a straight one with its word along the shaft, and
     /// a curled one with its letters following the curl, each in fat white italics edged black (owner, 2026-11-10, from two quick Photoshop
     /// mock-ups: a green PROCEED arrow and a red BACK curling under it). The first of a new style the owner means for every button.
     /// </summary>
@@ -75,7 +75,7 @@ namespace CityX.UI
             button = go.AddComponent<Button>();
             button.transition = Selectable.Transition.None;
             button.targetGraphic = arrow;
-            go.AddComponent<ArrowButtonLook>().Arrow = arrow;
+            go.AddComponent<ButtonLook>();
             return arrow;
         }
 

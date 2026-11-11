@@ -122,7 +122,7 @@ namespace CityX.Character
             _inventory.EquipmentChanged += SaveWhatIsWorn;
         }
 
-        /// <summary>Puts each piece of <paramref name="character"/>'s saved clothing on this body. Public so a test can drive it.</summary>
+        /// <summary>Puts each piece of <paramref name="character"/>'s saved clothing on this body, and its primary weapon in its hands. Public so a test can drive it.</summary>
         public void PutOnClothes(CharacterSave character)
         {
             if (_inventory == null)
@@ -140,11 +140,18 @@ namespace CityX.Character
                     _inventory.EquipItemId(itemId, gameObject);
                 }
             }
+            // And the primary weapon back in the hands (CharacterSave.PrimaryWeapon), if nothing is there already.
+            if (!string.IsNullOrEmpty(character.PrimaryWeapon) && string.IsNullOrEmpty(_inventory.EquippedItemId(Inventory.PrimarySlot))
+                && ItemRegistry.TryGet(character.PrimaryWeapon, out ItemDefinition weapon) && Inventory.IsWeaponSlot(weapon.EquipSlot))
+            {
+                _inventory.EquipItemId(character.PrimaryWeapon, gameObject);
+            }
         }
 
         private void SaveWhatIsWorn()
         {
-            if (_character != null && !_inventory.WornClothingIds().SequenceEqual(_character.Wearing))
+            if (_character != null && (!_inventory.WornClothingIds().SequenceEqual(_character.Wearing)
+                || _inventory.EquippedItemId(Inventory.PrimarySlot) != (_character.PrimaryWeapon ?? "")))
             {
                 Write();
             }
@@ -331,6 +338,7 @@ namespace CityX.Character
             if (_inventory != null)
             {
                 _character.Wearing = _inventory.WornClothingIds();
+                _character.PrimaryWeapon = _inventory.EquippedItemId(Inventory.PrimarySlot);
             }
             PlayerSkills skills = GetComponent<PlayerSkills>();
             if (skills != null)

@@ -604,19 +604,66 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The row of buildings behind the logo is the KEPT one (UI/Title/TitleSkyline.asset), not a fresh bake: a title rebuild
-        /// for its interface -- a new hairstyle's button -- must leave the picture as it is (owner, 2026-10-12). Only
-        /// CityX/Rebake Title Skyline changes it.
+        /// The menu's three ways in are the owner's own drawings (owner, 2026-11-11: "replace the singleplayer, multiplayer, and settings buttons
+        /// with these new drawings i made"), each with its aura for being pointed at.
         /// </summary>
         [Test]
-        public void TheBackdropIsTheKeptRowOfBuildings()
+        public void TheMenuIsTheOwnersDrawingsEachWithItsAura()
         {
-            GameObject skyline = Everything().FirstOrDefault(go => go.name == "Skyline" && go.GetComponent<MeshFilter>() != null);
-            Assert.IsNotNull(skyline, "there is no Skyline in the title scene");
-            Mesh mesh = skyline.GetComponent<MeshFilter>().sharedMesh;
-            Assert.IsNotNull(mesh, "the title's row of buildings has no mesh");
-            Assert.AreEqual(UIEditor.TitleScreenBuilder.SkylinePath, AssetDatabase.GetAssetPath(mesh),
-                "the title's row of buildings is not the kept, baked one");
+            foreach ((string button, string art) in new[]
+            {
+                ("SingleplayerButton", "MenuSingleplayer"), ("MultiplayerButton", "MenuMultiplayer"), ("SettingsButton", "MenuSettings"),
+            })
+            {
+                GameObject found = Everything().FirstOrDefault(go => go.name == button && go.GetComponent<DrawnFace>() != null);
+                Assert.IsNotNull(found, $"{button} is not a drawing");
+                var face = found.GetComponent<DrawnFace>();
+                Assert.IsNotNull(face.Drawing.sprite, $"{button} has no drawing");
+                StringAssert.EndsWith(art + ".png", AssetDatabase.GetAssetPath(face.Drawing.sprite), $"{button} is not its own drawing");
+                StringAssert.EndsWith(art + "Aura.png", AssetDatabase.GetAssetPath(face.Aura.sprite), $"{button} has not its own aura");
+                Assert.IsNotNull(face.Embers.Dot, $"{button}'s embers have no look (the Bloodrage aura's dot)");
+                Assert.Greater(face.Embers.Sources.Length, 50, $"{button}'s embers have nothing of the drawing to rise off");
+                Assert.IsNotNull(found.GetComponent<ButtonLook>(), $"{button} does not answer being pointed at");
+            }
+        }
+
+        /// <summary>
+        /// The 3D logo (owner, 2026-11-11) is held to the title camera, its neon a glowing material the flicker can reach, its light on the
+        /// letters alone (not the city), and the title is told of it.
+        /// </summary>
+        [Test]
+        public void TheLogoIsWiredToItsCameraItsNeonAndItsLight()
+        {
+            var logo = Find<TitleLogo>();
+            Assert.IsNotNull(logo, "there is no 3D logo in the title scene");
+            Assert.AreSame(Find<TitleScreen>().Logo, logo, "the title is not told of its logo");
+            Assert.IsNotNull(logo.View, "the logo is held to no camera");
+            Assert.IsTrue(logo.View.CompareTag("MainCamera"), "the logo is held to some other camera than the title's");
+            Assert.IsNotNull(logo.Neon, "the logo's neon is not wired");
+            Assert.IsTrue(logo.Neon.sharedMaterial.IsKeywordEnabled("_EMISSION"), "the neon's material cannot glow");
+            Assert.IsNotNull(logo.Glow, "the neon throws no light");
+            Assert.AreEqual((int)UIEditor.TitleScreenBuilder.DefaultRenderingLayer, logo.Glow.renderingLayerMask, "the neon's light reaches the city");
+            Assert.Greater(logo.Bounds.size.x, logo.Bounds.size.y, "the logo's extent is not its own (wider than tall)");
+            Assert.Greater(logo.Bounds.size.y, logo.Bounds.size.z, "the logo stands deeper than it is tall: turned the wrong way");
+        }
+
+        /// <summary>
+        /// The rooftop's body (owner, 2026-11-11: the last played character standing there) is a whole player's, kept off until it is given a
+        /// character; it cannot be walked by the menu's keys, and it has a bag to hold its weapon and clothes, and hair.
+        /// </summary>
+        [Test]
+        public void TheRooftopBodyIsAPlayersKeptOffWithNoInputABagAndHair()
+        {
+            var hero = Find<TitleHero>();
+            Assert.IsNotNull(hero, "there is no rooftop character in the title scene");
+            Assert.AreSame(Find<TitleScreen>().Hero, hero, "the title is not told of its rooftop");
+            Assert.IsNotNull(hero.Body, "the rooftop has no body");
+            Assert.IsFalse(hero.Body.activeSelf, "the body wakes before it is told it is nobody's to play");
+            Assert.IsNotNull(hero.Body.GetComponent<PlayerLocomotion>(), "the body cannot stand in its idle");
+            Assert.IsNotNull(hero.Body.GetComponent<CharacterIdentity>());
+            Assert.IsNull(hero.Body.GetComponent<PlayerInputReader>(), "the menu's keys would walk the body");
+            Assert.IsNotNull(hero.Body.GetComponent<Inventory>(), "the body has nothing to hold a weapon or clothes with");
+            Assert.IsNotNull(hero.Body.GetComponent<CharacterHair>(), "the body cannot wear hair");
         }
 
         /// <summary>Every hairstyle, HYDE included, has its tile on the title creator's HAIR tab, and the tile picks that style.</summary>

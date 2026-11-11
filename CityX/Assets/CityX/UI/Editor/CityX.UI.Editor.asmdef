@@ -5,6 +5,7 @@
                        "CityX.Core",
                        "CityX.UI",
                        "CityX.Character.Editor",
+                       "CityX.Weapons.Editor",
                        "CityX.Items",
                        "CityX.Character",
                        "CityX.View",

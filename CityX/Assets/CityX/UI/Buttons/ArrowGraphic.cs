@@ -11,7 +11,7 @@ namespace CityX.UI
     /// <see cref="Bottom"/>, and a gloss over its upper half. Only the arrow itself takes the pointer, not the empty corners of its box.
     /// </summary>
     [RequireComponent(typeof(CanvasRenderer))]
-    public sealed class ArrowGraphic : MaskableGraphic, ICanvasRaycastFilter
+    public sealed class ArrowGraphic : MaskableGraphic, ICanvasRaycastFilter, IButtonFace
     {
         [Tooltip("The curled arrow (BACK) rather than the straight one (PROCEED).")]
         public bool Curled;
