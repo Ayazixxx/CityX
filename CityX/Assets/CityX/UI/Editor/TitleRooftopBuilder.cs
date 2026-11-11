@@ -29,9 +29,9 @@ namespace CityX.UIEditor
         private const string SoundFolder = "Assets/CityX/UI/Audio";
 
         /// <summary>How loud the sign's hum and its flickers are (the sounds are brought up to one peak).</summary>
-        private const float HumVolume = 0.12f;
+        private const float HumVolume = 0.012f;
 
-        private const float FlickerVolume = 0.35f;
+        private const float FlickerVolume = 0.035f;
 
         /// <summary>The roof round the character, metres: how far it reaches right (off the screen) and toward the camera (past it), how far the
         /// building under it goes down, how far over the real roof it stands, and its parapet's height and thickness.</summary>

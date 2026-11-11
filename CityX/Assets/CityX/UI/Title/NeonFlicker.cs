@@ -10,10 +10,10 @@ namespace CityX.UI
     /// </summary>
     public sealed class NeonFlicker
     {
-        /// <summary>Seconds lit between faults, at least and at most.</summary>
-        public const float SteadyMin = 2.5f;
+        /// <summary>Seconds lit between faults, at least and at most (owner, 2026-11-11: "make it take 2.5x times as long in between flickers").</summary>
+        public const float SteadyMin = 6.25f;
 
-        public const float SteadyMax = 7.0f;
+        public const float SteadyMax = 17.5f;
 
         /// <summary>How far the hum dips a lit tube, and how fast it ripples (cycles a second).</summary>
         public const float Hum = 0.05f;

@@ -124,6 +124,36 @@ namespace CityX.Tests
             Assert.Less(drift, 0.02f, "the feet glide over the roof through the idle");
         }
 
+        /// <summary>
+        /// Seen only once it has settled, and at one height from then on (owner, 2026-11-11: "make the playermodel at the same height the entire
+        /// time i feel like i see it go up and down at the beginning").
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ItIsSeenOnlyOnceSettledAndAtOneHeightFromThen()
+        {
+            var hero = Object.FindFirstObjectByType<TitleHero>();
+            for (int i = 0; i < 300 && (hero.Body == null || !hero.Body.activeInHierarchy); i++)
+            {
+                yield return null;
+            }
+            Renderer[] parts = hero.Body.GetComponentsInChildren<Renderer>();
+            while (!hero.Seen)
+            {
+                Assert.IsFalse(System.Array.Exists(parts, part => part.enabled), "seen before it has settled");
+                yield return null;
+            }
+            Assert.IsTrue(System.Array.Exists(parts, part => part.enabled), "never seen");
+            Transform hips = hero.Body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Hips);
+            float lowest = hips.position.y, highest = lowest;
+            for (float waited = 0.0f; waited < 2.0f; waited += Time.deltaTime)
+            {
+                yield return null;
+                lowest = Mathf.Min(lowest, hips.position.y);
+                highest = Mathf.Max(highest, hips.position.y);
+            }
+            Assert.Less(highest - lowest, 0.01f, "it bobs up and down once seen");
+        }
+
         [UnityTest]
         public IEnumerator TheCharacterScreensTakeItAwayAndTheMenuBringsItBack()
         {

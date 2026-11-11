@@ -48,7 +48,7 @@ namespace CityX.Tests
             var flicker = new NeonFlicker(7);
             int counted = 0, darkenings = 0;
             bool wasDark = false, darkSinceCount = false;
-            for (float time = 0.0f; time < 60.0f; time += Step)
+            for (float time = 0.0f; time < 180.0f; time += Step)
             {
                 bool dark = flicker.Brightness(time) < 0.5f;
                 if (flicker.FaultsBegun > counted)
@@ -64,7 +64,7 @@ namespace CityX.Tests
                 }
                 wasDark = dark;
             }
-            Assert.Greater(counted, 5, "a minute and hardly a fault");
+            Assert.Greater(counted, 5, "three minutes and hardly a fault");
             Assert.AreEqual(counted, darkenings, 1, "a fault counted where the sign did not falter, or one it did missed");
         }
 

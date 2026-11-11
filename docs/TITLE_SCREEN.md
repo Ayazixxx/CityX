@@ -62,7 +62,7 @@ exports `Assets/CityX/UI/Models/CityXLogo.fbx`:
 
 In the game (`TitleLogo`): held in the top left corner of the view whatever the screen's shape (`TitleLogo.Place`: its top left front corner
 at 3% in, 4% down, 40% of the view tall, 6 m ahead, turned 14 degrees so it reads as a solid thing), the materials the game's lit shader
-(cel shaded and outlined like everything). The neon is a failing sign (`NeonFlicker`): lit, it hums 5%; every 2.5 to 7 s a fault, a stutter
+(cel shaded and outlined like everything). The neon is a failing sign (`NeonFlicker`): lit, it hums 5%; every 6 to 17.5 s a fault (2.5 times as long as it was: owner, 2026-11-11), a stutter
 (2 to 5 quick flashes), a drop-out (dark up to half a second, then stuttering back) or a brown-out (sagging to a third and back over a
 second or so). Its emission and a magenta light on the letters follow it together; the game's grade's bloom makes it glow.
 It shows on the idle screen and the menu only: every other panel is a box in the middle of the screen
@@ -95,6 +95,9 @@ left and a cold rim from behind.
 The idle runs at half its speed and the feet are held flat on one spot through it (`PlantedFeet`, as the creator's body on its belt;
 owner, 2026-11-11: "his feet glide to the left and right over the floor ... slow the idle animation down by 50%", "the bottom of the feet
 should be glued to the floor").
+It is kept unseen until it has settled (at least 1.2 s, and its hips still for 15 frames): woken a hair over the roof it lands, and its
+hips came back up 4 cm over half a second, which showed as a bob (owner, 2026-11-11: "make the playermodel at the same height the
+entire time").
 
 ## The menu
 

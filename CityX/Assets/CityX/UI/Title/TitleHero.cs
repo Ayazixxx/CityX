@@ -28,12 +28,29 @@ namespace CityX.UI
         /// <summary>Frames the body is left to come into its idle, with its weapon, before its feet are set down.</summary>
         private const int SettleFrames = 10;
 
+        /// <summary>
+        /// After that it is shown once its hips have held one height (to within <see cref="SteadyWithin"/>, metres) for <see cref="SteadyFrames"/>
+        /// frames running, and not before <see cref="SettleAtLeastSeconds"/>: woken a hair over the roof it lands, and its hips come back up 4 cm
+        /// over half a second from 0.4 s on, after a still moment that looked steady. Shown after
+        /// <see cref="SettleAtMostSeconds"/> whatever.
+        /// </summary>
+        public const float SteadyWithin = 0.001f;
+
+        public const int SteadyFrames = 15;
+        public const float SettleAtLeastSeconds = 1.2f;
+        public const float SettleAtMostSeconds = 3.0f;
+
         [Tooltip("The body: a player's (Player.prefab, with an inventory), switched off in the scene until it is given a character.")]
         public GameObject Body;
 
         private Animator _animator;
         private PlantedFeet _feet;
         private int _settling;
+        private readonly List<Renderer> _hidden = new List<Renderer>();
+        private Transform _hips;
+        private float _lastHipsHeight;
+        private int _steadyFor;
+        private float _hiddenFor;
 
         /// <summary>The character standing there, or null (none made yet).</summary>
         public CharacterSave Showing { get; private set; }
@@ -89,6 +106,18 @@ namespace CityX.UI
             _animator = Body.GetComponentInChildren<Animator>();
             _feet = null;
             _settling = SettleFrames;
+            // Unseen while it settles: in its first frames it stands as the clip has it, and its hips come down once its feet are set
+            // down, which showed as a bob (owner, 2026-11-11: "make the playermodel at the same height the entire time i feel like i see it go
+            // up and down at the beginning").
+            _hidden.Clear();
+            foreach (Renderer part in Body.GetComponentsInChildren<Renderer>())
+            {
+                if (part.enabled)
+                {
+                    part.enabled = false;
+                    _hidden.Add(part);
+                }
+            }
         }
 
         /// <summary>The feet's spots, once set down; null before.</summary>
@@ -109,8 +138,40 @@ namespace CityX.UI
                 }
                 _feet = new PlantedFeet(_animator);
                 _feet.SetDown();
+                _hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
+                _lastHipsHeight = float.NaN;
+                _steadyFor = 0;
+                _hiddenFor = 0.0f;
             }
             _feet.Hold(1.0f);
+            if (_hidden.Count > 0)
+            {
+                ShowOnceSteady();
+            }
         }
+
+        /// <summary>Shows the body once its hips have stopped moving (or it has been hidden long enough).</summary>
+        private void ShowOnceSteady()
+        {
+            _hiddenFor += Time.deltaTime;
+            float height = _hips != null ? _hips.position.y : 0.0f;
+            _steadyFor = Mathf.Abs(height - _lastHipsHeight) <= SteadyWithin ? _steadyFor + 1 : 0;
+            _lastHipsHeight = height;
+            if ((_steadyFor < SteadyFrames || _hiddenFor < SettleAtLeastSeconds) && _hiddenFor < SettleAtMostSeconds)
+            {
+                return;
+            }
+            foreach (Renderer part in _hidden)
+            {
+                if (part != null)
+                {
+                    part.enabled = true;
+                }
+            }
+            _hidden.Clear();
+        }
+
+        /// <summary>Whether the body is drawn yet (it is kept unseen while it settles).</summary>
+        public bool Seen => _animator != null && _hidden.Count == 0;
     }
 }
