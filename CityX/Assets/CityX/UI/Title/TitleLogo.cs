@@ -47,7 +47,7 @@ namespace CityX.UI
         [Tooltip("Which sign it is: the same seed flickers the same way.")]
         public int Seed = 3;
 
-        [Tooltip("The sign's hum, looped, low (owner, 2026-11-11: \"make this play at low volume on the title screen and make it a clean loop\").")]
+        [Tooltip("The rooftop at night (the sign humming, the wind, the city far below and nothing alive), looped, low: made by SourceArt/TitleSound/title_sounds.py.")]
         public AudioSource Hum;
 
         [Tooltip("Plays a flicker sound as each fault of the sign begins.")]

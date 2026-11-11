@@ -234,9 +234,10 @@ namespace CityX.UIEditor
             logo.Glow.color = NeonGlowColour;
             logo.Glow.shadows = LightShadows.None;
             logo.Glow.renderingLayerMask = (int)TitleScreenBuilder.DefaultRenderingLayer;
-            // Its hum, low and looped, and a flicker sound as each fault begins (SourceArt/TitleSound/title_sounds.py makes them).
+            // The rooftop at night (the sign humming, the wind), low and looped, and a flicker sound as each fault begins
+            // (SourceArt/TitleSound/title_sounds.py makes them).
             logo.Hum = root.AddComponent<AudioSource>();
-            logo.Hum.clip = Sound($"{SoundFolder}/TitleNeonHum.wav", uncompressed: true);
+            logo.Hum.clip = Sound($"{SoundFolder}/TitleRooftopNight.wav", uncompressed: true);
             logo.Hum.loop = true;
             logo.Hum.playOnAwake = true;
             logo.Hum.volume = HumVolume;
