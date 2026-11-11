@@ -21,6 +21,8 @@ conventions down and apply them every time.
    function into a second file, move it to a shared place and call it from both. Shared helpers so far:
    - `Core/TransformSearch.FindDeep`: a part of a model by name, anywhere under a root (inactive parts too).
    - `UI/UiKit`: `EnsureEventSystem`, `Stretch`, `MakeText` for panels built in code, by an editor builder or at runtime.
+   - `UI/Buttons/ArrowButtons`: the new button style (owner, 2026-11-10): `Straight` and `Curled` arrows drawn with no texture (`ArrowGraphic`),
+     black-edged white italics, a yellow band and a little growth when pointed at or selected (`ArrowButtonLook`). Every button is to move to it.
    - `UI/Creator/CreatorKit`: the character creator's tool column, prompts and stage lights. The title screen's creator and ReDraw are both built
      from it, so they can no longer drift apart. They had drifted, which is how ReDraw's tools came to do nothing (fixed in fa8cefc).
    - `Character/Posing/StillPose`: fixed poses for a body shown without its Animator.

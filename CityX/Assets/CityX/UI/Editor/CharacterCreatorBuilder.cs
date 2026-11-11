@@ -41,12 +41,12 @@ namespace CityX.UIEditor
             // No heading over the tabs (owner, 2026-11-10: "get rid of the text that says create above paint hair and face").
             BuildToolColumn(panel.transform, creator, null, null, column =>
             {
-                MakeAnchoredButton(column, "EnterCityButton", "ENTER THE CITY", Gold,
-                    new Vector2(0.0f, 52.0f), new Vector2(172.0f, 36.0f),
-                    ButtonAction.Kind.CreatorAskName, creator, title, overlays);
-                MakeAnchoredButton(column, "BackButton", "BACK", Paper,
-                    new Vector2(0.0f, 16.0f), new Vector2(172.0f, 32.0f),
-                    ButtonAction.Kind.CreatorTryBack, creator, title, overlays);
+                // The arrow buttons (owner, 2026-11-10, from a mock-up: a green PROCEED arrow, a red BACK curling under its tail). BACK is
+                // made first so the green arrow is drawn over where they meet.
+                Wire(ArrowButtons.Curled(column, "BackButton", "BACK", BackSize, ArrowButtons.RedTop, ArrowButtons.RedBottom),
+                    BackAt, ButtonAction.Kind.CreatorTryBack, creator, title, overlays);
+                Wire(ArrowButtons.Straight(column, "EnterCityButton", "PROCEED", ProceedSize, ArrowButtons.GreenTop, ArrowButtons.GreenBottom),
+                    ProceedAt, ButtonAction.Kind.CreatorAskName, creator, title, overlays);
             });
             BuildBelt(panel, stage, creator, title, overlays);
             BuildNamePrompt(panel.transform, overlays);
@@ -106,6 +106,24 @@ namespace CityX.UIEditor
                 PoseIconPart(pose.transform, "RightLeg", new Vector2(2.5f, -14.0f), new Vector2(3.5f, 14.0f), null),
             };
             ClearTheColumn(belt.Tools.transform);
+        }
+
+        /// <summary>Where the arrow buttons sit on the tool column, from the middle of its bottom edge, and how big their boxes are.</summary>
+        private static readonly Vector2 ProceedAt = new Vector2(8.0f, 96.0f), ProceedSize = new Vector2(214.0f, 92.0f);
+
+        private static readonly Vector2 BackAt = new Vector2(-34.0f, 34.0f), BackSize = new Vector2(150.0f, 70.0f);
+
+        /// <summary>Hangs an arrow button from the column's bottom edge and gives it its action.</summary>
+        private static void Wire(Button button, Vector2 at, ButtonAction.Kind action, CharacterCreator creator, TitleScreen title, CreatorOverlays overlays)
+        {
+            var rect = (RectTransform)button.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.0f);
+            rect.anchoredPosition = at;
+            var wiring = button.gameObject.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Creator = creator;
+            wiring.Title = title;
+            wiring.Overlays = overlays;
         }
 
         /// <summary>The empty belt's prompt: a key cap in the middle of the screen, a smooth white box round a white key edged dark to read on the pale sky.</summary>

@@ -90,6 +90,18 @@ namespace CityX.Tests
             Shoot("tools-fading-in");
             yield return Frames(60);
             Shoot("making-alive");
+            // The arrow buttons pointed at: the yellow band between the outline and the arrow.
+            ArrowButtonLook proceed = TransformSearch.FindDeep(_belt.transform, "EnterCityButton").GetComponent<ArrowButtonLook>();
+            ArrowButtonLook back = TransformSearch.FindDeep(_belt.transform, "BackButton").GetComponent<ArrowButtonLook>();
+            proceed.OnPointerEnter(null);
+            back.OnPointerEnter(null);
+            for (int i = 0; i < 20; i++)
+            {
+                yield return null;
+            }
+            Shoot("buttons-pointed-at");
+            proceed.OnPointerExit(null);
+            back.OnPointerExit(null);
             for (int i = 0; i < 6; i++)
             {
                 ShootLegs(i);
