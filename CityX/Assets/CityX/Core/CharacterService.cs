@@ -94,7 +94,7 @@ namespace CityX.Core
         }
 
         /// <summary>
-        /// Saves a character being played over its stored copy. Its look (the in-game redraw changes it), clothes and hotbar are always
+        /// Saves a character being played over its stored copy. Its look (the in-game redraw changes it), clothes, weapon in hand and hotbar are always
         /// taken. Its progress (level, XP, points, stats, skills) is taken when it adds up against the last save accepted (<see cref="Rules"/>),
         /// or when <paramref name="adminEdited"/> and the player is an admin (the console sets levels and points outright). Its id, name and
         /// when it was made stay the server's. True when everything was taken; false when it is not the player's or its progress was refused.
@@ -114,6 +114,7 @@ namespace CityX.Core
 
             stored.Hotbar = reported.Hotbar;
             stored.Wearing = reported.Wearing;
+            stored.PrimaryWeapon = reported.PrimaryWeapon;
             stored.LastPlayedUnixSeconds = reported.LastPlayedUnixSeconds;
             CopyLook(reported, stored);
             if (refusal != null)

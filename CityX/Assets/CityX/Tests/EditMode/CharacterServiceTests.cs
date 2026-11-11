@@ -88,13 +88,14 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ASaveKeepsTheProgressButNotANewNameOrId()
+        public void ASaveKeepsTheProgressClothesAndWeaponButNotANewNameOrId()
         {
             CharacterSave made = _service.Create(Ayaz, CharacterSave.Create("Ayaz", Color.white));
             CharacterSave playing = _service.Play(Ayaz, made.Id);
             playing.Level = 7;
             playing.Experience = 120;
             playing.Wearing = new List<string> { "t_shirt" };
+            playing.PrimaryWeapon = "baseball_bat";
             playing.Name = "Renamed";
             long created = playing.CreatedUnixSeconds;
             playing.CreatedUnixSeconds = 1;
@@ -104,6 +105,7 @@ namespace CityX.Tests
             Assert.AreEqual(7, stored.Level);
             Assert.AreEqual(120, stored.Experience);
             CollectionAssert.AreEqual(new[] { "t_shirt" }, stored.Wearing);
+            Assert.AreEqual("baseball_bat", stored.PrimaryWeapon, "the weapon in hand was not saved, so it was gone after a restart");
             Assert.AreEqual("Ayaz", stored.Name, "a save renamed the character");
             Assert.AreEqual(created, stored.CreatedUnixSeconds);
         }
