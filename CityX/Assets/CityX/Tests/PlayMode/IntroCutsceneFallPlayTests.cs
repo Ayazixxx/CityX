@@ -19,6 +19,9 @@ namespace CityX.Tests
         /// <summary>How far over or under the ground the feet may be when control is handed back.</summary>
         private const float FeetTolerance = 0.05f;
 
+        /// <summary>The standing body's soles are measured every this many frames.</summary>
+        private const int SoleEvery = 10;
+
         private const int MaxFrames = 60 * 60;
 
         [UnityTest]
@@ -46,6 +49,10 @@ namespace CityX.Tests
                 cutscene.Begin(player.GetComponent<CharacterController>(), thirdPersonCamera, player.GetComponentInChildren<Animator>(),
                     cameraObject.transform, player.GetComponent<PlayerLocomotion>());
                 var ragdoll = player.GetComponent<Ragdoll>();
+                var skin = player.GetComponentInChildren<SkinnedMeshRenderer>();
+                var baked = new Mesh();
+                float soleLowest = float.MaxValue, soleHighest = float.MinValue;
+                string soleWhere = "";
 
                 bool fellLimp = false;
                 float worstCameraStep = 0.0f;
@@ -63,14 +70,34 @@ namespace CityX.Tests
                         worstFrame = frame;
                     }
                     lastCamera = cameraObject.transform.position;
+                    if (cutscene.HasLanded && !ragdoll.IsLimp && frame % SoleEvery == 0)
+                    {
+                        // Up and standing: the lowest of the skin is the soles, on the ground (owner, 2026-11-10: "the feet sink into the ground
+                        // when the first camera change happens").
+                        skin.BakeMesh(baked, true);
+                        float lowest = float.MaxValue;
+                        foreach (Vector3 vertex in baked.vertices)
+                        {
+                            lowest = Mathf.Min(lowest, skin.transform.TransformPoint(vertex).y);
+                        }
+                        if (lowest < soleLowest)
+                        {
+                            soleLowest = lowest;
+                            soleWhere = $"{frame / 60.0f:0.0} s in, {(player.GetComponentInChildren<Animator>().GetCurrentAnimatorStateInfo(0).IsName("LookingAround") ? "looking around" : "not looking around")}";
+                        }
+                        soleHighest = Mathf.Max(soleHighest, lowest);
+                    }
                 }
 
+                Object.Destroy(baked);
                 Assert.IsTrue(fellLimp, "the body never fell as a ragdoll");
                 Assert.IsTrue(cutscene.HasLanded, "the body never hit the ground");
                 Assert.IsTrue(finished, $"the intro had not finished after {MaxFrames / 60} s");
                 Assert.IsFalse(ragdoll.IsLimp, "control was handed back while the body was still limp");
                 Assert.Less(worstCameraStep, MaxCameraStepPerFrame, $"the camera jumped {worstCameraStep:0.00} m on frame {worstFrame}");
                 Assert.AreEqual(0.0f, player.transform.position.y, FeetTolerance, "the feet are not on the ground at hand-off");
+                Assert.GreaterOrEqual(soleLowest, -FeetTolerance, $"standing, the feet sank {-soleLowest * 100.0f:0} cm into the ground ({soleWhere})");
+                Assert.LessOrEqual(soleHighest, FeetTolerance, $"standing, the feet floated {soleHighest * 100.0f:0} cm over the ground");
             }
             finally
             {

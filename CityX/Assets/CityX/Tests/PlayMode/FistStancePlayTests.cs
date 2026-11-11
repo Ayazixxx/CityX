@@ -92,6 +92,29 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>Owner, 2026-11-10: "when you punch and then run or walk it does a very ugly \"fists combat walk\"": moving lets the stance go.</summary>
+        [UnityTest]
+        public IEnumerator WalkingOffAfterAPunchLetsTheStanceGo()
+        {
+#if UNITY_EDITOR
+            yield return Spawn();
+            _fists.Begin(FistKind.RightStraight);
+            yield return Frames(Mathf.CeilToInt(FistStrikes.Seconds(FistKind.RightStraight) / Dt) + 5);
+            Assert.IsFalse(_fists.IsStriking, "setup: the punch is still going");
+            Assert.IsTrue(_locomotion.FistPoseActive, "setup: the stance is not being held after the punch");
+
+            for (int i = 0; i < 30; i++)
+            {
+                _player.GetComponent<CharacterController>().Move(_player.transform.forward * (4.0f * Dt));   // walking pace
+                _locomotion.Tick(default, Dt);
+                yield return null;
+            }
+            Assert.IsFalse(_locomotion.FistPoseActive, "half a second into walking off, the body still walks in the fists' stance");
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator ThePunchTakingOverLetsTheLastArmDownWithoutASnap()
         {

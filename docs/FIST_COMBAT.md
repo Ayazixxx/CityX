@@ -69,7 +69,8 @@ played by `BakedMotion` as Octaslash is: docs/OCTASLASH.md). The lengths and the
   at somebody is a slap.
 - **Between blows: no guard, and no placed hands.** The arms are the walk cycle's own (`FistStrikes.Ready` poses neither). Hips sunk
   7 cm, feet planted square, fists closed, for 1.5 s after the last blow (`FistPoseDriver.ReadyLingerSeconds`), then the body stands as it
-  always does.
+  always does. Walking or running off lets it go at once (faster than 1 m/s, `MovingLetsGoSpeed`, read off where the body really went, so a
+  copy lets go too): the owner, 2026-11-10, found the crouched "fists combat walk" ugly and wanted the plain walk and run.
 
 How it is played (`FistPoseDriver`, on the owner's body and every copy's alike):
 

@@ -558,6 +558,38 @@ namespace CityX.Character
             _animator.CrossFadeInFixedTime("LookingAround", LookingAroundBlendSeconds, 0);
         }
 
+        private void LateUpdate()
+        {
+            if (_phase == Phase.LookingAround || _phase == Phase.HandingOff)
+            {
+                KeepTheFeetOnTheGround();
+            }
+        }
+
+        /// <summary>
+        /// The looking-around clip was made on a Mixamo body, and on this one it stood 16 cm low, the feet in the ground (owner, 2026-11-10: "the
+        /// feet sink into the ground when the first camera change happens"). After the Animator, the hips are lifted until the lower ankle
+        /// stands as high over the root as it does standing (BodyRig.FootY); never lowered.
+        /// </summary>
+        private void KeepTheFeetOnTheGround()
+        {
+            if (_animator == null || !_animator.isHuman)
+            {
+                return;
+            }
+            Transform hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
+            Transform left = _animator.GetBoneTransform(HumanBodyBones.LeftFoot), right = _animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            if (hips == null || left == null || right == null)
+            {
+                return;
+            }
+            float under = transform.position.y + BodyRig.FootY * transform.lossyScale.y - Mathf.Min(left.position.y, right.position.y);
+            if (under > 0.0f)
+            {
+                hips.position += Vector3.up * under;
+            }
+        }
+
         private void TickLookingAround(float deltaTime)
         {
             _phaseElapsed += deltaTime;

@@ -6,8 +6,8 @@ namespace CityX.Character
     /// Plays the unarmed strikes (<see cref="FistStrikes"/>) on a body, owner or network copy alike: <see cref="PlayerAnimationDriver"/> calls
     /// <see cref="Begin"/> when a punch is thrown (here, or replayed from the network, which is why a copy punches the same way). Each blow is
     /// a full-body clip (FistStrikes.Motion), sampled on the blow's own clock and handed to <see cref="PlayerLocomotion"/>, whose LateUpdate
-    /// puts it on the body after the Animator. Between blows, and for a moment after the last, the READY stance is held: a little crouched,
-    /// the feet planted, the fists closed, the arms left to the walk cycle.
+    /// puts it on the body after the Animator. Between blows, and for a moment after the last while the body stands still, the READY stance
+    /// is held: a little crouched, the feet planted, the fists closed, the arms left to the walk cycle.
     ///
     /// A HIT FREEZES THE BLOW for a moment (hit-stop): the fist stays at full reach for <see cref="HitHoldSeconds"/> when it lands, the single
     /// cheapest thing that makes a punch feel like it connected.
@@ -20,6 +20,13 @@ namespace CityX.Character
     {
         /// <summary>How long the ready stance is held after the last blow, seconds (then the body goes back to standing as it always does).</summary>
         public const float ReadyLingerSeconds = 1.5f;
+
+        /// <summary>
+        /// Moving faster than this after the last blow, metres per second on a body of the player's size, lets the stance go: the walk and the
+        /// run as they always are (owner, 2026-11-10: "when you punch and then run or walk it does a very ugly \"fists combat walk\" and i just
+        /// think the default walk and run would work fine"). Read off where the body has really gone, so a network copy lets go with it.
+        /// </summary>
+        public const float MovingLetsGoSpeed = 1.0f;
 
         /// <summary>How quickly the stance and a blow's clip come onto the body, seconds, and how quickly the stance lets go.</summary>
         public const float EngageSeconds = 0.09f;
@@ -58,6 +65,7 @@ namespace CityX.Character
         private float _clipWeight;
         private bool _holdsBody;
         private Vector3 _beganAt;
+        private Vector3 _lastPosition;
 
         /// <summary>A blow is in progress.</summary>
         public bool IsStriking => _striking;
@@ -133,6 +141,7 @@ namespace CityX.Character
             _hold = 0.0f;
             _readyRemaining = ReadyLingerSeconds;
             _beganAt = transform.position;
+            _lastPosition = transform.position;
             enabled = true;
         }
 
@@ -230,6 +239,11 @@ namespace CityX.Character
             {
                 _readyRemaining -= deltaTime;
             }
+            if (!_striking && IsMoving(deltaTime))
+            {
+                _readyRemaining = 0.0f;
+            }
+            _lastPosition = transform.position;
 
             bool wantsStance = _striking || _readyRemaining > 0.0f;
             _engage = Mathf.MoveTowards(_engage, wantsStance ? 1.0f : 0.0f, deltaTime / (wantsStance ? EngageSeconds : DisengageSeconds));
@@ -253,6 +267,14 @@ namespace CityX.Character
             stance.HipDrop *= w;
             stance.Footwork *= w;
             _locomotion.SetFistPose(stance);
+        }
+
+        /// <summary>Whether the body went faster than <see cref="MovingLetsGoSpeed"/> along the ground since the last step.</summary>
+        private bool IsMoving(float deltaTime)
+        {
+            Vector3 moved = transform.position - _lastPosition;
+            moved.y = 0.0f;
+            return deltaTime > 0.0f && moved.magnitude > MovingLetsGoSpeed * transform.lossyScale.y * deltaTime;
         }
 
         /// <summary>This frame of the blow's clip on the body, or the body let go of once the clip has faded out.</summary>
