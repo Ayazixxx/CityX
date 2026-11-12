@@ -723,13 +723,22 @@ namespace CityX.World.Plan
             uint characterSeed = PlanNoise.Mix(seed, 0x7A6F6E65U);   // "zone"
             var parking = new Amenities.ParkingPlanner();
 
-            foreach (PlanLot lot in data.Lots)
+            // Each lot's rectangle and the ground under it, worked out for every lot at once on all the cores: they depend on nothing but the lot and
+            // the terrain, and sampling the ground was most of the plan's buildings' cost (2026-11-12, the title waiting on the plan). The same
+            // numbers as worked out one lot at a time.
+            var grounds = new LotGround[data.Lots.Count];
+            System.Threading.Tasks.Parallel.For(0, grounds.Length, i => grounds[i] = LotGround.Of(data.Lots[i], fields));
+
+            for (int lotIndex = 0; lotIndex < data.Lots.Count; lotIndex++)
             {
-                if (!FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 centre, out Vec2 ex, out double width, out double depth, lot.Scale,
-                    lot.StreetWall ? StreetWallFitMargin : FitMargin))
+                PlanLot lot = data.Lots[lotIndex];
+                LotGround fit = grounds[lotIndex];
+                if (!fit.Fits)
                 {
                     continue;
                 }
+                Vec2 centre = fit.Centre, ex = fit.Ex;
+                double width = fit.Width, depth = fit.Depth;
 
                 double s = lot.Scale;
                 double hs = lot.HeightScale;
@@ -786,25 +795,9 @@ namespace CityX.World.Plan
                     basement = false;
                 }
 
-                // The ground under the footprint, sampled on a grid at most GroundSampleMetres apart (corners included): the floor stands above
-                // the highest of it, and a sparse sample missed a bulge the paving then came up through.
-                // (Local +Z is the front, so the door is at (0, +depth/2).)
+                // The highest and lowest of the ground under the footprint (LotGround). (Local +Z is the front, so the door is at (0, +depth/2).)
                 double axisX = ex.X, axisZ = ex.Y;
-                double hi = double.MinValue, lo = double.MaxValue;
-                int stepsX = Math.Max(2, (int)Math.Ceiling(width / GroundSampleMetres)), stepsZ = Math.Max(2, (int)Math.Ceiling(depth / GroundSampleMetres));
-                for (int iz = 0; iz <= stepsZ; iz++)
-                {
-                    for (int ix = 0; ix <= stepsX; ix++)
-                    {
-                        double lx = (ix / (double)stepsX - 0.5) * width;
-                        double lz = (iz / (double)stepsZ - 0.5) * depth;
-                        double wx = centre.X + lx * axisX - lz * axisZ;
-                        double wz = centre.Y + lx * axisZ + lz * axisX;
-                        double gy = fields.Height(wx, wz);
-                        if (gy > hi) hi = gy;
-                        if (gy < lo) lo = gy;
-                    }
-                }
+                double hi = fit.High, lo = fit.Low;
                 // A flat floor level with (or a step above) the paving round it, on whole decimetres. The block is paved kerb to wall at the
                 // pavement's height (PavingRise above the ground); a floor at the bare ground's height had the paving lapping over its threshold.
                 double baseHeight = Math.Ceiling((hi + PavingRise + FloorClearance) * 10.0 - 1e-6) / 10.0;
@@ -1460,6 +1453,56 @@ namespace CityX.World.Plan
             double cz = -0.15 - bestDepth * 0.5 + 0.0;
             centre = o + ex * cx + ez * cz;
             return true;
+        }
+
+        /// <summary>
+        /// A lot's rectangle (<see cref="FitRectangle"/>) and the highest and lowest of the ground under it, sampled on a grid at most
+        /// <see cref="GroundSampleMetres"/> apart (corners included): the floor stands above the highest, and a sparse sample missed a bulge the
+        /// paving then came up through. Depends on nothing but the lot and the terrain, so <see cref="Resolve"/> works it out for every lot at once.
+        /// </summary>
+        private readonly struct LotGround
+        {
+            public readonly bool Fits;
+            public readonly Vec2 Centre, Ex;
+            public readonly double Width, Depth, High, Low;
+
+            private LotGround(Vec2 centre, Vec2 ex, double width, double depth, double high, double low)
+            {
+                Fits = true;
+                Centre = centre;
+                Ex = ex;
+                Width = width;
+                Depth = depth;
+                High = high;
+                Low = low;
+            }
+
+            public static LotGround Of(PlanLot lot, PlanFields fields)
+            {
+                if (!FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 centre, out Vec2 ex, out double width, out double depth, lot.Scale,
+                    lot.StreetWall ? StreetWallFitMargin : FitMargin))
+                {
+                    return default;
+                }
+                // (Local +Z is the front, so the door is at (0, +depth/2).)
+                double axisX = ex.X, axisZ = ex.Y;
+                double hi = double.MinValue, lo = double.MaxValue;
+                int stepsX = Math.Max(2, (int)Math.Ceiling(width / GroundSampleMetres)), stepsZ = Math.Max(2, (int)Math.Ceiling(depth / GroundSampleMetres));
+                for (int iz = 0; iz <= stepsZ; iz++)
+                {
+                    for (int ix = 0; ix <= stepsX; ix++)
+                    {
+                        double lx = (ix / (double)stepsX - 0.5) * width;
+                        double lz = (iz / (double)stepsZ - 0.5) * depth;
+                        double wx = centre.X + lx * axisX - lz * axisZ;
+                        double wz = centre.Y + lx * axisZ + lz * axisX;
+                        double gy = fields.Height(wx, wz);
+                        if (gy > hi) hi = gy;
+                        if (gy < lo) lo = gy;
+                    }
+                }
+                return new LotGround(centre, ex, width, depth, hi, lo);
+            }
         }
 
         /// <summary>How far either side of a lot's corner FitRectangle also measures the lot (a corner that is a peak has no width at its own depth).</summary>

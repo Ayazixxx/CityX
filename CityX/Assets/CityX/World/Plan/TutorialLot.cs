@@ -126,11 +126,16 @@ namespace CityX.World.Plan
         /// it. Blocks that are a plaza, a mall, enclose another block or have a stairway through them are passed over. Not found (default) when
         /// nothing within <see cref="SearchRadius"/> fits.
         /// </summary>
+        /// <remarks>
+        /// The places along the frontages are gathered first and tried nearest first, stopping at the first that fits: trying them all in the plan's order
+        /// cost a second of the plan (2026-11-12, the title waiting on it). The same lot as before: the nearest that fits, the first in the plan's order of
+        /// equally near ones.
+        /// </remarks>
         public static TutorialLot Find(CityPlanData data, PlanFields fields, double spawnX, double spawnZ)
         {
             var spawn = new Vec2(spawnX, spawnZ);
-            double width = LotX1 - LotX0, best = double.MaxValue;
-            TutorialLot found = default;
+            double width = LotX1 - LotX0;
+            var places = new List<(double Distance, int Order, int Block, Vec2 Origin, Vec2 Axis)>();
             for (int b = 0; b < data.Blocks.Count; b++)
             {
                 PlanBlock block = data.Blocks[b];
@@ -160,20 +165,22 @@ namespace CityX.World.Plan
                         Vec2 front = a + along * t;
                         Vec2 origin = front - axis * ((LotX0 + LotX1) * 0.5) + inward * (FrontInset - LotZ0);
                         double distance = GapToHouse(origin, axis, spawn);
-                        if (distance >= best || distance > SearchRadius)
+                        if (distance <= SearchRadius)
                         {
-                            continue;
+                            places.Add((distance, places.Count, b, origin, axis));
                         }
-                        if (!Fits(data, fields, poly, origin, axis, b, out TutorialLot lot))
-                        {
-                            continue;
-                        }
-                        best = distance;
-                        found = lot;
                     }
                 }
             }
-            return found;
+            places.Sort((p, q) => p.Distance != q.Distance ? p.Distance.CompareTo(q.Distance) : p.Order.CompareTo(q.Order));
+            foreach (var place in places)
+            {
+                if (Fits(data, fields, data.Blocks[place.Block].Outer, place.Origin, place.Axis, place.Block, out TutorialLot lot))
+                {
+                    return lot;
+                }
+            }
+            return default;
         }
 
         private static bool Fits(CityPlanData data, PlanFields fields, List<Vec2> poly, Vec2 origin, Vec2 axis, int block, out TutorialLot lot)

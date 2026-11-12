@@ -107,10 +107,25 @@ character doesnt appear for the first 2 seconds or so").
 Owner, 2026-11-11: "the title screen takes quiet long to boot". The city's plan takes about 4 s to work out cold, and the title's city and
 skyline streamers asked for it on their first frame, so the title stood still that long before its first picture (building its nearest 49
 chunks after costs about 0.4 s). `PlanPrewarm` already starts the plan on a worker at launch; now the city, the skyline and the rooftop
-are saved switched off (`TitleCityBuilder`), `TitleStage` waits for the plan on a worker of its own, and the menu is up at once over black
-(`TitleStage.Curtain`, the first thing on the title's canvas). Once the plan is there they are switched on and placed, and the black fades
+are saved switched off (`TitleCityBuilder`), `TitleStage` waits for the plan on a worker of its own, and the title opens at once on black
+(`TitleStage.Curtain`). Once the plan is there they are switched on and placed, and the black fades
 away in 0.6 s. The plan is kept, so entering the city does not work it out again. Test: `TitleBootPlayTests`; the title tests'
 `LoadTitle` waits for `TitleStage.Placed`.
+
+Owner, 2026-11-12, of the menu up alone on black: "it takes awhile for the rest of the details of the game to load in, it starts with just the
+buttons". Measured from a cold start, the title waited 16.8 s for the plan (in the tests, which work out a second, test-sized plan beside
+it), the plan itself 11 s warm: the search for the tutorial house's lot and the sky hub's landing had grown to 4.9 s (each tried every
+frontage in the plan in order, checking the fit of ones farther than the best found yet), and sampling the ground under every lot one at
+a time most of the rest of the buildings' 2.3 s. Now:
+
+- The two searches gather their frontages first and try them nearest first, stopping at the first that fits (`TutorialLot.Find`,
+  `SkyHubPlan.Find`): 0.04 s. Each lot's rectangle and the ground under it are worked out for all the lots at once on every core
+  (`PlanWorld.LotGround`). The noise hashes each lattice column once. The plan is the same to the last bit (the house, the hub and a
+  fingerprint of every building compared before and after: `PlanTimeProbe`, Explicit): no new world seed.
+- The plan takes 5.7 s warm (from 11): the expressways (2.9 s) and the buildings (1.9 s) are most of what is left. The title came in 3 s
+  after it was asked for in the tests (9.8 s cold beside the tests' own plan; 16.8 before).
+- The black is over the menu too, with LOADING pulsing in red in its corner (`TitleStage.Loading`), and clicks are held off until it lifts:
+  the whole title fades in at once.
 
 ## The menu
 

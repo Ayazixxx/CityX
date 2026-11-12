@@ -236,12 +236,17 @@ namespace CityX.World.Plan
         /// that are a plaza, a mall, enclose another block or have a stairway through them are passed over. Not found (default) when nothing within
         /// <see cref="SearchRadius"/> fits.
         /// </summary>
+        /// <remarks>
+        /// The places along the frontages are gathered first and tried nearest the spawn first, stopping at the first that fits: trying every frontage
+        /// in the plan's order cost 3.9 s of the plan's 11 (2026-11-12, the title waiting on it). The same landing as before: the nearest point with a
+        /// fit, the first in the plan's order of equally near ones, and of the four ways round at it the last that fits.
+        /// </remarks>
         public static SkyHubPlan Find(CityPlanData data, PlanFields fields, double spawnX, double spawnZ, in TutorialLot house)
         {
             var spawn = new Vec2(spawnX, spawnZ);
-            double length = LandingLength + LowRun, best = double.MaxValue;
-            SkyHubPlan found = default;
+            double length = LandingLength + LowRun;
             Vec2[] houseCorners = house.Found ? house.Corners() : Array.Empty<Vec2>();
+            var places = new List<Frontage>();
             for (int b = 0; b < data.Blocks.Count; b++)
             {
                 PlanBlock block = data.Blocks[b];
@@ -265,37 +270,68 @@ namespace CityX.World.Plan
                     {
                         Vec2 front = a + along * t;
                         double distance = (front - spawn).Length;
-                        if (distance >= best || distance > SearchRadius)
+                        if (distance <= SearchRadius)
                         {
-                            continue;
-                        }
-                        foreach (double climb in new[] { 1.0, -1.0 })
-                        {
-                            foreach (double toIsland in new[] { 1.0, -1.0 })
-                            {
-                                Vec2 tangent = along * climb;
-                                // The middle of the landing's length is on the frontage point; the first step LandingLength from its start.
-                                Vec2 foot = front + tangent * ((LandingLength - LowRun) * 0.5) + inward * (LandingHalfWidth + FrontInset);
-                                Vec2 centre = foot + inward * (toIsland * StairMidRadius);
-                                if (!ClearOfTheRing(centre, spawn, houseCorners))
-                                {
-                                    continue;
-                                }
-                                Vec2 fromCentre = foot - centre;
-                                double startAngle = Math.Atan2(fromCentre.Y, fromCentre.X);
-                                int direction = Vec2.Dot(new Vec2(-Math.Sin(startAngle), Math.Cos(startAngle)), tangent) > 0.0 ? 1 : -1;
-                                var candidate = new SkyHubPlan(centre.X, centre.Y, startAngle, direction, 0.0, 0.0, b);
-                                if (candidate.Fits(data, fields, poly, house, out SkyHubPlan fitted))
-                                {
-                                    best = distance;
-                                    found = fitted;
-                                }
-                            }
+                            places.Add(new Frontage(b, front, along, inward, distance, places.Count));
                         }
                     }
                 }
             }
-            return found;
+            places.Sort((p, q) => p.Distance != q.Distance ? p.Distance.CompareTo(q.Distance) : p.Order.CompareTo(q.Order));
+
+            foreach (Frontage place in places)
+            {
+                List<Vec2> poly = data.Blocks[place.Block].Outer;
+                SkyHubPlan found = default;
+                bool fits = false;
+                foreach (double climb in new[] { 1.0, -1.0 })
+                {
+                    foreach (double toIsland in new[] { 1.0, -1.0 })
+                    {
+                        Vec2 tangent = place.Along * climb;
+                        // The middle of the landing's length is on the frontage point; the first step LandingLength from its start.
+                        Vec2 foot = place.Front + tangent * ((LandingLength - LowRun) * 0.5) + place.Inward * (LandingHalfWidth + FrontInset);
+                        Vec2 centre = foot + place.Inward * (toIsland * StairMidRadius);
+                        if (!ClearOfTheRing(centre, spawn, houseCorners))
+                        {
+                            continue;
+                        }
+                        Vec2 fromCentre = foot - centre;
+                        double startAngle = Math.Atan2(fromCentre.Y, fromCentre.X);
+                        int direction = Vec2.Dot(new Vec2(-Math.Sin(startAngle), Math.Cos(startAngle)), tangent) > 0.0 ? 1 : -1;
+                        var candidate = new SkyHubPlan(centre.X, centre.Y, startAngle, direction, 0.0, 0.0, place.Block);
+                        if (candidate.Fits(data, fields, poly, house, out SkyHubPlan fitted))
+                        {
+                            found = fitted;
+                            fits = true;
+                        }
+                    }
+                }
+                if (fits)
+                {
+                    return found;
+                }
+            }
+            return default;
+        }
+
+        /// <summary>A place along a block's frontage the landing could stand at, and where it came in the plan's order.</summary>
+        private readonly struct Frontage
+        {
+            public readonly int Block;
+            public readonly Vec2 Front, Along, Inward;
+            public readonly double Distance;
+            public readonly int Order;
+
+            public Frontage(int block, Vec2 front, Vec2 along, Vec2 inward, double distance, int order)
+            {
+                Block = block;
+                Front = front;
+                Along = along;
+                Inward = inward;
+                Distance = distance;
+                Order = order;
+            }
         }
 
         private static bool ClearOfTheRing(Vec2 centre, Vec2 spawn, Vec2[] houseCorners)

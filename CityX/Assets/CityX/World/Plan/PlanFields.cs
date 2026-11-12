@@ -444,9 +444,10 @@ namespace CityX.World.Plan
             }
         }
 
-        private static double Gradient(int ix, int iy, double dx, double dy, uint seed)
+        /// <summary>The gradient at a lattice point, <paramref name="column"/> being Mix(seed, ix): a column's hash is shared by its two corners.</summary>
+        private static double Gradient(uint column, int iy, double dx, double dy)
         {
-            uint h = Mix(Mix(seed, unchecked((uint)ix)), unchecked((uint)iy));
+            uint h = Mix(column, unchecked((uint)iy));
             int g = (int)(h % 12U);
             return GradX[g] * dx + GradY[g] * dy;
         }
@@ -467,10 +468,11 @@ namespace CityX.World.Plan
             double fx = x - x0;
             double fy = y - y0;
 
-            double n00 = Gradient(x0, y0, fx, fy, seed);
-            double n10 = Gradient(x0 + 1, y0, fx - 1.0, fy, seed);
-            double n01 = Gradient(x0, y0 + 1, fx, fy - 1.0, seed);
-            double n11 = Gradient(x0 + 1, y0 + 1, fx - 1.0, fy - 1.0, seed);
+            uint column0 = Mix(seed, unchecked((uint)x0)), column1 = Mix(seed, unchecked((uint)(x0 + 1)));
+            double n00 = Gradient(column0, y0, fx, fy);
+            double n10 = Gradient(column1, y0, fx - 1.0, fy);
+            double n01 = Gradient(column0, y0 + 1, fx, fy - 1.0);
+            double n11 = Gradient(column1, y0 + 1, fx - 1.0, fy - 1.0);
 
             double u = Fade(fx);
             double v = Fade(fy);

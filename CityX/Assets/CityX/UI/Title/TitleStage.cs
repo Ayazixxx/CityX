@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using CityX.View;
 using CityX.World.Plan;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace CityX.UI
 {
@@ -14,8 +15,9 @@ namespace CityX.UI
     ///
     /// THE CITY'S PLAN IS WORKED OUT ON A WORKER (owner, 2026-11-11: "the title screen takes quiet long to boot"): it takes some seconds,
     /// and the streamers asked for it on their first frame, so the title stood still that long before its first picture. The city, the
-    /// skyline and the rooftop are saved switched off; the title opens at once on the menu over black (<see cref="Curtain"/>), and once the
-    /// plan is there they are switched on, placed, and the black fades away. The plan is kept, so the game itself does not work it out again.
+    /// skyline and the rooftop are saved switched off; the title opens on black with a pulsing word that it is loading (<see cref="Curtain"/>, over
+    /// the menu too: owner, 2026-11-12, "it starts with just the buttons"), and once the plan is there they are switched on, placed, and the black
+    /// fades away off the whole title at once. The plan is kept, so the game itself does not work it out again.
     /// </summary>
     [DefaultExecutionOrder(100)]
     public sealed class TitleStage : MonoBehaviour
@@ -43,8 +45,14 @@ namespace CityX.UI
         [Tooltip("How far the character is turned from facing the camera, degrees, toward the middle of the screen: a three-quarter view.")]
         public float HeroTurn = 28.0f;
 
-        [Tooltip("Black over the city until it is there, under the menu.")]
+        [Tooltip("Black over the whole title, menu and all, until the city is there.")]
         public CanvasGroup Curtain;
+
+        [Tooltip("The word on the black that the title is on its way: pulses until the city is there.")]
+        public Graphic Loading;
+
+        /// <summary>How fast the loading word pulses, times a second.</summary>
+        public const float LoadingPulseHz = 1.2f;
 
         /// <summary>How long the black takes to fade away once the city is there, seconds.</summary>
         public const float CurtainFadeSeconds = 0.6f;
@@ -97,6 +105,16 @@ namespace CityX.UI
                     Rooftop.gameObject.SetActive(true);
                 }
                 Placed = true;
+                if (Curtain != null)
+                {
+                    Curtain.blocksRaycasts = false;   // the menu answers as the black lifts
+                }
+            }
+            if (!Placed && Loading != null)
+            {
+                Color colour = Loading.color;
+                colour.a = 0.35f + 0.65f * (0.5f + 0.5f * Mathf.Cos(Time.unscaledTime * LoadingPulseHz * 2.0f * Mathf.PI));
+                Loading.color = colour;
             }
             if (Placed && Curtain != null && Curtain.alpha > 0.0f)
             {

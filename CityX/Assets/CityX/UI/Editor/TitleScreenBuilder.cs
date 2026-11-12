@@ -288,7 +288,7 @@ namespace CityX.UIEditor
             root.AddComponent<GraphicRaycaster>();
             TitleScreen title = root.AddComponent<TitleScreen>();
 
-            // Black over the city until it is there (TitleStage): the first thing on the canvas, so the menu is over it and usable at once.
+            // Black over the whole title, menu and all, until the city is there (TitleStage): put over everything below, once the rest is built.
             var curtain = new GameObject("Curtain", typeof(RectTransform));
             var curtainRect = (RectTransform)curtain.transform;
             curtainRect.SetParent(root.transform, false);
@@ -299,7 +299,7 @@ namespace CityX.UIEditor
             black.color = Color.black;
             black.raycastTarget = false;
             stage.Curtain = curtain.AddComponent<CanvasGroup>();
-            stage.Curtain.blocksRaycasts = false;
+            stage.Curtain.blocksRaycasts = true;   // nothing under it is clicked till it lifts
             stage.Curtain.interactable = false;
 
             // NO MUSIC. title_screen.gd had a StarsPlayer (stars.mp3) looping under the
@@ -388,6 +388,10 @@ namespace CityX.UIEditor
             title.MultiplayerPanel = BuildMultiplayerPanel(root.transform, title, bootstrap);
             title.SettingsPanel = BuildSettings(root.transform, title);
 
+            // Over the menu too (owner, 2026-11-12: "it takes awhile for the rest of the details of the game to load in, it starts with just the
+            // buttons"): the whole title comes in at once, with a word that it is on its way meanwhile.
+            curtain.transform.SetAsLastSibling();
+            stage.Loading = MakeLabel(curtain.transform, "Loading", "LOADING", 22, new Color(0.85f, 0.08f, 0.06f), new Vector2(480.0f, -280.0f), new Vector2(200.0f, 40.0f));
             title.Show(TitleScreen.Panel.Menu);
             UiKit.EnsureEventSystem();
         }
