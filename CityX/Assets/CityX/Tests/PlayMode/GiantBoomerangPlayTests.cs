@@ -24,13 +24,16 @@ namespace CityX.Tests
             public int Launches;
             public float HitAt = -1.0f;
 
+            /// <summary>What its guard makes of a blow: Landed, or Guarded as a held guard soaks it.</summary>
+            public HitResponse Response = HitResponse.Landed;
+
             public bool IsAlive => true;
 
             public HitResponse ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
             {
                 Hits++;
                 if (HitAt < 0.0f) HitAt = Time.time;
-                return HitResponse.Landed;
+                return Response;
             }
 
             public void Launch(Vector3 velocity)
@@ -253,6 +256,31 @@ namespace CityX.Tests
             Assert.AreEqual(0, behind.Hits, "it hit someone behind the wall");
             Assert.Greater(near.Launches, 0, "a hit did not knock the body down");
             Assert.Greater(far.Launches, 0);
+        }
+
+        /// <summary>Owner, 2026-11-12: "make it so the boomerang is blockable and when you block it, it doesnt ragdoll you". Going out, a guard turns it back.</summary>
+        [UnityTest]
+        public IEnumerator ABlockedHitThrowsNobodyDownAndTurnsItBack()
+        {
+            GameObject player = Body(Vector3.zero);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            Dummy guarding = Target(new Vector3(0.0f, 1.3f, 7.0f));
+            guarding.Response = HitResponse.Guarded;
+            Dummy behind = Target(new Vector3(0.0f, 1.3f, 12.0f));
+            yield return null;
+            Assert.IsTrue(thrower.StartGiantThrow(Vector3.forward, 30.0f, 0.0f));
+            yield return Wait(1.0f, () => thrower.IsOut);
+            ThrownBoomerang flying = thrower.Flying;
+            float furthest = 0.0f;
+            for (float t = 0.0f; t < 6.0f && thrower.IsOut; t += Time.deltaTime)
+            {
+                furthest = Mathf.Max(furthest, flying.transform.position.z);
+                yield return null;
+            }
+            Assert.Greater(guarding.Hits, 0, "it never reached the guard");
+            Assert.AreEqual(0, guarding.Launches, "a blocked hit threw the body down");
+            Assert.Less(furthest, 9.0f, "a guard did not turn it back");
+            Assert.AreEqual(0, behind.Hits, "it went on through the guard");
         }
 
         /// <summary>Another player's copy of this body draws, aims and throws it too, and what flies there is the giant one, hurting no one.</summary>

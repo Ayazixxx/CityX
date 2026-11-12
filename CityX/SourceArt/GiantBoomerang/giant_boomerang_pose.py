@@ -75,7 +75,7 @@ MOVES = {
         "rear": [(0.40, 0.55, (STANCE_X + 0.02, -0.04), 0.03), (0.62, 0.80, STANCE_REAR, 0.05)],
     },
     "giant_catch": {
-        "seconds": 0.60,
+        "seconds": 0.45,   # 0.60 at first; owner, 2026-11-12: "id like it a bit faster"
         "keys": [
             (0.00, READY, None),
             # Out for it, the hand open ahead and to the right at shoulder height, the body turned a little toward it.

@@ -10,7 +10,8 @@ namespace CityX.Weapons
     /// thrower, whichever way it is flying. Only the thrower's hurts; another player's copy flies the same way and hurts no one.
     ///
     /// THE GIANT ONE (<see cref="Giant"/>, BoomerangProfile.Heavy) flies flat and goes on through the people it meets going out: only a wall turns it
-    /// back. Every body it hits is thrown down limp, away from the thrower.
+    /// back, and so does a guard that stops it. Every body it hits is thrown down limp, away from the thrower, unless a guard, a block, a shield or a barrier
+    /// stopped the blow.
     /// </summary>
     public sealed class ThrownBoomerang : MonoBehaviour
     {
@@ -189,6 +190,7 @@ namespace CityX.Weapons
             float nearest = float.MaxValue;
             int first = -1;
             IDamageable firstBody = null;
+            bool guarded = false;
             for (int i = 0; i < count; i++)
             {
                 Collider touched = _hits[i].collider;
@@ -203,9 +205,9 @@ namespace CityX.Weapons
                 }
                 if (returning || (heavy && body != null))
                 {
-                    if (body != null)
+                    if (body != null && Hit(body, PointOf(_hits[i], from)) && !returning)
                     {
-                        Hit(body, PointOf(_hits[i], from));
+                        guarded = true;   // going out, a guard turns it back as a wall does
                     }
                 }
                 else if (body == null && heavy)
@@ -221,6 +223,12 @@ namespace CityX.Weapons
             }
             if (heavy && !returning)
             {
+                if (guarded)
+                {
+                    _flight.TurnBack();
+                    TurnedBack?.Invoke(true);
+                    return;
+                }
                 first = FirstWall(from, way, length);
                 firstBody = null;
             }
@@ -270,22 +278,28 @@ namespace CityX.Weapons
         /// <summary>A sweep that began already touching something says nothing of where: this frame's start is near enough.</summary>
         private static Vector3 PointOf(in RaycastHit hit, Vector3 from) => hit.distance > 0.0f ? hit.point : from;
 
-        private void Hit(IDamageable body, Vector3 point)
+        /// <summary>
+        /// Strikes a body once a pass. True if a guard, a block, a shield or a barrier stopped it (owner, 2026-11-12: "make it so the boomerang is blockable and
+        /// when you block it, it doesnt ragdoll you"): only a blow that landed throws the body down, and a giant one going out turns back off it.
+        /// </summary>
+        private bool Hit(IDamageable body, Vector3 point)
         {
             if (_struckAt.TryGetValue(body, out float at) && _flight.Age - at < _profile.HitAgainSeconds)
             {
-                return;
+                return false;
             }
             _struckAt[body] = _flight.Age;
-            DamageContext.Strike(body, _damage, _thrower.transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration, point, _thrower);
-            if (_profile.Heavy && body.IsAlive)
+            HitResponse response = DamageContext.Strike(body, _damage, _thrower.transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration, point, _thrower);
+            bool stopped = response == HitResponse.Blocked || response == HitResponse.Guarded;
+            if (_profile.Heavy && response == HitResponse.Landed && body.IsAlive)
             {
                 Vector3 away = point - _thrower.transform.position;
                 away.y = 0.0f;
                 away = away.sqrMagnitude > 1e-6f ? away.normalized : transform.forward;
                 Throws.Limp(body, away * GiantBoomerangRules.KnockAway + Vector3.up * GiantBoomerangRules.KnockUp);
             }
-            Clack(point, true);
+            Clack(point, !stopped);
+            return stopped;
         }
 
         private static void Clack(Vector3 at, bool onSomeone)

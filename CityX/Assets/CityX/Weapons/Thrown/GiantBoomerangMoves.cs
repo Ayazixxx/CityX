@@ -33,7 +33,7 @@ namespace CityX.Weapons
         public const float QuickReleaseSeconds = 0.55f * 0.75f;
 
         /// <summary>The catch: the hand is out for it this far in, seconds. The move is begun this long before it gets home, so the hand is there as it comes in.</summary>
-        public const float CatchSeconds = 0.30f * 0.60f;
+        public const float CatchSeconds = 0.30f * 0.45f;
 
         public static BakedMotion Motion => BakedMotion.Load(MotionPath);
     }

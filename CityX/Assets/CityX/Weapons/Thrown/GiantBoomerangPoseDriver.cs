@@ -23,6 +23,10 @@ namespace CityX.Weapons
         /// <summary>A body going faster than this when it throws, m/s, throws from the waist up and walks on.</summary>
         public const float StandingSpeed = 0.6f;
 
+        /// <summary>Putting it back on the back (the draw played backward) goes this much quicker than the draw (owner, 2026-11-12, of the catch and the return to
+        /// the back: "id like it a bit faster").</summary>
+        public const float PutAwayPace = 1.4f;
+
         public enum Move
         {
             None,
@@ -245,7 +249,7 @@ namespace CityX.Weapons
                     at = DrawSeconds;
                     break;
                 case Move.PuttingAway:
-                    _elapsed -= deltaTime;
+                    _elapsed -= deltaTime * PutAwayPace;
                     clip = GiantBoomerangMoves.Draw;
                     at = Mathf.Max(0.0f, _elapsed);
                     if (_elapsed <= 0.0f)
