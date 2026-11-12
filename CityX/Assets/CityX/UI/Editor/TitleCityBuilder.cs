@@ -83,6 +83,11 @@ namespace CityX.UIEditor
             stage.Skyline = skyline;
             stage.View = camera;
             stage.Rooftop = rooftop;
+            // Off until the city's plan is ready: woken at once, the streamers worked it out on the first frame, and the title stood still for
+            // seconds before its first picture (TitleStage turns them on).
+            cityObject.SetActive(false);
+            skylineObject.SetActive(false);
+            rooftop.gameObject.SetActive(false);
             return stage;
         }
 

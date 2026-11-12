@@ -90,11 +90,11 @@ namespace CityX.UIEditor
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             Camera camera = BuildScene(litGlass, out DayNightCycle cycle);
             (TitleHero hero, TitleLogo logo, Transform rooftop) = TitleRooftopBuilder.Build(camera, TitleAssets);
-            TitleCityBuilder.Build(camera, cycle, rooftop);
+            TitleStage stage = TitleCityBuilder.Build(camera, cycle, rooftop);
             cycle.Apply(SkyCycle.At(TimeOfDay));
 
             NetworkBootstrap bootstrap = BuildNetworkRoot();
-            BuildInterface(bootstrap, camera, hero, logo);
+            BuildInterface(bootstrap, camera, hero, logo, stage);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EnsureBuildScenes();
@@ -273,7 +273,7 @@ namespace CityX.UIEditor
             return bootstrap;
         }
 
-        private static void BuildInterface(NetworkBootstrap bootstrap, Camera camera, TitleHero hero, TitleLogo logo)
+        private static void BuildInterface(NetworkBootstrap bootstrap, Camera camera, TitleHero hero, TitleLogo logo, TitleStage stage)
         {
             var root = new GameObject("TitleInterface", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -287,6 +287,20 @@ namespace CityX.UIEditor
 
             root.AddComponent<GraphicRaycaster>();
             TitleScreen title = root.AddComponent<TitleScreen>();
+
+            // Black over the city until it is there (TitleStage): the first thing on the canvas, so the menu is over it and usable at once.
+            var curtain = new GameObject("Curtain", typeof(RectTransform));
+            var curtainRect = (RectTransform)curtain.transform;
+            curtainRect.SetParent(root.transform, false);
+            curtainRect.anchorMin = Vector2.zero;
+            curtainRect.anchorMax = Vector2.one;
+            curtainRect.offsetMin = curtainRect.offsetMax = Vector2.zero;
+            Image black = curtain.AddComponent<Image>();
+            black.color = Color.black;
+            black.raycastTarget = false;
+            stage.Curtain = curtain.AddComponent<CanvasGroup>();
+            stage.Curtain.blocksRaycasts = false;
+            stage.Curtain.interactable = false;
 
             // NO MUSIC. title_screen.gd had a StarsPlayer (stars.mp3) looping under the
             // whole title flow; Requested: "remove the title screen music also." The

@@ -1,4 +1,6 @@
+using System.Threading.Tasks;
 using CityX.View;
+using CityX.World.Plan;
 using UnityEngine;
 
 namespace CityX.UI
@@ -10,7 +12,10 @@ namespace CityX.UI
     /// the city round it is built the streamer has nothing more to do: the title costs what drawing those buildings costs. Nothing on the title
     /// can break a window or open a door (none of the game's interactors is here).
     ///
-    /// Run after the streamer has made its world (its Awake) and before anything starts.
+    /// THE CITY'S PLAN IS WORKED OUT ON A WORKER (owner, 2026-11-11: "the title screen takes quiet long to boot"): it takes some seconds,
+    /// and the streamers asked for it on their first frame, so the title stood still that long before its first picture. The city, the
+    /// skyline and the rooftop are saved switched off; the title opens at once on the menu over black (<see cref="Curtain"/>), and once the
+    /// plan is there they are switched on, placed, and the black fades away. The plan is kept, so the game itself does not work it out again.
     /// </summary>
     [DefaultExecutionOrder(100)]
     public sealed class TitleStage : MonoBehaviour
@@ -38,6 +43,12 @@ namespace CityX.UI
         [Tooltip("How far the character is turned from facing the camera, degrees, toward the middle of the screen: a three-quarter view.")]
         public float HeroTurn = 28.0f;
 
+        [Tooltip("Black over the city until it is there, under the menu.")]
+        public CanvasGroup Curtain;
+
+        /// <summary>How long the black takes to fade away once the city is there, seconds.</summary>
+        public const float CurtainFadeSeconds = 0.6f;
+
         [Tooltip("Chunks built at once when the title opens, nearest first, before the first picture; the rest stream in behind.")]
         public int BuiltAtOnce = 49;
 
@@ -47,9 +58,50 @@ namespace CityX.UI
         /// <summary>The roof chosen, once placed.</summary>
         public TitleViewpoint.Pick Chosen { get; private set; }
 
+        private Task _planning;
+
+        /// <summary>The city, the rooftop and the camera are where they belong (the plan was ready).</summary>
+        public bool Placed { get; private set; }
+
         private void Awake()
         {
-            Place();
+            if (Curtain != null)
+            {
+                Curtain.alpha = 1.0f;
+            }
+            if (City == null)
+            {
+                return;
+            }
+            int seed = City.WorldSeed;
+            _planning = Task.Run(() => PlanWorld.For(seed));   // PlanPrewarm may have it under way: For waits for that, never doing it twice
+        }
+
+        private void Update()
+        {
+            if (_planning != null && _planning.IsCompleted)
+            {
+                if (_planning.Exception != null)
+                {
+                    Debug.LogException(_planning.Exception);
+                }
+                _planning = null;
+                City.gameObject.SetActive(true);   // its Awake makes its world from the plan now there
+                if (Skyline != null)
+                {
+                    Skyline.gameObject.SetActive(true);
+                }
+                Place();
+                if (Rooftop != null)
+                {
+                    Rooftop.gameObject.SetActive(true);
+                }
+                Placed = true;
+            }
+            if (Placed && Curtain != null && Curtain.alpha > 0.0f)
+            {
+                Curtain.alpha = Mathf.MoveTowards(Curtain.alpha, 0.0f, Time.deltaTime / CurtainFadeSeconds);
+            }
         }
 
         /// <summary>Chooses the roof and puts the camera, the character and the city's viewer there, and builds the nearest of the city.</summary>

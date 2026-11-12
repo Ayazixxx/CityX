@@ -30,15 +30,13 @@ namespace CityX.UI
 
         /// <summary>
         /// After that it is shown once its hips have held one height (to within <see cref="SteadyWithin"/>, metres) for <see cref="SteadyFrames"/>
-        /// frames running, and not before <see cref="SettleAtLeastSeconds"/>: woken a hair over the roof it lands, and its hips come back up 4 cm
-        /// over half a second from 0.4 s on, after a still moment that looked steady. Shown after
-        /// <see cref="SettleAtMostSeconds"/> whatever.
+        /// frames running, which is a tenth of a second in; after <see cref="SettleAtMostSeconds"/> whatever. (It was kept unseen at least 1.2 s
+        /// to hide a bob, walking's foot planting, now off on this body: owner, 2026-11-11, "the character doesnt appear for the first 2 seconds".)
         /// </summary>
         public const float SteadyWithin = 0.001f;
 
-        public const int SteadyFrames = 15;
-        public const float SettleAtLeastSeconds = 1.2f;
-        public const float SettleAtMostSeconds = 3.0f;
+        public const int SteadyFrames = 3;
+        public const float SettleAtMostSeconds = 0.5f;
 
         [Tooltip("The body: a player's (Player.prefab, with an inventory), switched off in the scene until it is given a character.")]
         public GameObject Body;
@@ -97,6 +95,13 @@ namespace CityX.UI
                 identity.StandBy();
             }
             Body.SetActive(true);
+            // Its feet are held by PlantedFeet. Walking's own foot planting took this body, never moved, for one nearly off the ground: it
+            // lowered the hips 4 cm for a foot to reach the roof, and let them back up 0.4 s later, which was the bob.
+            var locomotion = Body.GetComponent<PlayerLocomotion>();
+            if (locomotion != null)
+            {
+                locomotion.FootIkEnabled = false;
+            }
             Showing = character;
             if (identity != null)
             {
@@ -157,7 +162,7 @@ namespace CityX.UI
             float height = _hips != null ? _hips.position.y : 0.0f;
             _steadyFor = Mathf.Abs(height - _lastHipsHeight) <= SteadyWithin ? _steadyFor + 1 : 0;
             _lastHipsHeight = height;
-            if ((_steadyFor < SteadyFrames || _hiddenFor < SettleAtLeastSeconds) && _hiddenFor < SettleAtMostSeconds)
+            if (_steadyFor < SteadyFrames && _hiddenFor < SettleAtMostSeconds)
             {
                 return;
             }

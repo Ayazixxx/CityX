@@ -96,9 +96,21 @@ left and a cold rim from behind.
 The idle runs at half its speed and the feet are held flat on one spot through it (`PlantedFeet`, as the creator's body on its belt;
 owner, 2026-11-11: "his feet glide to the left and right over the floor ... slow the idle animation down by 50%", "the bottom of the feet
 should be glued to the floor").
-It is kept unseen until it has settled (at least 1.2 s, and its hips still for 15 frames): woken a hair over the roof it lands, and its
-hips came back up 4 cm over half a second, which showed as a bob (owner, 2026-11-11: "make the playermodel at the same height the
-entire time").
+Its hips bobbed 4 cm in its first half second (owner, 2026-11-11: "make the playermodel at the same height the entire time"): walking's
+foot planting took the body, never moved by its controller, for one nearly off the ground, lowered its hips for a foot to reach the roof
+and let them up 0.4 s later. It is off on this body (`PlayerLocomotion.FootIkEnabled`, `PlantedFeet` holds its feet), and the body is
+shown once its hips have held still for 3 frames, about a tenth of a second in (it was kept unseen at least 1.2 s to hide the bob: "the
+character doesnt appear for the first 2 seconds or so").
+
+## Opening at once
+
+Owner, 2026-11-11: "the title screen takes quiet long to boot". The city's plan takes about 4 s to work out cold, and the title's city and
+skyline streamers asked for it on their first frame, so the title stood still that long before its first picture (building its nearest 49
+chunks after costs about 0.4 s). `PlanPrewarm` already starts the plan on a worker at launch; now the city, the skyline and the rooftop
+are saved switched off (`TitleCityBuilder`), `TitleStage` waits for the plan on a worker of its own, and the menu is up at once over black
+(`TitleStage.Curtain`, the first thing on the title's canvas). Once the plan is there they are switched on and placed, and the black fades
+away in 0.6 s. The plan is kept, so entering the city does not work it out again. Test: `TitleBootPlayTests`; the title tests'
+`LoadTitle` waits for `TitleStage.Placed`.
 
 ## The menu
 

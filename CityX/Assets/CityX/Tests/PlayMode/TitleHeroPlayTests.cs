@@ -137,8 +137,11 @@ namespace CityX.Tests
                 yield return null;
             }
             Renderer[] parts = hero.Body.GetComponentsInChildren<Renderer>();
+            float hidden = 0.0f;
             while (!hero.Seen)
             {
+                hidden += Time.deltaTime;
+                Assert.Less(hidden, 0.6f, "the character is kept out of sight for more than half a second (owner, 2026-11-11: \"the character doesnt appear for the first 2 seconds or so\")");
                 Assert.IsFalse(System.Array.Exists(parts, part => part.enabled), "seen before it has settled");
                 yield return null;
             }

@@ -72,6 +72,12 @@ namespace CityX.Tests
                 new LoadSceneParameters(LoadSceneMode.Additive));
             yield return null;
             yield return null;
+            // The city comes in behind the black once its plan is worked out (TitleStage): the tests look at the title with it there.
+            var stage = Object.FindFirstObjectByType<CityX.UI.TitleStage>();
+            for (float waited = 0.0f; stage != null && !stage.Placed && waited < 20.0f; waited += Time.unscaledDeltaTime)
+            {
+                yield return null;
+            }
 #else
             yield break;
 #endif
