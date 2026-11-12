@@ -11,6 +11,19 @@ namespace CityX.Character
         Biting,
         Thrown,
         Recovering,
+
+        /// <summary>The punch: drawn back, then swung over and down onto the prey (owner, 2026-11-11: "give the wraith a second attack where he punches").</summary>
+        WindingUp,
+
+        /// <summary>Through the punch and back to its stance.</summary>
+        Punching,
+    }
+
+    /// <summary>Which attack the Wraith makes.</summary>
+    public enum WraithAttack
+    {
+        Bite,
+        Punch,
     }
 
     /// <summary>
@@ -77,6 +90,54 @@ namespace CityX.Character
         /// <summary>How long its bite stuns, each time, seconds.</summary>
         public const float BiteHitstunSeconds = 0.4f;
 
+        /// <summary>
+        /// The punch's recording (SourceArt/WraithPunch): drawn back and swung over and down onto the prey, then through and back to its
+        /// stance, seconds. The blow lands as the swing ends.
+        /// </summary>
+        public const float PunchSwingSeconds = 0.5f;
+
+        public const float PunchFollowSeconds = 0.517f;
+
+        /// <summary>What the punch does, and how long it stuns. The bite (30, then 6 a time) is the worse to be caught by.</summary>
+        public const float PunchDamage = 20.0f;
+
+        public const float PunchHitstunSeconds = 0.5f;
+
+        /// <summary>The share of attacks after the first that are punches (owner, 2026-11-11: "after that it is 50/50").</summary>
+        public const double PunchShare = 0.5;
+
+        /// <summary>
+        /// Which attack it makes (owner, 2026-11-11: "he always uses the bite as his first attack but after that it is 50/50 whether he does
+        /// the punch or bite, but make it so if he is fighting a large opponent like crimson claw for example then he only uses the punch").
+        /// <paramref name="madeOnThisPrey"/>: attacks already made on this prey; <paramref name="roll"/>: 0 to 1.
+        /// </summary>
+        public static WraithAttack Choose(int madeOnThisPrey, bool largePrey, double roll)
+        {
+            if (largePrey)
+            {
+                return WraithAttack.Punch;
+            }
+            if (madeOnThisPrey == 0)
+            {
+                return WraithAttack.Bite;
+            }
+            return roll < PunchShare ? WraithAttack.Punch : WraithAttack.Bite;
+        }
+
+        /// <summary>The dice its 50/50 is rolled on.</summary>
+        public System.Random Dice = new System.Random();
+
+        private int _madeOnThisPrey;
+
+        /// <summary>The attack under way, or the last made.</summary>
+        public WraithAttack Attack { get; private set; }
+
+        /// <summary>A different prey: its first attack is a bite again.</summary>
+        public void NewPrey()
+        {
+            _madeOnThisPrey = 0;
+        }
+
         /// <summary>The prey as the Wraith sees it.</summary>
         public struct Prey
         {
@@ -86,6 +147,12 @@ namespace CityX.Character
 
             /// <summary>Beyond its teeth just now: dashing, or otherwise not to be hit.</summary>
             public bool Evading;
+
+            /// <summary>A large body (the Crimson Claw): only punched.</summary>
+            public bool Large;
+
+            /// <summary>How far its body reaches out from where it stands, metres: it is lunged at from that much further off.</summary>
+            public float Radius;
         }
 
         private float _sinceBiteTick;
@@ -111,9 +178,9 @@ namespace CityX.Character
         public bool Hunting => Phase != WraithPhase.Drifting || Cooldown <= 0.0f;
 
         /// <summary>
-        /// One tick. <paramref name="mouthOnNeck"/>: its teeth have reached the prey's neck.
+        /// One tick. <paramref name="reached"/>: its teeth have reached the prey's neck (a bite), or its fist the prey (a punch).
         /// </summary>
-        public void Tick(float deltaTime, Vector3 self, in Prey prey, bool mouthOnNeck)
+        public void Tick(float deltaTime, Vector3 self, in Prey prey, bool reached)
         {
             Changed = false;
             DamageDue = 0.0f;
@@ -135,7 +202,7 @@ namespace CityX.Character
                 case WraithPhase.Lunging:
                     if (PhaseSeconds >= LungeSeconds)
                     {
-                        if (mouthOnNeck && prey.Exists && !prey.Evading)
+                        if (reached && prey.Exists && !prey.Evading)
                         {
                             Enter(WraithPhase.Biting);
                             DamageDue = SinkDamage;
@@ -173,6 +240,24 @@ namespace CityX.Character
                         Cooldown = RestSeconds;
                     }
                     break;
+                case WraithPhase.WindingUp:
+                    if (PhaseSeconds >= PunchSwingSeconds)
+                    {
+                        if (reached && prey.Exists && !prey.Evading)
+                        {
+                            DamageDue = PunchDamage;
+                        }
+                        Enter(WraithPhase.Punching);   // through, hit or miss
+                    }
+                    break;
+                case WraithPhase.Punching:
+                    if (PhaseSeconds >= PunchFollowSeconds)
+                    {
+                        // The follow-through ends in its stance: no getting back up, as after being thrown off a bite.
+                        Enter(WraithPhase.Drifting);
+                        Cooldown = RestSeconds;
+                    }
+                    break;
             }
         }
 
@@ -188,9 +273,10 @@ namespace CityX.Character
             Vector3 away = distance > 1e-4f ? fromPrey / distance : -Flat(prey.Forward).normalized;
             Vector3 facing = Flat(prey.Forward).normalized;
             float faced = Vector3.Dot(facing, away);
-            if ((faced <= BehindDot || Bold) && distance <= LungeMetres)
+            if ((faced <= BehindDot || Bold) && distance <= LungeMetres + prey.Radius)
             {
-                Enter(WraithPhase.Lunging);
+                Attack = Choose(_madeOnThisPrey++, prey.Large, Dice.NextDouble());
+                Enter(Attack == WraithAttack.Bite ? WraithPhase.Lunging : WraithPhase.WindingUp);
                 return;
             }
             if (Bold)

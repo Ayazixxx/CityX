@@ -58,7 +58,7 @@ namespace CityX.Character
         [ServerRpc(RequireOwnership = true)]
         private void SendPhaseToServer(byte phase, NetworkObject prey)
         {
-            if (phase <= (byte)WraithPhase.Recovering)
+            if (phase <= (byte)WraithPhase.Punching)
             {
                 BroadcastPhase(phase, prey);
             }

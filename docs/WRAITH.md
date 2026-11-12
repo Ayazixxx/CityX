@@ -55,6 +55,14 @@ Reading which way a body faces is not reading its input (the owner's rule on fai
 
 **Blood:** `Gore.Blood` at the neck on every spurt, on top of the wound the blow itself shows on the victim. The Wraith itself still does not bleed (`IBloodless`).
 
+## The punch (2026-11-11)
+
+Owner: "give the wraith a second attack where he punches the opponent. make it so he always uses the bite as his first attack but after that it is 50/50 whether he does the punch or bite, but make it so if he is fighting a large opponent like crimson claw for example then he only uses the punch. no attack sound for the punch yet".
+
+- **Which** (`WraithHunt.Choose`, pure): a large body is only punched; otherwise the first attack on a prey is the bite, and after that half are punches (`PunchShare`, rolled on `WraithHunt.Dice`). A new prey starts again from the bite (`NewPrey`). Large (`Wraith.MeasurePrey`): 3.5 m tall or more, or reaching 1.5 m or more out from its middle (the Claw is 3.1 m tall and 2.4 m out; a player stands 2.6 m and reaches 0.6). A wide prey is gone for from that much further off (`Prey.Radius`).
+- **How** (`Wraith Punch.fbx`, by `SourceArt/WraithPunch/wraith_punch.py`, into `Resources/Wraith/WraithPunchMotion.json`): `WindingUp` plays its "swing" (drawn back, then over and down) in 0.5 s while the Wraith closes to where its fist lands on the prey's body (as far off its middle as the prey reaches out plus the fist's reach, measured on its own body as the blow lands); the blow lands as the swing ends if the fist is within 0.7 m of the body (20 damage, 0.5 s stun, no blood); `Punching` plays its "follow" back to the stance in 0.52 s and it rests as after a bite. Both play at twice the recording's pace, as the bite does (each is written out at 60 frames a second from 30). The tell is the glint; no sound yet.
+- **On every screen:** the two are phases of their own, so a copy told the phase plays the right clip with nothing more sent.
+
 ## How it moves when not hunting (`Character/NPC/WraithDrift.cs`, pure)
 
 - It drifts toward a heading for 4-9 s at 1.5 m/s, then lingers 2-5 s, hanging in the air and turning to look somewhere new, then drifts again. It turns through its headings at 45 degrees a second (a curving path) and its speed eases in and out. Past 45 m from where it was born it heads home.
@@ -76,7 +84,7 @@ No Animator: `Wraith.LateUpdate` sets every bone from a few slow sines over the 
 
 ## Tests
 
-- `WraithHuntTests` (EditMode, pure): it comes on behind a turned back and lunges; faced, it goes round and never lunges; a lunge that misses or is dashed through does nothing; a bite's damage; the wait after; losing someone who gets away; letting go of the dead.
+- `WraithHuntTests` (EditMode, pure): the first attack a bite, then 50/50, a large body only punched, a new prey bitten first again; the punch landing as its swing ends, and nothing on a miss; it comes on behind a turned back and lunges; faced, it goes round and never lunges; a lunge that misses or is dashed through does nothing; a bite's damage; the wait after; losing someone who gets away; letting go of the dead.
 - `WraithDriftTests`, `WraithPoseTests` (EditMode, pure).
 - `WraithTests` (EditMode, the prefab): the model on the player's arms, worn away above its tip; the head on the head bone and the tail on the hips; the gas; the materials; the eyes and teeth; two punches kill it.
 - `WraithPlayTests`: it hovers and bobs; floats about; looks at the player; **sneaks up behind a real player and bites their neck, with blood**; **faced all the time it never bites**; a copy told of the bite plays it and does nothing of its own; killed it fades and is gone; `/spawn wraith` through the real console.

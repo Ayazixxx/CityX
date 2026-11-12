@@ -57,7 +57,32 @@ namespace CityX.Character
         /// <summary>A body's blood as the bite lets it out: up and back out of the neck.</summary>
         private const float BloodStrength = 1.2f;
 
+        /// <summary>The punch's recording (SourceArt/WraithPunch), under Resources.</summary>
+        public const string PunchMotionResource = "Wraith/WraithPunchMotion";
+
+        /// <summary>
+        /// A body this tall, or reaching this far out from its middle, is large: only punched, metres (the Crimson Claw is 3.1 m tall and 2.4 m
+        /// out; a player stands 2.6 m and reaches about 0.6).
+        /// </summary>
+        public const float LargePreyMetres = 3.5f;
+
+        public const float LargePreyReachMetres = 1.5f;
+
+        /// <summary>How far out a player-sized body reaches from its middle, metres: a wider one is lunged at from that much further off.</summary>
+        private const float OrdinaryPreyRadius = 0.6f;
+
+        /// <summary>Its fist counts as on the prey within this of the prey's body, metres.</summary>
+        public const float PunchReachMetres = 0.7f;
+
         private readonly WraithHunt _hunt = new WraithHunt();
+        private BakedMotion _punchMotion;
+        private BakedPose _punchPose;
+        private Transform[] _punchBones = System.Array.Empty<Transform>();
+        private Transform _fist;
+        private float _fistReach = 1.0f;
+        private bool _playingPunch;
+        private bool _preyLarge;
+        private float _preyExtent;
         private BakedMotion _biteMotion;
         private BakedPose _bitePose;
         private Transform[] _biteBones = System.Array.Empty<Transform>();
@@ -105,6 +130,109 @@ namespace CityX.Character
                     _biteBones[i] = TransformSearch.FindDeep(transform, _biteMotion.Bones[i]);
                 }
             }
+            BindPunch();
+        }
+
+        /// <summary>The punch's recording on the same bones, and how far ahead of its middle the fist is as the blow lands.</summary>
+        private void BindPunch()
+        {
+            _punchMotion = BakedMotion.Load(PunchMotionResource);
+            if (_punchMotion == null)
+            {
+                Debug.LogError($"CityX: no {PunchMotionResource} -- the Wraith cannot punch.");
+                return;
+            }
+            _punchPose = _punchMotion.NewPose();
+            _punchBones = new Transform[_punchMotion.Bones.Count];
+            for (int i = 0; i < _punchBones.Length; i++)
+            {
+                if (!_punchMotion.IsLowerBodyBone(i))
+                {
+                    _punchBones[i] = TransformSearch.FindDeep(transform, _punchMotion.Bones[i]);
+                }
+            }
+            _fist = TransformSearch.FindDeep(transform, "hand_r");
+            if (_fist == null)
+            {
+                return;
+            }
+            // The pose the blow lands in, put on the bones for a moment and taken off again: the fist's reach is this body's own.
+            var saved = new Quaternion[_punchBones.Length];
+            for (int i = 0; i < _punchBones.Length; i++)
+            {
+                saved[i] = _punchBones[i] != null ? _punchBones[i].localRotation : Quaternion.identity;
+            }
+            Quaternion hips = Hips != null ? Hips.localRotation : Quaternion.identity;
+            _punchMotion.Sample("follow", 0.0f, false, _punchPose);
+            for (int i = 0; i < _punchBones.Length; i++)
+            {
+                if (_punchBones[i] != null) _punchBones[i].localRotation = _punchPose.Rotations[i];
+            }
+            if (Hips != null) Hips.localRotation = _punchPose.Rotations[0];
+            Vector3 reach = transform.InverseTransformPoint(_fist.position);
+            _fistReach = Mathf.Max(0.3f, reach.z * transform.lossyScale.z);
+            for (int i = 0; i < _punchBones.Length; i++)
+            {
+                if (_punchBones[i] != null) _punchBones[i].localRotation = saved[i];
+            }
+            if (Hips != null) Hips.localRotation = hips;
+        }
+
+        /// <summary>How big its prey is: tall enough to be only punched, and how far it reaches out from its middle.</summary>
+        private void MeasurePrey()
+        {
+            _preyLarge = false;
+            _preyExtent = OrdinaryPreyRadius;
+            if (_prey == null)
+            {
+                return;
+            }
+            Bounds bounds = default;
+            bool any = false;
+            if (_prey.TryGetComponent(out CharacterController capsule) && capsule.enabled)
+            {
+                bounds = capsule.bounds;
+                any = true;
+            }
+            else
+            {
+                foreach (Collider part in _prey.GetComponentsInChildren<Collider>())
+                {
+                    if (part.isTrigger || !part.enabled)
+                    {
+                        continue;
+                    }
+                    if (!any)
+                    {
+                        bounds = part.bounds;
+                        any = true;
+                    }
+                    else
+                    {
+                        bounds.Encapsulate(part.bounds);
+                    }
+                }
+            }
+            if (!any)
+            {
+                return;
+            }
+            _preyLarge = bounds.size.y >= LargePreyMetres || Mathf.Max(bounds.extents.x, bounds.extents.z) >= LargePreyReachMetres;
+            _preyExtent = Mathf.Max(OrdinaryPreyRadius, Mathf.Max(bounds.extents.x, bounds.extents.z));
+        }
+
+        /// <summary>Its fist is on the prey's body.</summary>
+        private bool FistOnPrey()
+        {
+            if (_fist == null || _prey == null)
+            {
+                return false;
+            }
+            Vector3 fist = _fist.position;
+            Vector3 middle = _prey.transform.position;
+            var across = new Vector2(fist.x - middle.x, fist.z - middle.z);
+            float under = Mathf.Max(0.0f, middle.y - fist.y);
+            return across.magnitude - _preyExtent <= PunchReachMetres && under <= PunchReachMetres;
         }
 
         /// <summary>The hunt's tick on the machine that runs it. True when the hunt has the body's movement, not the drift.</summary>
@@ -118,15 +246,26 @@ namespace CityX.Character
                 Position = exists ? _prey.transform.position : Vector3.zero,
                 Forward = exists ? _prey.transform.forward : Vector3.forward,
                 Evading = exists && _prey is IOpponent opponent && opponent.IsInvulnerable,
+                Large = exists && _preyLarge,
+                Radius = exists ? _preyExtent - OrdinaryPreyRadius : 0.0f,
             };
-            bool reached = sight.Exists && Jaw != null && (NeckPoint() - Jaw.position).sqrMagnitude <= BiteReachMetres * BiteReachMetres;
+            bool reached = _hunt.Phase == WraithPhase.WindingUp
+                ? sight.Exists && FistOnPrey()
+                : sight.Exists && Jaw != null && (NeckPoint() - Jaw.position).sqrMagnitude <= BiteReachMetres * BiteReachMetres;
             _hunt.Tick(deltaTime, transform.position, sight, reached);
             if (_hunt.Changed)
             {
                 ShowPhase(_hunt.Phase);
                 PhaseChanged?.Invoke(_hunt.Phase, _prey);
             }
-            if (_hunt.DamageDue > 0.0f && sight.Exists)
+            if (_hunt.DamageDue > 0.0f && sight.Exists && _hunt.Phase == WraithPhase.Punching)
+            {
+                // The blow, as the swing ends: no blood, a knock.
+                Vector3 at = _fist != null ? _fist.position : _prey.transform.position + Vector3.up * BodyRig.ShoulderY;
+                DamageContext.Strike((IDamageable)_prey, _hunt.DamageDue, transform.position, WraithHunt.PunchHitstunSeconds, DamageKind.Physical, 0.0f, at,
+                    gameObject);
+            }
+            else if (_hunt.DamageDue > 0.0f && sight.Exists)
             {
                 Vector3 neck = NeckPoint();
                 DamageContext.Strike((IDamageable)_prey, _hunt.DamageDue, transform.position, WraithHunt.BiteHitstunSeconds, DamageKind.Physical, 0.0f, neck,
@@ -155,6 +294,8 @@ namespace CityX.Character
                     return true;
                 case WraithPhase.Lunging:
                 case WraithPhase.Biting:
+                case WraithPhase.WindingUp:
+                case WraithPhase.Punching:
                     // Moved in LateUpdate, once the pose has said where its teeth are.
                     _stalkSpeed = 0.0f;
                     if (_prey != null)
@@ -185,6 +326,7 @@ namespace CityX.Character
         {
             _prey = prey;
             _preyNeck = null;
+            MeasurePrey();
             ShowPhase(phase);
         }
 
@@ -211,6 +353,10 @@ namespace CityX.Character
             {
                 Speak(CrunchClip(), CrunchVolume);
             }
+            else if (phase == WraithPhase.WindingUp && Application.isPlaying && Head != null)
+            {
+                AttackGlint.Flash(Head.position);   // the punch's tell; no sound of its own yet (owner, 2026-11-11)
+            }
         }
 
         private void ShowBlood(Vector3 at)
@@ -230,7 +376,7 @@ namespace CityX.Character
             {
                 return;
             }
-            if (_hunt.Phase == WraithPhase.Lunging || _hunt.Phase == WraithPhase.Biting)
+            if (_hunt.Phase == WraithPhase.Lunging || _hunt.Phase == WraithPhase.Biting || _hunt.Phase == WraithPhase.WindingUp || _hunt.Phase == WraithPhase.Punching)
             {
                 return;   // committed to this one
             }
@@ -249,6 +395,8 @@ namespace CityX.Character
             {
                 _prey = found;
                 _preyNeck = null;
+                _hunt.NewPrey();
+                MeasurePrey();
             }
         }
 
@@ -292,33 +440,54 @@ namespace CityX.Character
         private void ApplyBiteOver(float deltaTime)
         {
             WraithPhase phase = Phase;
-            bool playing = phase == WraithPhase.Lunging || phase == WraithPhase.Biting || phase == WraithPhase.Thrown || phase == WraithPhase.Recovering;
+            bool punching = phase == WraithPhase.WindingUp || phase == WraithPhase.Punching;
+            bool playing = punching || phase == WraithPhase.Lunging || phase == WraithPhase.Biting || phase == WraithPhase.Thrown || phase == WraithPhase.Recovering;
             _biteBlend = Mathf.MoveTowards(_biteBlend, playing ? 1.0f : 0.0f, deltaTime / BiteBlendSeconds);
-            if (_biteBlend <= 0.0f || _biteMotion == null)
+            if (playing)
+            {
+                _playingPunch = punching;   // fading out, the last of whichever it played
+            }
+            BakedMotion motion = _playingPunch ? _punchMotion : _biteMotion;
+            BakedPose pose = _playingPunch ? _punchPose : _bitePose;
+            Transform[] bones = _playingPunch ? _punchBones : _biteBones;
+            if (_biteBlend <= 0.0f || motion == null)
             {
                 return;
             }
             if (playing)
             {
-                _biteMotion.Sample(SegmentOf(phase), _clipSeconds, false, _bitePose);
+                motion.Sample(SegmentOf(phase), _clipSeconds, false, pose);
             }
-            for (int i = 0; i < _biteBones.Length; i++)
+            for (int i = 0; i < bones.Length; i++)
             {
-                Transform bone = _biteBones[i];
+                Transform bone = bones[i];
                 if (bone != null)
                 {
-                    bone.localRotation = Quaternion.Slerp(bone.localRotation, _bitePose.Rotations[i], _biteBlend);
+                    bone.localRotation = Quaternion.Slerp(bone.localRotation, pose.Rotations[i], _biteBlend);
                 }
             }
             if (Hips != null)
             {
-                Hips.localRotation = Quaternion.Slerp(Hips.localRotation, _bitePose.Rotations[0], _biteBlend);   // a motion lists the root first
+                Hips.localRotation = Quaternion.Slerp(Hips.localRotation, pose.Rotations[0], _biteBlend);   // a motion lists the root first
             }
 
             if (!IsCopy && Jaw != null && _prey != null && (phase == WraithPhase.Lunging || phase == WraithPhase.Biting))
             {
                 float seconds = phase == WraithPhase.Lunging ? LungeHomingSeconds : BiteHoldSeconds;
                 transform.position += (NeckPoint() - Jaw.position) * (1.0f - Mathf.Exp(-deltaTime / seconds));
+            }
+            else if (!IsCopy && _prey != null && phase == WraithPhase.WindingUp)
+            {
+                // Through the swing it closes to where the blow lands with its fist on the prey's body: as far off its middle as the prey reaches
+                // out and the fist reaches ahead, its own height kept.
+                Vector3 toPrey = _prey.transform.position - transform.position;
+                toPrey.y = 0.0f;
+                if (toPrey.sqrMagnitude > 1e-4f)
+                {
+                    Vector3 stand = _prey.transform.position - toPrey.normalized * (_preyExtent + _fistReach * 0.85f);
+                    stand.y = transform.position.y;
+                    transform.position += (stand - transform.position) * (1.0f - Mathf.Exp(-deltaTime / LungeHomingSeconds));
+                }
             }
         }
 
@@ -329,6 +498,8 @@ namespace CityX.Character
                 case WraithPhase.Lunging: return "lunge";
                 case WraithPhase.Biting: return "bite";
                 case WraithPhase.Thrown: return "thrown";
+                case WraithPhase.WindingUp: return "swing";
+                case WraithPhase.Punching: return "follow";
                 default: return "recover";
             }
         }

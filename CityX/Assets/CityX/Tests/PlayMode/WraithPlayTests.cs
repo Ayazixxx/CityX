@@ -242,6 +242,33 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(wraith.transform.InverseTransformPoint(wraith.Head.position), headBefore), 0.2f, "the copy stayed in the bite");
         }
 
+        /// <summary>Told of its owner's punch, a copy swings it too, without moving itself or doing damage: the punch is on every screen.</summary>
+        [UnityTest]
+        public IEnumerator ACopyToldOfItsOwnersPunchSwingsIt()
+        {
+            PlayerVitals vitals = PlayerAt(new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            Wraith wraith = Spawn(new Vector3(0.0f, WraithDrift.HoverHeight, -1.5f));
+            wraith.IsCopy = true;
+            yield return null;
+            Transform fist = CityX.Core.TransformSearch.FindDeep(wraith.transform, "hand_r");
+            Assert.IsNotNull(fist, "the Wraith has no right hand to punch with");
+            Vector3 place = wraith.transform.position;
+            Vector3 fistBefore = wraith.transform.InverseTransformPoint(fist.position);
+            float health = vitals.Health;
+
+            wraith.ShowPhaseFromNetwork(WraithPhase.WindingUp, vitals);
+            float moved = 0.0f;
+            for (float t = 0.0f; t < WraithHunt.PunchSwingSeconds; t += Time.deltaTime)
+            {
+                yield return null;
+                moved = Mathf.Max(moved, Vector3.Distance(wraith.transform.InverseTransformPoint(fist.position), fistBefore));
+            }
+            Assert.AreEqual(WraithPhase.WindingUp, wraith.Phase);
+            Assert.Greater(moved, 0.4f, "the copy's fist does not swing");
+            Assert.AreEqual(place, wraith.transform.position, "a copy moved itself");
+            Assert.AreEqual(health, vitals.Health, "a copy did damage of its own: its owner's machine does that");
+        }
+
         [UnityTest]
         public IEnumerator KilledItFadesAwayAndIsGone()
         {

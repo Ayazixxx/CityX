@@ -124,6 +124,36 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>Owner, 2026-11-11: "if he is fighting a large opponent like crimson claw for example then he only uses the punch".</summary>
+        [UnityTest]
+        public IEnumerator AgainstTheCrimsonClawItOnlyPunches()
+        {
+#if UNITY_EDITOR
+            GameObject clawObject = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrimsonClaw.prefab"),
+                new Vector3(0.0f, CrimsonClaw.HoverHeightAboveGround, 9.0f), Quaternion.Euler(0.0f, 180.0f, 0.0f));
+            _made.Add(clawObject);
+            var claw = clawObject.GetComponent<CrimsonClaw>();
+            _player.transform.position = new Vector3(0.0f, 0.05f, -12.0f);
+            Physics.SyncTransforms();
+            Assert.IsTrue(_caster.TrySummon(Vector3.forward));
+            Wraith summon = _caster.Current;
+            summon.transform.position = new Vector3(0.0f, summon.transform.position.y, 4.0f);
+            bool punched = false, bit = false;
+            for (float t = 0.0f; t < 20.0f && claw.Health >= CrimsonClaw.MaxHealth; t += Time.deltaTime)
+            {
+                _player.transform.position = new Vector3(0.0f, 0.05f, 1.0f);
+                yield return null;
+                punched |= summon.Phase == WraithPhase.WindingUp;
+                bit |= summon.Phase == WraithPhase.Lunging || summon.Phase == WraithPhase.Biting;
+            }
+            Assert.IsTrue(punched, "the summon never swung at the Claw");
+            Assert.IsFalse(bit, "the summon went for the Claw's neck");
+            Assert.Less(claw.Health, CrimsonClaw.MaxHealth, "the summon's punch never landed on the Claw");
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator ItGoesWhenItsSummonerDies()
         {

@@ -114,6 +114,29 @@ namespace CityX.Tests
             }
             middle = (player.transform.position + wraithObject.transform.position) * 0.5f + Vector3.up * 1.6f;
             BuildingShapeCapture.Shoot(camera, folder, "wraith-thrown-side", middle + player.transform.right * 7.0f + Vector3.up * 0.6f, middle);
+
+            // The punch (owner, 2026-11-11), swung as a copy told of it swings it, stood behind the player at the blow's distance (the owner's
+            // machine closes it in itself).
+            wraith.IsCopy = true;
+            Vector3 behind = player.transform.position - player.transform.forward * 1.6f;
+            behind.y = wraithObject.transform.position.y;
+            wraithObject.transform.SetPositionAndRotation(behind, Quaternion.LookRotation(player.transform.forward, Vector3.up));
+            wraith.ShowPhaseFromNetwork(WraithPhase.WindingUp, player.GetComponent<PlayerVitals>());
+            middle = (player.transform.position + behind) * 0.5f + Vector3.up * 1.4f;
+            for (int shot = 0; shot < 9; shot++)
+            {
+                if (shot == 4)
+                {
+                    wraith.ShowPhaseFromNetwork(WraithPhase.Punching, player.GetComponent<PlayerVitals>());
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    yield return null;
+                }
+                BuildingShapeCapture.Shoot(camera, folder, $"wraith-punch-{shot:00}", middle + player.transform.right * 6.0f + Vector3.up * 0.5f, middle);
+            }
+            wraith.ShowPhaseFromNetwork(WraithPhase.Drifting, null);
+            wraith.IsCopy = false;
             player.SetActive(false);
 
             // Night: no sun, a near-black world; its own glow is the light.
