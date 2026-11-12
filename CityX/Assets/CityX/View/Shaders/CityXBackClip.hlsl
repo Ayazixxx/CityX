@@ -14,12 +14,16 @@ float _BackClipCount;
 // board's middle (y) its inner face is.
 float4 _BackClipVeeA[CITYX_BACK_CLIP_MAX];
 float4 _BackClipVeeB[CITYX_BACK_CLIP_MAX];
+// Each arm's half width at the tips (it narrows from the elbow's), and how far beyond its outer face the hair is still tucked under it: only hair right
+// at the board, not hair seen past its edge from an angle, nor the back of a head beside its upper tip.
+float4 _BackClipEdge[CITYX_BACK_CLIP_MAX];
 
-float CityXBackClipToSegment(float2 p, float2 a, float2 b)
+// How far inside an arm from tip to elbow a point is (positive inside), the arm narrowing from its elbow's half width to its tip's.
+float CityXBackClipInArm(float2 p, float2 tip, float2 elbow, float elbowHalf, float tipHalf)
 {
-    float2 ab = b - a;
-    float t = saturate(dot(p - a, ab) / max(dot(ab, ab), 1e-6));
-    return length(p - (a + ab * t));
+    float2 ab = elbow - tip;
+    float t = saturate(dot(p - tip, ab) / max(dot(ab, ab), 1e-6));
+    return lerp(tipHalf, elbowHalf, t) - length(p - (tip + ab * t));
 }
 
 void CityXBackClip(float4 positionCS)
@@ -39,11 +43,11 @@ void CityXBackClip(float4 positionCS)
             break;
         }
         float3 p = mul(_BackClipToBoard[i], float4(world, 1.0)).xyz;
-        float4 a = _BackClipVeeA[i], b = _BackClipVeeB[i];
-        if (p.y > -b.w)
+        float4 a = _BackClipVeeA[i], b = _BackClipVeeB[i], e = _BackClipEdge[i];
+        if (p.y > -b.w && p.y < b.w + e.y)
         {
-            float d = min(CityXBackClipToSegment(p.xz, a.xy, a.zw), CityXBackClipToSegment(p.xz, a.zw, b.xy));
-            clip(d - b.z);
+            float inside = max(CityXBackClipInArm(p.xz, a.xy, a.zw, b.z, e.x), CityXBackClipInArm(p.xz, b.xy, a.zw, b.z, e.x));
+            clip(-inside);
         }
     }
 #endif

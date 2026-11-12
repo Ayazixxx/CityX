@@ -86,6 +86,7 @@ namespace CityX.Tests
                     string name = $"backclip-{style}-{(tucked ? "tucked" : "through")}";
                     yield return Shoot(camera, name + "-behind", new Vector3(0.6f, 2.5f, -2.6f), new Vector3(0.0f, 2.0f, 0.0f));
                     yield return Shoot(camera, name + "-side", new Vector3(2.8f, 2.3f, -0.6f), new Vector3(0.0f, 2.0f, -0.2f));
+                    yield return Shoot(camera, name + "-head", new Vector3(-1.1f, 2.9f, -2.2f), new Vector3(0.0f, 2.35f, 0.0f));
                 }
             }
             hairMaterial.EnableKeyword(BackClip.Keyword);

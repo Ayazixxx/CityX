@@ -149,6 +149,7 @@ namespace CityX.WeaponsEditor
                 Vector3 tipA = OnIt(-1.0f), elbow = OnIt(0.0f), tipB = OnIt(1.0f);
                 item.OutlineTipAndElbow = new Vector4(tipA.x, tipA.z, elbow.x, elbow.z);
                 item.OutlineTipWidthDepth = new Vector4(tipB.x, tipB.z, GiantShape.WidthAtElbow * 0.5f, GiantShape.Thickness * 0.5f);
+                item.OutlineTipHalfWidth = GiantShape.WidthAtTip * 0.5f;
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(held, GiantPrefabPath);
                 AssetDatabase.SaveAssets();
                 return saved;

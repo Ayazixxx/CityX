@@ -23,17 +23,26 @@ namespace CityX.Items
         private static readonly int CountId = Shader.PropertyToID("_BackClipCount");
         private static readonly int VeeAId = Shader.PropertyToID("_BackClipVeeA");
         private static readonly int VeeBId = Shader.PropertyToID("_BackClipVeeB");
+        private static readonly int EdgeId = Shader.PropertyToID("_BackClipEdge");
+
+        /// <summary>
+        /// How far beyond a board's outer face hair is still tucked under it, metres: hair lying through it and on it, not hair farther out. Hidden all the way
+        /// out, hair seen past the board's edge from an angle went too, and the back of a head beside its upper tip showed its scalp (owner, 2026-11-12: "i can
+        /// see too much of the scalp").
+        /// </summary>
+        public const float Beyond = 0.05f;
 
         private struct Board
         {
             public Transform Frame;
-            public Vector4 VeeA, VeeB;
+            public Vector4 VeeA, VeeB, Edge;
         }
 
         private static readonly List<Board> Boards = new List<Board>();
         private static readonly Matrix4x4[] ToBoard = new Matrix4x4[Max];
         private static readonly Vector4[] VeeA = new Vector4[Max];
         private static readonly Vector4[] VeeB = new Vector4[Max];
+        private static readonly Vector4[] Edge = new Vector4[Max];
         private static bool _hooked;
 
         /// <summary>The boards shown now (for tests).</summary>
@@ -42,13 +51,14 @@ namespace CityX.Items
         /// <summary>
         /// Shows a board slung on a back: its frame (x across, y out of its face away from the back, z along it) and its outline in that frame, a V from one
         /// tip through the elbow to the other tip (<paramref name="tipAndElbow"/>: tip x, z, elbow x, z; <paramref name="tipWidthDepth"/>: other tip x, z,
-        /// each arm's half width, how far behind its middle its inner face is). Shown again, it is updated.
+        /// each arm's half width at the elbow, how far behind its middle its inner face is; <paramref name="tipHalfWidth"/>: each arm's half width at its tip).
+        /// Shown again, it is updated.
         /// </summary>
-        public static void Show(Transform frame, Vector4 tipAndElbow, Vector4 tipWidthDepth)
+        public static void Show(Transform frame, Vector4 tipAndElbow, Vector4 tipWidthDepth, float tipHalfWidth)
         {
             Hook();
             int i = Boards.FindIndex(b => b.Frame == frame);
-            var board = new Board { Frame = frame, VeeA = tipAndElbow, VeeB = tipWidthDepth };
+            var board = new Board { Frame = frame, VeeA = tipAndElbow, VeeB = tipWidthDepth, Edge = new Vector4(tipHalfWidth, Beyond, 0.0f, 0.0f) };
             if (i >= 0) Boards[i] = board;
             else Boards.Add(board);
         }
@@ -80,16 +90,18 @@ namespace CityX.Items
                     ToBoard[i] = Boards[i].Frame.worldToLocalMatrix;
                     VeeA[i] = Boards[i].VeeA;
                     VeeB[i] = Boards[i].VeeB;
+                    Edge[i] = Boards[i].Edge;
                 }
                 else
                 {
                     ToBoard[i] = Matrix4x4.identity;
-                    VeeA[i] = VeeB[i] = Vector4.zero;
+                    VeeA[i] = VeeB[i] = Edge[i] = Vector4.zero;
                 }
             }
             Shader.SetGlobalMatrixArray(ToBoardId, ToBoard);
             Shader.SetGlobalVectorArray(VeeAId, VeeA);
             Shader.SetGlobalVectorArray(VeeBId, VeeB);
+            Shader.SetGlobalVectorArray(EdgeId, Edge);
             Shader.SetGlobalFloat(CountId, count);
         }
     }

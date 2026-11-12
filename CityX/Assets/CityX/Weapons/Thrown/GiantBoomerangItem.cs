@@ -41,6 +41,9 @@ namespace CityX.Weapons
         [Tooltip("The other tip x, z, each arm's half width and half its thickness. Set by BoomerangBuilder.")]
         public Vector4 OutlineTipWidthDepth;
 
+        [Tooltip("Each arm's half width at its tips: it narrows from the elbow. Set by BoomerangBuilder.")]
+        public float OutlineTipHalfWidth;
+
         private BoomerangThrower _thrower;
         private GameObject _body;
         private bool _inHand;
@@ -168,7 +171,7 @@ namespace CityX.Weapons
             // On the back and there to be seen, the hair under it is tucked beneath it (BackClip); in the hand or in the air, nothing is.
             if (!inHand && !out_ && _body != null)
             {
-                BackClip.Show(transform, OutlineTipAndElbow, OutlineTipWidthDepth);
+                BackClip.Show(transform, OutlineTipAndElbow, OutlineTipWidthDepth, OutlineTipHalfWidth);
             }
             else
             {
