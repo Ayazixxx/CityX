@@ -12,7 +12,7 @@ namespace CityX.Weapons
     {
         public const string Id = "grenade";
 
-        /// <summary>The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the hand, Direction its way, A its speed), and Exploded (Origin where).</summary>
+        /// <summary>The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the hand, Direction its way, A its speed, N 1 for Semtex), and Exploded (Origin where).</summary>
         public const int Thrown = 0;
 
         public const int Exploded = 1;
@@ -23,6 +23,9 @@ namespace CityX.Weapons
 
         [Tooltip("What another player's thrown grenade is shown as here. Set by PlayerAbilityWiring.")]
         public GameObject ThrownPrefab;
+
+        [Tooltip("What another player's thrown Semtex is shown as here. Set by PlayerAbilityWiring.")]
+        public GameObject StickyPrefab;
 
         private ThrownGrenade _copy;
 
@@ -48,7 +51,7 @@ namespace CityX.Weapons
             }
             grenade.Exploded += at => Fired?.Invoke(new AbilityEvent(Exploded, at, Vector3.zero));
             // The velocity travels as its way and its speed (an event's direction is no longer than 1.5).
-            Fired?.Invoke(new AbilityEvent(Thrown, from, velocity.normalized, velocity.magnitude));
+            Fired?.Invoke(new AbilityEvent(Thrown, from, velocity.normalized, velocity.magnitude, 0.0f, grenade.Sticky ? 1 : 0));
             return grenade;
         }
 
@@ -63,7 +66,7 @@ namespace CityX.Weapons
                         return;
                     }
                     Vector3 velocity = evt.Direction.normalized * Mathf.Min(evt.A, GrenadeRules.ThrowSpeed * 2.0f);
-                    _copy = ThrownGrenade.Spawn(ThrownPrefab, evt.Origin, velocity, gameObject, true);
+                    _copy = ThrownGrenade.Spawn(evt.N == 1 && StickyPrefab != null ? StickyPrefab : ThrownPrefab, evt.Origin, velocity, gameObject, true);
                     break;
                 case Exploded:
                     if (_copy != null && !_copy.HasExploded)

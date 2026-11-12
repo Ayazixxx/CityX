@@ -307,6 +307,8 @@ namespace CityX.ViewEditor
             // The Wraith Staff (2026-11-08, docs/WRAITH_STAFF.md): the owner's Meshy model; a wild Wraith's rare drop, it summons one to your side.
             GameObject wraithStaffPrefab = CityX.WeaponsEditor.WraithStaffBuilder.Build();
             GameObject grenadePrefab = CityX.WeaponsEditor.GrenadeBuilder.Build();
+            // Semtex (2026-11-11): the grenade that sticks where it lands.
+            GameObject semtexPrefab = CityX.WeaponsEditor.GrenadeBuilder.BuildSemtex();
             // The Wooden Boomerang (2026-11-05, docs/BOOMERANG.md), whose in-flight twin PlayerAbilityWiring gives the body by path.
             GameObject boomerangPrefab = CityX.WeaponsEditor.BoomerangBuilder.Build();
             // The bow, its arrow (which PlayerAbilityWiring gives the body by path) and the crossbow (2026-10-28, docs/ARCHERY.md).
@@ -609,6 +611,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.WraithStaff, Prefab = wraithStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Grenade, Prefab = grenadePrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Semtex, Prefab = semtexPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.WoodenBoomerang, Prefab = boomerangPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

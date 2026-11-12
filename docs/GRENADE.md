@@ -60,3 +60,15 @@ if the word is late). The blast is dealt on the thrower's machine and reaches ot
 open and throwing it down, sparing the one behind a wall; the explosion's layers and its end; another player's copy), `BlastsPlayTests` (a grown body hurt by a grenade at its feet; a grenade and a giant's slam throw
 down only whom they hurt); pictures
 `GrenadeCapture` (`grenade-*.png`: frame by frame, day and night).
+
+## Semtex (2026-11-11)
+
+Owner: "create a semtex sticky grenade that is just the grenade that just sticks to whatever surface it touches, it sticks to players and
+enemies too wherever it contacts them". Item `semtex` (stacks of 10 like the frag, Uncommon; `/give semtex`, also `sticky`), drawn in code
+(`GrenadeBuilder.BuildSemtex`): an off-white putty brick (0.17 x 0.05 x 0.11 m) with a black detonator and the frag's blinking fuse light.
+The same `GrenadeItem` (its item id from the prefab) and `ThrownGrenade`, with `Sticky` set: thrown with the frag's gesture, the same fuse
+and blast, but on its first touch (`OnCollisionEnter`) it stops dead, flat against what it hit, its colliders off, and is parented to it:
+on a body the bone nearest where it landed (so it rides an arm or a back), on a moving thing its rigid body, else what it hit. It goes off
+there. On other players' screens the throw says it was Semtex (`AbilityEvent.N` 1, `GrenadeThrower.StickyPrefab`), and their copy sticks
+the same way. Tests: `SemtexPlayTests` (flat on a wall and stays; rides the bone it hit, goes with the body, hurts it going off; a copy is
+Semtex too). Picture: `SemtexCapture`.

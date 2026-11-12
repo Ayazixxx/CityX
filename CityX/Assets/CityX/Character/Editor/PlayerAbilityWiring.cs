@@ -31,6 +31,7 @@ namespace CityX.CharacterEditor
         private const string ArrowPrefabPath = "Assets/CityX/Weapons/Arrow.prefab";
         private const string PebblePrefabPath = "Assets/CityX/Weapons/Pebble.prefab";
         private const string ThrownGrenadePrefabPath = "Assets/CityX/Weapons/ThrownGrenade.prefab";
+        private const string ThrownSemtexPrefabPath = "Assets/CityX/Weapons/ThrownSemtex.prefab";
         private const string ThrownBoomerangPrefabPath = "Assets/CityX/Weapons/ThrownBoomerang.prefab";
         private const string WraithPrefabPath = "Assets/CityX/Character/Wraith.prefab";
         private const string ThunderStrikeClipPath = "Assets/CityX/UI/Audio/thunder_strike.ogg";
@@ -128,6 +129,7 @@ namespace CityX.CharacterEditor
             // --- grenades as other players see them (2026-10-29, docs/GRENADE.md): a copy throws the same grenade, and it goes off where it did.
             var grenades = GetOrAdd<GrenadeThrower>(player);
             grenades.ThrownPrefab = Load(ThrownGrenadePrefabPath) ?? grenades.ThrownPrefab;
+            grenades.StickyPrefab = Load(ThrownSemtexPrefabPath) ?? grenades.StickyPrefab;
 
             // --- the boomerang (2026-11-05, docs/BOOMERANG.md): whether it is out, and a copy of it flying on other players' screens.
             var boomerang = GetOrAdd<BoomerangThrower>(player);

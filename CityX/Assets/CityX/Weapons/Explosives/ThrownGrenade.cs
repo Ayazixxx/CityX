@@ -27,6 +27,18 @@ namespace CityX.Weapons
         [Tooltip("The fuse light on top. Set by GrenadeBuilder.")]
         public Renderer Blinker;
 
+        [Tooltip("Semtex: sticks to whatever it first touches, a body included, and goes off there. Set by GrenadeBuilder.")]
+        public bool Sticky;
+
+        [Tooltip("How far its middle stands off the surface it sticks to, metres (half its thickness). Set by GrenadeBuilder.")]
+        public float StickOffset = 0.03f;
+
+        /// <summary>Stuck where it first touched (Semtex).</summary>
+        public bool IsStuck { get; private set; }
+
+        /// <summary>What it is stuck to: a body's bone, a moving thing, a wall's piece of the city.</summary>
+        public Transform StuckTo { get; private set; }
+
         private static PhysicsMaterial _bounce;
 
         private Rigidbody _body;
@@ -123,6 +135,97 @@ namespace CityX.Weapons
                 GoOff(transform.position);
             }
         }
+
+        /// <summary>
+        /// SEMTEX STICKS (owner, 2026-11-11: "a semtex sticky grenade that is just the grenade that just sticks to whatever surface it touches,
+        /// it sticks to players and enemies too wherever it contacts them"): on its first touch it stops dead, flat against what it hit, and is
+        /// carried by it: a body's nearest bone to where it landed (so it rides an arm or a back as they move), a moving thing, or the city.
+        /// </summary>
+        private void OnCollisionEnter(Collision collision)
+        {
+            if (!Sticky || IsStuck || HasExploded || collision.contactCount == 0)
+            {
+                return;
+            }
+            ContactPoint contact = collision.GetContact(0);
+            Stick(collision.collider, contact.point, contact.normal);
+        }
+
+        /// <summary>Sticks it at <paramref name="point"/> on <paramref name="surface"/>, its flat side against it (<paramref name="normal"/> out of the surface).</summary>
+        public void Stick(Collider surface, Vector3 point, Vector3 normal)
+        {
+            if (IsStuck || surface == null)
+            {
+                return;
+            }
+            IsStuck = true;
+            StuckTo = AnchorFor(surface, point);
+            if (normal.sqrMagnitude < 1e-6f)
+            {
+                normal = Vector3.up;
+            }
+            normal.Normalize();
+            if (_body != null)
+            {
+                _body.linearVelocity = Vector3.zero;
+                _body.angularVelocity = Vector3.zero;
+                _body.interpolation = RigidbodyInterpolation.None;   // carried by its parent now: interpolated, it trailed a frame behind it
+                _body.isKinematic = true;
+            }
+            // Its colliders go: stuck to a body it must not push it about, nor be what the next shot hits.
+            foreach (Collider mine in _colliders ?? GetComponentsInChildren<Collider>())
+            {
+                if (mine != null) mine.enabled = false;
+            }
+            Vector3 across = Vector3.ProjectOnPlane(transform.forward, normal);
+            if (across.sqrMagnitude < 1e-4f) across = Vector3.ProjectOnPlane(Vector3.forward, normal);
+            transform.SetPositionAndRotation(point + normal * StickOffset, Quaternion.LookRotation(across.normalized, normal));
+            if (StuckTo != null)
+            {
+                transform.SetParent(StuckTo, true);
+            }
+        }
+
+        /// <summary>What a stuck grenade rides: a body's bone nearest the point (a body's capsule is its whole self), else what it hit.</summary>
+        private static Transform AnchorFor(Collider surface, Vector3 point)
+        {
+            Animator animator = surface.GetComponentInParent<Animator>();
+            if (animator == null && surface.GetComponent<CharacterController>() != null)
+            {
+                animator = surface.GetComponentInChildren<Animator>();
+            }
+            if (animator != null && animator.isHuman)
+            {
+                Transform nearest = null;
+                float best = float.MaxValue;
+                foreach (HumanBodyBones bone in Carriers)
+                {
+                    Transform t = animator.GetBoneTransform(bone);
+                    if (t == null) continue;
+                    float d = (t.position - point).sqrMagnitude;
+                    if (d < best)
+                    {
+                        best = d;
+                        nearest = t;
+                    }
+                }
+                if (nearest != null)
+                {
+                    return nearest;
+                }
+            }
+            return surface.attachedRigidbody != null ? surface.attachedRigidbody.transform : surface.transform;
+        }
+
+        /// <summary>The bones a stuck grenade can ride on a body.</summary>
+        private static readonly HumanBodyBones[] Carriers =
+        {
+            HumanBodyBones.Hips, HumanBodyBones.Spine, HumanBodyBones.Chest, HumanBodyBones.Neck, HumanBodyBones.Head,
+            HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand,
+            HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand,
+            HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot,
+            HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot,
+        };
 
         /// <summary>It goes off at <paramref name="at"/>: the thrower's blasts; a copy (told where by its owner, or late) only shows it.</summary>
         public void GoOff(Vector3 at)

@@ -79,6 +79,82 @@ namespace CityX.WeaponsEditor
             }
         }
 
+        public const string SemtexPrefabPath = "Assets/CityX/Weapons/Semtex.prefab";
+        public const string ThrownSemtexPrefabPath = "Assets/CityX/Weapons/ThrownSemtex.prefab";
+
+        private static readonly Color Putty = new Color(0.82f, 0.78f, 0.66f);
+        private static readonly Color Detonator = new Color(0.07f, 0.07f, 0.08f);
+
+        /// <summary>The Semtex brick, metres (life size times 1.3): long, wide, and thin enough to lie flat against what it sticks to.</summary>
+        public static readonly Vector3 SemtexSize = new Vector3(0.17f, 0.05f, 0.11f);
+
+        /// <summary>
+        /// SEMTEX (owner, 2026-11-11: "a semtex sticky grenade that is just the grenade that just sticks to whatever surface it touches"): a
+        /// putty brick with a black detonator on it and its fuse light, the frag grenade's throw, fuse and blast, but ThrownGrenade.Sticky.
+        /// Semtex.prefab is the one in the hand, ThrownSemtex.prefab the one in flight.
+        /// </summary>
+        [MenuItem("CityX/Rebuild Semtex")]
+        public static GameObject BuildSemtex()
+        {
+            if (!AssetDatabase.IsValidFolder(Folder))
+            {
+                AssetDatabase.CreateFolder("Assets/CityX/Weapons", "Grenade");
+            }
+            Material putty = HeldModelBaker.LitMaterial($"{Folder}/SemtexPutty.mat", Putty, 0.0f, 0.15f);
+            Material black = HeldModelBaker.LitMaterial($"{Folder}/SemtexDetonator.mat", Detonator, 0.3f, 0.4f);
+            Material ember = HeldModelBaker.LitMaterial($"{Folder}/GrenadeFuse.mat", Ember, 0.0f, 0.6f);
+            Mesh bead = HeldModelBaker.Turned($"{Folder}/GrenadeBead.asset", BeadProfile, "GrenadeBead", 8);
+            GameObject thrown = SemtexModel("ThrownSemtex", putty, black);
+            GameObject held = SemtexModel("Semtex", putty, black);
+            try
+            {
+                Transform blinker = HeldModelBaker.Part(thrown.transform, "FuseLight", bead, ember);
+                // The bead is turned on the frag's cap (0.089 to 0.107 up): set on the detonator's top instead.
+                blinker.localPosition = new Vector3(0.035f, SemtexSize.y * 0.5f + 0.03f - 0.089f, 0.0f);
+                var rigidbody = thrown.AddComponent<Rigidbody>();
+                rigidbody.mass = GrenadeRules.Mass;
+                var grenade = thrown.AddComponent<ThrownGrenade>();
+                grenade.Blinker = blinker.GetComponent<Renderer>();
+                grenade.Sticky = true;
+                grenade.StickOffset = SemtexSize.y * 0.5f;
+                GameObject savedThrown = PrefabUtility.SaveAsPrefabAsset(thrown, ThrownSemtexPrefabPath);
+
+                var item = held.AddComponent<GrenadeItem>();
+                item.ThrownPrefab = savedThrown;
+                item.SetItemId(CityX.Items.ItemRegistry.Semtex);
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(held, SemtexPrefabPath);
+                AssetDatabase.SaveAssets();
+                return saved;
+            }
+            finally
+            {
+                Object.DestroyImmediate(thrown);
+                Object.DestroyImmediate(held);
+            }
+        }
+
+        /// <summary>The brick, its detonator, and a box to hit with.</summary>
+        private static GameObject SemtexModel(string name, Material putty, Material black)
+        {
+            var root = new GameObject(name);
+            Box(root.transform, "Putty", Vector3.zero, SemtexSize, putty);
+            Box(root.transform, "Detonator", new Vector3(0.035f, SemtexSize.y * 0.5f + 0.012f, 0.0f), new Vector3(0.05f, 0.024f, 0.04f), black);
+            var collider = root.AddComponent<BoxCollider>();
+            collider.size = SemtexSize;
+            return root;
+        }
+
+        private static void Box(Transform parent, string name, Vector3 at, Vector3 size, Material material)
+        {
+            GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            part.name = name;
+            Object.DestroyImmediate(part.GetComponent<Collider>());
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = at;
+            part.transform.localScale = size;
+            part.GetComponent<MeshRenderer>().sharedMaterial = material;
+        }
+
         /// <summary>The egg, its cap and its spoon, and a capsule to bounce on.</summary>
         private static GameObject Model(string name, Mesh body, Mesh cap, Material olive, Material steel)
         {

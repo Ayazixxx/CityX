@@ -14,7 +14,13 @@ namespace CityX.Weapons
     /// </summary>
     public sealed class GrenadeItem : MonoBehaviour, IEquippableItem, IEquippableWeapon, ICosmeticMountable
     {
-        public string ItemId => ItemRegistry.Grenade;
+        [Tooltip("Which grenade this is: the frag or Semtex. Set by GrenadeBuilder.")]
+        [SerializeField] private string _itemId = ItemRegistry.Grenade;
+
+        public string ItemId => _itemId;
+
+        /// <summary>Makes this the hand's <paramref name="itemId"/> (GrenadeBuilder: Semtex).</summary>
+        public void SetItemId(string itemId) => _itemId = itemId;
 
         /// <summary>In the fist, the spoon along the fingers: as the bottle sits.</summary>
         public static readonly Vector3 GripHandPosition = new Vector3(0.02f, -0.02f, 0.06f);
@@ -101,9 +107,9 @@ namespace CityX.Weapons
             if (inventory != null)
             {
                 inventory.ClearEquipSlotWithoutReturning(inventory.ActiveWeaponSlot);
-                if (inventory.RemoveFromStorage(ItemRegistry.Grenade, 1, out ItemInstanceData next))
+                if (inventory.RemoveFromStorage(ItemId, 1, out ItemInstanceData next))
                 {
-                    inventory.EquipItemId(ItemRegistry.Grenade, player, next);
+                    inventory.EquipItemId(ItemId, player, next);
                 }
             }
             Destroy(gameObject);

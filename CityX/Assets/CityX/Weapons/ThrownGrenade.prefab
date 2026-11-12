@@ -191,6 +191,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.ThrownGrenade
   Blinker: {fileID: 4517960755039711708}
+  Sticky: 0
+  StickOffset: 0.03
 --- !u!1 &2658166300007067926
 GameObject:
   m_ObjectHideFlags: 0

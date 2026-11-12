@@ -66,6 +66,7 @@ namespace CityX.Items
         public const string MagicStaff = "magic_staff";
         public const string WraithStaff = "wraith_staff";
         public const string Grenade = "grenade";
+        public const string Semtex = "semtex";
 
         /// <summary>How many grenades make a stack: they are spent as they are thrown, the next one coming into the hand.</summary>
         public const int GrenadeStack = 10;
@@ -164,6 +165,8 @@ namespace CityX.Items
             [WraithStaff] = new ItemDefinition(WraithStaff, "Wraith Staff", "weapon", EquipSlots.Primary, 1),
             // The frag grenade (2026-10-29, docs/GRENADE.md): thrown with the bottle's gesture, a stack of them, the next one into the hand.
             [Grenade] = new ItemDefinition(Grenade, "Frag Grenade", "weapon", EquipSlots.Primary, GrenadeStack),
+            // Semtex (2026-11-11, docs/GRENADE.md): the grenade that sticks to whatever it first touches, a body included.
+            [Semtex] = new ItemDefinition(Semtex, "Semtex", "weapon", EquipSlots.Primary, GrenadeStack),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

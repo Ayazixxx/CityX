@@ -341,4 +341,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7c7ae12b47ce24eb4ae8d4b415aa68, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GrenadeItem
+  _itemId: grenade
   ThrownPrefab: {fileID: 1739624149125597005, guid: 20e5fc36ab98e8a4d9b1000dedea1075, type: 3}
