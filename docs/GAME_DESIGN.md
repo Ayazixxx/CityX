@@ -277,6 +277,8 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 
 ## God-tier spells
 
+**One of each in the whole game** (owner, 2026-11-12: "only 1 across the whole game not each server not each region"): not one per server, world or region.
+
 **What they are for** (owner, 2026-11-12): **the players become the bosses.** Once the strongest bosses in the game are beaten, what is left is enemy players with boss-tier strength and abilities. A holder is not simply hunted by everyone: they can be a faction's most valuable member, protected by it.
 
 One holder per world: a flood, meteors, an Almighty Push, a zombie horde, a giant transformation or summon. Modelled on Lineage 2's Cursed Swords (one per server; the world goes red when one appears; the holder is hunted).
