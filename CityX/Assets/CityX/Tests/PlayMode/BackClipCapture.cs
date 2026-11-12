@@ -55,13 +55,13 @@ namespace CityX.Tests
             }
             // One mesh per style after "none", in CharacterHair.ValidStyles order: the three long ones tried here.
             var meshes = new Mesh[CharacterHair.ValidStyles.Length - 1];
-            foreach ((string style, string asset) in new[] { (CharacterHair.Dreads, "DreadsMesh"), (CharacterHair.Hyde, "HydeMesh"), (CharacterHair.AnimeHair, "AnimeHairMesh") })
+            foreach ((string style, string asset) in new[] { (CharacterHair.Dreads, "DreadsMesh"), (CharacterHair.Hyde, "HydeMesh"), (CharacterHair.AnimeHair, "AnimeHairMesh"), (CharacterHair.KickHair, "KickHairMesh") })
             {
                 meshes[System.Array.IndexOf(CharacterHair.ValidStyles, style) - 1] = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>($"Assets/CityX/Character/Hair/{asset}.asset");
             }
             hair.StyleMeshes = meshes;
             hair.HairMaterial = hairMaterial;
-            foreach (string style in new[] { CharacterHair.Dreads, CharacterHair.Hyde, CharacterHair.AnimeHair })
+            foreach (string style in new[] { CharacterHair.KickHair, CharacterHair.Dreads, CharacterHair.Hyde, CharacterHair.AnimeHair })
             {
                 var save = CharacterSave.Create("Clip", new Color(0.95f, 0.78f, 0.6f));
                 save.HairStyle = style;
