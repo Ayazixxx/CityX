@@ -152,6 +152,15 @@ namespace CityX.View
             return TryPaneAt(point, out _, out PaneKey key) && _streamer.Damage.StateOf(key) != PaneState.Shattered;
         }
 
+        public bool TryPaneKeyAt(Vector3 point, out PaneKey key)
+        {
+            if (_world == null)
+            {
+                _world = new CityWorld(_streamer.WorldSeed);
+            }
+            return TryPaneAt(point, out _, out key);
+        }
+
         /// <summary>
         /// The pane a point is on, and the building it is keyed to: a window or a door's glass of the building the point is on or beside (a point
         /// can sit a few centimetres outside the wall it hit -- a contact skin, a bullet's impact -- so the building is looked up with a little

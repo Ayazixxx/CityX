@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class SewerPlayTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
         private const float Dt = 1.0f / 60.0f;
 
         private readonly List<GameObject> _made = new List<GameObject>();

@@ -16,7 +16,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BalconyDoorPlayTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [SetUp]
@@ -128,7 +128,13 @@ namespace CityX.Tests
 
             CharacterController body = Body(balcony);
             interactor.PlayerBody = body;
-            yield return Walk(body, -near.Outward, 2.0f);
+            // In until a stride past the doorway: walked on for two seconds it went down the flat's own stairs (seed 48398181, building 7935).
+            const float dt = 1.0f / 60.0f;
+            for (float t = 0.0f; t < 3.0f && near.Local(body.transform.position).z > -(BuildingInterior.WallThickness + 1.0f); t += dt)
+            {
+                body.Move((-near.Outward * 2.5f + Vector3.down * 3.0f) * dt);
+                yield return null;
+            }
 
             Assert.IsTrue(BalconyDoorState.Shared.IsOpen(site.Id, door.Unit, door.Row), "walking into it did not open it");
             Vector3 p = near.Local(body.transform.position);

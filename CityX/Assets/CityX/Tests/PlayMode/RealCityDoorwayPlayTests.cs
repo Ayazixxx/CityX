@@ -21,7 +21,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityDoorwayPlayTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -349,6 +349,9 @@ namespace CityX.Tests
                     if (!SurfaceBelow(start, site.BaseHeight + 1.0f, out float ground) ||
                         !SurfaceBelow(face - c.Inward * 0.3f, site.BaseHeight + 1.0f, out float paving) ||
                         !SurfaceBelow(face + c.Inward * 0.08f, paneBottom + 1.0f, out float sill)) continue;
+                    // From the lowest of the paving up to the wall's foot: down a hill it can go on falling toward the wall (seed 48398181,
+                    // building 274: 0.60 m over it 0.3 m out, 0.68 m at the wall, more than a body steps).
+                    if (SurfaceBelow(face - c.Inward * 0.12f, site.BaseHeight + 1.0f, out float atTheWall)) paving = Mathf.Min(paving, atTheWall);
                     windows++;
                     start.y = ground;
                     float rise = sill - paving;

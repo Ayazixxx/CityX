@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoofStairTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -104,7 +104,7 @@ namespace CityX.Tests
                 site.WorldToLocal(top.x, top.z, out double lx, out double lz);
                 Assert.Less(System.Math.Abs(lx), site.Params.Width * 0.5 - 0.5, $"{what}: the walking line does not start on the roof");
                 Assert.Less(System.Math.Abs(lz), site.Params.Depth * 0.5 - 0.5, $"{what}: the walking line does not start on the roof");
-                Assert.AreEqual(PavingAt(foot), foot.y, 0.25f, $"{what}: the stair's foot is not on the paving");
+                Assert.AreEqual(PavingAt(foot), foot.y, 0.25f, $"{what}: the stair's foot is not on the paving (its foot {foot.y:0.00} at {foot.x:0.0},{foot.z:0.0}, the paving {PavingAt(foot):0.00})");
                 Assert.AreEqual(s.Bottom, foot.y, 0.01f);
             }
         }

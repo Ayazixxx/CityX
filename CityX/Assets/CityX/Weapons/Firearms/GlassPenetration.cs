@@ -38,6 +38,8 @@ namespace CityX.Weapons
         {
             panes = 0;
             end = hit.point;
+            PaneKey lastPane = default;
+            bool knowsLastPane = false;
             while (true)
             {
                 var surface = hit.collider.GetComponentInParent<IBreakableSurface>();
@@ -45,12 +47,29 @@ namespace CityX.Weapons
                 {
                     return true;
                 }
+                if (knowsLastPane && surface.TryPaneKeyAt(hit.point, out PaneKey here) && here.Equals(lastPane))
+                {
+                    // The same window again: through the glass and across the room, the bullet met something the window lookup took for that
+                    // window's glass, seven metres on, and the one shot made two holes in it (seed 48398181). On along the line.
+                    Vector3 past = hit.point + direction * PastGlass;
+                    rangeLeft -= PastGlass;
+                    if (rangeLeft <= 0.0f || !trace(past, rangeLeft, out RaycastHit beyond))
+                    {
+                        end = past + direction * Mathf.Max(0.0f, rangeLeft);
+                        return false;
+                    }
+                    rangeLeft -= beyond.distance;
+                    hit = beyond;
+                    end = hit.point;
+                    continue;
+                }
                 bool glass = breaks ? surface.TakeBlow(hit.point, direction, BlowStrength.Bullet) : surface.IsGlassAt(hit.point);
                 if (!glass)
                 {
                     return false;   // the city's wall round its windows: the shot stops there
                 }
                 panes++;
+                knowsLastPane = surface.TryPaneKeyAt(hit.point, out lastPane);
                 if (panes >= MaxPanes)
                 {
                     return false;

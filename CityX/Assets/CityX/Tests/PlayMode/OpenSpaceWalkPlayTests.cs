@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class OpenSpaceWalkPlayTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -58,7 +58,9 @@ namespace CityX.Tests
                 to.y = 0.0f;
                 if (to.magnitude < 0.5f) yield break;
                 body.Move((to.normalized * 2.0f + Vector3.down * 3.0f) * dt);
-                lowest(body.transform.position.y - paving(body.transform.position));
+                // Against what is built under it, not the pavement's height: a kerb ramp down to a crossing is 26 cm under that (seed 48398181).
+                Vector3 feet = body.transform.position;
+                lowest(Physics.Raycast(feet + Vector3.up * 0.4f, Vector3.down, out RaycastHit under, 0.4f + 5.0f) ? feet.y - under.point.y : feet.y - paving(feet) - 5.0f);   // (from just over the feet: a tree or a sail overhead is not the ground)
                 yield return null;
             }
         }

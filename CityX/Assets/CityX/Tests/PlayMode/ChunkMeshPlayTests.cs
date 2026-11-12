@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ChunkMeshPlayTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
 
         private readonly List<Object> _made = new List<Object>();
         private CityScale _scaleBefore;

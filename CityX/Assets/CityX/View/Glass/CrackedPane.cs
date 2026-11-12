@@ -149,6 +149,12 @@ namespace CityX.View
 
         public bool IsGlassAt(Vector3 point) => _damage != null && _damage.StateOf(_key) == PaneState.Cracked;
 
+        public bool TryPaneKeyAt(Vector3 point, out PaneKey key)
+        {
+            key = _key;
+            return _damage != null;
+        }
+
         private Vector3 OnPanePlane(Vector3 point, Vector3 direction)
         {
             Vector3 normal = _rotation * WindowGrid.OutwardNormal(_key.Wall);

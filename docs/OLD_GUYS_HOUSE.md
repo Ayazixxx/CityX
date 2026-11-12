@@ -155,6 +155,20 @@ Owner: "im thinking it spawns as the closest building to you and the rest of the
 - **World seed** 23481876 -> 61256619 (2026-10-30), -> 81565117 (2026-10-31, the bigger house's lot), -> 95998845 (2026-11-02, the sky hub, docs/SKY_HUB.md): `tools/cityplan tutorialseeds` ranks 40 flat seeds
   by the sun and the ground where the player lands; on this one the driveway is in full sun, the step from the pavement onto it is 19 cm and the house's
   walls are 23 m from the spawn junction. `tools/cityplan tutoriallot [seed]` prints where the house lands on any seed.
+  -> 48398181 (2026-11-11; owner: "reroll the seed put me around shorter buildings they are too large ... keep old guys house nearby"):
+  `tools/cityplan shortseeds` ranks the flattest seeds by how tall the buildings within 150 m of the landing are (`shortseed <seed>` for
+  one). Round the landing: 12 buildings, half under 50 m, against 5 with half over 147 m and one of 504 m on 95998845; the house's walls 23 m
+  from the spawn. Of the candidates (40142565, 48398181, 63122645, 86684332) each failed four to six of the generator's own tests; this one's
+  four were fixed rather than rolled past: a building cleared for the house or the hub left its neighbours blank walls onto nothing
+  (`PlanBuildings.WithoutContactsFrom`; the same fault came up on all four seeds), a stair tower's last flight could end a step on over
+  higher paving (`Footbridges.FootOffThePaving`), a plaza with no room for any focal piece now tries round its middle and else is a bare
+  yard (`OpenSpace`), and a hydrant's test measured its red kerb as part of it. In play, the full suite found one real bug: a bullet through a window and across
+  the room could meet a surface the window lookup takes for that window's glass, so one shot made two holes in it
+  (`GlassPenetration.Follow` now skips a window it has just gone through, `IBreakableSurface.TryPaneKeyAt`). The other in-game
+  failures were the tests' own measures meeting a hillier start: a kerb ramp taken for a fall, a hillside garage opening's paving measured
+  on the bare ground, a sill measured 0.3 m out from a wall the paving falls toward, a balcony door walked through and on down the flat's
+  stairs, and bullets aimed 4 cm apart (or at a fin) on a pane whose holes are bigger. `tools/cityplan sitedump <seed> <id> classic` prints a
+  building, its blank walls and its neighbours.
 - Tests: `TutorialLotTests` (beside the spawn, the nearest building where the player lands, inside its block with its front on the street, flat, dry,
   no building or footbridge on it, the same on every machine, the house's plan inside the land kept for it), `OldGuysHouseCityPlayTests` (the streamer
   stands it on its land facing its street with nothing generated inside it and the footing at its edge; a body walks from the landing to Old Guy's

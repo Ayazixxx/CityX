@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BulletHolesInRealWindowsPlayTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -109,6 +109,65 @@ namespace CityX.Tests
             return target;
         }
 
+        /// <summary>
+        /// Until a hit window's block is back on screen with its collider (at most five seconds): on seed 48398181 the cooking took longer than
+        /// the shots' cooldown, and the next bullet found no glass at all, the block's collider still on its way, and "flew through".
+        /// </summary>
+        private static IEnumerator Rebuilt(CityStreamer streamer)
+        {
+            float until = Time.realtimeSinceStartup + 5.0f;
+            while (streamer.WindowRefreshPending && Time.realtimeSinceStartup < until)
+            {
+                yield return null;
+            }
+        }
+
+        /// <summary>
+        /// A point on the target pane's glass, a hand's width from every shot already made there: nearest the aim first, on a ring of points
+        /// round it, each checked with a ray from where the shooter stands meeting this pane's glass first, as the game's window breaker sees it.
+        /// </summary>
+        private static Vector3 FreshGlass(Target target, Vector3 standing, List<Vector3> shots, GlassBreaker breaker)
+        {
+            Vector3 across = Vector3.Cross(Vector3.up, target.Outward).normalized;
+            // Holes are cut to the pane's size: a box's wide pane wants a hand's width between shots, a round tower's narrow one holds four only closer.
+            foreach (float apart in new[] { 0.15f, 0.1f })
+            {
+                for (float r = 0.0f; r <= 0.6f; r += 0.05f)
+                {
+                    for (int k = 0; k < (r == 0.0f ? 1 : 12); k++)
+                    {
+                        float angle = k * Mathf.PI / 6.0f;
+                        Vector3 at = target.Centre + across * (Mathf.Cos(angle) * r) + Vector3.up * (Mathf.Sin(angle) * r);
+                        if (shots.Exists(s => (s - at).magnitude < apart)) continue;
+                        if (FirstABulletMeets(standing, (at - standing).normalized, out RaycastHit hit) && hit.distance <= Vector3.Distance(standing, at) + 0.6f &&   // the window, not the room behind a hole
+                            breaker.IsGlassAt(hit.point) && breaker.TryPaneKeyAt(hit.point, out PaneKey key) && key.Equals(target.Key))   // the game's own glass, not a fin
+                        {
+                            return at;
+                        }
+                    }
+                }
+            }
+            Assert.Fail("no glass left on the window a hand's width from the shots made");
+            return target.Centre;
+        }
+
+        /// <summary>The first thing a bullet stops on along a line, as the pistol looks: a cracked window is a trigger box it hits (IShootableTrigger).</summary>
+        private static bool FirstABulletMeets(Vector3 from, Vector3 direction, out RaycastHit first)
+        {
+            first = default;
+            float best = float.MaxValue;
+            foreach (RaycastHit hit in Physics.RaycastAll(from, direction, 20.0f, ~0, QueryTriggerInteraction.Collide))
+            {
+                if (hit.collider.isTrigger && hit.collider.GetComponent<IShootableTrigger>() == null) continue;
+                if (hit.distance < best)
+                {
+                    best = hit.distance;
+                    first = hit;
+                }
+            }
+            return best < float.MaxValue;
+        }
+
         private static IEnumerator Wait(float seconds)
         {
             for (float elapsed = 0.0f; elapsed < seconds; elapsed += Time.deltaTime)
@@ -169,13 +228,22 @@ namespace CityX.Tests
             PaneKey key = target.Key;
             Assert.AreEqual(PaneState.Intact, streamer.Damage.StateOf(key));
 
+            var shots = new List<Vector3>();
             for (int shot = 1; shot <= GlassDamage.MaxBulletHoles; shot++)
             {
-                // A shade different each time, so the holes are not one on top of another.
-                Vector3 at = aim + Vector3.Cross(Vector3.up, target.Outward) * (0.04f * (shot % 3 - 1)) + Vector3.up * (0.05f * (shot % 2));
-                Assert.IsTrue(pistol.Fire(standing, (at - standing).normalized, true, null), $"shot {shot} did not fire");
-                yield return Wait(PistolWeapon.FireCooldownSeconds + 0.05f);   // a rebuilt chunk needs its frame; so does the cooldown
-                Physics.SyncTransforms();
+                // Each on this pane's glass and a hand's width from the shots before: the aim can sit near the pane's edge where a fin stood
+                // in front of its middle (AimAtTheGlass), and a fixed pattern of shots round it put one on the frame (seed 48398181).
+                // A bullet through a hole already cut rightly makes none; one that does is tried again at another spot (the holes are cut to
+                // the pane's size, and an aim a hand's width off one could still be in it).
+                for (int attempt = 0; attempt < 3 && streamer.Damage.HoleCount(key) < shot; attempt++)
+                {
+                    Vector3 at = FreshGlass(target, standing, shots, go.GetComponent<GlassBreaker>());
+                    shots.Add(at);
+                    Assert.IsTrue(pistol.Fire(standing, (at - standing).normalized, true, null), $"shot {shot} did not fire");
+                    yield return Wait(PistolWeapon.FireCooldownSeconds + 0.05f);   // a rebuilt chunk needs its frame; so does the cooldown
+                    yield return Rebuilt(streamer);
+                    Physics.SyncTransforms();
+                }
 
                 Assert.AreEqual(PaneState.Cracked, streamer.Damage.StateOf(key), $"after {shot} bullets the window is {streamer.Damage.StateOf(key)}");
                 Assert.AreEqual(shot, streamer.Damage.HoleCount(key),
@@ -253,8 +321,11 @@ namespace CityX.Tests
             Assert.AreEqual(throughOne, dummy.Hits[0], 1e-3f, "through a window a bullet does 10% less");
 
             yield return Wait(PistolWeapon.FireCooldownSeconds + 0.05f);   // the cracked window's chunk is rebuilt
+            yield return Rebuilt(streamer);
             Physics.SyncTransforms();
-            Assert.IsTrue(pistol.Fire(standing, (target.Centre - standing).normalized, true, null));
+            // A hand's width off the first: at the same spot it goes through the first hole, as it should, and makes none.
+            Vector3 second = FreshGlass(target, standing, new List<Vector3> { target.Centre }, go.GetComponent<GlassBreaker>());
+            Assert.IsTrue(pistol.Fire(standing, (second - standing).normalized, true, null));
             Assert.AreEqual(2, streamer.Damage.HoleCount(target.Key), "the second bullet made no hole in the cracked window");
             Assert.AreEqual(2, dummy.Hits.Count, "the second bullet stopped in the cracked window");
             Assert.AreEqual(throughOne, dummy.Hits[1], 1e-3f);

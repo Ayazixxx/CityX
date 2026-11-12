@@ -489,6 +489,9 @@ namespace CityX.World
 
         public const float TowerLaneGap = 0.1f;
 
+        /// <summary>A stair tower's foot may be this far over or under the paving where it lands, metres.</summary>
+        private const float FootOffThePaving = 0.1f;
+
         /// <summary>How far in from a wall's corners a doorway stays (columns), and how the doors are numbered among a building's balcony doors.</summary>
         public const int CornerColumns = 1;
 
@@ -1711,6 +1714,9 @@ namespace CityX.World
             float dLast = lastWasInner ? (steps - (flightsCount - 1) * FlightMax) * Tread : full - (steps - (flightsCount - 1) * FlightMax) * Tread;
             float dFoot = dLast + (lastWasInner ? StreetStairFoot : -StreetStairFoot);
             float oLast = lastWasInner ? o1 : o2;
+            // Counted again for the rise to the foot, the last flight can end a step further on, over paving higher or lower than where the foot
+            // was measured: on a steep slope half a metre into the hill (seed 48398181, building 9422). No stair here then.
+            if (Mathf.Abs(PavingAt(world, ByWall(a, startU, way, dFoot, oLast)) - foot) > FootOffThePaving) return null;
             landings.Add(new StairLanding(At(ByWall(a, startU, way, (dLast + dFoot) * 0.5f, oLast), lastTo.y), along, a.Out, StreetStairFoot * 0.5f, half,
                 false, false, false));
             points.Add(At(ByWall(a, startU, way, dFoot, oLast), lastTo.y));

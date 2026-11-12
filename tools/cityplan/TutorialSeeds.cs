@@ -55,6 +55,71 @@ public static class TutorialSeeds
         foreach (var r in ranked) Console.WriteLine("  " + r.line);
     }
 
+    /// <summary>
+    /// shortseeds [first] [count] [checked]: like tutorialseeds, but ranked by how tall the buildings round the landing are (owner, 2026-11-11: "reroll the
+    /// seed put me around shorter buildings they are too large ... keep old guys house nearby"): the median and the tallest within
+    /// <see cref="AroundMetres"/> of the landing, the house and the sky hub still beside the spawn.
+    /// </summary>
+    public static void RankShort(int first, int count, int checkedCount)
+    {
+        var cfg = PlanConfig.For(CityScale.Active);
+        var rng = new Random(first);
+        var flattest = new System.Collections.Generic.List<(double spread, int seed)>();
+        for (int k = 0; k < count; k++)
+        {
+            int seed = rng.Next(10000000, 99999999);
+            flattest.Add((SunnySpawn.Spread(new PlanFields(seed, cfg), 0.0, 0.0, 300.0, 25.0), seed));
+        }
+        flattest.Sort((a, b) => a.spread.CompareTo(b.spread));
+        var ranked = new System.Collections.Generic.List<(double median, string line)>();
+        for (int k = 0; k < checkedCount && k < flattest.Count; k++)
+        {
+            int seed = flattest[k].seed;
+            string line = ShortLine(seed, cfg, out double median, out bool usable);
+            Console.WriteLine("  " + line);
+            if (usable) ranked.Add((median, line));
+        }
+        ranked.Sort((a, b) => a.median.CompareTo(b.median));
+        Console.WriteLine("shortest round the landing:");
+        for (int k = 0; k < ranked.Count && k < 15; k++) Console.WriteLine("  " + ranked[k].line);
+    }
+
+    public static void ReportShort(int seed)
+    {
+        Console.WriteLine(ShortLine(seed, PlanConfig.For(CityScale.Active), out _, out _));
+    }
+
+    /// <summary>How far round the landing the buildings are measured, metres.</summary>
+    private const double AroundMetres = 150.0;
+
+    public static string ShortLine(int seed, PlanConfig cfg, out double median, out bool usable)
+    {
+        median = double.MaxValue;
+        usable = false;
+        PlanWorld world = PlanWorld.Create(seed, cfg);
+        world.TryFindSpawn(out double sx, out double sz);
+        TutorialLot lot = world.TutorialHouse;
+        if (!lot.Found) return $"seed {seed}: no land for the house";
+        if (!world.SkyHub.Found) return $"seed {seed}: no land for the sky hub's landing";
+        lot.ToWorld(TutorialLot.LandingX, TutorialLot.LandingZ, out double lx, out double lz);
+        var heights = new System.Collections.Generic.List<double>();
+        foreach (BuildingSite b in world.Buildings)
+        {
+            if (b.IsOpenGround) continue;
+            double dx = b.CentreX - lx, dz = b.CentreZ - lz;
+            if (dx * dx + dz * dz <= AroundMetres * AroundMetres) heights.Add(b.Params.Height);
+        }
+        if (heights.Count == 0) return $"seed {seed}: no buildings round the landing";
+        heights.Sort();
+        median = heights[heights.Count / 2];
+        double tallest = heights[heights.Count - 1], quarter = heights[heights.Count * 3 / 4];
+        Vec2 front = lot.FrontMiddle;
+        double step = lot.FloorHeight - world.GroundHeight(front.X, front.Y) - PlanBuildings.PavingRise;
+        double hillShare = HillShare(seed);
+        usable = step <= 0.3 && hillShare > 0.125;
+        return $"seed {seed}: {heights.Count} buildings within {AroundMetres:F0} m of the landing, median {median:F0} m tall, three in four under {quarter:F0} m, tallest {tallest:F0} m; house walls {GapToHouse(lot, sx, sz):F1} m from the spawn, step {step:F2} m, {hillShare:P1} on a hill{(usable ? "" : " (NOT USABLE)")}";
+    }
+
     /// <summary>The share of the land within 2.5 km of the origin on a hill, as HillTests measures it (the game's city wants hills; a flat spawn can come with a flat city).</summary>
     private static double HillShare(int seed)
     {

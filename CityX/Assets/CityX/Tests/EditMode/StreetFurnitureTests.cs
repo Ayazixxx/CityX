@@ -123,8 +123,9 @@ namespace CityX.Tests
                     SpawnStreets.Surface built = SpawnStreets.BuildAt(thing.At);
                     float pavement = SpawnStreets.PavementHeight(thing.At);
                     float lowest = float.MaxValue, highest = float.MinValue;
-                    // Near enough for its own corners, not a neighbour's (a lamp's base is sunk).
-                    double round = thing.Kind == StreetFurnitureKind.Cabinet ? 1.0 : (thing.Kind == StreetFurnitureKind.Bin ? 0.7 : 0.5);
+                    // Near enough for its own corners, not a neighbour's (a lamp's base is sunk; a hydrant's red kerb, 0.4 m off it, follows the
+                    // ground and lies lower down a hill).
+                    double round = thing.Kind == StreetFurnitureKind.Cabinet ? 1.0 : thing.Kind == StreetFurnitureKind.Bin ? 0.7 : thing.Kind == StreetFurnitureKind.Hydrant ? 0.32 : 0.5;
                     foreach (Vector3 local in built.Structures.Vertices)
                     {
                         if ((built.InTheWorld(local) - thing.At).Length < round)
@@ -138,7 +139,7 @@ namespace CityX.Tests
                         continue;   // not stood here: the pavement is cut away under it, or a stairway opens here
                     }
                     string where = $"the {thing.Kind} at {thing.At.X:0},{thing.At.Y:0}";
-                    Assert.AreEqual(pavement, lowest, 0.02f, $"{where} does not stand on the pavement");
+                    Assert.AreEqual(pavement, lowest, 0.02f, $"{where} does not stand on the pavement (its foot {lowest:0.000}, the pavement {pavement:0.000}, the road {SpawnStreets.Plan.GroundHeight(thing.At.X, thing.At.Y):0.000})");
                     Assert.Greater(highest, pavement + HeightOf(thing.Kind) - 0.05f, $"{where} is a stump");
                     looked[thing.Kind] = had + 1;
                 }

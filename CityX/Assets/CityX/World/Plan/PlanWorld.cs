@@ -127,10 +127,15 @@ namespace CityX.World.Plan
             {
                 return sites;
             }
+            var gone = new List<BuildingSite>();
+            for (int i = 0; i < sites.Length; i++)
+            {
+                if (cleared.Contains(lotOf[i])) gone.Add(sites[i]);
+            }
             var kept = new List<BuildingSite>(sites.Length);
             for (int i = 0; i < sites.Length; i++)
             {
-                if (!cleared.Contains(lotOf[i])) kept.Add(sites[i].WithId(kept.Count));
+                if (!cleared.Contains(lotOf[i])) kept.Add(PlanBuildings.WithoutContactsFrom(sites[i], gone).WithId(kept.Count));
             }
             return kept.ToArray();
         }
@@ -1072,6 +1077,44 @@ namespace CityX.World.Plan
                 }
                 sites[i] = sites[i].WithContacts(added[i].ToArray());
             }
+        }
+
+        /// <summary>
+        /// Building <paramref name="a"/> with the blank stretches of wall the buildings <paramref name="gone"/> made on it taken off: a building cleared
+        /// from the plan after the walls were blanked (Old Guy's house, the sky hub's landing) left its neighbours blind walls onto nothing.
+        /// </summary>
+        public static BuildingSite WithoutContactsFrom(in BuildingSite a, List<BuildingSite> gone)
+        {
+            if (a.Contacts == null || a.Contacts.Length == 0 || a.OnRoof || a.Sides >= 3 || a.IsOpenGround)
+            {
+                return a;
+            }
+            List<WallContact> made = null;
+            foreach (BuildingSite b in gone)
+            {
+                if (!b.OnRoof && b.Sides < 3 && !b.IsOpenGround)
+                {
+                    PartyWall(a, b, ref made);
+                }
+            }
+            if (made == null)
+            {
+                return a;
+            }
+            var kept = new List<WallContact>(a.Contacts.Length);
+            foreach (WallContact c in a.Contacts)
+            {
+                int same = made.FindIndex(m => m.Wall == c.Wall && m.U0 == c.U0 && m.U1 == c.U1 && m.Top == c.Top);
+                if (same >= 0)
+                {
+                    made.RemoveAt(same);   // each one it made, once
+                }
+                else
+                {
+                    kept.Add(c);
+                }
+            }
+            return kept.Count == a.Contacts.Length ? a : a.WithContacts(kept.ToArray());
         }
 
         /// <summary>The contacts building <paramref name="b"/> makes on the walls of building <paramref name="a"/>, if they stand against each other.</summary>

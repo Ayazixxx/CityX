@@ -54,6 +54,13 @@ namespace CityX.World
         /// the shooter's bullet went through (the bullet itself went its own way, on the shooter's machine).
         /// </summary>
         bool IsGlassAt(Vector3 point) => false;
+
+        /// <summary>The window a point of this surface is on, if it is one (a shot through it does not count it twice).</summary>
+        bool TryPaneKeyAt(Vector3 point, out PaneKey key)
+        {
+            key = default;
+            return false;
+        }
     }
 
     /// <summary>How hard a blow to glass is.</summary>

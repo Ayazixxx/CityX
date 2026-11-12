@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoadGroundTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
         private const int Chunks = 40;
         private const float Step = 0.5f;
 

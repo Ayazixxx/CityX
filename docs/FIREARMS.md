@@ -289,7 +289,7 @@ again 2 cm past it, `DamageKeptPerPane` 0.9; ONE window at most (owner, the same
 damage, the city's wall round a window stops it). `PistolWeapon.Fire` and the Shoota's shot both go through it, and the trail runs to where the
 bullet really ended. Another player's copy of a shot draws its trail on through the same windows without breaking them
 (`IBreakableSurface.IsGlassAt`, `GlassBreaker`): the glass broke on the shooter's machine and reaches everyone as broken glass does
-(docs/MULTIPLAYER_STATE.md). Walls are not penetrated yet (no materials or thickness on them).
+(docs/MULTIPLAYER_STATE.md). Walls are not penetrated yet (no materials or thickness on them). Glass of a window the bullet has just gone through does not count again (`IBreakableSurface.TryPaneKeyAt`): across the room it could meet a surface the window lookup takes for that same window, and one shot made two holes in it (2026-11-11, seed 48398181).
 
 Tests: `GlassPenetrationPlayTests` (10% through a window, a second window takes the bullet and stops it, a wall stops it before or after a window, the trail goes through, a copy of the
 shot only looks), `BulletHolesInRealWindowsPlayTests.ABulletGoesThroughARealWindowIntoTheRoomBehindIt` (a real city window, intact and then

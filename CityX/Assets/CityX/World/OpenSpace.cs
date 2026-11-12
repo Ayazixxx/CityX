@@ -419,7 +419,26 @@ namespace CityX.World
                 {
                     // The piece drawn does not fit the middle of a small or oddly cut square (seed 95998845, block 475): the slimmest, a tower, in its place.
                     SetSpines(2.4);
-                    TryPlace(OpenProp.Tower, _c, _u, 1.6, 1.6, Seed(2), extra: 12.0 + 4.0 * U(0x12), offSpines: false);
+                    focal = TryPlace(OpenProp.Tower, _c, _u, 1.6, 1.6, Seed(2), extra: 12.0 + 4.0 * U(0x12), offSpines: false);
+                }
+                // Nor that, where a way in reaches the middle (seed 48398181, block 702): the tower a little way off it, nearest first.
+                for (double r = 1.5; !focal && r <= 6.0; r += 1.5)
+                {
+                    for (int k = 0; !focal && k < 8; k++)
+                    {
+                        double angle = k * Math.PI * 0.25;
+                        focal = TryPlace(OpenProp.Tower, _c + new Vec2(Math.Cos(angle) * r, Math.Sin(angle) * r), _u, 1.6, 1.6, Seed(2),
+                            extra: 12.0 + 4.0 * U(0x12), offSpines: false);
+                    }
+                }
+                if (!focal)
+                {
+                    // No square with nothing to gather round: plain paving.
+                    Layout.Role = OpenSpaceRole.BareYard;
+                    Layout.KerbBollards = false;
+                    Layout.Pieces.Clear();
+                    BareYard();
+                    return;
                 }
 
                 // A big square is composed by QUADRANTS between its walks (docs/OPEN_SPACE.md: the Dutch square, the sports precinct, the pocket

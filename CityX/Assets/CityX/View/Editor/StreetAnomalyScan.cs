@@ -32,7 +32,7 @@ namespace CityX.ViewEditor
     /// </summary>
     public static class StreetAnomalyScan
     {
-        private const int WorldSeed = 95998845;
+        private const int WorldSeed = 48398181;
 
         /// <summary>Chunks searched each way from the origin.</summary>
         private const int Radius = 45;

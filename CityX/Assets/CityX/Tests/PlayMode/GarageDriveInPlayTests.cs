@@ -21,7 +21,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class GarageDriveInPlayTests
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -84,6 +84,18 @@ namespace CityX.Tests
             return controller;
         }
 
+        /// <summary>The highest paving in front of an opening's middle, from the wall's foot to two metres out (it can rise toward the wall).</summary>
+        private static float HighestPavingOutside(CityWorld world, BuildingSite site, float mid, float front)
+        {
+            double highest = double.MinValue;
+            for (double out_ = 0.2; out_ <= 2.0; out_ += 0.2)
+            {
+                site.LocalToWorld(mid, front + out_, out double x, out double z);
+                highest = System.Math.Max(highest, world.Plan.GroundHeight(x, z));
+            }
+            return (float)(highest + CityX.World.Plan.PlanBuildings.PavingRise);
+        }
+
         private static Vector3 World(BuildingSite site, double localX, double localZ, float y)
         {
             site.LocalToWorld(localX, localZ, out double x, out double z);
@@ -109,9 +121,8 @@ namespace CityX.Tests
             {
                 float mid = (e.X0 + e.X1) * 0.5f;
                 // KNOWN CORNER (docs/SKY_HUB.md, seed 95998845's garage 3317, on a steep hillside): an opening with no road found in front and the paving
-                // outside a metre over the deck. A body on that paving is too tall for it. Not a thing to walk in through; the other opening must be.
-                Vector3 outside = World(site, mid, front + 1.5, 0.0f);
-                if (!e.HasDriveway && world.Plan.GroundHeight(outside.x, outside.z) > e.DeckY + 0.3)
+                // outside over the deck (seed 48398181's garage 262: 0.37 m). A body on that paving is too tall for it. Not a thing to walk in through; the other opening must be.
+                if (!e.HasDriveway && HighestPavingOutside(world, site, mid, front) > e.DeckY + 0.3)
                 {
                     Assert.IsTrue(walkedIn || e.X0 > two[0].X0, "neither of the garage's openings can be walked in through");
                     continue;

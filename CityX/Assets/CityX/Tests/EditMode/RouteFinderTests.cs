@@ -63,7 +63,7 @@ namespace CityX.Tests
         [Test]
         public void InTheRealCityEveryStepOfTheRouteIsARoad()
         {
-            PlanWorld world = PlanWorld.For(95998845);
+            PlanWorld world = PlanWorld.For(48398181);
             CityPlanData plan = world.Data;
             RoadNode from = RouteFinder.Nearest(plan, new Vec2(0.0, 0.0));
             RoadNode to = RouteFinder.Nearest(plan, new Vec2(900.0, -700.0));

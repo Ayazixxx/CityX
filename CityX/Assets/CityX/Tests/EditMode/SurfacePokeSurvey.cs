@@ -18,7 +18,7 @@ namespace CityX.Tests
     [Explicit("a survey, not a test")]
     public sealed class SurfacePokeSurvey
     {
-        private const int Seed = 95998845;
+        private const int Seed = 48398181;
         private const int Radius = 6;
         private const float Step = 0.5f;
 
