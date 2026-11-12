@@ -119,7 +119,8 @@ Shader "CityX/Lit"
             // -------------------------------------
             // Shader Stages
             #pragma vertex LitPassVertex
-            #pragma fragment LitPassFragment
+            #pragma fragment CityXLitPassFragment
+            #pragma shader_feature_local_fragment _BACKCLIP
 
             // -------------------------------------
             // Material Keywords
@@ -190,6 +191,21 @@ Shader "CityX/Lit"
             // URP's UniversalFragmentPBR without.
             #define UniversalFragmentPBR CityXLitFragment
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
+            #include "CityXBackClip.hlsl"
+
+            void CityXLitPassFragment(Varyings input, out half4 outColor : SV_Target0
+            #ifdef _WRITE_RENDERING_LAYERS
+                , out uint outRenderingLayers : SV_Target1
+            #endif
+            )
+            {
+                CityXBackClip(input.positionCS);
+                LitPassFragment(input, outColor
+            #ifdef _WRITE_RENDERING_LAYERS
+                    , outRenderingLayers
+            #endif
+                );
+            }
             #undef UniversalFragmentPBR
             ENDHLSL
         }
@@ -353,7 +369,8 @@ Shader "CityX/Lit"
             // -------------------------------------
             // Shader Stages
             #pragma vertex DepthOnlyVertex
-            #pragma fragment DepthOnlyFragment
+            #pragma fragment CityXDepthOnlyFragment
+            #pragma shader_feature_local_fragment _BACKCLIP
 
             // -------------------------------------
             // Material Keywords
@@ -373,6 +390,13 @@ Shader "CityX/Lit"
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
+            #include "CityXBackClip.hlsl"
+
+            half CityXDepthOnlyFragment(Varyings input) : SV_TARGET
+            {
+                CityXBackClip(input.positionCS);
+                return DepthOnlyFragment(input);
+            }
             ENDHLSL
         }
 
@@ -396,7 +420,8 @@ Shader "CityX/Lit"
             // -------------------------------------
             // Shader Stages
             #pragma vertex DepthNormalsVertex
-            #pragma fragment DepthNormalsFragment
+            #pragma fragment CityXDepthNormalsFragment
+            #pragma shader_feature_local_fragment _BACKCLIP
 
             // -------------------------------------
             // Material Keywords
@@ -423,6 +448,21 @@ Shader "CityX/Lit"
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitDepthNormalsPass.hlsl"
+            #include "CityXBackClip.hlsl"
+
+            void CityXDepthNormalsFragment(Varyings input, out half4 outNormalWS : SV_Target0
+            #ifdef _WRITE_RENDERING_LAYERS
+                , out uint outRenderingLayers : SV_Target1
+            #endif
+            )
+            {
+                CityXBackClip(input.positionCS);
+                DepthNormalsFragment(input, outNormalWS
+            #ifdef _WRITE_RENDERING_LAYERS
+                    , outRenderingLayers
+            #endif
+                );
+            }
             ENDHLSL
         }
 

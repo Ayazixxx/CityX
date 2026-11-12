@@ -512,6 +512,7 @@ namespace CityX.UIEditor
             if (existing != null)
             {
                 CityX.Core.LitShader.MakeMatte(existing);
+                existing.EnableKeyword(CityX.Items.BackClip.Keyword);   // tucked under what is slung on the back
                 EditorUtility.SetDirty(existing);
                 return existing;
             }
@@ -529,6 +530,7 @@ namespace CityX.UIEditor
                 material.SetColor("_Color", CharacterHair.HairColour);
             }
             CityX.Core.LitShader.MakeMatte(material);
+            material.EnableKeyword(CityX.Items.BackClip.Keyword);   // tucked under what is slung on the back (Items/BackClip)
             AssetDatabase.CreateAsset(material, path);
             return material;
         }

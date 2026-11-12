@@ -143,7 +143,12 @@ namespace CityX.WeaponsEditor
                 var box = held.AddComponent<BoxCollider>();
                 box.center = new Vector3(0.0f, 0.0f, 1.0f);
                 box.size = new Vector3(0.6f, GiantShape.Thickness * 2.0f, 2.4f);
-                held.AddComponent<GiantBoomerangItem>();
+                var item = held.AddComponent<GiantBoomerangItem>();
+                // Its outline in the carried frame, for the hair it lies over on the back (Items/BackClip): a V from tip to elbow to tip, as wide as its middle.
+                Vector3 OnIt(float s) => turn * (AlongTheV(GiantShape, s) - AlongTheV(GiantShape, GiantGripAt));
+                Vector3 tipA = OnIt(-1.0f), elbow = OnIt(0.0f), tipB = OnIt(1.0f);
+                item.OutlineTipAndElbow = new Vector4(tipA.x, tipA.z, elbow.x, elbow.z);
+                item.OutlineTipWidthDepth = new Vector4(tipB.x, tipB.z, GiantShape.WidthAtElbow * 0.5f, GiantShape.Thickness * 0.5f);
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(held, GiantPrefabPath);
                 AssetDatabase.SaveAssets();
                 return saved;

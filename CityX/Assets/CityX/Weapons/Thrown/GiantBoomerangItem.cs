@@ -35,6 +35,12 @@ namespace CityX.Weapons
         /// <summary>The child that holds the model, set off from the grip (BoomerangBuilder.BuildGiant).</summary>
         public const string ModelName = "Model";
 
+        [Tooltip("Its outline in its own frame (the grip at the origin, z along it, y out of its face), for the hair it lies over (BackClip): one tip x, z and the elbow x, z. Set by BoomerangBuilder.")]
+        public Vector4 OutlineTipAndElbow;
+
+        [Tooltip("The other tip x, z, each arm's half width and half its thickness. Set by BoomerangBuilder.")]
+        public Vector4 OutlineTipWidthDepth;
+
         private BoomerangThrower _thrower;
         private GameObject _body;
         private bool _inHand;
@@ -159,6 +165,15 @@ namespace CityX.Weapons
                 part.enabled = !out_;
             }
             bool inHand = _thrower != null && _thrower.GiantMoves.InHand;
+            // On the back and there to be seen, the hair under it is tucked beneath it (BackClip); in the hand or in the air, nothing is.
+            if (!inHand && !out_ && _body != null)
+            {
+                BackClip.Show(transform, OutlineTipAndElbow, OutlineTipWidthDepth);
+            }
+            else
+            {
+                BackClip.Hide(transform);
+            }
             if ((!anew && inHand == _inHand) || _body == null)
             {
                 return;
@@ -210,6 +225,7 @@ namespace CityX.Weapons
 
         private void OnDestroy()
         {
+            BackClip.Hide(transform);
             if (_thrower != null)
             {
                 _thrower.OutChanged -= Show;

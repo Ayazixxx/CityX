@@ -127,12 +127,14 @@ namespace CityX.Tests
             yield return null;
             Assert.AreEqual(Bone(player, HumanBodyBones.Spine), item.transform.parent, "it is not carried on the back");
             Assert.Less(item.transform.position.z, player.transform.position.z, "it is not behind the body");
+            Assert.AreEqual(1, BackClip.Count, "on the back, the hair under it is not tucked beneath it");
 
             thrower.SetGiantAiming(true);
             yield return Wait(0.6f);
             Assert.AreEqual(GiantBoomerangPoseDriver.Move.Aiming, thrower.GiantMoves.Current, "it was not drawn into the aim");
             Assert.AreEqual(Bone(player, HumanBodyBones.RightHand), item.transform.parent, "drawn into the aim, it is not in the hand");
             Assert.Greater(player.GetComponent<PlayerLocomotion>().BakedPoseWeight, 0.99f, "the aim is not on the body");
+            Assert.AreEqual(0, BackClip.Count, "in the hand, it still hides the hair behind the back");
 
             thrower.SetGiantAiming(false);
             yield return Wait(0.6f);
