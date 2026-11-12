@@ -27,6 +27,7 @@ How it lines up with what is already planned (not yet discussed with the owner):
 
 ## Servers
 
+- **America and the West first** (owner, 2026-11-12): one world, its servers placed for players in the Americas and Europe; regional servers (China especially) are for later.
 - **Official servers only.** No player-hosted or player-created worlds (decided 2026-10-08).
 - **Launch: one server** in the region where most players are. Add regions when a real crowd appears elsewhere. Aim, long term: one big world.
 - **Path to one big world:** each zone layer can later run on its own server machine (EVE runs each solar system on its own node); the gates between zones are the handover points. This only works if character saving is a **shared database any server can read**, never state held inside one server.
