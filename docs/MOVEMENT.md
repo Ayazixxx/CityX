@@ -85,6 +85,12 @@ head and legs are inside it, the arms reach past it, further as they swing.
   narrower than its arms (1.16 m against 1.25 m), and an arm on the corner of an opening pushed it back out.
 - A wall walked along is remembered (`WallStandoff`): the body is kept as far off as its widest swing needed and let back at 2 cm a second;
   kept off by each frame's arms alone it went in and out 13 cm a stride. Forgotten 1.2 s after the last touch, or once 0.3 m clear.
+- A remembered wall is a plane with no end, so it is also forgotten once it is ahead of the body or behind it (only a wall beside the
+  body is held, as only a contact beside it is taken) and once nothing of the world is left within the arms' reach on its side (an
+  overlap at the arms' height, `WallStillBeside`). Without that (owner, 2026-11-12: "walking up this staircase is super glitchy and barely
+  works"), a body sprinting up a roof stair beside the rail between its lanes turned at the landing to cross past the rail's end, was held
+  there by the rail it had left, then pushed back down the flight at 15 m/s; it never reached the roof
+  (`RoofStairWalkPlayTests`: now walked, sprinted and sidestepped up with no stall).
 - Two walls pushing opposite ways (a gap narrower than the arms) push it neither way (`WallClearance.Combined`).
 - The push is not the body's own going: the lean does not count it (counted, it swung the shoulders out further, 19 cm off between two
   walls that should not have moved it).

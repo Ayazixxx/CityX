@@ -43,6 +43,33 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Forgets the walls now ahead of the body or behind it (a wall's way out within <paramref name="headOnDot"/> of <paramref name="ahead"/>,
+        /// either way): only a wall beside the body is held, as only a contact beside it is taken. A wall is remembered as a plane with no end,
+        /// and a body that turned past the end of one walked into it: up a stair's flight beside the rail between its two lanes, it turned at
+        /// the landing to cross past the rail's end and was held there, then pushed back down the flight (owner, 2026-11-12: "walking up this
+        /// staircase is super glitchy and barely works").
+        /// </summary>
+        public void ForgetAheadAndBehind(Vector3 ahead, float headOnDot)
+        {
+            ahead.y = 0.0f;
+            if (ahead.sqrMagnitude < 1e-8f)
+            {
+                return;
+            }
+            ahead.Normalize();
+            _walls.RemoveAll(wall => Mathf.Abs(Vector3.Dot(wall.Out, ahead)) > headOnDot);
+        }
+
+        /// <summary>
+        /// Forgets the walls no longer there beside the body (<paramref name="stillBeside"/>, asked with each wall's way out): a body that sidesteps
+        /// past a rail's end is let go at once, not held by the rail it has left behind.
+        /// </summary>
+        public void ForgetUnless(System.Predicate<Vector3> stillBeside)
+        {
+            _walls.RemoveAll(wall => !stillBeside(wall.Out));
+        }
+
+        /// <summary>
         /// With the body's root at <paramref name="root"/> and this frame's contacts (each the way out of a wall and how far), how far it must
         /// go along each remembered wall's way out: written into <paramref name="needs"/>, returning how many.
         /// </summary>

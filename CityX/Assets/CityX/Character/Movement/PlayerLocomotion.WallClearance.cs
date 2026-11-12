@@ -92,6 +92,11 @@ namespace CityX.Character
                 return;
             }
             int contacts = BesideTheBody(_wallRagdoll.WallContacts(_wallContacts));
+            _standoff.ForgetAheadAndBehind(transform.forward, HeadOnDot);
+            if (_standoff.Count > 0)
+            {
+                _standoff.ForgetUnless(_wallStillBeside ??= WallStillBeside);
+            }
             int needs = _standoff.Needs(transform.position, _wallContacts, contacts, _lastTickDeltaTime, BodyScale, _wallNeeds);
             Vector3 push = Vector3.ClampMagnitude(WallClearance.Combined(_wallNeeds, needs, SqueezeDot), MostOutOfWallsPerStep * BodyScale);
             if (push.sqrMagnitude > 1e-8f)
@@ -103,6 +108,33 @@ namespace CityX.Character
                 // that should not have moved it at all).
                 _leanLastPosition += transform.position - before;
             }
+        }
+
+        /// <summary>
+        /// Where the arms and the head can reach out to one side, as a share of the body's height: from the hands hanging down to over the head,
+        /// and out from the body's middle (its middle's distance, and the reach either side of it).
+        /// </summary>
+        private const float ReachLow = 0.4f, ReachHigh = 0.85f, ReachOut = 0.22f, ReachAround = 0.13f;
+
+        private System.Predicate<Vector3> _wallStillBeside;
+        private static readonly Collider[] BesideHits = new Collider[16];
+
+        /// <summary>Whether anything of the world is still within the arms' reach on the side a wall's way out (<paramref name="wayOut"/>) points from.</summary>
+        private bool WallStillBeside(Vector3 wayOut)
+        {
+            float height = WorldHeight;
+            Vector3 side = transform.position - wayOut * (ReachOut * height);
+            int hits = Physics.OverlapCapsuleNonAlloc(side + Vector3.up * (ReachLow * height), side + Vector3.up * (ReachHigh * height),
+                ReachAround * height, BesideHits, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hits; i++)
+            {
+                Collider c = BesideHits[i];
+                if (c.attachedRigidbody == null && !(c is CharacterController) && !c.transform.IsChildOf(transform))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

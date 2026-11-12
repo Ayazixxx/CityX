@@ -468,16 +468,13 @@ namespace CityX.View
 
         /// <summary>
         /// A street stair (World/Footbridges.StreetStair): its flights of steps and landings down along the wall from the bridge to the paving, a
-        /// rail along each open side (between a tower's two lanes, along its outer side, round its landings' open ends), and posts down to the ground
-        /// under each flight's middle and each landing's outer corners.
+        /// rail along each open side (between a tower's two lanes, along its outer side, round its landings' open ends), and its posts down to the
+        /// ground (World/StairPosts).
         /// </summary>
         private static void DrawStreetStair(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, StreetStair stair, BridgeRail rail,
             BridgeLooks looks, bool far)
         {
             float half = stair.Width * 0.5f;
-            Vector3 outward = BridgeLocalDirection(site, stair.Out);
-            var posts = new System.Collections.Generic.List<Vector3>();   // world: x, the underside's height, z
-
             foreach (StairFlight f in stair.Flights)
             {
                 Vector3 p = BridgeLocal(site, origin, f.From), q = BridgeLocal(site, origin, f.To);
@@ -486,10 +483,6 @@ namespace CityX.View
                 AddFlight(buffer, p + left, p - left, q - left, q + left, f.Risers, looks, far);
                 if (f.RailLeft) AddBridgeRail(buffer, rail, p + left, q + left, -LeftOf(dir), looks, far, true);
                 if (f.RailRight) AddBridgeRail(buffer, rail, p - left, q - left, LeftOf(dir), looks, far, true);
-                // A post under the flight's middle on its open edge (away from the wall).
-                Vector3 mid = (f.From + f.To) * 0.5f;
-                Vector2 o = stair.Out * (half - 0.15f);
-                posts.Add(new Vector3(mid.x + o.x, Mathf.Min(f.From.y, f.To.y) - Footbridges.DeckThickness, mid.z + o.y));
             }
 
             foreach (StairLanding l in stair.Landings)
@@ -502,23 +495,14 @@ namespace CityX.View
                 if (l.RailPlus) AddBridgeRail(buffer, rail, b, cc, -alongDir, looks, far, true);
                 if (l.RailMinus) AddBridgeRail(buffer, rail, a, d, alongDir, looks, far, true);
                 if (l.RailOut) AddBridgeRail(buffer, rail, d, cc, -outDir, looks, far, true);
-                // Posts under its two outer corners, unless it lies on the paving (the foot).
-                foreach (float s in new[] { -1.0f, 1.0f })
-                {
-                    Vector2 corner = new Vector2(l.Centre.x, l.Centre.z) + l.Along * (s * (l.HalfAlong - 0.15f)) + l.Out * (l.HalfOut - 0.15f);
-                    posts.Add(new Vector3(corner.x, l.Centre.y - Footbridges.DeckThickness, corner.y));
-                }
             }
 
             buffer.Look = looks.Pier;
-            float post = stair.Switchback ? 0.12f : 0.1f;
-            foreach (Vector3 p in posts)
+            foreach (StairPost post in StairPosts.Of(world, stair))
             {
-                float ground = (float)world.Plan.GroundHeight(p.x, p.z) - 0.3f;
-                if (p.y - ground < 0.9f) continue;   // on the paving: no post
-                Vector3 local = BridgeLocal(site, origin, p);
-                float groundLocal = ground - origin.y;
-                buffer.AddBox(new Vector3(local.x - post, groundLocal, local.z - post), new Vector3(local.x + post, local.y, local.z + post));
+                Vector3 local = BridgeLocal(site, origin, new Vector3(post.X, post.Top, post.Z));
+                float h = post.Half;
+                buffer.AddBox(new Vector3(local.x - h, post.Bottom - origin.y, local.z - h), new Vector3(local.x + h, local.y, local.z + h));
             }
         }
 

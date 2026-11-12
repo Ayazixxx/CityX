@@ -195,6 +195,9 @@ namespace CityX.Character
 
         public const float HideBodyWithin = 0.95f;
 
+        /// <summary>A hit this near a stair's post is on the post, metres (the spring arm's sphere touches its faces).</summary>
+        private const float StairPostMargin = 0.05f;
+
         private readonly List<Renderer> _bodyRenderers = new List<Renderer>();
         private readonly List<UnityEngine.Rendering.ShadowCastingMode> _bodyShadows = new List<UnityEngine.Rendering.ShadowCastingMode>();
         private bool _bodyHidden;
@@ -854,6 +857,10 @@ namespace CityX.Character
                 if (hit.transform.IsChildOf(Target) || hit.transform == Target || hit.collider.GetComponentInParent<ICameraPassesThrough>() != null)
                 {
                     continue;   // its own body, and what the camera goes through as if it were air (the Wraith)
+                }
+                if (CityX.World.StairPosts.IsPostAt(CityX.World.CurrentWorld.Instance, hit.point, StairPostMargin))
+                {
+                    continue;   // a post under an outside stair (owner, 2026-11-12: "the camera should ignore the support beams")
                 }
                 // A zero distance means the sphere began already overlapping,
                 // which carries no useful direction information.

@@ -282,6 +282,12 @@ both at each end, rails, posts to the ground), with a landing at the top outside
   two parts either side of the opening (`AddParapetSide`), a cornice stops either side of it too (`AddBand`'s gap: across the opening it
   was a bar across a doorway), the roof's plant keeps off the roof just inside it, and what hangs on the wall (piers, fins, signs,
   air conditioners) keeps clear of the tower as it does of a bridge's stair (`Footbridges.ClearingsOn`).
+- **The posts** (`World/StairPosts`, 2026-11-12; owner: "walking up this staircase is super glitchy and barely works", "the camera should
+  ignore the support beams"): a post under each flight's middle and each landing's outer corners went from the ground up through every
+  flight and landing under it, so a tower's steps had columns standing in them, and a body stuck on them. A tower's posts now stand just
+  outside its open side, one column from the ground to the highest landing in each place, and none stands in a flight or a landing at
+  any height (a straight run's are as they were: nothing is under it). The following camera goes through them as through air
+  (`StairPosts.IsPostAt`, from the world's own plan: no collider of their own). Tests: `StairPostsTests`, `RoofStairWalkPlayTests`.
 - **Not yet**: doors from the tower's landings into the floors it passes (the plan's "a landing at every floor with a door into that
   floor's corridor": the flights are 3.96 m, a storey is 3.2 m, so the landings do not meet the floors as they are); stairs on the towers
   over 60 m (they would need those doors to go anywhere); the windows behind a tower are left as they are.

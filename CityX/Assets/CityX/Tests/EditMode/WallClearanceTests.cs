@@ -54,6 +54,37 @@ namespace CityX.Tests
             Assert.AreEqual(0, standoff.Count);
         }
 
+        /// <summary>
+        /// Up a stair's flight beside the rail between its lanes, the body turned at the landing to cross past the rail's end: the rail, remembered
+        /// as a wall with no end, held it there and threw it back down the flight (owner, 2026-11-12: "super glitchy and barely works").
+        /// </summary>
+        [Test]
+        public void AWallNowAheadOrBehindTheBodyIsForgotten()
+        {
+            var standoff = new WallStandoff();
+            var needs = new Vector3[4];
+            // Going up +z, the rail on the left: its way out is +x.
+            standoff.Needs(Vector3.zero, new[] { new Vector3(0.1f, 0, 0) }, 1, 0.0f, 1.0f, needs);
+            standoff.ForgetAheadAndBehind(Vector3.forward, 0.8f);
+            Assert.AreEqual(1, standoff.Count, "a wall beside the body was forgotten");
+            // Turned to the left at the landing: the rail is straight ahead.
+            standoff.ForgetAheadAndBehind(Vector3.left, 0.8f);
+            Assert.AreEqual(0, standoff.Count, "a wall straight ahead is still held");
+        }
+
+        [Test]
+        public void AWallNoLongerBesideTheBodyIsForgotten()
+        {
+            var standoff = new WallStandoff();
+            var needs = new Vector3[4];
+            standoff.Needs(Vector3.zero, new[] { new Vector3(0.1f, 0, 0), new Vector3(0, 0, -0.1f) }, 2, 0.0f, 1.0f, needs);
+            // Sidestepped past the end of the one whose way out is +x; the other is still there.
+            standoff.ForgetUnless(wayOut => wayOut.x < 0.5f);
+            Assert.AreEqual(1, standoff.Count);
+            Assert.AreEqual(1, standoff.Needs(Vector3.zero, new Vector3[0], 0, 0.0f, 1.0f, needs));
+            Assert.AreEqual(-0.1f, needs[0].z, 1e-4f, "the wall still beside the body is not the one kept");
+        }
+
         [Test]
         public void AWallTheBodyWalksAwayFromIsForgotten()
         {
