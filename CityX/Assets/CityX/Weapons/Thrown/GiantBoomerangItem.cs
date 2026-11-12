@@ -168,15 +168,6 @@ namespace CityX.Weapons
                 part.enabled = !out_;
             }
             bool inHand = _thrower != null && _thrower.GiantMoves.InHand;
-            // On the back and there to be seen, the hair under it is tucked beneath it (BackClip); in the hand or in the air, nothing is.
-            if (!inHand && !out_ && _body != null)
-            {
-                BackClip.Show(transform, OutlineTipAndElbow, OutlineTipWidthDepth, OutlineTipHalfWidth);
-            }
-            else
-            {
-                BackClip.Hide(transform);
-            }
             if ((!anew && inHand == _inHand) || _body == null)
             {
                 return;
@@ -216,6 +207,18 @@ namespace CityX.Weapons
 
         private void LateUpdate()
         {
+            // The hair under it is tucked beneath it only while it lies settled on the back: the moment the hand takes it, or as it glides back on, the hair
+            // is whole again (owner, 2026-11-12: "when you throw it, the hair returns to normal and isnt cropped as you pull the boomerang away"). Asked
+            // every frame, so no move can leave the hair cut.
+            bool onTheBack = _body != null && !_inHand && _handOver <= 0.0f && (_thrower == null || (!_thrower.IsOut && !_thrower.GiantMoves.InHand));
+            if (onTheBack)
+            {
+                BackClip.Show(transform, OutlineTipAndElbow, OutlineTipWidthDepth, OutlineTipHalfWidth);
+            }
+            else
+            {
+                BackClip.Hide(transform);
+            }
             if (_handOver <= 0.0f)
             {
                 return;
