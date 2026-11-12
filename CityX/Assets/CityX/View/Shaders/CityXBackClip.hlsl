@@ -44,7 +44,9 @@ void CityXBackClip(float4 positionCS)
         }
         float3 p = mul(_BackClipToBoard[i], float4(world, 1.0)).xyz;
         float4 a = _BackClipVeeA[i], b = _BackClipVeeB[i], e = _BackClipEdge[i];
-        if (p.y > -b.w && p.y < b.w + e.y)
+        // Only what reaches its outer face (a fifth of its thickness out from its middle: the blade thins toward its edges): hair into it and under it is drawn, the board hiding
+        // it, so no scalp shows past its edge (owner, 2026-11-12: "make the hair clipped some amount into the boomerang ... but no so far that i comes out").
+        if (p.y > b.w * 0.2 && p.y < b.w + e.y)
         {
             float inside = max(CityXBackClipInArm(p.xz, a.xy, a.zw, b.z, e.x), CityXBackClipInArm(p.xz, b.xy, a.zw, b.z, e.x));
             clip(-inside);
