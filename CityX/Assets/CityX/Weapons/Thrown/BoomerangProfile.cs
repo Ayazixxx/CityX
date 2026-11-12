@@ -59,8 +59,8 @@ namespace CityX.Weapons
 
         public const float BackTopSpeed = 24.0f;
 
-        /// <summary>It is caught this near the thrower's chest: it is 2.6 m across.</summary>
-        public const float CatchMetres = 1.8f;
+        /// <summary>It is caught with its middle this near the catching hand: held near one end, its middle is a metre out from the fist (BoomerangThrower.GiantMiddleFromHand).</summary>
+        public const float CatchMetres = 1.0f;
 
         /// <summary>A body this near its path is hit: about its half span less its thin tips.</summary>
         public const float HitRadius = 1.1f;

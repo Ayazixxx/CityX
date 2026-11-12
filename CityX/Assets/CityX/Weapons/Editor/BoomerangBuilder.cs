@@ -132,7 +132,7 @@ namespace CityX.WeaponsEditor
                 PrefabUtility.SaveAsPrefabAsset(thrown, ThrownGiantPrefabPath);
 
                 // Carried by its grip: the model moved so the grip is the origin, its length from there toward the elbow along +z, its flat face +y.
-                var model = new GameObject("Model");
+                var model = new GameObject(GiantBoomerangItem.ModelName);
                 model.transform.SetParent(held.transform, false);
                 Vector3 grip = AlongTheV(GiantShape, GiantGripAt) - middle;
                 Vector3 towardElbow = (AlongTheV(GiantShape, 0.0f) - AlongTheV(GiantShape, GiantGripAt)).normalized;

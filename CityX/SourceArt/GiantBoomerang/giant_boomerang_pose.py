@@ -3,8 +3,11 @@
 # away". Three clips, all thrown right-handed, side-arm and flat, the boomerang held near its upper end:
 #   * giant_draw: the right hand goes up over the right shoulder to the grip on the back, pulls it off, and comes to the aim (its last frame is the aim held);
 #   * giant_throw_aimed: from the aim, the hips, the shoulders and the arm unwind, the arm sweeps it round flat at shoulder height and lets it go in front;
-#   * giant_throw_quick: from standing, over the shoulder for it and round into the throw in one go.
-# The grab and the release are moments the game keeps in step with these (GiantBoomerangMoves: GrabShare, ReleaseShare, Seconds).
+#   * giant_throw_quick: from standing, over the shoulder for it and round into the throw in one go;
+#   * giant_catch (owner, 2026-11-12: "on the return of the boomerang ... he actually catches it and puts it back or just holds it in his hand if you holding right
+#     click"): the right hand out ahead and to the right for it as it comes in, the arm and the body giving with its weight, and on round into the aim; from there the game holds
+#     the aim or plays the draw backward to put it on the back.
+# The grab, the release and the catch are moments the game keeps in step with these (GiantBoomerangMoves: its Seconds constants).
 #
 # Needs the rig (../Octaslash/octaslash_rig.py), octaslash_pose.py's solver (with OCTASLASH_NO_BAKE set), ../planted_feet.py and ../FistCombo/fist_pose.py (its key, sample, eased,
 # and body_pose) loaded first; giant_boomerang_build.py does all of it.
@@ -71,8 +74,23 @@ MOVES = {
         "lead": [(0.12, 0.34, (-0.26, 0.24), 0.08), (0.66, 0.84, STANCE_LEAD, 0.06)],
         "rear": [(0.40, 0.55, (STANCE_X + 0.02, -0.04), 0.03), (0.62, 0.80, STANCE_REAR, 0.05)],
     },
+    "giant_catch": {
+        "seconds": 0.60,
+        "keys": [
+            (0.00, READY, None),
+            # Out for it, the hand open ahead and to the right at shoulder height, the body turned a little toward it.
+            (0.30, key((0.62, 1.98, 0.78), (-0.36, 1.40, 0.30), twist=-12.0, hips=-4.0, lean=3.0, tilt=0.0, drop=0.09,
+                       fist_pole=(0.7, -0.8, -0.2), off_pole=(-0.6, -1.0, 0.0)), "smooth"),
+            # Caught: the arm gives with its weight, back and round past the shoulder, the body turning with it.
+            (0.55, key((0.84, 2.02, 0.05), (-0.30, 1.60, 0.60), twist=24.0, hips=10.0, lean=-4.0, tilt=2.0, drop=0.11, shift=(0.02, -0.03),
+                       fist_pole=(0.7, -0.6, -0.6), off_pole=(-0.6, -1.0, 0.0)), "slow_in"),
+            (1.00, AIM, "smooth"),
+        ],
+        "lead": [(0.40, 0.70, (-0.26, 0.24), 0.06)],
+        "rear": [],
+    },
 }
-ORDER_OF_MOVES = ("giant_draw", "giant_throw_aimed", "giant_throw_quick")
+ORDER_OF_MOVES = ("giant_draw", "giant_throw_aimed", "giant_throw_quick", "giant_catch")
 
 
 def move_pose(move, t01, stats):
@@ -102,8 +120,8 @@ def bake_moves():
     for name in ORDER_OF_MOVES:
         move = MOVES[name]
         frames = int(round(move["seconds"] * FPS))
-        # The draw's last frame is the aim held: it is baked onto it, not one short of it.
-        last_share = 1.0 if name == "giant_draw" else None
+        # The draw's and the catch's last frames are the aim itself: baked onto it, not one short of it.
+        last_share = 1.0 if name in ("giant_draw", "giant_catch") else None
         scene.timeline_markers.new(name, frame=start)
         stats = {"reach": 0.0}
         tightest_knee = 180.0

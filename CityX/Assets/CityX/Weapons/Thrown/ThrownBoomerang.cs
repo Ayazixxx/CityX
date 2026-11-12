@@ -22,6 +22,9 @@ namespace CityX.Weapons
         /// <summary>The giant one's tip: nearly flat, a blade cutting the air at chest height.</summary>
         public const float GiantTiltDegrees = 8.0f;
 
+        /// <summary>The giant one going away again this near the catching hand has gone past it: caught, metres.</summary>
+        public const float PassedTheHandMetres = 2.5f;
+
         private const float WhirrVolume = 0.55f;
         private const float HitVolume = 0.8f;
 
@@ -55,6 +58,15 @@ namespace CityX.Weapons
 
         /// <summary>Raised as it goes, caught or lost.</summary>
         public event System.Action Gone;
+
+        /// <summary>The giant one, a moment (GiantBoomerangMoves.CatchSeconds) before it is home: the hand goes out for it.</summary>
+        public event System.Action ComingIn;
+
+        /// <summary>It got home (not lost).</summary>
+        public bool Caught { get; private set; }
+
+        private Transform _catchingHand;
+        private bool _comingIn;
 
         public static ThrownBoomerang Spawn(GameObject prefab, Vector3 from, Vector3 way, float speed, GameObject thrower, float damage, float penetration, bool copy)
         {
@@ -91,6 +103,12 @@ namespace CityX.Weapons
             }
             float deltaTime = Time.deltaTime;
             Vector3 home = HomeOf(_thrower);
+            if (_profile.Heavy && _flight.Returning && !_comingIn
+                && Vector3.Distance(home, _flight.Position) - _profile.CatchMetres <= _flight.Velocity.magnitude * GiantBoomerangMoves.CatchSeconds)
+            {
+                _comingIn = true;
+                ComingIn?.Invoke();
+            }
             Vector3 before = _flight.Position;
             _flight.Step(deltaTime, home);
             if (!IsCopy)
@@ -103,8 +121,12 @@ namespace CityX.Weapons
             {
                 Spinner.localRotation = Quaternion.AngleAxis(_spin, Vector3.up);
             }
-            if (_flight.Arrived(home) || _flight.Lost(home))
+            // The giant one steers for a hand that moves out to meet it: one that comes close and starts away again has passed the hand, and is caught.
+            bool caught = _flight.Arrived(home) || (_profile.Heavy && _flight.Returning && Vector3.Distance(home, _flight.Position) < PassedTheHandMetres
+                && Vector3.Dot(_flight.Velocity, home - _flight.Position) < 0.0f);
+            if (caught || _flight.Lost(home))
             {
+                Caught = caught;
                 Finish();
             }
         }
@@ -119,20 +141,34 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>It is gone now, wherever it is.</summary>
-        public void Finish()
+        /// <summary>It is gone now, wherever it is: <paramref name="caught"/> if its thrower caught it (an owner's word reaching their copy).</summary>
+        public void Finish(bool caught = false)
         {
             if (_done)
             {
                 return;
             }
             _done = true;
+            Caught |= caught;
             Gone?.Invoke();
             Destroy(gameObject);
         }
 
-        private static Vector3 HomeOf(GameObject thrower)
+        /// <summary>Where it steers for: the thrower's chest, or for the giant one the hand that catches it.</summary>
+        private Vector3 HomeOf(GameObject thrower)
         {
+            if (_profile.Heavy)
+            {
+                if (_catchingHand == null)
+                {
+                    Animator animator = thrower.GetComponentInChildren<Animator>();
+                    _catchingHand = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
+                }
+                if (_catchingHand != null)
+                {
+                    return _catchingHand.position;
+                }
+            }
             var locomotion = thrower.GetComponent<PlayerLocomotion>();
             float height = locomotion != null ? locomotion.WorldHeight : BodyRig.StandingHeight;
             return thrower.transform.position + Vector3.up * (height * 0.6f);

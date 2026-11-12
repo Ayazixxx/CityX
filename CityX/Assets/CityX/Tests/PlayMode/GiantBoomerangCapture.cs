@@ -68,9 +68,18 @@ namespace CityX.Tests
             yield return Shoot(camera, "giantrang-air-behind", body + new Vector3(0.87f, 2.8f, -4.5f), at);
             at = thrower.Flying.transform.position;
             yield return Shoot(camera, "giantrang-air-side", at + new Vector3(6.0f, 1.0f, 0.0f), at);
+            // The catch: the hand out for it as it comes in, the moment it is caught, the arm giving with it, and put back on the back.
+            for (float t = 0.0f; t < 8.0f && thrower.IsOut && !thrower.GiantMoves.IsCatching; t += Time.deltaTime) yield return null;
+            Assert.IsTrue(thrower.GiantMoves.IsCatching, "the hand never went out for it");
+            yield return Shoot(camera, "giantrang-catch-reach-game", body + new Vector3(0.87f, 2.9f, -5.0f), body + new Vector3(0.0f, 1.9f, 2.0f));
             for (float t = 0.0f; t < 8.0f && thrower.IsOut; t += Time.deltaTime) yield return null;
             Assert.IsFalse(thrower.IsOut, "it never came back");
-            yield return Frames(0.4f);
+            yield return Views(camera, "giantrang-catch-caught", body);
+            yield return Frames(0.2f);
+            yield return Views(camera, "giantrang-catch-give", body);
+            yield return Frames(0.5f);
+            yield return Views(camera, "giantrang-catch-putting-away", body);
+            yield return Frames(0.6f);
             yield return Views(camera, "giantrang-caught", body);
 
             // The quick throw straight off the back.

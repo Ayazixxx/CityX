@@ -9,7 +9,8 @@ namespace CityX.Weapons
     /// copy flies the same way, hurting no one, and their copy of this body has an empty hand until then.
     ///
     /// THE GIANT BOOMERANG is thrown through its moves (<see cref="GiantBoomerangPoseDriver"/>): right-click draws it off the back into the aim
-    /// (<see cref="SetGiantAiming"/>), a click starts the throw (<see cref="StartGiantThrow"/>), and it leaves the hand when the move lets it go. Other
+    /// (<see cref="SetGiantAiming"/>), a click starts the throw (<see cref="StartGiantThrow"/>), and it leaves the hand when the move lets it go. Coming
+    /// home, the hand goes out for it a moment before it arrives (ThrownBoomerang.ComingIn) and it is caught: on every screen alike, from each one's own flight. Other
     /// players are told of the aim, of the throw starting and of the release, so their copy of this body draws, aims and throws it too.
     /// </summary>
     public sealed class BoomerangThrower : MonoBehaviour, IReplicatedAbility
@@ -18,7 +19,7 @@ namespace CityX.Weapons
 
         /// <summary>
         /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the hand, Direction its way, A its speed, N 1 for the giant one), TurnedBack (A 1 if a
-        /// person did it), Caught, GiantAim (A 1 drawn into the aim, 0 put away) and GiantThrowStarted.
+        /// person did it), Caught (A 1 if it got home, 0 if lost), GiantAim (A 1 drawn into the aim, 0 put away) and GiantThrowStarted.
         /// </summary>
         public const int Thrown = 0;
 
@@ -53,6 +54,9 @@ namespace CityX.Weapons
         private Vector3 _pendingWay;
         private float _pendingDamage;
         private float _pendingPenetration;
+        private bool _hasCatchPose;
+        private Vector3 _catchPosition;
+        private Quaternion _catchRotation;
 
         /// <summary>A boomerang of this body's is in the air.</summary>
         public bool IsOut => _flying != null;
@@ -96,11 +100,11 @@ namespace CityX.Weapons
         /// <summary>Right-click held or let go with the Giant Boomerang: it is drawn into the aim, or put back.</summary>
         public void SetGiantAiming(bool aiming)
         {
-            if (aiming == GiantAiming || (aiming && IsOut))
+            if (aiming == GiantMoves.AimHeld)
             {
                 return;
             }
-            GiantMoves.Aim(aiming);
+            GiantMoves.Aim(aiming);   // remembered while it is out or being caught: the catch goes on into the aim if right-click is held
             Fired?.Invoke(new AbilityEvent(GiantAim, transform.position, Vector3.zero, aiming ? 1.0f : 0.0f));
         }
 
@@ -161,7 +165,7 @@ namespace CityX.Weapons
                 return null;
             }
             boomerang.TurnedBack += person => Fired?.Invoke(new AbilityEvent(TurnedBack, boomerang.transform.position, Vector3.zero, person ? 1.0f : 0.0f));
-            boomerang.Gone += () => Fired?.Invoke(new AbilityEvent(Caught, transform.position, Vector3.zero));
+            boomerang.Gone += () => Fired?.Invoke(new AbilityEvent(Caught, transform.position, Vector3.zero, boomerang.Caught ? 1.0f : 0.0f));
             Fired?.Invoke(new AbilityEvent(Thrown, from, way.normalized, speed, 0.0f, giant ? 1 : 0));
             return boomerang;
         }
@@ -190,7 +194,7 @@ namespace CityX.Weapons
                 case Caught:
                     if (_flying != null)
                     {
-                        _flying.Finish();
+                        _flying.Finish(evt.A > 0.5f);
                     }
                     break;
                 case GiantAim:
@@ -213,6 +217,11 @@ namespace CityX.Weapons
             _flying = boomerang;
             _thrownAt = Time.time;
             boomerang.Gone += () => Landed(boomerang);
+            if (giant)
+            {
+                GiantMoves.Out = true;
+                boomerang.ComingIn += GiantMoves.Catch;   // the hand goes out for it a moment before it is home
+            }
             if (!giant)
             {
                 GetComponent<PlayerLocomotion>()?.PlayThrowSwing(way);   // the giant one's throw is its own move
@@ -223,11 +232,39 @@ namespace CityX.Weapons
 
         private void Landed(ThrownBoomerang boomerang)
         {
-            if (_flying == boomerang)
+            if (_flying != boomerang)
             {
-                _flying = null;
-                OutChanged?.Invoke();
+                return;
             }
+            _flying = null;
+            if (boomerang.Profile.Heavy)
+            {
+                if (boomerang.Caught)
+                {
+                    // Where it was, spinning, as the hand took it: the item glides from there into the grip.
+                    Transform model = boomerang.Spinner != null ? boomerang.Spinner : boomerang.transform;
+                    _catchPosition = model.position;
+                    _catchRotation = model.rotation;
+                    _hasCatchPose = true;
+                    GiantMoves.Catch();
+                }
+                else
+                {
+                    GiantMoves.Stop();   // lost: it is back on the back
+                }
+                GiantMoves.Out = false;
+            }
+            OutChanged?.Invoke();
+        }
+
+        /// <summary>Where the giant one was as it was caught (its spinning model's place and turn), once: the item in the hand glides on from there.</summary>
+        public bool TakeCatchPose(out Vector3 position, out Quaternion rotation)
+        {
+            position = _catchPosition;
+            rotation = _catchRotation;
+            bool had = _hasCatchPose;
+            _hasCatchPose = false;
+            return had;
         }
     }
 }

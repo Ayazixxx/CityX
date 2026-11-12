@@ -155,11 +155,51 @@ namespace CityX.Tests
             Assert.IsTrue(thrower.Flying.Profile.Heavy, "what flew is not the giant one");
             Assert.IsFalse(Showing(item), "it is still shown on the body while it flies");
 
-            yield return Wait(6.0f, () => !thrower.IsOut);
+            // Coming home, the hand goes out for it before it arrives, and it is caught in the hand.
+            bool reachedOut = false;
+            for (float t = 0.0f; t < 6.0f && thrower.IsOut; t += Time.deltaTime)
+            {
+                reachedOut |= thrower.GiantMoves.IsCatching;
+                yield return null;
+            }
             Assert.IsFalse(thrower.IsOut, "it never came home");
-            yield return Wait(0.3f);
-            Assert.IsTrue(Showing(item), "home, it is not shown");
-            Assert.AreEqual(Bone(player, HumanBodyBones.Spine), item.transform.parent, "home, it is not back on the back");
+            Assert.IsTrue(reachedOut, "the hand did not go out for it before it got home");
+            Assert.IsTrue(thrower.GiantMoves.IsCatching, "it was not caught");
+            yield return null;
+            Assert.IsTrue(Showing(item), "caught, it is not shown");
+            Assert.AreEqual(Bone(player, HumanBodyBones.RightHand), item.transform.parent, "caught, it is not in the hand");
+
+            // Right-click not held: it is put back on the back.
+            yield return Wait(2.0f, () => thrower.GiantMoves.Current == GiantBoomerangPoseDriver.Move.None);
+            Assert.AreEqual(GiantBoomerangPoseDriver.Move.None, thrower.GiantMoves.Current, "after the catch it was not put away");
+            Assert.AreEqual(Bone(player, HumanBodyBones.Spine), item.transform.parent, "after the catch, it is not back on the back");
+        }
+
+        /// <summary>Right-click held as it comes home (pressed while it was still out): caught, it is held in the aim, ready to throw again.</summary>
+        [UnityTest]
+        public IEnumerator CaughtWithRightClickHeldItIsHeldInTheAim()
+        {
+            GameObject player = Body(Vector3.zero);
+            GiantBoomerangItem item = Equip(player);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            yield return null;
+            item.Throw(player, player.transform.position + Vector3.up * 1.8f, Vector3.forward);
+            yield return Wait(1.0f, () => thrower.IsOut);
+            Assert.IsTrue(thrower.IsOut);
+            item.SetAiming(player, true);
+            yield return null;
+            Assert.IsFalse(thrower.GiantMoves.IsAiming, "it was drawn from the back while it was out");
+            yield return Wait(6.0f, () => !thrower.IsOut);
+            yield return Wait(1.5f, () => thrower.GiantMoves.Current == GiantBoomerangPoseDriver.Move.Aiming);
+            Assert.AreEqual(GiantBoomerangPoseDriver.Move.Aiming, thrower.GiantMoves.Current, "caught with right-click held, it did not go into the aim");
+            Assert.AreEqual(Bone(player, HumanBodyBones.RightHand), item.transform.parent, "in the aim, it is not in the hand");
+            yield return Wait(0.5f);
+            Assert.AreEqual(GiantBoomerangPoseDriver.Move.Aiming, thrower.GiantMoves.Current, "the aim was not held");
+
+            // Let go: put back on the back.
+            item.SetAiming(player, false);
+            yield return Wait(1.0f);
+            Assert.AreEqual(Bone(player, HumanBodyBones.Spine), item.transform.parent);
         }
 
         [UnityTest]
@@ -242,6 +282,10 @@ namespace CityX.Tests
             yield return Wait(1.0f, () => copy.IsOut);
             Assert.IsTrue(copy.IsOut, "nothing flew from the copy");
             Assert.IsTrue(copy.Flying.IsCopy && copy.Flying.Profile.Heavy, "the copy's throw is not the giant one, or it can hurt");
+            yield return Wait(6.0f, () => !copy.IsOut);
+            Assert.IsFalse(copy.IsOut, "the copy's never came home");
+            Assert.IsTrue(copy.GiantMoves.IsCatching, "the copy did not catch it");
+            Assert.AreEqual(Bone(copyBody, HumanBodyBones.RightHand), copyItem.transform.parent, "the copy's is not caught in its hand");
 #else
             yield break;
 #endif

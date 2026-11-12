@@ -6,9 +6,11 @@ namespace CityX.Weapons
     /// <summary>
     /// PLAYS THE GIANT BOOMERANG'S MOVES ON A BODY (docs/BOOMERANG.md), owner and other players' copies alike (BoomerangThrower tells it what to play):
     /// right-click held draws it off the back into the aim and holds the aim; let go without throwing, the draw is played backward and it goes back on
-    /// the back; a click throws it, from the aim or straight off the back. Says when the hand has it (<see cref="InHand"/>: the item shows it there and not
-    /// on the back) and when it lets go (<see cref="Released"/>). The draw, the aim and the aimed throw are on the upper body, so the legs walk on under
-    /// them; a quick throw from standing is the whole body, with its step.
+    /// the back; a click throws it, from the aim or straight off the back. Coming home it is caught (<see cref="Catch"/>): the hand goes out for it, the arm
+    /// gives with it and comes round into the aim, which is held if right-click is (even if it was pressed while the boomerang was still out), or else the
+    /// boomerang is put back on the back. Says when the hand has it (<see cref="InHand"/>: the item shows it there and not on the back) and when it lets go
+    /// (<see cref="Released"/>). The draw, the aim, the aimed throw and the catch are on the upper body, so the legs walk on under them; a quick throw from
+    /// standing is the whole body, with its step.
     /// </summary>
     [DefaultExecutionOrder(10)]
     public sealed class GiantBoomerangPoseDriver : MonoBehaviour
@@ -29,6 +31,7 @@ namespace CityX.Weapons
             PuttingAway,
             ThrowingAimed,
             ThrowingQuick,
+            Catching,
         }
 
         private PlayerLocomotion _locomotion;
@@ -39,6 +42,8 @@ namespace CityX.Weapons
         private float _weight;
         private bool _released;
         private bool _holdsBody;
+        private bool _aimHeld;
+        private bool _out;
 
         public Move Current => _move;
 
@@ -47,7 +52,34 @@ namespace CityX.Weapons
 
         public bool IsThrowing => _move == Move.ThrowingAimed || _move == Move.ThrowingQuick;
 
-        /// <summary>The hand has it: from the grab on the back until it lets go, or puts it back.</summary>
+        public bool IsCatching => _move == Move.Catching;
+
+        /// <summary>Right-click is held, whatever is being played: the catch goes on into the aim if it is.</summary>
+        public bool AimHeld => _aimHeld;
+
+        /// <summary>
+        /// The boomerang is in the air (BoomerangThrower says so): there is nothing to draw, and a catch begun before it is home has not got it yet. Set false as
+        /// it is caught, the hand has it.
+        /// </summary>
+        public bool Out
+        {
+            get => _out;
+            set
+            {
+                if (_out == value)
+                {
+                    return;
+                }
+                bool hadIt = InHand;
+                _out = value;
+                if (hadIt != InHand)
+                {
+                    HandChanged?.Invoke();
+                }
+            }
+        }
+
+        /// <summary>The hand has it: from the grab on the back until it lets go, or puts it back; caught, from the moment it is home.</summary>
         public bool InHand
         {
             get
@@ -59,6 +91,7 @@ namespace CityX.Weapons
                     case Move.PuttingAway: return _elapsed >= GiantBoomerangMoves.DrawGrabSeconds;   // the draw backward: _elapsed counts down
                     case Move.ThrowingAimed: return !_released;
                     case Move.ThrowingQuick: return _elapsed >= GiantBoomerangMoves.QuickGrabSeconds && !_released;
+                    case Move.Catching: return !_out;
                     default: return false;
                 }
             }
@@ -80,7 +113,9 @@ namespace CityX.Weapons
             LetGoOfTheBody();
         }
 
-        private float DrawSeconds => (_motion.SegmentFrames(GiantBoomerangMoves.Draw) - 1) / (float)_motion.FramesPerSecond;
+        private float LastFrameOf(string clip) => (_motion.SegmentFrames(clip) - 1) / (float)_motion.FramesPerSecond;
+
+        private float DrawSeconds => LastFrameOf(GiantBoomerangMoves.Draw);
 
         private bool Ready()
         {
@@ -99,9 +134,10 @@ namespace CityX.Weapons
         /// <summary>Right-click held (true) or let go (false).</summary>
         public void Aim(bool on)
         {
-            if (!Ready() || IsThrowing)
+            _aimHeld = on;
+            if (!Ready() || IsThrowing || IsCatching || _out)
             {
-                return;
+                return;   // remembered: a catch goes on into the aim, or puts it away, as right-click then is
             }
             if (on && (_move == Move.None || _move == Move.PuttingAway))
             {
@@ -114,10 +150,10 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>A click: from the aim if it is drawn far enough to be in hand, else straight off the back. False if a throw is already going.</summary>
+        /// <summary>A click: from the aim if it is drawn far enough to be in hand, else straight off the back. False if a throw or a catch is going, or it is out.</summary>
         public bool Throw()
         {
-            if (!Ready() || IsThrowing)
+            if (!Ready() || IsThrowing || IsCatching || _out)
             {
                 return false;
             }
@@ -126,6 +162,16 @@ namespace CityX.Weapons
             // From standing, a quick throw is the whole body with its step; walking, or from the aim (whose legs were the walk's), the waist up.
             _pose.UpperBodyOnly = !(_move == Move.ThrowingQuick && (_locomotion == null || _locomotion.CurrentSpeed < StandingSpeed));
             return true;
+        }
+
+        /// <summary>It is coming home: the hand goes out for it. Begun before it is home (it is caught as <see cref="Out"/> goes false), or as it gets there if not.</summary>
+        public void Catch()
+        {
+            if (!Ready() || IsCatching)
+            {
+                return;
+            }
+            Begin(Move.Catching, 0.0f);
         }
 
         /// <summary>Lets go of everything at once (the boomerang put away by a swap).</summary>
@@ -207,11 +253,38 @@ namespace CityX.Weapons
                         _move = Move.None;
                     }
                     break;
+                case Move.Catching:
+                {
+                    _elapsed += deltaTime;
+                    clip = GiantBoomerangMoves.Catch;
+                    float last = LastFrameOf(clip);
+                    // Not home yet when the hand is out for it: the hand waits there for it.
+                    at = _out ? Mathf.Min(_elapsed, GiantBoomerangMoves.CatchSeconds) : Mathf.Min(_elapsed, last);
+                    if (_out)
+                    {
+                        _elapsed = Mathf.Min(_elapsed, GiantBoomerangMoves.CatchSeconds);
+                    }
+                    else if (_elapsed >= last)
+                    {
+                        // Round into the aim: held if right-click is, else put back on the back (the draw backward, from the aim it ended on).
+                        if (_aimHeld)
+                        {
+                            _move = Move.Aiming;
+                        }
+                        else
+                        {
+                            _move = Move.PuttingAway;
+                            _elapsed = DrawSeconds;
+                        }
+                    }
+                    break;
+                }
                 default:
+                {
                     _elapsed += deltaTime;
                     clip = _move == Move.ThrowingAimed ? GiantBoomerangMoves.ThrowAimed : GiantBoomerangMoves.ThrowQuick;
                     float release = _move == Move.ThrowingAimed ? GiantBoomerangMoves.AimedReleaseSeconds : GiantBoomerangMoves.QuickReleaseSeconds;
-                    float last = (_motion.SegmentFrames(clip) - 1) / (float)_motion.FramesPerSecond;
+                    float last = LastFrameOf(clip);
                     at = Mathf.Min(_elapsed, last);
                     if (!_released && _elapsed >= release)
                     {
@@ -223,6 +296,7 @@ namespace CityX.Weapons
                         _move = Move.None;
                     }
                     break;
+                }
             }
             _motion.Sample(clip, at, false, _pose);
             _weight = _move == Move.None ? _weight : Mathf.MoveTowards(_weight, 1.0f, deltaTime / EaseInSeconds);

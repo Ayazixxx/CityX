@@ -8,8 +8,10 @@ namespace CityX.Weapons
     /// THE GIANT BOOMERANG (docs/BOOMERANG.md; owner, 2026-11-12: "make a giant version of the boomerang like the girl from inuyasha", as tall as the player,
     /// carried on the back; "make an animation when you hold right click where it grabs the boomerang and does like an aiming it pose and aims in. also make it
     /// so you can press click and it throws it right away"). It rides on the back (<see cref="OnTheBack"/>) until the hand takes it: right-click draws it into
-    /// the aim and a click throws it from there, or a click alone throws it straight off the back. It is not spent: gone until it comes back, then on the back
-    /// again. Seen on other players (ICosmeticMountable); their copy draws, aims and throws through the body's <see cref="BoomerangThrower"/>.
+    /// the aim and a click throws it from there, or a click alone throws it straight off the back. It is not spent: gone until it comes back, then caught in the
+    /// hand (owner, 2026-11-12: "he actually catches it and puts it back or just holds it in his hand if you holding right click"), held in the aim if right-click
+    /// is, else put back on the back. Seen on other players (ICosmeticMountable); their copy draws, aims, throws and catches it through the body's
+    /// <see cref="BoomerangThrower"/>.
     /// </summary>
     public sealed class GiantBoomerangItem : MonoBehaviour, IEquippableItem, IEquippableWeapon, ICosmeticMountable, IAimedThrow
     {
@@ -29,6 +31,9 @@ namespace CityX.Weapons
 
         /// <summary>Taken off the back or put back on it, it glides from where it was into the hand's grip (or the back's) over this long, seconds.</summary>
         public const float HandOverSeconds = 0.12f;
+
+        /// <summary>The child that holds the model, set off from the grip (BoomerangBuilder.BuildGiant).</summary>
+        public const string ModelName = "Model";
 
         private BoomerangThrower _thrower;
         private GameObject _body;
@@ -98,9 +103,9 @@ namespace CityX.Weapons
         public void SetAiming(GameObject player, bool aiming)
         {
             var thrower = player != null ? player.GetComponent<BoomerangThrower>() : null;
-            if (thrower != null && !thrower.GiantMoves.IsThrowing)
+            if (thrower != null)
             {
-                thrower.SetGiantAiming(aiming && !thrower.IsOut);
+                thrower.SetGiantAiming(aiming);
             }
         }
 
@@ -171,7 +176,15 @@ namespace CityX.Weapons
             }
             _toPosition = transform.localPosition;
             _toRotation = transform.localRotation;
-            if (!anew && !out_)
+            if (inHand && !out_ && _thrower != null && _thrower.TakeCatchPose(out Vector3 caughtAt, out Quaternion caughtTurned))
+            {
+                // Caught: from where it was flying, its model where the spinning one was, into the grip.
+                Transform model = transform.Find(ModelName);
+                Quaternion turn = model != null ? caughtTurned * Quaternion.Inverse(model.localRotation) : caughtTurned;
+                transform.SetPositionAndRotation(model != null ? caughtAt - turn * model.localPosition : caughtAt, turn);
+                _handOver = HandOverSeconds;
+            }
+            else if (!anew && !out_)
             {
                 // From where it was, so the grab and the putting back never jump.
                 transform.SetPositionAndRotation(wasAt, wasTurned);
