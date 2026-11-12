@@ -18,15 +18,18 @@ select character should work"). It replaced the five pedestals in the night city
   the card, so the next one is wholly in sight in the row and wholly out of it beside the card (in the first pictures it stood in the
   card's way, the bin on its head). The chosen one's name and level float over its head while the belt
   stands still on it.
-- **Rolling.** D, the right arrow, a controller's stick or pad right, or the arrow key cap at the right edge, rolls the next one in from the
-  right (the belt runs left), as the pedestals did (owner, 2026-10-26: the next one on the right). A / the left arrow the other way. The belt
-  speeds up, runs and slows to set the next one down in the middle exactly, about a second a character; held, it rolls on from one to the
-  next; it stops at the ends of the row. Clicking a character beside the middle rolls it in. The belt is heard as it runs, with the
-  creator's sound (`BeltIntro.Sound`).
-- **Choosing.** Clicking the middle one, or Enter (a controller's A), closes the view in on it over 0.45 s (`CharacterSelect.InspectView`):
-  it stands large on the left, and its card is on the right: name, level and play time, stats, the little bin to delete it, PLAY (the green
-  arrow) and BACK (the red curl). Enter again plays. BACK, Escape or a controller's B draws the view back to the row; from the row they go
-  to the menu.
+- **Rolling.** D, the right arrow, a controller's stick or pad right runs the belt left, bringing the later characters in from the right
+  (owner, 2026-10-26: the next one on the right); A / the left arrow the other way. It runs freely, at the first boot's speed and pick-up
+  (2.4 m/s, `BeltRide.Speed`, `BeltLine.FreeSpeed`), and slows to a stop wherever it is let go, on a character or between two; it never
+  runs past the first or the last (owner, 2026-11-11: "make the scroll go the same speed as the first boot screen scroll, instead of it
+  locking onto characters make it so you can freely scroll across"). The name and level of the character nearest the middle are over its
+  head, all there within 0.3 m of the middle and gone 1.6 m off (`CharacterSelect.TagWholeWithin`, `TagGoneAt`: "when the character is on
+  the center of the screen his name and stuff fade in, but fade away as you scroll away"). The belt is heard as it runs, with the creator's
+  sound (`BeltIntro.Sound`). The arrow key caps at the edges glide the next one that way to the middle.
+- **Choosing.** Clicking a character, or Enter (a controller's A) for the one nearest the middle, glides it to the middle (`BeltLine.RollTo`)
+  and then closes the view in on it over 0.45 s (`CharacterSelect.Choose`, `InspectView`): it stands large on the left, and its card is on
+  the right: name, level and play time, stats, the little bin to delete it, PLAY (the green arrow) and BACK (the red curl). Enter again
+  plays. BACK, Escape or a controller's B draws the view back to the row; from the row they go to the menu.
 - **Deleting.** The bin asks first (the old KEEP / DELETE check). Deleted, the character goes from the belt and its place stays empty
   while the screen is up (on a belt, a gap closes only by everything on it moving, which would make everyone jump); the belt rolls the next
   one (or else the one before) to the middle. Opened again, the row is closed up.
@@ -71,7 +74,7 @@ select character should work"). It replaced the five pedestals in the night city
 
 ## Tests
 
-`BeltLineTests` (the rolling: set down exactly, never past, top speed, turned back, the ends), `BeltLineupPlayTests` (a figure on the stage's
+`BeltLineTests` (the free run: the first boot's speed, stopping where let go, never past the ends; the glide: set down exactly, never past, top speed, turned back), `BeltLineupPlayTests` (a figure on the stage's
 layer, alive with its arms down and its soles still, silent, nothing to collide or save; clothes; hair colour; the next on the right and the
 row riding the belt; an emptied slot), `BeltSelectPlayTests` (the real title scene with real keys and pointer: the row with the chosen one in
 the middle; D rolling the next in with the belt heard; held to the last; Enter's card and Escape back; clicking; CREATE NEW bringing a body

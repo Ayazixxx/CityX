@@ -127,41 +127,52 @@ namespace CityX.Tests
             Assert.AreEqual("Made0", _select.TagName.text, "the name over the middle one is not theirs");
         }
 
+        /// <summary>
+        /// Owner, 2026-11-11: "make the scroll go the same speed as the first boot screen scroll, instead of it locking onto characters make it so
+        /// you can freely scroll across and when the character is on the center of the screen his name and stuff fade in, but fade away as you
+        /// scroll away".
+        /// </summary>
         [UnityTest]
-        public IEnumerator DRollsTheNextOneInFromTheRightToTheMiddleWithTheBeltHeard()
+        public IEnumerator HoldingDRunsTheBeltFreelyAndTheNameFadesAwayFromTheMiddle()
         {
             yield return Open(3);
-            float travel = _belt.Belt.Travel;
+            yield return Frames(20);
+            Assert.Greater(_select.Tag.alpha, 0.95f, "the name over the one in the middle is not up");
             Press(_keyboard.dKey);
-            yield return null;
-            Release(_keyboard.dKey);
             bool ranLeft = false, heard = false;
-            for (int i = 0; i < 20; i++)
+            float fastest = 0.0f;
+            for (float held = 0.0f; held < 0.8f; held += Time.deltaTime)
             {
                 yield return null;
                 ranLeft |= _belt.Belt.Speed < 0.0f;
                 heard |= _belt.Hum.isPlaying && _belt.Hum.volume > 0.0f;
+                fastest = Mathf.Max(fastest, Mathf.Abs(_belt.Belt.Speed));
             }
-            Assert.IsTrue(ranLeft, "the belt did not run left to bring in the one on the right");
+            Release(_keyboard.dKey);
+            Assert.IsTrue(ranLeft, "the belt did not run left to bring in the ones on the right");
             Assert.IsTrue(heard, "the belt was not heard running");
+            Assert.LessOrEqual(fastest, BeltRide.Speed + 1e-3f, "the belt runs faster than on the first boot");
             yield return UntilSettled();
-            Assert.AreEqual(1, _select.SelectedIndex);
-            Assert.AreEqual("Made1", _select.Selected.Name);
-            Assert.AreEqual(0.5f, AcrossTheScreen(_select.Lineup.FigureAt(1).transform), 0.01f, "the next one was not set down in the middle");
-            Assert.AreEqual(travel - _select.Lineup.Spacing, _belt.Belt.Travel, 1e-3f, "the belt did not run one character along");
+            float scroll = _select.Line.Scroll;
+            Assert.That(scroll, Is.InRange(0.2f, 0.8f), "let go between two, it locked onto a character");
+            Assert.Less(_select.Tag.alpha, 0.05f, "the name stays up over a character carried away from the middle");
             yield return null;
             Assert.IsFalse(_belt.Hum.isPlaying, "the belt is still heard at rest");
         }
 
         [UnityTest]
-        public IEnumerator HeldItRollsOnToTheLastOneAndStopsThere()
+        public IEnumerator HeldItRunsOnToTheLastOneAndStopsThere()
         {
             yield return Open(3);
             Press(_keyboard.rightArrowKey);
-            yield return Frames(150);
+            for (float held = 0.0f; held < 8.0f; held += Time.deltaTime)
+            {
+                yield return null;
+            }
+            Assert.AreEqual(2.0f, _select.Line.Scroll, 1e-3f, "held, it did not run on to the last and stop there");
             Release(_keyboard.rightArrowKey);
             yield return UntilSettled();
-            Assert.AreEqual(2, _select.SelectedIndex, "held, it did not roll on to the last");
+            Assert.AreEqual(2, _select.SelectedIndex, "the last one in the middle is not the one chosen");
             Assert.IsFalse(_select.NextButton.activeSelf, "the right arrow is offered past the last one");
             Assert.IsTrue(_select.PreviousButton.activeSelf, "the left arrow is not offered");
         }
@@ -193,21 +204,21 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator ClickingTheOneOnTheRightRollsItInAndClickingTheMiddleOneClosesIn()
+        public IEnumerator ClickingTheOneOnTheRightGlidesItToTheMiddleAndClosesInOnIt()
         {
             yield return Open(3);
             Vector3 middleOfTheNext = _select.Lineup.FigureAt(1).transform.position + Vector3.up * (BodyRig.StandingHeight * 0.5f);
             Set(_mouse.position, (Vector2)_belt.MakingCamera.WorldToScreenPoint(middleOfTheNext));
             yield return null;
             yield return Tap(_mouse.leftButton);
-            yield return UntilSettled();
-            Assert.AreEqual(1, _select.SelectedIndex, "clicking the one on the right did not roll it in");
-
-            Vector3 middleOfTheChosen = _select.Lineup.FigureAt(1).transform.position + Vector3.up * (BodyRig.StandingHeight * 0.5f);
-            Set(_mouse.position, (Vector2)_belt.MakingCamera.WorldToScreenPoint(middleOfTheChosen));
-            yield return null;
-            yield return Tap(_mouse.leftButton);
-            Assert.AreEqual(CharacterSelect.Mode.Inspecting, _select.Showing, "clicking the middle one did not choose it");
+            for (float waited = 0.0f; waited < 3.0f && _select.Showing != CharacterSelect.Mode.Inspecting; waited += Time.deltaTime)
+            {
+                yield return null;
+            }
+            Assert.AreEqual(CharacterSelect.Mode.Inspecting, _select.Showing, "clicking the one on the right did not choose it");
+            Assert.AreEqual(1, _select.SelectedIndex, "clicking the one on the right chose another");
+            Assert.AreEqual(1.0f, _select.Line.Scroll, 1e-4f, "it was not set down in the middle before the view closed in");
+            Assert.AreEqual("Made1", _select.NameLabel.text);
         }
 
         /// <summary>

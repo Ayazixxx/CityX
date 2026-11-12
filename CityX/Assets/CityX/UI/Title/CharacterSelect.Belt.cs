@@ -9,8 +9,9 @@ namespace CityX.UI
 {
     /// <summary>
     /// The character list's belt (docs/CHARACTER_SELECT.md; owner, 2026-11-11: "build the conveyer belt character select"): the characters in
-    /// a row on the creator's belt (<see cref="BeltLineup"/>), A / D, the arrows or a controller rolling the next one to the middle
-    /// (<see cref="BeltLine"/>), a click or Enter closing the view in on it, and CREATE NEW rolling a blank body in behind them.
+    /// a row on the creator's belt (<see cref="BeltLineup"/>), A / D, the arrows or a controller running the belt freely under
+    /// them (<see cref="BeltLine"/>), the name of the one nearest the middle fading in as it comes, a click or Enter gliding one to the middle
+    /// and closing the view in on it, and CREATE NEW rolling a blank body in behind them.
     /// </summary>
     public sealed partial class CharacterSelect
     {
@@ -46,16 +47,22 @@ namespace CityX.UI
         /// <summary>How far over the top of the middle character's head its name is, metres.</summary>
         public const float TagAbove = 0.35f;
 
-        /// <summary>How long the name takes to come up once the belt stops, or to go as it starts, seconds.</summary>
+        /// <summary>How long the name takes to come up as the row is shown, or to go as the view closes in, seconds.</summary>
         private const float TagFadeSeconds = 0.2f;
 
-        /// <summary>Held, the key rolls on to the next one once the belt is this near (in characters) the one it is rolling to.</summary>
-        private const float HeldRollsOnWithin = 0.5f;
+        /// <summary>
+        /// The name over the character nearest the middle is all there within this far of it, metres, and gone this far off (owner,
+        /// 2026-11-11: "when the character is on the center of the screen his name and stuff fade in, but fade away as you scroll away").
+        /// </summary>
+        public const float TagWholeWithin = 0.3f;
+
+        public const float TagGoneAt = 1.6f;
 
         private BeltLine _line;
         private float _inspected;
+        private float _tagShown;
         private bool _creating;
-        private int _lastPush;
+        private int _inspectWhenThere = -1;
 
         /// <summary>The row's motion, or null before the server has answered.</summary>
         public BeltLine Line => _line;
@@ -74,7 +81,7 @@ namespace CityX.UI
             _line = null;
             _creating = false;
             _inspected = 0.0f;
-            _lastPush = 0;
+            _inspectWhenThere = -1;
             if (Intro != null)
             {
                 Intro.Empty();
@@ -120,11 +127,43 @@ namespace CityX.UI
             }
         }
 
-        /// <summary>Rolls the next character (to the right) to the middle. Past the last there is none.</summary>
+        /// <summary>Glides the next character (to the right of the one nearest the middle) to the middle. Past the last there is none.</summary>
         public void Next() => RollOn(1);
 
-        /// <summary>Rolls the one before (to the left) to the middle.</summary>
+        /// <summary>Glides the one before (to the left) to the middle.</summary>
         public void Previous() => RollOn(-1);
+
+        /// <summary>
+        /// Choosing a character (owner, 2026-11-11: "the way you select a character is clicking on them or selecting them and then pressing
+        /// enter"): the belt glides it to the middle, and the view closes in on it with its card once it stands there.
+        /// </summary>
+        public void Choose(int slot)
+        {
+            if (_line == null || _mode != Mode.List || _creating || slot < 0 || slot >= _characters.Count || _characters[slot] == null)
+            {
+                return;
+            }
+            RollTo(slot);
+            _inspectWhenThere = slot;
+        }
+
+        /// <summary>The character nearest the middle of the screen, or -1 with nobody on the belt.</summary>
+        public int NearestCharacter()
+        {
+            if (_line == null)
+            {
+                return -1;
+            }
+            int nearest = _line.Nearest;
+            if (nearest < _characters.Count && _characters[nearest] != null)
+            {
+                return nearest;
+            }
+            int right = NextOccupied(nearest, 1), left = NextOccupied(nearest, -1);
+            if (right < 0) return left;
+            if (left < 0) return right;
+            return Mathf.Abs(_line.At(right)) <= Mathf.Abs(_line.At(left)) ? right : left;
+        }
 
         /// <summary>
         /// A new character (owner, 2026-11-11: "a create new button is on screen always and when you press it ... it just rolls in an empty
@@ -150,7 +189,13 @@ namespace CityX.UI
             {
                 return;
             }
-            int next = NextOccupied(_line.Target, way);
+            int nearest = NearestCharacter();
+            if (nearest < 0)
+            {
+                return;
+            }
+            // Off the middle, the next one that way is the nearest itself if it is still to come.
+            int next = Mathf.Abs(_line.At(nearest)) > TagWholeWithin && Mathf.Sign(_line.At(nearest)) == way ? nearest : NextOccupied(nearest, way);
             if (next >= 0)
             {
                 RollTo(next);
@@ -162,6 +207,11 @@ namespace CityX.UI
             _line.RollTo(slot);
             _selectedIndex = _line.Target;
         }
+
+        /// <summary>The first and the last slot with somebody in it (0 and -1 with nobody).</summary>
+        private int FirstOccupied() => NextOccupied(-1, 1) is int first && first >= 0 ? first : 0;
+
+        private int LastOccupied() => NextOccupied(_characters.Count, -1);
 
         /// <summary>The nearest slot past <paramref name="from"/> going <paramref name="way"/> (1 right, -1 left) with somebody in it, or -1.</summary>
         private int NextOccupied(int from, int way)
@@ -211,6 +261,15 @@ namespace CityX.UI
                 {
                     BeltIntro.Sound(Intro.Hum, Mathf.Clamp01(Mathf.Abs(_line.BeltSpeed) / BeltRide.Speed));
                 }
+                if (_inspectWhenThere >= 0 && !_line.Gliding)
+                {
+                    bool there = _line.Scroll == _inspectWhenThere;
+                    _inspectWhenThere = -1;
+                    if (there)
+                    {
+                        Inspect();
+                    }
+                }
             }
 
             bool closeIn = _mode == Mode.Inspecting || _mode == Mode.Confirming;
@@ -231,33 +290,28 @@ namespace CityX.UI
             Keyboard keyboard = Keyboard.current;
             Gamepad pad = Gamepad.current;
             int push = Push(keyboard, pad);
-            bool pressed = push != 0 && push != _lastPush;
-            _lastPush = push;
             bool choose = (keyboard != null && (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame))
                           || (pad != null && pad.buttonSouth.wasPressedThisFrame);
 
-            if (_mode == Mode.List && !_creating && _line != null)
+            bool rolling = _mode == Mode.List && !_creating && _line != null;
+            if (_line != null)
             {
-                if (push != 0 && (pressed || Mathf.Abs(_line.Scroll - _line.Target) < HeldRollsOnWithin))
+                _line.Push(rolling ? push : 0);
+            }
+            if (rolling)
+            {
+                if (push != 0)
                 {
-                    RollOn(push);
+                    _inspectWhenThere = -1;
                 }
                 Mouse mouse = Mouse.current;
                 if (mouse != null && mouse.leftButton.wasPressedThisFrame && !OverInterface() && Lineup != null)
                 {
-                    int slot = Lineup.SlotUnder(mouse.position.ReadValue());
-                    if (slot == _line.Target)
-                    {
-                        Inspect();
-                    }
-                    else if (slot >= 0)
-                    {
-                        RollTo(slot);
-                    }
+                    Choose(Lineup.SlotUnder(mouse.position.ReadValue()));
                 }
                 if (choose)
                 {
-                    Inspect();
+                    Choose(NearestCharacter());
                 }
             }
             else if (_mode == Mode.Inspecting && choose)
@@ -311,18 +365,26 @@ namespace CityX.UI
             {
                 return;
             }
-            CharacterSave chosen = Selected;
-            bool shown = _mode == Mode.List && !_creating && chosen != null && _line != null && _line.Settled && _inspected <= 0.0f;
-            Tag.alpha = Mathf.MoveTowards(Tag.alpha, shown ? 1.0f : 0.0f, deltaTime / TagFadeSeconds);
+            int nearest = NearestCharacter();
+            CharacterSave chosen = nearest >= 0 ? _characters[nearest] : null;
+            bool shown = _mode == Mode.List && !_creating && chosen != null && _inspected <= 0.0f;
+            _tagShown = Mathf.MoveTowards(_tagShown, shown ? 1.0f : 0.0f, deltaTime / TagFadeSeconds);
+            float off = nearest >= 0 ? Mathf.Abs(_line.At(nearest)) : TagGoneAt;
+            Tag.alpha = _tagShown * (1.0f - Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(TagWholeWithin, TagGoneAt, off)));
             if (chosen != null)
             {
+                if (_mode == Mode.List)
+                {
+                    _selectedIndex = nearest;
+                }
                 if (TagName != null) TagName.text = chosen.Name;
                 if (TagDetail != null) TagDetail.text = $"Level {chosen.Level}";
             }
-            if (View != null && Lineup != null)
+            if (View != null && Lineup != null && nearest >= 0)
             {
-                // Anchored at the point's share of the screen, so it sits there on any screen size and however the canvas is drawn.
-                Vector3 over = Lineup.transform.TransformPoint(new Vector3(0.0f, BodyRig.StandingHeight + TagAbove, 0.0f));
+                // Over the character's head, wherever the belt has carried it (the figures stand at the negative of their place along the
+                // row, the stage facing the camera). Anchored at the point's share of the screen, so it sits there on any screen size.
+                Vector3 over = Lineup.transform.TransformPoint(new Vector3(-_line.At(nearest), BodyRig.StandingHeight + TagAbove, 0.0f));
                 Vector2 share = View.WorldToViewportPoint(over);
                 var place = (RectTransform)Tag.transform;
                 place.anchorMin = place.anchorMax = share;
@@ -333,8 +395,8 @@ namespace CityX.UI
         private void ShowTheArrows()
         {
             bool rolling = _mode == Mode.List && !_creating && _line != null;
-            if (PreviousButton != null) PreviousButton.SetActive(rolling && NextOccupied(_line.Target, -1) >= 0);
-            if (NextButton != null) NextButton.SetActive(rolling && NextOccupied(_line.Target, 1) >= 0);
+            if (PreviousButton != null) PreviousButton.SetActive(rolling && _line.Scroll > FirstOccupied() + 0.01f);
+            if (NextButton != null) NextButton.SetActive(rolling && _line.Scroll < LastOccupied() - 0.01f);
         }
 
         /// <summary>
