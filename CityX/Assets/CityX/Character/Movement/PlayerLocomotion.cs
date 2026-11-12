@@ -69,8 +69,11 @@ namespace CityX.Character
         [Tooltip("How fast the body turns to face the camera while moving (camera-facing movement), in degrees per second.")]
         public float TurnDegreesPerSecond = 720.0f;
 
+        /// <summary>How fast a body aiming a thrown weapon (LocomotionInput.ThrowAiming) turns to where the camera looks, degrees a second.</summary>
+        public const float ThrowAimTurnDegreesPerSecond = 900.0f;
+
         /// <summary>The body faces the camera's yaw, whatever the keys: aiming, firing, casting (a spell, a staff or a wand), or locked on.</summary>
-        private bool FacesTheCamera(LocomotionInput input) => AimsWithTheCamera(input) || input.LockedOn || _castPoseFraction > 0.0f;
+        private bool FacesTheCamera(LocomotionInput input) => AimsWithTheCamera(input) || input.LockedOn || _castPoseFraction > 0.0f || input.ThrowAiming;
 
         private bool AimsWithTheCamera(LocomotionInput input) =>
             input.Aiming || _gunFireHold > 0.0f || (StaffCasting && Staff != null) || WandPointing;
@@ -1585,6 +1588,11 @@ namespace CityX.Character
                 // already eases toward the target; easing the body as well
                 // would double-lag it.
                 transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
+            }
+            else if (input.ThrowAiming)
+            {
+                // A THROWN WEAPON'S AIM (the Giant Boomerang drawn): the body turns to where it will be thrown, moving or not, quickly but not in a snap.
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(0.0f, input.YawDegrees, 0.0f), ThrowAimTurnDegreesPerSecond * deltaTime);
             }
             else if (moving && !facesMovement)
             {

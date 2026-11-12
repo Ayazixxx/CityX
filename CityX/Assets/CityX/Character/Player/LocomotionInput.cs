@@ -78,6 +78,9 @@ namespace CityX.Character
         /// </summary>
         public bool Aiming;
 
+        /// <summary>A thrown weapon's own aim is held (IAimedThrow: the Giant Boomerang drawn into its aim): the body faces where the camera looks.</summary>
+        public bool ThrowAiming;
+
         /// <summary>
         /// The camera's own current world position/forward while aiming --
         /// Bug report: "the pose he goes in when you hold right

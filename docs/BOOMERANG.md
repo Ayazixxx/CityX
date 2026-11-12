@@ -43,3 +43,36 @@ Terraria's melee speed bonus and its slowing in liquids are not in.
 ## Tests
 
 `BoomerangFlightTests` (the path, pure), `BoomerangPlayTests` (on a real body: out and back; a hit going out turns it back and it can hit again coming home; a wall turns it back with nobody behind it hurt; home through a wall, hitting who it passes; pushed away from the thrower; one out at a time; a swap and back while it is out; another player's copy), `ItemCardTests`. Pictures: `BoomerangCapture` (`Logs/CityShots/boomerang-*.png`).
+
+# The Giant Boomerang
+
+Owner, 2026-11-12: "make a giant version of the boomerang like the girl from inuyasha" (two pictures of the anime's bone boomerang), then, asked: **throw only** (no swings), **heavy and slow**, and of its size and carry, "make it about as tall as the player ... find out a good way to carry the large boomerang, maybe on the back?" ("there are going to be large greatswords, guns, etc."). While it was being built: "make an animation when you hold right click where it grabs the boomerang and does like an aiming it pose and aims in. also make it so you can press click and it throws it right away". `/equip giantboomerang`. Rare (my placement).
+
+Our own design, not the anime's prop: a wide, thick bone-white blade 2.6 m tip to tip, leather wrapped at its grip near one end, round its elbow and near its other tip (`BoomerangBuilder.BuildGiant`, a stand-in until the owner's model).
+
+## How it plays
+
+- **On the back** (`Items/BackCarry`, the shared mount for big weapons): slung at a slant, the grip up behind the right shoulder, the length down across the back. It rides the spine, so it leans and turns with the trunk.
+- **Hold right-click**: the right hand goes up over the shoulder, takes it off the back, and the body comes side-on into the aim (the left arm out at what it is thrown at, the boomerang cocked back flat behind the shoulder); the camera aims in as with any thrown weapon, and the body turns to where the camera looks (`LocomotionInput.ThrowAiming`). Let go without clicking and it is put back (the draw played backward).
+- **Click while aiming**: the aimed throw, the hips, shoulders and arm unwinding and the arm sweeping it round flat; it leaves the hand 0.18 s after the click.
+- **Click without aiming**: the quick throw straight off the back, over the shoulder for it and round through the aim in one go; it leaves the hand 0.41 s after the click.
+- **In the air** (`BoomerangProfile.Giant`, `GiantBoomerangRules`, my numbers but those the owner chose): flat and spinning twice a second, 18 m/s out for 1.1 s, about 25 m in all (twice the wooden one's), 30 damage (three times), back at up to 24 m/s. Going out it cuts on through the people it meets (a body within 1.1 m of its path); only a wall turns it back (met by its 0.3 m thick blade, so the ground under it never does). Every body it hits is thrown down limp, away from the thrower. Coming back it goes through walls and hits everyone it passes, as the wooden one does. Caught near the chest, it is on the back again.
+- One boomerang out at a time, of either kind.
+
+## The moves
+
+Three full-body clips made in Blender (`CityX/SourceArt/GiantBoomerang`, the punches' solver and planted feet): `giant_draw` (its last frame is the aim, held), `giant_throw_aimed`, `giant_throw_quick`. Rebuild: `blender --background --factory-startup --python CityX/SourceArt/GiantBoomerang/giant_boomerang_build.py -- --render <folder> --export CityX/Assets/CityX/Character/Resources/GiantBoomerang/GiantBoomerangMotion.json`. The grab and release moments are `GiantBoomerangMoves`' constants: keep them in step with the script.
+
+`GiantBoomerangPoseDriver` plays them after the Animator. The draw, the aim and the aimed throw are on the upper body, so the legs walk on under them; a quick throw from standing is the whole body with its step. The grip in the hand was measured from the aim's hand on the real body (`GiantBoomerangCapture`), so in the aim it lies flat out behind; taken off the back or put back, it glides over 0.12 s instead of jumping.
+
+## Other players
+
+`BoomerangThrower` tells them of the aim (`GiantAim`), of the throw starting (`GiantThrowStarted`) and of the release (`Thrown` with `N` 1): their copy of the body draws, aims and throws it with the same clips, and the giant one flies there, hurting no one.
+
+## Not yet
+
+- No catch move: it comes home onto the back by itself.
+- The middle of the throw's swing is quick and has not been looked at closely frame by frame; the boomerang tips up for a few frames on its way round.
+- No strap across the chest on the body.
+
+Tests: `BoomerangFlightTests` (its range and numbers), `GiantBoomerangPlayTests` (on the back, drawn into the hand and put back, the quick throw and home onto the back, the aimed throw leaving sooner, through two people and knocking them down then turned back by a wall with nobody behind it hurt, another player's copy). Pictures: `GiantBoomerangCapture` (`Logs/CityShots/giantrang-*.png`).

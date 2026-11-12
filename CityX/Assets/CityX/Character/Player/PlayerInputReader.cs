@@ -227,6 +227,9 @@ namespace CityX.Character
         /// animator without threading a whole extra parameter through.
         /// </summary>
         private bool _isAimingGun;
+
+        /// <summary>Right-click's aim is held with a thrown weapon that has its own aim (IAimedThrow).</summary>
+        private bool _throwAiming;
         private float _nextWeaponSwitch;
 
         private PlayerLocomotion _locomotion;
@@ -1277,6 +1280,7 @@ namespace CityX.Character
                 // Gun-aiming only now -- see isCastingFireball's own comment
                 // just above for why a cast no longer sets this too.
                 Aiming = _isAimingGun,
+                ThrowAiming = _throwAiming,
                 AimCameraPosition = _orbitCamera != null ? _orbitCamera.transform.position : Vector3.zero,
                 AimCameraForward = _orbitCamera != null ? _orbitCamera.transform.forward : Vector3.forward,
                 // The two-handed carry (the 2hsw clips). A one-handed sword is carried by the ordinary walk's own arm, its attacks posed on top.

@@ -85,14 +85,14 @@ namespace CityX.Weapons
             var vitals = player.GetComponent<PlayerVitals>();
             float damage = CombatTuning.DamageFor(BoomerangRules.Damage, vitals != null ? vitals.Strength : 0);
             float penetration = vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-            thrower.Throw(origin, AimedWay(origin, direction, player), damage, penetration);
+            thrower.Throw(origin, AimedWay(origin, direction, player, BoomerangRules.Range), damage, penetration);
         }
 
         /// <summary>
         /// From the hand to what the crosshair is on within its range, or to the end of that range: the camera looks past the shoulder, so a throw
         /// along the camera's own line would pass to one side of what it is pointing at.
         /// </summary>
-        private static Vector3 AimedWay(Vector3 origin, Vector3 looking, GameObject thrower)
+        internal static Vector3 AimedWay(Vector3 origin, Vector3 looking, GameObject thrower, float range)
         {
             Vector3 along = looking.normalized;
             Camera eye = Camera.main;
@@ -101,7 +101,7 @@ namespace CityX.Weapons
                 return along;
             }
             Vector3 from = eye.transform.position;
-            float reach = BoomerangRules.Range + Vector3.Distance(from, origin);
+            float reach = range + Vector3.Distance(from, origin);
             Vector3 target = from + along * reach;
             float nearest = reach;
             foreach (RaycastHit hit in Physics.RaycastAll(from, along, reach, ~0, QueryTriggerInteraction.Ignore))

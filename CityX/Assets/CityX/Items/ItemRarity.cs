@@ -70,6 +70,7 @@ namespace CityX.Items
             [ItemRegistry.Grenade] = Rarity.Uncommon,
             [ItemRegistry.Semtex] = Rarity.Uncommon,
             [ItemRegistry.WoodenBoomerang] = Rarity.Uncommon,
+            [ItemRegistry.GiantBoomerang] = Rarity.Rare,
             [ItemRegistry.MidnightCoat] = Rarity.Rare,
             [ItemRegistry.FireballStaff] = Rarity.Rare,
             [ItemRegistry.IceShardStaff] = Rarity.Rare,

@@ -103,5 +103,34 @@ namespace CityX.Tests
             flight.Step(BoomerangRules.LifeSeconds, Home);
             Assert.IsTrue(flight.Lost(flight.Position), "not lost after a minute");
         }
+
+        /// <summary>The Giant Boomerang (owner, 2026-11-12: "heavy and slow"): slower out, about twice the wooden one's range, and home again.</summary>
+        [Test]
+        public void TheGiantOneGoesAboutTwiceAsFarAndSlowerAndComesHome()
+        {
+            BoomerangProfile giant = BoomerangProfile.Giant;
+            var flight = new BoomerangFlight(Home, Vector3.forward, giant.OutSpeed, giant);
+            float furthest = 0.0f, seconds = 0.0f;
+            while (!flight.Arrived(Home) && seconds < 8.0f)
+            {
+                flight.Step(Step, Home);
+                seconds += Step;
+                furthest = Mathf.Max(furthest, flight.Position.z);
+            }
+            Assert.IsTrue(flight.Arrived(Home), "it never came home");
+            Assert.AreEqual(giant.Range, furthest, 0.8f);
+            Assert.AreEqual(25.0f, giant.Range, 1.5f, "not about twice the wooden one's 12 m");
+            Assert.Less(giant.OutSpeed, BoomerangRules.OutSpeed, "it is not slower than the wooden one");
+            Assert.Greater(GiantBoomerangRules.Damage, BoomerangRules.Damage * 2.5f, "it does not hit about three times as hard");
+            Assert.IsTrue(giant.Heavy && !BoomerangProfile.Wooden.Heavy);
+        }
+
+        [Test]
+        public void TheWoodenOnesNumbersAreItsRulesStill()
+        {
+            BoomerangProfile wooden = BoomerangProfile.Wooden;
+            Assert.AreEqual(BoomerangRules.Range, wooden.Range, 1e-4f);
+            Assert.AreEqual(BoomerangRules.HitRadius, wooden.WallRadius, 1e-6f, "the wooden one turns back on what it hits, as wide as it is");
+        }
     }
 }

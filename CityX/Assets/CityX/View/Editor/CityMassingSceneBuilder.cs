@@ -311,6 +311,8 @@ namespace CityX.ViewEditor
             GameObject semtexPrefab = CityX.WeaponsEditor.GrenadeBuilder.BuildSemtex();
             // The Wooden Boomerang (2026-11-05, docs/BOOMERANG.md), whose in-flight twin PlayerAbilityWiring gives the body by path.
             GameObject boomerangPrefab = CityX.WeaponsEditor.BoomerangBuilder.Build();
+            // The Giant Boomerang (2026-11-12): carried on the back, drawn into an aim or thrown straight off it.
+            GameObject giantBoomerangPrefab = CityX.WeaponsEditor.BoomerangBuilder.BuildGiant();
             // The bow, its arrow (which PlayerAbilityWiring gives the body by path) and the crossbow (2026-10-28, docs/ARCHERY.md).
             GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
             GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
@@ -615,6 +617,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Semtex, Prefab = semtexPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.WoodenBoomerang, Prefab = boomerangPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.GiantBoomerang, Prefab = giantBoomerangPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.JerryCan, Prefab = gasCanPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

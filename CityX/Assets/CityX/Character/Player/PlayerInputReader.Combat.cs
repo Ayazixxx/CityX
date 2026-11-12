@@ -74,6 +74,7 @@ namespace CityX.Character
                 _orbitCamera.PistolAim = _locomotion != null && _locomotion.HoldsPistol;
             }
             _isAimingGun = false;
+            _throwAiming = false;
             if (_vitals != null)
             {
                 _vitals.ShieldRaised = false;   // the same: down unless right-click holds it up below
@@ -310,6 +311,12 @@ namespace CityX.Character
                             (_locomotion != null ? _locomotion.WorldHeight : 1.8f)) + direction * 0.5f;
                         weapon.Throw(gameObject, origin, direction);
                     }
+                }
+                // A weapon with its own aim draws itself into it and puts itself away (after the throw: a click from the aim throws from it).
+                if (weapon is IAimedThrow aimedThrow)
+                {
+                    aimedThrow.SetAiming(gameObject, _weaponAim.IsAiming);
+                    _throwAiming = _weaponAim.IsAiming;
                 }
                 return;
             }
