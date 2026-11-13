@@ -244,8 +244,11 @@ namespace CityX.View
             // IS the fog colour, and a storm that greyed one without the
             // others would put the streamed world's edge back in view.
             Color horizon = SkyCycle.Weathered(state.HorizonColour, Overcast, Flash);
+            // Under the ground the dome is black (its shader reads _CityXUnderground), and so is what stands in for it, so a tunnel past the draw
+            // distance ends in the dark (owner, 2026-11-12: "you can see the light at the end of the tunnels ... make it pitch back dark in there").
+            Color behindEverything = Color.Lerp(horizon, Color.black, underground);
 
-            RenderSettings.fogColor = horizon;
+            RenderSettings.fogColor = behindEverything;
 
             // The air (CityHaze): it does the old linear fog's job of hiding the end of the streamed city, out at the same fog distances the storm
             // and the intro still drive, and it also does what that fog never did -- fade each tower by how far away and how high it is. The
@@ -271,7 +274,7 @@ namespace CityX.View
                 // clears to the sky dome rather than to this, because the dome
                 // meets the horizon at exactly this colour and anything that
                 // falls back to a clear colour should land on it too.
-                Sky.backgroundColor = horizon;
+                Sky.backgroundColor = behindEverything;
             }
 
             if (SkyDome != null)

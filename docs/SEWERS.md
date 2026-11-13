@@ -141,6 +141,7 @@ asphalt (`BuildPlate`), with a yellow ring painted round it and its lid lying be
 - **Bodies and props** have no such mark, so they go by the eye: as the camera goes down a neck or in at a mouth
   (`CurrentSewers.DarknessAt`, faded over about half a second by `SewerAir`), `_CityXUnderground` takes the sun, the moon, the sky and
   the city's lamps off them, and the sky's reflections, the haze and the sunbeams out of the air.
+- **No daylight at the end of a tunnel** (owner, 2026-11-12: "you can see the light at the end of the tunnels when in the sewers, from the cutoff of the render distance ... make it pitch back dark in there"): past the draw distance, or into streets not built yet, a tunnel ends in what is behind everything. Underground the sky dome is black (`CityXProceduralSky` reads `_CityXUnderground`), and so are the fog colour and the camera's clear colour (`DayNightCycle`), fading with the rest of the dark. `SewerCapture` shoots a tunnel with the draw distance cut short (`sewer-6-dark-past-the-draw-distance.png`) and fails if any pixel is brighter than 40 of 255 (before: the sky, 206).
 - **Barely any visibility, not none** (`CityXDarkTrace`, `DayNightCycle.DarkTrace` and `DarkTraceReach`): a faint cold light as if from
   the eye itself, strongest on what faces it, gone 14 m off. A wall an arm's length away is a shape, the tunnel beyond is black. Measured
   on `sewer-6-dark-without.png`: brightest pixel 20 of 255, mean 4 (before: 42 and 21).

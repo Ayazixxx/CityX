@@ -487,11 +487,16 @@ namespace CityX.Tests
             {
                 var cycle = go.AddComponent<DayNightCycle>();
                 cycle.SkyDome = dome;
+                cycle.Sky = go.AddComponent<Camera>();
                 SkyCycle.State noon = SkyCycle.At(SkyCycle.DaySeconds * 0.5f);
 
                 DayNightCycle.Underground = 1.0f;
                 cycle.Apply(noon);
                 Assert.AreEqual(1.0f, Shader.GetGlobalFloat("_CityXUnderground"), 1e-4f, "the shaders are not told the eye is under the ground");
+                // Past the draw distance a tunnel ends in what is behind everything (owner, 2026-11-12: "you can see the light at the end of the
+                // tunnels ... make it pitch back dark in there"): the sky dome goes dark in its shader, and the fog and the camera's clear colour here.
+                Assert.AreEqual(0.0f, RenderSettings.fogColor.maxColorComponent, 1e-5f, "the fog at the end of a tunnel is the sky's colour");
+                Assert.AreEqual(0.0f, cycle.Sky.backgroundColor.maxColorComponent, 1e-5f, "the end of a tunnel clears to the sky's colour");
                 Assert.AreEqual(0.0f, RenderSettings.ambientSkyColor.maxColorComponent, 1e-5f, "the sky's light in a tunnel at noon");
                 Assert.AreEqual(0.0f, RenderSettings.ambientEquatorColor.maxColorComponent, 1e-5f, "the sky's light in a tunnel at noon");
                 Assert.AreEqual(0.0f, RenderSettings.ambientGroundColor.maxColorComponent, 1e-5f, "the sky's light in a tunnel at noon");
@@ -509,6 +514,8 @@ namespace CityX.Tests
                 cycle.Apply(noon);
                 Assert.AreEqual(0.0f, Shader.GetGlobalFloat("_CityXUnderground"), 1e-4f);
                 Assert.Greater(RenderSettings.ambientEquatorColor.maxColorComponent, 0.01f, "the sky's light did not come back up the ladder");
+                Assert.Greater(RenderSettings.fogColor.maxColorComponent, 0.05f, "the sky's colour did not come back to the fog up the ladder");
+                Assert.Greater(cycle.Sky.backgroundColor.maxColorComponent, 0.05f, "the sky's colour did not come back behind everything up the ladder");
                 Assert.AreEqual(1.0f, RenderSettings.reflectionIntensity, 1e-3f);
 
                 // A scene without a sky cycle (the title screen) must not inherit a tunnel's dark.

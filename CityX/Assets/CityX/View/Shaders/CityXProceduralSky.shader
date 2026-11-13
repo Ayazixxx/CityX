@@ -95,6 +95,11 @@ Shader "CityX/ProceduralSky"
             float _StarEnergy;
             float _StarDensity;
 
+            // How far under the ground the eye is (DayNightCycle.Underground): there the sky is black, so a tunnel that runs out past the draw
+            // distance, or into streets not built yet, ends in the dark and not in daylight (owner, 2026-11-12: "you can see the light at the
+            // end of the tunnels ... make it pitch back dark in there").
+            float _CityXUnderground;
+
             struct Attributes
             {
                 float4 positionOS : POSITION;
@@ -207,7 +212,7 @@ Shader "CityX/ProceduralSky"
                     lerp(_GroundHorizonColour.rgb, _GroundBottomColour.rgb, groundBlend) *
                     _GroundEnergy;
 
-                return half4(eye.y >= 0.0 ? sky : ground, 1.0);
+                return half4((eye.y >= 0.0 ? sky : ground) * (1.0 - saturate(_CityXUnderground)), 1.0);
             }
             ENDHLSL
         }

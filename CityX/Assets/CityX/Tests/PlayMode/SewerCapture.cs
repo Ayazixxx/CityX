@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CityX.View;
 using CityX.Weapons;
 using CityX.World;
@@ -25,6 +26,12 @@ namespace CityX.Tests
 
         private CityStreamer _streamer;
         private GameObject _viewer;
+
+        /// <summary>A draw distance short of the tunnel's end, metres: as a long tunnel runs out past the camera's in the game.</summary>
+        private const float TunnelCutOff = 12.0f;
+
+        /// <summary>The brightest a pixel of the dark without a lamp may be, of 255 (the dark itself measured 20 at its brightest).</summary>
+        private const int DarkestLight = 40;
 
         private IEnumerator StandAt(Vector3 where)
         {
@@ -141,6 +148,16 @@ namespace CityX.Tests
                     BuildingShapeCapture.Shoot(camera, directory, "sewer-6-dark-with-a-lamp", eye, look);
                     lamp.enabled = false;
                     BuildingShapeCapture.Shoot(camera, directory, "sewer-6-dark-without", eye, look);
+                    // Past where the camera draws to, or where the street above is not built yet, a tunnel ends in what is behind
+                    // everything: that must be the dark too, not the sky (owner, 2026-11-12: "you can see the light at the end of the
+                    // tunnels when in the sewers, from the cutoff of the render distance ... make it pitch back dark in there").
+                    camera.farClipPlane = TunnelCutOff;
+                    BuildingShapeCapture.Shoot(camera, directory, "sewer-6-dark-past-the-draw-distance", eye, look);
+                    Texture2D cut = BuildingShapeCapture.Render(camera);
+                    float brightest = cut.GetPixels32().Max(p => Mathf.Max(p.r, Mathf.Max(p.g, p.b)));
+                    Object.Destroy(cut);
+                    camera.farClipPlane = 1500.0f;
+                    Assert.Less(brightest, DarkestLight, "the end of a tunnel past the draw distance shows the sky");
                     BuildingShapeCapture.Shoot(camera, directory, "sewer-6-dark-room-under-the-open-manhole",
                         floor + normal * 6.0f + Vector3.up * 2.6f + Vector3.Cross(Vector3.up, normal) * 2.0f, floor + Vector3.up * 3.0f);
 
