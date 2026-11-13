@@ -301,7 +301,15 @@ namespace CityX.Character
                 // A throwable with no melee use (a grenade, docs/GRENADE.md) is thrown on a plain click too: it is no club.
                 bool throws = action == WeaponAimInput.Action.Throw
                     || (action == WeaponAimInput.Action.Melee && weapon.GetMeleeDamage() <= 0.0f);
-                if (action == WeaponAimInput.Action.Melee && !throws)
+                if (!weapon.InHand)
+                {
+                    // Away (a boomerang in the air): the hands are bare and a click punches. Right-click still counts toward the catch's aim.
+                    if (action == WeaponAimInput.Action.Melee || action == WeaponAimInput.Action.Throw)
+                    {
+                        _melee.TryAttack();
+                    }
+                }
+                else if (action == WeaponAimInput.Action.Melee && !throws)
                 {
                     _melee.TryAttack();
                 }

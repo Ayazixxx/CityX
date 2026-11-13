@@ -21,7 +21,12 @@ namespace CityX.Weapons
 
         private BoomerangThrower _thrower;
 
+        /// <summary>The wielder's melee, while equipped: it fights bare-handed while the boomerang is out.</summary>
+        private MeleeAttacker _melee;
+
         public string ItemId => ItemRegistry.WoodenBoomerang;
+
+        public bool InHand => _thrower == null || !_thrower.IsOut;
 
         public float GetMeleeDamage() => 0.0f;
 
@@ -41,21 +46,17 @@ namespace CityX.Weapons
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
         {
+            _melee = player.GetComponent<MeleeAttacker>();
             Hold(player);
-            var melee = player.GetComponent<MeleeAttacker>();
-            if (melee != null)
-            {
-                melee.EquippedWeapon = this;
-            }
         }
 
         public void OnUnequip(GameObject player)
         {
-            var melee = player != null ? player.GetComponent<MeleeAttacker>() : null;
-            if (melee != null && ReferenceEquals(melee.EquippedWeapon, this))
+            if (_melee != null && ReferenceEquals(_melee.EquippedWeapon, this))
             {
-                melee.EquippedWeapon = null;
+                _melee.EquippedWeapon = null;
             }
+            _melee = null;
             Destroy(gameObject);
         }
 
@@ -142,10 +143,16 @@ namespace CityX.Weapons
 
         private void ShowInHand()
         {
-            bool inHand = _thrower == null || !_thrower.IsOut;
+            bool inHand = InHand;
             foreach (Renderer part in GetComponentsInChildren<Renderer>(true))
             {
                 part.enabled = inHand;
+            }
+            if (_melee != null)
+            {
+                // Out, the hands are bare: the fists' own swings, not the boomerang's.
+                if (inHand) _melee.EquippedWeapon = this;
+                else if (ReferenceEquals(_melee.EquippedWeapon, this)) _melee.EquippedWeapon = null;
             }
         }
 

@@ -46,5 +46,11 @@ namespace CityX.Character
 
         /// <summary>A blade: its killing blows cut a part off rather than bursting it (docs/DISMEMBERMENT.md). False for anything blunt.</summary>
         bool IsEdged => false;
+
+        /// <summary>
+        /// False while it is away from the body (a thrown boomerang in the air): the hands are bare and a click punches (owner, 2026-11-12: "after
+        /// throwing the boomerang ... make it so you can punch when its mid air", "just make that apart of the base game").
+        /// </summary>
+        bool InHand => true;
     }
 }

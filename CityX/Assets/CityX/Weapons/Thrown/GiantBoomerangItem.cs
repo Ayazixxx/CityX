@@ -48,6 +48,9 @@ namespace CityX.Weapons
         private Quaternion _toRotation;
         private float _handOver;
 
+        /// <summary>The wielder's melee, while equipped: it fights bare-handed while the boomerang is out.</summary>
+        private MeleeAttacker _melee;
+
         public string ItemId => ItemRegistry.GiantBoomerang;
 
         public float GetMeleeDamage() => 0.0f;
@@ -60,6 +63,8 @@ namespace CityX.Weapons
 
         public bool CanThrow() => true;
 
+        public bool InHand => _thrower == null || !_thrower.IsOut;
+
         public float ThrowSpeed => GiantBoomerangRules.OutSpeed;
 
         public string MovesetId => null;
@@ -68,21 +73,18 @@ namespace CityX.Weapons
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
         {
+            _melee = player.GetComponent<MeleeAttacker>();
             Carry(player);
-            var melee = player.GetComponent<MeleeAttacker>();
-            if (melee != null)
-            {
-                melee.EquippedWeapon = this;
-            }
+            ArmTheFists();
         }
 
         public void OnUnequip(GameObject player)
         {
-            var melee = player != null ? player.GetComponent<MeleeAttacker>() : null;
-            if (melee != null && ReferenceEquals(melee.EquippedWeapon, this))
+            if (_melee != null && ReferenceEquals(_melee.EquippedWeapon, this))
             {
-                melee.EquippedWeapon = null;
+                _melee.EquippedWeapon = null;
             }
+            _melee = null;
             if (_thrower != null)
             {
                 _thrower.StopGiantMoves();
@@ -154,7 +156,22 @@ namespace CityX.Weapons
             Place(true);
         }
 
-        private void Show() => Place(false);
+        private void Show()
+        {
+            ArmTheFists();
+            Place(false);
+        }
+
+        /// <summary>Out, the hands are bare: the fists' own swings, not the boomerang's.</summary>
+        private void ArmTheFists()
+        {
+            if (_melee == null)
+            {
+                return;
+            }
+            if (InHand) _melee.EquippedWeapon = this;
+            else if (ReferenceEquals(_melee.EquippedWeapon, this)) _melee.EquippedWeapon = null;
+        }
 
         /// <summary>On the back, in the hand, or (out) nowhere; <paramref name="anew"/> puts it where it goes even if it is already there.</summary>
         private void Place(bool anew)
