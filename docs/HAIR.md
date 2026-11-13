@@ -121,6 +121,14 @@ ONLY in the real game, fine everywhere else) is a confusing one to hit by surpri
 
 ## Tests
 
+- `HairPushTests` (EditMode): the pieces the hair is kept out of are the body's own
+  torso, shoulder bar, neck column and upper arms; the hair's material is pushed;
+  the shader holds as many pieces and boards as the code sends.
+- `HairPushPlayTests` (PlayMode): a body wearing hair is pushed against until it goes,
+  its pieces reach the shader where it stands with the shirt's room, the kick hair
+  is rigid on the owner's fit, other players' copies are pushed too.
+  `HairPushCapture` renders the kick hair over a T-shirt through the big movements and
+  with the head tipped back, without and with the push (`hair-push-sheet.png`).
 - `CharacterHairFitTests` (EditMode): the fit's maths, saved-vs-automatic
   precedence, the baked mesh's size and placement, every style having a label
   and a mesh, removed styles loading bald, and the colour (default, any colour,
@@ -189,9 +197,15 @@ under and in, to end inside the head (the head's place comes from the owner's fi
 `HairAssets.RebakeKickHair` bakes into the same asset, so nothing else needs rebuilding. `EveryOpenEdgeOfTheKickHairEndsInsideTheHead`. A fit moved far from the owner's numbers would need
 the script run again. The model check's `--kind hat` budget does not suit hair; its holes are the openings left buried in the head.
 
-2026-11-04, owner: "when walking around and doing certain animations the hair pokes through the shirt in the back". Shortening the back was offered and refused ("option 1 changes the fitting"), so the kick hair **bends at the nape** (`HairBend`, baked into its mesh by `RebakeKickHair`). Hair is rigid on the head, and this style's lowest locks hang level with the shoulders: a head tipped back drove their tips up to 30 cm behind the line of the back into the body. Now a point follows the neck by how low it hangs, from none 10 cm below the head's centre to all of it from 26 cm down. The neck's joint is level with those locks, so they stay on the back. At rest the two bones agree, so the style sits exactly on the owner's fit (`AtRestItSitsExactlyOnTheOwnersFit`), and dragging it to place it still works (`CharacterHair` keeps a copy of the placement on the neck). It needs a `SkinnedMeshRenderer`, used only for a style baked with the weights. Other players' copies get it from the same mesh and the same synced animation. It costs the skinning of one small mesh per head wearing it. `HairBendCapture` renders the back through the big movements on a shirt and logs the depth: the worst tips went from -0.30 m rigid to -0.03 m, against a flat stand-in for the back rather than the shirt itself. Other long styles (Dreads, HYDE) are rigid still and not checked.
+2026-11-04, owner: "when walking around and doing certain animations the hair pokes through the shirt in the back". Shortening the back was offered and refused ("option 1 changes the fitting"), so the kick hair **bent at the nape** until 2026-11-12: its lowest locks were weighted to follow the neck instead of the head (`HairBend`, a two-bone skinned mesh), so a head tipped back no longer drove their tips 30 cm into the back. It only roughly followed the body, and in the idle it swung those tips back out through the Giant Boomerang on the back. Replaced by the push below; the kick hair is rigid on the head again, like every style.
 
 Its fit is the owner's, placed by hand (position 0, -2.27, 0; scale 1; 2026-11-04).
+
+## Kept out of the shirt, every style (2026-11-12)
+
+Owner, 2026-11-12: "is there a better fix for the shirt spikes stabbing through the shirt than them bending?" (three ways offered: this one, a hand trim, hair physics; "do 2 and maybe we will do 3 at some point later"). The hair's material (`Hair.mat`, the `_CITYX_HAIR` keyword) has its vertices **pushed out of the upper body** on the graphics card, every frame, in every pass that draws it (colour, depth, depth-normals for the outlines, shadows): `View/Shaders/CityXHairPush.hlsl`. The pieces are the body's own, as it is built (`FusedBodyShape.UpperBody`: the torso, the shoulder bar, the neck column, each arm to its elbow), posed as drawn, laid 6 mm over them (`HairPush.ShirtRoom`), so under a shirt, which is kept 8 to 12 mm off the body (with 3.5 cm the tips lay on the shirt as slivers). `CharacterHair` puts its body in `HairPush` while it is worn; before each frame the nearest eight bodies' pieces go to the shader as globals (40 round cones). Every style gets it, whatever the head does; other players' copies too, since every screen works it out from the bodies it draws. Nothing is cut, so no scalp shows. The head is not a piece: the Kick hair's rolled-in edges end inside it on purpose. It replaced the Kick hair's bend at the nape (above). It costs a loop over 40 cones per hair vertex per pass, on 10k-vertex styles.
+
+The same pass presses hair flat under a board slung on the back (`docs/BOOMERANG.md`, "Hair under it on the back").
 
 ## Added 2026-10-21: dreads
 

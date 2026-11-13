@@ -10,8 +10,9 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: renders long hairstyles with the Giant Boomerang on the back (Items/BackClip; owner, 2026-11-12: "the hairstyles clip through the boomerang
-    /// when its worn on the back") to Logs/CityShots/backclip-*.png, each with the hair tucked under it and without, from behind and from the side.
+    /// Not a test: renders long hairstyles with the Giant Boomerang on the back (Character/Body/HairPush, Items/BackClip; owner, 2026-11-12: "the hairstyles clip through the boomerang
+    /// when its worn on the back", then "the shirt spikes stabbing through the shirt") to Logs/CityShots/backclip-*.png, each with the hair pushed out of the shirt
+    /// and under the board and without, from behind, from the side and at the head.
     /// Explicit; run by name with -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -68,28 +69,28 @@ namespace CityX.Tests
                 save.HairColour = new Color(0.12f, 0.1f, 0.1f);
                 player.GetComponent<CharacterIdentity>().Apply(save);
                 for (int i = 0; i < 10; i++) yield return null;
-                foreach (bool tucked in new[] { false, true })
+                foreach (bool pushed in new[] { false, true })
                 {
-                    if (tucked) hairMaterial.EnableKeyword(BackClip.Keyword);
-                    else hairMaterial.DisableKeyword(BackClip.Keyword);
+                    if (pushed) hairMaterial.EnableKeyword(HairPush.Keyword);
+                    else hairMaterial.DisableKeyword(HairPush.Keyword);
                     foreach (Renderer r in player.GetComponentsInChildren<Renderer>())
                     {
                         if (r.gameObject.name == CharacterHair.WornName)
                         {
                             foreach (Material m in r.materials)
                             {
-                                if (tucked) m.EnableKeyword(BackClip.Keyword);
-                                else m.DisableKeyword(BackClip.Keyword);
+                                if (pushed) m.EnableKeyword(HairPush.Keyword);
+                                else m.DisableKeyword(HairPush.Keyword);
                             }
                         }
                     }
-                    string name = $"backclip-{style}-{(tucked ? "tucked" : "through")}";
+                    string name = $"backclip-{style}-{(pushed ? "pushed" : "through")}";
                     yield return Shoot(camera, name + "-behind", new Vector3(0.6f, 2.5f, -2.6f), new Vector3(0.0f, 2.0f, 0.0f));
                     yield return Shoot(camera, name + "-side", new Vector3(2.8f, 2.3f, -0.6f), new Vector3(0.0f, 2.0f, -0.2f));
                     yield return Shoot(camera, name + "-head", new Vector3(-1.1f, 2.9f, -2.2f), new Vector3(0.0f, 2.35f, 0.0f));
                 }
             }
-            hairMaterial.EnableKeyword(BackClip.Keyword);
+            hairMaterial.EnableKeyword(HairPush.Keyword);
             foreach (GameObject go in new[] { player, item.gameObject, camera.gameObject, ground, sun.gameObject })
             {
                 if (go != null) Object.Destroy(go);

@@ -558,6 +558,29 @@ namespace CityX.Character
             return bonePosition(shoulder) - Vector3.up * (ArmRootBelowShoulder * scale);
         }
 
+        /// <summary>
+        /// The pieces round the shoulders that worn hair is kept out of (Character/Body/HairPush): the torso, the shoulder bar, the neck column, and
+        /// each arm down to its elbow, written into <paramref name="into"/> (at least 5 long). Returns how many.
+        /// </summary>
+        public static int UpperBody(System.Func<HumanBodyBones, Vector3> bonePosition, float height, Segment[] into)
+        {
+            float scale = height / ReferenceHeight;
+            Vector3 neck = bonePosition(HumanBodyBones.Neck);
+            Vector3 torsoTop = neck - Vector3.up * (TorsoTopBelowShoulders * scale);
+            into[0] = new Segment(bonePosition(HumanBodyBones.Hips), torsoTop, TorsoRadius * scale, HumanBodyBones.Hips);
+            into[1] = ShoulderBar(bonePosition, scale, ShoulderBarEndsInside);
+            into[2] = NeckColumn(neck, scale);
+            into[3] = UpperArm(bonePosition, scale, HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm);
+            into[4] = UpperArm(bonePosition, scale, HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm);
+            return 5;
+        }
+
+        /// <summary>An arm from its root to its elbow, as thick as at its root.</summary>
+        private static Segment UpperArm(System.Func<HumanBodyBones, Vector3> bonePosition, float scale, HumanBodyBones upper, HumanBodyBones lower)
+        {
+            return new Segment(ArmRoot(bonePosition, upper, scale), bonePosition(lower), ArmRadius * scale, ArmRadius * scale, upper, BlendRadius * scale);
+        }
+
         private static Segment NeckColumn(Vector3 neck, float scale)
         {
             return new Segment(neck - Vector3.up * (NeckColumnBelowShoulders * scale), neck + Vector3.up * (NeckColumnAboveShoulders * scale),

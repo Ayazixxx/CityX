@@ -719,7 +719,6 @@ namespace CityX.Tests
                 }
                 else
                 {
-                    // (Any renderer: a style baked to bend is skinned, HairBend.)
                     Assert.IsNotNull(hair.Worn.GetComponent<Renderer>(), $"the \"{style}\" button produced no hair");
                 }
             }

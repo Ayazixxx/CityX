@@ -50,14 +50,9 @@ namespace CityX.Tests
             // Into the idle, the boomerang settled on the back.
             for (int i = 0; i < 90; i++) yield return null;
 
-            SkinnedMeshRenderer worn = null;
-            foreach (SkinnedMeshRenderer r in player.GetComponentsInChildren<SkinnedMeshRenderer>())
-            {
-                if (r.sharedMesh == kick) worn = r;
-            }
-            Assert.IsNotNull(worn, "the Kick hair is not worn");
-            // The hair's model space: where its first bone (its placement on the head) puts it; its vertices are the model's as imported.
-            Matrix4x4 toHair = worn.bones[0].worldToLocalMatrix;
+            Assert.IsNotNull(hair.Worn, "the Kick hair is not worn");
+            // The hair's model space: where its placement on the head puts it; its vertices are the model's as imported.
+            Matrix4x4 toHair = hair.Worn.transform.worldToLocalMatrix;
 
             string folder = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "HairFit");
             Directory.CreateDirectory(folder);
@@ -65,15 +60,15 @@ namespace CityX.Tests
             int offset = 1;
             foreach (SkinnedMeshRenderer r in player.GetComponentsInChildren<SkinnedMeshRenderer>())
             {
-                if (r == worn || !r.enabled) continue;
+                if (!r.enabled) continue;
                 var baked = new Mesh();
                 r.BakeMesh(baked, false);   // in the renderer's own unscaled space: its transform below puts it in the world
                 offset = Write(body, r.name, baked, toHair * r.transform.localToWorldMatrix, offset);
             }
-            // The head and anything else drawn whole on a bone (not the boomerang).
+            // The head and anything else drawn whole on a bone (not the boomerang, not the hair).
             foreach (MeshFilter f in player.GetComponentsInChildren<MeshFilter>())
             {
-                if (f.transform.IsChildOf(item.transform) || f.sharedMesh == null) continue;
+                if (f.transform.IsChildOf(item.transform) || f.transform.IsChildOf(hair.Worn.transform) || f.sharedMesh == null) continue;
                 var shown = f.GetComponent<Renderer>();
                 if (shown == null || !shown.enabled) continue;
                 offset = Write(body, f.name, f.sharedMesh, toHair * f.transform.localToWorldMatrix, offset);
@@ -91,12 +86,6 @@ namespace CityX.Tests
             var reference = new StringBuilder();
             Write(reference, "KickHairAsInTheGame", kick, Matrix4x4.identity, 1);
             File.WriteAllText(Path.Combine(folder, "KickHairAsInTheGame.obj"), reference.ToString());
-            // The hair as it is drawn in the idle: its lowest locks follow the neck (HairBend), so they hang where they do in the game, not at rest.
-            var bent = new Mesh();
-            worn.BakeMesh(bent, false);
-            var inIdle = new StringBuilder();
-            Write(inIdle, "KickHairInTheIdle", bent, toHair * worn.transform.localToWorldMatrix, 1);
-            File.WriteAllText(Path.Combine(folder, "KickHairInTheIdle.obj"), inIdle.ToString());
             Debug.Log($"CityX hair fit: wrote {folder}");
 
             Object.Destroy(item.gameObject);

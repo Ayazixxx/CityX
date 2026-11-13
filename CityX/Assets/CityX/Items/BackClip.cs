@@ -5,30 +5,27 @@ using UnityEngine.Rendering;
 namespace CityX.Items
 {
     /// <summary>
-    /// HAIR TUCKED UNDER WHAT IS SLUNG ON THE BACK (owner, 2026-11-12: "the hairstyles clip through the boomerang when its worn on the back ... is there a way
-    /// to make any amount of hair that passes through it invisible on the other side"). A big weapon carried on the back (<see cref="BackCarry"/>) shows its
-    /// board here while it is there; before each frame is drawn the boards go to the shader as globals, and a material with the _BACKCLIP keyword (the
-    /// hair's) leaves out what of it is past a board's inner face inside its outline (View/Shaders/CityXBackClip.hlsl). Every screen draws its own, so every
-    /// player sees it, and other players' copies too.
+    /// HAIR TUCKED UNDER WHAT IS SLUNG ON THE BACK (owner, 2026-11-12: "the hairstyles clip through the boomerang when its worn on the back", then of the
+    /// neck bending: "is there a better fix"). A big weapon carried on the back (<see cref="BackCarry"/>) shows its board here while it lies settled there;
+    /// before each frame is drawn the boards go to the shader as globals, and the hair (the _CITYX_HAIR keyword, Character/Body/HairPush) is pressed flat
+    /// under each board's inner face where it would come through it (View/Shaders/CityXHairPush.hlsl). Every screen draws its own, so every player sees
+    /// it, and other players' copies too.
     /// </summary>
     public static class BackClip
     {
-        /// <summary>The most boards at once (CITYX_BACK_CLIP_MAX in the shader): the nearest bodies' carries.</summary>
+        /// <summary>The most boards at once (CITYX_BACK_BOARDS_MAX in the shader).</summary>
         public const int Max = 8;
 
-        /// <summary>The shader keyword a material turns on to be tucked under the boards.</summary>
-        public const string Keyword = "_BACKCLIP";
-
         private static readonly int ToBoardId = Shader.PropertyToID("_BackClipToBoard");
+        private static readonly int FromBoardId = Shader.PropertyToID("_BackClipFromBoard");
         private static readonly int CountId = Shader.PropertyToID("_BackClipCount");
         private static readonly int VeeAId = Shader.PropertyToID("_BackClipVeeA");
         private static readonly int VeeBId = Shader.PropertyToID("_BackClipVeeB");
         private static readonly int EdgeId = Shader.PropertyToID("_BackClipEdge");
 
         /// <summary>
-        /// How far beyond a board's outer face hair is still tucked under it, metres: hair lying through it and on it, not hair farther out. Hidden all the way
-        /// out, hair seen past the board's edge from an angle went too, and the back of a head beside its upper tip showed its scalp (owner, 2026-11-12: "i can
-        /// see too much of the scalp").
+        /// How far beyond a board's outer face hair is still pressed under it, metres: hair lying through it and on it, not hair farther out (the back of a
+        /// head beside its upper tip is left alone).
         /// </summary>
         public const float Beyond = 0.05f;
 
@@ -40,6 +37,7 @@ namespace CityX.Items
 
         private static readonly List<Board> Boards = new List<Board>();
         private static readonly Matrix4x4[] ToBoard = new Matrix4x4[Max];
+        private static readonly Matrix4x4[] FromBoard = new Matrix4x4[Max];
         private static readonly Vector4[] VeeA = new Vector4[Max];
         private static readonly Vector4[] VeeB = new Vector4[Max];
         private static readonly Vector4[] Edge = new Vector4[Max];
@@ -88,6 +86,7 @@ namespace CityX.Items
                 if (i < count)
                 {
                     ToBoard[i] = Boards[i].Frame.worldToLocalMatrix;
+                    FromBoard[i] = Boards[i].Frame.localToWorldMatrix;
                     VeeA[i] = Boards[i].VeeA;
                     VeeB[i] = Boards[i].VeeB;
                     Edge[i] = Boards[i].Edge;
@@ -95,10 +94,12 @@ namespace CityX.Items
                 else
                 {
                     ToBoard[i] = Matrix4x4.identity;
+                    FromBoard[i] = Matrix4x4.identity;
                     VeeA[i] = VeeB[i] = Edge[i] = Vector4.zero;
                 }
             }
             Shader.SetGlobalMatrixArray(ToBoardId, ToBoard);
+            Shader.SetGlobalMatrixArray(FromBoardId, FromBoard);
             Shader.SetGlobalVectorArray(VeeAId, VeeA);
             Shader.SetGlobalVectorArray(VeeBId, VeeB);
             Shader.SetGlobalVectorArray(EdgeId, Edge);

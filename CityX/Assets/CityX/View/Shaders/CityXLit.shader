@@ -118,9 +118,9 @@ Shader "CityX/Lit"
 
             // -------------------------------------
             // Shader Stages
-            #pragma vertex LitPassVertex
-            #pragma fragment CityXLitPassFragment
-            #pragma shader_feature_local_fragment _BACKCLIP
+            #pragma vertex CityXLitPassVertex
+            #pragma shader_feature_local _CITYX_HAIR
+            #pragma fragment LitPassFragment
 
             // -------------------------------------
             // Material Keywords
@@ -191,20 +191,13 @@ Shader "CityX/Lit"
             // URP's UniversalFragmentPBR without.
             #define UniversalFragmentPBR CityXLitFragment
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
-            #include "CityXBackClip.hlsl"
+            #include "CityXHairPush.hlsl"
 
-            void CityXLitPassFragment(Varyings input, out half4 outColor : SV_Target0
-            #ifdef _WRITE_RENDERING_LAYERS
-                , out uint outRenderingLayers : SV_Target1
-            #endif
-            )
+            // The hair kept out of the body and under a board on the back (CityXHairPush.hlsl), then URP's own.
+            Varyings CityXLitPassVertex(Attributes input)
             {
-                CityXBackClip(input.positionCS);
-                LitPassFragment(input, outColor
-            #ifdef _WRITE_RENDERING_LAYERS
-                    , outRenderingLayers
-            #endif
-                );
+                input.positionOS.xyz = CityXHairPushObject(input.positionOS.xyz);
+                return LitPassVertex(input);
             }
             #undef UniversalFragmentPBR
             ENDHLSL
@@ -230,7 +223,8 @@ Shader "CityX/Lit"
 
             // -------------------------------------
             // Shader Stages
-            #pragma vertex ShadowPassVertex
+            #pragma vertex CityXShadowPassVertex
+            #pragma shader_feature_local _CITYX_HAIR
             #pragma fragment ShadowPassFragment
 
             // -------------------------------------
@@ -257,6 +251,14 @@ Shader "CityX/Lit"
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+            #include "CityXHairPush.hlsl"
+
+            // The hair kept out of the body and under a board on the back (CityXHairPush.hlsl), then URP's own.
+            Varyings CityXShadowPassVertex(Attributes input)
+            {
+                input.positionOS.xyz = CityXHairPushObject(input.positionOS.xyz);
+                return ShadowPassVertex(input);
+            }
             ENDHLSL
         }
 
@@ -368,9 +370,9 @@ Shader "CityX/Lit"
 
             // -------------------------------------
             // Shader Stages
-            #pragma vertex DepthOnlyVertex
-            #pragma fragment CityXDepthOnlyFragment
-            #pragma shader_feature_local_fragment _BACKCLIP
+            #pragma vertex CityXDepthOnlyVertex
+            #pragma shader_feature_local _CITYX_HAIR
+            #pragma fragment DepthOnlyFragment
 
             // -------------------------------------
             // Material Keywords
@@ -390,12 +392,13 @@ Shader "CityX/Lit"
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
-            #include "CityXBackClip.hlsl"
+            #include "CityXHairPush.hlsl"
 
-            half CityXDepthOnlyFragment(Varyings input) : SV_TARGET
+            // The hair kept out of the body and under a board on the back (CityXHairPush.hlsl), then URP's own.
+            Varyings CityXDepthOnlyVertex(Attributes input)
             {
-                CityXBackClip(input.positionCS);
-                return DepthOnlyFragment(input);
+                input.positionOS.xyz = CityXHairPushObject(input.positionOS.xyz);
+                return DepthOnlyVertex(input);
             }
             ENDHLSL
         }
@@ -419,9 +422,9 @@ Shader "CityX/Lit"
 
             // -------------------------------------
             // Shader Stages
-            #pragma vertex DepthNormalsVertex
-            #pragma fragment CityXDepthNormalsFragment
-            #pragma shader_feature_local_fragment _BACKCLIP
+            #pragma vertex CityXDepthNormalsVertex
+            #pragma shader_feature_local _CITYX_HAIR
+            #pragma fragment DepthNormalsFragment
 
             // -------------------------------------
             // Material Keywords
@@ -448,20 +451,13 @@ Shader "CityX/Lit"
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitDepthNormalsPass.hlsl"
-            #include "CityXBackClip.hlsl"
+            #include "CityXHairPush.hlsl"
 
-            void CityXDepthNormalsFragment(Varyings input, out half4 outNormalWS : SV_Target0
-            #ifdef _WRITE_RENDERING_LAYERS
-                , out uint outRenderingLayers : SV_Target1
-            #endif
-            )
+            // The hair kept out of the body and under a board on the back (CityXHairPush.hlsl), then URP's own.
+            Varyings CityXDepthNormalsVertex(Attributes input)
             {
-                CityXBackClip(input.positionCS);
-                DepthNormalsFragment(input, outNormalWS
-            #ifdef _WRITE_RENDERING_LAYERS
-                    , outRenderingLayers
-            #endif
-                );
+                input.positionOS.xyz = CityXHairPushObject(input.positionOS.xyz);
+                return DepthNormalsVertex(input);
             }
             ENDHLSL
         }
