@@ -125,20 +125,40 @@ namespace CityX.Tests
                     }
                 }
 
-                // The attacks: each from a fresh ready stance (the chain is advanced by buffering the next light).
-                var attacks = new (string label, System.Action start, SoulsAttack attack)[]
+                // The attacks: each from a fresh ready stance (the chain is advanced by buffering the next light), then the two openers
+                // thrown on the move: out of a walk and out of a sprint (the body walked or run up to its pace first).
+                var attacks = new (string label, System.Action start, SoulsAttack attack, float pace)[]
                 {
-                    ("light1", () => combat.RequestLight(0.0f), combat.LightAttack(0)),
-                    ("light2", () => { combat.RequestLight(0.0f); }, combat.LightAttack(1)),
-                    ("light3", () => { combat.RequestLight(0.0f); }, combat.LightAttack(2)),
-                    ("heavy", () => combat.RequestHeavy(0.0f), combat.HeavyAttack),
+                    ("light1", () => combat.RequestLight(0.0f), combat.LightAttack(0), 0.0f),
+                    ("light2", () => { combat.RequestLight(0.0f); }, combat.LightAttack(1), 0.0f),
+                    ("light3", () => { combat.RequestLight(0.0f); }, combat.LightAttack(2), 0.0f),
+                    ("heavy", () => combat.RequestHeavy(0.0f), combat.HeavyAttack, 0.0f),
+                    ("walk", () => combat.RequestLight(0.0f), combat.OpenerAt(locomotion.WalkSpeed), locomotion.WalkSpeed),
+                    ("run", () => combat.RequestLight(0.0f), combat.OpenerAt(locomotion.SprintSpeed), locomotion.SprintSpeed),
                 };
                 for (int a = 0; a < attacks.Length; a++)
                 {
-                    (string label, System.Action start, SoulsAttack attack) = attacks[a];
+                    (string label, System.Action start, SoulsAttack attack, float pace) = attacks[a];
                     if (label == "light3" && combat.LightChainLength < 3)
                     {
                         continue;   // a knife's chain is two cuts back and forth: no third
+                    }
+                    if (pace > 0.0f && combat.IsKnife)
+                    {
+                        continue;   // a knife has the one opener
+                    }
+                    if (pace > 0.0f)
+                    {
+                        LocomotionInput moving = idle;
+                        moving.Move = Vector2.up;
+                        moving.Sprint = pace > locomotion.WalkSpeed;
+                        for (int i = 0; i < 80; i++)
+                        {
+                            combat.Tick(Dt);
+                            vitals.TickHitstun(Dt);
+                            locomotion.Tick(moving, Dt);
+                            yield return null;
+                        }
                     }
                     // Chain into the second and third lights: throw the earlier ones and buffer the next at each window.
                     for (int earlier = 0; earlier < a && a < 3; earlier++)

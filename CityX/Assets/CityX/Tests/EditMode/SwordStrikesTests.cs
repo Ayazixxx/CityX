@@ -35,7 +35,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void FiveAttacksAreOneHandedAndFourTwoHanded()
+        public void SevenAttacksAreOneHandedAndSevenTwoHanded()
         {
             int oneHanded = 0;
             foreach (SwordStrikeKind kind in SwordStrikes.All)
@@ -44,7 +44,9 @@ namespace CityX.Tests
                 Assert.AreEqual(SwordStrikes.IsOneHanded(kind), !mid.TwoHanded, $"{kind}'s frames disagree with its handedness");
                 if (SwordStrikes.IsOneHanded(kind)) oneHanded++;
             }
-            Assert.AreEqual(5, oneHanded);
+            // Each hold: its lights, its heavy, and its two openers thrown on the move (the one-handed has the knife\x27s thrust besides; the two-handed, the hammer\x27s smash).
+            Assert.AreEqual(7, oneHanded);
+            Assert.AreEqual(14, SwordStrikes.All.Length);
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.All[0]);
         }
 
@@ -219,6 +221,10 @@ namespace CityX.Tests
             {
                 for (int j = i + 1; j < SwordStrikes.All.Length; j++)
                 {
+                    if (SwordStrikes.EntrySpeed(SwordStrikes.All[i]) > 0.0f || SwordStrikes.EntrySpeed(SwordStrikes.All[j]) > 0.0f)
+                    {
+                        continue;   // an opener thrown on the move is a standing cut\x27s own arm over a body that walks or runs into it
+                    }
                     Vector3 a = SwordStrikes.Evaluate(SwordStrikes.All[i], 0.35f).Hand;
                     Vector3 b = SwordStrikes.Evaluate(SwordStrikes.All[j], 0.35f).Hand;
                     Assert.Greater(Vector3.Distance(a, b), 0.05f, $"{SwordStrikes.All[i]} and {SwordStrikes.All[j]} wind up to the same place");

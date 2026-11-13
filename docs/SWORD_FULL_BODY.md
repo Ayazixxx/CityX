@@ -8,6 +8,7 @@ Asked how far to go, the owner chose both:
 
 - **A swing is a commitment.** The body does not walk under it; the attack's own step carries it, and it is aimed by turning before it
   lands. (It kept 65% of walking pace under a swing until now, the legs walking on under an arm.)
+  The pace the body HAD is another matter: an attack opened on the move carries it on (docs/SWORD_MOMENTUM.md).
 - **Slower, readable wind-ups.** A light lands about 0.4 s after the click (0.28 before), a two-handed one about 0.47 s (0.34), and the
   heavies are held at the top for a third of a second or more before they come down. The damage went up with the cycle, so a sword does
   a second what it did.
