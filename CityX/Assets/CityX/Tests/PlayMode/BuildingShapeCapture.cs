@@ -291,6 +291,22 @@ namespace CityX.Tests
         {
             camera.transform.position = position;
             camera.transform.rotation = Quaternion.LookRotation(lookAt - position, Vector3.up);
+            Texture2D image = Render(camera);
+            Save(image, directory, name);
+            Object.Destroy(image);
+        }
+
+        /// <summary>Writes a picture as directory/name.png.</summary>
+        internal static void Save(Texture2D image, string directory, string name)
+        {
+            var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
+            var enc = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
+            File.WriteAllBytes(Path.Combine(directory, name + ".png"), (byte[])enc.Invoke(null, new object[] { image }));
+        }
+
+        /// <summary>What the camera sees, as big as a <see cref="Shoot"/> picture, for the caller to measure (and destroy).</summary>
+        internal static Texture2D Render(Camera camera)
+        {
             const int w = ShotWidth, h = ShotHeight;
             RenderTexture rt = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32);
             camera.targetTexture = rt;
@@ -299,13 +315,10 @@ namespace CityX.Tests
             var image = new Texture2D(w, h, TextureFormat.RGB24, false);
             image.ReadPixels(new Rect(0, 0, w, h), 0, 0);
             image.Apply();
-            var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
-            var enc = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
-            File.WriteAllBytes(Path.Combine(directory, name + ".png"), (byte[])enc.Invoke(null, new object[] { image }));
             camera.targetTexture = null;
             RenderTexture.active = null;
             RenderTexture.ReleaseTemporary(rt);
-            Object.Destroy(image);
+            return image;
         }
     }
 }

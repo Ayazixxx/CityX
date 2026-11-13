@@ -38,11 +38,8 @@ namespace CityX.Weapons
         [Tooltip("Its outline in its own frame (the grip at the origin, z along it, y out of its face), for the hair it lies over (BackClip): one tip x, z and the elbow x, z. Set by BoomerangBuilder.")]
         public Vector4 OutlineTipAndElbow;
 
-        [Tooltip("The other tip x, z, each arm's half width and half its thickness. Set by BoomerangBuilder.")]
-        public Vector4 OutlineTipWidthDepth;
-
-        [Tooltip("Each arm's half width at its tips: it narrows from the elbow. Set by BoomerangBuilder.")]
-        public float OutlineTipHalfWidth;
+        [Tooltip("The other tip x, z, each arm's half width at the elbow and at its tip (it narrows from the elbow). Set by BoomerangBuilder.")]
+        public Vector4 OutlineTipAndWidths;
 
         private BoomerangThrower _thrower;
         private GameObject _body;
@@ -213,7 +210,7 @@ namespace CityX.Weapons
             bool onTheBack = _body != null && !_inHand && _handOver <= 0.0f && (_thrower == null || (!_thrower.IsOut && !_thrower.GiantMoves.InHand));
             if (onTheBack)
             {
-                BackClip.Show(transform, OutlineTipAndElbow, OutlineTipWidthDepth, OutlineTipHalfWidth);
+                BackClip.Show(transform, OutlineTipAndElbow, OutlineTipAndWidths);
             }
             else
             {

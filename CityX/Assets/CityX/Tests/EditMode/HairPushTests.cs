@@ -3,6 +3,7 @@ using CityX.Character;
 using CityX.CharacterEditor;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.Rendering;
 using UnityEngine;
 
 namespace CityX.Tests
@@ -59,6 +60,34 @@ namespace CityX.Tests
             var hair = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/Character/Materials/Hair.mat");
             Assert.IsTrue(hair.IsKeywordEnabled(HairPush.Keyword), "the hair is not pushed out of the body");
             Assert.IsTrue(hair.shader.keywordSpace.FindKeyword(HairPush.Keyword).isValid, $"{hair.shader.name} does not know {HairPush.Keyword}");
+        }
+
+        /// <summary>Every pass of the lit shader compiles its vertex program, the hair pushed or not (the depth pass's input once had another name).</summary>
+        [Test]
+        public void EveryPassOfTheLitShaderCompilesWithTheHairPushedOrNot()
+        {
+            ShaderData data = ShaderUtil.GetShaderData(Shader.Find("CityX/Lit"));
+            var failures = new List<string>();
+            int compiled = 0;
+            for (int s = 0; s < data.SerializedSubshaderCount; s++)
+            {
+                ShaderData.Subshader subshader = data.GetSerializedSubshader(s);
+                for (int p = 0; p < subshader.PassCount; p++)
+                {
+                    ShaderData.Pass pass = subshader.GetPass(p);
+                    foreach (string[] keywords in new[] { new string[0], new[] { HairPush.Keyword } })
+                    {
+                        ShaderData.VariantCompileInfo variant = pass.CompileVariant(ShaderType.Vertex, keywords, ShaderCompilerPlatform.D3D, BuildTarget.StandaloneWindows64);
+                        compiled++;
+                        if (!variant.Success)
+                        {
+                            failures.Add($"{pass.Name} {string.Join(" ", keywords)}: {string.Join("; ", System.Linq.Enumerable.Select(variant.Messages, m => m.message))}");
+                        }
+                    }
+                }
+            }
+            Assert.Greater(compiled, 0, "no pass was compiled");
+            Assert.IsEmpty(failures, string.Join("\n", failures));
         }
 
         [Test]

@@ -205,7 +205,7 @@ Its fit is the owner's, placed by hand (position 0, -2.27, 0; scale 1; 2026-11-0
 
 Owner, 2026-11-12: "is there a better fix for the shirt spikes stabbing through the shirt than them bending?" (three ways offered: this one, a hand trim, hair physics; "do 2 and maybe we will do 3 at some point later"). The hair's material (`Hair.mat`, the `_CITYX_HAIR` keyword) has its vertices **pushed out of the upper body** on the graphics card, every frame, in every pass that draws it (colour, depth, depth-normals for the outlines, shadows): `View/Shaders/CityXHairPush.hlsl`. The pieces are the body's own, as it is built (`FusedBodyShape.UpperBody`: the torso, the shoulder bar, the neck column, each arm to its elbow), posed as drawn, laid 6 mm over them (`HairPush.ShirtRoom`), so under a shirt, which is kept 8 to 12 mm off the body (with 3.5 cm the tips lay on the shirt as slivers). `CharacterHair` puts its body in `HairPush` while it is worn; before each frame the nearest eight bodies' pieces go to the shader as globals (40 round cones). Every style gets it, whatever the head does; other players' copies too, since every screen works it out from the bodies it draws. Nothing is cut, so no scalp shows. The head is not a piece: the Kick hair's rolled-in edges end inside it on purpose. It replaced the Kick hair's bend at the nape (above). It costs a loop over 40 cones per hair vertex per pass, on 10k-vertex styles.
 
-The same pass presses hair flat under a board slung on the back (`docs/BOOMERANG.md`, "Hair under it on the back").
+The same pass tucks hair that comes out through a board slung on the back just inside the board (`docs/BOOMERANG.md`, "Hair under it on the back").
 
 ## Added 2026-10-21: dreads
 

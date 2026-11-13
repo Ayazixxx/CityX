@@ -193,7 +193,7 @@ Shader "CityX/Lit"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
             #include "CityXHairPush.hlsl"
 
-            // The hair kept out of the body and under a board on the back (CityXHairPush.hlsl), then URP's own.
+            // The hair kept out of the body and tucked into a board on the back (CityXHairPush.hlsl), then URP's own.
             Varyings CityXLitPassVertex(Attributes input)
             {
                 input.positionOS.xyz = CityXHairPushObject(input.positionOS.xyz);
@@ -253,7 +253,7 @@ Shader "CityX/Lit"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
             #include "CityXHairPush.hlsl"
 
-            // The hair kept out of the body and under a board on the back (CityXHairPush.hlsl), then URP's own.
+            // The hair kept out of the body and tucked into a board on the back (CityXHairPush.hlsl), then URP's own.
             Varyings CityXShadowPassVertex(Attributes input)
             {
                 input.positionOS.xyz = CityXHairPushObject(input.positionOS.xyz);
@@ -394,10 +394,10 @@ Shader "CityX/Lit"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
             #include "CityXHairPush.hlsl"
 
-            // The hair kept out of the body and under a board on the back (CityXHairPush.hlsl), then URP's own.
+            // The hair kept out of the body and tucked into a board on the back (CityXHairPush.hlsl), then URP's own.
             Varyings CityXDepthOnlyVertex(Attributes input)
             {
-                input.positionOS.xyz = CityXHairPushObject(input.positionOS.xyz);
+                input.position.xyz = CityXHairPushObject(input.position.xyz);
                 return DepthOnlyVertex(input);
             }
             ENDHLSL
@@ -453,7 +453,7 @@ Shader "CityX/Lit"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitDepthNormalsPass.hlsl"
             #include "CityXHairPush.hlsl"
 
-            // The hair kept out of the body and under a board on the back (CityXHairPush.hlsl), then URP's own.
+            // The hair kept out of the body and tucked into a board on the back (CityXHairPush.hlsl), then URP's own.
             Varyings CityXDepthNormalsVertex(Attributes input)
             {
                 input.positionOS.xyz = CityXHairPushObject(input.positionOS.xyz);

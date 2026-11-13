@@ -7,8 +7,8 @@ namespace CityX.Items
     /// <summary>
     /// HAIR TUCKED UNDER WHAT IS SLUNG ON THE BACK (owner, 2026-11-12: "the hairstyles clip through the boomerang when its worn on the back", then of the
     /// neck bending: "is there a better fix"). A big weapon carried on the back (<see cref="BackCarry"/>) shows its board here while it lies settled there;
-    /// before each frame is drawn the boards go to the shader as globals, and the hair (the _CITYX_HAIR keyword, Character/Body/HairPush) is pressed flat
-    /// under each board's inner face where it would come through it (View/Shaders/CityXHairPush.hlsl). Every screen draws its own, so every player sees
+    /// before each frame is drawn the boards go to the shader as globals, and whatever of the hair (the _CITYX_HAIR keyword, Character/Body/HairPush) is out
+    /// past a board's middle inside its outline is laid inside it (View/Shaders/CityXHairPush.hlsl). Every screen draws its own, so every player sees
     /// it, and other players' copies too.
     /// </summary>
     public static class BackClip
@@ -21,18 +21,11 @@ namespace CityX.Items
         private static readonly int CountId = Shader.PropertyToID("_BackClipCount");
         private static readonly int VeeAId = Shader.PropertyToID("_BackClipVeeA");
         private static readonly int VeeBId = Shader.PropertyToID("_BackClipVeeB");
-        private static readonly int EdgeId = Shader.PropertyToID("_BackClipEdge");
-
-        /// <summary>
-        /// How far beyond a board's outer face hair is still pressed under it, metres: hair lying through it and on it, not hair farther out (the back of a
-        /// head beside its upper tip is left alone).
-        /// </summary>
-        public const float Beyond = 0.05f;
 
         private struct Board
         {
             public Transform Frame;
-            public Vector4 VeeA, VeeB, Edge;
+            public Vector4 VeeA, VeeB;
         }
 
         private static readonly List<Board> Boards = new List<Board>();
@@ -40,23 +33,22 @@ namespace CityX.Items
         private static readonly Matrix4x4[] FromBoard = new Matrix4x4[Max];
         private static readonly Vector4[] VeeA = new Vector4[Max];
         private static readonly Vector4[] VeeB = new Vector4[Max];
-        private static readonly Vector4[] Edge = new Vector4[Max];
         private static bool _hooked;
 
         /// <summary>The boards shown now (for tests).</summary>
         public static int Count => Boards.Count;
 
         /// <summary>
-        /// Shows a board slung on a back: its frame (x across, y out of its face away from the back, z along it) and its outline in that frame, a V from one
-        /// tip through the elbow to the other tip (<paramref name="tipAndElbow"/>: tip x, z, elbow x, z; <paramref name="tipWidthDepth"/>: other tip x, z,
-        /// each arm's half width at the elbow, how far behind its middle its inner face is; <paramref name="tipHalfWidth"/>: each arm's half width at its tip).
+        /// Shows a board slung on a back: its frame (x across, y out of its face away from the back, z along it, its middle at 0) and its outline in that frame, a V from one
+        /// tip through the elbow to the other tip (<paramref name="tipAndElbow"/>: tip x, z, elbow x, z; <paramref name="tipAndWidths"/>: other tip x, z,
+        /// each arm's half width at the elbow and at its tip).
         /// Shown again, it is updated.
         /// </summary>
-        public static void Show(Transform frame, Vector4 tipAndElbow, Vector4 tipWidthDepth, float tipHalfWidth)
+        public static void Show(Transform frame, Vector4 tipAndElbow, Vector4 tipAndWidths)
         {
             Hook();
             int i = Boards.FindIndex(b => b.Frame == frame);
-            var board = new Board { Frame = frame, VeeA = tipAndElbow, VeeB = tipWidthDepth, Edge = new Vector4(tipHalfWidth, Beyond, 0.0f, 0.0f) };
+            var board = new Board { Frame = frame, VeeA = tipAndElbow, VeeB = tipAndWidths };
             if (i >= 0) Boards[i] = board;
             else Boards.Add(board);
         }
@@ -89,20 +81,18 @@ namespace CityX.Items
                     FromBoard[i] = Boards[i].Frame.localToWorldMatrix;
                     VeeA[i] = Boards[i].VeeA;
                     VeeB[i] = Boards[i].VeeB;
-                    Edge[i] = Boards[i].Edge;
                 }
                 else
                 {
                     ToBoard[i] = Matrix4x4.identity;
                     FromBoard[i] = Matrix4x4.identity;
-                    VeeA[i] = VeeB[i] = Edge[i] = Vector4.zero;
+                    VeeA[i] = VeeB[i] = Vector4.zero;
                 }
             }
             Shader.SetGlobalMatrixArray(ToBoardId, ToBoard);
             Shader.SetGlobalMatrixArray(FromBoardId, FromBoard);
             Shader.SetGlobalVectorArray(VeeAId, VeeA);
             Shader.SetGlobalVectorArray(VeeBId, VeeB);
-            Shader.SetGlobalVectorArray(EdgeId, Edge);
             Shader.SetGlobalFloat(CountId, count);
         }
     }

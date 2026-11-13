@@ -281,5 +281,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GiantBoomerangItem
   OutlineTipAndElbow: {x: -0.8771781, y: 2.0308812, z: 0.000000061460604, w: 0.9628102}
-  OutlineTipWidthDepth: {x: -0.018655486, y: -0.41917008, z: 0.21, w: 0.055}
-  OutlineTipHalfWidth: 0.15
+  OutlineTipAndWidths: {x: -0.018655486, y: -0.41917008, z: 0.21, w: 0.15}
