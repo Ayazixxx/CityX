@@ -67,8 +67,16 @@ namespace CityX.Tests
             {
                 if (r == worn || !r.enabled) continue;
                 var baked = new Mesh();
-                r.BakeMesh(baked, true);
+                r.BakeMesh(baked, false);   // in the renderer's own unscaled space: its transform below puts it in the world
                 offset = Write(body, r.name, baked, toHair * r.transform.localToWorldMatrix, offset);
+            }
+            // The head and anything else drawn whole on a bone (not the boomerang).
+            foreach (MeshFilter f in player.GetComponentsInChildren<MeshFilter>())
+            {
+                if (f.transform.IsChildOf(item.transform) || f.sharedMesh == null) continue;
+                var shown = f.GetComponent<Renderer>();
+                if (shown == null || !shown.enabled) continue;
+                offset = Write(body, f.name, f.sharedMesh, toHair * f.transform.localToWorldMatrix, offset);
             }
             File.WriteAllText(Path.Combine(folder, "Body.obj"), body.ToString());
 
@@ -83,6 +91,12 @@ namespace CityX.Tests
             var reference = new StringBuilder();
             Write(reference, "KickHairAsInTheGame", kick, Matrix4x4.identity, 1);
             File.WriteAllText(Path.Combine(folder, "KickHairAsInTheGame.obj"), reference.ToString());
+            // The hair as it is drawn in the idle: its lowest locks follow the neck (HairBend), so they hang where they do in the game, not at rest.
+            var bent = new Mesh();
+            worn.BakeMesh(bent, false);
+            var inIdle = new StringBuilder();
+            Write(inIdle, "KickHairInTheIdle", bent, toHair * worn.transform.localToWorldMatrix, 1);
+            File.WriteAllText(Path.Combine(folder, "KickHairInTheIdle.obj"), inIdle.ToString());
             Debug.Log($"CityX hair fit: wrote {folder}");
 
             Object.Destroy(item.gameObject);
