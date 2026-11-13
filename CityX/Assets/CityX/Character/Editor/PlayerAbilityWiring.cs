@@ -109,6 +109,9 @@ namespace CityX.CharacterEditor
 
             // --- the Healing Aura (the Cleric, 2026-10-29, docs/HEALING.md): a green circle round the caster, drawn in code.
             GetOrAdd<HealingAuraAbility>(player);
+            // --- Glacier Spikes (the Cryomancer, 2026-11-12, docs/GLACIER_SPIKES.md): crystals drawn in code, the ice's material in Resources.
+            var glacierSpikes = GetOrAdd<GlacierSpikesAbility>(player);
+            glacierSpikes.LightMaterial = EnsureSelfSmiteLightMaterial() ?? glacierSpikes.LightMaterial;   // its mist fades where it meets the street
             // --- the Fire Enhancement, the flashlight's word to other players, and the Frost Staff's spray (2026-10-29): drawn in code.
             GetOrAdd<FireEnhancementAbility>(player);
             GetOrAdd<FlashlightSync>(player);

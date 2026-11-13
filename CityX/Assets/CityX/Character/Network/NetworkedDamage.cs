@@ -85,7 +85,7 @@ namespace CityX.Character
             LastRelayWasSent = true;
             Vector3? contact = DamageContext.ContactPoint;
             SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId, (int)DamageContext.Kind, DamageContext.Penetration, DamageContext.BreaksGuard,
-                Flags(DamageContext.Edged, DamageContext.Bloodless, contact.HasValue, DamageContext.Chill > 0.0f, DamageContext.HeavyBlow, DamageContext.ByPlayer),
+                Flags(DamageContext.Edged, DamageContext.Bloodless, contact.HasValue, DamageContext.Chill, DamageContext.HeavyBlow, DamageContext.ByPlayer),
                 contact ?? Vector3.zero);
             return true;
         }
@@ -237,15 +237,32 @@ namespace CityX.Character
         private const int HeavyBlowFlag = 16;
         private const int ByPlayerFlag = 32;
 
+        /// <summary>A frost blow's chill rides above the flags in eighths of a full chill (four bits: 1 to 8).</summary>
+        private const int ChillEighthsShift = 8;
+        private const int ChillEighthsMask = 15;
+
         /// <summary>
         /// What a forwarded hit says about itself beyond its numbers: struck with an edge, drawing no blood, whether it says where it landed,
-        /// whether it chills (a frost blow: the body takes one tick's chill, docs/FROST.md), whether it lands as a heavy blow (DamageContext.HeavyBlow),
-        /// and whether a player struck it (DamageContext.ByPlayer: armour stops less of it, docs/ARMOUR.md).
+        /// how much it chills (a frost blow, DamageContext.Chill, in eighths: a spray's tick, a Glacier Spike's half, docs/FROST.md), whether it
+        /// lands as a heavy blow (DamageContext.HeavyBlow), and whether a player struck it (DamageContext.ByPlayer: armour stops less of it,
+        /// docs/ARMOUR.md).
         /// </summary>
-        public static int Flags(bool edged, bool bloodless, bool hasContact, bool chilled = false, bool heavyBlow = false, bool byPlayer = false)
+        public static int Flags(bool edged, bool bloodless, bool hasContact, float chill = 0.0f, bool heavyBlow = false, bool byPlayer = false)
         {
-            return (edged ? EdgedFlag : 0) | (bloodless ? BloodlessFlag : 0) | (hasContact ? ContactFlag : 0) | (chilled ? ChillFlag : 0) | (heavyBlow ? HeavyBlowFlag : 0)
-                | (byPlayer ? ByPlayerFlag : 0);
+            int eighths = chill > 0.0f ? Mathf.Clamp(Mathf.RoundToInt(chill * 8.0f), 1, 8) : 0;
+            return (edged ? EdgedFlag : 0) | (bloodless ? BloodlessFlag : 0) | (hasContact ? ContactFlag : 0) | (eighths > 0 ? ChillFlag : 0)
+                | (heavyBlow ? HeavyBlowFlag : 0) | (byPlayer ? ByPlayerFlag : 0) | (eighths << ChillEighthsShift);
+        }
+
+        /// <summary>How much a forwarded hit chills, 0 to 1, from its <paramref name="flags"/>.</summary>
+        public static float ChillOf(int flags)
+        {
+            if ((flags & ChillFlag) == 0)
+            {
+                return 0.0f;
+            }
+            int eighths = (flags >> ChillEighthsShift) & ChillEighthsMask;
+            return Mathf.Clamp(eighths, 1, 8) / 8.0f;
         }
 
         /// <summary>A forwarded hit's contact point as the owner takes it: only one that is finite and on (near) the body it struck.</summary>
@@ -293,7 +310,7 @@ namespace CityX.Character
         {
             bool wasAlive = _vitals != null && _vitals.IsAlive;
             HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration, breaksGuard,
-                (flags & EdgedFlag) != 0, (flags & BloodlessFlag) != 0, SaneContact(flags, contact, transform.position), (flags & ChillFlag) != 0, (flags & HeavyBlowFlag) != 0,
+                (flags & EdgedFlag) != 0, (flags & BloodlessFlag) != 0, SaneContact(flags, contact, transform.position), ChillOf(flags), (flags & HeavyBlowFlag) != 0,
                 (flags & ByPlayerFlag) != 0);
             if (wasAlive && _vitals.IsDead && _vitals.XpRewardOnDeath > 0)
             {
@@ -322,7 +339,7 @@ namespace CityX.Character
         /// </summary>
         public HitResponse ApplyHitHere(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage = -1.0f,
             DamageKind kind = DamageKind.Physical, float penetration = 0.0f, bool breaksGuard = false, bool edged = false, bool bloodless = false,
-            Vector3? contact = null, bool chilled = false, bool heavyBlow = false, bool byPlayer = false)
+            Vector3? contact = null, float chill = 0.0f, bool heavyBlow = false, bool byPlayer = false)
         {
             if (_vitals == null)
             {
@@ -335,7 +352,7 @@ namespace CityX.Character
             using (DamageContext.GuardBreaking(breaksGuard))
             using (DamageContext.Cutting(edged))
             using (new DamageContext.BloodlessScope(bloodless))
-            using (DamageContext.Chilling(chilled ? FrostRules.ChillPerTick : 0.0f))
+            using (DamageContext.Chilling(Mathf.Clamp01(chill)))
             using (DamageContext.LandingHeavily(heavyBlow))
             using (DamageContext.StruckByPlayer(byPlayer))
             {

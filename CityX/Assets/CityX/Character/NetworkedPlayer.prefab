@@ -155,6 +155,9 @@ PrefabInstance:
       addedObject: {fileID: 7682615926011429341}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 3263681988738153253}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 2563387561591722571}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -191,7 +194,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 8141979436155768387}
+      addedObject: {fileID: 1548331619755063980}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -952,6 +955,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ebf8c8e8d3aec1a4da787c7802336320, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.HealingAuraAbility
+--- !u!114 &3263681988738153253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43e8115d0ed3ec6418b9dd4306233a5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.GlacierSpikesAbility
+  LightMaterial: {fileID: 2100000, guid: 1d309feaf5d69004cbc4800b421ca350, type: 2}
 --- !u!114 &2563387561591722571
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1106,7 +1122,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &8141979436155768387
+--- !u!114 &1548331619755063980
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

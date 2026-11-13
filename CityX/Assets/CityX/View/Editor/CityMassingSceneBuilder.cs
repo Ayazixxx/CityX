@@ -322,6 +322,8 @@ namespace CityX.ViewEditor
             // The jerry can (2026-10-28, docs/FIRE.md): drawn in code, a stand-in until the owner's model; and the fire's own shader's materials.
             GameObject gasCanPrefab = CityX.WeaponsEditor.JerryCanBuilder.Build();
             CityX.CharacterEditor.FireMaterialsBuilder.Build();
+            // Glacier Spikes' ice (2026-11-12, docs/GLACIER_SPIKES.md): its shader's material, so a build keeps the shader.
+            CityX.CharacterEditor.IceMaterialBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,

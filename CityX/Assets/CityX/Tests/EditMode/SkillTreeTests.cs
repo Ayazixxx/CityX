@@ -22,7 +22,7 @@ namespace CityX.Tests
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
             SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.StabDash, SkillCatalog.Bloodrage,
             SkillCatalog.SelfSmite, SkillCatalog.Grow, SkillCatalog.Shrink, SkillCatalog.ArcaneOrb, SkillCatalog.ArcaneBarrier,
-            SkillCatalog.HealingAura, SkillCatalog.FireEnhancement,
+            SkillCatalog.HealingAura, SkillCatalog.FireEnhancement, SkillCatalog.GlacierSpikes,
         };
 
         [Test]
@@ -93,6 +93,20 @@ namespace CityX.Tests
             Assert.AreEqual(ArcaneBarrierCaster.Id, SkillCatalog.ArcaneBarrier);
             Assert.AreEqual(HealingAuraAbility.Id, SkillCatalog.HealingAura);
             Assert.AreEqual(FireEnhancementAbility.Id, SkillCatalog.FireEnhancement);
+            Assert.AreEqual(GlacierSpikesAbility.Id, SkillCatalog.GlacierSpikes);
+        }
+
+        /// <summary>Owner, 2026-11-12: Glacier Spikes is the Cryomancer's first row, left star; its bar icon is its first letter until the owner draws one.</summary>
+        [Test]
+        public void GlacierSpikesIsTheCryomancersFirstRowLeftStarAfterIceShards()
+        {
+            SkillNode node = SkillCatalog.Find(SkillCatalog.GlacierSpikes);
+            Assert.AreEqual("cryomancer", node.TreeId);
+            Assert.AreEqual(SkillKind.Spell, node.Kind);
+            CollectionAssert.AreEqual(new[] { SkillCatalog.IceShards }, node.Requires);
+            Assert.AreEqual(SkillCatalog.RowSpacing, node.Position.y, 0.01f, "not on the first row");
+            Assert.Less(node.Position.x, 0.0f, "not on the left");
+            Assert.AreEqual("G", CityX.UI.SkillIcons.LetterFor(SkillCatalog.GlacierSpikes));
         }
 
         /// <summary>Owner, 2026-11-08: "recovery should be one of the first 3 options in replacement of superjump and superjump can go after it".</summary>

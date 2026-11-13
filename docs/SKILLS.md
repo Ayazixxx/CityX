@@ -23,7 +23,7 @@ One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromanc
 | Pyromancer | Fireball | its top star joins Steam |
 | Steam | one star, high in the gap | a hybrid (fire + water), not in the game yet: drawn faded |
 | Hydromancer | empty stars | not in the game yet: drawn faded |
-| Cryomancer | Ice Shards | |
+| Cryomancer | Ice Shards -> Glacier Spikes (first row, left) | Glacier Spikes (2026-11-12) is the owner's, docs/GLACIER_SPIKES.md |
 | Plaguebringer | Poison Breath -> Acid Rain | |
 | Electromancer | Self Smite | the owner's tree (2026-10-15); Self Smite is Pikachu's Thunder, see docs/SELF_SMITE.md |
 | Arcanist | Arcane Orb, Arcane Barrier (side by side at the root) | the owner's arcane spells (2026-10-27) in a tree I named; Arcane Orb is Sephiroth's Shadow Flare, the first skill with ranks (docs/ARCANE_ORB.md); Arcane Barrier (2026-10-28) is Bartolomeo's barrier, a wall of aura with health that fades when broken (docs/ARCANE_BARRIER.md) |

@@ -80,6 +80,7 @@ namespace CityX.Tests
             foreach (IceShardProjectile s in Object.FindObjectsByType<IceShardProjectile>(FindObjectsSortMode.None)) Object.DestroyImmediate(s.gameObject);
             foreach (SwordWaveProjectile w in Object.FindObjectsByType<SwordWaveProjectile>(FindObjectsSortMode.None)) Object.DestroyImmediate(w.gameObject);
             foreach (PoisonGasCloud c in Object.FindObjectsByType<PoisonGasCloud>(FindObjectsSortMode.None)) Object.DestroyImmediate(c.gameObject);
+            foreach (GlacierSpikesField g in Object.FindObjectsByType<GlacierSpikesField>(FindObjectsSortMode.None)) Object.DestroyImmediate(g.gameObject);
             foreach (GameObject go in _clientGos)
             {
                 if (go != null) Object.DestroyImmediate(go);
@@ -359,6 +360,39 @@ namespace CityX.Tests
             Assert.IsTrue(ownerSize.TryGrow(), "Grow again should end it");
             yield return WaitUntil(() => _remoteBody.transform.localScale.y < 1.05f, "B's copy of A to come back to its own size");
             Assert.AreEqual(2, remoteSize.SwirlsShown, "B was not shown the way back");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Glacier Spikes (2026-11-12, docs/GLACIER_SPIKES.md): player A casts it; B's copy of A grows the same field (the same line, length and
+        /// seed, so the same crystals) and A is not shown its own cast back.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator GlacierSpikesOnOnePlayersBodyGrowTheSameFieldOnAnothersCopy()
+        {
+#if UNITY_EDITOR
+            yield return BringUpTwoPlayers();
+            var ownerSpikes = _ownerBody.GetComponent<GlacierSpikesAbility>();
+            var remoteSpikes = _remoteBody.GetComponent<GlacierSpikesAbility>();
+            Assert.IsNotNull(ownerSpikes, "the joining player's body cannot cast Glacier Spikes");
+            Assert.IsTrue(ownerSpikes.TryArm(), "A could not arm Glacier Spikes");
+            ownerSpikes.Aim(_ownerBody.transform.forward);
+            Assert.IsTrue(ownerSpikes.TryCast(), "A's Glacier Spikes was refused");
+            GlacierSpikesField ownerField = ownerSpikes.LastField;
+            yield return WaitUntil(() => remoteSpikes.LastField != null, "B to be shown A's Glacier Spikes");
+            GlacierSpikesField remoteField = remoteSpikes.LastField;
+            Assert.AreEqual(ownerField.Cast.Seed, remoteField.Cast.Seed, "B's copy grew another field");
+            Assert.AreEqual(ownerField.Cast.Length, remoteField.Cast.Length, 0.01f);
+            Assert.Less(Vector3.Distance(ownerField.Cast.Start, remoteField.Cast.Start), 0.01f);
+            for (int i = 0; i < ownerField.Count; i++)
+            {
+                Assert.Less(Vector3.Distance(ownerField.PoseOf(i, 1.5f).Position, remoteField.PoseOf(i, 1.5f).Position), 0.01f, $"crystal {i} stands elsewhere on B's copy");
+            }
+            Assert.AreEqual(2, Object.FindObjectsByType<GlacierSpikesField>(FindObjectsSortMode.None).Length,
+                "one field for A's own cast and one on B's copy: no more (A was shown its own cast back), no fewer");
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");
             yield break;

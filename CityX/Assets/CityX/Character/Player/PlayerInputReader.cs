@@ -298,6 +298,7 @@ namespace CityX.Character
             _selfSmite = GetComponent<SelfSmiteAbility>();
             _bodySize = GetComponent<BodySizeAbility>();
             _stabDash = GetComponent<StabDashAbility>();
+            _glacierSpikes = GetComponent<GlacierSpikesAbility>();
 
             // The player gets wet in the rain and dries under cover. Added here
             // rather than baked into the prefab: only the real, local player has
@@ -358,6 +359,7 @@ namespace CityX.Character
             }
             _octaslash?.Interrupt();
             _stabDash?.Interrupt();
+            _glacierSpikes?.Interrupt();
             _melee?.InterruptSpinCharge();
         }
 
@@ -1032,6 +1034,8 @@ namespace CityX.Character
             {
                 _fireEnhancement.TryCast();
             }
+            // GLACIER SPIKES (Cryomancer): the key arms it and the body turns to where the camera looks; a left click casts it (read in TickCombat).
+            TickGlacierSpikesKey(keyboard, yawSource);
             AimIceShards(yawSource);
             AimPoisonBreath(yawSource);
             AimWand(yawSource);
@@ -1280,7 +1284,7 @@ namespace CityX.Character
                 // Gun-aiming only now -- see isCastingFireball's own comment
                 // just above for why a cast no longer sets this too.
                 Aiming = _isAimingGun,
-                ThrowAiming = _throwAiming,
+                ThrowAiming = _throwAiming || GlacierSpikesArmed,
                 AimCameraPosition = _orbitCamera != null ? _orbitCamera.transform.position : Vector3.zero,
                 AimCameraForward = _orbitCamera != null ? _orbitCamera.transform.forward : Vector3.forward,
                 // The two-handed carry (the 2hsw clips). A one-handed sword is carried by the ordinary walk's own arm, its attacks posed on top.

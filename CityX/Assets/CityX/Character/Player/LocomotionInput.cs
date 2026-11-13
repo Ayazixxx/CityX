@@ -78,7 +78,10 @@ namespace CityX.Character
         /// </summary>
         public bool Aiming;
 
-        /// <summary>A thrown weapon's own aim is held (IAimedThrow: the Giant Boomerang drawn into its aim): the body faces where the camera looks.</summary>
+        /// <summary>
+        /// A thrown weapon's own aim is held (IAimedThrow: the Giant Boomerang drawn into its aim), or a spell aimed along the ground is armed
+        /// (Glacier Spikes): the body faces where the camera looks.
+        /// </summary>
         public bool ThrowAiming;
 
         /// <summary>

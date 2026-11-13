@@ -25,7 +25,8 @@ the Overwatch wiki, game guides.
 ## Freezing a body (`Chill`, on every body: Player.prefab and so the enemies, the civilians)
 
 Every frost blow that lands adds its chill (`DamageContext.Chilling`, a scope like the blade's edge; read where the blow is taken, on the
-body's own machine: a blow on another player's copy carries its chill to the owner with the rest of it, `NetworkedDamage`). Chilled, the
+body's own machine: a blow on another player's copy carries its chill to the owner with the rest of it, `NetworkedDamage`, in eighths of a
+full chill since 2026-11-12: the spray's tick is one, Glacier Spikes' blow four, docs/GLACIER_SPIKES.md). Chilled, the
 body moves at `SpeedShare` of its pace (`PlayerLocomotion.SlowFactor`). Frozen: its animation stops where it is, it cannot move, an enemy's mind
 (whatever makes it an enemy, `IHostile`: the swordsman's and the Shoota's brains, the Crimson Claw, the Wraith) stops, and the body itself
 takes a light blue tinge (`FrozenLook`: a see-through layer of pale ice blue, 35%, drawn over every part on its own surface, one more

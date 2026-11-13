@@ -118,6 +118,7 @@ namespace CityX.Character
         public const string WallStick = "wall-stick";
         public const string Fireball = "fireball";
         public const string IceShards = "ice-shards";
+        public const string GlacierSpikes = "glacier-spikes";
         public const string PoisonBreath = "poison-breath";
         public const string AcidRain = "acid-rain";
         public const string SwordSpin = "sword-spin";
@@ -287,12 +288,14 @@ namespace CityX.Character
                 Empty("hydromancer", 3, At(0, 2), "hydromancer-1", "hydromancer-2"),
                 Empty("hydromancer", 4, At(0, 3), "hydromancer-3"),
 
-                // --- Cryomancer.
+                // --- Cryomancer. Glacier Spikes (owner, 2026-11-12) on the first row's left.
                 new SkillNode(IceShards, "Ice Shards", "cryomancer", SkillKind.Spell, At(0, 0),
                     "Four shards of ice, one after another, down the crosshair. They stick where they land."),
-                Empty("cryomancer", 1, At(-0.8f, 1), IceShards),
+                new SkillNode(GlacierSpikes, "Glacier Spikes", "cryomancer", SkillKind.Spell, At(-0.8f, 1),
+                    "Press the key to aim along the ground where you look, then click: a line of ice crystals tears out of the ground, hurting " +
+                    "and chilling everyone along it. Press the key again or right-click to put it away.", new[] { IceShards }),
                 Empty("cryomancer", 2, At(0.8f, 1), IceShards),
-                Empty("cryomancer", 3, At(0, 2), "cryomancer-1", "cryomancer-2"),
+                Empty("cryomancer", 3, At(0, 2), GlacierSpikes, "cryomancer-2"),
 
                 // --- Plaguebringer.
                 new SkillNode(PoisonBreath, "Poison Breath", "plaguebringer", SkillKind.Spell, At(0, 0),

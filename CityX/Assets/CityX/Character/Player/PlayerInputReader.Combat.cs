@@ -80,6 +80,12 @@ namespace CityX.Character
                 _vitals.ShieldRaised = false;   // the same: down unless right-click holds it up below
             }
 
+            // GLACIER SPIKES ARMED: the clicks are the spell's (left casts, right puts it away), not a weapon's.
+            if (TakeGlacierSpikesClicks(Mouse.current))
+            {
+                return;
+            }
+
             // Both hands are full while carrying something -- matches
             // player.gd's own "entirely while carrying something" guard on
             // punch/block input. The click that throws is not an attack either.

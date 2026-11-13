@@ -39,6 +39,75 @@ namespace CityX.Character
 
         private StabDashAbility _stabDash;
 
+        private GlacierSpikesAbility _glacierSpikes;
+
+        /// <summary>The click that cast or put away Glacier Spikes is still held: nothing else reads it until it is let go.</summary>
+        private bool _glacierClickHeld;
+
+        /// <summary>Glacier Spikes is armed: the body faces where the camera looks, as a thrown weapon's aim does.</summary>
+        private bool GlacierSpikesArmed => _glacierSpikes != null && _glacierSpikes.IsArmed;
+
+        /// <summary>
+        /// GLACIER SPIKES (Cryomancer, docs/GLACIER_SPIKES.md): its key arms it, and again puts it away; while armed it is aimed every frame
+        /// where the camera looks (flat), which is what keeps it armed.
+        /// </summary>
+        private void TickGlacierSpikesKey(Keyboard keyboard, Transform aimSource)
+        {
+            bool pressed = _skills.Pressed(SkillCatalog.GlacierSpikes, keyboard);
+            if (!pressed && !GlacierSpikesArmed)
+            {
+                return;
+            }
+            if (_glacierSpikes == null && (_glacierSpikes = GetComponent<GlacierSpikesAbility>()) == null)
+            {
+                return;
+            }
+            if (pressed)
+            {
+                if (_glacierSpikes.IsArmed)
+                {
+                    _glacierSpikes.Disarm();
+                    return;
+                }
+                _glacierSpikes.TryArm();
+            }
+            if (_glacierSpikes.IsArmed && aimSource != null)
+            {
+                _glacierSpikes.Aim(Quaternion.Euler(0.0f, aimSource.eulerAngles.y, 0.0f) * Vector3.forward);
+            }
+        }
+
+        /// <summary>
+        /// While Glacier Spikes is armed the clicks are its own: left casts, right puts it away. The click is then held back from everything
+        /// else until it is let go, so it is never also a punch, a swing, a shot or a staff's charge. True while the clicks are taken.
+        /// </summary>
+        private bool TakeGlacierSpikesClicks(Mouse mouse)
+        {
+            if (_glacierClickHeld)
+            {
+                _glacierClickHeld = mouse.leftButton.isPressed || mouse.rightButton.isPressed;
+                if (_glacierClickHeld)
+                {
+                    return true;
+                }
+            }
+            if (!GlacierSpikesArmed)
+            {
+                return false;
+            }
+            if (mouse.leftButton.wasPressedThisFrame)
+            {
+                _glacierSpikes.TryCast();
+                _glacierClickHeld = true;
+            }
+            else if (mouse.rightButton.wasPressedThisFrame)
+            {
+                _glacierSpikes.Disarm();
+                _glacierClickHeld = true;
+            }
+            return true;
+        }
+
         /// <summary>5: ACID RAIN, a green storm called down where the crosshair points (no further than its reach), burning everyone out in the open.</summary>
         private void CastAcidRain(Transform aimSource)
         {
@@ -54,7 +123,7 @@ namespace CityX.Character
             Mathf.Max(
                 Mathf.Max(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, _iceShards != null ? _iceShards.CastFraction : 0.0f),
                 Mathf.Max(Mathf.Max(_poisonBreath != null ? _poisonBreath.CastFraction : 0.0f, _bodySize != null ? _bodySize.CastFraction : 0.0f),
-                    _arcaneOrb != null ? _arcaneOrb.CastFraction : 0.0f));
+                    Mathf.Max(_arcaneOrb != null ? _arcaneOrb.CastFraction : 0.0f, _glacierSpikes != null ? _glacierSpikes.CastFraction : 0.0f)));
 
         private bool IsCastingSpell =>
             (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting)
