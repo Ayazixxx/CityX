@@ -244,24 +244,25 @@ namespace CityX.Character
         // fight was whoever clicked first). The second cut of a chain lands while the first still holds, as a straight sword's R1-R1 does in
         // Dark Souls: a landed cut is a follow-up earned, and the way out is a guard held through the stun (the parry window catches the next
         // cut) or a dash the moment it ends. SoulsCombatRhythmTests pins the margin.
-        // THE TEMPO (2026-10-23, owner: "light attacks feel snappy; heavy ones feel powerful"): a light lands about 0.3 s after the click and
-        // its chain window opens 45% into its recovery, so a chain runs at roughly a cut every 0.55 s; the stuns came down with it to keep the
-        // margin above. The heavies keep their long stuns.
+        // THE TEMPO (2026-11-13, owner: swings "telegraphed ... akin to dark souls combat", and slower, readable wind-ups chosen over the
+        // 0.3 s lights of 2026-10-23): a light lands about 0.4 s after the click (a two-handed one nearer 0.47) and its chain window opens
+        // 35% into its recovery, as its follow-through's pose lets go, so a chain runs at roughly a cut every 0.6 to 0.7 s; the stuns went
+        // up with it to keep the margin above, and the damage with the cycle, so a sword does a second what it did. Each attack steps the
+        // body by its clip's own stride (SwordStrikes.StepMetres). The heavies keep their long stuns.
         [Header("Two-handed light chain (left click)")]
-        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.45f, 22.0f, 1.00f, 0.50f, 0.25f, 25.0f, false);
-        public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.45f, 22.0f, 1.05f, 0.58f, 0.25f, 25.0f, false);   // longer: the finisher after it winds up for 0.31 s
-        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.50f, 26.0f, 1.30f, 0.70f, 0.35f, 30.0f, false);
+        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.35f, 22.0f, 1.23f, 0.62f, SwordStrikes.StepMetres(SwordStrikeKind.Sweep2H), 25.0f, false);
+        public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.35f, 22.0f, 1.29f, 0.70f, SwordStrikes.StepMetres(SwordStrikeKind.Reverse2H), 25.0f, false);   // longer: the finisher after it winds up for 0.44 s
+        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.50f, 26.0f, 1.60f, 0.75f, SwordStrikes.StepMetres(SwordStrikeKind.Cut2H), 30.0f, false);
 
         /// <summary>A hammer's third light: straight down overhead (owner, 2026-11-05), a little heavier than the diagonal it replaces. My numbers.</summary>
-        public SoulsAttack HammerLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Smash2H, 0.50f, 28.0f, 1.45f, 0.75f, 0.30f, 40.0f, false);
+        public SoulsAttack HammerLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Smash2H, 0.50f, 28.0f, 1.80f, 0.78f, SwordStrikes.StepMetres(SwordStrikeKind.Smash2H), 40.0f, false);
 
         [Header("Two-handed heavy (held left click)")]
-        public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.55f, 40.0f, 2.00f, 1.00f, 0.50f, 60.0f, true);
+        public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.55f, 40.0f, 2.20f, 1.00f, SwordStrikes.StepMetres(SwordStrikeKind.Slam2H), 60.0f, true);
 
         [Header("One-handed light chain (left click)")]
-        public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.45f, 16.0f, 0.80f, 0.45f, 0.20f, 20.0f, false);
-        // A further lunge than the first cut's: the right foot passes the left in this one, and with the body staying back the feet landed side by side.
-        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.45f, 16.0f, 0.85f, 0.45f, 0.40f, 20.0f, false);
+        public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.35f, 16.0f, 0.92f, 0.52f, SwordStrikes.StepMetres(SwordStrikeKind.Slash1H), 20.0f, false);
+        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.35f, 16.0f, 0.98f, 0.52f, SwordStrikes.StepMetres(SwordStrikeKind.Cut1H), 20.0f, false);
 
         /// <summary>
         /// THE FINISHER (owner, 2026-11-04: a three-hit combo ending in a diagonal, no fling to start, and "if the final hit gives a stagger then why wouldnt
@@ -269,21 +270,21 @@ namespace CityX.Character
         /// recovery it leaves the attacker in, which cannot be cancelled into the next swing (chain window 1, the very end). The target is free first.
         /// Its damage pays for that recovery: the whole string does what the two cuts alone did a second, and so stays above a knife's (KnifeRulesTests).
         /// </summary>
-        public SoulsAttack OneHandLight3 = SoulsAttack.AsFinisher(SoulsAttack.FromStrike(SwordStrikeKind.Finisher1H, 1.0f, 24.0f, 2.10f, 0.50f, 0.55f, 30.0f, false));
+        public SoulsAttack OneHandLight3 = SoulsAttack.AsFinisher(SoulsAttack.FromStrike(SwordStrikeKind.Finisher1H, 1.0f, 24.0f, 2.45f, 0.50f, SwordStrikes.StepMetres(SwordStrikeKind.Finisher1H), 30.0f, false));
 
         [Header("One-handed heavy (held left click)")]
-        public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.55f, 30.0f, 1.60f, 0.90f, 0.35f, 50.0f, true);
+        public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.55f, 30.0f, 1.85f, 0.90f, SwordStrikes.StepMetres(SwordStrikeKind.Overhead1H), 50.0f, true);
 
         // THE KNIFE (KnifeRules, docs/KNIFE.md): the one-handed slash and backhand, back and forth, run KnifeRules.SwingSpeed faster, cheaper
         // in stamina and with NO STAGGER -- a knife's light does not stop what its target is doing, so it cannot trade blows with a sword
         // (a sword's light stuns longer than it takes the next cut to arrive: SoulsCombatRhythmTests). The heavy is a lunging stab that
         // closes the distance, guard-breaking as every heavy.
         [Header("Knife light chain (left click)")]
-        public SoulsAttack KnifeLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.45f, 11.0f, 0.80f, 0.0f, 0.15f, 8.0f, false);
-        public SoulsAttack KnifeLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.45f, 11.0f, 0.85f, 0.0f, 0.15f, 8.0f, false);
+        public SoulsAttack KnifeLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.35f, 11.0f, 0.98f, 0.0f, 0.15f, 8.0f, false);
+        public SoulsAttack KnifeLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.35f, 11.0f, 1.05f, 0.0f, 0.15f, 8.0f, false);
 
         [Header("Knife heavy (held left click): the lunging stab")]
-        public SoulsAttack KnifeHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.50f, 22.0f, 1.60f, 0.60f, 1.0f, 35.0f, true);
+        public SoulsAttack KnifeHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.50f, 22.0f, 2.05f, 0.60f, 1.0f, 35.0f, true);
 
         [Header("Feel")]
         [Tooltip("How long an early attack press is remembered. Long enough that a click during a light swing still chains at its window, " +
@@ -392,16 +393,14 @@ namespace CityX.Character
         public const string IdleStateName = PlayerAnimationDriver.UpperEmptyStateName;
 
         [Tooltip(
-            "Fraction of walking speed while a swing is under way, up to its recovery's tail (SlowsMovement). The feet step under the swing " +
-            "(SwordFootwork); 0 roots the body for the swing, 1 is no penalty.")]
-        public float CommittedMoveSpeedFraction = 0.65f;   // 0.4 until 2026-10-17 (owner: "move a little quicker not full walking speed but faster than you go now")
+            "Fraction of walking speed while a swing is under way, up to its recovery's tail (SlowsMovement). 0: a swing is a commitment, as in " +
+            "Dark Souls (owner, 2026-11-13): the body does not walk under it, the attack's own step carries it (SwordStrikes.StepMetres). " +
+            "It was 0.65 while the legs walked on under an arm.")]
+        public float CommittedMoveSpeedFraction = 0.0f;
 
         [Tooltip("How fast the body turns to where the camera looks as a swing winds up, degrees per second. Whatever the turn, the body " +
                  "faces it by the time the blade is live; turning rather than snapping is what keeps a swing from jumping round on the spot.")]
         public float SwingTurnDegreesPerSecond = 1080.0f;
-
-        /// <summary>The lunge starts this far into the wind-up (a share of it) and runs, eased, to the end of the live window: the body surges into the cut.</summary>
-        public const float LungeStartShare = 0.5f;
 
         [Tooltip(
             "AN ENEMY'S TELL (0 for a player): seconds the light that opens an attack holds at the top of its wind-up, the blade drawn back, " +
@@ -1372,9 +1371,9 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// THE LUNGE: from halfway through the wind-up to the end of the live window, eased in and out, so the body surges into the cut rather
-        /// than gliding at a steady pace from the click (the feet step with it: SwordFootwork). Moved by what is still owed, so a long frame
-        /// cannot carry it further than <see cref="SoulsAttack.LungeMetres"/>.
+        /// THE STEP: from halfway through the startup to the end of the live window, eased in and out (SwordStrikes.StepShare, which the
+        /// attack's clip plants its feet by), so the body surges into the cut rather than gliding at a steady pace from the click. Moved by
+        /// what is still owed, so a long frame cannot carry it further than <see cref="SoulsAttack.LungeMetres"/>.
         /// </summary>
         private void ApplyLunge()
         {
@@ -1388,8 +1387,7 @@ namespace CityX.Character
                 return;
             }
             float elapsed = _phase == SoulsPhase.Startup ? _phaseTime : _current.Startup + _phaseTime;
-            float p = Mathf.InverseLerp(_current.Startup * LungeStartShare, window, elapsed);
-            float wanted = p * p * (3.0f - 2.0f * p) * _current.LungeMetres;
+            float wanted = SwordStrikes.StepShare(_current.Startup, window, elapsed) * _current.LungeMetres;
             float step = wanted - _lungeDone;
             if (step > 0.0f)
             {

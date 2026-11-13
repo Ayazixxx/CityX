@@ -908,14 +908,14 @@ namespace CityX.Character
             ApplyDrivingWheelPose();
             ApplyCastingPose();
             ApplyGunAimPose();
+            // A sword attack's clip (the legs, the hips, the torso, the head): before the arm it carries is solved from its shoulders.
+            ApplyBakedTrunk();
             // The sword attacks (SwordStrikes): the sword arm, blade and torso; before the support hand, which follows the grip they move.
             ApplySwordPose();
             ApplySupportHand();
             // The sword arms round the body, not through it (ElbowClearance): after the support hand has its grip.
             KeepArmsOutOfTorso();
             ApplyBakedPose();
-            // A punch's clip, its legs drawn to the stride the body really took (PlayerLocomotion.Fists.cs): right after the baked pose it corrects.
-            ApplyFistStride();
             // A raised shield has the left arm (PlayerLocomotion.Shield.cs); lowered, the shield rides the forearm wherever it is.
             ApplyShieldPose();
             // A staff in the right hand: carried upright, thrust out to cast (PlayerLocomotion.Staff.cs).
@@ -954,7 +954,7 @@ namespace CityX.Character
         {
             // "Empty" means nothing MOUNTED on the hand: the finger bones and the fingertip leaf are the rig's own (PlayerLocomotion.Fingers.cs).
             // A baked pose that turns the wrists itself (a reload's free hand, cupping a magazine) keeps them, by its weight.
-            float keep = _bakedPoseWeight;
+            float keep = BakedArmsWeight;
             if (_handL != null && !LeftHandHolds)
             {
                 // (Nor is a hand laid flat on a pistol's grip empty: straightened, its fingers ran down the forearm's line, through the gun.)

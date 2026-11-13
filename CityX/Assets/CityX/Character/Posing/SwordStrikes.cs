@@ -270,24 +270,25 @@ namespace CityX.Character
         }
 
         // The follow-through's seconds are its degrees over the strike's rate (see BuildKeys), so the blade carries its speed through the
-        // contact. A light lands about 0.3 s after the click (the research's "respond within a few frames, spend the frames on the follow-through
-        // instead of the wind-up"); a heavy pauses at the top for a fifth of a second or more and lands in 0.65-0.85 s.
+        // contact. A light lands about 0.4 s after the click and a two-handed one nearer half a second: a wind-up an opponent can read
+        // (2026-11-13; it was 0.3 s). A heavy is held at the top for a third of a second and lands in 0.8-1.0 s. The clips are made to
+        // these numbers (SourceArt/SwordMoves/sword_moves_pose.py): change one, change the other.
         public static StrikeTiming TimingOf(SwordStrikeKind kind)
         {
             switch (kind)
             {
-                case SwordStrikeKind.Slash1H: return new StrikeTiming(0.13f, 0.04f, 0.11f, 0.10f, 0.05f, 0.19f);
-                case SwordStrikeKind.Cut1H: return new StrikeTiming(0.14f, 0.04f, 0.11f, 0.085f, 0.05f, 0.195f);
-                case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.12f, 0.04f, 0.10f, 0.06f, 0.04f, 0.20f);
-                case SwordStrikeKind.Overhead1H: return new StrikeTiming(0.30f, 0.22f, 0.13f, 0.12f, 0.14f, 0.30f);
+                case SwordStrikeKind.Slash1H: return new StrikeTiming(0.22f, 0.06f, 0.12f, 0.11f, 0.06f, 0.24f);
+                case SwordStrikeKind.Cut1H: return new StrikeTiming(0.20f, 0.05f, 0.12f, 0.10f, 0.06f, 0.24f);
+                case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.20f, 0.08f, 0.10f, 0.06f, 0.05f, 0.24f);
+                case SwordStrikeKind.Overhead1H: return new StrikeTiming(0.34f, 0.30f, 0.13f, 0.12f, 0.16f, 0.34f);
                 // The chain's end: a bigger wind-up the target can see coming, the blow's pose held, and a long recovery in which the fighter is open.
-                case SwordStrikeKind.Finisher1H: return new StrikeTiming(0.24f, 0.08f, 0.13f, 0.095f, 0.10f, 0.55f);
-                case SwordStrikeKind.Cut2H: return new StrikeTiming(0.20f, 0.07f, 0.15f, 0.115f, 0.07f, 0.25f);
-                case SwordStrikeKind.Reverse2H: return new StrikeTiming(0.15f, 0.05f, 0.13f, 0.12f, 0.05f, 0.20f);
-                case SwordStrikeKind.Sweep2H: return new StrikeTiming(0.16f, 0.05f, 0.13f, 0.12f, 0.05f, 0.21f);
+                case SwordStrikeKind.Finisher1H: return new StrikeTiming(0.30f, 0.12f, 0.13f, 0.10f, 0.12f, 0.55f);
+                case SwordStrikeKind.Cut2H: return new StrikeTiming(0.30f, 0.10f, 0.15f, 0.115f, 0.08f, 0.32f);
+                case SwordStrikeKind.Reverse2H: return new StrikeTiming(0.24f, 0.06f, 0.14f, 0.12f, 0.06f, 0.26f);
+                case SwordStrikeKind.Sweep2H: return new StrikeTiming(0.26f, 0.07f, 0.14f, 0.13f, 0.07f, 0.27f);
                 // A light, so no long hold, but with a hammer's weight: a higher wind-up than the diagonal, and a longer recovery once it lands.
-                case SwordStrikeKind.Smash2H: return new StrikeTiming(0.18f, 0.04f, 0.12f, 0.11f, 0.08f, 0.30f);
-                default: return new StrikeTiming(0.38f, 0.30f, 0.16f, 0.13f, 0.18f, 0.35f);
+                case SwordStrikeKind.Smash2H: return new StrikeTiming(0.28f, 0.08f, 0.13f, 0.11f, 0.09f, 0.34f);
+                default: return new StrikeTiming(0.42f, 0.38f, 0.16f, 0.13f, 0.18f, 0.38f);
             }
         }
 
@@ -325,6 +326,62 @@ namespace CityX.Character
         {
             StrikeTiming t = TimingOf(kind);
             return t.Contact / t.Total;
+        }
+
+        // ---- the attacks' full-body clips -------------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The attacks as full-body clips, in Resources (docs/SWORD_FULL_BODY.md): one segment an attack, named as the attack is
+        /// (<see cref="NameOf"/>), made in Blender to <see cref="TimingOf"/>'s seconds and <see cref="StepMetres"/>' stride. An attack with no
+        /// segment is posed from its keys (<see cref="Evaluate"/>), as every attack is under its clip.
+        /// </summary>
+        public const string MotionPath = "Swords/SwordMotion";
+
+        public static BakedMotion Motion => BakedMotion.Load(MotionPath);
+
+        /// <summary>Whether <paramref name="kind"/> has a full-body clip.</summary>
+        public static bool HasClip(SwordStrikeKind kind)
+        {
+            BakedMotion motion = Motion;
+            return motion != null && motion.HasSegment(NameOf(kind));
+        }
+
+        /// <summary>
+        /// How far an attack steps the body, metres: the stride its clip's feet are planted for. A swing is a commitment (owner, 2026-11-13:
+        /// "akin to dark souls combat"): the body does not walk under it, the attack's own step carries it.
+        /// </summary>
+        public static float StepMetres(SwordStrikeKind kind)
+        {
+            switch (kind)
+            {
+                case SwordStrikeKind.Slash1H: return 0.45f;
+                case SwordStrikeKind.Cut1H: return 0.50f;
+                case SwordStrikeKind.Finisher1H: return 0.55f;
+                case SwordStrikeKind.Overhead1H: return 0.50f;
+                case SwordStrikeKind.Thrust1H: return 0.60f;
+                case SwordStrikeKind.Sweep2H: return 0.45f;
+                case SwordStrikeKind.Reverse2H: return 0.50f;
+                case SwordStrikeKind.Cut2H: return 0.55f;
+                case SwordStrikeKind.Smash2H: return 0.40f;
+                default: return 0.50f;
+            }
+        }
+
+        /// <summary>The step starts this far into the startup: the wind-up's first half stands still.</summary>
+        public const float StepStartShare = 0.5f;
+
+        /// <summary>
+        /// How much of its step (0-1) a swing has taken <paramref name="elapsedSeconds"/> in: from halfway through its startup to the end of
+        /// its live window, eased off the mark and into the landing, so the body surges into the cut.
+        /// </summary>
+        public static float StepShare(float startupSeconds, float windowSeconds, float elapsedSeconds) =>
+            Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(startupSeconds * StepStartShare, windowSeconds, elapsedSeconds));
+
+        /// <summary>How far <paramref name="kind"/>'s clip has had the body stepped <paramref name="seconds"/> into it, metres.</summary>
+        public static float Stepped(SwordStrikeKind kind, float seconds)
+        {
+            float total = Seconds(kind);
+            return StepMetres(kind) * StepShare(total * ActiveStart(kind), total * ActiveEnd(kind), seconds);
         }
 
         // ---- the body the keys are written against -------------------------------------------------------------------------------------

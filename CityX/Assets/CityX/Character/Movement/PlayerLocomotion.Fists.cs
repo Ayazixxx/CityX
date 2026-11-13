@@ -3,14 +3,12 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// UNARMED STRIKES: the stance under them and their stride (see FistStrikes / FistPoseDriver; the blows themselves are baked poses), and
-    /// the body turned to face a blow.
+    /// UNARMED STRIKES: the stance under them (see FistStrikes / FistPoseDriver; the blows themselves are baked poses, their stride drawn to
+    /// how far the body went: PlayerLocomotion.BakedPose.cs), and the body turned to face a blow.
     /// </summary>
     public sealed partial class PlayerLocomotion
     {
         private FistFrame _fistFrame;
-
-        private float _fistStride = 1.0f;
 
         public void SetFistPose(in FistFrame frame)
         {
@@ -30,18 +28,6 @@ namespace CityX.Character
 
         /// <summary>How far the fists' stance sinks the hips this frame, metres.</summary>
         private float FistHipDrop => _fistFrame.Active ? Mathf.Max(0.0f, _fistFrame.HipDrop) : 0.0f;
-
-        /// <summary>
-        /// How long the blow's stride really is, as a share of the clip's: a punch's clip plants its feet on ground the body is carried over,
-        /// and a body stopped short has gone less far (FistPoseDriver). 1 leaves the clip's legs as they were made.
-        /// </summary>
-        public void SetFistStride(float share)
-        {
-            _fistStride = share;
-        }
-
-        /// <summary>The stride the legs are being drawn to (for tests).</summary>
-        public float FistStride => _fistStride;
 
         // THE FACING A BLOW TURNS THE BODY TO. A punch goes where the body faces, and the body only turned to the camera while moving: standing still
         // after turning the camera, the punch went the way you USED to face. A blow asks for a quick turn to the camera (or to a target near it).
@@ -74,36 +60,6 @@ namespace CityX.Character
             {
                 _facingOverride = false;
             }
-        }
-
-        /// <summary>
-        /// After the baked pose: the legs of a punch's clip drawn in (or out) to the stride the body really took. Each foot keeps its height and
-        /// its turn and goes <see cref="_fistStride"/> of its distance ahead of or behind the body; the knee bends for it.
-        /// </summary>
-        private void ApplyFistStride()
-        {
-            if (!_fistFrame.Active || _bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly || Mathf.Abs(_fistStride - 1.0f) < 0.02f)
-            {
-                return;
-            }
-            float share = Mathf.Lerp(1.0f, _fistStride, _bakedPoseWeight);
-            DrawFootToStride(_leftUpperLeg, _leftLowerLeg, _leftFoot, share);
-            DrawFootToStride(_rightUpperLeg, _rightLowerLeg, _rightFoot, share);
-        }
-
-        private void DrawFootToStride(Transform thigh, Transform shin, Transform foot, float share)
-        {
-            if (thigh == null || shin == null || foot == null)
-            {
-                return;
-            }
-            Vector3 place = transform.InverseTransformPoint(foot.position);
-            place.z *= share;
-            Quaternion turn = foot.rotation;
-            // The knee keeps bowing the way the clip had it.
-            Vector3 knee = shin.position - (thigh.position + foot.position) * 0.5f;
-            TwoBoneIK.Solve(thigh, shin, foot, transform.TransformPoint(place), knee.sqrMagnitude > 1e-6f ? knee : transform.forward);
-            foot.rotation = turn;
         }
     }
 }

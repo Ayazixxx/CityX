@@ -85,14 +85,19 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Owner, 2026-11-13: sword swings "akin to dark souls combat", and committed swings chosen over walking under them. W held all
+        /// through a swing, the body goes only as far as the attack's own step carries it; from the recovery's tail on it walks again.
+        /// </summary>
         [UnityTest]
-        public IEnumerator AClickStartsASwingAndTheBodyKeepsWalkingUnderItSlowed()
+        public IEnumerator AClickStartsASwingThatRootsTheBodyAndCarriesItByItsOwnStep()
         {
 #if UNITY_EDITOR
             yield return LoadSceneWithASword();
 
-            Vector3 before = _vitals.transform.position;
             Press(_keyboard.wKey);
+            yield return null;
+            Vector3 before = _vitals.transform.position;
             Press(_mouse.leftButton);
             yield return null;
             Release(_mouse.leftButton);
@@ -101,27 +106,31 @@ namespace CityX.Tests
             Assert.IsTrue(_combat.IsCommitted, "a real click never started a swing");
             Assert.AreEqual(_combat.Light1.Animation, _combat.CurrentAttack.Animation);
 
-            // Held W through the whole swing. Requested: "make the legs walk
-            // and not freeze up during sword use too" -- the swing plays on the
-            // upper body now, so the body WALKS under it, but a committed swing
-            // still slows you hard (CommittedMoveSpeedFraction). It used to be
-            // fully rooted; this checks the new middle: moving, but slowed.
-            float committedFor = 0.0f;
-            while (_combat.IsCommitted && committedFor < 2.0f)
+            float rootedFor = 0.0f;
+            while (_combat.SlowsMovement && rootedFor < 2.0f)
             {
-                committedFor += Time.deltaTime;
+                rootedFor += Time.deltaTime;
                 yield return null;
             }
             Vector3 after = _vitals.transform.position;
-            float horizontal = new Vector2(after.x - before.x, after.z - before.z).magnitude;
-            Release(_keyboard.wKey);
+            float went = new Vector2(after.x - before.x, after.z - before.z).magnitude;
 
-            float freeWalk = _locomotion.WalkSpeed * (committedFor + 2.0f * Time.deltaTime);
-            float lunge = _combat.Light1.LungeMetres + 0.2f;
-            Assert.Greater(horizontal, 0.3f,
-                $"the body only moved {horizontal:0.00}m while holding W through a swing -- it is still rooted");
-            Assert.Less(horizontal, freeWalk * 0.75f + lunge,
-                $"the body walked {horizontal:0.00}m through a swing of {committedFor:0.00}s -- almost free walking ({freeWalk:0.00}m); a committed swing should slow you");
+            float freeWalk = _locomotion.WalkSpeed * rootedFor;
+            float step = _combat.Light1.LungeMetres;
+            Debug.Log($"CityX committed swing: W held, the body went {went:0.00} m in {rootedFor:0.00} s (its step is {step:0.00} m; walking would be {freeWalk:0.00} m)");
+            Assert.Greater(went, step * 0.8f, $"the body went {went:0.00} m: the swing's own step ({step:0.00} m) did not carry it");
+            // (The frame the click is read on and the one the swing starts on are walked.)
+            Assert.Less(went, step + 0.3f, $"the body went {went:0.00} m through a swing of {rootedFor:0.00} s with a {step:0.00} m step: it walks under the swing");
+
+            // Out of the swing the keys walk the body again.
+            Vector3 freed = _vitals.transform.position;
+            for (float t = 0.0f; t < 0.6f; t += Time.deltaTime)
+            {
+                yield return null;
+            }
+            Release(_keyboard.wKey);
+            Vector3 walked = _vitals.transform.position - freed;
+            Assert.Greater(new Vector2(walked.x, walked.z).magnitude, 0.8f, "the body stays rooted after the swing has let it go");
 #else
             yield break;
 #endif

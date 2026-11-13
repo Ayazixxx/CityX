@@ -706,3 +706,12 @@ What was wrong: the clash was a 3D one-shot heard by the camera 5 m behind the p
 - **Other players:** the clash and the rebound travel by name as before; a copy shows the freeze, the pose, the sparks and the sound, and its place stays the network's. `GuardClashPlayTests`.
 - **Render:** `SwordStrikeCapture.RenderTheGuardClash`, `Logs/CityShots/guard-clash.png`.
 - **Not changed:** bare fists hitting a guard do not bounce (they have no rebound).
+
+## Update 2026-11-13: committed swings, slower wind-ups, the whole body
+
+Owner: the swings are "stilted and awkward. they only use the arms so It looks odd ... telegraphed, have directionality, and the animation involves the whole body akin to dark souls combat". The whole of it is in `docs/SWORD_FULL_BODY.md`; what changes on this page:
+
+- **A swing roots the body** (`CommittedMoveSpeedFraction` 0, was 0.65): the attack's own step carries it (`SwordStrikes.StepMetres`, 0.40 to 0.60 m), and "the legs keep walking under a swing" above no longer holds. The feet under an attack are its clip's, not the stepped footwork's (`SwordFootwork` still stands the guard and the ready stance).
+- **Every timing in the tables above is older than this.** `SwordStrikes.TimingOf` has today's: a one-handed light lands at 0.40 s, a two-handed one at 0.47 s, the heavies at 0.77 s and 0.96 s after a hold of 0.30 s and 0.38 s. The damage went up by the same share as the cycle grew, the knife's with it (`SoulsCombatRhythmTests`).
+- **The swordsman's own tells are shorter by what the wind-ups grew** (`SwordsmanBrain.Telegraph*Seconds`): his cuts land as long after they start as they did.
+- **The legs, hips, torso and head of each attack are a clip**; the sword arm, the blade and the hands are still this page's keys, solved from the clip's shoulders.

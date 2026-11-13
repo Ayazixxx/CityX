@@ -18,6 +18,14 @@ namespace CityX.Character
     /// into them.
     ///
     /// The attack's clock is what the combat freezes for a hit-stop (<see cref="SetSpeed"/> 0): the pose holds exactly where the blade landed.
+    ///
+    /// AN ATTACK MOVES THE WHOLE BODY (owner, 2026-11-13: the swings "only use the arms so It looks odd ... the animation involves the whole body
+    /// akin to dark souls combat"; docs/SWORD_FULL_BODY.md): where an attack has a clip (<see cref="SwordStrikes.Motion"/>), it is sampled on
+    /// the attack's own clock, so a hit-stop, Melee Speed and an enemy's tell hold it as they hold the pose. The clip has the legs, the hips,
+    /// the torso and the head: the stride, the coil against the cut, the weight driven through it. The sword arm, the blade and the hand on the
+    /// handle are still the pose made here every frame, solved from the shoulders the clip has turned (PlayerLocomotion.ApplyBakedTrunk), so
+    /// they suit whichever sword is held. The clip's feet are planted for the attack's own step (SwordStrikes.StepMetres); a body stopped
+    /// short has its stride drawn in (PlayerLocomotion.SetClipStride).
     /// </summary>
     public sealed class SwordPoseDriver : MonoBehaviour
     {
@@ -81,6 +89,35 @@ namespace CityX.Character
         private float _run01;
         private float _stanceGate = 1.0f;
 
+        /// <summary>How quickly an attack's clip takes the body, seconds, and how quickly it hands it back once the attack is over.</summary>
+        public const float ClipEngageSeconds = 0.08f;
+
+        /// <summary>
+        /// From no clip (the carry at the thigh, the ready stance, a walk) an attack's clip comes in across this share of its wind-up: the
+        /// body goes straight into the coil rather than by way of the clip's own standing start.
+        /// </summary>
+        public const float ClipEngageShareOfWindUp = 0.6f;
+
+        public const float ClipReleaseSeconds = 0.2f;
+
+        /// <summary>How long the next attack's clip takes to take over from one still on the body (a chain's next cut, a light turned into the heavy), seconds.</summary>
+        public const float ClipCrossfadeSeconds = 0.12f;
+
+        private BakedMotion _motion;
+        private BakedPose _pose;
+        private BakedPose _crossfadeFrom;
+        private float _crossfadeRemaining;
+        private SwordStrikeKind _clipKind;
+        private float _clipSeconds;
+        private float _clipWeight;
+        private float _clipEngageSeconds = ClipEngageSeconds;
+        private bool _clipPlaying;
+        private bool _holdsBody;
+        private Vector3 _beganAt;
+
+        /// <summary>0 to 1: how much of the body an attack's clip holds.</summary>
+        public float ClipWeight => _clipWeight;
+
         /// <summary>An attack is in progress.</summary>
         public bool IsStriking => _striking;
 
@@ -134,6 +171,7 @@ namespace CityX.Character
             {
                 _trail.Stop();
             }
+            LetGoOfBody();
         }
 
         // ---- what a swing shows and sounds like ------------------------------------------------------------------------------------------
@@ -212,7 +250,84 @@ namespace CityX.Character
             _duration = SwordStrikes.Seconds(kind);
             _speed = 1.0f;
             _readyRemaining = ReadyLingerSeconds;
+            BeginClip(kind);
             enabled = true;
+        }
+
+        /// <summary>The attack's clip, if it has one, from its start; one still on the body is crossfaded from.</summary>
+        private void BeginClip(SwordStrikeKind kind)
+        {
+            _clipPlaying = SwordStrikes.HasClip(kind);
+            if (!_clipPlaying)
+            {
+                return;
+            }
+            if (_motion == null)
+            {
+                _motion = SwordStrikes.Motion;
+                _pose = _motion.NewPose();
+                _crossfadeFrom = _motion.NewPose();
+            }
+            _clipEngageSeconds = Mathf.Max(ClipEngageSeconds, SwordStrikes.TimingOf(kind).WindUp * ClipEngageShareOfWindUp);
+            if (_clipWeight > 0.0f)
+            {
+                _crossfadeFrom.CopyBodyFrom(_pose);
+                _crossfadeRemaining = ClipCrossfadeSeconds;
+                _clipEngageSeconds = ClipEngageSeconds;
+            }
+            _clipKind = kind;
+            _clipSeconds = 0.0f;
+            _beganAt = transform.position;
+        }
+
+        /// <summary>This frame of the attack's clip on the body, or the body let go of once the clip has faded out.</summary>
+        private void ShowClip(float deltaTime)
+        {
+            if (_holdsBody && !_locomotion.HoldsBakedPose(_pose))
+            {
+                // Another move has taken the body (the baked pose is one slot: the spin, the Octaslash): the clip is over.
+                _holdsBody = false;
+                _clipPlaying = false;
+                _clipWeight = 0.0f;
+                _locomotion.SetClipStride(1.0f);
+            }
+            bool playing = _clipPlaying && _striking;
+            float seconds = playing ? _clipEngageSeconds : _rebounding ? ReboundTakeoverSeconds : ClipReleaseSeconds;
+            _clipWeight = Mathf.MoveTowards(_clipWeight, playing ? 1.0f : 0.0f, deltaTime / seconds);
+            if (_clipWeight <= 0.0f || _pose == null)
+            {
+                LetGoOfBody();
+                return;
+            }
+            if (playing)
+            {
+                _clipSeconds = _elapsed;
+            }
+            // An attack that is over holds the frame it reached (its last, standing ready, when it ran out) while it hands the body back.
+            _motion.Sample(SwordStrikes.NameOf(_clipKind), _clipSeconds, false, _pose);
+            if (_crossfadeRemaining > 0.0f)
+            {
+                _crossfadeRemaining -= deltaTime;
+                _pose.MixBodyFrom(_crossfadeFrom, Mathf.SmoothStep(0.0f, 1.0f, 1.0f - _crossfadeRemaining / ClipCrossfadeSeconds));
+            }
+            _holdsBody = true;
+            _locomotion.SetBakedPose(_pose, Mathf.SmoothStep(0.0f, 1.0f, _clipWeight));
+            _locomotion.SetClipStride(_locomotion.StrideShareSince(_beganAt, SwordStrikes.Stepped(_clipKind, _clipSeconds)));
+        }
+
+        /// <summary>Lets go of the body, if the clip has it: the baked pose is one slot, and a spin or a reload may have it next.</summary>
+        private void LetGoOfBody()
+        {
+            _clipWeight = 0.0f;
+            if (_holdsBody && _locomotion != null)
+            {
+                if (_locomotion.HoldsBakedPose(_pose))
+                {
+                    _locomotion.SetBakedPose(null, 0.0f);
+                }
+                _locomotion.SetClipStride(1.0f);
+            }
+            _holdsBody = false;
         }
 
         /// <summary>A guard is raised and held until <see cref="Release"/> or <see cref="Cancel"/>.</summary>
@@ -221,6 +336,7 @@ namespace CityX.Character
             StartTakeover(GuardTakeoverSeconds);
             _oneHanded = oneHanded;
             _striking = false;
+            _clipPlaying = false;
             _guarding = true;
             _speed = 1.0f;
             _readyRemaining = ReadyLingerSeconds;
@@ -236,6 +352,7 @@ namespace CityX.Character
             StartTakeover(ReboundTakeoverSeconds);
             _oneHanded = oneHanded;
             _striking = false;
+            _clipPlaying = false;
             _guarding = false;
             _rebounding = true;
             _elapsed = 0.0f;
@@ -298,6 +415,7 @@ namespace CityX.Character
                 StartTakeover(ReleaseTakeoverSeconds);
             }
             _striking = false;
+            _clipPlaying = false;
             _guarding = false;
             _speed = 1.0f;
         }
@@ -306,11 +424,13 @@ namespace CityX.Character
         public void Cancel()
         {
             _striking = false;
+            _clipPlaying = false;
             _guarding = false;
             _rebounding = false;
             _speed = 1.0f;
             _readyRemaining = 0.0f;
             _takeoverRemaining = 0.0f;
+            LetGoOfBody();
         }
 
         /// <summary>The next pose starts from the one the body is actually in and blends into its own keys, rather than snapping.</summary>
@@ -344,8 +464,8 @@ namespace CityX.Character
         private bool _looked;
 
         /// <summary>
-        /// Something else owns the body: a climb or vault, a ragdoll, a grapple, a seat, the sword spin or a baked move, or a clip that moves
-        /// the whole body (a dance, push-ups, a spell's). The pose yields to all of them.
+        /// Something else owns the body: a climb or vault, a ragdoll, a grapple, a seat, the sword spin or another baked move (not this
+        /// attack's own clip), or a clip that moves the whole body (a dance, push-ups, a spell's). The pose yields to all of them.
         /// </summary>
         private bool BodyIsBusy()
         {
@@ -362,7 +482,7 @@ namespace CityX.Character
                 || (_ragdoll != null && _ragdoll.IsLimp)
                 || (_grapple != null && _grapple.IsActive)
                 || (_locomotion != null && (_locomotion.IsSitting || _locomotion.InCarSeat
-                    || _locomotion.BakedPoseWeight > 0.01f || _locomotion.ClipOwnsTheBody));
+                    || (!_holdsBody && _locomotion.BakedPoseWeight > 0.01f) || _locomotion.ClipOwnsTheBody));
         }
 
         private void Update()
@@ -425,6 +545,7 @@ namespace CityX.Character
             {
                 return;
             }
+            ShowClip(deltaTime);
             if (_engage <= 0.001f && !wantsPose)
             {
                 _locomotion.ClearSwordPose();

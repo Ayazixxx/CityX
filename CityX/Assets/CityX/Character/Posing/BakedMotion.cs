@@ -152,6 +152,12 @@ namespace CityX.Character
             return bone == RootBone || bone.StartsWith("thigh_") || bone.StartsWith("shin_") || bone.StartsWith("foot_");
         }
 
+        /// <summary>A bone of an arm, from the shoulder to the fingers.</summary>
+        public static bool IsArmBone(string bone)
+        {
+            return bone.StartsWith("arm_") || bone.StartsWith("forearm_") || bone.StartsWith("hand_") || bone.StartsWith("fingertip_") || IsFingerBone(bone);
+        }
+
         /// <summary>A finger bone (BodyRig.AddFingers: index1_r, thumb2_l, ...).</summary>
         public static bool IsFingerBone(string bone)
         {
@@ -374,6 +380,12 @@ namespace CityX.Character
         /// </summary>
         public bool MocapGrip;
 
+        /// <summary>
+        /// The motion has no arm bones (a sword attack's clip: the legs, the hips, the torso and the head): the arms stay with whatever poses
+        /// them, solved from the shoulders this pose has moved, and a hand on a handle stays on it.
+        /// </summary>
+        public readonly bool LeavesTheArms;
+
         /// <summary>The held thing's parts (BakedMotion.Props), each in the held thing's own frame.</summary>
         public readonly IReadOnlyList<string> Props;
 
@@ -391,9 +403,11 @@ namespace CityX.Character
         {
             Bones = bones;
             Rotations = new Quaternion[bones.Count];
+            LeavesTheArms = true;
             for (int i = 0; i < Rotations.Length; i++)
             {
                 Rotations[i] = Quaternion.identity;
+                LeavesTheArms &= !BakedMotion.IsArmBone(bones[i]);
             }
             Props = props ?? new string[0];
             PropPositions = new Vector3[Props.Count];

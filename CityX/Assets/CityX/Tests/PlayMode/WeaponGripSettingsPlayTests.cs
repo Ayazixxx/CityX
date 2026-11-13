@@ -256,10 +256,13 @@ namespace CityX.Tests
             }
         }
 
-        /// <summary>A light swing in real time; returns the most the spine turns from upright during it.</summary>
-        private IEnumerator LeanDuringASwing(SoulsSwordCombat combat, Transform spine, System.Action<float> result)
+        /// <summary>
+        /// A blade thrown back off a guard, in real time (a posed frame: an attack is a clip with a torso of its own, which no setting
+        /// scales); returns the most the spine turns from upright during it.
+        /// </summary>
+        private IEnumerator LeanDuringARebound(SoulsSwordCombat combat, Transform spine, System.Action<float> result)
         {
-            combat.RequestLight(0.0f);
+            _player.GetComponent<SwordPoseDriver>().BeginRebound(combat.IsOneHanded);
             float most = 0.0f;
             float elapsed = 0.0f;
             while (elapsed < 0.7f)
@@ -288,15 +291,15 @@ namespace CityX.Tests
 
             float full = 0.0f, none = 0.0f;
             _settings.TorsoFollowStrength = 1.0f;
-            yield return LeanDuringASwing(combat, spine, v => full = v);
+            yield return LeanDuringARebound(combat, spine, v => full = v);
             yield return Frames(1.5f);   // settle, and let the stamina come back
 
             _settings.TorsoFollowStrength = 0.0f;
-            yield return LeanDuringASwing(combat, spine, v => none = v);
+            yield return LeanDuringARebound(combat, spine, v => none = v);
 
             Debug.Log($"CityX torso setting: spine turned {full:0.0} deg at strength 1, {none:0.0} at strength 0");
-            Assert.Greater(full, 5.0f, "at full strength a swing should use the torso");
-            Assert.Less(none, 0.5f, "with the torso amount at 0 the spine should stay upright through a swing");
+            Assert.Greater(full, 5.0f, "at full strength a rebound should throw the torso back");
+            Assert.Less(none, 0.5f, "with the torso amount at 0 the spine should stay upright through a rebound");
             Assert.AreEqual(0.0f, PlayerLocomotion.TorsoFollowStrength, 1e-6f, "the locomotion is not reading the settings asset");
 #else
             yield break;

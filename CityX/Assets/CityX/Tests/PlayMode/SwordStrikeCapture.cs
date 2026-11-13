@@ -326,6 +326,120 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// The sword hand up close through the first two cuts of the light chain: standing ready, wound up, as the blow lands and followed
+        /// through, then the second cut (the backhand) wound up, halfway through its strike, as it lands and followed through (the columns),
+        /// from the thumb's side, from the back of the hand and from in front of the body (the rows). What the fingers and the wrist do on
+        /// the handle. Output: CityX/Logs/CityShots/swing-hand-&lt;sword&gt;.png and swing-hand-&lt;sword&gt;-light2.png.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RenderTheHandThroughASwing()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            Time.captureFramerate = 60;
+            string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(directory);
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.transform.position = new Vector3(0, -0.5f, 0);
+            ground.transform.localScale = new Vector3(60, 1, 60);
+            var sun = new GameObject("Sun").AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.intensity = 1.2f;
+            sun.transform.rotation = Quaternion.Euler(45, -35, 0);
+            var cameraObject = new GameObject("Cam");
+            Camera camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.55f, 0.68f, 0.85f);
+            camera.nearClipPlane = 0.02f;
+
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            foreach ((string swordLabel, string swordPath) in new[]
+            {
+                ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
+                ("spike", "Assets/CityX/Weapons/SpikeSword.prefab"),
+                ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
+            })
+            {
+                var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(swordPath);
+                var player = Object.Instantiate(playerPrefab, new Vector3(0, 0.05f, 0), Quaternion.identity);
+                player.GetComponent<PlayerInputReader>().enabled = false;
+                var locomotion = player.GetComponent<PlayerLocomotion>();
+                var sword = Object.Instantiate(swordPrefab, new Vector3(10, 1, 10), Quaternion.identity).GetComponent<SwordWeapon>();
+                sword.OnEquip(player, CityX.Items.ItemInstanceData.None);
+                var combat = player.GetComponent<SoulsSwordCombat>();
+                combat.HitStopSeconds = 0.0f;
+                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded, Sword1HEquipped = combat.IsOneHanded };
+                // Standing ready: a guard raised and lowered leaves the stance.
+                for (int i = 0; i < 70; i++)
+                {
+                    combat.SetBlockHeld(i < 40);
+                    combat.Tick(Dt);
+                    locomotion.Tick(idle, Dt);
+                    yield return null;
+                }
+                Transform hand = player.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand);
+                SoulsAttack attack = combat.LightAttack(0);
+                SwordStrikes.TryGet(attack.Animation, out SwordStrikeKind kind);
+                SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(kind);
+                float[] shots = { -1.0f, timing.WindUp + timing.Hold * 0.5f, timing.Contact, timing.Contact + timing.Follow };
+                var sheet = new Texture2D(Cell * shots.Length, Cell * 3, TextureFormat.RGB24, false);
+                int column = 0;
+                for (float t = -2.0f * Dt; column < shots.Length; t += Dt)
+                {
+                    if (t >= shots[column] - 0.0001f)
+                    {
+                        ShootTheHand(camera, sheet, column++, sword, hand, player);
+                    }
+                    if (Mathf.Abs(t) < Dt * 0.5f)
+                    {
+                        combat.RequestLight(0.0f);
+                    }
+                    combat.Tick(Dt);
+                    locomotion.Tick(idle, Dt);
+                    yield return null;
+                }
+                Save(sheet, Path.Combine(directory, $"swing-hand-{swordLabel}.png"));
+
+                // The chain's second cut, buffered until it starts.
+                SoulsAttack second = combat.LightAttack(1);
+                for (int frames = 0; frames < 120 && combat.CurrentAttack?.Animation != second.Animation; frames++)
+                {
+                    combat.RequestLight(0.0f);
+                    combat.Tick(Dt);
+                    locomotion.Tick(idle, Dt);
+                    yield return null;
+                }
+                SwordStrikes.TryGet(second.Animation, out kind);
+                timing = SwordStrikes.TimingOf(kind);
+                shots = new[] { timing.WindUp + timing.Hold * 0.5f, timing.WindUp + timing.Hold + timing.Strike * 0.6f, timing.Contact, timing.Contact + timing.Follow };
+                sheet = new Texture2D(Cell * shots.Length, Cell * 3, TextureFormat.RGB24, false);
+                column = 0;
+                for (float t = Dt; column < shots.Length; t += Dt)
+                {
+                    if (t >= shots[column] - 0.0001f)
+                    {
+                        ShootTheHand(camera, sheet, column++, sword, hand, player);
+                    }
+                    combat.Tick(Dt);
+                    locomotion.Tick(idle, Dt);
+                    yield return null;
+                }
+                Save(sheet, Path.Combine(directory, $"swing-hand-{swordLabel}-light2.png"));
+                Object.Destroy(sword.gameObject);
+                Object.Destroy(player);
+                yield return null;
+            }
+
+            Object.Destroy(cameraObject);
+            Object.Destroy(sun.gameObject);
+            Object.Destroy(ground);
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
         /// A blade striking a held guard, a frame every 0.05 s from just before the blow: from the side, from over the attacker's shoulder and from over the
         /// blocker's, as each would see it in the game. Output: CityX/Logs/CityShots/guard-clash.png.
         /// </summary>
@@ -429,6 +543,15 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        /// <summary>One column of a hand sheet: the grip from the thumb's side, from the back of the hand and from in front of the body.</summary>
+        private static void ShootTheHand(Camera camera, Texture2D sheet, int column, SwordWeapon sword, Transform hand, GameObject player)
+        {
+            Vector3 grip = sword.transform.position;
+            ShootAt(camera, sheet, column, grip + hand.TransformDirection(Vector3.forward) * 0.7f + Vector3.up * 0.1f, grip, 35.0f, 2);
+            ShootAt(camera, sheet, column, grip + hand.TransformDirection(Vector3.up) * 0.7f + Vector3.up * 0.1f, grip, 35.0f, 1);
+            ShootAt(camera, sheet, column, grip + player.transform.forward * 1.5f + Vector3.up * 0.3f, grip, 40.0f, 0);
         }
 
         private static void ShootAt(Camera camera, Texture2D sheet, int column, Vector3 position, Vector3 lookAt, float fov, int row = 0)

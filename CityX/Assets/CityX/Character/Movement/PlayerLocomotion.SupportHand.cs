@@ -76,8 +76,8 @@ namespace CityX.Character
             float deltaTime = PoseDeltaTime;
             _supportBlend = Mathf.MoveTowards(_supportBlend, _supportAnchor != null ? 1.0f : 0.0f, SupportHandBlendPerSecond * deltaTime);
             // A baked move (the sword spin, Octaslash) lets go of the handle: it places the free arm itself (ApplyBakedPose).
-            float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f) * (1.0f - _bakedPoseWeight);
             _supportHandLaid = 0.0f;
+            float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f) * (1.0f - BakedArmsWeight);
             if (weight <= 0.0f || _supportAnchor == null || _leftUpperArm == null || _leftLowerArm == null || _handL == null)
             {
                 return;

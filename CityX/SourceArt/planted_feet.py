@@ -1,5 +1,5 @@
 # FEET PLANTED ON THE GROUND UNDER A BODY THE GAME CARRIES FORWARD (a sword cut's lunge, a punch's step). Loaded by a move's script with exec, after the rig and the pose solver
-# (Octaslash/octaslash_pose.py), like the rest of this folder: Sword1HCombo/sword_combo_pose.py, FistCombo/fist_pose.py.
+# (Octaslash/octaslash_pose.py), like the rest of this folder: SwordMoves/sword_moves_pose.py, FistCombo/fist_pose.py.
 #
 # A move writes where each foot steps ON THE STAGE: the ground the body starts on, in the character's own axes (x right, z forward). The game then moves the body along z, so a
 # planted foot's place in the clip is its place on the stage less how far the body has been carried by then: it stays still on the ground as the capsule moves.

@@ -218,8 +218,9 @@ namespace CityX.Character
 
             // The torso into the cut, before the arm is solved from the shoulder it moved. The hips have already turned their share
             // (ApplySwordHips), so the spine turns the rest. How much of the authored twist and lean the body does is the grip settings' torso
-            // amount (1 as authored, 0 upright), read live so it can be tuned while the game runs.
-            float torso = w * Mathf.Clamp01(TorsoFollowStrength);
+            // amount (1 as authored, 0 upright), read live so it can be tuned while the game runs. Under an attack's clip the torso is the
+            // clip's (ApplyBakedTrunk, just before this), and the arm is solved from the shoulder IT has turned.
+            float torso = w * Mathf.Clamp01(TorsoFollowStrength) * (1.0f - BakedTrunkOnlyWeight);
             if (_spine != null && torso > 0.0f)
             {
                 Quaternion twist = Quaternion.AngleAxis((_swordFrame.TwistDegrees - _swordFrame.HipTwistDegrees) * torso, transform.up);
@@ -229,16 +230,18 @@ namespace CityX.Character
             }
 
             // The sword arm: the wrist to the frame's point, the elbow down or out as it says.
+            Quaternion axes = ArmAxesUnderTheClip();
+            Vector3 right = axes * Vector3.right, up = axes * Vector3.up, forward = axes * Vector3.forward;
             float armLength = Vector3.Distance(_rightUpperArm.position, _rightLowerArm.position) + Vector3.Distance(_rightLowerArm.position, _handR.position);
             Vector3 h = _swordFrame.Hand;
-            Vector3 target = _rightUpperArm.position + (transform.right * h.x + transform.up * h.y + transform.forward * h.z) * armLength;
+            Vector3 target = _rightUpperArm.position + (right * h.x + up * h.y + forward * h.z) * armLength;
             float elbowOut = Mathf.Clamp01(_swordFrame.ElbowOut);
-            Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * (0.55f + 0.9f * elbowOut);
+            Vector3 hint = -up * (1.0f - 0.8f * elbowOut) + right * (0.55f + 0.9f * elbowOut);
             TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
 
             // The hand turned so the blade points where the frame says, edge first.
-            Vector3 bladeWorld = (transform.right * _swordFrame.Blade.x + transform.up * _swordFrame.Blade.y + transform.forward * _swordFrame.Blade.z).normalized;
-            Vector3 edgeWorld = transform.right * _swordFrame.Edge.x + transform.up * _swordFrame.Edge.y + transform.forward * _swordFrame.Edge.z;
+            Vector3 bladeWorld = (right * _swordFrame.Blade.x + up * _swordFrame.Blade.y + forward * _swordFrame.Blade.z).normalized;
+            Vector3 edgeWorld = right * _swordFrame.Edge.x + up * _swordFrame.Edge.y + forward * _swordFrame.Edge.z;
             edgeWorld -= bladeWorld * Vector3.Dot(edgeWorld, bladeWorld);
             if (edgeWorld.sqrMagnitude < 1e-6f)
             {
@@ -331,23 +334,45 @@ namespace CityX.Character
             float free = w * Mathf.Clamp01(_swordFrame.FreeHandWeight);
             if (!_swordFrame.TwoHanded && free > 0.001f)
             {
-                PlaceFreeHand(_leftUpperArm, _leftLowerArm, _handL, _swordFrame.FreeHand, free, _swordFrame.FreeElbowOut, -1.0f);
+                PlaceFreeHand(_leftUpperArm, _leftLowerArm, _handL, _swordFrame.FreeHand, free, _swordFrame.FreeElbowOut, -1.0f, axes);
             }
         }
 
         /// <summary>
-        /// A hand put <paramref name="offset"/> from its shoulder, in the body's own axes and in arm lengths (x to the body's right, y up, z
-        /// forward), by two-bone IK: the elbow goes down and out, further out to its <paramref name="side"/> with <paramref name="elbowOut"/>.
+        /// The axes a sword frame's arm is written in (x to the right, y up, z forward): the body's own, and under an attack's clip turned
+        /// about the vertical by as far as the clip has the shoulders turned past the frame's own twist. A frame puts the hand at an offset
+        /// from the shoulder that was worked out for the shoulders turned by its twist; a clip coils the shoulders further (seventy degrees
+        /// where the frame has forty-five), and with the offset left in the body's axes the lower hand of a two-handed grip went 19 cm into
+        /// the chest. Turned with the shoulders, the arms and the blade stay where the frame put them against the chest, and the wind-up is
+        /// drawn back by as much as the body coils.
         /// </summary>
-        private void PlaceFreeHand(Transform upper, Transform lower, Transform hand, Vector3 offset, float weight, float elbowOut, float side)
+        private Quaternion ArmAxesUnderTheClip()
+        {
+            float clip = BakedTrunkOnlyWeight;
+            if (clip <= 0.0f || _leftUpperArm == null || _rightUpperArm == null)
+            {
+                return transform.rotation;
+            }
+            Vector3 across = transform.InverseTransformDirection(_rightUpperArm.position - _leftUpperArm.position);
+            float turned = Mathf.Atan2(-across.z, across.x) * Mathf.Rad2Deg;   // to the right, as a frame's twist is
+            return Quaternion.AngleAxis(Mathf.DeltaAngle(_swordFrame.TwistDegrees, turned) * clip, transform.up) * transform.rotation;
+        }
+
+        /// <summary>
+        /// A hand put <paramref name="offset"/> from its shoulder, in <paramref name="axes"/> (the body's own: x to its right, y up, z
+        /// forward) and in arm lengths, by two-bone IK: the elbow goes down and out, further out to its <paramref name="side"/> with
+        /// <paramref name="elbowOut"/>.
+        /// </summary>
+        private void PlaceFreeHand(Transform upper, Transform lower, Transform hand, Vector3 offset, float weight, float elbowOut, float side, Quaternion axes)
         {
             if (weight <= 0.001f || upper == null || lower == null || hand == null)
             {
                 return;
             }
             float length = Vector3.Distance(upper.position, lower.position) + Vector3.Distance(lower.position, hand.position);
-            Vector3 target = upper.position + (transform.right * offset.x + transform.up * offset.y + transform.forward * offset.z) * length;
-            Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * side * (0.55f + 0.9f * elbowOut);
+            Vector3 right = axes * Vector3.right, up = axes * Vector3.up;
+            Vector3 target = upper.position + (right * offset.x + up * offset.y + axes * Vector3.forward * offset.z) * length;
+            Vector3 hint = -up * (1.0f - 0.8f * elbowOut) + right * side * (0.55f + 0.9f * elbowOut);
             TwoBoneIK.Solve(upper, lower, hand, target, hint, weight);
         }
     }

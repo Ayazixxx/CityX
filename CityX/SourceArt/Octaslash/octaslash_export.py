@@ -4,7 +4,8 @@
 #
 # Run inside Blender after the bake:   exec(open(r"<this file>").read())
 # Writes CityX/Assets/CityX/Character/Resources/Octaslash/OctaslashMotion.json, which BakedMotion reads. Another move sets EXPORT_PATH and
-# EXPORT_SEGMENTS (its segment markers, in timeline order) before running it.
+# EXPORT_SEGMENTS (its segment markers, in timeline order) before running it; EXPORT_BONES, if it writes only some of the bones (the hips first: BakedMotion
+# asks for them), each still as its turn from its parent on the rig.
 #
 # THE TRIP BACK TO UNITY'S BONES.
 #  * Axes: Blender (x, y, z) is Unity (-x, z, -y) (the character faces -Y in Blender, +Z in Unity, and its left is +X in Blender, -X in Unity). A rotation
@@ -27,6 +28,7 @@ REPO = globals().get("REPO") or (
 OUT = globals().get("EXPORT_PATH") or globals().get("OCTASLASH_EXPORT_PATH") or os.path.join(
     REPO, "CityX", "Assets", "CityX", "Character", "Resources", "Octaslash", "OctaslashMotion.json")
 SEGMENTS = tuple(globals().get("EXPORT_SEGMENTS") or ("coil_in", "hold", "dash", "recover"))
+ONLY_BONES = globals().get("EXPORT_BONES")
 
 M = Matrix(((-1, 0, 0), (0, 0, 1), (0, -1, 0)))     # Blender -> Unity
 ARM_DOWN = math.degrees(math.atan2(1.9 - 0.88, 0.58 - 0.35))
@@ -41,6 +43,7 @@ def export():
     scene = bpy.context.scene
     rig = bpy.data.objects[RIG]
     names = [b.name for b in rig.data.bones]
+    written = [n for n in names if ONLY_BONES is None or n in ONLY_BONES]
     parent = {b.name: (b.parent.name if b.parent else None) for b in rig.data.bones}
     rest = {b.name: b.matrix_local.to_quaternion() for b in rig.data.bones}
     markers = {m.name: m.frame for m in scene.timeline_markers}
@@ -62,7 +65,7 @@ def export():
             turn = pb.matrix.to_quaternion() @ rest[n].inverted()                 # from the arms-down rest, Blender axes
             unity = (M @ turn.to_matrix() @ M.transposed()).to_quaternion()      # the same turn in Unity's axes
             world[n] = unity @ HANG.get(n, Quaternion())                          # from the T-pose
-        for n in names:
+        for n in written:
             q = world[n] if parent[n] is None else world[parent[n]].inverted() @ world[n]
             q.normalize()
             if n in previous and previous[n].dot(q) < 0.0:
@@ -75,7 +78,7 @@ def export():
     data = {
         "fps": scene.render.fps,
         "frames": last - first + 1,
-        "bones": names,
+        "bones": written,
         "segments": segments,
         "cutFrames": cuts,
         "hips": hips,

@@ -8,6 +8,9 @@ namespace CityX.Character
     /// A BAKED POSE: a move animated in Blender (BakedMotion). Played after the Animator like every pose here, and over all of them but
     /// the wrists: each bone set to the frame's own local rotation, the hips moved, the whole pose turned about a pivot if asked. The
     /// caller samples the motion and eases the weight in and out (OctaslashAbility).
+    ///
+    /// A motion with no arm bones (BakedPose.LeavesTheArms: a sword attack) is laid on EARLIER, before the sword arm is solved, so the arm is
+    /// solved from the shoulders the clip has turned; every arm pose runs as if no baked pose were on the body.
     /// </summary>
     public sealed partial class PlayerLocomotion
     {
@@ -38,6 +41,15 @@ namespace CityX.Character
         /// <summary>True while the baked pose leaves the hips and legs to the Animator (a gun reload): the foot IK and the lean stay on.</summary>
         public bool BakedPoseIsUpperBodyOnly => _bakedPose != null && _bakedPose.UpperBodyOnly;
 
+        /// <summary>True while the baked pose has no arm bones (a sword attack's clip): the arms are posed as they are without it.</summary>
+        public bool BakedPoseLeavesTheArms => _bakedPose != null && _bakedPose.LeavesTheArms;
+
+        /// <summary>How much a baked pose holds the ARMS, 0 to 1: what the arm poses give way to.</summary>
+        private float BakedArmsWeight => BakedPoseLeavesTheArms ? 0.0f : _bakedPoseWeight;
+
+        /// <summary>How much a baked pose that leaves the arms holds the trunk, 0 to 1: a sword pose's own torso turn gives way to it.</summary>
+        private float BakedTrunkOnlyWeight => BakedPoseLeavesTheArms ? _bakedPoseWeight : 0.0f;
+
         /// <summary>
         /// Puts <paramref name="pose"/> on the body from this frame's LateUpdate on, at <paramref name="weight"/> (1: the pose exactly; between:
         /// blended with whatever the Animator and the poses before it made). Set again every frame it changes; a null pose or a weight of 0 lets go.
@@ -46,6 +58,74 @@ namespace CityX.Character
         {
             _bakedPoseWeight = pose != null ? Mathf.Clamp01(weight) : 0.0f;
             _bakedPose = _bakedPoseWeight > 0.0f ? pose : null;
+        }
+
+        /// <summary>Whether the baked pose on the body is <paramref name="pose"/>: the slot is one, and whoever set it last has it.</summary>
+        public bool HoldsBakedPose(BakedPose pose) => pose != null && ReferenceEquals(_bakedPose, pose);
+
+        private float _clipStride = 1.0f;
+
+        /// <summary>
+        /// How long a clip's stride really is, as a share of the clip's: a punch's or a sword attack's clip plants its feet on ground the body
+        /// is stepped over, and a body stopped short has gone less far (FistPoseDriver, SwordPoseDriver). 1 leaves the clip's legs as made.
+        /// </summary>
+        public void SetClipStride(float share)
+        {
+            _clipStride = share;
+        }
+
+        /// <summary>The stride the legs are being drawn to (for tests).</summary>
+        public float ClipStride => _clipStride;
+
+        /// <summary>The body must have been meant to go this far, metres, before how far it went says anything about the stride.</summary>
+        private const float LeastStepToMeasure = 0.03f;
+
+        /// <summary>A body still carrying some pace into a clip goes further than its stride: the feet reach no further than this share of it.</summary>
+        private const float LongestStride = 1.25f;
+
+        /// <summary>
+        /// How far the body has really gone forward since it stood at <paramref name="beganAt"/>, as a share of the
+        /// <paramref name="meantMetres"/> a clip's feet are planted for by now (a giant's stride is a giant's: the clip's metres are the body's own).
+        /// </summary>
+        public float StrideShareSince(Vector3 beganAt, float meantMetres)
+        {
+            if (meantMetres < LeastStepToMeasure)
+            {
+                return 1.0f;
+            }
+            Vector3 gone = transform.position - beganAt;
+            gone.y = 0.0f;
+            return Mathf.Clamp(Vector3.Dot(gone, transform.forward) / (meantMetres * transform.lossyScale.y), 0.0f, LongestStride);
+        }
+
+        /// <summary>
+        /// Right after the baked pose: the legs of a clip drawn in (or out) to the stride the body really took. Each foot keeps its height and
+        /// its turn and goes <see cref="_clipStride"/> of its distance ahead of or behind the body; the knee bends for it.
+        /// </summary>
+        private void ApplyClipStride()
+        {
+            if (_bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly || Mathf.Abs(_clipStride - 1.0f) < 0.02f)
+            {
+                return;
+            }
+            float share = Mathf.Lerp(1.0f, _clipStride, _bakedPoseWeight);
+            DrawFootToStride(_leftUpperLeg, _leftLowerLeg, _leftFoot, share);
+            DrawFootToStride(_rightUpperLeg, _rightLowerLeg, _rightFoot, share);
+        }
+
+        private void DrawFootToStride(Transform thigh, Transform shin, Transform foot, float share)
+        {
+            if (thigh == null || shin == null || foot == null)
+            {
+                return;
+            }
+            Vector3 place = transform.InverseTransformPoint(foot.position);
+            place.z *= share;
+            Quaternion turn = foot.rotation;
+            // The knee keeps bowing the way the clip had it.
+            Vector3 knee = shin.position - (thigh.position + foot.position) * 0.5f;
+            TwoBoneIK.Solve(thigh, shin, foot, transform.TransformPoint(place), knee.sqrMagnitude > 1e-6f ? knee : transform.forward);
+            foot.rotation = turn;
         }
 
         /// <summary>
@@ -116,7 +196,27 @@ namespace CityX.Character
             return name != null && _bakedProps.TryGetValue(name, out Transform part) ? part : null;
         }
 
+        /// <summary>A baked pose that leaves the arms (a sword attack's clip), before the arm poses.</summary>
+        private void ApplyBakedTrunk()
+        {
+            if (BakedPoseLeavesTheArms)
+            {
+                LayBakedPose();
+                ApplyClipStride();
+            }
+        }
+
+        /// <summary>A baked pose of the whole body, over the arm poses.</summary>
         private void ApplyBakedPose()
+        {
+            if (!BakedPoseLeavesTheArms)
+            {
+                LayBakedPose();
+                ApplyClipStride();
+            }
+        }
+
+        private void LayBakedPose()
         {
             _bakedFingerWeight = 0.0f;
             if (_bakedPose == null || _bakedPoseWeight <= 0.0f || _animator == null)

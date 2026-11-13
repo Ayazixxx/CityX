@@ -58,7 +58,7 @@ namespace CityX.Character
                 TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, hand, -right + Vector3.down * 0.6f, raise);
             }
             // A centre grip holds the fist in line with the forearm: one bend in the arm, as an empty hand has (ApplyStraightWrists leaves a holding hand be).
-            _handL.localRotation = Quaternion.Slerp(Quaternion.identity, _handL.localRotation, _bakedPoseWeight);
+            _handL.localRotation = Quaternion.Slerp(Quaternion.identity, _handL.localRotation, BakedArmsWeight);
 
             Vector3 elbow = _leftLowerArm.position, wrist = _handL.position;
             Vector3 alongArm = (elbow - wrist).sqrMagnitude > 1e-6f ? (elbow - wrist).normalized : up;

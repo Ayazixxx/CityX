@@ -77,60 +77,6 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator SwingingWhileWalkingTheFeetStepAndDoNotSlide()
-        {
-#if UNITY_EDITOR
-            foreach (string swordPath in new[] { "Assets/CityX/Weapons/SpikeSword.prefab", "Assets/CityX/Weapons/CombatSword.prefab" })
-            {
-                Build(swordPath);
-                for (int i = 0; i < 40; i++) yield return Frame(new Vector2(0.0f, 1.0f));
-
-                Transform[] feet = { _animator.GetBoneTransform(HumanBodyBones.LeftFoot), _animator.GetBoneTransform(HumanBodyBones.RightFoot) };
-                Vector3[] last = { feet[0].position, feet[1].position };
-                float[] slid = new float[2];
-                int stepsBefore = _locomotion.SwordFootwork.StepsTaken;
-                float footworkFrames = 0.0f, frames = 0.0f;
-                float nextClick = 0.0f;
-                for (float t = 0.0f; t < 3.0f; t += Dt)
-                {
-                    if (t >= nextClick && t < 2.6f)
-                    {
-                        _combat.RequestLight(0.0f);
-                        nextClick += 0.3f;
-                    }
-                    yield return Frame(new Vector2(0.0f, 1.0f));
-                    SwordFootwork footwork = _locomotion.SwordFootwork;
-                    frames++;
-                    if (footwork.Weight > 0.99f)
-                    {
-                        footworkFrames++;
-                    }
-                    for (int f = 0; f < 2; f++)
-                    {
-                        Vector3 p = feet[f].position;
-                        // A planted foot (the stepper says it is down, and it has the feet) must stay where it is.
-                        if (footwork.Weight > 0.99f && !footwork.Of(f).Stepping)
-                        {
-                            slid[f] += new Vector2(p.x - last[f].x, p.z - last[f].z).magnitude;
-                        }
-                        last[f] = p;
-                    }
-                }
-                int steps = _locomotion.SwordFootwork.StepsTaken - stepsBefore;
-                string label = System.IO.Path.GetFileNameWithoutExtension(swordPath);
-                Assert.Greater(footworkFrames / frames, 0.7f, $"{label}: the feet were the stepper's only {footworkFrames / frames:P0} of the swinging");
-                Assert.Greater(steps / 3.0f, 2.0f, $"{label}: only {steps} steps in three seconds of swinging on the move: the feet lock up");
-                // Before (2026-10-16) each foot slid about 3.4 m along the ground in these three seconds.
-                Assert.Less(slid[0] + slid[1], 0.2f, $"{label}: the planted feet slid {slid[0]:0.00} + {slid[1]:0.00} m");
-                TearDown();
-                yield return null;
-            }
-#else
-            yield break;
-#endif
-        }
-
-        [UnityTest]
         public IEnumerator TheSpikedEdgeLeadsEveryCutOnTheRig()
         {
 #if UNITY_EDITOR

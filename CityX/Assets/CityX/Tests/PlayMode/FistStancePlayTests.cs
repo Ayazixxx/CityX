@@ -218,8 +218,8 @@ namespace CityX.Tests
 
             float slid = OnTheGround(rightFoot.position, rearStood);
             float lead = _player.transform.InverseTransformPoint(leftFoot.position).z;
-            Debug.Log($"CityX fist clip, stopped short: the stride is {_locomotion.FistStride:F2} of the clip's, the rear foot {slid * 100:F0} cm from where it stood, the lead foot {lead:F2} m ahead");
-            Assert.Less(_locomotion.FistStride, 0.1f, "a body that went nowhere still strides the clip's whole stride");
+            Debug.Log($"CityX fist clip, stopped short: the stride is {_locomotion.ClipStride:F2} of the clip's, the rear foot {slid * 100:F0} cm from where it stood, the lead foot {lead:F2} m ahead");
+            Assert.Less(_locomotion.ClipStride, 0.1f, "a body that went nowhere still strides the clip's whole stride");
             Assert.Less(slid, 0.12f, "the rear foot slid back along the ground under a body standing still");
             Assert.Less(lead, 0.2f, "the lead foot strode on without the body");
 #else

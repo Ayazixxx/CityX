@@ -648,9 +648,9 @@ namespace CityX.Tests
         [Test]
         public void ALightLandsFastAndAHeavyPausesAtTheTop()
         {
-            // A light's click lands in about a third of a second (the research: a long anticipation on the player's own attack reads as input
-            // lag; spend the frames on the follow-through instead); a heavy pauses at the top for a fifth of a second or more -- the telegraph --
-            // lands past half a second, and holds its blow.
+            // A light's click lands in about 0.4 s, after a wind-up that can be read (owner, 2026-11-13: "telegraphed ... akin to dark souls
+            // combat"; it was a third of a second); a heavy is held at the top for three tenths of a second or more -- the telegraph -- lands
+            // past three quarters of a second, and holds its blow.
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
                 SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
@@ -659,15 +659,16 @@ namespace CityX.Tests
                 Assert.Greater(t.Settle, 0.0f, $"{kind}: the follow-through is not held at all");
                 if (SwordStrikes.IsHeavy(kind))
                 {
-                    Assert.GreaterOrEqual(t.Hold, 0.2f, $"{kind} does not pause at the top: no telegraph");
-                    Assert.GreaterOrEqual(t.Contact, 0.6f, $"{kind} lands in {t.Contact:0.00} s: a heavy should take its time");
+                    Assert.GreaterOrEqual(t.Hold, 0.3f, $"{kind} does not pause at the top: no telegraph");
+                    Assert.GreaterOrEqual(t.Contact, 0.75f, $"{kind} lands in {t.Contact:0.00} s: a heavy should take its time");
                     Assert.GreaterOrEqual(t.Settle, 0.12f, $"{kind}'s blow is not held: no weight");
                 }
                 else
                 {
                     bool finisher = kind == SwordStrikeKind.Cut2H || kind == SwordStrikeKind.Finisher1H;
-                    Assert.LessOrEqual(t.Contact, finisher ? 0.45f : 0.35f, $"{kind} takes {t.Contact:0.00} s to land: not snappy");
-                    Assert.LessOrEqual(t.Hold, 0.08f, $"{kind} hangs at the top for {t.Hold:0.00} s");
+                    Assert.GreaterOrEqual(t.WindUp + t.Hold, 0.24f, $"{kind} is wound up for {t.WindUp + t.Hold:0.00} s: too short to be seen coming");
+                    Assert.LessOrEqual(t.Contact, finisher ? 0.58f : 0.5f, $"{kind} takes {t.Contact:0.00} s to land: sluggish");
+                    Assert.LessOrEqual(t.Hold, 0.12f, $"{kind} hangs at the top for {t.Hold:0.00} s");
                 }
             }
         }

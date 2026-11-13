@@ -39,15 +39,16 @@ namespace CityX.Weapons
         /// <summary>
         /// HIS TELL (owner, 2026-10-24: "the telegraph of the enemies attack is either very short or non existent"): seconds an opening cut holds
         /// at the top of its wind-up, the blade drawn back and glinting, before it strikes (SoulsSwordCombat.TelegraphLightSeconds). A player's
-        /// own swings have none: in a duel between players nothing changes.
+        /// own swings have none: in a duel between players nothing changes. Shorter since every swing's own wind-up grew (2026-11-13,
+        /// SwordStrikes.TimingOf): his cuts land as long after they start as they did, 0.68 s an opening one.
         /// </summary>
-        public const float TelegraphLightSeconds = 0.4f;
+        public const float TelegraphLightSeconds = 0.28f;
 
         /// <summary>The tell of a cut chained on from another: shorter, a follow-up comes quicker.</summary>
-        public const float TelegraphChainedSeconds = 0.2f;
+        public const float TelegraphChainedSeconds = 0.12f;
 
         /// <summary>The heavy's tell, on top of its own pause at the top.</summary>
-        public const float TelegraphHeavySeconds = 0.3f;
+        public const float TelegraphHeavySeconds = 0.18f;
 
         /// <summary>
         /// HIS SWINGS COMMIT (owner, 2026-10-24: "the dash feels pretty useless ... because the enemies just auto lock onto you anyways"). Out of

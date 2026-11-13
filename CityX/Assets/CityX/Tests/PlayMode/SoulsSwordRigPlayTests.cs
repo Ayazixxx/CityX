@@ -244,7 +244,7 @@ namespace CityX.Tests
 #endif
         }
 
-        // --- THE LEGS KEEP WALKING UNDER THE SWORD ------------------------------
+        // --- THE LEGS KEEP WALKING UNDER THE GUARD (a swing is a commitment: SoulsSwordRealInputPlayTests) ---
 
         /// <summary>
         /// The rig with the sparring dummy moved out of the way: it stands 1.6 m ahead, and walking into it the body stopped dead within a
@@ -308,86 +308,6 @@ namespace CityX.Tests
                 maxHips = Mathf.Max(maxHips, hipsY);
             }
             result.HipsHeightRange = maxHips - minHips;
-        }
-
-        /// <summary>
-        /// Requested: "make the legs walk and not freeze up during sword use
-        /// too." The swings are full-body Mixamo clips; on the base layer they
-        /// overwrote the legs with a planted lunge. They play on a masked
-        /// upper-body layer now, so while you walk AND swing the feet must keep
-        /// stepping while the hand swings.
-        /// </summary>
-        [UnityTest]
-        public IEnumerator TheLegsKeepWalkingWhileTheSwordSwings()
-        {
-#if UNITY_EDITOR
-            BuildToWalk();
-            _vitals.InfiniteStamina = true;
-            yield return Frame(0.5f);
-
-            // Baseline: walking with nothing swung.
-            var plain = new Travel();
-            yield return MeasureWalking(1.0f, null, plain);
-            Assert.Greater(plain.Feet, 0.8f, $"setup: plain walking barely moved the feet ({plain.Feet:0.00})");
-
-            // The same second of walking, with a heavy in the middle of it.
-            var swinging = new Travel();
-            bool thrown = false;
-            yield return MeasureWalking(1.0f, dt =>
-            {
-                if (!thrown)
-                {
-                    thrown = true;
-                    _combat.RequestHeavy(_player.transform.eulerAngles.y);
-                }
-            }, swinging);
-
-            Assert.IsTrue(_combat.IsCommitted || swinging.Hand > 0.0f, "setup: the swing never started");
-            Assert.Greater(swinging.Feet, plain.Feet * 0.6f,
-                $"the legs froze during the swing: the feet travelled {swinging.Feet:0.00} against {plain.Feet:0.00} walking (footwork {_locomotion.SwordFootwork.Weight:0.00}, steps {_locomotion.SwordFootwork.StepsTaken}, speed {_locomotion.MeasuredGroundSpeed:0.0} m/s, frame footwork {_locomotion.CurrentSwordFrame.Footwork:0.00}, drop {_locomotion.CurrentSwordFrame.HipDrop:0.00})");
-            Assert.Greater(swinging.Hand, plain.Hand * 2.0f,
-                $"the sword hand did not actually swing ({swinging.Hand:0.00} against {plain.Hand:0.00} walking)");
-            Assert.Less(swinging.HipsHeightRange, plain.HipsHeightRange + 0.25f,
-                $"the swing dragged the hips about ({swinging.HipsHeightRange:0.00}m of height change against {plain.HipsHeightRange:0.00}m walking) -- the mask is letting the pelvis follow the clip");
-#else
-            yield break;
-#endif
-        }
-
-        /// <summary>
-        /// THE CONTROL FOR THE TEST ABOVE: the same swing played the OLD way, on
-        /// the base layer, must show frozen legs by the very same measurement.
-        /// If it does not, "the legs keep walking" above would be passing
-        /// against a yardstick that cannot tell a frozen leg from a walking one.
-        /// </summary>
-        [UnityTest]
-        public IEnumerator TheSameSwingOnTheBaseLayerFreezesTheLegsByTheSameMeasurement()
-        {
-#if UNITY_EDITOR
-            BuildToWalk();
-            _vitals.InfiniteStamina = true;
-            yield return Frame(0.5f);
-
-            var plain = new Travel();
-            yield return MeasureWalking(1.0f, null, plain);
-
-            var oldWay = new Travel();
-            bool thrown = false;
-            yield return MeasureWalking(1.0f, dt =>
-            {
-                if (!thrown)
-                {
-                    thrown = true;
-                    _animator.Update(0.0f);
-                    _animator.CrossFadeInFixedTime("sword_charged_attack", 0.06f, 0);   // layer 0: full body
-                }
-            }, oldWay);
-
-            Assert.Less(oldWay.Feet, plain.Feet * 0.6f,
-                $"a full-body swing did NOT freeze the legs by this measurement ({oldWay.Feet:0.00} against {plain.Feet:0.00}) -- the yardstick cannot tell");
-#else
-            yield break;
-#endif
         }
 
         [UnityTest]

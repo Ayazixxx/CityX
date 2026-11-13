@@ -128,17 +128,34 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ALightLandsInAThirdOfASecondAndTheChainRunsQuick()
+        public void ALightCanBeSeenComingAndStillLandsInUnderHalfASecond()
         {
-            // Owner, 2026-10-23: "light attacks feel snappy; heavy ones feel powerful". A light's click lands in about a third of a second (the
-            // research: a long anticipation on the player's own attack reads as input lag) and a chain's cuts come about every 0.6 s, hit-stop
-            // included; the heavies take over half a second to land, so they read as heavy beside them.
-            Assert.LessOrEqual(_combat.OneHandLight1.Startup + _combat.OneHandLight1.Active * 0.5f, 0.32f, "the one-handed slash is slow to land");
-            Assert.LessOrEqual(_combat.Light1.Startup + _combat.Light1.Active * 0.5f, 0.36f, "the two-handed sweep is slow to land");
-            Assert.LessOrEqual(ContactToContact(_combat.OneHandLight1, _combat.OneHandLight2) + _combat.HitStopSeconds, 0.6f, "the one-handed chain drags");
-            Assert.LessOrEqual(ContactToContact(_combat.Light1, _combat.Light2) + _combat.HitStopSeconds, 0.65f, "the two-handed chain drags");
-            Assert.GreaterOrEqual(_combat.Heavy.Startup, 0.55f, "the slam lands too soon to read as heavy");
-            Assert.GreaterOrEqual(_combat.OneHandHeavy.Startup, 0.5f, "the overhead lands too soon to read as heavy");
+            // Owner, 2026-11-13: swings "telegraphed ... akin to dark souls combat", and slower, readable wind-ups chosen over the third of a
+            // second a light took to land. A light's wind-up is long enough to be seen (the blade live no sooner than 0.3 s after the click)
+            // and it still lands inside half a second; a chain's cuts come about every 0.7 s, hit-stop included; the heavies take well over
+            // half a second, so they read as heavy beside them and can be answered.
+            Assert.GreaterOrEqual(_combat.OneHandLight1.Startup, 0.3f, "the one-handed slash is live before its wind-up can be read");
+            Assert.GreaterOrEqual(_combat.Light1.Startup, 0.34f, "the two-handed sweep is live before its wind-up can be read");
+            Assert.LessOrEqual(_combat.OneHandLight1.Startup + _combat.OneHandLight1.Active * 0.5f, 0.42f, "the one-handed slash is slow to land");
+            Assert.LessOrEqual(_combat.Light1.Startup + _combat.Light1.Active * 0.5f, 0.5f, "the two-handed sweep is slow to land");
+            Assert.LessOrEqual(ContactToContact(_combat.OneHandLight1, _combat.OneHandLight2) + _combat.HitStopSeconds, 0.7f, "the one-handed chain drags");
+            Assert.LessOrEqual(ContactToContact(_combat.Light1, _combat.Light2) + _combat.HitStopSeconds, 0.8f, "the two-handed chain drags");
+            Assert.GreaterOrEqual(_combat.Heavy.Startup, 0.75f, "the slam lands too soon to read as heavy");
+            Assert.GreaterOrEqual(_combat.OneHandHeavy.Startup, 0.6f, "the overhead lands too soon to read as heavy");
+        }
+
+        [Test]
+        public void ASwingIsACommitmentAndItsOwnStepCarriesIt()
+        {
+            // Owner, 2026-11-13: committed swings, as in Dark Souls. The body does not walk under a swing; each attack steps it.
+            Assert.AreEqual(0.0f, _combat.CommittedMoveSpeedFraction, "the body still walks under a swing");
+            foreach (SoulsAttack attack in new[] { _combat.OneHandLight1, _combat.OneHandLight2, _combat.OneHandLight3, _combat.OneHandHeavy, _combat.Light1, _combat.Light2,
+                         _combat.Light3, _combat.HammerLight3, _combat.Heavy })
+            {
+                Assert.IsTrue(SwordStrikes.TryGet(attack.Animation, out SwordStrikeKind kind));
+                Assert.AreEqual(SwordStrikes.StepMetres(kind), attack.LungeMetres, 1e-4f, $"{attack.Animation} steps the body a different way from the stride its clip plants");
+                Assert.GreaterOrEqual(attack.LungeMetres, 0.4f, $"{attack.Animation} barely steps: a body that cannot walk under a swing must be carried in by it");
+            }
         }
     }
 }

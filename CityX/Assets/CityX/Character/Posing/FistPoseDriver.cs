@@ -13,7 +13,7 @@ namespace CityX.Character
     /// cheapest thing that makes a punch feel like it connected.
     ///
     /// THE STRIDE IS AS LONG AS THE BODY REALLY WENT. A clip's feet are planted on ground the body is carried over (FistStrikes.Carried); a body
-    /// stopped short by whoever it is hitting has gone less far, so the feet are drawn in by that share (PlayerLocomotion.SetFistStride), or
+    /// stopped short by whoever it is hitting has gone less far, so the feet are drawn in by that share (PlayerLocomotion.SetClipStride), or
     /// the planted foot would slide forward under a body standing still.
     /// </summary>
     public sealed class FistPoseDriver : MonoBehaviour
@@ -41,12 +41,6 @@ namespace CityX.Character
 
         /// <summary>How long a landed blow holds at full reach, seconds.</summary>
         public const float HitHoldSeconds = 0.055f;
-
-        /// <summary>The body must have been meant to go this far, metres, before how far it went says anything about the stride.</summary>
-        private const float LeastCarryToMeasure = 0.03f;
-
-        /// <summary>A body still carrying some pace into a blow goes further than the clip's stride: the feet reach no further than this share of it.</summary>
-        private const float LongestStride = 1.25f;
 
         private PlayerLocomotion _locomotion;
         private MeleeAttacker _melee;
@@ -182,7 +176,7 @@ namespace CityX.Character
             if (_holdsBody && _locomotion != null)
             {
                 _locomotion.SetBakedPose(null, 0.0f);
-                _locomotion.SetFistStride(1.0f);
+                _locomotion.SetClipStride(1.0f);
             }
             _holdsBody = false;
         }
@@ -315,21 +309,7 @@ namespace CityX.Character
             }
             _holdsBody = true;
             _locomotion.SetBakedPose(_pose, Mathf.SmoothStep(0.0f, 1.0f, _clipWeight));
-            _locomotion.SetFistStride(StrideShare());
-        }
-
-        /// <summary>How far the body has really been carried since the blow began, as a share of how far the clip's feet are planted for.</summary>
-        private float StrideShare()
-        {
-            float meant = FistStrikes.Carried(_kind, _elapsed);
-            if (meant < LeastCarryToMeasure)
-            {
-                return 1.0f;
-            }
-            Vector3 gone = transform.position - _beganAt;
-            gone.y = 0.0f;
-            // A giant's stride is a giant's: the clip's metres are the body's own.
-            return Mathf.Clamp(Vector3.Dot(gone, transform.forward) / (meant * transform.lossyScale.y), 0.0f, LongestStride);
+            _locomotion.SetClipStride(_locomotion.StrideShareSince(_beganAt, FistStrikes.Carried(_kind, _elapsed)));
         }
     }
 }
