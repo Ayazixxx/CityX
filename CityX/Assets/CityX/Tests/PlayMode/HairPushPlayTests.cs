@@ -15,6 +15,8 @@ namespace CityX.Tests
     {
         private static readonly int PiecesA = Shader.PropertyToID("_HairPushA");
         private static readonly int PieceCount = Shader.PropertyToID("_HairPushCount");
+        private static readonly int Heads = Shader.PropertyToID("_HairPushHeads");
+        private static readonly int HeadCount = Shader.PropertyToID("_HairPushHeadCount");
 
         private GameObject _player;
 
@@ -84,6 +86,12 @@ namespace CityX.Tests
                 }
             }
             Assert.IsTrue(torso, "the torso was not sent where the body stands");
+
+            // Its head too, which hair pressed into a board on the back may not go into.
+            Assert.AreEqual(Mathf.Min(HairPush.Count, HairPush.MaxBodies), (int)Shader.GetGlobalFloat(HeadCount), "not every body's head was sent");
+            Vector3 head = _player.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Head).position;
+            Vector4 headSent = System.Array.Find(Shader.GetGlobalVectorArray(Heads), h => Vector3.Distance(h, head) < 1e-3f);
+            Assert.AreEqual(FusedBodyShape.HeadRadius + HairPush.ScalpRoom, headSent.w, 1e-4f, "the head was not sent where it is, as big as it is with room off the scalp");
 #else
             Assert.Ignore("needs the editor to load the prefab.");
             yield break;

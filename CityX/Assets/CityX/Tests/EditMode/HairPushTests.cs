@@ -97,6 +97,7 @@ namespace CityX.Tests
             string shader = System.IO.File.ReadAllText("Assets/CityX/View/Shaders/CityXHairPush.hlsl");
             StringAssert.Contains($"#define CITYX_HAIR_PIECES_MAX {HairPush.MaxPieces}", shader, "the shader holds a different number of pieces");
             StringAssert.Contains($"#define CITYX_BACK_BOARDS_MAX {CityX.Items.BackClip.Max}", shader, "the shader holds a different number of boards");
+            StringAssert.Contains($"#define CITYX_HAIR_BODIES_MAX {HairPush.MaxBodies}", shader, "the shader holds a different number of heads");
         }
     }
 }

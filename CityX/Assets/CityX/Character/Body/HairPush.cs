@@ -32,10 +32,20 @@ namespace CityX.Character
         private static readonly int AId = Shader.PropertyToID("_HairPushA");
         private static readonly int BId = Shader.PropertyToID("_HairPushB");
         private static readonly int CountId = Shader.PropertyToID("_HairPushCount");
+        private static readonly int HeadsId = Shader.PropertyToID("_HairPushHeads");
+        private static readonly int HeadCountId = Shader.PropertyToID("_HairPushHeadCount");
+
+        /// <summary>
+        /// The head sphere is made this much bigger, metres on a body of the player's size: hair on its scalp is not pressed into a board on the back, nor any into the head, so
+        /// for a frame the board goes through the hair instead (owner, 2026-11-12: "there is a frame where the bald scalp is viewable ... i would much
+        /// rather have a frame where the boomerang clips through the hair").
+        /// </summary>
+        public const float ScalpRoom = 0.01f;
 
         private static readonly List<Animator> Bodies = new List<Animator>();
         private static readonly Vector4[] A = new Vector4[MaxPieces];
         private static readonly Vector4[] B = new Vector4[MaxPieces];
+        private static readonly Vector4[] Heads = new Vector4[MaxBodies];
         private static readonly FusedBodyShape.Segment[] Pieces = new FusedBodyShape.Segment[PiecesPerBody];
         private static readonly List<Animator> Nearest = new List<Animator>(MaxBodies);
         private static Animator _measuring;
@@ -89,7 +99,7 @@ namespace CityX.Character
                 Nearest.Sort(ByDistance);
                 Nearest.RemoveRange(MaxBodies, Nearest.Count - MaxBodies);
             }
-            int count = 0;
+            int count = 0, heads = 0;
             foreach (Animator body in Nearest)
             {
                 _measuring = body;
@@ -103,15 +113,24 @@ namespace CityX.Character
                     B[count] = new Vector4(Pieces[i].B.x, Pieces[i].B.y, Pieces[i].B.z, Pieces[i].RadiusB + room);
                     count++;
                 }
+                // The head is a sphere round its bone (FusedBodyShape.HeadRadius on the rig of the player's size).
+                Vector3 head = BonePosition(HumanBodyBones.Head);
+                Heads[heads++] = new Vector4(head.x, head.y, head.z, (FusedBodyShape.HeadRadius + ScalpRoom) * scale);
             }
             _measuring = null;
             for (int i = count; i < MaxPieces; i++)
             {
                 A[i] = B[i] = Vector4.zero;
             }
+            for (int i = heads; i < MaxBodies; i++)
+            {
+                Heads[i] = Vector4.zero;
+            }
             Shader.SetGlobalVectorArray(AId, A);
             Shader.SetGlobalVectorArray(BId, B);
             Shader.SetGlobalFloat(CountId, count);
+            Shader.SetGlobalVectorArray(HeadsId, Heads);
+            Shader.SetGlobalFloat(HeadCountId, heads);
         }
     }
 }
