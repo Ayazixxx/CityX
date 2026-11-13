@@ -179,10 +179,26 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// How soon after a forwarded hit a forwarded knockdown counts as that hit's: the attacker sends the hit and then its knockdown, and the
+        /// knockdown stands only if the hit landed here.
+        /// </summary>
+        public const float KnockdownFollowsHitSeconds = 0.5f;
+
+        private float _lastHitAt = float.NegativeInfinity;
+        private HitResponse _lastHitResponse = HitResponse.Landed;
+
+        /// <summary>
+        /// Whether a knockdown arriving now is thrown: not if it follows a hit this body blocked (or parried), guarded or dashed through, as on one
+        /// machine (the attacker's copy assumed the hit landed when it asked for the knockdown).
+        /// </summary>
+        public static bool KnockdownStands(HitResponse lastHit, float sinceLastHit) =>
+            sinceLastHit > KnockdownFollowsHitSeconds || lastHit == HitResponse.Landed;
+
         [TargetRpc]
         private void ApplyKnockdownOnOwner(NetworkConnection target, Vector3 velocity)
         {
-            if (_vitals != null)
+            if (_vitals != null && KnockdownStands(_lastHitResponse, Time.time - _lastHitAt))
             {
                 _vitals.KnockDown(SaneKnockdown(velocity));
             }
@@ -312,6 +328,8 @@ namespace CityX.Character
             HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration, breaksGuard,
                 (flags & EdgedFlag) != 0, (flags & BloodlessFlag) != 0, SaneContact(flags, contact, transform.position), ChillOf(flags), (flags & HeavyBlowFlag) != 0,
                 (flags & ByPlayerFlag) != 0);
+            _lastHitAt = Time.time;
+            _lastHitResponse = response;
             if (wasAlive && _vitals.IsDead && _vitals.XpRewardOnDeath > 0)
             {
                 EnemyNetwork.CreditKill(NetworkManager, attackerClientId, _vitals.XpRewardOnDeath);   // an enemy this machine runs, killed by another player
