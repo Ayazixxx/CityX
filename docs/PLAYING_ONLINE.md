@@ -31,6 +31,10 @@ networks). If that was refused, allow `CityX.exe` again in Windows Security > Fi
 - Host: Multiplayer > Host (leave the port blank for 7770). The Host screen shows this computer's addresses to read out.
 - Join: Multiplayer > Join, type the host's address (`26.12.34.56` or `26.12.34.56:7770`), Join.
 - You appear next to each other at the spawn.
+- In a session Escape opens the menu without stopping the game (nobody can pause a world someone else is in): your character stands
+  where it is and can be hit. The game also keeps running if you click on another window.
+- Characters are kept by the host's computer (docs/SERVER_SAVING.md): a friend picks or makes one on the host's list after joining, and
+  the ones on their own title screen are their own computer's.
 
 ## A two-minute check before the friend joins
 

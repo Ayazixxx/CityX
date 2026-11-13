@@ -14,7 +14,7 @@ namespace CityX.Character
     ///
     /// GROWING NEEDS ROOM: each step of a growth is tried as a capsule first; under a ceiling the body grows to fit and carries on once out.
     ///
-    /// OTHER PLAYERS SEE IT through the body's NetworkTransform, which carries the scale (a late joiner too); the cast itself (the swirl of
+    /// OTHER PLAYERS SEE IT through the body's NetworkedBodyMotion, which carries the scale (a late joiner too); the cast itself (the swirl of
     /// magic, the sound, the raised hand) travels as an ability event (<see cref="Fired"/>/<see cref="PlayRemote"/>). A copy never sets its
     /// own scale.
     /// </summary>

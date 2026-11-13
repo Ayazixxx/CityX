@@ -222,8 +222,7 @@ namespace CityX.Tests
             Assert.IsFalse(clone.GetComponent<FishNet.Object.NetworkObject>().IsSceneObject,
                 "the friend's player should be a spawned clone, not the baked scene object");
 
-            var cloneTransform = clone.GetComponent<FishNet.Component.Transforming.NetworkTransform>();
-            Assert.IsNotNull(cloneTransform, "the friend's spawned clone has no NetworkTransform to sync position");
+            Assert.IsNotNull(clone.GetComponent<NetworkedBodyMotion>(), "the friend's spawned clone has nothing to tell the others where it is");
 
             // The city's flat sound: on the host's screen only the host's own body may play it, or each player who joins turns it up.
             // The friend is out of the host's view radius here, so the host's client never starts this copy: it must be silent without being told.

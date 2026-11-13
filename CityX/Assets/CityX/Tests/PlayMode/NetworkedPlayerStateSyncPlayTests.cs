@@ -104,6 +104,7 @@ namespace CityX.Tests
             _serverGo = Object.Instantiate(managerPrefab);
             _serverGo.name = "State Server";
             _server = _serverGo.GetComponent<NetworkManager>();
+            _server.TimeManager.SetTickRate(CityX.Net.NetworkBootstrap.TicksPerSecond);   // as a session of the game runs
             Transport serverTransport = _server.TransportManager.Transport;
             serverTransport.SetPort(port);
             serverTransport.SetServerBindAddress("127.0.0.1", IPAddressType.IPv4);
@@ -115,6 +116,7 @@ namespace CityX.Tests
                 GameObject go = Object.Instantiate(managerPrefab);
                 go.name = $"State Client {i}";
                 NetworkManager client = go.GetComponent<NetworkManager>();
+                client.TimeManager.SetTickRate(CityX.Net.NetworkBootstrap.TicksPerSecond);
                 _clientGos.Add(go);
                 _clients.Add(client);
                 Transport t = client.TransportManager.Transport;

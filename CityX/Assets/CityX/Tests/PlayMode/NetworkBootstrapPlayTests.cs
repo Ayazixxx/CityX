@@ -1,6 +1,8 @@
 using System.Collections;
+using CityX.Character;
 using CityX.Core;
 using CityX.Net;
+using CityX.UI;
 using FishNet.Managing;
 using FishNet.Managing.Object;
 using FishNet.Transporting;
@@ -221,6 +223,53 @@ namespace CityX.Tests
             yield return null;
             Assert.IsTrue(_host == null, "the manager outlived the session, and would destroy the next title's");
             Assert.IsTrue(manager == null, "the session's manager is still there");
+        }
+
+        /// <summary>
+        /// A shared world's clock is every player's (docs/MULTIPLAYER_MOVEMENT.md): a pause that stopped it froze the pausing player's body
+        /// on the others' screens and theirs on that player's, and a window out of focus stopped the whole game the same way. There the
+        /// pause menu only takes the keys, and the game runs on behind other windows.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ASharedWorldRunsOnBehindOtherWindowsAndItsPauseMenuOnlyTakesTheKeys()
+        {
+#if UNITY_EDITOR
+            Assert.IsTrue(NetworkBootstrap.PlaysAlone, "with no session begun this copy does not count as playing alone");
+            _bootstrap.Begin(GameMode.HostedWorld, ArgsOnFreshPort());
+            yield return WaitUntil(() => _networkManager.IsHostStarted, "the hosted world to come up");
+            Assert.IsFalse(NetworkBootstrap.PlaysAlone, "a host counts as playing alone: its pause would freeze its friends' game");
+            Assert.IsTrue(Application.runInBackground, "a hosted world stops when its window is not the one in front");
+
+            GameObject body = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"));
+            var menu = new GameObject("Pause Menu");
+            var dim = new GameObject("Dim");
+            try
+            {
+                var reader = body.GetComponent<PlayerInputReader>();
+                var view = menu.AddComponent<PauseMenuView>();
+                dim.SetActive(false);
+                view.Dim = dim;
+                view.Open();
+                Assert.IsTrue(view.IsOpen);
+                Assert.AreEqual(1.0f, Time.timeScale, "the pause menu stopped a shared world's clock");
+                Assert.IsTrue(reader.IsHeld, "the pause menu left the body its keys in a shared world");
+                view.Close();
+                Assert.IsFalse(reader.IsHeld, "the pause menu kept the keys after it closed");
+            }
+            finally
+            {
+                Time.timeScale = 1.0f;
+                Object.DestroyImmediate(menu);
+                Object.DestroyImmediate(dim);
+                Object.DestroyImmediate(body);
+            }
+
+            NetworkBootstrap.LeaveSession();
+            Assert.IsFalse(Application.runInBackground, "the game still runs behind other windows after the session ended");
+#else
+            Assert.Ignore("needs the editor to load the player prefab.");
+            yield break;
+#endif
         }
 
         // --- helpers ---

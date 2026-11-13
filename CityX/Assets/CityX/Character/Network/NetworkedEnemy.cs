@@ -1,4 +1,3 @@
-using FishNet.Component.Transforming;
 using FishNet.Object;
 using UnityEngine;
 
@@ -7,7 +6,7 @@ namespace CityX.Character
     /// <summary>
     /// An enemy every player in a session sees and fights (docs/MULTIPLAYER_STATE.md): the machine that brought it into the world OWNS it and
     /// runs its brain, as each player's machine runs their own body; every other machine holds a copy that only shows it. The copy is moved by
-    /// the owner (NetworkTransform), plays what the owner's body plays (NetworkedAnimatorSync: walk, swings, guard, a shot, a reload, a tell),
+    /// the owner (NetworkedBodyMotion), plays what the owner's body plays (NetworkedAnimatorSync: walk, swings, guard, a shot, a reload, a tell),
     /// and a hit on it goes to the owner's real body (NetworkedDamage, or the Wraith's own relay), where it is decided.
     ///
     /// This component is the part every networked enemy shares: the brain is switched off on a copy (<see cref="OwnerOnly"/>); the owner's
@@ -111,10 +110,10 @@ namespace CityX.Character
             }
             _diedHere = true;
             // The copy lies where it falls here: the owner's corpse no longer carries it.
-            var networkTransform = GetComponent<NetworkTransform>();
-            if (networkTransform != null)
+            var motion = GetComponent<NetworkedBodyMotion>();
+            if (motion != null)
             {
-                networkTransform.enabled = false;
+                motion.enabled = false;
             }
             _vitals.DieFromNetwork(NetworkedDamage.SaneKnockdown(fling));
         }

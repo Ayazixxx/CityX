@@ -1,6 +1,5 @@
 using CityX.Character;
 using FishNet.Component.Observing;
-using FishNet.Component.Transforming;
 using FishNet.Object;
 using FishNet.Observing;
 using UnityEditor;
@@ -78,11 +77,8 @@ namespace CityX.CharacterEditor
                     Debug.LogError("CityX: could not restore the Animator controller onto the networked player.");
                 }
 
-                // NetworkTransform's own _clientAuthoritative defaults to
-                // true, which is exactly what an owner-driven body needs;
-                // nothing here has to configure it further.
                 NetworkObject networkObject = root.AddComponent<NetworkObject>();
-                root.AddComponent<NetworkTransform>();
+                root.AddComponent<NetworkedBodyMotion>();
                 root.AddComponent<NetworkedPlayerIdentity>();
                 root.AddComponent<NetworkedAnimatorSync>();
                 root.AddComponent<NetworkedAbilitySync>();

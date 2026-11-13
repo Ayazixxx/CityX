@@ -1857,7 +1857,7 @@ namespace CityX.CharacterEditor
                     reader.SetPushUpClipLengths(pushUpEnter.length, pushUpRep.length, pushUpExit.length);
                 }
 
-                // DELIBERATELY NOT NetworkObject/NetworkTransform/
+                // DELIBERATELY NOT NetworkObject/NetworkedBodyMotion/
                 // NetworkedPlayerIdentity/NetworkedAnimatorSync here. Tried
                 // that first; it broke ~80 pre-existing PlayMode tests that
                 // Object.Instantiate this exact prefab directly with no

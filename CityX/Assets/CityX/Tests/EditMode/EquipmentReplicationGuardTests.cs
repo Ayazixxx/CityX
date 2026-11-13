@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using CityX.Character;
 using CityX.Items;
-using FishNet.Component.Transforming;
 using NUnit.Framework;
 using UnityEngine;
 #if UNITY_EDITOR
@@ -127,13 +126,12 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheNetworkedBodyMovesSmoothly()
+        public void TheNetworkedBodyIsMovedByItsOwnersMomentsAlone()
         {
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NetworkedPlayerPath);
-            var so = new SerializedObject(prefab.GetComponent<NetworkTransform>());
-            Assert.GreaterOrEqual(so.FindProperty("_interpolation").intValue, 3, "movement is interpolated over too few ticks: it will step");
-            Assert.AreEqual(0, so.FindProperty("_packing.Position").enumValueIndex, "position is quantised (stepped)");
-            Assert.AreEqual(0, so.FindProperty("_packing.Rotation").enumValueIndex, "rotation is quantised (stepped)");
+            Assert.IsNotNull(prefab.GetComponent<NetworkedBodyMotion>(), "another player's copy is never told where the body is");
+            Assert.IsNull(prefab.GetComponent<FishNet.Component.Transforming.NetworkTransform>(),
+                "FishNet's NetworkTransform is back on the body: it moves a copy in steps (docs/MULTIPLAYER_MOVEMENT.md) and would fight NetworkedBodyMotion over it");
         }
 #endif
     }

@@ -75,7 +75,7 @@ Two different prefabs exist on purpose:
   `NetworkObject.Awake()` logs an error for any instance that is neither a
   scene object nor pool-spawned, which would fail all of them.
 - **`NetworkedPlayer.prefab`** (built by `NetworkedPlayerBuilder`) - derived from
-  `Player.prefab`, adds `NetworkObject`, `NetworkTransform`,
+  `Player.prefab`, adds `NetworkObject`, `NetworkedBodyMotion`,
   `NetworkedPlayerIdentity`, `NetworkedAnimatorSync`, and the view-distance
   `NetworkObserver` (section 8). Used only for spawned clones.
 
@@ -102,14 +102,14 @@ of being deactivated by FishNet.
 For real players this is **owner-authoritative**, not server-authoritative:
 
 - The owner's `PlayerInputReader` is the *only* thing that ticks `PlayerLocomotion` (movement, jetpack, ragdoll, climbing, every Animator write). `NetworkedPlayerIdentity.OnStartClient` disables `PlayerInputReader` on every non-owner copy - a complete, zero-touch authority gate.
-- Position/rotation for remote copies comes from FishNet's `NetworkTransform`, client-authoritative (its default), so the owner drives it.
+- Position/rotation for remote copies comes from `NetworkedBodyMotion` (docs/MULTIPLAYER_MOVEMENT.md): the owner's machine says where the body stands, with the time on its own clock, and every other machine plays that back a tenth of a second in the past. (FishNet's `NetworkTransform` did this until 2026-11-13; it showed a copy walking in stalls and lurches.)
 - For an owned spawned clone, `OnStartClient` re-targets the scene's single `ThirdPersonCamera` at that body (the scene-baked player is skipped - it already has its camera).
 
 ## 7. What is replicated
 
 | Data | Mechanism | Notes |
 |---|---|---|
-| Position / rotation | `NetworkTransform` | client-authoritative |
+| Position / rotation / size | `NetworkedBodyMotion` | owner-authoritative, timestamped, played back 0.1 s behind (docs/MULTIPLAYER_MOVEMENT.md) |
 | Locomotion animation | `NetworkedAnimatorSync` | Owner reads its own Animator params (Speed, MoveX/Z, Grounded, Crouching, Aiming, SwordEquipped, GunEquipped, JetpackThrusting, Dancing, Breakdancing) every 0.08 s -> `ServerRpc` -> `ObserversRpc(ExcludeOwner)` -> applied to remote Animators. Parameter names must stay in lockstep with `PlayerLocomotion`. |
 | Appearance (name, skin colour, hair, painted atlas) | `NetworkedPlayerIdentity` | Sent once on start (`ServerRpc` -> `ObserversRpc(BufferLast = true)`); `BufferLast` replays it to late joiners / newly-in-range observers. Deliberately does not touch level/XP/vitals. |
 | One-shot actions: jump, dash | `NetworkedAnimatorSync` | `PlayerLocomotion.AnimatorTriggerFired` on the owner -> reliable `ServerRpc` -> `ObserversRpc(ExcludeOwner)` -> `Animator.SetTrigger` on every other copy. Only the `Jump`/`Dash` triggers are accepted off the wire. |

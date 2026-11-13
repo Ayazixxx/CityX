@@ -65,7 +65,7 @@ PrefabInstance:
       addedObject: {fileID: 7619974403905381908}
     - targetCorrespondingSourceObject: {fileID: 3720225186577256688, guid: 0e1c744fd3a967449b33e36e19984709, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 387507261730557436}
+      addedObject: {fileID: 7549234594134418928}
     - targetCorrespondingSourceObject: {fileID: 3720225186577256688, guid: 0e1c744fd3a967449b33e36e19984709, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4489485823199769482}
@@ -138,7 +138,7 @@ MonoBehaviour:
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
   _initializedTimestamp: 0
---- !u!114 &387507261730557436
+--- !u!114 &7549234594134418928
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -147,43 +147,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 9193916326123778882}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a2836e36774ca1c4bbbee976e17b649c, type: 3}
+  m_Script: {fileID: 11500000, guid: d4d4ebc93fa08f446a00825b228f8b86, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: FishNet.Runtime::FishNet.Component.Transforming.NetworkTransform
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedBodyMotion
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 7619974403905381908}
   _networkObjectCache: {fileID: 0}
-  _componentConfiguration: 0
-  _synchronizeParent: 0
-  _packing:
-    Position: 0
-    Rotation: 0
-    Scale: 0
-  _useScaledTime: 1
-  _interpolation: 3
-  _extrapolation: 2
-  _enableTeleport: 0
-  _teleportThreshold: 1
-  _clientAuthoritative: 1
-  _sendToOwner: 1
-  _interval: 1
-  _synchronizePosition: 1
-  _positionSensitivity: 0.001
-  _positionSnapping:
-    X: 0
-    Y: 0
-    Z: 0
-  _synchronizeRotation: 1
-  _rotationSnapping:
-    X: 0
-    Y: 0
-    Z: 0
-  _synchronizeScale: 1
-  _scaleSensitivity: 0.001
-  _scaleSnapping:
-    X: 0
-    Y: 0
-    Z: 0
 --- !u!114 &4489485823199769482
 MonoBehaviour:
   m_ObjectHideFlags: 0

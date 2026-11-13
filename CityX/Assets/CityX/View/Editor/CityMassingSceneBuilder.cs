@@ -3,7 +3,6 @@ using System.IO;
 using CityX.Character;
 using CityX.View;
 using CityX.World;
-using FishNet.Component.Transforming;
 using FishNet.Object;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -841,7 +840,7 @@ namespace CityX.ViewEditor
             if (playerObjectForWatchdog != null)
             {
                 NetworkObject bakedNetworkObject = playerObjectForWatchdog.AddComponent<NetworkObject>();
-                playerObjectForWatchdog.AddComponent<NetworkTransform>();
+                playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedBodyMotion>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedPlayerIdentity>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedAnimatorSync>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedAbilitySync>();

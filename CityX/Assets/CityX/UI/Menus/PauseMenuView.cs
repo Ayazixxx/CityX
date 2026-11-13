@@ -99,6 +99,7 @@ namespace CityX.UI
         public string TitleScene = "Title";
 
         private bool _wasCursorCaptured;
+        private PlayerInputReader _heldKeys;
         private int _resolutionIndex = DisplaySettings.DefaultIndex;
         private int _fpsIndex = DisplaySettings.FpsIndexFor(DisplaySettings.DefaultMaxFps);
         private int _inputDeviceIndex;
@@ -169,7 +170,8 @@ namespace CityX.UI
 
             // Any other menu (the stats, the loadout, the book, the C menu, the inventory, the map, an item's card...) holds the keys while it is
             // open and closes on Escape too: the press that closed it, whichever of the two read it first this frame, is not a pause.
-            if (PlayerInputReader.AnyHeld || PlayerInputReader.KeysGivenBackOnFrame == Time.frameCount)
+            // (Open in a shared world, this menu holds them itself, and the Escape is its own.)
+            if (!IsOpen && (PlayerInputReader.AnyHeld || PlayerInputReader.KeysGivenBackOnFrame == Time.frameCount))
             {
                 return;
             }
@@ -192,7 +194,17 @@ namespace CityX.UI
             _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            Time.timeScale = 0.0f;
+            // Alone, the world waits. A shared world's clock is everybody's: stopped here, this player's body froze on the others' screens
+            // and theirs on this one, wherever each then stood. There the menu only takes the keys: the body stands, and can be hit.
+            if (CityX.Net.NetworkBootstrap.PlaysAlone)
+            {
+                Time.timeScale = 0.0f;
+            }
+            else
+            {
+                _heldKeys = LocalPlayerBody.Find<PlayerInputReader>();
+                if (_heldKeys != null) _heldKeys.Hold(this);
+            }
 
             if (Dim != null) Dim.SetActive(true);
             ShowPause();
@@ -202,6 +214,8 @@ namespace CityX.UI
         {
             if (Dim != null) Dim.SetActive(false);
             Time.timeScale = 1.0f;
+            if (_heldKeys != null) _heldKeys.Release(this);
+            _heldKeys = null;
             if (_wasCursorCaptured)
             {
                 Cursor.lockState = CursorLockMode.Locked;

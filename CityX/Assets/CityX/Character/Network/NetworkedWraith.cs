@@ -6,7 +6,7 @@ namespace CityX.Character
 {
     /// <summary>
     /// The Wraith in a session (docs/WRAITH.md): its owner's machine drifts it and decides its hits; every other machine's copy is moved by the
-    /// owner (NetworkTransform) and poses itself from how it moves (<see cref="Wraith.IsCopy"/>). A hit on a copy goes owner-ward the way a hit
+    /// owner (NetworkedBodyMotion) and poses itself from how it moves (<see cref="Wraith.IsCopy"/>). A hit on a copy goes owner-ward the way a hit
     /// on another player's copy does (NetworkedDamage, with the same server checks); its health comes back to every copy, so each one flinches
     /// and flashes when it is hurt and fades away when it dies, whoever's blow it was. The player whose hit killed it is given its XP.
     /// </summary>

@@ -25,8 +25,8 @@ namespace CityX.Character
     /// just achieved here by turning the single driver off instead of adding
     /// guards throughout a system this port never had to write with
     /// networking in mind. Position/rotation for a remote copy comes from
-    /// FishNet's own NetworkTransform (added alongside this component, owner-
-    /// authoritative by default) instead; animation state comes from
+    /// NetworkedBodyMotion (added alongside this component, said by the
+    /// owner's machine) instead; animation state comes from
     /// NetworkedAnimatorSync, added the same way.
     ///
     /// APPEARANCE (skin colour, painted atlas, hair) BROADCASTS ONCE, ON

@@ -1,7 +1,6 @@
 using System.Linq;
 using CityX.Character;
 using CityX.Weapons;
-using FishNet.Component.Transforming;
 using FishNet.Managing.Object;
 using FishNet.Object;
 using NUnit.Framework;
@@ -52,7 +51,7 @@ namespace CityX.Tests
                         listed |= collection.GetObject(true, i) == prefab;
                     }
                     Assert.IsTrue(listed, $"the networked {kind} is not in FishNet's prefab collection: no machine could spawn it");
-                    Assert.IsNotNull(prefab.GetComponent<NetworkTransform>(), $"the networked {kind} is not moved on other players' machines");
+                    Assert.IsNotNull(prefab.GetComponent<NetworkedBodyMotion>(), $"the networked {kind} is not moved on other players' machines");
                     var enemy = prefab.GetComponent<NetworkedEnemy>();
                     Assert.IsNotNull(enemy, $"the networked {kind} has no NetworkedEnemy: its brain would run on every machine");
                     if (brain != null)

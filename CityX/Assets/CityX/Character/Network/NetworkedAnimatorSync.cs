@@ -1,4 +1,5 @@
 using FishNet.Object;
+using FishNet.Transporting;
 using UnityEngine;
 
 namespace CityX.Character
@@ -430,10 +431,12 @@ namespace CityX.Character
             SendMotionIfNeeded();
         }
 
+        // Unreliably, as the body's place is: said again a twentieth of a second later, a lost one is made good by the next, where a reliable
+        // one held up every swing and hit behind it until it had been sent again.
         [ServerRpc(RequireOwnership = true)]
         private void SendStateToServer(float speed, float moveX, float moveZ, bool grounded,
             bool crouching, bool shieldRaised, bool aiming, bool swordEquipped, bool sword1HEquipped, bool gunEquipped, bool jetpackThrusting,
-            bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase)
+            bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase, Channel channel = Channel.Unreliable)
         {
             if (!WireChecks.Finite(new Vector3(speed, moveX, moveZ)))
             {
@@ -451,7 +454,7 @@ namespace CityX.Character
         [ObserversRpc(ExcludeOwner = true)]
         private void BroadcastState(float speed, float moveX, float moveZ, bool grounded,
             bool crouching, bool shieldRaised, bool aiming, bool swordEquipped, bool sword1HEquipped, bool gunEquipped, bool jetpackThrusting,
-            bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase)
+            bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase, Channel channel = Channel.Unreliable)
         {
             if (_animator == null)
             {

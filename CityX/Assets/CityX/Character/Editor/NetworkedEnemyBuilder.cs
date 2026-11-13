@@ -1,6 +1,5 @@
 using CityX.Character;
 using CityX.Weapons;
-using FishNet.Component.Transforming;
 using FishNet.Managing.Object;
 using FishNet.Object;
 using UnityEditor;
@@ -109,7 +108,7 @@ namespace CityX.CharacterEditor
             {
                 root.name = System.IO.Path.GetFileNameWithoutExtension(networkedPath);
                 NetworkObject networkObject = root.AddComponent<NetworkObject>();
-                NetworkedPlayerWiring.TuneTransform(root.AddComponent<NetworkTransform>());
+                root.AddComponent<NetworkedBodyMotion>();
                 addParts(root);
                 NetworkedPlayerBuilder.AddViewDistanceObserver(root);
                 NetworkedPlayerReserialize.ReserializeEditorSetValues(networkObject, setWasActiveDuringEdit: true, setSceneId: false);

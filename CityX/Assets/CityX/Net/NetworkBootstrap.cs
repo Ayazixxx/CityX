@@ -49,6 +49,9 @@ namespace CityX.Net
         /// </summary>
         public const string LoopbackBindAddress = "127.0.0.1";
 
+        /// <summary>How often a session sends and reads, a second. Every copy of the game must use the same (FishNet does not share it).</summary>
+        public const ushort TicksPerSecond = 60;
+
         private NetworkManager _networkManager;
 
         /// <summary>
@@ -66,6 +69,19 @@ namespace CityX.Net
 
         /// <summary>The parsed launch configuration this process started with.</summary>
         public LaunchArgs Args { get; private set; }
+
+        /// <summary>
+        /// Whether this copy plays by itself. Only then may its clock be stopped (the pause menu, the console): in a shared world a stopped
+        /// clock freezes this player's body on everybody else's screen and everybody else's on this one. No bootstrap (most tests) is alone.
+        /// </summary>
+        public static bool PlaysAlone
+        {
+            get
+            {
+                NetworkBootstrap bootstrap = FindAnyObjectByType<NetworkBootstrap>();
+                return bootstrap == null || bootstrap.Mode == GameMode.Singleplayer;
+            }
+        }
 
         private void Awake()
         {
@@ -135,7 +151,13 @@ namespace CityX.Net
             }
 
             transport.SetPort(args.Port);
+            // Packets leave and are read only on a tick: at FishNet's thirty a second each hop waited a thirtieth of a second at both ends.
+            _networkManager.TimeManager.SetTickRate(TicksPerSecond);
             bool ok = true;
+
+            // A shared world goes on when this window is not the one in front (alt-tab, a second screen): stopped, this player froze on
+            // the others' screens and was dropped from the session a few seconds later.
+            Application.runInBackground = mode != GameMode.Singleplayer;
 
             if (GameModeInfo.RunsServer(mode))
             {
@@ -200,6 +222,7 @@ namespace CityX.Net
                 return;
             }
             bootstrap.Shutdown();
+            Application.runInBackground = false;
             Destroy(bootstrap.gameObject);
         }
 

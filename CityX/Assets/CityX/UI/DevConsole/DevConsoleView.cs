@@ -114,7 +114,6 @@ namespace CityX.UI
 
         private readonly List<string> _lines = new List<string>();
         private PlayerLocomotion _playerLocomotion;
-        private NetworkBootstrap _bootstrap;
         private bool _pausedGameOnOpen;
         private float _timeScaleBeforeOpen = 1.0f;
 
@@ -137,7 +136,6 @@ namespace CityX.UI
         public void Bind()
         {
             _playerLocomotion = Vitals != null ? Vitals.GetComponent<PlayerLocomotion>() : null;
-            _bootstrap = FindAnyObjectByType<NetworkBootstrap>();
 
             // REAL RUNTIME WIRING, not a scene-build-time one -- Bug,
             // found chasing the long-running grapple/console distortion
@@ -309,11 +307,9 @@ namespace CityX.UI
             // standing to freeze somebody else's server at all
             // (RemoteClient, DedicatedShard) -- pausing there would
             // silently freeze other people's game from a debug console
-            // they cannot even see. _bootstrap == null (no networking
-            // wired at all, e.g. most tests) is treated as Singleplayer,
-            // matching every other null-bootstrap fallback in this
-            // codebase (see NetworkedPlayerSpawner's own check).
-            _pausedGameOnOpen = _bootstrap == null || _bootstrap.Mode == GameMode.Singleplayer;
+            // they cannot even see (NetworkBootstrap.PlaysAlone, the pause
+            // menu's rule too).
+            _pausedGameOnOpen = NetworkBootstrap.PlaysAlone;
             if (_pausedGameOnOpen)
             {
                 _timeScaleBeforeOpen = Time.timeScale;
