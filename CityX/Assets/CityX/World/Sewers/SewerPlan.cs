@@ -38,6 +38,10 @@ namespace CityX.World
         public bool WallAtStart;
         public bool WallAtEnd;
 
+        /// <summary>How deep its water is over the walkways at its start and at its end (SewerPlan.Water.cs); under 0, only the channel holds any.</summary>
+        public double WaterStart;
+        public double WaterEnd;
+
         /// <summary>Which of its material's colours it is built in (SewerPlan.ToneAt).</summary>
         public int Tone;
 
@@ -102,6 +106,9 @@ namespace CityX.World
         /// <summary>The way up, where the room has space for one.</summary>
         public SewerShaft Shaft;
 
+        /// <summary>How deep its water is over its floor (SewerPlan.Water.cs).</summary>
+        public double Water;
+
         /// <summary>Which of its material's colours it is built in (SewerPlan.ToneAt).</summary>
         public int Tone;
     }
@@ -133,7 +140,7 @@ namespace CityX.World
     /// sizes its galleries, a room under every junction with a shaft up to a manhole, and a mouth wherever a road's bridge crosses a dry
     /// channel. Every machine works out the same ones from the same plan, so nothing of them is ever sent.
     /// </summary>
-    public sealed class SewerPlan
+    public sealed partial class SewerPlan
     {
         /// <summary>How far under the ground the walkways are, all along a road.</summary>
         public const double Depth = 8.6;
@@ -302,6 +309,7 @@ namespace CityX.World
                     _rooms[j.Node.Id] = LayRoom(j);
                 }
             }
+            PourWater();   // SewerPlan.Water.cs
         }
 
         /// <summary>Whether tunnels meet at a junction in a room: two or more of them, their plate a real area.</summary>

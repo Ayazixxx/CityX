@@ -35,10 +35,11 @@ namespace CityX.Character
                 _waterFlow = Vector2.zero;
                 return;
             }
-            WaterDepth = Mathf.Max(0.0f, CurrentWater.DepthAt(transform.position, out WaterBody body));
+            WaterHere water = CurrentWater.At(transform.position);
+            WaterDepth = Mathf.Max(0.0f, water.Depth);
             WaterDepthShare = WaterDepth / Mathf.Max(0.01f, WorldHeight);
             IsFloating = Wading.Floats(IsFloating, WaterDepthShare);
-            _waterFlow = body != null ? body.Flow : Vector2.zero;
+            _waterFlow = water.Wet ? water.Flow : Vector2.zero;
         }
 
         /// <summary>The walking or running speed in the water: slowed by the depth, or floating's slow paddle.</summary>

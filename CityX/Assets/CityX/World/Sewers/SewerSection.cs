@@ -191,6 +191,27 @@ namespace CityX.World
             }
         }
 
+        /// <summary>
+        /// How far across from the middle the inside reaches at a height over the walkways: the walls (or the pipe's curve) above them, the
+        /// channel's sides below them.
+        /// </summary>
+        public double HalfWidthAt(double height)
+        {
+            if (height <= 0.0)
+            {
+                return ChannelHalfWidth;
+            }
+            double best = 0.0;
+            for (int i = 0; i + 1 < Opening.Length; i++)
+            {
+                Vec2 a = Opening[i], b = Opening[i + 1];
+                if ((a.Y - height) * (b.Y - height) > 0.0) continue;
+                double x = Math.Abs(b.Y - a.Y) < 1e-9 ? Math.Max(Math.Abs(a.X), Math.Abs(b.X)) : Math.Abs(a.X + (b.X - a.X) * (height - a.Y) / (b.Y - a.Y));
+                best = Math.Max(best, x);
+            }
+            return best;
+        }
+
         /// <summary>How high the inside is over the walkways at a distance across from the middle (0 outside it).</summary>
         public double HeightAt(double x)
         {

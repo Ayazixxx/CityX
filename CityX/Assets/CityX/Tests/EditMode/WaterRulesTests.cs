@@ -29,8 +29,9 @@ namespace CityX.Tests
             WaterBody pool = WaterBody.Square(new Vector3(10.0f, 2.0f, 10.0f), 8.0f, 0.6f);
             CurrentWater.Add(pool);
 
-            Assert.AreEqual(0.6f, CurrentWater.DepthAt(new Vector3(10.0f, 2.0f, 10.0f), out WaterBody found), 1e-4f);
-            Assert.AreSame(pool, found);
+            WaterHere found = CurrentWater.At(new Vector3(10.0f, 2.0f, 10.0f));
+            Assert.AreEqual(0.6f, found.Depth, 1e-4f);
+            Assert.AreEqual(pool.SurfaceY, found.SurfaceY, 1e-4f);
             Assert.AreEqual(0.0f, CurrentWater.DepthAt(new Vector3(20.0f, 2.0f, 10.0f)), "beside the pool is dry");
             Assert.AreEqual(0.0f, CurrentWater.DepthAt(new Vector3(10.0f, 3.0f, 10.0f)), "above its surface is dry");
             Assert.AreEqual(0.0f, CurrentWater.DepthAt(new Vector3(10.0f, -3.0f, 10.0f)), "under its floor is not in it");
@@ -42,8 +43,9 @@ namespace CityX.Tests
             CurrentWater.Add(WaterBody.Square(Vector3.zero, 10.0f, 0.3f));
             WaterBody flood = WaterBody.Square(Vector3.zero, 40.0f, 2.0f);
             CurrentWater.Add(flood);
-            Assert.AreEqual(2.0f, CurrentWater.DepthAt(Vector3.zero, out WaterBody found), 1e-4f);
-            Assert.AreSame(flood, found);
+            WaterHere found = CurrentWater.At(Vector3.zero);
+            Assert.AreEqual(2.0f, found.Depth, 1e-4f);
+            Assert.AreEqual(flood.SurfaceY, found.SurfaceY, 1e-4f);
             CurrentWater.Remove(flood);
             Assert.AreEqual(0.3f, CurrentWater.DepthAt(Vector3.zero), 1e-4f);
         }

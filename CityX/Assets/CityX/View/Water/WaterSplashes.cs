@@ -48,6 +48,9 @@ namespace CityX.View
         private const float RingLift = 0.015f;
         private const float RingSize = 0.9f;
 
+        /// <summary>How bright a ring or a drop is under the ground, of its full colour.</summary>
+        public const float UndergroundShade = 0.12f;
+
         private static readonly Color RingColour = new Color(0.86f, 0.92f, 1.0f, 0.55f);
         private static readonly Color DropColour = new Color(0.86f, 0.92f, 1.0f, 0.75f);
 
@@ -150,9 +153,9 @@ namespace CityX.View
             float distance = moved.magnitude;
             float speed = distance / deltaTime;
 
-            float depth = CurrentWater.DepthAt(at, out WaterBody water);
-            bool inWater = water != null && depth >= ShallowestRings;
-            if (!inWater)
+            WaterHere water = CurrentWater.At(at);
+            float depth = water.Depth;
+            if (depth < ShallowestRings)
             {
                 wader.WasIn = false;
                 return wader;
@@ -191,18 +194,19 @@ namespace CityX.View
 
         private void Ring(Vector3 onSurface, float size)
         {
-            _rings.Emit(new ParticleSystem.EmitParams { position = onSurface + Vector3.up * RingLift, startSize = size, applyShapeToPosition = false }, 1);
+            _rings.Emit(new ParticleSystem.EmitParams { position = onSurface + Vector3.up * RingLift, startSize = size, startColor = InTheDark(RingColour, onSurface), applyShapeToPosition = false }, 1);
             RingsEmitted++;
         }
 
         /// <summary>Drops thrown up and forward from a stride, falling back.</summary>
         private void Drops(Vector3 onSurface, Vector3 forward, int count, float speed)
         {
+            Color drop = InTheDark(DropColour, onSurface);
             for (int i = 0; i < count; i++)
             {
                 Vector3 kick = forward * Random.Range(0.4f, 1.0f) * Mathf.Min(speed, 8.0f) * 0.35f
                                + Random.insideUnitSphere * 0.6f + Vector3.up * Random.Range(1.6f, 2.8f);
-                _drops.Emit(new ParticleSystem.EmitParams { position = onSurface + Vector3.up * 0.05f, velocity = kick }, 1);
+                _drops.Emit(new ParticleSystem.EmitParams { position = onSurface + Vector3.up * 0.05f, velocity = kick, startColor = drop }, 1);
             }
             DropsEmitted += count;
         }
@@ -213,13 +217,25 @@ namespace CityX.View
             float strength = Mathf.Clamp01(fall / 15.0f);
             Ring(onSurface, RingSize * Mathf.Lerp(1.8f, 3.5f, strength));
             int count = Mathf.RoundToInt(Mathf.Lerp(10.0f, 30.0f, strength));
+            Color drop = InTheDark(DropColour, onSurface);
             for (int i = 0; i < count; i++)
             {
                 Vector2 round = Random.insideUnitCircle.normalized * Random.Range(0.6f, 2.2f);
                 var kick = new Vector3(round.x, Random.Range(2.5f, 4.5f) * Mathf.Lerp(1.0f, 1.6f, strength), round.y);
-                _drops.Emit(new ParticleSystem.EmitParams { position = onSurface + Vector3.up * 0.05f, velocity = kick }, 1);
+                _drops.Emit(new ParticleSystem.EmitParams { position = onSurface + Vector3.up * 0.05f, velocity = kick, startColor = drop }, 1);
             }
             DropsEmitted += count;
+        }
+
+        /// <summary>
+        /// A ring or a drop as bright as where it is: the rings and drops draw unlit, and in the sewers' dark (docs/SEWERS.md) a full-white one
+        /// shone like a lamp at the feet.
+        /// </summary>
+        public static Color InTheDark(Color colour, Vector3 onSurface)
+        {
+            float dark = CurrentSewers.DarknessAt(onSurface + Vector3.up);
+            float shade = Mathf.Lerp(1.0f, UndergroundShade, dark);
+            return new Color(colour.r * shade, colour.g * shade, colour.b * shade, colour.a);
         }
 
         /// <summary>Drops: small, thrown, falling under gravity, gone in under a second.</summary>

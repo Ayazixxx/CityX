@@ -396,12 +396,14 @@ namespace CityX.ViewEditor
                 rain.RippleMaterial = EnsureRippleMaterial();
 
                 // The water (docs/WATER.md): the splashes round every body in it, and the materials whatever makes water at run time draws
-                // it with (/water now; the sewers and spells later). Nothing in the city is water yet.
+                // it with (/water; spells later).
                 var waterObject = new GameObject("Water");
                 var water = waterObject.AddComponent<WaterSplashes>();
                 water.WaterMaterial = EnsureWaterMaterial();
                 water.RingMaterial = rain.RippleMaterial;
                 water.DropMaterial = rain.SplashMaterial;
+                // The sewers' water (docs/SEWERS.md): poured by the plan into every tunnel and room, drawn round the camera.
+                waterObject.AddComponent<SewerWaterSurface>().Material = EnsureSewerWaterMaterial();
 
                 // NO AMBIENT CROWD. There was one -- a pooled dozen recycled
                 // around the viewer as they walked -- and it went at the user's
@@ -1820,6 +1822,36 @@ namespace CityX.ViewEditor
             }
             // Back to the shader's own values every build: the tuning lives in one place, the shader.
             material.CopyPropertiesFromMaterial(new Material(shader));
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// The sewers' water: the water's shader, murky (a grey-green scum on it, the floor gone under a few hands of it, no veins of sunlight)
+        /// and lit only by what shines under the ground. Its numbers live here, as the clear water's live in the shader.
+        /// </summary>
+        private static Material EnsureSewerWaterMaterial()
+        {
+            string path = $"{MaterialDirectory}/SewerWater.mat";
+            Shader shader = Shader.Find("CityX/Water");
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.CopyPropertiesFromMaterial(new Material(shader));
+            material.SetColor("_ShallowTint", new Color(0.50f, 0.54f, 0.42f));
+            material.SetColor("_DeepColor", new Color(0.24f, 0.25f, 0.18f));
+            material.SetFloat("_DeepAt", 0.45f);
+            material.SetColor("_FoamColor", new Color(0.34f, 0.33f, 0.26f));
+            material.SetFloat("_FoamWidth", 0.06f);
+            material.SetFloat("_Caustics", 0.0f);
+            material.SetFloat("_Reflection", 0.3f);
+            material.SetFloat("_RippleScale", 1.7f);
+            material.SetFloat("_RippleStrength", 0.35f);
+            material.SetFloat("_Drift", 0.06f);
+            material.SetFloat("_Buried", 1.0f);
             EditorUtility.SetDirty(material);
             return material;
         }

@@ -8,7 +8,9 @@
 //   one hard highlight where the sun or the moon glints off a ripple, and nothing where the surface is in shadow (a sewer's water has none);
 //   a foam line where the water meets anything standing in it -- a wall, a leg, a step -- broken and moving;
 //   ripples moving the way the water flows (_Flow), the cheap form of Valve's flow-mapped swamps and sewers.
-// Lit by the light falling on it (the sun's or the moon's colour and the sky's), so by night it is as dark as the night is.
+// Lit by the light falling on it (the sun's or the moon's colour and the sky's), so by night it is as dark as the night is; and by the lamps
+// near it, each glinting off the ripples. Under the ground (_Buried: the sewers' water; or the eye down there) only by what shines there: a
+// torch, a fire, a spell, and the trace of the dark round the eye (docs/SEWERS.md).
 // Drawn just before the other transparent things, after the cel look's black lines; it writes no depth. Its underside, seen from below the
 // surface, is the deep colour over what is above.
 Shader "CityX/Water"
@@ -28,6 +30,7 @@ Shader "CityX/Water"
         _Caustics("Caustics", Range(0.0, 2.0)) = 0.6
         _Reflection("Sky reflection", Range(0.0, 1.0)) = 0.55
         _Highlight("Highlight", Range(0.0, 3.0)) = 1.4
+        _Buried("Under the ground: lit only by what shines there (the sewers)", Range(0.0, 1.0)) = 0.0
     }
 
     SubShader
@@ -57,11 +60,16 @@ Shader "CityX/Water"
             #pragma multi_compile_fog
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
+            #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
+            #pragma multi_compile _ _LIGHT_LAYERS
+            #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
+            #include "CityXToonLighting.hlsl"
 
             CBUFFER_START(UnityPerMaterial)
             float4 _ShallowTint;
@@ -77,11 +85,13 @@ Shader "CityX/Water"
             float _Caustics;
             float _Reflection;
             float _Highlight;
+            float _Buried;
             CBUFFER_END
 
             struct Attributes
             {
                 float4 positionOS : POSITION;
+                float2 flow : TEXCOORD1;   // the way this water runs, x and z (the sewers): added to _Flow
             };
 
             struct Varyings
@@ -91,6 +101,7 @@ Shader "CityX/Water"
                 float4 screenPos : TEXCOORD1;
                 float eyeDepth : TEXCOORD2;
                 float fogFactor : TEXCOORD3;
+                float2 flow : TEXCOORD4;
             };
 
             // Smooth 2D noise in [0, 1] (a hash per lattice point, blended): cheap, a handful of these per pixel of water.
@@ -118,6 +129,38 @@ Shader "CityX/Water"
                 return a * 0.65 + b * 0.35;
             }
 
+            // The lamps on the water (a torch's beam and its glow, a fire, a spell): the light they put on it, and the hard glint of each off a
+            // ripple. The city's own lamps (street lights, rooms) only where the sky reaches: they cast no shadows, and would light the tunnel
+            // under their road. A carried beam keeps its strength down a long tunnel, as it does on the walls (CityXThrowBeam).
+            float3 WaterLamps(float3 positionWS, float2 screenUV, float3 normal, float3 toCamera, float sky, out float3 glints)
+            {
+                float3 lit = 0.0;
+                glints = 0.0;
+            #if defined(_ADDITIONAL_LIGHTS)
+                InputData inputData = (InputData)0;
+                inputData.positionWS = positionWS;
+                inputData.normalizedScreenSpaceUV = screenUV;
+                half4 shadowMask = half4(1.0, 1.0, 1.0, 1.0);
+                uint pixelLightCount = GetAdditionalLightsCount();
+                LIGHT_LOOP_BEGIN(pixelLightCount)
+                    Light lamp = GetAdditionalLight(lightIndex, positionWS, shadowMask);
+                    CityXThrowBeam(lamp, lightIndex, positionWS, 1.0 - sky);
+                #ifdef _LIGHT_LAYERS
+                    if (IsMatchingLightLayer(lamp.layerMask, GetMeshRenderingLayer()))
+                #endif
+                    {
+                        half reaches = (lamp.layerMask & CITYX_CITY_LIGHT_LAYERS) != 0 ? sky : 1.0;
+                        float3 strength = lamp.color * (lamp.distanceAttenuation * lamp.shadowAttenuation * reaches);
+                        lit += strength * (0.35 + 0.65 * saturate(dot(normal, lamp.direction)));
+                        // A tight sparkle: a lamp close over the water (a torch's glow at the hand) glinted in wide white patches.
+                        float glint = pow(saturate(dot(reflect(-lamp.direction, normal), toCamera)), 400.0);
+                        glints += min(strength, 1.0) * step(0.5, glint);
+                    }
+                LIGHT_LOOP_END
+            #endif
+                return lit;
+            }
+
             Varyings Vert(Attributes input)
             {
                 Varyings output;
@@ -127,6 +170,7 @@ Shader "CityX/Water"
                 output.screenPos = ComputeScreenPos(positions.positionCS);
                 output.eyeDepth = -positions.positionVS.z;
                 output.fogFactor = ComputeFogFactor(positions.positionCS.z);
+                output.flow = input.flow;
                 return output;
             }
 
@@ -134,7 +178,7 @@ Shader "CityX/Water"
             {
                 float2 screenUV = input.screenPos.xy / input.screenPos.w;
                 float t = _Time.y;
-                float2 flow = _Flow.xz;
+                float2 flow = _Flow.xz + input.flow;
 
                 // The ripple normal, from the slope of the ripple height (two small steps across it).
                 const float delta = 0.08;
@@ -146,9 +190,15 @@ Shader "CityX/Water"
 
                 float3 toCamera = normalize(GetWorldSpaceViewDir(input.positionWS));
                 Light sun = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
-                float sunUp = saturate(sun.direction.y * 1.5 + 0.2);
-                float3 skyLight = SampleSH(float3(0.0, 1.0, 0.0));
-                float3 light = sun.color * sun.shadowAttenuation * sunUp * 0.6 + skyLight;
+                // Under the ground (the sewers' water always; any water while the eye is down there) nothing of the sun, the moon, the sky or
+                // the city's lamps reaches it: what lights it is what shines down there, and the trace of the dark round the eye.
+                float sky = 1.0 - max(_Buried, _CityXUnderground);
+                float sunUp = saturate(sun.direction.y * 1.5 + 0.2) * sky;
+                float3 skyLight = SampleSH(float3(0.0, 1.0, 0.0)) * sky;
+                float3 glints;
+                float3 lamps = WaterLamps(input.positionWS, screenUV, normal, toCamera, sky, glints);
+                float3 light = sun.color * sun.shadowAttenuation * sunUp * 0.6 + skyLight + lamps
+                    + CityXDarkTrace(input.positionWS, normal, toCamera) * (1.0 - sky);
 
                 // How much water lies between the surface and what is behind it: along the view (for the foam) and straight down (for the colour).
                 float sceneRaw = SampleSceneDepth(screenUV);
@@ -192,12 +242,13 @@ Shader "CityX/Water"
 
                 // The sky in it at grazing angles.
                 float fresnel = pow(1.0 - saturate(dot(normal, toCamera)), 4.0) * _Reflection;
-                float3 sky = SampleSH(reflect(-toCamera, normal));
-                colour = lerp(colour, sky, fresnel);
+                float3 skyInIt = SampleSH(reflect(-toCamera, normal)) * sky;
+                colour = lerp(colour, skyInIt, fresnel);
 
-                // One hard glint of the sun or the moon off a ripple.
+                // One hard glint of the sun or the moon off a ripple, and of each lamp (a torch's beam on a sewer's water).
                 float glint = pow(saturate(dot(reflect(-sun.direction, normal), toCamera)), 90.0);
                 colour += sun.color * sun.shadowAttenuation * step(0.35, glint) * _Highlight * sunUp;
+                colour += glints * _Highlight;
 
                 // The foam line where the water meets something standing in it, broken and moving.
                 float foamNoise = Noise(p * 3.5 + flow * t * 3.5 + float2(t * 0.4, 0.0));

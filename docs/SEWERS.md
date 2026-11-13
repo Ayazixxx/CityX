@@ -157,12 +157,37 @@ Known limits: a body goes by the camera's darkness, not its own, so one in a tun
 from deep within is dark; the dark has a hard edge at a mouth; no daylight falls down an open manhole or in at a mouth (a shaft of
 daylight there is offered to the owner, not built); with cel shading off a body is still sunlit underground.
 
-**Tests**: `SewerPlanTests`, `SewerMeshTests`, `LadderGaitTests` (EditMode); `SewerPlayTests` (a body falls down an open manhole and walks
-25 m of tunnel; the street holds over a shut one; the player's body climbs the real ladder and out), `LadderPlayTests`,
-`LightMarksPlayTests` (under the ground a carried light lights the wall and the city's lamps do not; needs `-Graphics`) (PlayMode).
-Pictures: `SewerCapture` (`sewer-*.png`; `sewer-6-dark-*` the dark alone and with a lamp, `sewer-7-flashlight-*` the torch off and on),
-`LadderCapture` (`ladder-*.png`).
+### The water (2026-11-13)
 
-**Not built yet**: water in the channels (the water shader takes only the sun's light, so it needs lamps and the flashlight first); camps
-and their lamps; the deep level; opening a shut manhole; kerb drains; manholes along a street between junctions; mouths in hillsides and
+Owner, 2026-11-09: water "ankle deep mostly, up to waist deep in some areas"; 2026-11-13: "add water to the sewers right now there isnt
+any".
+
+- **Where and how deep** (`World/Sewers/SewerPlan.Water.cs`, pure, poured with the plan): a room's water stands `AnkleDeep` (0.14 m) over
+  its floor, or `WaistDeep` (0.95 m) in a flooded neighbourhood (`FloodedShare`: one 240 m square in five, by the seed). A tunnel's
+  water runs from the depth in the room at one end to the depth in the room at the other (`WaterStart`, `WaterEnd`), so it deepens along
+  the tunnels into a flooded quarter and never steps where a tunnel meets a room; a tunnel walled at an end takes its own square's depth
+  there. The channel holds the walkways' depth plus its own (0.4 to 0.6 m more). A mouth's tunnel drains: by the headwall its water is
+  under the walkways, in the channel alone (`DrainedAtMouth`). The surface follows the floor, as water running down a sloping street's
+  tunnel does. Measured on the classic city: 379 of 2,227 rooms (17%) waist deep.
+- **In the game** (`SewerWaterSource`, an `IWaterSource` in `CurrentWater` beside the boxes of `/water`): every body wades in it as in any
+  water (docs/WATER.md): ankle deep barely slows, waist deep slows to about two thirds and weakens a jump, splashes (`WaterSplashes`) and
+  soaks. Nothing floats: the deepest channel in a flooded tunnel is 1.55 m, under the 1.66 m a 2.6 m body floats at. It carries
+  nobody along (whether the sewer current pushes is the owner's call, docs/WATER.md question 3); its ripples run downhill only in the look.
+- **Drawn** (`View/Water/SewerWaterMesh`, `SewerWaterSurface` on the city scene's "Water" object): one sheet over every tunnel and room
+  within 90 m of the camera, built again when the camera has moved 20 m. A tunnel's sheet reaches 8 cm into its walls (they hide the
+  rest) and, where it is under the walkways, lies under them, so only the channel shows. Each vertex carries its water's run (TEXCOORD1).
+- **The look** (`CityXWater.shader` with `_Buried`, `SewerWater.mat` set by `CityMassingSceneBuilder.EnsureSewerWaterMaterial`): murky
+  grey-green, the floor gone under half a metre of it, a dull scum where something breaks the surface, no veins of sunlight. Under the
+  ground nothing of the sun, the sky or the city's lamps reaches it; the water now takes the lamps near it (a torch's beam keeping its
+  strength down the tunnel as on the walls), each with a hard glint off the ripples, and the dark's trace round the eye.
+
+**Tests**: `SewerPlanTests`, `SewerMeshTests`, `LadderGaitTests`, `SewerWaterTests` (EditMode); `SewerPlayTests` (a body falls down an open
+manhole and walks 25 m of tunnel; the street holds over a shut one; the player's body climbs the real ladder and out), `LadderPlayTests`,
+`LightMarksPlayTests` (under the ground a carried light lights the wall and the city's lamps do not; needs `-Graphics`),
+`SewerWaterPlayTests` (the player's body ankle deep in one room and waist deep in a flooded one, dry on the street over them) (PlayMode).
+Pictures: `SewerCapture` (`sewer-*.png`; `sewer-6-dark-*` the dark alone and with a lamp, `sewer-7-flashlight-*` the torch off and on,
+`sewer-8-water-*` ankle and waist deep, by a lamp and by a flashlight as played), `LadderCapture` (`ladder-*.png`).
+
+**Not built yet**: what the dirty water does (WATER.md question 2) and whether its current pushes (question 3); drips, falls from pipes
+and the floating rubbish the research suggests; camps and their lamps; the deep level; opening a shut manhole; kerb drains; manholes along a street between junctions; mouths in hillsides and
 retaining walls; step streets' cascades; street names underground; sound.

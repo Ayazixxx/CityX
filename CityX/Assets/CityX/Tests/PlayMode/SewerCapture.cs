@@ -26,6 +26,7 @@ namespace CityX.Tests
 
         private CityStreamer _streamer;
         private GameObject _viewer;
+        private SewerWaterSurface _water;
 
         /// <summary>A draw distance short of the tunnel's end, metres: as a long tunnel runs out past the camera's in the game.</summary>
         private const float TunnelCutOff = 12.0f;
@@ -38,6 +39,10 @@ namespace CityX.Tests
             _viewer.transform.position = where;
             _streamer.Rebuild();
             _streamer.StreamAround(where, int.MaxValue);
+            if (_water != null && CurrentWorld.Instance != null)
+            {
+                _water.Rebuild(CurrentWorld.Instance, new Vector2(where.x, where.z));   // the shots move the camera after this
+            }
             yield return new WaitForSecondsRealtime(2.0f);
         }
 
@@ -95,6 +100,9 @@ namespace CityX.Tests
             lamp.enabled = false;
             _viewer = new GameObject("SewerViewer");
             _streamer.Viewer = _viewer.transform;
+            _water = Object.FindFirstObjectByType<SewerWaterSurface>();
+            Assert.IsNotNull(_water, "the city scene has no sewer water: rebuild it");
+            _water.Eye = camera;
 
             plan.TryFindSpawn(out double sx, out double sz);
             var spawn = new Vec2(sx, sz);
@@ -182,6 +190,42 @@ namespace CityX.Tests
                     Dark(cycle, 0.0f);
                 }
                 if (seen.Count >= 8) break;
+            }
+
+            // The water (owner, 2026-11-13: "add water to the sewers right now there isnt any"), ankle deep and in a flooded tunnel waist deep:
+            // by the carried lamp to see it, then as played, by a flashlight in the hand of somebody standing in it.
+            foreach (double depth in new[] { SewerPlan.AnkleDeep, SewerPlan.WaistDeep })
+            {
+                SewerTube tube = tunnels.Select(t => t.Tube).FirstOrDefault(t => t.WaterStart == depth && t.WaterEnd == depth);
+                if (tube == null)
+                {
+                    Debug.Log($"CityX sewer capture: no tunnel {depth} m deep all along");
+                    continue;
+                }
+                string name = depth == SewerPlan.WaistDeep ? "sewer-8-water-waist" : "sewer-8-water-ankle";
+                double along = tube.Start + 6.0;
+                Vec2 at = tube.At(along), ahead = tube.At(along + 14.0);
+                Vec2 walkway = tube.Dir.Perp * ((tube.Section.ChannelHalfWidth + tube.Section.FloorHalfWidth) * 0.5);
+                var eye = new Vector3((float)(at.X + walkway.X * 0.3), (float)tube.FloorAt(along) + 2.9f, (float)(at.Y + walkway.Y * 0.3));
+                var look = new Vector3((float)ahead.X, (float)tube.FloorAt(along + 14.0), (float)ahead.Y);
+                yield return StandAt(eye);
+                lamp.enabled = true;
+                BuildingShapeCapture.Shoot(camera, directory, name + "-lamp", eye, look);
+
+                double stand = along + 4.5;
+                Vec2 feet = tube.At(stand) + walkway;
+                var forward = new Vector3((float)tube.Dir.X, 0.0f, (float)tube.Dir.Y);
+                GameObject holder = FlashlightCapture.Body(new Vector3((float)feet.X, (float)tube.FloorAt(stand) + 0.05f, (float)feet.Y));
+                FlashlightItem torch = FlashlightCapture.TorchFor(holder);
+                Vector3 beam = (forward + Vector3.down * 0.25f).normalized;
+                float yaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+                lamp.enabled = false;
+                yield return FlashlightCapture.Hold(holder, torch, true, 0.8f, beam, yaw);
+                Dark(cycle, 1.0f);
+                BuildingShapeCapture.Shoot(camera, directory, name + "-flashlight", eye, look + forward * 6.0f);
+                Object.Destroy(holder);
+                Dark(cycle, 0.0f);
+                Debug.Log($"CityX sewer capture: {name} in a {tube.Section.Kind} {tube.Section.Style}, {_water.TriangleCount} triangles of water drawn");
             }
 
             // A mouth of each kind of gate, nearest the spawn: from the open cut, from the bank beside it, and from inside looking out.

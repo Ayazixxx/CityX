@@ -105,7 +105,15 @@ real player body: knee-deep slows a walk by the rule; six metres floats it, it s
 a flow carries it; standing waist-deep soaks it; rings and drops answer a run through water), `WaterCapture`
 (`Logs/CityShots/water-*.png`: wading by day, low along the water, by night, floating in a flood, a flooded street; and the cost).
 
-Not built (the owner's calls below, then later): Wet doing anything in a fight, dirty water, the sewers themselves, water spells, the
+## Built: the sewers' water (2026-11-13)
+
+Owner: "add water to the sewers right now there isnt any". Ankle deep through most of the sewers, waist deep through a flooded
+neighbourhood in five, poured by the plan (docs/SEWERS.md, "The water"). What it added here: water that is not a box answers through
+`IWaterSource` (`CurrentWater.At` gives a `WaterHere`: depth, surface, flow), so the sewers' channels are asked like any pool; the shader
+takes the lamps near the water (with a glint off the ripples each) and, with `_Buried`, nothing of the sky; a sheet can carry its own run
+per vertex (TEXCOORD1). The sewer water is murky and still for the body (questions 2 and 3 below are still open).
+
+Not built (the owner's calls below, then later): Wet doing anything in a fight, what dirty water does, water spells, the
 Great Flood as a spell (its timeline and its rising water are ready; it needs a caster, the network message with its start time, and a
 wave edge), a breath bar, swimming under water, a camera under water.
 
