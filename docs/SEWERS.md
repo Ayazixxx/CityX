@@ -171,8 +171,11 @@ any".
   tunnel does. Measured on the classic city: 379 of 2,227 rooms (17%) waist deep.
 - **In the game** (`SewerWaterSource`, an `IWaterSource` in `CurrentWater` beside the boxes of `/water`): every body wades in it as in any
   water (docs/WATER.md): ankle deep barely slows, waist deep slows to about two thirds and weakens a jump, splashes (`WaterSplashes`) and
-  soaks. Nothing floats: the deepest channel in a flooded tunnel is 1.55 m, under the 1.66 m a 2.6 m body floats at. It carries
-  nobody along (whether the sewer current pushes is the owner's call, docs/WATER.md question 3); its ripples run downhill only in the look.
+  soaks. Nothing floats: the deepest channel in a flooded tunnel is 1.55 m, under the 1.66 m a 2.6 m body floats at. The current
+  (`SewerPlan.CurrentSpeed`, 0.9 m/s downhill, out of a mouth; a room's water is still) carries a wader by the depth
+  (`Wading.FlowCarry`): hardly at all on an ankle-deep walkway, about half a metre a second waist deep, the most in a flooded
+  channel, where walking against it still keeps half a wading walk; the ripples run with it. Owner, 2026-11-13: "no poison water yet and
+  yes if theres a current make it so you can feel it but not to a point where its just annoying".
 - **Drawn** (`View/Water/SewerWaterMesh`, `SewerWaterSurface` on the city scene's "Water" object): one sheet over every tunnel and room
   within 90 m of the camera, built again when the camera has moved 20 m. A tunnel's sheet reaches 8 cm into its walls (they hide the
   rest) and, where it is under the walkways, lies under them, so only the channel shows. Each vertex carries its water's run (TEXCOORD1).
@@ -188,6 +191,6 @@ manhole and walks 25 m of tunnel; the street holds over a shut one; the player's
 Pictures: `SewerCapture` (`sewer-*.png`; `sewer-6-dark-*` the dark alone and with a lamp, `sewer-7-flashlight-*` the torch off and on,
 `sewer-8-water-*` ankle and waist deep, by a lamp and by a flashlight as played), `LadderCapture` (`ladder-*.png`).
 
-**Not built yet**: what the dirty water does (WATER.md question 2) and whether its current pushes (question 3); drips, falls from pipes
+**Not built yet**: anything the dirty water does (owner, 2026-11-13: "no poison water yet"); drips, falls from pipes
 and the floating rubbish the research suggests; camps and their lamps; the deep level; opening a shut manhole; kerb drains; manholes along a street between junctions; mouths in hillsides and
 retaining walls; step streets' cascades; street names underground; sound.

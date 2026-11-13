@@ -17,9 +17,6 @@ namespace CityX.View
         /// <summary>How far past a wall the sheet reaches, metres: the wall hides it, and no crack shows at the edge.</summary>
         public const float IntoTheWalls = 0.08f;
 
-        /// <summary>How fast a tunnel's water looks to run, metres a second.</summary>
-        public const float RunSpeed = 0.45f;
-
         /// <summary>The water of every tunnel and room within <paramref name="radius"/> of <paramref name="centre"/> (x, z), in world space.</summary>
         public static void Build(PlanWorld plan, Vector2 centre, float radius, List<Vector3> vertices, List<Vector2> flows, List<int> triangles)
         {
@@ -63,10 +60,9 @@ namespace CityX.View
             if (tube == null) return;
             if (PlanMath.DistanceToSegment(near, tube.At(tube.Start), tube.At(tube.End), out _) > radius) return;
             SewerSection section = tube.Section;
-            // Downhill along the tunnel; a level one runs the way its distances do.
-            double fall = tube.Floors[0] - tube.Floors[tube.Floors.Length - 1];
-            Vec2 run = tube.Dir * (fall < 0.0 ? -1.0 : 1.0);
-            var flow = new Vector2((float)run.X * RunSpeed, (float)run.Y * RunSpeed);
+            // The current that carries a body wading in it (SewerPlan.CurrentSpeed), so the ripples run as it pushes.
+            Vec2 run = SewerPlan.Downstream(tube) * SewerPlan.CurrentSpeed;
+            var flow = new Vector2((float)run.X, (float)run.Y);
             Vec2 right = -tube.Dir.Perp;
             int first = vertices.Count;
             for (int i = 0; i < tube.Stations.Length; i++)

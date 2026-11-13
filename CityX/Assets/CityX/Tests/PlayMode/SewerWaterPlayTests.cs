@@ -130,6 +130,55 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// Owner, 2026-11-13: "if theres a current make it so you can feel it but not to a point where its just annoying". Waist deep on a
+        /// flooded tunnel's walkway: standing still, the body drifts downstream; walking against it, it keeps most of its wading speed.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheCurrentCarriesAStandingBodyButBarelyHoldsBackOneWalkingAgainstIt()
+        {
+            Time.captureFramerate = 60;
+            var world = new CityWorld(Seed);
+            world.Plan.TryFindSpawn(out double sx, out double sz);
+            var spawn = new Vec2(sx, sz);
+            SewerPlan sewers = SewerPlan.For(world.Plan);
+            SewerTube tube = null;
+            foreach (RoadEdge edge in world.Plan.Data.Edges)
+            {
+                SewerTube t = sewers.Tube(edge.Id);
+                if (t == null || t.End - t.Start < 40.0 || t.WaterStart != SewerPlan.WaistDeep || t.WaterEnd != SewerPlan.WaistDeep) continue;
+                if (tube == null || (t.At(t.Start) - spawn).Length < (tube.At(tube.Start) - spawn).Length) tube = t;
+            }
+            Assert.IsNotNull(tube, "no flooded tunnel 40 m long in this world");
+            double along = (tube.Start + tube.End) * 0.5;
+            Vec2 at = tube.At(along) + tube.Dir.Perp * ((tube.Section.ChannelHalfWidth + tube.Section.FloorHalfWidth) * 0.5);
+            var feet = new Vector3((float)at.X, (float)tube.FloorAt(along) + 0.05f, (float)at.Y);
+            Streamed(feet);
+            Water(null);
+            yield return null;
+            PlayerLocomotion body = Player(feet);
+            yield return null;
+            yield return Settle(body, 0.5f, default);
+
+            Vec2 down = SewerPlan.Downstream(tube);
+            var downstream = new Vector3((float)down.X, 0.0f, (float)down.Y);
+            Vector3 from = body.transform.position;
+            yield return Settle(body, 2.0f, default);
+            float drift = Vector3.Dot(body.transform.position - from, downstream) / 2.0f;
+
+            float yaw = Mathf.Atan2(-downstream.x, -downstream.z) * Mathf.Rad2Deg;
+            var upstream = new LocomotionInput { Move = Vector2.up, YawDegrees = yaw };
+            yield return Settle(body, 0.5f, upstream);
+            from = body.transform.position;
+            yield return Settle(body, 2.0f, upstream);
+            float against = -Vector3.Dot(body.transform.position - from, downstream) / 2.0f;
+            float wade = body.WalkSpeed * Wading.SpeedShare(body.WaterDepthShare);
+            Debug.Log($"CityX sewer current: {body.WaterDepth:F2} m deep, drifts {drift:F2} m/s standing, walks upstream at {against:F2} m/s of a {wade:F2} m/s wade");
+            Assert.Greater(drift, 0.3f, "standing in the current, the body does not feel it");
+            Assert.Less(drift, 0.8f, "the current sweeps a standing body away");
+            Assert.Greater(against, wade * 0.7f, "walking against the current is a slog");
+        }
+
         [UnityTest]
         public IEnumerator TheStreetOverTheSewersIsDryAndTheWaterIsDrawnRoundTheCamera()
         {

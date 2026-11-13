@@ -30,6 +30,14 @@ namespace CityX.World
         /// <summary>A mouth's water by its headwall: under the walkways, in the channel only.</summary>
         public const double DrainedAtMouth = -0.12;
 
+        /// <summary>
+        /// How fast a tunnel's water runs, metres a second: downhill, or out of a mouth. A body wading in it is carried in step with the depth
+        /// (Wading.FlowCarry): hardly at all on an ankle-deep walkway, half a metre a second waist deep, the most in a flooded channel, where
+        /// walking against it is still half a wading walk (owner, 2026-11-13: "make it so you can feel it but not to a point where its just
+        /// annoying"). A room's water is still.
+        /// </summary>
+        public const double CurrentSpeed = 0.9;
+
         private void PourWater()
         {
             foreach (SewerRoom room in _rooms)
@@ -60,6 +68,13 @@ namespace CityX.World
             return WorldHash.Unit01(cx, cy, Salt + 13UL, unchecked((ulong)(long)_plan.Seed)) < FloodedShare ? WaistDeep : AnkleDeep;
         }
 
+        /// <summary>The way a tunnel's water runs: downhill along it, the way its distances run where it is level (out of a mouth).</summary>
+        public static Vec2 Downstream(SewerTube tube)
+        {
+            double fall = tube.Floors[0] - tube.Floors[tube.Floors.Length - 1];
+            return fall < 0.0 ? -tube.Dir : tube.Dir;
+        }
+
         /// <summary>How deep a tunnel's water is over its walkways a distance along it.</summary>
         public static double WaterAlong(SewerTube tube, double along)
         {
@@ -71,16 +86,19 @@ namespace CityX.World
         /// The water over a point in the sewers: its surface and its bottom (the channel's bed, or the floor), or false where the point is in
         /// no tunnel or room. A point above the surface is still "in" it (its depth is then negative): the caller takes the depth.
         /// </summary>
-        public bool TryWaterAt(double x, double y, double z, out double surface, out double bottom)
+        public bool TryWaterAt(double x, double y, double z, out double surface, out double bottom) => TryWaterAt(x, y, z, out surface, out bottom, out _);
+
+        /// <summary>The same, and the way the water there runs (metres a second on the ground; zero in a room).</summary>
+        public bool TryWaterAt(double x, double y, double z, out double surface, out double bottom, out Vec2 flow)
         {
             var p = new Vec2(x, z);
             int cx = PlanWorld.ChunkOf(x), cy = PlanWorld.ChunkOf(z);
             foreach (int edgeId in _plan.EdgesIn(cx, cy))
             {
-                if (TryTubeWater(Tube(edgeId), p, out surface, out bottom)) return true;
+                if (TryTubeWater(Tube(edgeId), p, out surface, out bottom, out flow)) return true;
                 foreach (SewerOutfall outfall in Outfalls(edgeId))
                 {
-                    if (TryTubeWater(outfall.Tube, p, out surface, out bottom)) return true;
+                    if (TryTubeWater(outfall.Tube, p, out surface, out bottom, out flow)) return true;
                 }
             }
             foreach (int nodeId in _plan.JunctionsIn(cx, cy))
@@ -90,16 +108,19 @@ namespace CityX.World
                 {
                     bottom = floor;
                     surface = floor + room.Water;
+                    flow = new Vec2(0.0, 0.0);
                     return true;
                 }
             }
             surface = bottom = 0.0;
+            flow = new Vec2(0.0, 0.0);
             return false;
         }
 
-        private static bool TryTubeWater(SewerTube tube, Vec2 p, out double surface, out double bottom)
+        private static bool TryTubeWater(SewerTube tube, Vec2 p, out double surface, out double bottom, out Vec2 flow)
         {
             surface = bottom = 0.0;
+            flow = new Vec2(0.0, 0.0);
             if (tube == null) return false;
             double along = Vec2.Dot(p - tube.Origin, tube.Dir);
             if (along < tube.Start || along > tube.End) return false;
@@ -111,6 +132,7 @@ namespace CityX.World
             if (!inChannel && water <= 0.0) return false;   // the walkway beside a drained channel is dry
             bottom = inChannel ? floor - tube.Section.ChannelDepth : floor;
             surface = floor + water;
+            flow = Downstream(tube) * CurrentSpeed;
             return true;
         }
 

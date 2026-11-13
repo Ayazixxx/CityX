@@ -111,7 +111,8 @@ Owner: "add water to the sewers right now there isnt any". Ankle deep through mo
 neighbourhood in five, poured by the plan (docs/SEWERS.md, "The water"). What it added here: water that is not a box answers through
 `IWaterSource` (`CurrentWater.At` gives a `WaterHere`: depth, surface, flow), so the sewers' channels are asked like any pool; the shader
 takes the lamps near the water (with a glint off the ripples each) and, with `_Buried`, nothing of the sky; a sheet can carry its own run
-per vertex (TEXCOORD1). The sewer water is murky and still for the body (questions 2 and 3 below are still open).
+per vertex (TEXCOORD1). The sewer water is murky, poisons nobody (owner, 2026-11-13: "no poison water yet") and its tunnels' current carries a wader gently
+(question 3: "make it so you can feel it but not to a point where its just annoying").
 
 Not built (the owner's calls below, then later): Wet doing anything in a fight, what dirty water does, water spells, the
 Great Flood as a spell (its timeline and its rising water are ready; it needs a caster, the network message with its start time, and a

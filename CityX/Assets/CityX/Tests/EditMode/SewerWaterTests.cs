@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using CityX.View;
 using CityX.World;
@@ -170,6 +171,41 @@ namespace CityX.Tests
                 }
             }
             Assert.Greater(onTheWater, triangleCount * 0.9f, "the drawn water is not where the water is");
+        }
+
+        /// <summary>Owner, 2026-11-13: "if theres a current make it so you can feel it but not to a point where its just annoying".</summary>
+        [Test]
+        public void ATunnelsCurrentRunsDownhillAndOutOfAMouthAndARoomIsStill()
+        {
+            int sloping = 0;
+            foreach (SewerTube tube in Tubes())
+            {
+                Vec2 middle = tube.At((tube.Start + tube.End) * 0.5);
+                double floor = tube.FloorAt((tube.Start + tube.End) * 0.5);
+                Assert.IsTrue(Sewers.TryWaterAt(middle.X, floor, middle.Y, out _, out _, out Vec2 flow));
+                Assert.AreEqual(SewerPlan.CurrentSpeed, flow.Length, 1e-6);
+                double fall = tube.Floors[0] - tube.Floors[tube.Floors.Length - 1];
+                if (Math.Abs(fall) < 0.05) continue;
+                sloping++;
+                Vec2 downhill = fall > 0.0 ? tube.Dir : -tube.Dir;
+                Assert.Greater(Vec2.Dot(flow, downhill), 0.0, "a tunnel's water runs uphill");
+            }
+            Assert.Greater(sloping, 100);
+            foreach (SewerOutfall outfall in Sewers.AllOutfalls)
+            {
+                Vec2 inside = outfall.Tube.At(outfall.Portal * 0.5);
+                Assert.IsTrue(Sewers.TryWaterAt(inside.X, outfall.Floor - 0.3, inside.Y, out _, out _, out Vec2 flow));
+                Assert.Greater(Vec2.Dot(flow, outfall.Tube.Dir), 0.0, "a mouth's water runs back in, not out into the daylight");
+            }
+            foreach (SewerRoom room in Sewers.Rooms)
+            {
+                Assert.IsTrue(Sewers.TryWaterAt(room.Node.P.X, room.CentreFloor, room.Node.P.Y, out _, out _, out Vec2 flow));
+                Assert.AreEqual(0.0, flow.Length, 1e-9, $"room {room.Node.Id}'s water runs");
+                break;
+            }
+            // Felt, never holding a body back: the most it carries is under half the slowest wade.
+            Assert.Less(SewerPlan.CurrentSpeed, 4.0 * Wading.SlowestWade * 0.55, "against the current in a flooded channel a body hardly moves");
+            Assert.Greater(SewerPlan.CurrentSpeed * Wading.FlowCarry((float)(SewerPlan.WaistDeep / 2.6), false), 0.3, "waist deep the current is not felt");
         }
 
         [Test]
