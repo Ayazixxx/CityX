@@ -33,6 +33,12 @@ namespace CityX.UI
 
         private bool _joinPending;
 
+        /// <summary>Opened: this computer's addresses, for a friend to join (HostAddresses).</summary>
+        private void OnEnable()
+        {
+            SetStatus(HostAddresses.Describe(HostAddresses.Find()));
+        }
+
         private void OnDisable()
         {
             // The panel is hidden the moment Back is pressed, or the moment

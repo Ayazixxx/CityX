@@ -18,6 +18,7 @@
         "CityX.Wearables",
         "CityX.Wearables.Editor",
         "CityX.Vehicles",
+        "CityX.Net",
         "UnityEngine.UI",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime",
