@@ -125,6 +125,25 @@ namespace CityX.Character
         private bool _holdsBody;
         private Vector3 _beganAt;
 
+        /// <summary>
+        /// The blade has been driven into the ground: sparks from the ground under its tip (on this body, owner or copy, so every player
+        /// sees them). A blade that did not get down to the ground throws none.
+        /// </summary>
+        private void ThrowGroundSparks()
+        {
+            ISwordBlade blade = _locomotion.HeldSword;
+            if (blade == null)
+            {
+                return;
+            }
+            Vector3 tip = blade.BladeTipWorld;
+            float ground = transform.position.y;
+            if (tip.y - ground <= SwordStrikes.GroundStrikeReach)
+            {
+                BlockDeflectEffect.GroundStrike(new Vector3(tip.x, ground + PlayerLocomotion.TipFloorClearance, tip.z));
+            }
+        }
+
         /// <summary>0 to 1: how much of the body an attack's clip holds.</summary>
         public float ClipWeight => _clipWeight;
 
@@ -331,11 +350,17 @@ namespace CityX.Character
             }
             _holdsBody = true;
             _clipLegs = Mathf.MoveTowards(_clipLegs, SwordStrikes.ClipLegs(_clipKind, _locomotion.OwnGroundSpeed), deltaTime / ClipLegsSeconds);
-            _pose.LegsWeight = _clipLegs;
-            _locomotion.SetBakedPose(_pose, Mathf.SmoothStep(0.0f, 1.0f, _clipWeight));
             // (Only a body that stands is stepped by the attack: on the move the keys carry it, and there is no stride of the clip's to draw in.)
             _walkedUnderClip |= _clipLegs < 1.0f;
-            _locomotion.SetClipStride(_walkedUnderClip ? 1.0f : _locomotion.StrideShareSince(_beganAt, SwordStrikes.Stepped(_clipKind, _clipSeconds)));
+            float stepped = SwordStrikes.Stepped(_clipKind, _clipSeconds);
+            float stride = _walkedUnderClip ? 1.0f : _locomotion.StrideShareSince(_beganAt, stepped);
+            // The whole body's turn (the one-handed chain's second cut), about the foot it stands on (the left: the right steps through),
+            // so that foot turns on the spot and does not slide round: the clip is made facing ahead throughout.
+            _pose.Turn = Quaternion.AngleAxis(SwordStrikes.SpinDegrees(_clipKind, _clipSeconds), Vector3.up);
+            _pose.Pivot = _locomotion.BakedLeftAnklePlace(_pose);
+            _pose.LegsWeight = _clipLegs;
+            _locomotion.SetBakedPose(_pose, Mathf.SmoothStep(0.0f, 1.0f, _clipWeight));
+            _locomotion.SetClipStride(stride);
         }
 
         /// <summary>Lets go of the body, if the clip has it: the baked pose is one slot, and a spin or a reload may have it next.</summary>
@@ -539,6 +564,14 @@ namespace CityX.Character
             if (_striking || _rebounding)
             {
                 _elapsed += clock;
+                if (_striking && SwordStrikes.StrikesTheGround(_kind))
+                {
+                    float strikes = SwordStrikes.GroundStrikeSeconds(_kind);
+                    if (_elapsed >= strikes && _elapsed - clock < strikes)
+                    {
+                        ThrowGroundSparks();
+                    }
+                }
                 if (_elapsed >= _duration)
                 {
                     _striking = false;

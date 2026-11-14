@@ -38,10 +38,12 @@ Each is one clear direction, wound up with the whole body against it:
 
 | Attack | The wind-up (the tell) | The blow | Lands at | Step |
 |---|---|---|---|---|
-| `sword1h_slash` (light 1) | blade drawn back out to the right behind the turned shoulders, weight on the back foot, free hand out ahead | level, right to left at chest height, a stride onto the left foot | 0.40 s | 0.45 m |
-| `sword1h_cut` (light 2) | hand carried up past the left shoulder, blade behind the back, shoulders turned away left | down from the left shoulder to the right hip, the right foot striding through | 0.37 s | 0.50 m |
-| `sword1h_finisher` (light 3) | blade high behind the right shoulder, the body arched back, the free arm reaching at the target, the left knee up | down to the lower left with the whole body driving after it | 0.55 s | 0.55 m |
-| `sword1h_overhead` (heavy) | sword over and behind the head, held 0.3 s, the free hand out at the target | straight down the middle to the ground, the body folding after it | 0.77 s | 0.50 m |
+| `sword1h_slash` (light 1) | blade high behind the right shoulder, the body arched back, the free arm reaching at the target, the left knee up | steeply down to the lower left, the whole body dropping into a deep lunge after it | 0.40 s | 0.45 m |
+| `sword1h_cut` (light 2) | hand carried up past the left shoulder, blade over it, shoulders turned away left, the whole body turning once round to the right | steeply down from the left shoulder to the right hip as the body faces front again, the right foot striding through | 0.37 s | 0.50 m |
+| `sword1h_finisher` (light 3) | hand drawn across to the left shoulder at chest height, blade level behind it, shoulders turned away left | level, left to right at chest height, the right foot striding through | 0.55 s | 0.55 m |
+| `sword1h_overhead` (heavy) | sword over and behind the head, held 0.3 s, the free hand out at the target | straight down the middle into the ground (sparks), the body folded in a deep lunge over it and held down 0.38 s, the free arm thrown up behind | 0.77 s | 0.50 m |
+
+The one-handed four are the owner's reference combo since 2026-11-13 (`docs/SWORD_GIF_COMBO.md`).
 | `sword2h_sweep` (light 1) | both hands at the right side, the blade back, the shoulders right round after it | level, right to left, a stride | 0.47 s | 0.45 m |
 | `sword2h_reverse` (light 2) | the blade carried round to the left side | level, left to right, the right foot through | 0.44 s | 0.50 m |
 | `sword2h_cut` (light 3) | blade high behind the right shoulder, the body coiled and sunk | down to the lower left, a long stride | 0.55 s | 0.55 m |

@@ -61,6 +61,38 @@ namespace CityX.Character
         public const float SparkLength = 0.16f;
         public const float SparkWidth = 0.012f;
 
+        // A blade driven into the ground (the one-handed heavy; owner, 2026-11-13: "hits the ground and has like a sparks effect from the
+        // ground"): more of them than a clash, thrown up and out of the ground, and they hang in the air longer.
+        public const int GroundSparkCount = 44;
+        public const float GroundSparkSeconds = 0.45f;
+        public const float GroundSparkSpeed = 9.0f;
+        public const float GroundSparkLength = 0.42f;
+        public const float GroundSparkWidth = 0.03f;
+
+        /// <summary>How many blades driven into the ground have thrown their sparks since the game started, and where the last one struck (for tests).</summary>
+        public static int GroundStrikesShown { get; private set; }
+
+        public static Vector3 LastGroundStrike { get; private set; }
+
+        /// <summary>
+        /// Sparks thrown up out of the ground at <paramref name="point"/>, a flash and the ring of the blade: a sword driven into the
+        /// ground. Called on every body that plays the blow (SwordPoseDriver), so every player sees and hears it with nothing sent.
+        /// </summary>
+        public static void GroundStrike(Vector3 point)
+        {
+            GroundStrikesShown++;
+            LastGroundStrike = point;
+            if (!Application.isPlaying)
+            {
+                return;
+            }
+            var burst = new GameObject("GroundStrikeSparks");
+            burst.transform.position = point;
+            burst.AddComponent<SparkBurst>().Begin(point, Vector3.up, GroundSparkCount, GroundSparkSpeed, GroundSparkWidth, GroundSparkSeconds, GroundSparkLength);
+            AttackGlint.Flash(point);
+            PlayClashSound(ClashBody(), point, ClashBodyVolume);
+        }
+
         public const int ClashSparkCount = 26;
         public const float ClashSparkSeconds = 0.3f;
         public const float ClashSparkSpeed = 10.0f;
@@ -371,12 +403,21 @@ namespace CityX.Character
 
             public void Begin(Vector3 point, Vector3 direction, bool clash)
             {
+                if (clash)
+                {
+                    Begin(point, direction, ClashSparkCount, ClashSparkSpeed, ClashSparkWidth, ClashSparkSeconds, ClashSparkLength);
+                }
+                else
+                {
+                    Begin(point, direction, SparkCount, SparkSpeed, SparkWidth, SparkSeconds, SparkLength);
+                }
+            }
+
+            public void Begin(Vector3 point, Vector3 direction, int count, float speed, float width, float seconds, float length)
+            {
                 var random = new System.Random(unchecked((int)(Time.frameCount * 7919 + point.GetHashCode())));
-                int count = clash ? ClashSparkCount : SparkCount;
-                float speed = clash ? ClashSparkSpeed : SparkSpeed;
-                float width = clash ? ClashSparkWidth : SparkWidth;
-                _seconds = clash ? ClashSparkSeconds : SparkSeconds;
-                _length = clash ? ClashSparkLength : SparkLength;
+                _seconds = seconds;
+                _length = length;
                 _streaks = new LineRenderer[count];
                 _velocities = new Vector3[count];
                 _heads = new Vector3[count];

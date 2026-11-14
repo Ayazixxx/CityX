@@ -151,28 +151,74 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// Owner, 2026-11-13, of a reference combo (docs/SWORD_GIF_COMBO.md): "two sort of downward/diagonal slashes and then 1 horizontal
+        /// slash ... I want the first 3 to replace the 3 hit combo animations we have now"; and of the third, "reuse our horizontal slash
+        /// animation ... match the direction of the gif" (in it the blade crosses the front from the left to the right).
+        /// </summary>
         [Test]
-        public void TheOneHandedFirstAttackIsAHorizontalSlashFromRightToLeft()
+        public void TheOneHandedChainIsTwoSteepCutsAndThenALevelSlashFromLeftToRight()
         {
-            // Owner, 2026-10-13: "make the first attack with a one handed sword a horizontal slash".
-            SwordStrikeKind kind = SwordStrikeKind.Slash1H;
-            SwordFrame windup = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveStart(kind) - 0.03f);
-            SwordFrame contact = SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind));
-            SwordFrame follow = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveEnd(kind) + 0.08f);
+            // The two steep cuts: the first from over the right shoulder to the lower left, the second its mirror.
+            foreach ((SwordStrikeKind kind, float side) in new[] { (SwordStrikeKind.Slash1H, 1.0f), (SwordStrikeKind.Cut1H, -1.0f) })
+            {
+                SwordFrame wound = SwordStrikes.Evaluate(kind, SwordStrikes.StrikeStart(kind));
+                SwordFrame landing = SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind));
+                Vector3 through = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveEnd(kind) + 0.05f).Blade;
+                Assert.Greater(wound.Blade.y, 0.3f, $"{kind}: the blade is not raised over the shoulder");
+                Assert.Less(wound.Blade.z, 0.0f, $"{kind}: the blade is not wound back");
+                Assert.Greater(side * wound.Blade.x, 0.1f, $"{kind}: the blade is wound back on the wrong side");
+                Assert.Less(landing.Edge.y, -0.6f, $"{kind}: the blade is not coming down as it lands (its edge faces {landing.Edge})");
+                Assert.Less(side * landing.Edge.x, -0.4f, $"{kind}: the blade is not crossing the front as it comes down");
+                Assert.Less(side * through.x, -0.3f, $"{kind}: the blade does not carry through to the other side");
+                Assert.Less(through.y, -0.1f, $"{kind}: the blade does not carry on down");
+                Assert.IsFalse(landing.TwoHanded);
+            }
 
-            Assert.Greater(windup.Hand.x, 0.5f, "the slash is not wound up out to the right");
-            Assert.Less(follow.Hand.x, -0.3f, "the slash does not carry through to the left");
+            // The level slash, left to right.
+            SwordStrikeKind third = SwordStrikeKind.Finisher1H;
+            SwordFrame windup = SwordStrikes.Evaluate(third, SwordStrikes.ActiveStart(third) - 0.03f);
+            SwordFrame contact = SwordStrikes.Evaluate(third, SwordStrikes.ContactFraction(third));
+            SwordFrame follow = SwordStrikes.Evaluate(third, SwordStrikes.ActiveEnd(third) + 0.08f);
+            Assert.Less(windup.Hand.x, -0.3f, "the slash is not wound up across to the left");
+            Assert.Greater(follow.Hand.x, 0.3f, "the slash does not carry through to the right");
             Assert.Less(Mathf.Abs(contact.Blade.y), 0.2f, $"the blade is not flat at the contact (y {contact.Blade.y:0.00})");
-            Assert.Less(Mathf.Abs(contact.Hand.y - windup.Hand.y), 0.25f, "the hand's height changes too much for a horizontal cut");
-            // The edge leads the motion: at the contact the tip is moving to the left, and the edge faces the way the tip moves ACROSS the
+            Assert.Less(Mathf.Abs(contact.Hand.y - windup.Hand.y), 0.25f, "the hand's height changes too much for a level cut");
+            // The edge leads the motion: at the contact the tip is moving to the right, and the edge faces the way the tip moves ACROSS the
             // blade (a slash also draws along its own length, which no edge can face).
-            Vector3 before = SwordStrikes.TipOffset(SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind) - 0.02f), ArmLength, 1.39f);
+            Vector3 before = SwordStrikes.TipOffset(SwordStrikes.Evaluate(third, SwordStrikes.ContactFraction(third) - 0.02f), ArmLength, 1.39f);
             Vector3 at = SwordStrikes.TipOffset(contact, ArmLength, 1.39f);
             Vector3 motion = (at - before).normalized;
             Vector3 across = (motion - contact.Blade * Vector3.Dot(motion, contact.Blade)).normalized;
-            Assert.Less(motion.x, -0.5f, "the tip is not sweeping leftward at the contact");
+            Assert.Greater(motion.x, 0.5f, "the tip is not sweeping to the right at the contact");
             Assert.Greater(Vector3.Dot(contact.Edge, across), 0.7f, "the edge is not leading the cut: the flat of the blade arrives");
             Assert.IsFalse(contact.TwoHanded);
+        }
+
+        /// <summary>The reference's second cut is thrown out of a full turn of the whole body: it comes round to the right through the wind-up and faces ahead again as the blade lands.</summary>
+        [Test]
+        public void TheSecondCutIsThrownOutOfAFullTurnThatArrivesWithTheBlade()
+        {
+            SwordStrikeKind kind = SwordStrikeKind.Cut1H;
+            SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
+            Assert.AreEqual(0.0f, SwordStrikes.SpinDegrees(kind, 0.0f), 1e-4f, "the body is turned before the attack has begun");
+            Assert.AreEqual(360.0f, SwordStrikes.SpinDegrees(kind, t.Contact), 1e-3f, "the body is not facing ahead again as the blade lands");
+            Assert.AreEqual(360.0f, SwordStrikes.SpinDegrees(kind, t.Total), 1e-3f, "the body turns on after the blow");
+            float last = 0.0f;
+            for (float seconds = 0.0f; seconds <= t.Contact; seconds += 1.0f / 60.0f)
+            {
+                float now = SwordStrikes.SpinDegrees(kind, seconds);
+                Assert.GreaterOrEqual(now, last, $"the turn goes backwards at {seconds:0.00} s");
+                Assert.Less(now - last, 45.0f, $"the turn jumps {now - last:0} degrees in a frame at {seconds:0.00} s");
+                last = now;
+            }
+            foreach (SwordStrikeKind other in SwordStrikes.All)
+            {
+                if (other != kind)
+                {
+                    Assert.AreEqual(0.0f, SwordStrikes.SpinDegrees(other, SwordStrikes.TimingOf(other).Contact), 1e-4f, $"{other} turns the body round");
+                }
+            }
         }
 
         [Test]
@@ -247,7 +293,9 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, SwordStrikes.Guard(true).FreeHandWeight, 0.001f, "the guard holds the free hand up instead of leaving it relaxed");
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (kind == SwordStrikeKind.Thrust1H || kind == SwordStrikeKind.Overhead1H)   // (the chain's cuts swing it against the blade: below)
+                // (The chain's cuts swing it against the blade: below. The heavy throws it up behind as the blade goes into the ground, as the
+                // owner's reference does: TheOneHandedHeavyGoesIntoTheGround.)
+                if (kind == SwordStrikeKind.Thrust1H)
                 {
                     float most = float.MinValue, least = float.MaxValue;
                     for (int i = 0; i <= 50; i++)
@@ -550,7 +598,7 @@ namespace CityX.Tests
         {
             foreach ((SwordStrikeKind kind, FootSteps stride) in new[]
             {
-                (SwordStrikeKind.Slash1H, FootSteps.OnlyLeft), (SwordStrikeKind.Cut1H, FootSteps.OnlyRight), (SwordStrikeKind.Finisher1H, FootSteps.OnlyLeft),
+                (SwordStrikeKind.Slash1H, FootSteps.OnlyLeft), (SwordStrikeKind.Cut1H, FootSteps.OnlyRight), (SwordStrikeKind.Finisher1H, FootSteps.OnlyRight),
             })
             {
                 SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
@@ -566,33 +614,59 @@ namespace CityX.Tests
             Assert.AreEqual(FootSteps.Any, SwordStrikes.Evaluate(SwordStrikeKind.Sweep2H, 0.3f).Steps, "the two-handed chain has not had this treatment yet");
         }
 
-        /// <summary>The finisher reads as the end of the chain: from over the right shoulder down to the lower left, a longer stride and a deeper sink than either cut before it.</summary>
+        /// <summary>
+        /// The reference's first cut drops the whole body into a deep lunge behind the blade: a longer stride, a deeper sink and more lean
+        /// than the cuts after it. The third still ends the chain: it is the slowest to recover from.
+        /// </summary>
         [Test]
-        public void TheOneHandedFinisherIsADiagonalWithTheWholeBodyBehindIt()
+        public void TheFirstCutDropsIntoALungeAndTheThirdIsSlowestToRecoverFrom()
         {
-            SwordStrikeKind kind = SwordStrikeKind.Finisher1H;
+            SwordStrikeKind kind = SwordStrikeKind.Slash1H;
             SwordFrame windup = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveStart(kind) - 0.03f);
             SwordFrame contact = SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind));
-            Vector3 follow = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveEnd(kind) + 0.05f).Blade;
-            Assert.Greater(windup.Blade.y, 0.3f, "the blade is not raised over the shoulder");
-            Assert.Less(windup.Blade.z, 0.0f, "the blade is not wound back");
-            Assert.Greater(windup.Blade.x, 0.2f, "the blade is not wound back on the right");
-            Assert.Less(follow.x, -0.3f, "the blade does not carry through to the left");
-            Assert.Less(follow.y, -0.1f, "the blade does not carry on down: not a diagonal");
             Assert.Less(contact.StanceLead, -0.9f, "the left foot does not stride through");
+            foreach (SwordStrikeKind later in new[] { SwordStrikeKind.Cut1H, SwordStrikeKind.Finisher1H })
+            {
+                SwordFrame other = SwordStrikes.Evaluate(later, SwordStrikes.ContactFraction(later));
+                Assert.Greater(contact.StanceDepth, other.StanceDepth, $"the first cut does not stride further than {later}");
+                Assert.Greater(contact.HipDrop, other.HipDrop, $"the first cut does not sink lower than {later}");
+                Assert.Greater(contact.LeanDegrees, other.LeanDegrees, $"the first cut does not lean further than {later}");
+            }
             foreach (SwordStrikeKind earlier in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H })
             {
-                SwordFrame other = SwordStrikes.Evaluate(earlier, SwordStrikes.ContactFraction(earlier));
-                Assert.Greater(contact.StanceDepth, other.StanceDepth, $"the finisher does not stride further than {earlier}");
-                Assert.Greater(contact.HipDrop, other.HipDrop, $"the finisher does not sink lower than {earlier}");
-                Assert.Greater(contact.LeanDegrees, other.LeanDegrees, $"the finisher does not lean further than {earlier}");
-                Assert.Greater(SwordStrikes.TimingOf(kind).Recover, SwordStrikes.TimingOf(earlier).Recover, $"the finisher does not recover slower than {earlier}");
+                Assert.Greater(SwordStrikes.TimingOf(SwordStrikeKind.Finisher1H).Recover, SwordStrikes.TimingOf(earlier).Recover, $"the third does not recover slower than {earlier}");
             }
             // The free arm works against the blade: reaching ahead in the wind-up, back past the hip at the blow, and hanging relaxed again by the end.
             Assert.Greater(windup.FreeHand.z, 0.5f, "the free arm does not reach ahead in the wind-up");
             Assert.Less(contact.FreeHand.z, -0.2f, "the free arm is not whipped back at the blow");
             Assert.Less(Vector3.Distance(SwordStrikes.Evaluate(kind, 1.0f).FreeHand, SwordStrikes.FreeHandRelaxed), SwordStrikes.FreeHandBalanceSwing,
                 "the free arm does not end relaxed");
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-13: "a fourth downward slash that hits the ground ... to replace our charged attack". Raised behind the head, over
+        /// the top, and aimed lower than the ground ahead (KeepTipAboveGround rests its tip there), the body sunk and folded over it and
+        /// held down before it rises, the free arm thrown up behind.
+        /// </summary>
+        [Test]
+        public void TheOneHandedHeavyGoesIntoTheGround()
+        {
+            SwordStrikeKind kind = SwordStrikeKind.Overhead1H;
+            SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
+            SwordFrame wound = SwordStrikes.Evaluate(kind, SwordStrikes.StrikeStart(kind));
+            SwordFrame contact = SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind));
+            SwordFrame settled = SwordStrikes.Evaluate(kind, (t.Contact + t.Follow + t.Settle) / t.Total);
+            Assert.Less(wound.Blade.z, -0.8f, "the blade is not drawn back behind the head");
+            Assert.Greater(SwordStrikes.HandPoint(wound).y, BodyRig.ShoulderY + 0.4f, "the hand is not raised over the head");
+            Assert.Less(contact.Blade.y, -0.4f, "the blade is not driven down at the ground");
+            Assert.Greater(contact.Blade.z, 0.6f, "the blade does not strike ahead");
+            Assert.Less(Mathf.Abs(contact.Blade.x), 0.1f, "the blade does not come straight down the middle");
+            Assert.Greater(contact.HipDrop, 0.25f, "the body does not sink behind the blow");
+            Assert.Greater(contact.LeanDegrees, 35.0f, "the body does not fold over the blow");
+            Assert.Greater(contact.FreeHand.y, -0.2f, "the free arm is not thrown up");
+            Assert.Less(contact.FreeHand.z, -0.5f, "the free arm is not thrown back");
+            Assert.Less(Vector3.Angle(contact.Blade, settled.Blade), 6.0f, "the blade does not stay where it struck");
+            Assert.GreaterOrEqual(t.Follow + t.Settle, 0.35f, "the body rises at once: the reference stays down over the blade");
         }
 
         [Test]

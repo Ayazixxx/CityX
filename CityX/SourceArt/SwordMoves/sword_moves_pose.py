@@ -70,51 +70,57 @@ def attack(timing, step, wound, held, contact, followed, back, left, right, read
 # whole arm and the blade are turned too. So each CONTACT key's twist here is SwordStrikes' own, and the blade lands where its keys aim it; the wind-ups and the
 # follow-throughs are turned further than its keys, and draw the blade further back and through.
 ATTACKS = {
-    # THE SLASH: level, right to left. The shoulders turned right round to the right after the blade, the weight back; a stride onto the left foot, and the hips bring the
-    # body round to the left, driving in over the front foot.
+    # THE ONE-HANDED CHAIN AND ITS HEAVY ARE THE OWNER'S REFERENCE COMBO (2026-11-13: "make the animation exactly like this gif ... two sort of downward/diagonal slashes
+    # and then 1 horizontal slash, then ... a fourth downward slash that hits the ground"; docs/SWORD_GIF_COMBO.md). The second cut is thrown out of a full turn of the whole
+    # body: the GAME lays that turn over its clip (SwordStrikes.SpinDegrees), which is made facing ahead throughout. The third is the game's own level slash (owner).
+    #
+    # THE FIRST: down from over the right shoulder to the lower left. The body arched back and coiled, a long stride onto the left foot, and the whole body drops into a deep
+    # lunge behind the blade.
     "sword1h_slash": attack(
         (0.22, 0.06, 0.12, 0.11, 0.06, 0.24), 0.45,
-        key(twist=72.0, hips=34.0, lean=-7.0, tilt=5.0, drop=0.14, shift=(0.07, -0.10)),
-        key(twist=76.0, hips=36.0, lean=-8.0, tilt=5.0, drop=0.15, shift=(0.07, -0.11)),
-        key(twist=-15.0, hips=-30.0, lean=18.0, tilt=3.0, drop=0.17, shift=(-0.05, 0.10), chin=4.0, staged=True),
-        key(twist=-64.0, hips=-44.0, lean=14.0, tilt=1.0, drop=0.16, shift=(-0.07, 0.09), chin=4.0),
-        key(twist=-20.0, hips=-14.0, lean=8.0, drop=0.11, shift=(-0.02, 0.04)),
-        left=[(0.10, 0.33, (-0.22, 0.55), 0.11)],
-        right=[(0.40, 0.62, (STANCE_X, 0.35), 0.05)]),
-    # THE BACKHAND: from over the left shoulder down to the right. The shoulders turned away to the left; the right foot strides through, and the body unwinds to the right.
+        key(twist=56.0, hips=26.0, lean=-11.0, tilt=-6.0, drop=0.10, shift=(0.07, -0.11)),
+        key(twist=60.0, hips=28.0, lean=-13.0, tilt=-6.0, drop=0.12, shift=(0.07, -0.12)),
+        key(twist=-25.0, hips=-36.0, lean=34.0, tilt=10.0, drop=0.21, shift=(-0.07, 0.07), chin=8.0, staged=True),
+        key(twist=-66.0, hips=-48.0, lean=36.0, tilt=8.0, drop=0.25, shift=(-0.09, 0.06), chin=8.0),
+        key(twist=-26.0, hips=-18.0, lean=14.0, drop=0.15, shift=(-0.03, 0.04)),
+        left=[(0.10, 0.33, (-0.22, 0.60), 0.14)],
+        right=[(0.42, 0.64, (STANCE_X, 0.35), 0.05)]),
+    # THE SECOND: from over the left shoulder steeply down to the right, out of the full turn. The shoulders turned away to the left; the right foot steps through as the
+    # body comes round, and it unwinds to the right behind the blade.
     "sword1h_cut": attack(
         (0.20, 0.05, 0.12, 0.10, 0.06, 0.24), 0.50,
         key(twist=-66.0, hips=-30.0, lean=-6.0, tilt=-5.0, drop=0.13, shift=(-0.07, -0.09)),
         key(twist=-70.0, hips=-32.0, lean=-7.0, tilt=-5.0, drop=0.14, shift=(-0.07, -0.10)),
-        key(twist=25.0, hips=32.0, lean=18.0, tilt=-5.0, drop=0.17, shift=(0.05, 0.10), chin=4.0, staged=True),
-        key(twist=56.0, hips=44.0, lean=14.0, tilt=-3.0, drop=0.16, shift=(0.07, 0.09), chin=4.0),
+        key(twist=25.0, hips=32.0, lean=22.0, tilt=-6.0, drop=0.19, shift=(0.05, 0.10), chin=5.0, staged=True),
+        key(twist=56.0, hips=44.0, lean=18.0, tilt=-3.0, drop=0.18, shift=(0.07, 0.09), chin=5.0),
         key(twist=28.0, hips=20.0, lean=8.0, drop=0.11, shift=(0.03, 0.04)),
         right=[(0.09, 0.31, (0.18, 0.40), 0.12)],
         left=[(0.37, 0.60, (-STANCE_X, 0.60), 0.05)]),
-    # THE FINISHER: down from over the right shoulder to the lower left. The longest wind-up of the chain: the body arched back and coiled, the left knee coming up into a
-    # long stride; then the whole body drives down behind the blade.
+    # THE THIRD: the level slash, left to right (owner, 2026-11-13: "you can reuse our horizontal slash animation for the third combo attack", then "match the direction of
+    # the gif"): the chain's old level slash turned round, on the finisher's timing. The shoulders turned right round to the left after the blade, the weight back; the
+    # right foot steps through, and the hips bring the body round to the right, driving in over the front foot.
     "sword1h_finisher": attack(
         (0.30, 0.12, 0.13, 0.10, 0.12, 0.55), 0.55,
-        key(twist=56.0, hips=26.0, lean=-12.0, tilt=-6.0, drop=0.10, shift=(0.07, -0.12)),
-        key(twist=60.0, hips=28.0, lean=-14.0, tilt=-6.0, drop=0.12, shift=(0.07, -0.13)),
-        key(twist=-25.0, hips=-36.0, lean=32.0, tilt=10.0, drop=0.23, shift=(-0.07, 0.06), chin=8.0, staged=True),
-        key(twist=-64.0, hips=-48.0, lean=30.0, tilt=8.0, drop=0.23, shift=(-0.09, 0.05), chin=8.0),
-        key(twist=-26.0, hips=-18.0, lean=14.0, drop=0.15, shift=(-0.03, 0.04)),
-        left=[(0.16, 0.50, (-0.24, 0.65), 0.17)],
-        right=[(0.52, 0.85, (STANCE_X, 0.45), 0.06)]),
-    # THE HEAVY: straight down the middle. The body arched back under the raised sword and held there (the tell); a stride under the held blade, and the body folds after it
-    # as it comes down.
+        key(twist=-72.0, hips=-34.0, lean=-7.0, tilt=-5.0, drop=0.14, shift=(-0.07, -0.10)),
+        key(twist=-76.0, hips=-36.0, lean=-8.0, tilt=-5.0, drop=0.15, shift=(-0.07, -0.11)),
+        key(twist=20.0, hips=30.0, lean=18.0, tilt=-3.0, drop=0.17, shift=(0.05, 0.10), chin=4.0, staged=True),
+        key(twist=64.0, hips=44.0, lean=14.0, tilt=-1.0, drop=0.16, shift=(0.07, 0.09), chin=4.0),
+        key(twist=20.0, hips=14.0, lean=8.0, drop=0.11, shift=(0.02, 0.04)),
+        right=[(0.14, 0.44, (0.18, 0.45), 0.12)],
+        left=[(0.58, 0.86, (-STANCE_X, 0.65), 0.05)]),
+    # THE HEAVY: into the ground. The body arched back under the sword raised behind the head and held there (the tell); a long stride under the held blade, and the body
+    # folds into a deep lunge over the front knee as the blade goes into the ground, and stays down over it before it rises.
     "sword1h_overhead": attack(
-        (0.34, 0.30, 0.13, 0.12, 0.16, 0.34), 0.50,
-        key(twist=16.0, hips=8.0, lean=-14.0, drop=0.05, shift=(0.03, -0.11)),
-        key(twist=18.0, hips=9.0, lean=-17.0, drop=0.07, shift=(0.03, -0.13)),
-        key(twist=-10.0, hips=-10.0, lean=34.0, drop=0.26, shift=(0.0, 0.07), chin=8.0, staged=True),
-        key(twist=-14.0, hips=-12.0, lean=40.0, drop=0.30, shift=(0.0, 0.06), chin=8.0),
-        key(twist=0.0, hips=0.0, lean=16.0, drop=0.16, shift=(0.0, 0.05)),
-        left=[(0.40, 0.72, (-0.22, 0.60), 0.13)],
-        right=[(0.77, 1.02, (STANCE_X, 0.40), 0.06)],
-        # Up by way of the slash's own wind-up: a held click turns the light already winding up into this (SoulsSwordCombat.HoldIntoHeavy), from the pose it has reached.
-        rising=(0.16, key(twist=52.0, hips=24.0, lean=-7.0, tilt=4.0, drop=0.11, shift=(0.06, -0.08)))),
+        (0.34, 0.30, 0.13, 0.12, 0.26, 0.34), 0.50,
+        key(twist=18.0, hips=8.0, lean=-16.0, drop=0.04, shift=(0.03, -0.12)),
+        key(twist=20.0, hips=9.0, lean=-19.0, drop=0.06, shift=(0.03, -0.14)),
+        key(twist=-10.0, hips=-10.0, lean=46.0, drop=0.36, shift=(0.0, 0.08), chin=10.0, staged=True),
+        key(twist=-14.0, hips=-12.0, lean=50.0, drop=0.40, shift=(0.0, 0.07), chin=10.0),
+        key(twist=0.0, hips=0.0, lean=20.0, drop=0.20, shift=(0.0, 0.05)),
+        left=[(0.40, 0.72, (-0.22, 0.62), 0.14)],
+        right=[(1.17, 1.42, (STANCE_X, 0.40), 0.06)],
+        # Up by way of the first cut's own wind-up: a held click turns the light already winding up into this (SoulsSwordCombat.HoldIntoHeavy), from the pose it has reached.
+        rising=(0.16, key(twist=52.0, hips=24.0, lean=-8.0, tilt=-4.0, drop=0.10, shift=(0.06, -0.09)))),
 }
 
 # ---- TWO HANDS (the spike sword, the bat, the crowbar, the sledgehammer) -----------------------------------------------------------------------------------------------------
