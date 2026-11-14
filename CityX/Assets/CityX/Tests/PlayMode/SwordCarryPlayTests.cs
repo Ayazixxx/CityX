@@ -263,10 +263,10 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The stance held after a swing bends the arm at the elbow, low at the side, with the wrist tipped to raise the blade (owner, 2026-10-17,
+        /// The guard bends the arm at the elbow, low at the side, with the wrist tipped to raise the blade (owner, 2026-10-17,
         /// with a screenshot of it: "its still holding it awkardly its like bent at the wrong part of the arm", "this is the pose after
         /// swinging"): the elbow hangs below the line from the shoulder to the hand, not up by the face, and the wrist bends no further than a
-        /// wrist does.
+        /// wrist does. After a swing no stance is held at all: the sword goes back to its carry (owner, 2026-11-14).
         /// </summary>
         [UnityTest]
         public IEnumerator AfterASwingTheArmBendsDownAtTheElbow()
@@ -320,6 +320,13 @@ namespace CityX.Tests
                 }
                 string name = guard ? "the guard" : "the stance after a swing";
                 Debug.Log($"CityX 1H {name}: the elbow at most {worstRise:0.00} m above the shoulder-hand line and {worstElbowOverShoulder:0.00} m above the shoulder; the wrist bent at most {worstWrist:0} deg, {settledWrist:0} deg once settled ({heldFrames} frames held)");
+                if (!guard)
+                {
+                    // No stance is held after a swing any more: the sword goes straight back down to the side (owner, 2026-11-14: "it looks
+                    // much better when he holds the sword down and to the side like normal. keep it like that").
+                    Assert.AreEqual(0, heldFrames, "after a swing a stance was held in front of the body instead of the carry");
+                    continue;
+                }
                 Assert.Greater(heldFrames, 30, $"{name}: was never held");
                 Debug.Log($"CityX 1H {name}: the free hand at highest {freeHighest:0.00} arm lengths from its shoulder (below is negative), at most {freeForemost:0.00} in front of it");
                 Assert.Less(freeHighest, -0.7f, $"{name}: the free hand is held up (like a shield), not hanging relaxed");

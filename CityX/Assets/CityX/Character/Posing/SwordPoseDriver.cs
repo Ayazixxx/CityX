@@ -34,8 +34,6 @@ namespace CityX.Character
     /// </summary>
     public sealed class SwordPoseDriver : MonoBehaviour
     {
-        /// <summary>How long the ready stance is held after the last attack or guard, seconds.</summary>
-        public const float ReadyLingerSeconds = 3.0f;
 
         /// <summary>How quickly an attack or guard takes hold, seconds.</summary>
         public const float EngageSeconds = 0.08f;
@@ -45,19 +43,17 @@ namespace CityX.Character
 
         public const float DisengageSeconds = 0.35f;
 
-        /// <summary>A guard comes up from, and the ready stance returns from, the pose the body is in over this long, seconds.</summary>
+        /// <summary>A guard comes up from the pose the body is in over this long, seconds.</summary>
         public const float GuardTakeoverSeconds = 0.15f;
 
         public const float ReleaseTakeoverSeconds = 0.25f;
 
-        /// <summary>The ready stance lowers into the posed carry over this long once it has lingered, seconds.</summary>
-        public const float ReadyToCarrySeconds = 0.45f;
 
-        /// <summary>A one-handed sword's ready stance lowers into its clips' carry over this long, seconds: the hand comes from the belly to the thigh, so it settles a little slower.</summary>
+        /// <summary>A one-handed sword's attack or guard lowers into its clips' carry over this long, seconds: the hand comes down to the thigh, so it settles a little slower.</summary>
         public const float ReadyToClipCarrySeconds = 0.6f;
 
         /// <summary>
-        /// In the ready stance or the guard the feet take the fighting stance and step (SwordFootwork) up to a guarded walk (half a walk, 2 m/s);
+        /// In the guard the feet take the fighting stance and step (SwordFootwork) up to a guarded walk (half a walk, 2 m/s);
         /// walking off at full pace, the walk clip's legs take them back between these speeds, metres per second. Mid-attack the stance holds
         /// at any speed (the stepper keeps up).
         /// </summary>
@@ -79,7 +75,7 @@ namespace CityX.Character
         private float _elapsed;
         private float _duration = 0.5f;
         private float _speed = 1.0f;
-        private float _readyRemaining;
+
         private float _engage;
         private SwordFrame _lastFrame;
         private bool _hasLastFrame;
@@ -163,13 +159,13 @@ namespace CityX.Character
         public const float ReboundTakeoverSeconds = 0.06f;
 
         /// <summary>
-        /// An attack or a rebound that has run out settles into the ready stance over this long, seconds, from wherever it ended: the stance
-        /// holds the arm its own way (the elbow low, the wrist cocked, the free hand left to the clips), and switching to it at once jumped.
+        /// An attack or a rebound that has run out settles back into the carry over this long, seconds, from wherever it ended: switching
+        /// to it at once jumped.
         /// </summary>
         public const float SettleSeconds = 0.15f;
 
-        /// <summary>The sword is being carried (no attack, guard or ready stance): a two-handed one posed (<see cref="SwordStrikes.Carry"/>), a one-handed one by its own clips.</summary>
-        public bool IsCarrying => _carrying && !_striking && !_guarding && _readyRemaining <= 0.0f;
+        /// <summary>The sword is being carried (no attack or guard): a two-handed one posed (<see cref="SwordStrikes.Carry"/>), a one-handed one by its own clips.</summary>
+        public bool IsCarrying => _carrying && !_striking && !_guarding;
 
         /// <summary>The carry is a pose laid over the clips (a two-handed sword); a one-handed sword's carry is its clips' own.</summary>
         private bool CarryIsPosed => _carrying && !_carryOneHanded;
@@ -281,7 +277,6 @@ namespace CityX.Character
             _elapsed = 0.0f;
             _duration = SwordStrikes.Seconds(kind);
             _speed = 1.0f;
-            _readyRemaining = ReadyLingerSeconds;
             BeginClip(kind);
             enabled = true;
         }
@@ -383,13 +378,12 @@ namespace CityX.Character
             _clipPlaying = false;
             _guarding = true;
             _speed = 1.0f;
-            _readyRemaining = ReadyLingerSeconds;
             enabled = true;
         }
 
         /// <summary>
         /// The blade bounced off a guard: stopped dead on it for an instant (a blow must be seen to land: it used to fly off the very next frame), thrown back, held
-        /// open, gathered into the ready stance (<see cref="SwordStrikes.Rebound"/>), inside the same <see cref="SwordStrikes.ReboundSeconds"/>. The whole body holds too.
+        /// open, gathered back toward the body (<see cref="SwordStrikes.Rebound"/>), inside the same <see cref="SwordStrikes.ReboundSeconds"/>. The whole body holds too.
         /// </summary>
         public void BeginRebound(bool oneHanded)
         {
@@ -405,7 +399,6 @@ namespace CityX.Character
             _reboundFrom = _hasLastFrame ? _lastFrame : SwordStrikes.Ready(oneHanded);
             _locomotion?.ImpactFreeze(BlockDeflectEffect.ClashFreezeSeconds);
             _speed = 1.0f;
-            _readyRemaining = ReadyLingerSeconds;
             enabled = true;
         }
 
@@ -447,12 +440,12 @@ namespace CityX.Character
             enabled = true;
         }
 
-        /// <summary>Ends the attack or guard in progress; the ready stance lingers (a swing's end, a guard lowered).</summary>
+        /// <summary>Ends the attack or guard in progress; the sword goes back to its carry (a swing's end, a guard lowered).</summary>
         public void Release()
         {
             if (_rebounding)
             {
-                return;   // the rebound plays out (the swing it came off ends as it starts), then lowers into the ready stance itself
+                return;   // the rebound plays out (the swing it came off ends as it starts), then lowers into the carry itself
             }
             if (_striking || _guarding)
             {
@@ -472,7 +465,6 @@ namespace CityX.Character
             _guarding = false;
             _rebounding = false;
             _speed = 1.0f;
-            _readyRemaining = 0.0f;
             _takeoverRemaining = 0.0f;
             LetGoOfBody();
         }
@@ -539,7 +531,7 @@ namespace CityX.Character
         {
             ISwordBlade held = _locomotion != null ? _locomotion.HeldSword : null;
             bool busy = BodyIsBusy();
-            if (busy && (_striking || _guarding || _rebounding || _readyRemaining > 0.0f || _engage > 0.0f))
+            if (busy && (_striking || _guarding || _rebounding || _engage > 0.0f))
             {
                 Cancel();
                 _engage = 0.0f;
@@ -572,21 +564,14 @@ namespace CityX.Character
                 {
                     _striking = false;
                     _rebounding = false;
-                    _readyRemaining = ReadyLingerSeconds;
+                    // Straight back to the carry, the sword down at the side: no "ready" stance held in front after a swing (owner,
+                    // 2026-11-14: "it looks much better when he holds the sword down and to the side like normal. keep it like that").
                     StartTakeover(SettleSeconds);
-                }
-            }
-            else if (!_guarding && _readyRemaining > 0.0f)
-            {
-                _readyRemaining -= deltaTime;
-                if (_readyRemaining <= 0.0f && CarryIsPosed)
-                {
-                    StartTakeover(ReadyToCarrySeconds);   // the guard lowered into the carry, not dropped
                 }
             }
             ShowTheCut(held);
 
-            bool fighting = _striking || _guarding || _rebounding || _readyRemaining > 0.0f;
+            bool fighting = _striking || _guarding || _rebounding;
             bool wantsPose = fighting || CarryIsPosed;
             float engageSeconds = wantsPose
                 ? (_striking || _guarding ? Mathf.Max(EngageSeconds, _fromClipSeconds) : CarryEngageSeconds)
@@ -606,7 +591,7 @@ namespace CityX.Character
             }
 
             // How fast the body is going (measured, the same on a network copy): the carry trails the blade at a sprint, and walking off lets
-            // the ready stance's feet go back to the walk.
+            // the guard's feet go back to the walk.
             float speed = _locomotion.MeasuredGroundSpeed;
             float rate = 1.0f - Mathf.Exp(-deltaTime / 0.15f);
             _run01 = Mathf.Lerp(_run01, Mathf.InverseLerp(TrailFromSpeed, TrailFullSpeed, speed), rate);
@@ -634,11 +619,6 @@ namespace CityX.Character
             else if (_guarding)
             {
                 frame = SwordStrikes.Guard(_oneHanded);
-                frame.Footwork *= _stanceGate;
-            }
-            else if (_readyRemaining > 0.0f)
-            {
-                frame = SwordStrikes.Ready(_oneHanded);
                 frame.Footwork *= _stanceGate;
             }
             else if (CarryIsPosed)

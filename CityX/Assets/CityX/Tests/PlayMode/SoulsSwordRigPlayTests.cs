@@ -138,7 +138,7 @@ namespace CityX.Tests
             Assert.AreEqual(1, _dummy.TimesHit, "a swing at a target standing in front never connected");
             Assert.AreEqual(SoulsPhase.Idle, _combat.Phase);
             Assert.IsFalse(_driver.SwordPoser.IsStriking, "the strike outlived the swing");
-            Assert.IsTrue(_locomotion.SwordPoseActive, "the ready stance should linger after the swing");
+            Assert.IsTrue(_driver.SwordPoser.IsCarrying, "after the swing the sword goes straight back to its carry, not a stance held in front (owner, 2026-11-14)");
             Assert.AreEqual(1.0f, _animator.speed, 0.001f, "the swing left the Animator running at a fitted speed");
             Assert.IsTrue(_driver.IsPlaying(SoulsSwordCombat.IdleStateName),
                 "the arms were not handed back to the walk cycle");

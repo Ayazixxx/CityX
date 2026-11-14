@@ -134,8 +134,10 @@ ground** (`KeepTipAboveGround`), places the free hand (one-handed) or lets the
 support hand follow the grip (two-handed). A new attack or a guard **takes over
 from the pose the body is actually in** (the last swing's recovery) across its own
 wind-up and hold, so a chain never snaps and the body is wholly in the new pose the
-instant the strike leaves. The ready stance lingers 3 s after the last swing, then
-lowers into the carry (see "The hold").
+instant the strike leaves. After the last swing the sword goes straight back into the carry, down at the
+side (owner, 2026-11-14: "it looks much better when he holds the sword down and to
+the side like normal. keep it like that"): the ready stance that used to linger 3 s
+after a swing or a guard is gone. The ready pose is still where the attacks start from.
 
 `SoulsAttack.FromStrike` derives each attack's Startup/Active/Recovery from the
 strike's own `ActiveStart`/`ActiveEnd` (a quarter of the way into the strike to 70%

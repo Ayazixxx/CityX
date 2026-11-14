@@ -383,8 +383,7 @@ namespace CityX.Tests
         /// <summary>
         /// The torso holds still for walking and standing (the locomotion clips' hips sway is what that
         /// lock is for), is turned by the swing's own pose through a committed swing (where the twist IS the
-        /// swing: SwordStrikes, the hips leading), settles into the ready stance's small turn after it, and is
-        /// back straight once the sword is only carried again. It never follows the sword idle clip's stooped
+        /// swing: SwordStrikes, the hips leading), and is back straight once the sword is carried again after it. It never follows the sword idle clip's stooped
         /// spine (owner, 2026-10-16: no awkward turns).
         /// </summary>
         [UnityTest]
@@ -415,8 +414,7 @@ namespace CityX.Tests
 
             yield return SwordFrames(1.5f, combat);
             Assert.IsFalse(_locomotion.TorsoFollowsClip, "the torso should be released once the swing is over");
-            Assert.Less(Quaternion.Angle(spine.localRotation, Quaternion.identity), 8.0f, "after the swing the spine should be in the ready stance's small turn");
-            yield return SwordFrames(SwordPoseDriver.ReadyLingerSeconds + SwordPoseDriver.ReadyToCarrySeconds + 0.3f, combat);
+            yield return SwordFrames(1.0f, combat);
             Assert.Less(Quaternion.Angle(spine.localRotation, Quaternion.identity), 0.5f, "the spine should be straight again once the sword is only carried");
 #else
             yield break;
