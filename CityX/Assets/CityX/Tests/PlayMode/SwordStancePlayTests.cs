@@ -339,7 +339,8 @@ namespace CityX.Tests
             Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
             Assert.Greater(shoulder.position.y - hand.position.y, 0.4f, "the sword hand is up at the shoulders, not low at the side");
             Vector3 blade = (_sword.BladeTipWorld - _sword.BladeBaseWorld).normalized;
-            Assert.Less(blade.y, -0.2f, "the carried blade does not point down");
+            Assert.Greater(blade.y, 0.4f, "the carried blade does not point up");
+            Assert.Greater(Vector3.Dot(blade, _player.transform.forward), 0.3f, "the carried blade does not point ahead");
 
             // ANOTHER PLAYER'S COPY: the same body with the sword mounted as a cosmetic and nothing ticking it (the network moves it).
             var playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");

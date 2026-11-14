@@ -576,7 +576,9 @@ namespace CityX.Character
         public static SwordFrame Ready(bool oneHanded)
         {
             SwordFrame frame = oneHanded ? Frame(ReadyKey1H, 1.0f, false) : Frame(ReadyKey2H, 1.0f, true);
-            frame.ForearmAlign = 1.0f;
+            // (One-handed, the elbow is placed for the cocked wrist. Two-handed, it hangs: both fists are on the handle, and the keys' edge is
+            // where a hanging forearm comes from.)
+            frame.ForearmAlign = oneHanded ? 1.0f : 0.0f;
             if (oneHanded)
             {
                 frame.FreeHandWeight = 0.0f;
@@ -597,9 +599,12 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// THE TWO-HANDED CARRY: the sword held while nothing is being done with it (walking about, standing). Low and relaxed at the right side,
-        /// the point forward and down (the reference's carry); with <paramref name="run01"/> rising to 1 at a sprint, the blade trails behind
-        /// instead. The legs are the walk's own (no footwork). A ONE-HANDED sword is carried by its own clips instead (the sword1h_* locomotion,
+        /// THE TWO-HANDED CARRY: the sword held while nothing is being done with it (walking about, standing). Both fists on the handle before
+        /// the belly, the arms hanging with the elbows low at the ribs, the blade up and ahead and out to the right, where the game's camera
+        /// sees it past the head; with <paramref name="run01"/> rising to 1 at a sprint, the hands come up to the chest and the blade stands
+        /// steeper. (Owner, 2026-11-13, of the carry that pointed forward and down: "the way he holds the two handed sword is totally wrong,
+        /// his arms are all bent awkardly". Two fists closed across one handle can only hold it across both forearms: with the arms hanging
+        /// that is a blade pointing up and ahead. Pointing down it took the forearms from above, the elbows thrown up and out.) The legs are the walk's own (no footwork). A ONE-HANDED sword is carried by its own clips instead (the sword1h_* locomotion,
         /// SwordCarryArm), not posed.
         /// </summary>
         public static SwordFrame Carry(float run01)
@@ -608,7 +613,7 @@ namespace CityX.Character
             SwordFrame frame = Lerp(Frame(CarryKey2H, 1.0f, true), Frame(TrailKey2H, 1.0f, true), t);
             frame.Footwork = 0.0f;
             frame.FreeHandWeight = 0.0f;
-            frame.ForearmAlign = 1.0f;
+            frame.ForearmAlign = 0.0f;
             return frame;
         }
 
@@ -629,8 +634,8 @@ namespace CityX.Character
         /// <summary>The relaxed free arm's elbow: a little out, mostly back (a soft hanging bend).</summary>
         public const float FreeHandElbowOut = 0.1f;
 
-        private static readonly Key ReadyKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.10f, 1.42f, 0.40f), blade: new Vector3(-0.06f, 0.37f, 0.927f),
-            edge: Vector3.down, elbow: 0.25f, twist: 10.0f, hips: 6.0f, lean: 4.0f, tilt: 0.0f, drop: 0.08f, lead: -1.0f, depth: 0.35f);
+        private static readonly Key ReadyKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.10f, 1.40f, 0.42f), blade: new Vector3(0.0f, 0.588f, 0.809f),
+            edge: new Vector3(-0.84f, -0.44f, 0.32f), elbow: 0.25f, twist: 10.0f, hips: 6.0f, lean: 4.0f, tilt: 0.0f, drop: 0.08f, lead: -1.0f, depth: 0.35f);
 
         private static readonly Key ReadyKey1H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.30f, 1.34f, 0.36f), blade: new Vector3(-0.10f, 0.50f, 0.86f),
             edge: Vector3.down, elbow: 0.30f, twist: 12.0f, hips: 6.0f, lean: 3.0f, tilt: 0.0f, drop: 0.08f, lead: -0.5f, depth: 0.30f);
@@ -638,7 +643,9 @@ namespace CityX.Character
         // THE TWO-HANDED HOLD IS A HAMMER GRIP (2026-10-28, SwordWeapon.DefaultGripRotation): the handle lies across the palm and the forearm
         // runs into the hand along the knuckles, which is where the EDGE faces. So every two-handed key's edge is also where its forearm comes
         // from, and a key whose edge ran along the blade's own line (the old hold's, with the handle along the forearm) would bend the wrist
-        // double: the guard holds the blade near upright with the forearms coming in from the sides, the carries hold it out to the right.
+        // double: the guard holds the blade near upright with the forearms coming in from the sides. The ready stance and the carries
+        // (2026-11-13) are written the other way about: the arm hangs as it will (no forearm alignment), and the key's edge is the side that
+        // hanging forearm comes from, so the wrist is bent 8 to 28 degrees (SwordGripCapture logs it).
         private static readonly Key GuardKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.12f, 1.52f, 0.42f), blade: new Vector3(-0.15f, 0.95f, 0.27f),
             edge: new Vector3(-0.7f, 0.1f, 0.7f), elbow: 0.35f, twist: 5.0f, hips: 4.0f, lean: 5.0f, tilt: 0.0f, drop: 0.10f, lead: -1.0f, depth: 0.40f);
 
@@ -646,15 +653,13 @@ namespace CityX.Character
             edge: Vector3.forward, elbow: 0.50f, twist: 15.0f, hips: 8.0f, lean: 3.0f, tilt: 0.0f, drop: 0.09f, lead: -0.5f, depth: 0.35f);
 
         // The two-handed carries hold the grip clear of the belly (the torso is 0.26 m round the spine): at 0.22 m forward the left hand, lower on
-        // the handle, sat inside it and both elbows went through the body (owner, 2026-10-19, of the bat).
-        // The carry: the sword held low before the belly pointing ahead and down, spikes down, the elbows bent above the fists (the forearms come
-        // down the knuckles). Both fists a little left of the middle and half a metre out, where each arm reaches and the left forearm crosses
-        // clear of the body (SwordArmsClearPlayTests): at the right hip the left forearm went through the belly.
-        private static readonly Key CarryKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.05f, 1.35f, 0.52f), blade: new Vector3(0.10f, -0.50f, 0.86f),
-            edge: Vector3.down, elbow: 0.35f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
+        // the handle, sat inside it and both elbows went through the body (owner, 2026-10-19, of the bat). Half a metre out and right of the
+        // middle, both arms reach it with their elbows low and clear the body (SwordArmsClearPlayTests).
+        private static readonly Key CarryKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.12f, 1.32f, 0.48f), blade: new Vector3(0.314f, 0.669f, 0.674f),
+            edge: new Vector3(-0.62f, -0.40f, 0.68f), elbow: 0.10f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
 
-        private static readonly Key TrailKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.38f, 1.32f, 0.04f), blade: new Vector3(0.25f, -0.45f, -0.86f),
-            edge: Vector3.up, elbow: 0.15f, twist: -8.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
+        private static readonly Key TrailKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.18f, 1.42f, 0.42f), blade: new Vector3(0.187f, 0.866f, 0.464f),
+            edge: new Vector3(-0.63f, -0.26f, 0.73f), elbow: 0.10f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
 
 
         // ---- the keyframes -------------------------------------------------------------------------------------------------------------

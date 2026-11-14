@@ -703,22 +703,30 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheTwoHandedSwordIsCarriedLowAndTrailsAtASprint()
+        public void TheTwoHandedSwordIsCarriedBeforeTheBellyWithTheBladeUpAndAhead()
         {
             // (A one-handed sword is carried by its own clips, not posed: SwordCarryArmTests, SwordCarryPlayTests.)
+            // Owner, 2026-11-13, of the carry that pointed forward and down: "the way he holds the two handed sword is totally wrong, his arms
+            // are all bent awkardly". Two fists across one handle hold it across both forearms: with the arms hanging, the blade is up and ahead.
             SwordFrame walk = SwordStrikes.Carry(0.0f);
             SwordFrame sprint = SwordStrikes.Carry(1.0f);
-            Assert.Less(walk.Blade.y, -0.3f, "the carried blade does not point down");
+            Assert.Greater(walk.Blade.y, 0.5f, "the carried blade does not point up");
             Assert.Greater(walk.Blade.z, 0.5f, "walking, the carried blade does not point ahead");
-            Assert.Less(sprint.Blade.z, -0.5f, "sprinting, the blade does not trail behind");
+            Assert.Greater(walk.Blade.x, 0.2f, "the carried blade is not out to the right, where the camera sees it past the head");
+            Assert.Greater(sprint.Blade.y, walk.Blade.y + 0.1f, "sprinting, the blade does not stand steeper");
             Assert.Less(SwordStrikes.HandPoint(walk).y, 1.45f, "the hands are not low: the old carry held them out at the shoulders");
+            Assert.Less(SwordStrikes.HandPoint(sprint).y, 1.55f, "sprinting, the hands are up at the shoulders");
             Assert.AreEqual(0.0f, walk.Footwork, 0.001f, "the carry should leave the legs to the walk");
             Assert.IsTrue(walk.TwoHanded);
             Assert.AreEqual(0.0f, walk.FreeHandWeight, 0.001f, "the carry does not place the free hand: the grip does");
+            // The arms hang: the elbow is not placed to run the forearm into the fist (that threw it up and out), in the carry or in the stance.
+            Assert.AreEqual(0.0f, walk.ForearmAlign, 0.001f);
+            Assert.AreEqual(0.0f, SwordStrikes.Ready(false).ForearmAlign, 0.001f);
+            Assert.AreEqual(1.0f, SwordStrikes.Ready(true).ForearmAlign, 0.001f, "the one-handed stance's cocked wrist is as it was");
             // The two-handed ready stance is a middle guard: the point forward at the opponent, not straight up in front of the face.
             SwordFrame ready = SwordStrikes.Ready(false);
             Assert.Greater(ready.Blade.z, 0.8f);
-            Assert.AreEqual(0.35f, ready.Blade.y, 0.15f);
+            Assert.AreEqual(0.55f, ready.Blade.y, 0.15f);
             Assert.Less(SwordStrikes.HandPoint(ready).y, 1.55f, "the ready hands should be at the belly, not the chin");
         }
 
