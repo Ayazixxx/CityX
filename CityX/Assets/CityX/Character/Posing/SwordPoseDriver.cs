@@ -354,10 +354,6 @@ namespace CityX.Character
             _walkedUnderClip |= _clipLegs < 1.0f;
             float stepped = SwordStrikes.Stepped(_clipKind, _clipSeconds);
             float stride = _walkedUnderClip ? 1.0f : _locomotion.StrideShareSince(_beganAt, stepped);
-            // The whole body's turn (the one-handed chain's second cut), about the foot it stands on (the left: the right steps through),
-            // so that foot turns on the spot and does not slide round: the clip is made facing ahead throughout.
-            _pose.Turn = Quaternion.AngleAxis(SwordStrikes.SpinDegrees(_clipKind, _clipSeconds), Vector3.up);
-            _pose.Pivot = _locomotion.BakedLeftAnklePlace(_pose);
             _pose.LegsWeight = _clipLegs;
             _locomotion.SetBakedPose(_pose, Mathf.SmoothStep(0.0f, 1.0f, _clipWeight));
             _locomotion.SetClipStride(stride);

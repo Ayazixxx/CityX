@@ -195,32 +195,6 @@ namespace CityX.Tests
             Assert.IsFalse(contact.TwoHanded);
         }
 
-        /// <summary>The reference's second cut is thrown out of a full turn of the whole body: it comes round to the right through the wind-up and faces ahead again as the blade lands.</summary>
-        [Test]
-        public void TheSecondCutIsThrownOutOfAFullTurnThatArrivesWithTheBlade()
-        {
-            SwordStrikeKind kind = SwordStrikeKind.Cut1H;
-            SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);
-            Assert.AreEqual(0.0f, SwordStrikes.SpinDegrees(kind, 0.0f), 1e-4f, "the body is turned before the attack has begun");
-            Assert.AreEqual(360.0f, SwordStrikes.SpinDegrees(kind, t.Contact), 1e-3f, "the body is not facing ahead again as the blade lands");
-            Assert.AreEqual(360.0f, SwordStrikes.SpinDegrees(kind, t.Total), 1e-3f, "the body turns on after the blow");
-            float last = 0.0f;
-            for (float seconds = 0.0f; seconds <= t.Contact; seconds += 1.0f / 60.0f)
-            {
-                float now = SwordStrikes.SpinDegrees(kind, seconds);
-                Assert.GreaterOrEqual(now, last, $"the turn goes backwards at {seconds:0.00} s");
-                Assert.Less(now - last, 45.0f, $"the turn jumps {now - last:0} degrees in a frame at {seconds:0.00} s");
-                last = now;
-            }
-            foreach (SwordStrikeKind other in SwordStrikes.All)
-            {
-                if (other != kind)
-                {
-                    Assert.AreEqual(0.0f, SwordStrikes.SpinDegrees(other, SwordStrikes.TimingOf(other).Contact), 1e-4f, $"{other} turns the body round");
-                }
-            }
-        }
-
         [Test]
         public void TheTorsoWindsUpAgainstTheCutAndUnwindsThroughIt()
         {

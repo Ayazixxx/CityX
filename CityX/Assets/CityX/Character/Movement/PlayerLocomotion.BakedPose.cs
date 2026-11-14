@@ -219,9 +219,6 @@ namespace CityX.Character
         {
             Quaternion parent = hips.parent != null ? hips.parent.rotation : Quaternion.identity;
             Quaternion spineWanted = parent * clipHips * clipSpine;
-            // A SPIN (the pose's whole turn: SwordStrikes.SpinDegrees) takes the pelvis and the running legs round together; only what the
-            // clip turns the hips beyond it is shared out between the pelvis and the spine.
-            hips.localRotation = Quaternion.Slerp(Quaternion.identity, _bakedPose.Turn, _bakedPoseWeight) * hips.localRotation;
             Quaternion leftThigh = _leftUpperLeg != null ? _leftUpperLeg.rotation : Quaternion.identity;
             Quaternion rightThigh = _rightUpperLeg != null ? _rightUpperLeg.rotation : Quaternion.identity;
             hips.localRotation = Quaternion.Slerp(hips.localRotation, clipHips, _bakedPoseWeight * Mathf.Lerp(HipsTurnOnTheMove, 1.0f, legs));
@@ -229,29 +226,6 @@ namespace CityX.Character
             if (_leftUpperLeg != null) _leftUpperLeg.rotation = leftThigh;
             if (_rightUpperLeg != null) _rightUpperLeg.rotation = rightThigh;
             return spineWanted;
-        }
-
-        /// <summary>
-        /// Where <paramref name="pose"/> has the left ankle as it was made (before its turn), in the frame its hips are placed in: what a
-        /// turn that leaves that foot where it stands is about.
-        /// </summary>
-        public Vector3 BakedLeftAnklePlace(BakedPose pose)
-        {
-            if (pose == null || _leftUpperLeg == null || _leftLowerLeg == null || _leftFoot == null)
-            {
-                return Vector3.zero;
-            }
-            Quaternion hips = Quaternion.identity, thigh = Quaternion.identity, shin = Quaternion.identity;
-            for (int i = 0; i < pose.Bones.Count; i++)
-            {
-                switch (pose.Bones[i])
-                {
-                    case BakedMotion.RootBone: hips = pose.Rotations[i]; break;
-                    case "thigh_l": thigh = pose.Rotations[i]; break;
-                    case "shin_l": shin = pose.Rotations[i]; break;
-                }
-            }
-            return pose.Hips + hips * (_leftUpperLeg.localPosition + thigh * (_leftLowerLeg.localPosition + shin * _leftFoot.localPosition));
         }
 
         /// <summary>A baked pose that leaves the arms (a sword attack's clip), before the arm poses.</summary>

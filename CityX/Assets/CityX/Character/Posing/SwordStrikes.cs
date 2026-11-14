@@ -409,32 +409,6 @@ namespace CityX.Character
             return StepMetres(kind) * StepShare(total * ActiveStart(kind), total * ActiveEnd(kind), seconds);
         }
 
-        // ---- the spin ----------------------------------------------------------------------------------------------------------------------------
-        // Owner, 2026-11-13, of a reference combo (docs/SWORD_GIF_COMBO.md): "make the animation exactly like this gif". In it the second
-        // cut is thrown out of a full turn of the whole body. The turn is the whole body's, legs and all, about where it stands
-        // (BakedPose.Turn), laid over the attack's clip by SwordPoseDriver on the owner and on every copy; the keys and the clip are written
-        // as if the body faced ahead throughout.
-
-        /// <summary>The second cut's turn sets off this far into its wind-up (0-1), once the hand is on its way up.</summary>
-        public const float SpinInFromWindUpShare = 0.4f;
-
-        /// <summary>And is complete this far into its strike (0-1): the foot that stepped through is down and still before the blade lands.</summary>
-        public const float SpinDoneStrikeShare = 0.55f;
-
-        /// <summary>
-        /// How far round the whole body has turned <paramref name="seconds"/> into an attack, degrees to the right: a full turn through
-        /// the one-handed chain's second cut, arriving as the blade lands; nothing for any other attack.
-        /// </summary>
-        public static float SpinDegrees(SwordStrikeKind kind, float seconds)
-        {
-            if (kind != SwordStrikeKind.Cut1H)
-            {
-                return 0.0f;
-            }
-            StrikeTiming tm = TimingOf(kind);
-            return 360.0f * Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(tm.WindUp * SpinInFromWindUpShare, tm.WindUp + tm.Hold + tm.Strike * SpinDoneStrikeShare, seconds));
-        }
-
         // ---- into the ground -------------------------------------------------------------------------------------------------------------------
 
         /// <summary>The blow is driven into the ground and throws sparks from where its tip strikes: the one-handed heavy (owner, 2026-11-13).</summary>
@@ -933,31 +907,31 @@ namespace CityX.Character
                     // THE CHAIN'S FIRST CUT (owner, 2026-11-13, of a reference combo: "make the animation exactly like this gif ... two sort of
                     // downward/diagonal slashes and then 1 horizontal slash"; docs/SWORD_GIF_COMBO.md), and, brought down on the run, the
                     // running attack. The hand rises over the right shoulder with the blade back behind the head, the body coiled against the
-                    // cut and leaning away, the free arm reaching ahead; the left foot strides out through the wind-up. Then over the top and
-                    // steeply down across the front to the lower left, the body dropping into a deep lunge behind it, and the blade carries
-                    // on low past the left leg to trail behind, the free arm swinging back against it, long and low (the reference flings
-                    // it up behind; the owner, 2026-10-17, wants that hand low). 155 degrees in 0.12 s, 130 more in 0.11 s.
+                    // cut and leaning away, the free arm reaching ahead; the left foot strides out through the wind-up. Then ONE STRAIGHT
+                    // DIAGONAL, from the upper right down across the front to the lower left (owner, 2026-11-14: "the first slash changes
+                    // direction mid slash ... just make it diagonal": the hand used to come forward over the top, then across, then level
+                    // off round behind): the hand goes down one line the whole way and the blade ends pointing down the cut, the body
+                    // dropping into a deep lunge behind it, the free arm swinging back against it, long and low (owner, 2026-10-17).
                     CutPlane cut = SteepDown;
                     Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(0.70f, 2.12f, -0.10f), cut, -145.0f, elbow: 0.70f, twist: 50.0f, hips: 22.0f,
                         lean: -10.0f, tilt: -6.0f, drop: 0.12f, lead: -1.0f, depth: 0.70f), new Vector3(-0.18f, -0.72f, 0.60f));
                     Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.0f, 1.45f, 0.76f), cut, 10.0f, elbow: 0.25f, twist: -25.0f, hips: -32.0f,
-                        lean: 30.0f, tilt: 10.0f, drop: 0.18f, lead: -1.0f, depth: 0.95f, reach: 1.0f), new Vector3(0.72f, 1.92f, 0.52f), 12.5f)), new Vector3(-0.42f, -0.78f, -0.38f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(-0.38f, 1.44f, 0.40f), cut, 140.0f, elbow: 0.45f, twist: -60.0f, hips: -46.0f,
+                        lean: 30.0f, tilt: 10.0f, drop: 0.18f, lead: -1.0f, depth: 0.95f, reach: 1.0f), new Vector3(0.38f, 1.80f, 0.42f), 12.5f)), new Vector3(-0.42f, -0.78f, -0.38f));
+                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(-0.32f, 1.42f, 0.40f), cut, 125.0f, elbow: 0.45f, twist: -60.0f, hips: -46.0f,
                         lean: 28.0f, tilt: 8.0f, drop: 0.20f, lead: -1.0f, depth: 0.90f, reach: 0.6f), new Vector3(-0.44f, -0.76f, -0.40f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
                 case SwordStrikeKind.Cut1H:
                 {
-                    // THE SECOND: OUT OF A FULL TURN (the reference's second cut; the turn is SpinDegrees). The hand crosses past the left
-                    // shoulder, where the game's camera can see it, the blade up and back over it, and the whole body comes round to the right
-                    // under it, the right foot stepping through; as it faces front again the blade comes steeply down across the front to the
-                    // lower right and carries on round behind, the free arm swinging forward against it.
+                    // THE SECOND: the hand crosses past the left shoulder, where the game's camera can see it, the blade up and back over
+                    // it, the right foot stepping through; then one straight diagonal, the first cut's mirror, down across the front to
+                    // the lower right, the free arm swinging forward against it.
                     CutPlane cut = SteepDownBackhand;
                     Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.40f, 1.92f, 0.30f), cut, -140.0f, elbow: 0.60f, twist: -48.0f, hips: -24.0f,
                         lean: -6.0f, tilt: -4.0f, drop: 0.12f, lead: 1.0f, depth: 0.45f), new Vector3(-0.40f, -0.78f, -0.36f));
                     Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.34f, 1.44f, 0.58f), cut, 10.0f, elbow: 0.35f, twist: 25.0f, hips: 30.0f,
-                        lean: 16.0f, tilt: -6.0f, drop: 0.15f, lead: 1.0f, depth: 0.62f, reach: 1.0f), new Vector3(-0.55f, 1.80f, 0.55f), -12.0f)), new Vector3(-0.38f, -0.76f, 0.48f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.58f, 1.36f, 0.28f), cut, 130.0f, elbow: 0.50f, twist: 48.0f, hips: 40.0f,
+                        lean: 16.0f, tilt: -6.0f, drop: 0.15f, lead: 1.0f, depth: 0.62f, reach: 1.0f), new Vector3(-0.04f, 1.70f, 0.50f), -12.0f)), new Vector3(-0.38f, -0.76f, 0.48f));
+                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.52f, 1.34f, 0.36f), cut, 120.0f, elbow: 0.50f, twist: 48.0f, hips: 40.0f,
                         lean: 13.0f, tilt: -4.0f, drop: 0.14f, lead: 1.0f, depth: 0.58f, reach: 0.6f), new Vector3(-0.38f, -0.74f, 0.52f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }

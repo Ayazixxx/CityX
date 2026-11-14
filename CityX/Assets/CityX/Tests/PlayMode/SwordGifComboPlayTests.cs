@@ -10,7 +10,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The one-handed sword's combo from the owner's reference (2026-11-13: "make the animation exactly like this gif"; docs/SWORD_GIF_COMBO.md),
-    /// on the real body: the second cut's full turn of the whole body, and the charged attack's blade driven into the ground with sparks
+    /// on the real body: no cut of it turns the body round, and the charged attack's blade is driven into the ground with sparks
     /// thrown from where it struck, both on the player's own body and on another player's copy of it (which is only told the attack's name).
     /// </summary>
     public sealed class SwordGifComboPlayTests
@@ -133,7 +133,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheSecondCutTurnsTheWholeBodyRoundOnceStandingAndOnTheMoveAndTheOthersDoNot()
+        public IEnumerator NeitherOfTheFirstTwoCutsTurnsTheBodyRoundStandingOrOnTheMove()
         {
 #if UNITY_EDITOR
             foreach (bool walking in new[] { false, true })
@@ -185,8 +185,8 @@ namespace CityX.Tests
                 }
                 Assert.IsTrue(second, $"{how}: the chain never reached its second cut");
                 Assert.Less(Mathf.Abs(turnedInTheFirst), 200.0f, $"{how}: the first cut turned the body round ({turnedInTheFirst:0} degrees)");
-                // (Its own coil against the cut and the turn through it come and go on top of the full turn.)
-                Assert.AreEqual(360.0f, turnedInTheSecond, 150.0f, $"{how}: the second cut turned the shoulders {turnedInTheSecond:0} degrees round, not once round to the right");
+                // (Owner, 2026-11-14, of a full turn the second cut had: "this gay little twirl ... i never asked for".)
+                Assert.Less(Mathf.Abs(turnedInTheSecond), 200.0f, $"{how}: the second cut turned the body round ({turnedInTheSecond:0} degrees)");
                 Object.Destroy(_sword.gameObject);
                 Object.Destroy(_player);
                 _player = null;

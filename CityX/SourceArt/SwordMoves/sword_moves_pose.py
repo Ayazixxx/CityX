@@ -71,8 +71,8 @@ def attack(timing, step, wound, held, contact, followed, back, left, right, read
 # follow-throughs are turned further than its keys, and draw the blade further back and through.
 ATTACKS = {
     # THE ONE-HANDED CHAIN AND ITS HEAVY ARE THE OWNER'S REFERENCE COMBO (2026-11-13: "make the animation exactly like this gif ... two sort of downward/diagonal slashes
-    # and then 1 horizontal slash, then ... a fourth downward slash that hits the ground"; docs/SWORD_GIF_COMBO.md). The second cut is thrown out of a full turn of the whole
-    # body: the GAME lays that turn over its clip (SwordStrikes.SpinDegrees), which is made facing ahead throughout. The third is the game's own level slash (owner).
+    # and then 1 horizontal slash, then ... a fourth downward slash that hits the ground"; docs/SWORD_GIF_COMBO.md). The second cut is the first's mirror; it was thrown out of a full turn of the whole
+    # body, laid over this clip by the game, until the owner (2026-11-14) had it taken out. The third is the game's own level slash (owner).
     #
     # THE FIRST: down from over the right shoulder to the lower left. The body arched back and coiled, a long stride onto the left foot, and the whole body drops into a deep
     # lunge behind the blade.
@@ -85,7 +85,7 @@ ATTACKS = {
         key(twist=-26.0, hips=-18.0, lean=14.0, drop=0.15, shift=(-0.03, 0.04)),
         left=[(0.10, 0.33, (-0.22, 0.60), 0.14)],
         right=[(0.42, 0.64, (STANCE_X, 0.35), 0.05)]),
-    # THE SECOND: from over the left shoulder steeply down to the right, out of the full turn. The shoulders turned away to the left; the right foot steps through as the
+    # THE SECOND: from over the left shoulder steeply down to the right. The shoulders turned away to the left; the right foot steps through as the
     # body comes round, and it unwinds to the right behind the blade.
     "sword1h_cut": attack(
         (0.20, 0.05, 0.12, 0.10, 0.06, 0.24), 0.50,
