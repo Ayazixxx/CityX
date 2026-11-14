@@ -349,12 +349,88 @@ namespace CityX.Tests
 
             Assert.IsTrue(_combat.IsCommitted || swinging.Hand > 0.0f, "setup: the swing never started");
             Assert.Less(leastClipLegs, 0.01f, "the attack's clip kept the legs of a body that was walking");
-            Assert.Greater(swinging.Feet, plain.Feet * 0.85f,
+            // (The walk's own lean, which moves the feet a little, is off under any baked pose: about 15% less foot travel with legs that
+            // are exactly the walk's. Frozen legs travel under half: TheSameSwingOnTheBaseLayerFreezesTheLegs, below, keeps this honest.)
+            Assert.Greater(swinging.Feet, plain.Feet * 0.6f,
                 $"the legs froze during the swing: the feet travelled {swinging.Feet:0.00} against {plain.Feet:0.00} walking");
             Assert.Greater(swinging.Hand, plain.Hand * 2.0f,
                 $"the sword hand did not actually swing ({swinging.Hand:0.00} against {plain.Hand:0.00} walking)");
             Assert.Less(swinging.HipsHeightRange, plain.HipsHeightRange + 0.25f,
                 $"the swing dragged the hips about ({swinging.HipsHeightRange:0.00}m of height change against {plain.HipsHeightRange:0.00}m walking)");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-13, of swinging while walking and sprinting: "The steps look weird though refine the leg animations while sprinting
+        /// and attacking and moving and attacking to look more normal". The sword's fighting stance stepped the feet wide and planted them
+        /// under the cut, and the hips sank into it, while the body walked or ran on over them: the feet slid along the ground. On the move,
+        /// under the whole light chain, the stance does not take the feet, the hips are not sunk, and each foot strides as far ahead of and
+        /// behind its hip as it does running with nothing swung (the measurement SwordWalkSwingCapture logs).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WalkingOrSprintingUnderTheLightChainTheLegsAreTheRunsNotAFencersStance()
+        {
+#if UNITY_EDITOR
+            BuildToWalk();
+            _vitals.InfiniteStamina = true;
+            yield return Frame(0.5f);
+            Transform[] feet = { _animator.GetBoneTransform(HumanBodyBones.LeftFoot), _animator.GetBoneTransform(HumanBodyBones.RightFoot) };
+            Transform[] thighs = { _animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg), _animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) };
+            var poser = _player.GetComponent<SwordPoseDriver>();
+            foreach (bool sprint in new[] { false, true })
+            {
+                float[] reach = new float[2];
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    bool swing = pass == 1;
+                    var keys = new LocomotionInput { SwordEquipped = true, Move = new Vector2(0.0f, 1.0f), Sprint = sprint };
+                    float worstStance = 0.0f, worstStride = 0.0f, nextClick = 0.0f;
+                    int swingingFrames = 0;
+                    for (float t = 0.0f; t < 2.6f; t += Time.deltaTime)
+                    {
+                        if (swing && t >= 0.6f && t >= nextClick)
+                        {
+                            _combat.RequestLight(_player.transform.eulerAngles.y);
+                            nextClick = t + 0.3f;
+                        }
+                        _combat.Tick(Time.deltaTime);
+                        _locomotion.Tick(keys, Time.deltaTime);
+                        yield return null;
+                        if (t < 0.8f)
+                        {
+                            continue;   // up to its pace first
+                        }
+                        for (int f = 0; f < 2; f++)
+                        {
+                            Vector3 apart = _player.transform.InverseTransformDirection(feet[f].position - thighs[f].position);
+                            worstStride = Mathf.Max(worstStride, Mathf.Abs(apart.z));
+                        }
+                        if (swing && poser.ClipWeight > 0.5f)
+                        {
+                            swingingFrames++;
+                            worstStance = Mathf.Max(worstStance, _locomotion.SwordFootwork.Weight);
+                            Assert.Less(_locomotion.CurrentSwordFrame.HipDrop, 0.02f, $"{(sprint ? "sprinting" : "walking")}: the hips are sunk into the cut under a body that runs on");
+                        }
+                    }
+                    reach[pass] = worstStride;
+                    if (swing)
+                    {
+                        string how = sprint ? "sprinting" : "walking";
+                        Assert.Greater(swingingFrames, 30, $"{how}: the swings never held the body");
+                        Assert.Less(worstStance, 0.05f, $"{how}: the sword's fighting stance took the feet ({worstStance:0.00}) under a body that runs on");
+                    }
+                    for (int i = 0; i < 90; i++)
+                    {
+                        _combat.Tick(Time.deltaTime);
+                        _locomotion.Tick(new LocomotionInput { SwordEquipped = true }, Time.deltaTime);
+                        yield return null;
+                    }
+                }
+                Debug.Log($"CityX legs under the chain, {(sprint ? "sprinting" : "walking")}: a foot at most {reach[0]:0.00} m ahead of or behind its hip with nothing swung, {reach[1]:0.00} m swinging");
+                Assert.Less(reach[1], reach[0] + 0.08f, $"{(sprint ? "sprinting" : "walking")}: a foot is planted {reach[1]:0.00} m from its hip under a swing against {reach[0]:0.00} m running plain: a fencer's stance, not a stride");
+            }
 #else
             yield break;
 #endif

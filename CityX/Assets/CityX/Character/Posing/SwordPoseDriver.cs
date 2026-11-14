@@ -649,6 +649,16 @@ namespace CityX.Character
                     frame = SwordStrikes.GuardJolted(frame, 1.0f - Mathf.Clamp01(_guardJoltRemaining / SwordStrikes.GuardJoltSeconds));
                 }
             }
+            if (_striking || _rebounding)
+            {
+                // ON THE MOVE THE LEGS ARE THE RUN'S (owner, 2026-11-13: of swinging while walking and sprinting, "The steps look weird"):
+                // the stance the feet step into for a cut and the hips sunk into it are a standing fighter's. Under a body the keys carry
+                // they planted the feet wide and slid them along the ground at the body's pace. They fade as the body moves off, as the
+                // clip's own legs do.
+                float standing = _clipPlaying ? _clipLegs : SwordStrikes.StandingShare(_locomotion.OwnGroundSpeed);
+                frame.Footwork *= standing;
+                frame.HipDrop *= standing;
+            }
             _lastFrame = frame;
             _hasLastFrame = true;
             frame.Weight = Mathf.SmoothStep(0.0f, 1.0f, _engage);

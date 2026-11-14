@@ -59,11 +59,16 @@ namespace CityX.Tests
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
             })
             {
-                foreach ((string scenario, Vector2 stick) in new[]
+                // Each way of moving with the light chain thrown, and the same walk and sprint with nothing swung: what the feet do with no
+                // sword in it is the yardstick for what they do under a swing.
+                foreach ((string scenario, Vector2 stick, bool sprint, bool swing) in new[]
                 {
-                    ("forward", new Vector2(0.0f, 1.0f)),
-                    ("sideways", new Vector2(1.0f, 0.0f)),
-                    ("standing", Vector2.zero),
+                    ("forward", new Vector2(0.0f, 1.0f), false, true),
+                    ("forward-plain", new Vector2(0.0f, 1.0f), false, false),
+                    ("sprint", new Vector2(0.0f, 1.0f), true, true),
+                    ("sprint-plain", new Vector2(0.0f, 1.0f), true, false),
+                    ("sideways", new Vector2(1.0f, 0.0f), false, true),
+                    ("standing", Vector2.zero, false, true),
                 })
                 {
                     var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(swordPath);
@@ -110,8 +115,9 @@ namespace CityX.Tests
                     {
                         // The input reader's rule: a swing takes nothing from the walk.
                         input.Move = stick;
+                        input.Sprint = sprint;
                         input.YawDegrees = 0.0f;
-                        if (t >= nextClick && t < Lead + Swinging)
+                        if (swing && t >= nextClick && t < Lead + Swinging)
                         {
                             combat.RequestLight(0.0f);
                             nextClick += 0.3f;

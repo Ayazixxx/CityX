@@ -22,6 +22,16 @@ namespace CityX.Character
 
         private bool[] _bakedLowerBody;
 
+        /// <summary>Which of the baked pose's bones is the spine (-1: none).</summary>
+        private int _bakedSpineIndex = -1;
+
+        /// <summary>
+        /// How much of a sword attack's hip turn the pelvis takes on a body that is running or walking under it, 0 to 1. The legs are the
+        /// run's: a pelvis turned the whole way (up to 48 degrees) over legs running straight on twisted the body at the groin. The spine
+        /// takes the rest, so the shoulders are turned as far as the clip has them either way.
+        /// </summary>
+        public const float HipsTurnOnTheMove = 0.4f;
+
         private bool _bakedHasFingers;
 
         private System.Collections.Generic.IReadOnlyList<string> _bakedBonesFor;
@@ -203,6 +213,24 @@ namespace CityX.Character
             return name != null && _bakedProps.TryGetValue(name, out Transform part) ? part : null;
         }
 
+        /// <summary>
+        /// The pelvis of a body running under a sword attack: turned <see cref="HipsTurnOnTheMove"/> of the way to the clip's (all of it as
+        /// the body comes to a stand, <paramref name="legs"/>), each thigh kept turned as the run had it so the legs go on running; returns
+        /// the spine's turn in the world that puts the shoulders where the clip has them (as if the pelvis had turned the whole way).
+        /// </summary>
+        private Quaternion MoveTrunkOverRunningLegs(Transform hips, Quaternion clipHips, Quaternion clipSpine, float legs)
+        {
+            Quaternion parent = hips.parent != null ? hips.parent.rotation : Quaternion.identity;
+            Quaternion spineWanted = parent * clipHips * clipSpine;
+            Quaternion leftThigh = _leftUpperLeg != null ? _leftUpperLeg.rotation : Quaternion.identity;
+            Quaternion rightThigh = _rightUpperLeg != null ? _rightUpperLeg.rotation : Quaternion.identity;
+            hips.localRotation = Quaternion.Slerp(hips.localRotation, clipHips, _bakedPoseWeight * Mathf.Lerp(HipsTurnOnTheMove, 1.0f, legs));
+            // (The thighs then go toward the clip's by the legs' share, in the loop: from the run's, not from a pelvis-turned run.)
+            if (_leftUpperLeg != null) _leftUpperLeg.rotation = leftThigh;
+            if (_rightUpperLeg != null) _rightUpperLeg.rotation = rightThigh;
+            return spineWanted;
+        }
+
         /// <summary>A baked pose that leaves the arms (a sword attack's clip), before the arm poses.</summary>
         private void ApplyBakedTrunk()
         {
@@ -237,8 +265,13 @@ namespace CityX.Character
                 _bakedBones = new Transform[_bakedPose.Bones.Count];
                 _bakedLowerBody = new bool[_bakedBones.Length];
                 _bakedHasFingers = false;
+                _bakedSpineIndex = -1;
                 for (int i = 0; i < _bakedBones.Length; i++)
                 {
+                    if (_bakedPose.Bones[i] == "spine")
+                    {
+                        _bakedSpineIndex = i;
+                    }
                     _bakedBones[i] = TransformSearch.FindDeep(_animator.transform, _bakedPose.Bones[i]);
                     _bakedLowerBody[i] = BakedMotion.IsLowerBody(_bakedPose.Bones[i]);
                     _bakedHasFingers |= _bakedBones[i] != null && BakedMotion.IsFingerBone(_bakedPose.Bones[i]);
@@ -246,22 +279,38 @@ namespace CityX.Character
             }
 
             float legs = BakedLegsWeight;
+            // A SWORD ATTACK ON THE MOVE: the legs (and where the hips are) stay the run's, but the pelvis still turns part of the way
+            // with the cut, and the spine is set so the shoulders are where the clip has them (MoveTrunkOverRunningLegs).
+            bool onTheMove = !_bakedPose.UpperBodyOnly && legs < 1.0f && _bakedSpineIndex >= 0;
+            Quaternion spineWanted = Quaternion.identity;
+            bool spineSet = false;
             for (int i = 0; i < _bakedBones.Length; i++)
             {
                 Transform bone = _bakedBones[i];
+                bool root = _bakedPose.Bones[i] == BakedMotion.RootBone;
                 // A reload leaves the hips and legs to the Animator and the foot IK; a sword attack on the move, as much of them as it moves.
-                float weight = _bakedLowerBody[i] ? _bakedPoseWeight * legs : _bakedPoseWeight;
+                float weight = _bakedLowerBody[i] && !(root && onTheMove) ? _bakedPoseWeight * legs : _bakedPoseWeight;
                 if (bone == null || weight <= 0.0f)
                 {
                     continue;
                 }
                 Quaternion rotation = _bakedPose.Rotations[i];
-                if (_bakedPose.Bones[i] == BakedMotion.RootBone)
+                if (root)
                 {
                     // The whole pose's turn goes on the root, about the pivot: the rest of the skeleton hangs from it.
                     rotation = _bakedPose.Turn * rotation;
                     Vector3 position = _bakedPose.Pivot + _bakedPose.Turn * (_bakedPose.Hips - _bakedPose.Pivot);
-                    bone.localPosition = Vector3.Lerp(bone.localPosition, position, weight);
+                    bone.localPosition = Vector3.Lerp(bone.localPosition, position, _bakedPoseWeight * legs);
+                    if (onTheMove)
+                    {
+                        spineWanted = MoveTrunkOverRunningLegs(bone, rotation, _bakedPose.Rotations[_bakedSpineIndex], legs);
+                        spineSet = true;
+                        continue;
+                    }
+                }
+                else if (spineSet && i == _bakedSpineIndex && bone.parent != null)
+                {
+                    rotation = Quaternion.Inverse(bone.parent.rotation) * spineWanted;
                 }
                 bone.localRotation = weight >= 1.0f ? rotation : Quaternion.Slerp(bone.localRotation, rotation, weight);
             }

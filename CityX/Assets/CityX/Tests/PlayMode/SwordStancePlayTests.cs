@@ -362,22 +362,38 @@ namespace CityX.Tests
             Assert.AreEqual(shoulder.position.y - hand.position.y, copyShoulder.position.y - copyHand.position.y, 0.05f,
                 "the copy holds the sword differently from the owner");
 
-            // The owner swings on the move: the copy is told the attack's name and moved as the network moves it.
+            // The owner swings walking: the copy is told the attack's name and moved as the network moves it, and its legs walk under the
+            // swing as the owner's do (owner, 2026-11-13: a swing takes nothing from the movement, and its legs are the walk's), its pace
+            // read off the walk's own speed, which the network hands a copy. (Walking already as the swing arrives, as the owner was.)
+            for (int i = 0; i < 20; i++)
+            {
+                _copy.transform.position += Vector3.forward * (4.0f * Dt);
+                copyAnimator.SetBool("Grounded", true);
+                copyAnimator.SetFloat("Speed", 4.0f);
+                copyAnimator.SetFloat("MoveZ", 4.0f);
+                yield return null;
+            }
             copyDriver.PlayRemoteState(SwordStrikes.Sweep2HName);
             Assert.IsTrue(copyDriver.SwordPoser.IsStriking, "the copy did not take up the swing");
-            int stepsBefore = copyLocomotion.SwordFootwork.StepsTaken;
-            float most = 0.0f;
+            float most = 0.0f, mostClipLegs = 0.0f;
+            bool held = false;
             for (float t = 0.0f; t < SwordStrikes.Seconds(SwordStrikeKind.Sweep2H); t += Dt)
             {
-                _copy.transform.position += Vector3.forward * (1.6f * Dt);
+                _copy.transform.position += Vector3.forward * (4.0f * Dt);
                 copyAnimator.SetBool("Grounded", true);
-                copyAnimator.SetFloat("Speed", 1.6f);
-                copyAnimator.SetFloat("MoveZ", 1.6f);
+                copyAnimator.SetFloat("Speed", 4.0f);
+                copyAnimator.SetFloat("MoveZ", 4.0f);
                 yield return null;
                 most = Mathf.Max(most, copyLocomotion.SwordFootwork.Weight);
+                if (copyDriver.SwordPoser.ClipWeight > 0.99f)
+                {
+                    held = true;
+                    mostClipLegs = Mathf.Max(mostClipLegs, copyDriver.SwordPoser.ClipLegs);
+                }
             }
-            Assert.Greater(most, 0.99f, "the copy's feet never took the stance");
-            Assert.GreaterOrEqual(copyLocomotion.SwordFootwork.StepsTaken - stepsBefore, 2, "the copy's feet did not step as it moved through the swing");
+            Assert.IsTrue(held, "the swing's clip never held the copy");
+            Assert.Less(mostClipLegs, 0.01f, "the swing's clip took the legs of a copy that walks under it");
+            Assert.Less(most, 0.05f, "the sword's fighting stance took the feet of a copy that walks under the swing");
 #else
             yield break;
 #endif

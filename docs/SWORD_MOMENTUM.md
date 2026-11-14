@@ -35,8 +35,13 @@ Each attack has a clip of the legs, hips, torso and head (docs/SWORD_FULL_BODY.m
 strides; on a body the keys are moving they would be nailed to ground that is going by. So:
 
 - **Standing** (the body's own speed under 0.4 m/s): the whole clip, the stride and the attack's step, as made.
-- **On the move** (over 1.6 m/s): the clip gives the hips and legs back to the walk or the run (`BakedPose.LegsWeight`,
-  `SwordStrikes.ClipLegs`, `SwordPoseDriver`); the foot IK is on again under them; the clip keeps the torso's coil and the head, and
+- **On the move** (over 1.6 m/s): the clip gives the hips and legs back to the walk or the run, and the sword's own fighting stance
+  (`SwordFootwork`: the feet stepped wide and planted under the cut) and the hips sunk into the cut are off too: under a moving body
+  they planted the feet and slid them along the ground at its pace (owner, 2026-11-13: "The steps look weird"; measured with
+  `SwordWalkSwingCapture`, which now has a sprint and a plain walk and sprint to compare: the feet under the light chain now step and
+  slide exactly as they do with nothing swung). The pelvis still turns 40% of the way with the cut, each thigh kept on the run's line,
+  and the spine takes the rest of the turn (`PlayerLocomotion.MoveTrunkOverRunningLegs`). (`BakedPose.LegsWeight`, `SwordStrikes.ClipLegs`,
+  `SwordPoseDriver`.) The foot IK is on again under them; the clip keeps the torso's coil and the head, and
   the arms are the attack's own keys as always. Between the two speeds the legs are part each, and they change over in 0.15 s when
   the body moves off or comes to a stand mid-swing.
 - The body's own speed is the Animator's (`PlayerLocomotion.OwnGroundSpeed`), which another player's copy is sent, so a copy's legs
