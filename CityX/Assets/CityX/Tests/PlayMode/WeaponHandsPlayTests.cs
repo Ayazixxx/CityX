@@ -343,11 +343,13 @@ namespace CityX.Tests
 
         /// <summary>
         /// The sword is CARRIED the way a two-handed sword is between fights (owner, 2026-10-16: "my character holds ... the sword awkwardly";
-        /// it used to be held out at arm's length at the shoulders, blade straight up): low at the right side, the point forward and down, the
-        /// cutting edge down, the hilt between the fists with the right hand at the guard and the left below it, both hands on the handle.
+        /// it used to be held out at arm's length at the shoulders, blade straight up; and 2026-11-13, of the carry that then pointed forward
+        /// and down, "the way he holds the two handed sword is totally wrong, his arms are all bent awkardly"): the fists low before the belly,
+        /// the blade up and ahead, its edge ahead and down (away from the body), the hilt between the fists with the right hand at the guard
+        /// and the left below it, both hands on the handle.
         /// </summary>
         [UnityTest]
-        public IEnumerator TheSwordIsCarriedLowWithItsEdgeDownAndBothHandsOnTheHilt()
+        public IEnumerator TheSwordIsCarriedBeforeTheBellyWithItsBladeUpAndAheadAndBothHandsOnTheHilt()
         {
 #if UNITY_EDITOR
             BuildPlayer();
@@ -363,10 +365,11 @@ namespace CityX.Tests
 
             Debug.Log($"CityX sword carried: blade {blade.ToString("0.00")}, edge {sword.EdgeDirectionWorld.ToString("0.00")}, " +
                       $"blade vs the line between the hands {Vector3.Angle(blade, handLine):0} deg, hands {shoulder.y - right.y:0.00} m below the shoulder");
-            Assert.Less(blade.y, -0.2f, $"the carried blade should point down, not {blade.ToString("0.00")}");
-            Assert.Greater(Vector3.Dot(blade, _player.transform.forward), 0.5f, "the carried blade should point ahead");
-            Assert.Less(sword.EdgeDirectionWorld.y, -0.5f, "the cutting edge should face down");
-            Assert.Greater(shoulder.y - right.y, 0.4f, "the hands should be low at the side, not up at the shoulders");
+            Assert.Greater(blade.y, 0.4f, $"the carried blade should point up, not {blade.ToString("0.00")}");
+            Assert.Greater(Vector3.Dot(blade, _player.transform.forward), 0.4f, "the carried blade should point ahead");
+            Assert.Less(sword.EdgeDirectionWorld.y, 0.0f, "the cutting edge should face down and away, not up");
+            Assert.Greater(Vector3.Dot(sword.EdgeDirectionWorld, _player.transform.forward), 0.3f, "the cutting edge should face ahead, away from the body");
+            Assert.Greater(shoulder.y - right.y, 0.4f, "the hands should be low before the belly, not up at the shoulders");
             Assert.Less(Vector3.Angle(blade, handLine), 40.0f, "the blade should run on from the lower hand through the upper");
             // In the hammer grip (2026-10-28) the handle lies under the palm's thickness (SwordWeapon.OneHandHandleBelowPalm), so the palm point
             // sits 6 cm off it before any bend of the wrist.
