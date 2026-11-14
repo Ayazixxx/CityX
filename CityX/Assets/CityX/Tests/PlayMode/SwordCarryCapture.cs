@@ -103,7 +103,7 @@ namespace CityX.Tests
                 for (float t = 0.0f; t < Span; t += Dt)
                 {
                     combat.Tick(Dt);
-                    input.Move = combat.IsCommitted ? stick * combat.CommittedMoveSpeedFraction : stick;
+                    input.Move = stick;   // a swing takes nothing from a player's movement
                     locomotion.Tick(input, Dt);
                     yield return null;
                     float turn = Quaternion.Angle(lastHand, hand.rotation);

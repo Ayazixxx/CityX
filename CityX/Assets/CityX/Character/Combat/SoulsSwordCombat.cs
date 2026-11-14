@@ -275,18 +275,13 @@ namespace CityX.Character
         [Header("One-handed heavy (held left click)")]
         public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.55f, 30.0f, 1.85f, 0.90f, SwordStrikes.StepMetres(SwordStrikeKind.Overhead1H), 50.0f, true);
 
-        // THROWN ON THE MOVE (owner, 2026-11-13: "the movement of the character carries over into the attack ... if you are sprinting it does
-        // a different attack, if you are walking forward it does a slightly different attack if you are standing still"; docs/SWORD_MOMENTUM.md).
-        // The light that OPENS an attack is chosen by how fast the body is going forward (SwordStrikes.OpenerFor): standing, the first light
-        // as above; out of a walk, the same cut thrown on the move; out of a sprint, the running attack. Both take the body's speed with them
-        // (SwordStrikes.Carried) and chain on into the second light. The running attack hits harder than a first light and leaves the
-        // runner open for longer; its stun keeps the same margin over the cut that follows as a first light's. My numbers.
-        [Header("Two-handed openers thrown on the move")]
-        public SoulsAttack WalkLight1 = SoulsAttack.FromStrike(SwordStrikeKind.SweepWalk2H, 0.35f, 22.0f, 1.23f, 0.62f, SwordStrikes.StepMetres(SwordStrikeKind.SweepWalk2H), 25.0f, false);
+        // THE RUNNING ATTACK (owner, 2026-11-13: "if you are sprinting it does a different attack"; docs/SWORD_MOMENTUM.md): the light that
+        // OPENS an attack is the running attack when the body is sprinting forward (SwordStrikes.OpenerFor), the chain's first cut
+        // otherwise. It hits harder than a first light and takes longer to recover from; it chains on into the second light, and its stun
+        // keeps the same margin over the cut that follows as a first light's. The body runs on under it. My numbers.
+        [Header("Running attacks (left click at a sprint)")]
         public SoulsAttack RunAttack = SoulsAttack.FromStrike(SwordStrikeKind.Run2H, 0.45f, 26.0f, 1.75f, 0.72f, SwordStrikes.StepMetres(SwordStrikeKind.Run2H), 32.0f, false);
 
-        [Header("One-handed openers thrown on the move")]
-        public SoulsAttack OneHandWalkLight1 = SoulsAttack.FromStrike(SwordStrikeKind.SlashWalk1H, 0.35f, 16.0f, 0.92f, 0.52f, SwordStrikes.StepMetres(SwordStrikeKind.SlashWalk1H), 20.0f, false);
         public SoulsAttack OneHandRunAttack = SoulsAttack.FromStrike(SwordStrikeKind.Run1H, 0.45f, 20.0f, 1.35f, 0.62f, SwordStrikes.StepMetres(SwordStrikeKind.Run1H), 26.0f, false);
 
         // THE KNIFE (KnifeRules, docs/KNIFE.md): the one-handed slash and backhand, back and forth, run KnifeRules.SwingSpeed faster, cheaper
@@ -407,10 +402,19 @@ namespace CityX.Character
         public const string IdleStateName = PlayerAnimationDriver.UpperEmptyStateName;
 
         [Tooltip(
-            "Fraction of walking speed while a swing is under way, up to its recovery's tail (SlowsMovement). 0: a swing is a commitment, as in " +
-            "Dark Souls (owner, 2026-11-13): the body does not walk under it, the attack's own step carries it (SwordStrikes.StepMetres). " +
-            "It was 0.65 while the legs walked on under an arm.")]
-        public float CommittedMoveSpeedFraction = 0.0f;
+            "Fraction of its pace an ENEMY keeps while its swing is under way, up to its recovery's tail (SlowsMovement; SwordsmanBrain). " +
+            "A player's own movement is never touched by a swing (owner, 2026-11-13: 'You should be able to move freely with zero " +
+            "slowdown'): the keys walk, sprint and steer the body through it (PlayerInputReader). An enemy keeps what everyone had " +
+            "until then.")]
+        public float CommittedMoveSpeedFraction = 0.65f;
+
+        /// <summary>
+        /// The swings are an ENEMY's (set by its brain): held to <see cref="CommittedMoveSpeedFraction"/> of its pace by the brain, and
+        /// stepped into every cut whether it stands or walks, as every swing was until 2026-11-13. A player's are neither: the keys carry
+        /// the body at its own pace, and only a body standing still is stepped.
+        /// </summary>
+        [System.NonSerialized]
+        public bool SteppedOnTheMove;
 
         [Tooltip("How fast the body turns to where the camera looks as a swing winds up, degrees per second. Whatever the turn, the body " +
                  "faces it by the time the blade is live; turning rather than snapping is what keeps a swing from jumping round on the spot.")]
@@ -517,8 +521,8 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// The light that opens an attack with the body going forward at <paramref name="forwardSpeed"/> m/s: the first light standing, the
-        /// same cut thrown out of a walk, the running attack out of a sprint (SwordStrikes.OpenerFor). A knife has the one.
+        /// The light that opens an attack with the body going forward at <paramref name="forwardSpeed"/> m/s: the chain's first cut, or at a
+        /// sprint the running attack (SwordStrikes.OpenerFor). A knife has the one.
         /// </summary>
         public SoulsAttack OpenerAt(float forwardSpeed)
         {
@@ -530,8 +534,6 @@ namespace CityX.Character
             {
                 case SwordStrikeKind.Run1H: return OneHandRunAttack;
                 case SwordStrikeKind.Run2H: return RunAttack;
-                case SwordStrikeKind.SlashWalk1H: return OneHandWalkLight1;
-                case SwordStrikeKind.SweepWalk2H: return WalkLight1;
                 default: return LightAttack(0);
             }
         }
@@ -567,7 +569,7 @@ namespace CityX.Character
         /// </summary>
         public bool InRecoveryTail => _phase == SoulsPhase.Recovery && _current != null && _phaseTime >= _current.Recovery * _current.ChainAt;
 
-        /// <summary>True while a swing holds the legs to <see cref="CommittedMoveSpeedFraction"/>: from its first frame to its recovery's tail.</summary>
+        /// <summary>True from a swing's first frame to its recovery's tail: where an enemy is held to <see cref="CommittedMoveSpeedFraction"/> (a player moves as it likes throughout).</summary>
         public bool SlowsMovement => IsCommitted && !InRecoveryTail;
 
         public bool IsBlocking => _blocking;
@@ -989,7 +991,7 @@ namespace CityX.Character
             else
             {
                 int index = chained && _currentIsLight ? (_chainIndex + 1) % LightChainLength : 0;
-                // The opener is the one for the pace the body has toward where it will swing (a chained cut starts from a body at rest).
+                // The opener is the one for the pace the body has toward where it will swing: at a sprint, the running attack.
                 next = index == 0 && !chained && _locomotion != null
                     ? OpenerAt(_locomotion.GroundSpeedAlong(Quaternion.Euler(0.0f, yaw, 0.0f) * Vector3.forward))
                     : LightAttack(index);
@@ -1017,7 +1019,6 @@ namespace CityX.Character
             // A held block is dropped the moment you swing.
             SetBlockHeld(false);
             ReleaseHitStop();
-            GiveBackMomentum();   // of a swing this one replaces (a light turned into the heavy)
             _telegraphRemaining = 0.0f;
             _telegraphDone = false;
             _currentChained = chained;
@@ -1042,7 +1043,6 @@ namespace CityX.Character
             _swingYaw = yawDegrees;
             _turningIntoSwing = true;
             _lungeDone = 0.0f;
-            TakeMomentum(attack, yawDegrees);
             TurnIntoSwing(0.0f);
 
             // The attack, by name: a SwordStrikes attack is posed by the driver's SwordPoseDriver (speed 1, from its start); a clip, if one
@@ -1079,7 +1079,6 @@ namespace CityX.Character
 
         private void EndSwing()
         {
-            GiveBackMomentum();   // of a swing cut short (a blow, a dash): one that ran its course has none left
             ReleaseHitStop();
             _telegraphRemaining = 0.0f;
             _telegraphDone = false;
@@ -1411,10 +1410,11 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// THE STEP: from halfway through the startup to the end of the live window, eased in and out (SwordStrikes.StepShare, which the
-        /// attack's clip plants its feet by), so the body surges into the cut rather than gliding at a steady pace from the click. An opener
-        /// thrown on the move carries the body on from the pace it came in at instead (<see cref="CarriedBy"/>). Moved by what is still
-        /// owed, so a long frame cannot carry it further than <see cref="SoulsAttack.LungeMetres"/>.
+        /// THE STEP of an attack thrown standing: from halfway through the startup to the end of the live window, eased in and out
+        /// (SwordStrikes.StepShare, which the attack's clip plants its feet by), so the body surges into the cut. Moved by what is still
+        /// owed, so a long frame cannot carry it further than <see cref="SoulsAttack.LungeMetres"/>. A player's body the keys are moving
+        /// is not stepped (SwordStrikes.StandingShare): the keys carry it at its own pace, and a swing neither adds to that pace nor takes
+        /// from it (owner, 2026-11-13: "conserve momentum and move freely while attacking ... zero slowdown").
         /// </summary>
         private void ApplyLunge()
         {
@@ -1427,67 +1427,17 @@ namespace CityX.Character
             {
                 return;
             }
-            float wanted = CarriedBy(SwingSeconds);
+            float elapsed = _phase == SoulsPhase.Startup ? _phaseTime : _current.Startup + _phaseTime;
+            float wanted = SwordStrikes.StepShare(_current.Startup, window, elapsed) * _current.LungeMetres;
             float step = wanted - _lungeDone;
             if (step > 0.0f)
             {
-                _controller.Move(transform.forward * step);
                 _lungeDone = wanted;
-            }
-        }
-
-        /// <summary>Seconds into the swing under way, on its own clock (Melee Speed runs it faster).</summary>
-        private float SwingSeconds => _phase == SoulsPhase.Startup ? _phaseTime : _current.Startup + _phaseTime;
-
-        /// <summary>How far the swing under way has carried the body by <paramref name="seconds"/> into it, metres.</summary>
-        private float CarriedBy(float seconds)
-        {
-            float window = _current.Startup + _current.Active;
-            return _entrySpeed > 0.0f
-                ? SwordStrikes.Carried(_current.LungeMetres, window, _entrySpeed / Mathf.Max(_swingSpeed, 0.01f), seconds)
-                : SwordStrikes.StepShare(_current.Startup, window, seconds) * _current.LungeMetres;
-        }
-
-        /// <summary>
-        /// The forward speed the swing under way came in at and carries, m/s (0: thrown standing, it steps from rest). An opener thrown on the
-        /// move takes it off the body's feet (PlayerLocomotion.TakeMomentumAlong), where the keys taken away would have braked it to a stop
-        /// in a fifth of a second: that stop was what "attacking forces you to stay still" (owner, 2026-11-13).
-        /// </summary>
-        private float _entrySpeed;
-
-        /// <summary>The speed the swing under way came in at, m/s (for tests).</summary>
-        public float EntrySpeed => _entrySpeed;
-
-        /// <summary>An entry speed is taken as no more than this much of the pace the attack's clip was made for (a dash's burst is not a run).</summary>
-        private const float MostEntryShare = 1.3f;
-
-        private void TakeMomentum(SoulsAttack attack, float yawDegrees)
-        {
-            _entrySpeed = 0.0f;
-            float madeFor = SwordStrikes.TryGet(attack.Animation, out SwordStrikeKind kind) ? SwordStrikes.EntrySpeed(kind) : 0.0f;
-            if (madeFor <= 0.0f || _locomotion == null)
-            {
-                return;
-            }
-            float taken = _locomotion.TakeMomentumAlong(Quaternion.Euler(0.0f, yawDegrees, 0.0f) * Vector3.forward);
-            _entrySpeed = Mathf.Min(taken, madeFor * MostEntryShare);
-        }
-
-        /// <summary>A swing that carries the body, cut short while still going: the pace it has left goes back onto the body's feet, which brake it as they brake a walk.</summary>
-        private void GiveBackMomentum()
-        {
-            if (_entrySpeed <= 0.0f || _current == null || _locomotion == null || _phase == SoulsPhase.Idle || _phase == SoulsPhase.Recovery)
-            {
-                _entrySpeed = 0.0f;
-                return;
-            }
-            const float moment = 0.01f;
-            float seconds = SwingSeconds;
-            float speed = (CarriedBy(seconds + moment) - CarriedBy(seconds)) / moment * _swingSpeed;
-            _entrySpeed = 0.0f;
-            if (speed > 0.0f)
-            {
-                _locomotion.GiveMomentum(transform.forward * speed);
+                float standing = SteppedOnTheMove || _locomotion == null ? 1.0f : SwordStrikes.StandingShare(_locomotion.OwnGroundSpeed);
+                if (standing > 0.0f)
+                {
+                    _controller.Move(transform.forward * (step * standing));
+                }
             }
         }
 

@@ -138,7 +138,7 @@ namespace CityX.Tests
                     nextSwing = clock + 0.9f;
                 }
                 Vector2 move = distance > 2.3f ? new Vector2(0.0f, 1.0f) : (distance < 1.6f ? new Vector2(0.0f, -0.5f) : Vector2.zero);
-                if (combat.IsCommitted) move *= combat.CommittedMoveSpeedFraction;
+                // (a swing takes nothing from a player's movement)
                 if (vitals.IsStunned) move = Vector2.zero;
                 locomotion.Tick(new LocomotionInput { Move = move, YawDegrees = yaw, Sword1HEquipped = true, LockedOn = true }, Dt);
                 yield return null;

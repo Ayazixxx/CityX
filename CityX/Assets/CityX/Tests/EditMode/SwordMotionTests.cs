@@ -12,8 +12,8 @@ namespace CityX.Tests
     /// from the cut, turns through it with the hips, strides with one foot planted before the blow while the other stays where it stood,
     /// and puts the weight back and then forward. No clip has an arm bone: the game poses the sword arm and the hand on the handle itself.
     ///
-    /// The openers thrown on the move (docs/SWORD_MOMENTUM.md; owner, 2026-11-13: "the movement of the character carries over into the
-    /// attack") walk or run into the cut instead: nothing goes back, both feet step, and the left is planted under the blow.
+    /// On a body the keys are moving the legs are the walk's own, not a clip's (docs/SWORD_MOMENTUM.md; owner, 2026-11-13: "move freely
+    /// while attacking ... zero slowdown"), and the running attacks, thrown only at a sprint, have a torso that leans into the run.
     /// </summary>
     public sealed class SwordMotionTests
     {
@@ -24,13 +24,10 @@ namespace CityX.Tests
             SwordStrikeKind.Sweep2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Cut2H, SwordStrikeKind.Smash2H, SwordStrikeKind.Slam2H,
         };
 
-        /// <summary>The openers thrown on the move: they carry the pace the body came in at.</summary>
-        private static readonly SwordStrikeKind[] OnTheMove =
-        {
-            SwordStrikeKind.SlashWalk1H, SwordStrikeKind.SweepWalk2H, SwordStrikeKind.Run1H, SwordStrikeKind.Run2H,
-        };
+        /// <summary>The running attacks: thrown only at a sprint, so only their torso and head are ever played (the legs are the run's).</summary>
+        private static readonly SwordStrikeKind[] Running = { SwordStrikeKind.Run1H, SwordStrikeKind.Run2H };
 
-        private static readonly SwordStrikeKind[] WithClips = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(Standing, OnTheMove));
+        private static readonly SwordStrikeKind[] WithClips = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(Standing, Running));
 
         private static BakedMotion Motion()
         {
@@ -178,7 +175,7 @@ namespace CityX.Tests
         {
             (SwordStrikeKind.Slash1H, 1), (SwordStrikeKind.Cut1H, -1), (SwordStrikeKind.Finisher1H, 1),
             (SwordStrikeKind.Sweep2H, 1), (SwordStrikeKind.Reverse2H, -1), (SwordStrikeKind.Cut2H, 1),
-            (SwordStrikeKind.SlashWalk1H, 1), (SwordStrikeKind.SweepWalk2H, 1), (SwordStrikeKind.Run1H, 1), (SwordStrikeKind.Run2H, 1),
+            (SwordStrikeKind.Run1H, 1), (SwordStrikeKind.Run2H, 1),
         };
 
         [Test]
@@ -242,44 +239,50 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ThrownOnTheMoveNothingGoesBackAndTheBodyLeansIntoItsPace()
+        public void TheRunningAttacksLeanIntoTheRunAndNeverBack()
         {
             BakedMotion motion = Motion();
-            foreach (SwordStrikeKind kind in OnTheMove)
+            foreach (SwordStrikeKind kind in Running)
             {
-                Moments(kind, out float wound, out float contact, out _);
-                Dictionary<string, Vector3> coiled = Joints(motion, kind, wound);
-                Assert.Greater(coiled["hips"].z, -0.06f, $"{kind}: the weight is thrown back in the wind-up: a body on the move does not stop to wind up");
-                Assert.Greater(coiled["neck"].z - coiled["hips"].z, -0.02f, $"{kind}: the body leans back in the wind-up, against its own pace");
-                Assert.Greater(Joints(motion, kind, contact)["hips"].z, 0.03f, $"{kind}: the weight does not go forward as it lands");
+                Moments(kind, out float wound, out float contact, out float followed);
+                foreach (float seconds in new[] { wound, contact, followed })
+                {
+                    Dictionary<string, Vector3> joints = Joints(motion, kind, seconds);
+                    Assert.Greater(joints["neck"].z - joints["hips"].z, 0.0f, $"{kind}, {seconds:0.00} s: the body leans back, against its own run");
+                    // Nothing is stepped and the hips stay over the feet: the legs under it are the run's, and the keys carry the body.
+                    Assert.Less(new Vector2(joints["hips"].x, joints["hips"].z).magnitude, 0.02f, $"{kind}, {seconds:0.00} s: the hips are shifted off a body that is running");
+                }
+                Assert.AreEqual(0.0f, SwordStrikes.StepMetres(kind), $"{kind} steps the body: it is only thrown on the run, where the keys carry it");
+                Assert.AreEqual(0.0f, SwordStrikes.ClipLegs(kind, 0.0f), $"{kind} takes the legs: its legs are the run's whatever the pace");
             }
         }
 
-        /// <summary>The ankle's place along the ground: where it is in the clip, and how far the game has carried the body by then.</summary>
-        private static float OnTheGround(BakedMotion motion, SwordStrikeKind kind, string foot, float seconds) =>
-            Joints(motion, kind, seconds)[foot].z + SwordStrikes.Stepped(kind, seconds);
-
+        /// <summary>
+        /// Owner, 2026-11-13: "You need to have the sword movements conserve momentum and move freely while attacking. It feels bad right
+        /// now because you are slowed down every time you attack. You should be able to move freely with zero slowdown". A body standing
+        /// still has the clip's stride and the attack's step; a body on the move has neither: its legs are its walk's and the keys carry it.
+        /// </summary>
         [Test]
-        public void ThrownOnTheMoveTheRightFootPassesFirstAndTheLeftIsPlantedUnderTheBlow()
+        public void OnAMovingBodyTheLegsAreTheWalksAndNothingIsStepped()
         {
-            BakedMotion motion = Motion();
-            foreach (SwordStrikeKind kind in OnTheMove)
+            const float walk = 4.0f, sprint = 7.5f;
+            foreach (SwordStrikeKind kind in Standing)
             {
-                Moments(kind, out float wound, out float contact, out float followed);
-                // Both feet go forward over the ground the body is carried across: the right first, then the left past it.
-                Assert.Greater(OnTheGround(motion, kind, "foot_r", wound) - OnTheGround(motion, kind, "foot_r", 0.0f), 0.6f,
-                    $"{kind}: the right foot has not stepped through by the time it is wound up");
-                Dictionary<string, Vector3> landing = Joints(motion, kind, contact);
-                Assert.Less(landing["foot_l"].y, BodyRig.FootY + 0.06f, $"{kind} lands with the left foot still in the air");
-                Assert.Greater(landing["foot_l"].z - landing["foot_r"].z, 0.3f, $"{kind} lands with the feet together: no stride under the blow");
-                Assert.Greater(OnTheGround(motion, kind, "foot_l", contact) - OnTheGround(motion, kind, "foot_l", 0.0f), SwordStrikes.StepMetres(kind) * 0.9f,
-                    $"{kind}: the left foot has not come as far as the body is carried");
-                // Planted, it stays where it landed while the body comes to rest over it.
-                float planted = OnTheGround(motion, kind, "foot_l", contact - 0.03f);
-                for (float seconds = contact - 0.03f; seconds <= followed + 0.1f; seconds += 0.03f)
-                {
-                    Assert.AreEqual(planted, OnTheGround(motion, kind, "foot_l", seconds), 0.04f, $"{kind}, {seconds:0.00} s: the planted foot slides along the ground");
-                }
+                Assert.AreEqual(1.0f, SwordStrikes.ClipLegs(kind, 0.0f), $"{kind}: standing, the legs are not the clip's");
+                Assert.AreEqual(0.0f, SwordStrikes.ClipLegs(kind, walk), $"{kind}: at a walk the clip still has the legs: they would be planted while the body moves");
+                Assert.AreEqual(0.0f, SwordStrikes.ClipLegs(kind, sprint), $"{kind}: at a sprint the clip still has the legs");
+                Assert.AreEqual(0.0f, SwordStrikes.ClipLegs(kind, walk * 0.5f), $"{kind}: at half a walk the clip still has the legs");
+                Assert.Greater(SwordStrikes.StepMetres(kind), 0.0f, $"{kind}: a standing body is not stepped into its cut");
+            }
+            Assert.AreEqual(1.0f, SwordStrikes.StandingShare(0.0f));
+            Assert.AreEqual(0.0f, SwordStrikes.StandingShare(walk), "a walking body is still stepped by the attack: it would go faster for attacking");
+            Assert.AreEqual(0.0f, SwordStrikes.StandingShare(sprint));
+            float last = 1.0f;
+            for (float speed = 0.0f; speed <= walk; speed += 0.1f)
+            {
+                float share = SwordStrikes.StandingShare(speed);
+                Assert.LessOrEqual(share, last, $"at {speed:0.0} m/s the legs go back toward the clip as the body speeds up");
+                last = share;
             }
         }
 
@@ -314,10 +317,6 @@ namespace CityX.Tests
         {
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (SwordStrikes.EntrySpeed(kind) > 0.0f)
-                {
-                    continue;   // carried from the first frame (below)
-                }
                 float total = SwordStrikes.Seconds(kind);
                 Assert.AreEqual(0.0f, SwordStrikes.Stepped(kind, 0.0f), 1e-5f, $"{kind} steps the body before it has begun");
                 Assert.AreEqual(0.0f, SwordStrikes.Stepped(kind, total * SwordStrikes.ActiveStart(kind) * SwordStrikes.StepStartShare), 1e-4f,
@@ -328,63 +327,20 @@ namespace CityX.Tests
             }
         }
 
-        /// <summary>
-        /// Owner, 2026-11-13: "right now it feels like attacking forces you to stay still or slow down". An opener thrown on the move sets
-        /// off at the pace the body came in at, never stops or goes back on the way, and is at rest at the end of the live window, its whole
-        /// carry behind it: at any pace from a slow walk to faster than a sprint.
-        /// </summary>
         [Test]
-        public void ThrownOnTheMoveTheBodyKeepsItsPaceAndComesToRestAtTheEndOfTheLiveWindow()
-        {
-            const float frame = 1.0f / 60.0f;
-            foreach (SwordStrikeKind kind in OnTheMove)
-            {
-                float madeFor = SwordStrikes.EntrySpeed(kind);
-                float window = SwordStrikes.Seconds(kind) * SwordStrikes.ActiveEnd(kind);
-                float metres = SwordStrikes.StepMetres(kind);
-                Assert.Greater(madeFor, 0.0f, $"{kind} is not made for a body on the move");
-                foreach (float entry in new[] { madeFor * 0.5f, madeFor, madeFor * 1.3f })
-                {
-                    Assert.AreEqual(entry * frame, SwordStrikes.Carried(metres, window, entry, frame), entry * frame * 0.1f,
-                        $"{kind} at {entry} m/s: the first frame does not carry on at the pace it came in at");
-                    float last = 0.0f;
-                    for (float t = frame; t <= window + frame; t += frame)
-                    {
-                        float now = SwordStrikes.Carried(metres, window, entry, t);
-                        Assert.GreaterOrEqual(now, last - 1e-5f, $"{kind} at {entry} m/s, {t:0.00} s: the body goes back");
-                        if (t < window * 0.8f)
-                        {
-                            Assert.Greater(now - last, 0.5f * frame, $"{kind} at {entry} m/s, {t:0.00} s: the body stops on the way into the cut");
-                        }
-                        last = now;
-                    }
-                    Assert.AreEqual(metres, SwordStrikes.Carried(metres, window, entry, window), 1e-4f, $"{kind}: not carried its whole way by the end of the live window");
-                    Assert.AreEqual(metres, SwordStrikes.Carried(metres, window, entry, window + 1.0f), 1e-4f, $"{kind} goes on carrying the body through its recovery");
-                    Assert.Less(SwordStrikes.Carried(metres, window, entry, window) - SwordStrikes.Carried(metres, window, entry, window - frame), 0.4f * frame,
-                        $"{kind} at {entry} m/s: the body is still going as the live window ends");
-                }
-                // The clip's own carry is the game's, at the pace it was made for.
-                Assert.AreEqual(SwordStrikes.Carried(metres, window, madeFor, 0.2f), SwordStrikes.Stepped(kind, 0.2f), 1e-5f);
-            }
-        }
-
-        [Test]
-        public void TheOpenerIsChosenByHowFastTheBodyIsGoingForward()
+        public void TheFirstLightOfABodyThatIsSprintingIsTheRunningAttack()
         {
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.OpenerFor(true, 0.0f));
-            Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.OpenerFor(true, -4.0f), "backing away is not walking into it");
-            Assert.AreEqual(SwordStrikeKind.SlashWalk1H, SwordStrikes.OpenerFor(true, 4.0f));
+            Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.OpenerFor(true, 4.0f), "a walk throws the chain's first cut, its legs walking under it");
+            Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.OpenerFor(true, -7.5f), "running backwards is not running at it");
             Assert.AreEqual(SwordStrikeKind.Run1H, SwordStrikes.OpenerFor(true, 7.5f));
-            Assert.AreEqual(SwordStrikeKind.Sweep2H, SwordStrikes.OpenerFor(false, 1.0f));
-            Assert.AreEqual(SwordStrikeKind.SweepWalk2H, SwordStrikes.OpenerFor(false, 4.0f));
+            Assert.AreEqual(SwordStrikeKind.Sweep2H, SwordStrikes.OpenerFor(false, 4.0f));
             Assert.AreEqual(SwordStrikeKind.Run2H, SwordStrikes.OpenerFor(false, 7.5f));
-            Assert.Less(SwordStrikes.WalkOpenerFromSpeed, 4.0f * 0.75f, "a walk barely under way would still throw the standing cut");
             Assert.Greater(SwordStrikes.RunOpenerFromSpeed, 4.0f * 1.2f, "a walk throws the running attack");
-            Assert.Less(SwordStrikes.RunOpenerFromSpeed, 7.5f * 0.85f, "a sprint a moment after it started would still throw the walking cut");
-            foreach (SwordStrikeKind kind in OnTheMove)
+            Assert.Less(SwordStrikes.RunOpenerFromSpeed, 7.5f * 0.85f, "a sprint a moment after it started would not throw the running attack");
+            foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                // Each is the cut its arm is keyed as, at the same contact: only the body under it and how far it goes differ.
-                Assert.Greater(SwordStrikes.StepMetres(kind), 1.0f, $"{kind} goes no further than a standing cut steps");
+                Assert.AreEqual(System.Array.IndexOf(Running, kind) >= 0, SwordStrikes.IsRunningAttack(kind), kind.ToString());
             }
         }
     }

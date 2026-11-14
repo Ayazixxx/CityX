@@ -3,8 +3,8 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// The sword attacks: five with a one-handed sword, five with a two-handed one, and each hold's two openers thrown on the move (the first
-    /// light out of a walk, and the running attack out of a sprint).
+    /// The sword attacks: five with a one-handed sword, five with a two-handed one, and each hold's running attack (the first light of a
+    /// body that is sprinting).
     /// </summary>
     public enum SwordStrikeKind
     {
@@ -38,16 +38,10 @@ namespace CityX.Character
         /// <summary>Two-handed, a hammer's third light: raised overhead and smashed straight down the middle (owner, 2026-11-05, the sledgehammer).</summary>
         Smash2H,
 
-        /// <summary>One-handed, out of a walk: the slash thrown on the move, two walking steps carrying the body into it (<see cref="SwordStrikes.EntrySpeed"/>).</summary>
-        SlashWalk1H,
-
-        /// <summary>Two-handed, out of a walk: the forehand sweep thrown on the move.</summary>
-        SweepWalk2H,
-
-        /// <summary>One-handed, out of a sprint: the running attack, a leaping stride and the diagonal cut brought down with the run behind it.</summary>
+        /// <summary>One-handed, at a sprint: the running attack, the diagonal cut brought down with the run behind it (the legs run on under it).</summary>
         Run1H,
 
-        /// <summary>Two-handed, out of a sprint: the running attack.</summary>
+        /// <summary>Two-handed, at a sprint: the running attack.</summary>
         Run2H,
     }
 
@@ -158,8 +152,6 @@ namespace CityX.Character
         public const string Sweep2HName = "sword2h_sweep";
         public const string Slam2HName = "sword2h_slam";
         public const string Smash2HName = "sword2h_smash";
-        public const string SlashWalk1HName = "sword1h_slash_walk";
-        public const string SweepWalk2HName = "sword2h_sweep_walk";
         public const string Run1HName = "sword1h_run";
         public const string Run2HName = "sword2h_run";
 
@@ -197,7 +189,7 @@ namespace CityX.Character
         {
             SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Thrust1H, SwordStrikeKind.Overhead1H,
             SwordStrikeKind.Cut2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Slam2H, SwordStrikeKind.Finisher1H,
-            SwordStrikeKind.Smash2H, SwordStrikeKind.SlashWalk1H, SwordStrikeKind.SweepWalk2H, SwordStrikeKind.Run1H, SwordStrikeKind.Run2H,
+            SwordStrikeKind.Smash2H, SwordStrikeKind.Run1H, SwordStrikeKind.Run2H,
         };
 
         public static bool TryGet(string animation, out SwordStrikeKind kind)
@@ -214,8 +206,6 @@ namespace CityX.Character
                 case Sweep2HName: kind = SwordStrikeKind.Sweep2H; return true;
                 case Slam2HName: kind = SwordStrikeKind.Slam2H; return true;
                 case Smash2HName: kind = SwordStrikeKind.Smash2H; return true;
-                case SlashWalk1HName: kind = SwordStrikeKind.SlashWalk1H; return true;
-                case SweepWalk2HName: kind = SwordStrikeKind.SweepWalk2H; return true;
                 case Run1HName: kind = SwordStrikeKind.Run1H; return true;
                 case Run2HName: kind = SwordStrikeKind.Run2H; return true;
                 default: kind = SwordStrikeKind.Slash1H; return false;
@@ -246,8 +236,6 @@ namespace CityX.Character
                 case SwordStrikeKind.Reverse2H: return Reverse2HName;
                 case SwordStrikeKind.Sweep2H: return Sweep2HName;
                 case SwordStrikeKind.Smash2H: return Smash2HName;
-                case SwordStrikeKind.SlashWalk1H: return SlashWalk1HName;
-                case SwordStrikeKind.SweepWalk2H: return SweepWalk2HName;
                 case SwordStrikeKind.Run1H: return Run1HName;
                 case SwordStrikeKind.Run2H: return Run2HName;
                 default: return Slam2HName;
@@ -260,7 +248,7 @@ namespace CityX.Character
         {
             return kind == SwordStrikeKind.Slash1H || kind == SwordStrikeKind.Cut1H
                 || kind == SwordStrikeKind.Thrust1H || kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Finisher1H
-                || kind == SwordStrikeKind.SlashWalk1H || kind == SwordStrikeKind.Run1H;
+                || kind == SwordStrikeKind.Run1H;
         }
 
         public static bool IsHeavy(SwordStrikeKind kind) => kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Slam2H;
@@ -306,8 +294,7 @@ namespace CityX.Character
         {
             switch (kind)
             {
-                case SwordStrikeKind.Slash1H:
-                case SwordStrikeKind.SlashWalk1H: return new StrikeTiming(0.22f, 0.06f, 0.12f, 0.11f, 0.06f, 0.24f);
+                case SwordStrikeKind.Slash1H: return new StrikeTiming(0.22f, 0.06f, 0.12f, 0.11f, 0.06f, 0.24f);
                 case SwordStrikeKind.Cut1H: return new StrikeTiming(0.20f, 0.05f, 0.12f, 0.10f, 0.06f, 0.24f);
                 case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.20f, 0.08f, 0.10f, 0.06f, 0.05f, 0.24f);
                 case SwordStrikeKind.Overhead1H: return new StrikeTiming(0.34f, 0.30f, 0.13f, 0.12f, 0.16f, 0.34f);
@@ -315,10 +302,9 @@ namespace CityX.Character
                 case SwordStrikeKind.Finisher1H: return new StrikeTiming(0.30f, 0.12f, 0.13f, 0.10f, 0.12f, 0.55f);
                 case SwordStrikeKind.Cut2H: return new StrikeTiming(0.30f, 0.10f, 0.15f, 0.115f, 0.08f, 0.32f);
                 case SwordStrikeKind.Reverse2H: return new StrikeTiming(0.24f, 0.06f, 0.14f, 0.12f, 0.06f, 0.26f);
-                case SwordStrikeKind.Sweep2H:
-                case SwordStrikeKind.SweepWalk2H: return new StrikeTiming(0.26f, 0.07f, 0.14f, 0.13f, 0.07f, 0.27f);
-                // The running attacks: the chain's last cut brought down on the run, quicker up (the run is the wind-up) and with a long skid
-                // of a recovery, in which the runner is open.
+                case SwordStrikeKind.Sweep2H: return new StrikeTiming(0.26f, 0.07f, 0.14f, 0.13f, 0.07f, 0.27f);
+                // The running attacks: the chain's last cut brought down on the run, quicker up (the run is the wind-up) and with a long
+                // recovery, in which the runner cannot attack again.
                 case SwordStrikeKind.Run1H: return new StrikeTiming(0.24f, 0.06f, 0.13f, 0.10f, 0.10f, 0.40f);
                 case SwordStrikeKind.Run2H: return new StrikeTiming(0.26f, 0.07f, 0.15f, 0.115f, 0.10f, 0.42f);
                 // A light, so no long hold, but with a hammer's weight: a higher wind-up than the diagonal, and a longer recovery once it lands.
@@ -382,17 +368,16 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// How far an attack steps the body, metres: the stride its clip's feet are planted for. A swing is a commitment (owner, 2026-11-13:
-        /// "akin to dark souls combat"): the body does not walk under it, the attack's own step carries it.
+        /// How far an attack thrown STANDING steps the body, metres: the stride its clip's feet are planted for. A body the keys are
+        /// moving is not stepped at all: the keys carry it, at its full pace (owner, 2026-11-13: "You should be able to move freely with
+        /// zero slowdown"), and its legs are its walk's or its run's. The running attack is only ever thrown on the run: no step.
         /// </summary>
         public static float StepMetres(SwordStrikeKind kind)
         {
             switch (kind)
             {
-                case SwordStrikeKind.SlashWalk1H: return 1.20f;
-                case SwordStrikeKind.SweepWalk2H: return 1.30f;
                 case SwordStrikeKind.Run1H:
-                case SwordStrikeKind.Run2H: return 2.30f;
+                case SwordStrikeKind.Run2H: return 0.0f;
                 case SwordStrikeKind.Slash1H: return 0.45f;
                 case SwordStrikeKind.Cut1H: return 0.50f;
                 case SwordStrikeKind.Finisher1H: return 0.55f;
@@ -420,69 +405,52 @@ namespace CityX.Character
         public static float Stepped(SwordStrikeKind kind, float seconds)
         {
             float total = Seconds(kind);
-            float entry = EntrySpeed(kind);
-            return entry > 0.0f
-                ? Carried(StepMetres(kind), total * ActiveEnd(kind), entry, seconds)
-                : StepMetres(kind) * StepShare(total * ActiveStart(kind), total * ActiveEnd(kind), seconds);
+            return StepMetres(kind) * StepShare(total * ActiveStart(kind), total * ActiveEnd(kind), seconds);
         }
 
-        // ---- thrown on the move ---------------------------------------------------------------------------------------------------------------
-        // Owner, 2026-11-13: "the movement of the character carries over into the attack, for instance if you are sprinting it does a different
-        // attack, if you are walking forward it does a slightly different attack if you are standing still ... right now it feels like
-        // attacking forces you to stay still or slow down". An opener thrown while going forward takes the body's speed with it: the body
-        // carries on at the pace it had and is brought to a stop by the end of the blade's live window, further on than a standing cut steps.
+        // ---- on the move ------------------------------------------------------------------------------------------------------------------------
+        // Owner, 2026-11-13: "You need to have the sword movements conserve momentum and move freely while attacking. It feels bad right
+        // now because you are slowed down every time you attack. You should be able to move freely with zero slowdown"; and, earlier the
+        // same day, "if you are sprinting it does a different attack". An attack takes nothing from the body's movement: the keys walk,
+        // sprint and steer it through every swing as if no sword were swung, its legs are its walk's or its run's, and the attack is the
+        // arms and the torso over them (docs/SWORD_MOMENTUM.md). The first light of a body that is sprinting is the running attack.
 
-        /// <summary>Going forward at least this fast, m/s, the first light is the one thrown out of a walk.</summary>
-        public const float WalkOpenerFromSpeed = 2.0f;
-
-        /// <summary>And at least this fast (a sprint is 7.5, a walk 4), the running attack.</summary>
+        /// <summary>Going forward at least this fast, m/s (a sprint is 7.5, a walk 4), the first light is the running attack.</summary>
         public const float RunOpenerFromSpeed = 5.8f;
 
-        /// <summary>
-        /// The forward speed an attack is thrown at, m/s: what its clip's feet are planted for. 0 for an attack thrown standing, which
-        /// steps from rest (<see cref="StepShare"/>).
-        /// </summary>
-        public static float EntrySpeed(SwordStrikeKind kind)
-        {
-            switch (kind)
-            {
-                case SwordStrikeKind.SlashWalk1H:
-                case SwordStrikeKind.SweepWalk2H: return 4.0f;
-                case SwordStrikeKind.Run1H:
-                case SwordStrikeKind.Run2H: return 7.5f;
-                default: return 0.0f;
-            }
-        }
-
-        /// <summary>The first light for a body going forward at <paramref name="forwardSpeed"/> m/s: thrown standing, out of a walk, or the running attack.</summary>
+        /// <summary>The first light for a body going forward at <paramref name="forwardSpeed"/> m/s: the chain's first cut, or at a sprint the running attack.</summary>
         public static SwordStrikeKind OpenerFor(bool oneHanded, float forwardSpeed)
         {
             if (forwardSpeed >= RunOpenerFromSpeed)
             {
                 return oneHanded ? SwordStrikeKind.Run1H : SwordStrikeKind.Run2H;
             }
-            if (forwardSpeed >= WalkOpenerFromSpeed)
-            {
-                return oneHanded ? SwordStrikeKind.SlashWalk1H : SwordStrikeKind.SweepWalk2H;
-            }
             return oneHanded ? SwordStrikeKind.Slash1H : SwordStrikeKind.Sweep2H;
         }
 
         /// <summary>
-        /// How far a body that came into an attack at <paramref name="entrySpeed"/> m/s has been carried <paramref name="elapsedSeconds"/> in,
-        /// of <paramref name="metres"/> in all by <paramref name="windowSeconds"/> (the end of the live window): it sets off at the speed it
-        /// came in at and is at rest at the end, with no stop between (a cubic with those two slopes). At half the speed times the window it
-        /// slows evenly; given further to go it surges into the cut first.
+        /// The body's own speed over the ground, m/s, between which an attack's clip gives the legs back to the walk: under the first
+        /// the body is standing (the clip's stride, the attack's step), over the second it is on the move (the walk's or the run's legs,
+        /// no step), and between the two the legs are mixed.
         /// </summary>
-        public static float Carried(float metres, float windowSeconds, float entrySpeed, float elapsedSeconds)
+        public const float LegsStandBelowSpeed = 0.4f;
+
+        public const float LegsWalkFromSpeed = 1.6f;
+
+        /// <summary>
+        /// How much of an attack's clip the LEGS take, 0 to 1, for a body going at <paramref name="ownSpeed"/> m/s by its own movement (not
+        /// counting the attack's step): all of it standing, none of it on the move. The running attack's legs are always the run's.
+        /// </summary>
+        public static float ClipLegs(SwordStrikeKind kind, float ownSpeed)
         {
-            if (windowSeconds <= 0.0f)
-            {
-                return metres;
-            }
-            float s = Mathf.Clamp01(elapsedSeconds / windowSeconds);
-            return entrySpeed * windowSeconds * (s - 2.0f * s * s + s * s * s) + metres * (3.0f * s * s - 2.0f * s * s * s);
+            return IsRunningAttack(kind) ? 0.0f : StandingShare(ownSpeed);
         }
+
+        /// <summary>The first light of a body that is sprinting: thrown only on the run, so its legs are never its clip's.</summary>
+        public static bool IsRunningAttack(SwordStrikeKind kind) => kind == SwordStrikeKind.Run1H || kind == SwordStrikeKind.Run2H;
+
+        /// <summary>How far a body going at <paramref name="ownSpeed"/> m/s by its own movement counts as standing, 0 to 1: what an attack's own step and its clip's legs are scaled by.</summary>
+        public static float StandingShare(float ownSpeed) => 1.0f - Mathf.InverseLerp(LegsStandBelowSpeed, LegsWalkFromSpeed, ownSpeed);
 
         // ---- the body the keys are written against -------------------------------------------------------------------------------------
 
@@ -842,7 +810,6 @@ namespace CityX.Character
             switch (kind)
             {
                 case SwordStrikeKind.Sweep2H:
-                case SwordStrikeKind.SweepWalk2H:
                 {
                     // THE FOREHAND: wound up beside the right shoulder like a bat, the blade back over it, hips and shoulders turned right; the
                     // hips lead round, the arms reach out across the front at chest height with the blade flat, and it carries on round to the
@@ -912,7 +879,6 @@ namespace CityX.Character
                     return Assemble(kind, ready2, windup, contact, follow);
                 }
                 case SwordStrikeKind.Slash1H:
-                case SwordStrikeKind.SlashWalk1H:
                 {
                     // Coiled against the cut: the arm out to the right at chest height with the blade trailing behind, the hips and shoulders wound with
                     // it, the free arm ahead, and the left foot striding out through the wind-up so it is down before the blade arrives. A flat arc across

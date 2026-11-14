@@ -50,12 +50,12 @@ def phases(wind, hold, strike, follow, settle, recover):
             "followed": wind + hold + strike + follow, "settled": wind + hold + strike + follow + settle, "seconds": wind + hold + strike + follow + settle + recover}
 
 
-def attack(timing, step, wound, held, contact, followed, back, left, right, ready=READY_1H, rising=None, two_handed=False, entry=0.0):
+def attack(timing, step, wound, held, contact, followed, back, left, right, ready=READY_1H, rising=None, two_handed=False):
     """An attack from its phases, how far the game steps the body, and its keys: wound up, the hold's end (the wind-up crept a little further), the contact, the follow-through's
     end (held through the settle), a moment on the way back, and the feet on the stage. rising: (seconds, key), a moment on the way up to the wind-up. two_handed: only for
-    the preview's stand-in arms. entry: thrown on the move, the forward speed the body comes in at, m/s (SwordStrikes.EntrySpeed): the game carries it on from that pace."""
+    the preview's stand-in arms."""
     t = phases(*timing)
-    return dict(t, step=step, entry=entry, left=left, right=right, two_handed=two_handed, keys=[(0.0, ready, None)] + ([(rising[0], rising[1], "linear")] if rising is not None else []) + [
+    return dict(t, step=step, left=left, right=right, two_handed=two_handed, keys=[(0.0, ready, None)] + ([(rising[0], rising[1], "linear")] if rising is not None else []) + [
         (t["wound"], wound, "smooth"),
         (t["held"], held, "linear"),
         (t["contact"], contact, "linear"),
@@ -178,62 +178,32 @@ ATTACKS.update({
         # Up by way of the sweep's own wind-up, as the one-handed heavy goes by way of the slash's.
         rising=(0.18, key(twist=48.0, hips=22.0, lean=-6.0, tilt=3.0, drop=0.11, shift=(0.06, -0.08)))),
 })
-# ---- THROWN ON THE MOVE ------------------------------------------------------------------------------------------------------------------------------------------------------
-# Owner, 2026-11-13: "the movement of the character carries over into the attack, for instance if you are sprinting it does a different attack, if you are walking forward
-# it does a slightly different attack if you are standing still". The first light out of a walk and the running attack out of a sprint: the game hands the body's forward
-# speed to the attack, which carries on at that pace and is at rest by the end of the blade's live window (SwordStrikes.Carried, `stepped` below). So the feet here do not
-# stand and stride: they WALK or RUN into the cut, the right foot passing first and the left planted under the blow, and nothing leans back: the pace is the wind-up.
-WALK, RUN = 4.0, 7.5                # SwordStrikes.EntrySpeed
-
+# ---- THE RUNNING ATTACKS ---------------------------------------------------------------------------------------------------------------------------------------------------
+# Owner, 2026-11-13: "if you are sprinting it does a different attack", and then "You need to have the sword movements conserve momentum and move freely while attacking ...
+# You should be able to move freely with zero slowdown". The first light of a body that is sprinting: the chain's last cut (the diagonal from over the right shoulder)
+# brought down on the run. The keys carry the body through it at its full pace and its legs are its run's own: the game takes only the TORSO AND THE HEAD from these
+# clips (SwordStrikes.ClipLegs), so the feet here simply stand and nothing is stepped. The body leans into its run all the way: the pace is the wind-up.
 ATTACKS.update({
-    # THE SLASH OUT OF A WALK: two walking steps carry the body 1.2 m into it. The shoulders turn away as the right foot passes, and the cut comes round as the left lands.
-    "sword1h_slash_walk": attack(
-        (0.22, 0.06, 0.12, 0.11, 0.06, 0.24), 1.20,
-        key(twist=66.0, hips=30.0, lean=7.0, tilt=5.0, drop=0.12, shift=(0.05, -0.04)),
-        key(twist=70.0, hips=32.0, lean=6.0, tilt=5.0, drop=0.13, shift=(0.05, -0.05)),
-        key(twist=-15.0, hips=-30.0, lean=22.0, tilt=3.0, drop=0.19, shift=(-0.05, 0.10), chin=5.0, staged=True),
-        key(twist=-66.0, hips=-46.0, lean=18.0, tilt=1.0, drop=0.18, shift=(-0.07, 0.09), chin=5.0),
-        key(twist=-20.0, hips=-14.0, lean=9.0, drop=0.11, shift=(-0.02, 0.04)),
-        right=[(0.0, 0.17, (STANCE_X, 0.85), 0.10), (0.48, 0.68, (STANCE_X, 1.10), 0.05)],
-        left=[(0.15, 0.37, (-0.22, 1.30), 0.12)],
-        entry=WALK),
-    # THE SWEEP OUT OF A WALK, likewise, 1.3 m.
-    "sword2h_sweep_walk": attack(
-        (0.26, 0.07, 0.14, 0.13, 0.07, 0.27), 1.30,
-        key(twist=64.0, hips=30.0, lean=7.0, tilt=4.0, drop=0.12, shift=(0.05, -0.04)),
-        key(twist=68.0, hips=32.0, lean=6.0, tilt=4.0, drop=0.13, shift=(0.05, -0.05)),
-        key(twist=-10.0, hips=-30.0, lean=22.0, tilt=2.0, drop=0.19, shift=(-0.05, 0.10), chin=5.0, staged=True),
-        key(twist=-54.0, hips=-44.0, lean=18.0, drop=0.18, shift=(-0.07, 0.09), chin=5.0),
-        key(twist=-16.0, hips=-12.0, lean=9.0, drop=0.11, shift=(-0.02, 0.04)),
-        right=[(0.0, 0.19, (STANCE_X, 0.90), 0.10), (0.56, 0.78, (STANCE_X, 1.20), 0.05)],
-        left=[(0.17, 0.42, (-0.22, 1.40), 0.12)],
-        ready=READY_2H, two_handed=True, entry=WALK),
-    # THE RUNNING ATTACK: the chain's last cut brought down on the run, 2.3 m. A running stride onto the right foot as the blade goes up, a long leaping stride onto the
-    # left with the body still leaning into the run, and the cut comes down as that foot lands, the body sinking deep over it; the right leg trails and swings through into
-    # the skid.
     "sword1h_run": attack(
-        (0.24, 0.06, 0.13, 0.10, 0.10, 0.40), 2.30,
-        key(twist=50.0, hips=20.0, lean=10.0, tilt=-5.0, drop=0.03, shift=(0.05, -0.02)),
-        key(twist=54.0, hips=22.0, lean=9.0, tilt=-5.0, drop=0.02, shift=(0.05, -0.03)),
-        key(twist=-25.0, hips=-36.0, lean=34.0, tilt=10.0, drop=0.24, shift=(-0.06, 0.08), chin=8.0, staged=True),
-        key(twist=-62.0, hips=-48.0, lean=32.0, tilt=8.0, drop=0.26, shift=(-0.08, 0.06), chin=8.0),
-        key(twist=-24.0, hips=-16.0, lean=16.0, drop=0.16, shift=(-0.03, 0.04)),
-        right=[(0.0, 0.19, (STANCE_X, 1.25), 0.20), (0.27, 0.62, (STANCE_X, 2.20), 0.22)],
-        left=[(0.06, 0.40, (-0.22, 2.40), 0.28)],
-        entry=RUN),
+        (0.24, 0.06, 0.13, 0.10, 0.10, 0.40), 0.0,
+        key(twist=50.0, hips=20.0, lean=10.0, tilt=-5.0, drop=0.03),
+        key(twist=54.0, hips=22.0, lean=9.0, tilt=-5.0, drop=0.02),
+        key(twist=-25.0, hips=-36.0, lean=34.0, tilt=10.0, drop=0.16, chin=8.0, staged=True),
+        key(twist=-62.0, hips=-48.0, lean=32.0, tilt=8.0, drop=0.16, chin=8.0),
+        key(twist=-24.0, hips=-16.0, lean=16.0, drop=0.10),
+        left=[], right=[]),
     "sword2h_run": attack(
-        (0.26, 0.07, 0.15, 0.115, 0.10, 0.42), 2.30,
-        key(twist=46.0, hips=20.0, lean=10.0, tilt=-4.0, drop=0.03, shift=(0.05, -0.02)),
-        key(twist=50.0, hips=22.0, lean=9.0, tilt=-4.0, drop=0.02, shift=(0.05, -0.03)),
-        key(twist=-20.0, hips=-34.0, lean=32.0, tilt=8.0, drop=0.23, shift=(-0.06, 0.08), chin=8.0, staged=True),
-        key(twist=-50.0, hips=-44.0, lean=30.0, tilt=6.0, drop=0.25, shift=(-0.08, 0.06), chin=8.0),
-        key(twist=-22.0, hips=-16.0, lean=15.0, drop=0.16, shift=(-0.03, 0.04)),
-        right=[(0.0, 0.20, (STANCE_X, 1.30), 0.20), (0.29, 0.66, (STANCE_X, 2.20), 0.22)],
-        left=[(0.07, 0.45, (-0.22, 2.40), 0.28)],
-        ready=READY_2H, two_handed=True, entry=RUN),
+        (0.26, 0.07, 0.15, 0.115, 0.10, 0.42), 0.0,
+        key(twist=46.0, hips=20.0, lean=10.0, tilt=-4.0, drop=0.03),
+        key(twist=50.0, hips=22.0, lean=9.0, tilt=-4.0, drop=0.02),
+        key(twist=-20.0, hips=-34.0, lean=32.0, tilt=8.0, drop=0.16, chin=8.0, staged=True),
+        key(twist=-50.0, hips=-44.0, lean=30.0, tilt=6.0, drop=0.16, chin=8.0),
+        key(twist=-22.0, hips=-16.0, lean=15.0, drop=0.10),
+        left=[], right=[],
+        ready=READY_2H, two_handed=True),
 })
 ORDER_OF_ATTACKS = ("sword1h_slash", "sword1h_cut", "sword1h_finisher", "sword1h_overhead", "sword2h_sweep", "sword2h_reverse", "sword2h_cut", "sword2h_smash", "sword2h_slam",
-                    "sword1h_slash_walk", "sword2h_sweep_walk", "sword1h_run", "sword2h_run")
+                    "sword1h_run", "sword2h_run")
 
 # What the game is given: no arm bone (the game's own poses have the arms).
 EXPORTED_BONES = ("hips", "spine", "neck", "head", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r")
@@ -280,14 +250,11 @@ def sample(keys, seconds):
 
 
 def stepped(move, seconds):
-    """How far the game has moved the body by then (SwordStrikes.Stepped: keep the two in step). Thrown standing: stepped from halfway through the startup to the end of the
-    live window, eased. Thrown on the move: carried on from the speed it came in at to rest at the end of the live window (SwordStrikes.Carried)."""
+    """How far the game has stepped a STANDING body by then (SwordStrikes.Stepped: keep the two in step): from halfway through the startup to the end of the live window,
+    eased. (A body the keys are moving is not stepped, and its legs are its walk's own, not these.)"""
     wind, hold, strike, follow, _, _ = move["timing"]
     startup = wind + hold + strike * 0.25                       # SwordStrikes.ActiveStart
     window = wind + hold + strike + follow * 0.7                # SwordStrikes.ActiveEnd
-    if move["entry"] > 0.0:
-        s = max(0.0, min(1.0, seconds / window))
-        return move["entry"] * window * (s - 2.0 * s * s + s * s * s) + move["step"] * (3.0 * s * s - 2.0 * s * s * s)
     return move["step"] * smooth((seconds - startup * 0.5) / (window - startup * 0.5))
 
 

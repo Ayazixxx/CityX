@@ -26,6 +26,11 @@ namespace CityX.Character
     /// handle are still the pose made here every frame, solved from the shoulders the clip has turned (PlayerLocomotion.ApplyBakedTrunk), so
     /// they suit whichever sword is held. The clip's feet are planted for the attack's own step (SwordStrikes.StepMetres); a body stopped
     /// short has its stride drawn in (PlayerLocomotion.SetClipStride).
+    ///
+    /// ON A BODY THAT IS MOVING THE LEGS ARE THE WALK'S (owner, 2026-11-13: "move freely while attacking ... zero slowdown"): the keys carry
+    /// the body through a swing at its full pace, so the clip gives the hips and legs back to the walk or the run as the body moves off
+    /// (SwordStrikes.ClipLegs, BakedPose.LegsWeight) and takes them again when it stands. The torso, the head and the arms are the
+    /// attack's either way.
     /// </summary>
     public sealed class SwordPoseDriver : MonoBehaviour
     {
@@ -103,6 +108,9 @@ namespace CityX.Character
         /// <summary>How long the next attack's clip takes to take over from one still on the body (a chain's next cut, a light turned into the heavy), seconds.</summary>
         public const float ClipCrossfadeSeconds = 0.12f;
 
+        /// <summary>How long the legs take to go from the clip's stride to the walk's and back, seconds, as the body moves off or comes to a stand mid-swing.</summary>
+        public const float ClipLegsSeconds = 0.15f;
+
         private BakedMotion _motion;
         private BakedPose _pose;
         private BakedPose _crossfadeFrom;
@@ -110,6 +118,8 @@ namespace CityX.Character
         private SwordStrikeKind _clipKind;
         private float _clipSeconds;
         private float _clipWeight;
+        private float _clipLegs = 1.0f;
+        private bool _walkedUnderClip;
         private float _clipEngageSeconds = ClipEngageSeconds;
         private bool _clipPlaying;
         private bool _holdsBody;
@@ -117,6 +127,9 @@ namespace CityX.Character
 
         /// <summary>0 to 1: how much of the body an attack's clip holds.</summary>
         public float ClipWeight => _clipWeight;
+
+        /// <summary>0 to 1: how much of the clip the legs have (1 standing, 0 on the move: the walk's or the run's own).</summary>
+        public float ClipLegs => _clipLegs;
 
         /// <summary>An attack is in progress.</summary>
         public bool IsStriking => _striking;
@@ -275,9 +288,15 @@ namespace CityX.Character
                 _crossfadeRemaining = ClipCrossfadeSeconds;
                 _clipEngageSeconds = ClipEngageSeconds;
             }
+            else
+            {
+                // From no clip: the legs start as the body is, standing or on the move, not by way of the other.
+                _clipLegs = SwordStrikes.ClipLegs(kind, _locomotion != null ? _locomotion.OwnGroundSpeed : 0.0f);
+            }
             _clipKind = kind;
             _clipSeconds = 0.0f;
             _beganAt = transform.position;
+            _walkedUnderClip = false;
         }
 
         /// <summary>This frame of the attack's clip on the body, or the body let go of once the clip has faded out.</summary>
@@ -311,8 +330,12 @@ namespace CityX.Character
                 _pose.MixBodyFrom(_crossfadeFrom, Mathf.SmoothStep(0.0f, 1.0f, 1.0f - _crossfadeRemaining / ClipCrossfadeSeconds));
             }
             _holdsBody = true;
+            _clipLegs = Mathf.MoveTowards(_clipLegs, SwordStrikes.ClipLegs(_clipKind, _locomotion.OwnGroundSpeed), deltaTime / ClipLegsSeconds);
+            _pose.LegsWeight = _clipLegs;
             _locomotion.SetBakedPose(_pose, Mathf.SmoothStep(0.0f, 1.0f, _clipWeight));
-            _locomotion.SetClipStride(_locomotion.StrideShareSince(_beganAt, SwordStrikes.Stepped(_clipKind, _clipSeconds)));
+            // (Only a body that stands is stepped by the attack: on the move the keys carry it, and there is no stride of the clip's to draw in.)
+            _walkedUnderClip |= _clipLegs < 1.0f;
+            _locomotion.SetClipStride(_walkedUnderClip ? 1.0f : _locomotion.StrideShareSince(_beganAt, SwordStrikes.Stepped(_clipKind, _clipSeconds)));
         }
 
         /// <summary>Lets go of the body, if the clip has it: the baked pose is one slot, and a spin or a reload may have it next.</summary>

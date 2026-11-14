@@ -37,7 +37,7 @@ namespace CityX.Tests
             Directory.CreateDirectory(directory);
             var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ground.transform.position = new Vector3(0, -0.5f, 0);
-            ground.transform.localScale = new Vector3(60, 1, 60);
+            ground.transform.localScale = new Vector3(400, 1, 400);   // room to sprint through a swing
             var sun = new GameObject("Sun").AddComponent<Light>();
             sun.type = LightType.Directional;
             sun.intensity = 1.2f;
@@ -125,8 +125,8 @@ namespace CityX.Tests
                     }
                 }
 
-                // The attacks: each from a fresh ready stance (the chain is advanced by buffering the next light), then the two openers
-                // thrown on the move: out of a walk and out of a sprint (the body walked or run up to its pace first).
+                // The attacks: each from a fresh ready stance (the chain is advanced by buffering the next light), then on the move, the
+                // keys held all through: the first light at a walk, and the running attack at a sprint.
                 var attacks = new (string label, System.Action start, SoulsAttack attack, float pace)[]
                 {
                     ("light1", () => combat.RequestLight(0.0f), combat.LightAttack(0), 0.0f),
@@ -147,16 +147,16 @@ namespace CityX.Tests
                     {
                         continue;   // a knife has the one opener
                     }
+                    LocomotionInput keys = idle;
                     if (pace > 0.0f)
                     {
-                        LocomotionInput moving = idle;
-                        moving.Move = Vector2.up;
-                        moving.Sprint = pace > locomotion.WalkSpeed;
+                        keys.Move = Vector2.up;
+                        keys.Sprint = pace > locomotion.WalkSpeed;
                         for (int i = 0; i < 80; i++)
                         {
                             combat.Tick(Dt);
                             vitals.TickHitstun(Dt);
-                            locomotion.Tick(moving, Dt);
+                            locomotion.Tick(keys, Dt);
                             yield return null;
                         }
                     }
@@ -225,7 +225,7 @@ namespace CityX.Tests
                         }
                         combat.Tick(Dt);
                         vitals.TickHitstun(Dt);
-                        locomotion.Tick(idle, Dt);
+                        locomotion.Tick(keys, Dt);
                         yield return null;
                     }
                     log.AppendLine($"{swordLabel} {label}: fastest tip {fastest:0.0} m/s, lowest tip {lowestTip:0.00} m, left palm off the grip at most {worstLeft * 100:0} cm");

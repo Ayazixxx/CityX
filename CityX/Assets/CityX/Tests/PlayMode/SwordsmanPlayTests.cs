@@ -117,8 +117,10 @@ namespace CityX.Tests
                     nextSwing = clock + 0.9f;
                 }
                 Vector2 move = distance > 2.3f ? new Vector2(0.0f, 1.0f) : (distance < 1.6f ? new Vector2(0.0f, -0.5f) : Vector2.zero);
-                if (combat.IsCommitted) move *= combat.CommittedMoveSpeedFraction;
-                if (vitals.IsStunned) move = Vector2.zero;
+                // This player lets go of the keys while it swings. A swing takes nothing from a player's movement (2026-11-13), and one that
+                // walks after him swinging lands every cut: he is stunned again before he can raise his guard or finish a wind-up, and
+                // nothing this test is about (his guard, the rebound, the punish, the dash, the cut back) ever happens. Found by this test.
+                if (combat.IsCommitted || vitals.IsStunned) move = Vector2.zero;
                 locomotion.Tick(new LocomotionInput { Move = move, YawDegrees = yaw, Sword1HEquipped = true, LockedOn = true }, Dt);
                 yield return null;
 

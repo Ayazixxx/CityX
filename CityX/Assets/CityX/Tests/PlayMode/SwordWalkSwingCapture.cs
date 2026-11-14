@@ -15,8 +15,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The sword swung ON THE MOVE (owner, 2026-10-16: "make sure his feet dont lock up during combat animations while moving"): the body walks
-    /// forward, sideways and stands still while throwing the light chain, the way the input reader drives it (a committed swing slows the walk
-    /// to CommittedMoveSpeedFraction). Renders a film strip of each (rows: from the right side, from behind like the game camera) and logs
+    /// forward, sideways and stands still while throwing the light chain, the way the input reader drives it (a swing takes nothing from the
+    /// walk). Renders a film strip of each (rows: from the right side, from behind like the game camera) and logs
     /// how the feet behave: how far a foot on the ground SKATES (moves while it should be planted) and how far a planted foot is left
     /// BEHIND its hip (a foot locked while the body walks away from it).
     ///
@@ -108,13 +108,8 @@ namespace CityX.Tests
                     Vector3 start = player.transform.position;
                     for (float t = 0.0f; t < total; t += Dt)
                     {
-                        // The input reader's rule: a committed swing slows the walk to CommittedMoveSpeedFraction.
-                        Vector2 move = stick;
-                        if (combat.IsCommitted)
-                        {
-                            move *= combat.CommittedMoveSpeedFraction;
-                        }
-                        input.Move = move;
+                        // The input reader's rule: a swing takes nothing from the walk.
+                        input.Move = stick;
                         input.YawDegrees = 0.0f;
                         if (t >= nextClick && t < Lead + Swinging)
                         {

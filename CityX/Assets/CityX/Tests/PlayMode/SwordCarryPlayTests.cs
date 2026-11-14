@@ -226,7 +226,7 @@ namespace CityX.Tests
             for (int i = 0; i < 6; i++)
             {
                 combat.Tick(Dt);
-                yield return Frame(combat.IsCommitted ? walk * combat.CommittedMoveSpeedFraction : walk, false);
+                yield return Frame(walk, false);   // a swing takes nothing from a player's movement
                 Vector3 now = body.InverseTransformPoint(hand.position);
                 startJump = Mathf.Max(startJump, (now - last).magnitude);
                 last = now;
@@ -240,7 +240,7 @@ namespace CityX.Tests
             for (int i = 0; i < 60 * 8 && (_locomotion.SwordPoseActive || !lowering); i++)
             {
                 combat.Tick(Dt);
-                yield return Frame(combat.IsCommitted ? walk * combat.CommittedMoveSpeedFraction : walk, false);
+                yield return Frame(walk, false);   // a swing takes nothing from a player's movement
                 Vector3 now = body.InverseTransformPoint(hand.position);
                 lowering |= !driver.SwordPoser.IsStriking && driver.SwordPoser.IsCarrying;
                 if (lowering)

@@ -145,10 +145,16 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ASwingIsACommitmentAndItsOwnStepCarriesIt()
+        public void AStandingBodyIsSteppedIntoItsCutAndARunningAttackRunsOnItsOwnLegs()
         {
-            // Owner, 2026-11-13: committed swings, as in Dark Souls. The body does not walk under a swing; each attack steps it.
-            Assert.AreEqual(0.0f, _combat.CommittedMoveSpeedFraction, "the body still walks under a swing");
+            // Owner, 2026-11-13: "move freely while attacking ... zero slowdown". The keys carry a moving body through a swing at its own
+            // pace (SoulsSwordRealInputPlayTests); only a body standing still is stepped, by the stride its attack's clip plants.
+            Assert.AreEqual(0.0f, _combat.RunAttack.LungeMetres, "the running attack steps a body the keys are already carrying");
+            Assert.AreEqual(0.0f, _combat.OneHandRunAttack.LungeMetres);
+            Assert.Greater(_combat.RunAttack.DamageScale, _combat.Light1.DamageScale, "the running attack is no more than the first light");
+            Assert.Greater(_combat.OneHandRunAttack.DamageScale, _combat.OneHandLight1.DamageScale);
+            Assert.Less(_combat.RunAttack.DamageScale, _combat.Heavy.DamageScale, "a running attack out of nowhere is worth the heavy");
+            Assert.Less(_combat.OneHandRunAttack.DamageScale, _combat.OneHandHeavy.DamageScale);
             foreach (SoulsAttack attack in new[] { _combat.OneHandLight1, _combat.OneHandLight2, _combat.OneHandLight3, _combat.OneHandHeavy, _combat.Light1, _combat.Light2,
                          _combat.Light3, _combat.HammerLight3, _combat.Heavy })
             {

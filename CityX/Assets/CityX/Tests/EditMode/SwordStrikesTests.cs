@@ -35,7 +35,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void SevenAttacksAreOneHandedAndSevenTwoHanded()
+        public void SixAttacksAreOneHandedAndSixTwoHanded()
         {
             int oneHanded = 0;
             foreach (SwordStrikeKind kind in SwordStrikes.All)
@@ -44,9 +44,9 @@ namespace CityX.Tests
                 Assert.AreEqual(SwordStrikes.IsOneHanded(kind), !mid.TwoHanded, $"{kind}'s frames disagree with its handedness");
                 if (SwordStrikes.IsOneHanded(kind)) oneHanded++;
             }
-            // Each hold: its lights, its heavy, and its two openers thrown on the move (the one-handed has the knife's thrust besides; the two-handed, the hammer's smash).
-            Assert.AreEqual(7, oneHanded);
-            Assert.AreEqual(14, SwordStrikes.All.Length);
+            // Each hold: its lights, its heavy and its running attack (the one-handed has the knife's thrust besides; the two-handed, the hammer's smash).
+            Assert.AreEqual(6, oneHanded);
+            Assert.AreEqual(12, SwordStrikes.All.Length);
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.All[0]);
         }
 
@@ -221,9 +221,9 @@ namespace CityX.Tests
             {
                 for (int j = i + 1; j < SwordStrikes.All.Length; j++)
                 {
-                    if (SwordStrikes.EntrySpeed(SwordStrikes.All[i]) > 0.0f || SwordStrikes.EntrySpeed(SwordStrikes.All[j]) > 0.0f)
+                    if (SwordStrikes.IsRunningAttack(SwordStrikes.All[i]) || SwordStrikes.IsRunningAttack(SwordStrikes.All[j]))
                     {
-                        continue;   // an opener thrown on the move is a standing cut's own arm over a body that walks or runs into it
+                        continue;   // a running attack is the chain's last cut, its own arm, brought down over a body that runs on
                     }
                     Vector3 a = SwordStrikes.Evaluate(SwordStrikes.All[i], 0.35f).Hand;
                     Vector3 b = SwordStrikes.Evaluate(SwordStrikes.All[j], 0.35f).Hand;

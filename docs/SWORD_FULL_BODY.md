@@ -6,9 +6,10 @@ akin to dark souls combat."
 
 Asked how far to go, the owner chose both:
 
-- **A swing is a commitment.** The body does not walk under it; the attack's own step carries it, and it is aimed by turning before it
-  lands. (It kept 65% of walking pace under a swing until now, the legs walking on under an arm.)
-  The pace the body HAD is another matter: an attack opened on the move carries it on (docs/SWORD_MOMENTUM.md).
+- **A swing is a commitment** (the body rooted, carried by the attack's own step). **Taken back the same day**, after the owner played
+  it: "You should be able to move freely with zero slowdown". The keys now move the body through every swing at its full pace, and on a
+  moving body the clips below have the torso and the walk has the legs (docs/SWORD_MOMENTUM.md). What follows on this page about
+  strides and steps is the attack thrown STANDING.
 - **Slower, readable wind-ups.** A light lands about 0.4 s after the click (0.28 before), a two-handed one about 0.47 s (0.34), and the
   heavies are held at the top for a third of a second or more before they come down. The damage went up with the cycle, so a sword does
   a second what it did.
@@ -104,7 +105,7 @@ already winding up into the heavy from the pose it has reached.
   2026-11-13 with the clips and without (the arms alone, as they were): elbows and arm bones 3 cm into the torso at the worst (4
   without), the head cleared by 4 cm or more (0 without), the lower hand's wrist 6 cm into the belly's round where the two-handed
   ready stance already rests it (5 without).
-- `SoulsCombatRhythmTests`, `SoulsSwordRealInputPlayTests`: the commitment, the timings, the damage a second.
+- `SoulsCombatRhythmTests`, `SoulsSwordRealInputPlayTests`: the timings, the damage a second, and the free movement under a swing (docs/SWORD_MOMENTUM.md).
 
 ## Not done
 

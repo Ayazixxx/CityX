@@ -244,7 +244,7 @@ namespace CityX.Tests
 #endif
         }
 
-        // --- THE LEGS KEEP WALKING UNDER THE GUARD (a swing is a commitment: SoulsSwordRealInputPlayTests) ---
+        // --- THE LEGS KEEP WALKING UNDER THE SWORD ------------------------------
 
         /// <summary>
         /// The rig with the sparring dummy moved out of the way: it stands 1.6 m ahead, and walking into it the body stopped dead within a
@@ -308,6 +308,56 @@ namespace CityX.Tests
                 maxHips = Mathf.Max(maxHips, hipsY);
             }
             result.HipsHeightRange = maxHips - minHips;
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-13: "You need to have the sword movements conserve momentum and move freely while attacking ... zero slowdown"
+        /// (and, long before, "make the legs walk and not freeze up during sword use too"). Walking through a swing, the feet step as they
+        /// step walking, the hand swings, and the attack's clip does not drag the hips about: on a body that is moving the clip has the
+        /// torso and the walk has the legs.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheLegsKeepWalkingWhileTheSwordSwings()
+        {
+#if UNITY_EDITOR
+            BuildToWalk();
+            _vitals.InfiniteStamina = true;
+            yield return Frame(0.5f);
+
+            // Baseline: walking with nothing swung.
+            var plain = new Travel();
+            yield return MeasureWalking(1.0f, null, plain);
+            Assert.Greater(plain.Feet, 0.8f, $"setup: plain walking barely moved the feet ({plain.Feet:0.00})");
+
+            // The same second of walking, with a heavy in the middle of it.
+            var swinging = new Travel();
+            bool thrown = false;
+            float leastClipLegs = 1.0f;
+            var poser = _player.GetComponent<SwordPoseDriver>();
+            yield return MeasureWalking(1.0f, dt =>
+            {
+                if (!thrown)
+                {
+                    thrown = true;
+                    _combat.RequestHeavy(_player.transform.eulerAngles.y);
+                }
+                if (poser.ClipWeight > 0.5f)
+                {
+                    leastClipLegs = Mathf.Min(leastClipLegs, poser.ClipLegs);
+                }
+            }, swinging);
+
+            Assert.IsTrue(_combat.IsCommitted || swinging.Hand > 0.0f, "setup: the swing never started");
+            Assert.Less(leastClipLegs, 0.01f, "the attack's clip kept the legs of a body that was walking");
+            Assert.Greater(swinging.Feet, plain.Feet * 0.85f,
+                $"the legs froze during the swing: the feet travelled {swinging.Feet:0.00} against {plain.Feet:0.00} walking");
+            Assert.Greater(swinging.Hand, plain.Hand * 2.0f,
+                $"the sword hand did not actually swing ({swinging.Hand:0.00} against {plain.Hand:0.00} walking)");
+            Assert.Less(swinging.HipsHeightRange, plain.HipsHeightRange + 0.25f,
+                $"the swing dragged the hips about ({swinging.HipsHeightRange:0.00}m of height change against {plain.HipsHeightRange:0.00}m walking)");
+#else
+            yield break;
+#endif
         }
 
         [UnityTest]

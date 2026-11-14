@@ -147,20 +147,20 @@ namespace CityX.Tests
                     yield return null;
                 }
 
-                // The whole light chain (each next cut buffered as the last one lands), the heavy, then the openers thrown on the move: out of
-                // a walk and out of a sprint.
+                // The whole light chain (each next cut buffered as the last one lands) and the heavy, standing; then on the move, the keys
+                // held all through: the first light at a walk, and the running attack at a sprint.
                 for (int pass = 0; pass < 4; pass++)
                 {
                     int cuts = pass == 0 ? combat.LightChainLength : 1;
+                    LocomotionInput keys = input;
                     if (pass >= 2)
                     {
-                        LocomotionInput moving = input;
-                        moving.Move = Vector2.up;
-                        moving.Sprint = pass == 3;
+                        keys.Move = Vector2.up;
+                        keys.Sprint = pass == 3;
                         for (int i = 0; i < 80; i++)
                         {
                             combat.Tick(Dt);
-                            locomotion.Tick(moving, Dt);
+                            locomotion.Tick(keys, Dt);
                             yield return null;
                         }
                     }
@@ -179,9 +179,14 @@ namespace CityX.Tests
                         for (float t = 0.0f; t < until; t += Dt)
                         {
                             combat.Tick(Dt);
-                            locomotion.Tick(input, Dt);
+                            locomotion.Tick(keys, Dt);
                             yield return null;
                             clipHeld |= poser.ClipWeight > 0.99f;
+                            if (pass >= 2 && poser.ClipWeight > 0.99f && poser.ClipLegs > 0.01f)
+                            {
+                                failures.Add($"{weapon}, pass {pass}: the attack's clip has the legs of a body that is on the move ({poser.ClipLegs:0.00})");
+                                break;
+                            }
                             if (pass >= 2 && poser.ClipWeight < 0.99f)
                             {
                                 // Thrown on the move, the body is still coming out of the pose it ran in with until the clip has it, and a
@@ -227,8 +232,8 @@ namespace CityX.Tests
                             }
                         }
                     }
-                    string which = pass == 0 ? "light chain" : pass == 1 ? "heavy" : pass == 2 ? "opener out of a walk" : "running attack";
-                    if (pass >= 2 && lastThrown == combat.LightAttack(0).Animation) failures.Add($"{weapon} {which}: the standing cut was thrown");
+                    string which = pass == 0 ? "light chain" : pass == 1 ? "heavy" : pass == 2 ? "first light at a walk" : "running attack";
+                    if (pass >= 2 && (lastThrown == combat.LightAttack(0).Animation) != (pass == 2)) failures.Add($"{weapon} {which}: {lastThrown} was thrown");
                     report.AppendLine($"{weapon} {which}: arms clear the torso by {worstTorso * 100.0f:0} cm at the least ({torsoWhen}), the wrists by {worstHand * 100.0f:0} cm ({handWhen}), the head by {worstHead * 100.0f:0} cm ({headWhen})");
                     if (!clipHeld) failures.Add($"{weapon} {which}: the attack's clip never held the body");
                     if (worstTorso < -SwingTouch) failures.Add($"{weapon} {which}: an arm is {-worstTorso * 100.0f:0.0} cm inside the torso ({torsoWhen})");
@@ -240,6 +245,10 @@ namespace CityX.Tests
                         locomotion.Tick(input, Dt);
                         yield return null;
                     }
+                    // (Walked 80 frames up to its pace and through a swing: back to the middle of the ground for the next.)
+                    _player.GetComponent<CharacterController>().enabled = false;
+                    _player.transform.position = new Vector3(0.0f, 0.05f, 0.0f);
+                    _player.GetComponent<CharacterController>().enabled = true;
                 }
                 Object.Destroy(sword.gameObject);
                 Object.Destroy(_player);

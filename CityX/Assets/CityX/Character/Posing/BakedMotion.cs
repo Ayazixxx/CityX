@@ -368,6 +368,13 @@ namespace CityX.Character
         public bool UpperBodyOnly;
 
         /// <summary>
+        /// How much of the pose the hips and legs take, 0 to 1 (1: all of it, as every move has them). A sword attack's clip gives them
+        /// back to the walk as the body moves off (SwordPoseDriver): at 0 it is an upper-body pose, as <see cref="UpperBodyOnly"/> is, and
+        /// between the two the legs are part the clip's and part the walk's.
+        /// </summary>
+        public float LegsWeight = 1.0f;
+
+        /// <summary>
         /// The stab dash and the sword spin: while the move holds the body, the sword in the right hand is held in the thrust grip the move was posed with in Blender, so the
         /// blade points where the move means it, gripped in the fist, whatever hold the sword is otherwise in (ISwordBlade.HoldForThrust).
         /// </summary>

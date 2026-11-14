@@ -1103,11 +1103,10 @@ namespace CityX.Character
                 ? _vitals.TickStamina(wantsSprint, deltaTime)
                 : wantsSprint;
 
-            // Swinging roots the body, which is what makes a combo a
-            // commitment rather than something you can walk out of.
-            //
-            // A soulslike swing roots the same way, from the click to the end
-            // of its recovery -- and a held guard walks at half speed.
+            // An unarmed swing roots the body, which is what makes a combo a
+            // commitment rather than something you can walk out of. A sword's
+            // swing takes nothing from the body's movement (below); a held
+            // guard walks at half speed.
             Vector2 heldMove = move;
             SoulsSwordCombat soulsNow = SoulsSword;
             bool soulsArmed = soulsNow != null && soulsNow.IsEquipped;
@@ -1118,17 +1117,10 @@ namespace CityX.Character
                 move *= _melee.SwingMoveFraction;
                 sprinting = false;
             }
-            else if (soulsArmed && soulsNow.SlowsMovement)
-            {
-                // THE SWORD'S SWINGS PLAY ON THE UPPER BODY, so the legs walk
-                // under them -- Requested: "make the legs walk and not freeze
-                // up during sword use too." A committed swing still slows you
-                // hard (CommittedMoveSpeedFraction), it just no longer nails your
-                // feet to the floor; 0 there restores the old full root. The
-                // recovery's tail is free (SoulsSwordCombat.InRecoveryTail).
-                move *= soulsNow.CommittedMoveSpeedFraction;
-                sprinting = false;
-            }
+            // (A SWORD'S SWING TAKES NOTHING FROM THE BODY'S MOVEMENT: owner, 2026-11-13, "You need to have the sword movements conserve
+            // momentum and move freely while attacking ... You should be able to move freely with zero slowdown". The keys walk, sprint
+            // and steer through every swing; the legs are the walk's or the run's and the attack is the arms and the torso over them
+            // (SwordPoseDriver, docs/SWORD_MOMENTUM.md). It was slowed to 0.65 of a walk until 2026-11-13 and rooted for a few hours of it.)
             else if (soulsArmed && soulsNow.IsBlocking)
             {
                 move *= 0.5f;

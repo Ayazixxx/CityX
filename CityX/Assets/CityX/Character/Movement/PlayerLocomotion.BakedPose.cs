@@ -38,8 +38,14 @@ namespace CityX.Character
         /// <summary>How much the baked pose being applied holds the FINGERS this frame (0 when it has no finger bones): the hand grips keep off that much.</summary>
         public float BakedFingerWeight => _bakedFingerWeight;
 
-        /// <summary>True while the baked pose leaves the hips and legs to the Animator (a gun reload): the foot IK and the lean stay on.</summary>
-        public bool BakedPoseIsUpperBodyOnly => _bakedPose != null && _bakedPose.UpperBodyOnly;
+        /// <summary>
+        /// True while the baked pose leaves the hips and legs to the Animator, wholly or in part (a gun reload; a sword attack on a body
+        /// that is walking): the foot IK stays on, and what the pose still has of the legs is laid over it.
+        /// </summary>
+        public bool BakedPoseIsUpperBodyOnly => _bakedPose != null && (_bakedPose.UpperBodyOnly || _bakedPose.LegsWeight < 1.0f);
+
+        /// <summary>How much of the baked pose the hips and legs take, 0 to 1.</summary>
+        private float BakedLegsWeight => _bakedPose == null || _bakedPose.UpperBodyOnly ? 0.0f : Mathf.Clamp01(_bakedPose.LegsWeight);
 
         /// <summary>True while the baked pose has no arm bones (a sword attack's clip): the arms are posed as they are without it.</summary>
         public bool BakedPoseLeavesTheArms => _bakedPose != null && _bakedPose.LeavesTheArms;
@@ -104,11 +110,12 @@ namespace CityX.Character
         /// </summary>
         private void ApplyClipStride()
         {
-            if (_bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly || Mathf.Abs(_clipStride - 1.0f) < 0.02f)
+            float legs = BakedLegsWeight;
+            if (_bakedPoseWeight <= 0.0f || legs <= 0.0f || Mathf.Abs(_clipStride - 1.0f) < 0.02f)
             {
                 return;
             }
-            float share = Mathf.Lerp(1.0f, _clipStride, _bakedPoseWeight);
+            float share = Mathf.Lerp(1.0f, _clipStride, _bakedPoseWeight * legs);
             DrawFootToStride(_leftUpperLeg, _leftLowerLeg, _leftFoot, share);
             DrawFootToStride(_rightUpperLeg, _rightLowerLeg, _rightFoot, share);
         }
@@ -238,14 +245,15 @@ namespace CityX.Character
                 }
             }
 
-            float weight = _bakedPoseWeight;
-            bool upperOnly = _bakedPose.UpperBodyOnly;
+            float legs = BakedLegsWeight;
             for (int i = 0; i < _bakedBones.Length; i++)
             {
                 Transform bone = _bakedBones[i];
-                if (bone == null || (upperOnly && _bakedLowerBody[i]))
+                // A reload leaves the hips and legs to the Animator and the foot IK; a sword attack on the move, as much of them as it moves.
+                float weight = _bakedLowerBody[i] ? _bakedPoseWeight * legs : _bakedPoseWeight;
+                if (bone == null || weight <= 0.0f)
                 {
-                    continue;   // a reload leaves the hips and legs to the Animator and the foot IK
+                    continue;
                 }
                 Quaternion rotation = _bakedPose.Rotations[i];
                 if (_bakedPose.Bones[i] == BakedMotion.RootBone)
@@ -257,8 +265,9 @@ namespace CityX.Character
                 }
                 bone.localRotation = weight >= 1.0f ? rotation : Quaternion.Slerp(bone.localRotation, rotation, weight);
             }
-            _bakedFingerWeight = _bakedHasFingers ? weight : 0.0f;
-            HoldSwordForBakedMove(_bakedPose.ThrustGrip || _bakedPose.MocapGrip ? weight : 0.0f, _bakedPose.MocapGrip);
+            float whole = _bakedPoseWeight;
+            _bakedFingerWeight = _bakedHasFingers ? whole : 0.0f;
+            HoldSwordForBakedMove(_bakedPose.ThrustGrip || _bakedPose.MocapGrip ? whole : 0.0f, _bakedPose.MocapGrip);
 
             // The held thing's parts, in its own frame: the gun's slide, its magazine (which vanishes once it has dropped, and reappears in
             // the free hand). Visibility switches once the pose has mostly taken hold, so a part never blinks during the blend in.
@@ -268,9 +277,9 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                part.localPosition = Vector3.Lerp(part.localPosition, _bakedPose.PropPositions[p], weight);
-                part.localRotation = Quaternion.Slerp(part.localRotation, _bakedPose.PropRotations[p], weight);
-                if (weight >= 0.5f && part.gameObject.activeSelf != _bakedPose.PropVisible[p])
+                part.localPosition = Vector3.Lerp(part.localPosition, _bakedPose.PropPositions[p], whole);
+                part.localRotation = Quaternion.Slerp(part.localRotation, _bakedPose.PropRotations[p], whole);
+                if (whole >= 0.5f && part.gameObject.activeSelf != _bakedPose.PropVisible[p])
                 {
                     part.gameObject.SetActive(_bakedPose.PropVisible[p]);
                 }

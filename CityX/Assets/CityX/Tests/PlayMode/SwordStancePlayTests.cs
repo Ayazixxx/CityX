@@ -69,7 +69,7 @@ namespace CityX.Tests
         /// <summary>One frame of the owner's body, the way the input reader drives it: a committed swing slows the walk.</summary>
         private IEnumerator Frame(Vector2 stick)
         {
-            Vector2 move = _combat.IsCommitted ? stick * _combat.CommittedMoveSpeedFraction : stick;
+            Vector2 move = stick;   // a swing takes nothing from a player's movement
             _combat.Tick(Dt);
             _vitals.TickHitstun(Dt);
             _locomotion.Tick(new LocomotionInput { SwordEquipped = !_combat.IsOneHanded, Sword1HEquipped = _combat.IsOneHanded, Move = move }, Dt);

@@ -85,79 +85,66 @@ namespace CityX.Tests
 #endif
         }
 
-        /// <summary>
-        /// Owner, 2026-11-13: sword swings "akin to dark souls combat", and committed swings chosen over walking under them. W held all
-        /// through a swing, the body goes only as far as the attack's own step carries it; from the recovery's tail on it walks again.
-        /// </summary>
+        /// <summary>A click with no key held: the body is stepped into its cut by the attack's own stride, and no further.</summary>
         [UnityTest]
-        public IEnumerator AClickStartsASwingThatRootsTheBodyAndCarriesItByItsOwnStep()
+        public IEnumerator StandingAClickStepsTheBodyIntoItsCut()
         {
 #if UNITY_EDITOR
             yield return LoadSceneWithASword();
-
-            Press(_keyboard.wKey);
-            yield return null;
-            Vector3 before = _vitals.transform.position;
-            Press(_mouse.leftButton);
-            yield return null;
-            Release(_mouse.leftButton);
-            yield return null;
-
-            Assert.IsTrue(_combat.IsCommitted, "a real click never started a swing");
-            Assert.AreEqual(_combat.Light1.Animation, _combat.CurrentAttack.Animation);
-
-            float rootedFor = 0.0f;
-            while (_combat.SlowsMovement && rootedFor < 2.0f)
+            Time.captureFramerate = 60;
+            try
             {
-                rootedFor += Time.deltaTime;
+                Vector3 before = _vitals.transform.position;
+                Press(_mouse.leftButton);
                 yield return null;
+                Release(_mouse.leftButton);
+                yield return null;
+                Assert.IsTrue(_combat.IsCommitted, "a real click never started a swing");
+                Assert.AreEqual(_combat.Light1.Animation, _combat.CurrentAttack.Animation);
+                for (float t = 0.0f; t < 2.0f && _combat.IsCommitted; t += Time.deltaTime)
+                {
+                    yield return null;
+                }
+                float went = Flat(_vitals.transform.position - before).magnitude;
+                Assert.AreEqual(_combat.Light1.LungeMetres, went, 0.1f, "a standing body was not stepped into its cut by the attack's own stride");
             }
-            Vector3 after = _vitals.transform.position;
-            float went = new Vector2(after.x - before.x, after.z - before.z).magnitude;
-
-            float freeWalk = _locomotion.WalkSpeed * rootedFor;
-            float step = _combat.Light1.LungeMetres;
-            Debug.Log($"CityX committed swing: W held, the body went {went:0.00} m in {rootedFor:0.00} s (its step is {step:0.00} m; walking would be {freeWalk:0.00} m)");
-            Assert.Greater(went, step * 0.8f, $"the body went {went:0.00} m: the swing's own step ({step:0.00} m) did not carry it");
-            // (The frame the click is read on and the one the swing starts on are walked.)
-            Assert.Less(went, step + 0.3f, $"the body went {went:0.00} m through a swing of {rootedFor:0.00} s with a {step:0.00} m step: it walks under the swing");
-
-            // Out of the swing the keys walk the body again.
-            Vector3 freed = _vitals.transform.position;
-            for (float t = 0.0f; t < 0.6f; t += Time.deltaTime)
+            finally
             {
-                yield return null;
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             }
-            Release(_keyboard.wKey);
-            Vector3 walked = _vitals.transform.position - freed;
-            Assert.Greater(new Vector2(walked.x, walked.z).magnitude, 0.8f, "the body stays rooted after the swing has let it go");
 #else
             yield break;
 #endif
         }
 
         /// <summary>
-        /// Owner, 2026-11-13: "the movement of the character carries over into the attack ... if you are walking forward it does a slightly
-        /// different attack ... right now it feels like attacking forces you to stay still or slow down". Walking, a click throws the sweep
-        /// made for a body on the move, and the body carries on at its pace into it.
+        /// Owner, 2026-11-13: "You need to have the sword movements conserve momentum and move freely while attacking. It feels bad right
+        /// now because you are slowed down every time you attack. You should be able to move freely with zero slowdown". Walking with W
+        /// held, a click swings the chain's first cut and the body walks on through the whole swing at the pace it had.
         /// </summary>
         [UnityTest]
-        public IEnumerator WalkingAClickThrowsTheCutOnTheMoveAndTheBodyKeepsItsPaceIntoIt()
+        public IEnumerator WalkingAClickSwingsAndTheBodyWalksOnAtItsFullPace()
         {
-            yield return ThrowOnTheMove(sprinting: false);
+            yield return SwingOnTheMove(sprinting: false);
         }
 
-        /// <summary>"... for instance if you are sprinting it does a different attack": the running attack, with the sprint carried into it.</summary>
+        /// <summary>
+        /// "... if you are sprinting it does a different attack": the running attack, and the body sprints on through it at its full pace.
+        /// </summary>
         [UnityTest]
-        public IEnumerator SprintingAClickThrowsTheRunningAttackAndTheBodyKeepsItsPaceIntoIt()
+        public IEnumerator SprintingAClickThrowsTheRunningAttackAndTheBodySprintsOnAtItsFullPace()
         {
-            yield return ThrowOnTheMove(sprinting: true);
+            yield return SwingOnTheMove(sprinting: true);
         }
 
-        private IEnumerator ThrowOnTheMove(bool sprinting)
+        /// <summary>The least of its pace a body may be measured at through a swing: a twentieth is the measuring (a tenth of a second's worth of frames).</summary>
+        private const float FullPaceShare = 0.95f;
+
+        private IEnumerator SwingOnTheMove(bool sprinting)
         {
 #if UNITY_EDITOR
             yield return LoadSceneWithASword();
+            _vitals.InfiniteStamina = true;   // a sprint that runs out of breath mid-swing is another slowdown, and not the sword's
             Time.captureFramerate = 60;
             try
             {
@@ -180,55 +167,54 @@ namespace CityX.Tests
                     sliceSeconds += Time.deltaTime;
                 }
                 float pace = Flat(_vitals.transform.position - sliceFrom).magnitude / sliceSeconds;
-                SoulsAttack expected = sprinting ? _combat.RunAttack : _combat.WalkLight1;
-                Assert.Greater(pace, sprinting ? SwordStrikes.RunOpenerFromSpeed : SwordStrikes.WalkOpenerFromSpeed, "the body never got up to its pace: nothing to carry");
+                Assert.Greater(pace, (sprinting ? _locomotion.SprintSpeed : _locomotion.WalkSpeed) * 0.9f, "the body never got up to its pace");
 
-                Vector3 clickedAt = _vitals.transform.position;
+                SoulsAttack expected = sprinting ? _combat.RunAttack : _combat.Light1;
                 Press(_mouse.leftButton);
                 yield return null;
                 Release(_mouse.leftButton);
                 yield return null;
                 Assert.IsTrue(_combat.IsCommitted, "a real click never started a swing");
-                Assert.AreEqual(expected.Animation, _combat.CurrentAttack.Animation, $"going at {pace:0.0} m/s the click threw the wrong opener");
-                Assert.Greater(_combat.EntrySpeed, pace * 0.8f, "the swing did not take the body's pace with it");
+                Assert.AreEqual(expected.Animation, _combat.CurrentAttack.Animation, $"going at {pace:0.0} m/s the click threw the wrong attack");
 
-                // Slice by slice until the blade has done its work: the body is never brought to a stop on the way in.
-                float window = expected.Startup + expected.Active;
-                float slowest = float.MaxValue, first = -1.0f;
-                Vector3 from = _vitals.transform.position;
-                float sliceTime = 0.0f, elapsed = 2.0f / 60.0f;
-                while (elapsed < window)
+                // Slice by slice through the swing, wind-up, blow and recovery, and on into the chain's next cut (clicked for as the first
+                // one lands): the body goes on at the pace it had.
+                Vector3 swungFrom = _vitals.transform.position, from = swungFrom;
+                float slowest = float.MaxValue, swung = 0.0f, sliceTime = 0.0f, intoTheNext = 0.0f;
+                int clicked = 0;
+                while (swung < 3.0f && intoTheNext < 0.4f)
                 {
+                    if (clicked == 0 && _combat.Phase == SoulsPhase.Recovery)
+                    {
+                        Press(_mouse.leftButton);
+                        clicked = 1;
+                    }
+                    else if (clicked == 1)
+                    {
+                        Release(_mouse.leftButton);
+                        clicked = 2;
+                    }
                     yield return null;
-                    elapsed += Time.deltaTime;
+                    swung += Time.deltaTime;
+                    if (_combat.CurrentAttack.Animation != expected.Animation)
+                    {
+                        intoTheNext += Time.deltaTime;
+                    }
                     sliceTime += Time.deltaTime;
                     if (sliceTime >= slice - 1e-4f)
                     {
-                        float speed = Flat(_vitals.transform.position - from).magnitude / sliceTime;
-                        if (first < 0.0f) first = speed;
-                        if (elapsed < window * 0.8f) slowest = Mathf.Min(slowest, speed);
+                        slowest = Mathf.Min(slowest, Flat(_vitals.transform.position - from).magnitude / sliceTime);
                         from = _vitals.transform.position;
                         sliceTime = 0.0f;
                     }
                 }
-                float carried = Flat(_vitals.transform.position - clickedAt).magnitude;
-                Debug.Log($"CityX thrown on the move ({expected.Animation}): came in at {pace:0.0} m/s, went on at {first:0.0} m/s, never slower than {slowest:0.0} m/s " +
-                          $"before the blow, carried {carried:0.00} m (made for {expected.LungeMetres:0.00} m)");
-                Assert.Greater(first, pace * 0.75f, $"the body came in at {pace:0.0} m/s and was down to {first:0.0} m/s a tenth of a second into the swing: the swing stops it");
-                Assert.Greater(slowest, 1.0f, $"the body all but stopped ({slowest:0.0} m/s) on its way into the cut");
-                // (The frame the click is read on and the one the swing starts on are still walked or run.)
-                Assert.AreEqual(expected.LungeMetres + pace * 2.0f / 60.0f, carried, 0.3f, "the body was not carried as far as the attack is made for");
-
-                // The chain goes on from it into the second light.
-                Press(_mouse.leftButton);
-                yield return null;
-                Release(_mouse.leftButton);
-                for (float t = 0.0f; t < 1.0f && _combat.CurrentAttack.Animation != _combat.Light2.Animation; t += Time.deltaTime)
-                {
-                    yield return null;
-                }
-                Assert.AreEqual(_combat.Light2.Animation, _combat.CurrentAttack.Animation, "the opener did not chain into the second light");
-                Assert.AreEqual(0.0f, _combat.EntrySpeed, "a chained cut carries a pace: it starts from a body at rest");
+                float went = Flat(_vitals.transform.position - swungFrom).magnitude;
+                Debug.Log($"CityX swing on the move ({expected.Animation}): going at {pace:0.00} m/s; through a swing of {swung:0.00} s never slower than {slowest:0.00} m/s, " +
+                          $"and {went:0.00} m covered ({pace * swung:0.00} m at that pace)");
+                Assert.AreEqual(_combat.Light2.Animation, _combat.CurrentAttack.Animation, "the attack did not chain into the second light");
+                Assert.Greater(swung, expected.Startup + expected.Active + 0.4f, "the swings were over before their blows");
+                Assert.Greater(slowest, pace * FullPaceShare, $"the body was slowed to {slowest:0.00} m/s during the swings (it was going at {pace:0.00} m/s)");
+                Assert.AreEqual(pace * swung, went, pace * swung * (1.0f - FullPaceShare), "the body did not cover the ground its pace would: the swings slowed it, or pushed it on");
             }
             finally
             {

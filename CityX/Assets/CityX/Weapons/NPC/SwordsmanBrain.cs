@@ -264,6 +264,7 @@ namespace CityX.Weapons
             _combat = GetComponent<SoulsSwordCombat>();
             if (_combat != null)
             {
+                _combat.SteppedOnTheMove = true;   // an enemy's swings slow it and step it, as they always have (SlowsMovement, below)
                 _combat.TelegraphLightSeconds = TelegraphLightSeconds;
                 _combat.TelegraphChainedSeconds = TelegraphChainedSeconds;
                 _combat.TelegraphHeavySeconds = TelegraphHeavySeconds;
