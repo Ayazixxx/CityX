@@ -600,6 +600,10 @@ namespace CityX.Character
             _driver = GetComponent<PlayerAnimationDriver>();
             _controller = GetComponent<CharacterController>();
             _locomotion = GetComponent<PlayerLocomotion>();
+            if (_locomotion != null)
+            {
+                _locomotion.SwordCombat = this;
+            }
             _animator = GetComponentInChildren<Animator>();
         }
 

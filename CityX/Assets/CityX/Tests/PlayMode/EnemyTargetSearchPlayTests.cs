@@ -42,6 +42,7 @@ namespace CityX.Tests
         [TestCase("Swordsman", ExpectedResult = null)]
         [TestCase("Shoota", ExpectedResult = null)]
         [TestCase("Giant", ExpectedResult = null)]
+        [TestCase("CrimsonClaw", ExpectedResult = null)]
         public IEnumerator AnEnemyWithNobodyNearLooksForAPlayerAboutOnceASecondNotEveryFrame(string enemy)
         {
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cube);

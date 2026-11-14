@@ -333,8 +333,11 @@ namespace CityX.Character
             HoverCorrect(deltaTime);
             _attackCooldownRemaining = Mathf.Max(0.0f, _attackCooldownRemaining - deltaTime);
 
+            // Once a second, with a target or without (a search scans the scene: an idle one that asked every frame cost more than five
+            // swordsmen); a target that has died or gone is replaced at once.
             _retargetIn -= deltaTime;
-            if (!Opponents.Alive(_target) || (_retargetIn <= 0.0f && !IsAttacking))
+            bool lostIt = _target != null && !Opponents.Alive(_target);
+            if (lostIt || (_retargetIn <= 0.0f && (!IsAttacking || _target == null)))
             {
                 _target = FindTarget();
                 _retargetIn = RetargetSeconds;

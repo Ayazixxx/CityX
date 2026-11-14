@@ -196,7 +196,6 @@ namespace CityX.Character
         private Transform _leftLowerLeg;
         private Transform _rightLowerLeg;
         private MeleeAttacker _melee;
-        private SoulsSwordCombat _soulsSword;
         private float _verticalVelocity;
 
         private float _appliedHeight = -1.0f;
@@ -229,17 +228,14 @@ namespace CityX.Character
         /// clip under it is only the sword walk/idle, whose spine is bent forward over the sword. Following it added that stoop to every swing
         /// and guard, a hunchback bowing into each cut (owner, 2026-10-16: "make the character is not turned in any awkward way").
         /// </summary>
-        public bool TorsoFollowsClip
-        {
-            get
-            {
-                if (_souls == null)
-                {
-                    _souls = GetComponent<SoulsSwordCombat>();   // added on the first equip
-                }
-                return _souls != null && _souls.IsEquipped && (_souls.IsCommitted || _souls.IsBlocking) && !SwordPoseActive;
-            }
-        }
+        public bool TorsoFollowsClip =>
+            SwordCombat != null && SwordCombat.IsEquipped && (SwordCombat.IsCommitted || SwordCombat.IsBlocking) && !SwordPoseActive;
+
+        /// <summary>
+        /// The soulslike sword's combat on this body; null until a sword is first taken in hand, which adds it. It says so here itself
+        /// (SoulsSwordCombat.Bind), so a body with no sword does not look for it every frame.
+        /// </summary>
+        public SoulsSwordCombat SwordCombat { get; set; }
 
         /// <summary>
         /// A clip that moves the whole body is playing (a dance, push-ups, a spell's whole-body move): the procedural sword hold and stance
@@ -296,7 +292,6 @@ namespace CityX.Character
             }
         }
 
-        private SoulsSwordCombat _souls;
         private float _torsoFollowBlend;
         private float _locomotionSpineBlend;
 
@@ -740,6 +735,10 @@ namespace CityX.Character
             _leftLowerLeg = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg) : null;
             _rightLowerLeg = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightLowerLeg) : null;
             _melee = GetComponent<MeleeAttacker>();
+            if (SwordCombat == null)
+            {
+                SwordCombat = GetComponent<SoulsSwordCombat>();   // one that was here first; one added later says so itself
+            }
             ApplyHeight();
         }
 

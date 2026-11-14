@@ -389,3 +389,47 @@ the one to compare with.
 Also 2026-11-13, for weaker machines (docs/PERFORMANCE_WEAK_PC.md): the first launch picks its preset for the graphics card, a
 four-thread processor gets two generator threads, `Maximum Allowed Timestep` is 0.1 s. New benchmark flag: `-bench-smaa 0` (the
 cameras' own smoothing off). Left for later: the terrain's cells over a cut (14 KB a chunk) and the buildings (13 KB).
+
+## Update: what the world's enemies cost, and the every-frame waste found with them (2026-11-14)
+
+Owner: "do a general overview of all existing code and refine it, simplify it, make everything run better". The frame benchmark was
+recorded first (the editor, 2560x1600, the start of the game): 72 fps standing and 71 sprinting, the main thread 13.7 ms a frame of which
+the picture is 8 ms and every script together 1.65 ms. As on 2026-11-13, the picture sets the frame there, not the code.
+
+That benchmark stands where the game starts, and nothing spawns within 120 m of Old Guy's house, so it never sees the enemies that have
+filled the rest of the world since 2026-11-14. `MobCostBench` (new) stands in a street 280 m away until both budgets are full (4 out of
+doors, 6 indoors), then times a frame with them alive, with all ten lying dead and with none in the world, and records a profile of
+each for `ProfileReport`. It runs in the test runner's small window, so it is the processor's side of them: scripts, posing, physics.
+
+| ten enemies | a frame over the empty world | each |
+|---|---|---|
+| before | 2.95 ms | 0.30 ms |
+| after | **1.34 ms** | 0.13 ms |
+| ten lying dead (before and after) | about 0.1 ms | 0.01 ms |
+
+What the profile showed, and what was done:
+
+- **One idle Crimson Claw cost 0.78 ms a frame, more than five swordsmen (0.36).** With nobody to fight it looked for a target every
+  frame, and each look scans the scene three times (`FindFirstObjectByType` twice, `PlayerBodies.NearestAlive`). The same mistake the
+  swordsman, the Shoota and the Giant were cured of on 2026-10-31; the Claw was not among them. It now looks once a second, target or
+  none, and a target that has died is replaced at once. It can take up to a second longer to notice someone who comes within its 16 m.
+  `EnemyTargetSearchPlayTests` holds it to that with the others. After: under 0.03 ms.
+- **Every body without a sword looked for its sword combat two or three times a frame** (`PlayerLocomotion.TorsoFollowsClip` and the
+  arm-snap guard, each with its own "not found yet, look again" field): the player with empty hands, every Shoota. The component is
+  added when a sword is first taken in hand; it now tells the body so itself (`SoulsSwordCombat.Bind` sets
+  `PlayerLocomotion.SwordCombat`), and nothing looks. In the editor each failed look also allocated half a kilobyte.
+- **A limp body's ragdoll made about fifteen new arrays and a few hundred component lookups at every physics step** (one
+  `Physics.OverlapBox` and `GetComponent<Collider>` a limb, and for everything a limb touched, a `GetComponent` on every limb again).
+  The colliders are looked up once and the overlaps read into one buffer (`Ragdoll.OverlapsOf`, `ColliderOf`). This is garbage saved
+  while bodies fall and lie knocked down, not frame time: bodies at rest cost almost nothing either way.
+- **`FlashlightSync` searched the whole body, every bone and every thing worn, for a torch every frame.** The flashlight already tells
+  the body's locomotion when it is taken in hand; the sync asks that.
+- **The camera's wall check made a new array every frame** (`SphereCastAll`); it reads into a buffer, and asks the cheap question
+  (is this hit nearer?) before the dear ones.
+- Three-argument `Mathf.Min`/`Max` (an array a call, rule 8 of docs/CODE_STYLE.md) in the body-motion reader (every snapshot of
+  every other player's body), the snow's cover map and the HUD portrait.
+
+**What is left in an enemy** (the profile after, seven bodies posed): the body's own posing, 0.08 ms a body (`PlayerLocomotion.LateUpdate`:
+foot placing, hands, torso), and its brain and movement, 0.07 ms a swordsman. Most of the world's enemies are indoors, behind walls;
+posing only the ones a camera can see would be the next saving, and is a design decision (docs/CODE_STYLE.md, the 2026-11-14 review).
+What ten more bodies cost the graphics card is not in these numbers: `docs/CROWD_TEST.md` put the drawing at 0.27 ms a body.

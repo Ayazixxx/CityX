@@ -90,7 +90,14 @@ Found by reading the code rather than in play, and tested in-process: **nobody h
 Implement `ICosmeticMountable` on its component (copy `SwordWeapon`), and add its prefab to `NetworkedPlayerWiring.ItemPrefabPaths`.
 `EquipmentReplicationGuardTests` fails otherwise.
 
-Its pickup in the world notices only THIS machine's player: `InteractionReach.LocalPlayerBody` in `OnTriggerEnter` and
-`InteractionReach.IsLeaving` in `OnTriggerExit`, as every pickup does. Until 2026-10-17 each took whichever body walked in last, so an
-NPC or another player's copy passing through left E doing nothing, and hats and clothes forgot the player when an arm swung out
-(`PickupReachPlayTests`).
+Its pickup in the world notices only THIS machine's player: give it a `GroundPickup` and hand its `OnTriggerEnter` and `OnTriggerExit`
+to it, as every pickup does (inside, `InteractionReach.LocalPlayerBody` and `IsLeaving`). Until 2026-10-17 each took whichever body
+walked in last, so an NPC or another player's copy passing through left E doing nothing, and hats and clothes forgot the player when an
+arm swung out (`PickupReachPlayTests`).
+
+## Adding a new piece of shared world state
+
+Something of the world that every machine must agree on (as the light switches, the balcony doors, the glass, the graffiti, the dropped
+items, the weather and the enemies do) derives from `SessionRelay`: it finds the session, tells the relay when to hook and unhook its
+broadcasts as this machine becomes the server or a client (`HearAsServer`, `HearAsClient`, with `Hear<T>` for each message), and when a
+joining player may ask for what it missed (`OnLetIn`). The server checks every ask (`WireChecks`, `SenderRate`).

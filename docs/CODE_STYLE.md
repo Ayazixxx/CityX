@@ -143,6 +143,46 @@ the regenerated scene and prefabs compared object by object.
 Looked for and not found: logging in game code (two calls, both meant), silently swallowed exceptions, scene-wide searches every frame
 (the few per-frame lookups are `Camera.main`, which Unity caches, or are throttled and cached).
 
+## The 2026-11-14 review
+
+Owner: "do a general overview of all existing code and refine it, simplify it, make everything run better ... remove redundancies ...
+clean up anything that is poorly made or haphazardly put together that can create problems in the future". Proven as the others were:
+the full PlayMode suite before (1,357 passed, none failed) and after, EditMode after each step (2,494 passed).
+
+How it was looked for, since 220,000 lines cannot be read through in a sitting: a script that finds every block of seven or more lines
+repeated in more than one place; one that finds members nothing else names; one that finds fields only ever written; one that lists what
+each per-frame method (`Update`, `LateUpdate`, `FixedUpdate` and what they call) allocates or searches for; and the profiler, recorded in
+the real city with the world's enemies alive (`MobCostBench`, `ProfileReport`).
+
+- **Repeated code was under 2% of the game's code** (1,725 of 103,000 lines in blocks of seven or more), in a handful of clusters. Merged:
+  - the eight network relays' session hook-up, into `SessionRelay`;
+  - the nine pickups' E-to-take code, into `GroundPickup` (two bugs in it had each been fixed copy by copy);
+  - thirteen views' pointer, input and camera hand-over, into `MenuFocus` / `FreedCursor`;
+  - the pause menu's settings and the title screen's, two hand-kept copies of one page, into `SettingsPage` (733 lines to 502);
+  - the three icon painters' geometry, into `IconGeometry`.
+- **Leftovers removed:** 71 public members nothing in the project named, not even a test (373 lines: accessors, constants, whole
+  methods); five fields that were written and never read; four doc comments stranded above the wrong member; stale claims in comments
+  (the pause menu's "voice chat does not exist yet", the mob spawner's "the monster is not put into a session").
+- **The world seed is one constant** (`CitySeed.Default`). It was written out in 117 files, to be changed together by hand at each reroll.
+- **Less work a frame**, measured (docs/PERFORMANCE.md, 2026-11-14): the idle monster's every-frame scene search, the sword-combat lookup
+  every swordless body made two or three times a frame, the ragdoll's fifteen arrays a physics step, the flashlight's search of the whole
+  body every frame, the camera's array a frame. Ten enemies cost 2.95 ms of a frame before and 1.34 ms after.
+
+Net: about 1,150 lines fewer in 230 files, with six small shared files added.
+
+Looked at and left, each for a reason:
+
+- **The old grid city** (`World/LegacyGrid~`, `Tests/LegacyGrid~`, and the editor diagnostics switched off behind
+  `CITYX_LEGACY_GRID_DIAGNOSTICS`: `CityMassingCapture`, `StreetAnomalyScan`, a third of `GrapplingHookBuilder`), about 11,500 lines
+  that are never compiled. Set aside at the owner's request ("just set them aside for now"); deleting it is theirs to say.
+- **The editor builders' copy-paste** (below): their output is the scene and the prefabs, so merging them means regenerating and
+  comparing those object by object. Not done in a pass that also changed runtime code.
+- **The tests' own repetition** (2,675 of 82,000 lines; mostly the first ten lines of each `*Capture`).
+- **Doors asleep when nobody is near** (67 to 83 `BuildingDoor.Update` calls a frame, 0.03 ms): a door can be opened by more than the
+  player at its sill, so every way in would have to wake it. Not worth a door that fails to swing.
+- **Posing skipped for bodies nobody can see**: the largest cost left in an enemy is its posing (0.08 ms a body), and most of the
+  world's enemies are behind walls. It would change what is simulated, and a headless test sees nothing at all; a design decision.
+
 ## Known debts (not fixed yet)
 
 These are bigger than a tidy-up, so each would go in as a careful change of its own, with tests.
@@ -155,7 +195,9 @@ These are bigger than a tidy-up, so each would go in as a careful change of its 
   - some panel builders (`LoadoutPanelBuilder` and `StatsPanelBuilder`, `PauseMenuBuilder` and `TitleScreenBuilder`,
     `BookPanelBuilder` and `PlaceholderPanelBuilder`), and the first-open guard (`_opening`) in the five views that sit on their own
     hidden root (Stats, Loadout, Book, Placeholder, the Player fly-out)
-  - the three icon painters (`MenuIcons`, `ToolIcons`, `SkillIcons`)
+  - the three icon painters (`MenuIcons`, `ToolIcons`, `SkillIcons`): each still has its own `Shape` with its own kinds; only the
+    geometry under them is shared (`IconGeometry`)
+  - the item models' "into the right hand" on equip (four items), and the creator's list of what a preview body is stripped of (three places)
   - the render tests (`*Capture`), which each carry their own copy of the shoot-and-save code
 - Older files carry long history comments: bug reports, dates and the owner's words inside the code (their shouted "EXPLICIT ASK" /
   "EXPLICIT BUG REPORT" labels became plain "Requested:" / "Bug report:" on 2026-10-20). Rule 5 applies to new code; old comments get

@@ -145,13 +145,8 @@ namespace CityX.Character
 
             // THE SOULSLIKE SWORD DRIVES THE SAME ARM BONES THROUGH ITS OWN
             // (time-stretched) swing clips, for the same reason a
-            // MeleeAttacker swing is exempt above. Looked up lazily because
-            // SwordWeapon.OnEquip adds it at runtime, long after Bind().
-            if (_soulsSword == null)
-            {
-                _soulsSword = GetComponent<SoulsSwordCombat>();
-            }
-            if (_soulsSword != null && _soulsSword.IsCommitted)
+            // MeleeAttacker swing is exempt above.
+            if (SwordCombat != null && SwordCombat.IsCommitted)
             {
                 return;
             }

@@ -1,0 +1,11 @@
+# Unity writes its own files with LF line endings. Left to core.autocrlf (on by default with Git for Windows), git expects CRLF in
+# the working copy, and every file Unity rewrites is listed as modified though not a byte of it differs from what is committed:
+# hundreds of them after any scene rebuild, hiding the real changes. With these, LF is what the working copy holds.
+*.unity      text eol=lf
+*.prefab     text eol=lf
+*.asset      text eol=lf
+*.meta       text eol=lf
+*.mat        text eol=lf
+*.anim       text eol=lf
+*.controller text eol=lf
+*.mask       text eol=lf

@@ -49,7 +49,14 @@ they behave"), this is the first piece: WHERE and WHAT. Levels and new behaviour
 | Safe round Old Guy's house | 120 m | `MobHabitats.TutorialSafeMetres` |
 
 **The budget is a frame-rate budget, not a design choice**: bodies are what a crowd costs (`docs/CROWD_TEST.md`: about 0.65 ms a frame
-each on the owner's laptop in the editor). Ten enemies were not measured for frame rate in a build yet.
+each on the owner's laptop in the editor, drawing included).
+
+**What the ten cost, measured** (`MobCostBench`, 2026-11-14, the owner's laptop, in the editor, the processor's side only: scripts,
+posing, physics): with both budgets full (4 out of doors, 6 indoors) a frame took **1.34 ms** longer than with none in the world, about
+0.13 ms an enemy; ten lying dead cost about 0.1 ms between them. Before that day's two fixes it was 2.95 ms: one idle monster searched
+the whole scene for someone to fight every frame (0.78 ms by itself, more than five swordsmen), and every body without a sword looked
+for its sword component two or three times a frame (docs/PERFORMANCE.md). What they cost the graphics card, and the frame rate in a
+built game, is still not measured.
 
 Seen in the game's own city (`MobSpawnCapture`, 2026-11-14), the player stood in a street 280 m from the start: both budgets filled
 (2 ghosts and 2 monsters out of doors; 3 swordsmen and 3 gunners in buildings), with 9 buildings near by able to hold enemies.
@@ -127,6 +134,10 @@ crimsonclaw` is shared too.
 - `NetworkedPlayerStateSyncPlayTests.ACrimsonClawIsInTheSamePlaceForBothPlayersAndItsCopySwipesIsHurtAndDiesWithIt` (two machines).
 - `MobSpawnCapture` (Explicit, `-Graphics`): `Logs/CityShots/mobs-<n>-<kind>-<outdoors|indoors>.png` in the game's own city, and the
   counts.
+- `MobCostBench` (Explicit, `-Graphics`): a frame timed with the world's enemies alive, lying dead and absent, in the game's own city
+  (`Logs/Benchmark/mobs-cost.txt`), and a profile of each recorded for `ProfileReport`.
+- `EnemyTargetSearchPlayTests`: each enemy with nobody near (the swordsman, the Shoota, the Giant, the Crimson Claw) looks for someone
+  to fight about once a second, not every frame.
 
 ## Not in this slice
 
@@ -141,4 +152,4 @@ crimsonclaw` is shared too.
 - **The server deciding the spawns itself** (today each player's machine asks; with server authority it moves there with the rest,
   `docs/GAME_DESIGN.md` "Technical foundations").
 - **The sewers**: nothing appears below the streets.
-- **Frame rate with ten enemies** was not measured in a build.
+- **Frame rate with ten enemies in a built game** was not measured (their cost to the processor in the editor was: above).
