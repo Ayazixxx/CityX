@@ -32,6 +32,7 @@ namespace CityX.Tests
                 Kind("wraith", "Assets/CityX/Character/NetworkedWraith.prefab"),
                 Kind("wraith_summon", "Assets/CityX/Character/NetworkedWraithSummon.prefab"),
                 Kind("giant", "Assets/CityX/Character/NetworkedGiant.prefab"),
+                Kind("crimsonclaw", "Assets/CityX/Character/NetworkedCrimsonClaw.prefab"),
             };
             foreach (NetworkManager manager in new[] { _server, _clients[0], _clients[1] })
             {
@@ -368,7 +369,7 @@ namespace CityX.Tests
             // A fills the outdoor budget.
             for (int n = 1; n <= MobHabitats.MostOutdoors; n++)
             {
-                Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(n), Quaternion.identity, n, false), "A's machine would not ask");
+                Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(n), Quaternion.identity, n, -1), "A's machine would not ask");
             }
             yield return WaitUntil(() => toA.Count == MobHabitats.MostOutdoors, "A to be answered");
             foreach (GameObject body in toA.Values)
@@ -381,15 +382,16 @@ namespace CityX.Tests
             DisableCopyColliders();
 
             // B, standing with A, is refused another outdoor one (the budget is the place's, not each player's), and A too.
-            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(10), Quaternion.identity, 1L, false));
-            Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(11), Quaternion.identity, 50L, false));
+            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(10), Quaternion.identity, 1L, -1));
+            Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(11), Quaternion.identity, 50L, -1));
             yield return WaitUntil(() => toB.ContainsKey(1L) && toA.ContainsKey(50L), "B and A to be answered");
             Assert.IsNull(toB[1L], "B was given an enemy over the budget of the place it shares with A");
             Assert.IsNull(toA[50L], "A was given an enemy over the budget");
             Assert.AreEqual(MobHabitats.MostOutdoors, server.Spawned);
 
             // Indoor ones have a budget of their own.
-            Assert.IsTrue(b.TrySpawnWorldMob("swordsman", Where(12), Quaternion.identity, 2L, true));
+            const int Building = 7, AnotherBuilding = 8;
+            Assert.IsTrue(b.TrySpawnWorldMob("swordsman", Where(12), Quaternion.identity, 2L, Building));
             yield return WaitUntil(() => toB.ContainsKey(2L), "B to be answered for an indoor one");
             Assert.IsNotNull(toB[2L], "the outdoor budget kept an indoor enemy out");
             Assert.IsTrue(toB[2L].GetComponent<NetworkObject>().IsOwner);
@@ -397,28 +399,93 @@ namespace CityX.Tests
 
             // B cannot call A's enemy killed (the ticket is A's own): still refused.
             b.NoteWorldMobKilled(3L);
-            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(13), Quaternion.identity, 3L, false));
+            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(13), Quaternion.identity, 3L, -1));
             yield return WaitUntil(() => toB.ContainsKey(3L), "B to be answered again");
             Assert.IsNull(toB[3L], "a player called another player's enemy killed");
 
             // A's first is killed: it lies there, but counts no longer, and B is given one.
             a.NoteWorldMobKilled(1L);
             for (int i = 0; i < 10; i++) yield return null;
-            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(14), Quaternion.identity, 4L, false));
+            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(14), Quaternion.identity, 4L, -1));
             yield return WaitUntil(() => toB.ContainsKey(4L), "B to be answered once one of A's is dead");
             Assert.IsNotNull(toB[4L], "a dead enemy still counted toward the budget");
 
             // One taken away (its player left it) counts no longer either.
             EnemySession.Remove(toA[2L]);
             yield return WaitUntil(() => toA[2L] == null, "A's enemy to be taken out of the session");
-            Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(15), Quaternion.identity, 51L, false));
+            Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(15), Quaternion.identity, 51L, -1));
             yield return WaitUntil(() => toA.ContainsKey(51L), "A to be answered once one was taken away");
             Assert.IsNotNull(toA[51L], "an enemy taken out of the session still counted toward the budget");
 
-            // A kind the session does not share is not asked for at all (the monster exists on one machine alone, today).
+            // A CLEARED BUILDING STAYS EMPTY, FOR EVERYONE (owner, 2026-11-14: "Cleared buildings should stop spawning enemies"): B's
+            // swordsman was the only enemy in its building; killed, the building is given no more, to A or to B. Another building is.
+            var refusedAsCleared = new List<long>();
+            a.WorldMobRefusedAsCleared += ticket => refusedAsCleared.Add(ticket);
+            b.NoteWorldMobKilled(2L);
+            for (int i = 0; i < 10; i++) yield return null;
+            Assert.IsTrue(a.TrySpawnWorldMob("swordsman", Where(16), Quaternion.identity, 60L, Building));
+            Assert.IsTrue(b.TrySpawnWorldMob("swordsman", Where(17), Quaternion.identity, 5L, Building));
+            yield return WaitUntil(() => toA.ContainsKey(60L) && toB.ContainsKey(5L), "A and B to be answered about the cleared building");
+            Assert.IsNull(toA[60L], "an enemy appeared in a building another player had cleared");
+            Assert.IsNull(toB[5L], "an enemy appeared in a building its player had cleared");
+            Assert.Contains(60L, refusedAsCleared, "A was not told the building is cleared");
+            Assert.IsTrue(a.TrySpawnWorldMob("swordsman", Where(18), Quaternion.identity, 61L, AnotherBuilding));
+            yield return WaitUntil(() => toA.ContainsKey(61L), "A to be answered about another building");
+            Assert.IsNotNull(toA[61L], "a building nobody has cleared was refused an enemy");
+            DisableCopyColliders();
+
+            // The monster is the session's too (owner, 2026-11-14: "monsters should appear in the same location between players when online").
             Assert.IsTrue(a.InSession);
-            Assert.IsFalse(a.Shares("crimsonclaw"));
-            Assert.IsFalse(a.TrySpawnWorldMob("crimsonclaw", Where(16), Quaternion.identity, 52L, false));
+            Assert.IsTrue(a.Shares("crimsonclaw"), "the session has no Crimson Claw to share");
+            // A kind the session does not have is not asked for at all.
+            Assert.IsFalse(a.Shares("nosuchenemy"));
+            Assert.IsFalse(a.TrySpawnWorldMob("nosuchenemy", Where(19), Quaternion.identity, 52L, -1));
+#else
+            Assert.Ignore("needs the editor to load the networked prefabs.");
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// The Crimson Claw in a session (owner, 2026-11-14: "monsters should appear in the same location between players when online"):
+        /// asked for by A, it is run by A's machine and stands in the same place on B's; B's copy decides nothing, plays the swipes A's
+        /// starts, takes B's blows through to A's, and dies when A's does.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ACrimsonClawIsInTheSamePlaceForBothPlayersAndItsCopySwipesIsHurtAndDiesWithIt()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            yield return StartEnemyNetworks();
+            NetworkObject onA = null, onB = null;
+            yield return SpawnFromA("crimsonclaw", new Vector3(0.0f, CrimsonClaw.HoverHeightAboveGround, 7.0f), (a, b) => { onA = a; onB = b; });
+            var real = onA.GetComponent<CrimsonClaw>();
+            var copy = onB.GetComponent<CrimsonClaw>();
+            Assert.IsFalse(real.IsCopy, "the machine that asked for the Claw does not run it");
+            Assert.IsTrue(copy.IsCopy, "the other player's Claw thinks for itself");
+
+            // It goes for A, 7 m off, and swipes: B sees it where A has it, swiping.
+            bool copySwiped = false;
+            yield return WaitUntil(() =>
+            {
+                copySwiped |= copy.IsAttacking;
+                return copySwiped && real.IsAttacking;
+            }, "A's Claw to swipe and B's copy of it to show the swipe");
+            yield return WaitUntil(() => Vector3.Distance(onA.transform.position, onB.transform.position) < 1.5f, "B's copy to be where A's Claw is");
+
+            // B's blow on the copy lands on A's Claw, and the copy is told its health.
+            ((IDamageable)copy).ApplyHit(40.0f, _bOnB.transform.position, 0.0f);
+            yield return WaitUntil(() => real.Health < CrimsonClaw.MaxHealth - 1.0f, "B's blow on the copy to land on A's Claw");
+            yield return WaitUntil(() => copy.Health < CrimsonClaw.MaxHealth - 1.0f, "the copy to be told its health");
+            Assert.IsTrue(copy.IsAlive);
+
+            // Killed through the copy, it is dead on both machines.
+            for (int blow = 0; blow < 6 && real.IsAlive; blow++)
+            {
+                ((IDamageable)copy).ApplyHit(60.0f, _bOnB.transform.position, 0.0f);
+                for (int i = 0; i < 20; i++) yield return null;
+            }
+            yield return WaitUntil(() => !real.IsAlive && !copy.IsAlive, "the Claw to die on both machines");
 #else
             Assert.Ignore("needs the editor to load the networked prefabs.");
             yield break;

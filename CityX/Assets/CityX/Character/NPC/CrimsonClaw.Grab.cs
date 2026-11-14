@@ -58,7 +58,10 @@ namespace CityX.Character
         public void GrabNext() => _swipesSinceGrab = SwipesBetweenGrabs;
 
         /// <summary>A grab is a player's to be caught in: a summon is only ever swiped at.</summary>
-        private bool WantsToGrab() => _swipesSinceGrab >= SwipesBetweenGrabs && Opponents.Alive(_target) && _target is PlayerVitals player && player.CanBeSeized;
+        // (Another player's copy is never seized: the claw holds and throws the body, which is its own machine's to move. A copy is swiped
+        // at, and the cut goes to their machine as any blow on a copy does.)
+        private bool WantsToGrab() => _swipesSinceGrab >= SwipesBetweenGrabs && Opponents.Alive(_target) && _target is PlayerVitals player && player.CanBeSeized
+            && !PlayerBodies.IsCopy(player.gameObject);
 
         /// <summary>
         /// Its swing closes on what it reaches, as a swipe would cut it, and not on someone dashing. A guard stops it (owner, 2026-11-08: "make

@@ -222,6 +222,78 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Owner, 2026-11-14: "Cleared buildings should stop spawning enemies". The last humanoid alive in a building killed, the
+        /// building is cleared: nothing more appears in it, while the others near by go on being occupied.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ABuildingClearedOfItsEnemiesStaysEmpty()
+        {
+#if UNITY_EDITOR
+            yield return LoadTheCity();
+            StandAt(AStreet(280.0, buildingsNear: 6));
+            var alive = new List<(GameObject Body, MobHabitat Habitat)>();
+            int BuildingOf(GameObject body) => _plan.BuildingAtHeight(body.transform.position.x, body.transform.position.y + 1.0, body.transform.position.z);
+
+            // The first humanoid to appear, and the building it is in.
+            int cleared = -1;
+            yield return Until(() =>
+            {
+                alive.Clear();
+                _spawner.CopyAlive(alive);
+                foreach ((GameObject body, MobHabitat habitat) in alive)
+                {
+                    if (habitat == MobHabitat.Indoors && BuildingOf(body) >= 0)
+                    {
+                        cleared = BuildingOf(body);
+                        return true;
+                    }
+                }
+                return false;
+            }, 150.0f, "a humanoid to appear in a building");
+            Assert.IsFalse(_spawner.IsCleared(cleared), "a building with an enemy alive in it is called cleared");
+
+            // Every enemy in that building is killed (another may have appeared in it meanwhile: those too).
+            yield return Until(() =>
+            {
+                alive.Clear();
+                _spawner.CopyAlive(alive);
+                foreach ((GameObject body, MobHabitat habitat) in alive)
+                {
+                    if (habitat == MobHabitat.Indoors && BuildingOf(body) == cleared)
+                    {
+                        body.GetComponent<IDamageable>().ApplyHit(100000.0f, _player.transform.position, 0.0f);
+                    }
+                }
+                return _spawner.IsCleared(cleared);
+            }, 20.0f, "the building to be cleared once its enemies are dead");
+
+            // Nothing appears in it again, though the budget has room and the other buildings fill.
+            int elsewhere = 0;
+            var seen = new HashSet<GameObject>();
+            float watchUntil = Time.realtimeSinceStartup + 45.0f;
+            while (Time.realtimeSinceStartup < watchUntil)
+            {
+                alive.Clear();
+                _spawner.CopyAlive(alive);
+                foreach ((GameObject body, MobHabitat habitat) in alive)
+                {
+                    if (habitat != MobHabitat.Indoors || !seen.Add(body))
+                    {
+                        continue;
+                    }
+                    Assert.AreNotEqual(cleared, BuildingOf(body), "an enemy appeared in a building that had been cleared");
+                    elsewhere++;
+                }
+                yield return null;
+            }
+            Assert.IsTrue(_spawner.IsCleared(cleared), "the building is no longer cleared");
+            Assert.Greater(elsewhere, 0, "nothing appeared in any other building either: the spawner has stopped, not the building");
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>/mobs off: the ones alive are taken away at once and none appear; on again, they are back.</summary>
         [UnityTest]
         public IEnumerator TurnedOffTheWorldsEnemiesAreTakenAwayAndNoneAppearUntilTheyAreTurnedOnAgain()

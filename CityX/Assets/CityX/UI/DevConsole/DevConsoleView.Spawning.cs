@@ -152,7 +152,7 @@ namespace CityX.UI
                     // A few metres up, like the flyer -- it hovers rather
                     // than falls, and HoverCorrect eases it down to its own
                     // ground-relative height the moment it ticks.
-                    Instantiate(CrimsonClawPrefab, where + Vector3.up * 3.0f, facing);
+                    PutDown("crimsonclaw", CrimsonClawPrefab, where + Vector3.up * 3.0f, facing);
                     SpawnLog("spawned a crimson claw -- it will chase and attack you");
                     return true;
 

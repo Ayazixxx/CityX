@@ -15,7 +15,9 @@ namespace CityX.View
     /// doors and indoors each their own), every few seconds random spots are rolled round the player: over the ground, where on open
     /// ground a ghost or a monster appears (<see cref="MobHabitats.At"/>), and inside a random one of the buildings near by, where a
     /// humanoid appears on a random one of its floors (<see cref="MobHabitats.BuildingsNear"/>, <see cref="MobHabitats.TryIndoorSpot"/>). An enemy the player has left <see cref="MobHabitats.CrowdMetres"/> behind is taken out of the world.
-    /// A killed one is simply gone: another appears somewhere else in its own time.
+    /// A killed one is simply gone: another appears somewhere else in its own time. But A CLEARED BUILDING STAYS EMPTY (owner, 2026-11-14:
+    /// "Cleared buildings should stop spawning enemies"): once the last enemy alive in a building is killed, nothing appears in it for a
+    /// day (<see cref="MobHabitats.ClearedSeconds"/>); in a session the server keeps that for everyone.
     ///
     /// IN A SESSION each machine does this for its own player and ASKS THE SERVER for each enemy (EnemyNetwork), which spawns it for
     /// everyone, run by the asker's machine as with /spawn, and counts what is alive near the asker whoever runs it: players standing
@@ -64,7 +66,16 @@ namespace CityX.View
             public IDamageable Life;
             public MobHabitat Habitat;
             public long Ticket;
+
+            /// <summary>The building it appeared in (its id in the plan), or -1 out of doors.</summary>
+            public int Building = -1;
         }
+
+        /// <summary>The buildings cleared of their enemies, and when each may have enemies again (Time.time): MobHabitats.ClearedSeconds.</summary>
+        private readonly Dictionary<int, float> _cleared = new Dictionary<int, float>();
+
+        /// <summary>Whether building <paramref name="building"/> (its id in the plan) has been cleared and is still empty.</summary>
+        public bool IsCleared(int building) => _cleared.TryGetValue(building, out float until) && Time.time < until;
 
         private static readonly MobHabitat[] Habitats = { MobHabitat.Outdoors, MobHabitat.Indoors };
 
@@ -72,7 +83,7 @@ namespace CityX.View
         private readonly List<GameObject> _corpses = new List<GameObject>();
 
         /// <summary>The server has been asked and has not answered yet: the ask's ticket, its habitat, when the wait is given up.</summary>
-        private readonly Dictionary<long, (MobHabitat Habitat, float Until)> _asked = new Dictionary<long, (MobHabitat, float)>();
+        private readonly Dictionary<long, (MobHabitat Habitat, float Until, int Building)> _asked = new Dictionary<long, (MobHabitat, float, int)>();
 
         private readonly List<long> _late = new List<long>();
 
@@ -98,7 +109,7 @@ namespace CityX.View
             {
                 if (held.Habitat == habitat) count++;
             }
-            foreach ((MobHabitat asked, float _) in _asked.Values)
+            foreach ((MobHabitat asked, float _, int _) in _asked.Values)
             {
                 if (asked == habitat) count++;
             }
@@ -146,10 +157,12 @@ namespace CityX.View
             if (_network != null)
             {
                 _network.WorldMobAnswered -= OnAnswered;
+                _network.WorldMobRefusedAsCleared -= OnRefusedAsCleared;
             }
             _network = network;
             if (_network != null)
             {
+                _network.WorldMobRefusedAsCleared += OnRefusedAsCleared;   // (first: the answer that follows forgets the ask)
                 _network.WorldMobAnswered += OnAnswered;
             }
         }
@@ -194,6 +207,11 @@ namespace CityX.View
                     _network.NoteWorldMobKilled(held.Ticket);
                 }
                 _held.RemoveAt(i);
+                // The last one alive in its building: the building is cleared, and stays empty.
+                if (held.Building >= 0 && !_held.Exists(other => other.Building == held.Building))
+                {
+                    _cleared[held.Building] = Time.time + MobHabitats.ClearedSeconds;
+                }
             }
         }
 
@@ -220,7 +238,7 @@ namespace CityX.View
                 }
             }
             _late.Clear();
-            foreach (KeyValuePair<long, (MobHabitat Habitat, float Until)> ask in _asked)
+            foreach (KeyValuePair<long, (MobHabitat Habitat, float Until, int Building)> ask in _asked)
             {
                 if (Time.time >= ask.Value.Until) _late.Add(ask.Key);
             }
@@ -256,6 +274,7 @@ namespace CityX.View
         {
             Vector2 spot;
             BuildingSite site;
+            int building = -1;
             if (habitat == MobHabitat.Outdoors)
             {
                 // Anywhere in the ring round the player, if it is open ground.
@@ -280,8 +299,9 @@ namespace CityX.View
                 {
                     return false;
                 }
-                site = plan.Buildings[_near[_dice.Next(_near.Count)]];
-                if (!MobHabitats.TryIndoorSpot(plan, site, Roll(), Roll(), out double x, out double z))
+                building = _near[_dice.Next(_near.Count)];
+                site = plan.Buildings[building];
+                if (IsCleared(building) || !MobHabitats.TryIndoorSpot(plan, site, Roll(), Roll(), out double x, out double z))
                 {
                     return false;
                 }
@@ -333,23 +353,34 @@ namespace CityX.View
             if (session)
             {
                 long ticket = ++_lastTicket;
-                if (!_network.TrySpawnWorldMob(kind, position, facing, ticket, habitat == MobHabitat.Indoors))
+                if (!_network.TrySpawnWorldMob(kind, position, facing, ticket, building))
                 {
                     return false;
                 }
-                _asked[ticket] = (habitat, Time.time + AnswerWaitSeconds);
+                _asked[ticket] = (habitat, Time.time + AnswerWaitSeconds, building);
                 return true;
             }
             GameObject body = Instantiate(prefab, position, facing);
             // The city's, not whichever scene happens to be the active one: it leaves the world with the city.
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(body, gameObject.scene);
-            _held.Add(new Held { Body = body, Life = body.GetComponent<IDamageable>(), Habitat = habitat });
+            _held.Add(new Held { Body = body, Life = body.GetComponent<IDamageable>(), Habitat = habitat, Building = building });
             return true;
+        }
+
+        /// <summary>The session says a building this machine asked to put an enemy in has been cleared (by anyone): nothing is asked for it again for a while.</summary>
+        public const float ClearedAskAgainSeconds = 600.0f;
+
+        private void OnRefusedAsCleared(long ticket)
+        {
+            if (_asked.TryGetValue(ticket, out (MobHabitat Habitat, float Until, int Building) ask) && ask.Building >= 0)
+            {
+                _cleared[ask.Building] = Time.time + ClearedAskAgainSeconds;
+            }
         }
 
         private void OnAnswered(long ticket, GameObject body)
         {
-            if (!_asked.TryGetValue(ticket, out (MobHabitat Habitat, float Until) ask))
+            if (!_asked.TryGetValue(ticket, out (MobHabitat Habitat, float Until, int Building) ask))
             {
                 if (body != null)
                 {
@@ -360,7 +391,7 @@ namespace CityX.View
             _asked.Remove(ticket);
             if (body != null)   // (null: the budget near here is full, with enemies other players' machines run)
             {
-                _held.Add(new Held { Body = body, Life = body.GetComponent<IDamageable>(), Habitat = ask.Habitat, Ticket = ticket });
+                _held.Add(new Held { Body = body, Life = body.GetComponent<IDamageable>(), Habitat = ask.Habitat, Ticket = ticket, Building = ask.Building });
             }
         }
 

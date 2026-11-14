@@ -60,6 +60,13 @@ namespace CityX.Character
             return reader != null && IsPlayer(reader);
         }
 
+        /// <summary>Whether <paramref name="body"/> is another player's copy here: a player's body in a session that this machine does not play.</summary>
+        public static bool IsCopy(GameObject body)
+        {
+            var reader = body != null ? body.GetComponent<PlayerInputReader>() : null;
+            return reader != null && !reader.enabled && IsPlayer(reader);
+        }
+
         private static bool IsPlayer(PlayerInputReader reader)
         {
             if (!reader.gameObject.activeInHierarchy)

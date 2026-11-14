@@ -22,8 +22,11 @@ namespace CityX.Character
         /// </summary>
         public long WorldTicket;
 
-        /// <summary>One of the world's own: whether it appears inside a building (a humanoid) or out of doors (a ghost, a monster). Each has its own budget.</summary>
-        public bool Indoors;
+        /// <summary>
+        /// One of the world's own: the building it appears in (its id in the plan: a humanoid), or -1 out of doors (a ghost, a monster).
+        /// Indoors and out of doors each have their own budget, and a building cleared of its enemies is given no more for a day.
+        /// </summary>
+        public int Building;
     }
 
     /// <summary>The server's answer to a player who asked for one of the world's own enemies: the enemy it spawned for them, or none.</summary>
@@ -31,8 +34,11 @@ namespace CityX.Character
     {
         public long WorldTicket;
 
-        /// <summary>The spawned enemy's network object id, or -1: there are as many alive near the asker as there may be.</summary>
+        /// <summary>The spawned enemy's network object id, or -1: there are as many alive near the asker as there may be, or (<see cref="Cleared"/>) its building has been cleared.</summary>
         public int ObjectId;
+
+        /// <summary>Refused because the building asked for has been cleared of its enemies: it stays empty.</summary>
+        public bool Cleared;
     }
 
     /// <summary>An enemy's owner telling the server who killed it, so that player gets the kill's XP on their own machine.</summary>
@@ -59,7 +65,8 @@ namespace CityX.Character
     /// enemy at one, out of doors or indoors. The server spawns it for everyone, the asker's machine running it, unless there are already
     /// as many alive near the asker as there may be (MobHabitats.Most, within MobHabitats.CrowdMetres), whoever runs them: players
     /// standing together share one budget. It answers the asker, and the machine that runs an enemy tells it of the kill (a body lying
-    /// dead does not count).
+    /// dead does not count). When the last enemy alive in a building is killed the building is CLEARED: the server gives it no more,
+    /// to anyone, for a day (MobHabitats.ClearedSeconds).
     ///
     /// KILL CREDIT: a hit on an enemy's copy is decided on the owner's machine, so it is the owner's machine that sees the enemy die; it tells
     /// the server which player's hit killed it, and the server tells that player's machine, whose player takes the XP (a kill on this machine's
@@ -113,7 +120,10 @@ namespace CityX.Character
         private readonly List<NetworkObject> _alive = new List<NetworkObject>();
 
         /// <summary>The server's: the world's own enemies alive in the session, each with who runs it, that player's ticket for it, and whether it is an indoor one.</summary>
-        private readonly List<(NetworkObject Enemy, int OwnerClientId, long Ticket, bool Indoors)> _worldMobs = new List<(NetworkObject, int, long, bool)>();
+        private readonly List<(NetworkObject Enemy, int OwnerClientId, long Ticket, int Building)> _worldMobs = new List<(NetworkObject, int, long, int)>();
+
+        /// <summary>The server's: the buildings cleared of their enemies, and when each may be given enemies again (Time.unscaledTime).</summary>
+        private readonly Dictionary<int, float> _clearedUntil = new Dictionary<int, float>();
 
         /// <summary>This machine's answers from the server whose enemy has not arrived here yet: the ask's ticket, the enemy's object id, when the wait is given up.</summary>
         private readonly List<(long Ticket, int ObjectId, float Until)> _awaited = new List<(long, int, float)>();
@@ -126,6 +136,9 @@ namespace CityX.Character
         /// machine's to run, or null (there are as many alive near here as there may be).
         /// </summary>
         public event System.Action<long, GameObject> WorldMobAnswered;
+
+        /// <summary>The server has refused this machine's ask (by its ticket) because the building asked for has been cleared; <see cref="WorldMobAnswered"/> follows with no enemy.</summary>
+        public event System.Action<long> WorldMobRefusedAsCleared;
 
         /// <summary>This machine is in a running session: enemies are asked of its server, and only the kinds it shares can be.</summary>
         public bool InSession => _clientHandlers && _manager != null && _manager.IsClientStarted;
@@ -173,6 +186,7 @@ namespace CityX.Character
                     _manager.ServerManager.UnregisterBroadcast<WorldMobKilled>(OnWorldMobKilledAtServer);
                     _alive.Clear();
                     _worldMobs.Clear();
+                    _clearedUntil.Clear();
                 }
                 _serverHandlers = server;
             }
@@ -199,15 +213,16 @@ namespace CityX.Character
         /// <summary>
         /// Asks for one of the world's own enemies to be brought into the session here, run by this machine; the answer comes by
         /// <see cref="WorldMobAnswered"/> under <paramref name="ticket"/> (this machine's own number for the ask, never 0). False when
-        /// there is no session to ask or it does not share the kind.
+        /// there is no session to ask or it does not share the kind. <paramref name="building"/>: the building it is to appear in (its
+        /// id in the plan), or -1 out of doors.
         /// </summary>
-        public bool TrySpawnWorldMob(string kind, Vector3 position, Quaternion rotation, long ticket, bool indoors)
+        public bool TrySpawnWorldMob(string kind, Vector3 position, Quaternion rotation, long ticket, int building)
         {
             if (ticket == 0L || !InSession || !Shares(kind))
             {
                 return false;
             }
-            _manager.ClientManager.Broadcast(new EnemySpawnRequest { Kind = kind, Position = position, Rotation = rotation, WorldTicket = ticket, Indoors = indoors });
+            _manager.ClientManager.Broadcast(new EnemySpawnRequest { Kind = kind, Position = position, Rotation = rotation, WorldTicket = ticket, Building = building });
             return true;
         }
 
@@ -227,7 +242,18 @@ namespace CityX.Character
                 return;
             }
             // Only the machine an enemy was given to can call it killed: its ticket is its own.
-            _worldMobs.RemoveAll(mob => mob.OwnerClientId == sender.ClientId && mob.Ticket == message.WorldTicket);
+            int at = _worldMobs.FindIndex(mob => mob.OwnerClientId == sender.ClientId && mob.Ticket == message.WorldTicket);
+            if (at < 0)
+            {
+                return;
+            }
+            int building = _worldMobs[at].Building;
+            _worldMobs.RemoveAt(at);
+            // The last one alive in its building: the building is cleared, for everyone.
+            if (building >= 0 && !_worldMobs.Exists(mob => mob.Building == building && mob.Enemy != null && mob.Enemy.IsSpawned))
+            {
+                _clearedUntil[building] = Time.unscaledTime + CityX.World.MobHabitats.ClearedSeconds;
+            }
         }
 
         /// <summary>
@@ -238,9 +264,9 @@ namespace CityX.Character
         {
             _worldMobs.RemoveAll(mob => mob.Enemy == null || !mob.Enemy.IsSpawned);   // taken away (their player left them)
             int near = 0;
-            foreach ((NetworkObject enemy, int _, long _, bool mobIndoors) in _worldMobs)
+            foreach ((NetworkObject enemy, int _, long _, int building) in _worldMobs)
             {
-                if (mobIndoors == indoors && Vector3.Distance(enemy.transform.position, point) <= CityX.World.MobHabitats.CrowdMetres)
+                if ((building >= 0) == indoors && Vector3.Distance(enemy.transform.position, point) <= CityX.World.MobHabitats.CrowdMetres)
                 {
                     near++;
                 }
@@ -252,6 +278,10 @@ namespace CityX.Character
         {
             if (reply.ObjectId < 0)
             {
+                if (reply.Cleared)
+                {
+                    WorldMobRefusedAsCleared?.Invoke(reply.WorldTicket);
+                }
                 WorldMobAnswered?.Invoke(reply.WorldTicket, null);
                 return;
             }
@@ -326,13 +356,15 @@ namespace CityX.Character
             }
             _alive.RemoveAll(enemy => enemy == null || !enemy.IsSpawned);
             PlayerVitals asker = worlds ? OwnPlayer(sender) : null;
+            bool indoors = request.Building >= 0;
             bool full = worlds && asker != null
-                && WorldMobsNear(asker.transform.position, request.Indoors) >= CityX.World.MobHabitats.Most(request.Indoors ? CityX.World.MobHabitat.Indoors : CityX.World.MobHabitat.Outdoors);
-            if (_alive.Count >= MaxAlive || full)
+                && WorldMobsNear(asker.transform.position, indoors) >= CityX.World.MobHabitats.Most(indoors ? CityX.World.MobHabitat.Indoors : CityX.World.MobHabitat.Outdoors);
+            bool cleared = worlds && indoors && _clearedUntil.TryGetValue(request.Building, out float clearedUntil) && Time.unscaledTime < clearedUntil;
+            if (_alive.Count >= MaxAlive || full || cleared)
             {
                 if (worlds)
                 {
-                    _manager.ServerManager.Broadcast(sender, new WorldMobReply { WorldTicket = request.WorldTicket, ObjectId = -1 });
+                    _manager.ServerManager.Broadcast(sender, new WorldMobReply { WorldTicket = request.WorldTicket, ObjectId = -1, Cleared = cleared });
                 }
                 return;
             }
@@ -343,7 +375,7 @@ namespace CityX.Character
             Spawned++;
             if (worlds)
             {
-                _worldMobs.Add((enemy, sender.ClientId, request.WorldTicket, request.Indoors));
+                _worldMobs.Add((enemy, sender.ClientId, request.WorldTicket, worlds ? request.Building : -1));
                 _manager.ServerManager.Broadcast(sender, new WorldMobReply { WorldTicket = request.WorldTicket, ObjectId = enemy.ObjectId });
             }
         }

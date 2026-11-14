@@ -57,6 +57,13 @@ namespace CityX.World
         /// <summary>An enemy within this of a player counts toward that player's budget, metres; further, it is taken out of the world.</summary>
         public const float CrowdMetres = 130.0f;
 
+        /// <summary>
+        /// A CLEARED BUILDING STAYS EMPTY (owner, 2026-11-14: "Cleared buildings should stop spawning enemies"): once the last enemy alive in
+        /// a building has been killed, nothing appears in it again for this long, seconds: a day (owner, 2026-10-22: "Unclaimed buildings
+        /// get new enemies and loot at random, about once a day").
+        /// </summary>
+        public const float ClearedSeconds = 86400.0f;
+
         /// <summary>The most alive near one place in <paramref name="habitat"/>.</summary>
         public static int Most(MobHabitat habitat) => habitat == MobHabitat.Indoors ? MostIndoors : habitat == MobHabitat.Outdoors ? MostOutdoors : 0;
 

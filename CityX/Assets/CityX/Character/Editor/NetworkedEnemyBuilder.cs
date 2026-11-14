@@ -31,6 +31,8 @@ namespace CityX.CharacterEditor
 
         /// <summary>The summon's kind: what the Wraith Staff asks the session for (WraithSummonCaster.SummonKind).</summary>
         public const string WraithSummonKind = "wraith_summon";
+        public const string CrimsonClawPath = "Assets/CityX/Character/CrimsonClaw.prefab";
+        public const string NetworkedCrimsonClawPath = "Assets/CityX/Character/NetworkedCrimsonClaw.prefab";
         private const string DefaultPrefabObjectsPath = "Assets/DefaultPrefabObjects.asset";
         private const string ControllerPath = "Assets/CityX/Character/PlayerAnimator.controller";
 
@@ -43,6 +45,7 @@ namespace CityX.CharacterEditor
             Add(kinds, "wraith", BuildWraith());
             Add(kinds, WraithSummonKind, BuildWraithSummon());
             Add(kinds, "giant", BuildBody(GiantPath, NetworkedGiantPath, typeof(GiantBrain)));
+            Add(kinds, "crimsonclaw", BuildCrimsonClaw());
             return kinds.ToArray();
         }
 
@@ -72,6 +75,16 @@ namespace CityX.CharacterEditor
                 var enemy = root.AddComponent<NetworkedEnemy>();
                 var brainComponent = root.GetComponent(brain) as Behaviour;
                 enemy.OwnerOnly = brainComponent != null ? new[] { brainComponent } : System.Array.Empty<Behaviour>();
+            });
+        }
+
+        /// <summary>The Crimson Claw: run by its owner's machine, a copy on every other (NetworkedCrimsonClaw).</summary>
+        private static NetworkObject BuildCrimsonClaw()
+        {
+            return Build(CrimsonClawPath, NetworkedCrimsonClawPath, root =>
+            {
+                root.AddComponent<NetworkedCrimsonClaw>();
+                root.AddComponent<NetworkedEnemy>();
             });
         }
 

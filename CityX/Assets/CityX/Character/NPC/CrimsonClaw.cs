@@ -168,6 +168,61 @@ namespace CityX.Character
         }
 
         private readonly NpcSteering _steering = new NpcSteering();
+        private NpcWander _wander;
+
+        /// <summary>How fast it drifts about with nothing to fight, metres per second, and how much room it wants ahead of it.</summary>
+        public const float WanderSpeed = 1.6f;
+
+        public const float WanderRoomMetres = 0.5f * ModelScale;
+
+        /// <summary>
+        /// IN A SESSION (owner, 2026-11-14: "monsters should appear in the same location between players when online"; NetworkedCrimsonClaw):
+        /// true on the machines that do not run it. A copy is moved by its owner, decides nothing, sends the hits it takes to its owner
+        /// (<see cref="Relay"/>), is told its health, and plays the swipes its owner starts.
+        /// </summary>
+        public bool IsCopy { get; set; }
+
+        /// <summary>Where a hit on a copy goes instead of landing on it (the session's; null alone).</summary>
+        public IRemoteDamageRelay Relay { get; set; }
+
+        /// <summary>A swipe has started, with the left claw (true) or the right: the session shows it on the other machines.</summary>
+        public event System.Action<bool> AttackStarted;
+
+        /// <summary>A copy: its owner has started a swipe. The claws go through it here; it cuts nothing (the owner's does).</summary>
+        public void ShowAttackFromNetwork(bool leftHand)
+        {
+            if (_isDead || !IsCopy)
+            {
+                return;
+            }
+            _nextAttackHandIsLeft = leftHand;
+            _grabbing = false;
+            _attackState = AttackState.Windup;
+            _attackPhaseTimer = 0.0f;
+            _attackPhaseDuration = WindupSeconds;
+            _attackHitLanded = true;
+            _activeClawPivot = leftHand ? LeftClawPivot : RightClawPivot;
+            KnowRest();
+            if (AttackAudio != null && AttackSound != null)
+            {
+                AttackAudio.clip = AttackSound;
+                AttackAudio.Play();
+            }
+        }
+
+        /// <summary>A copy: its owner's health. At nothing it dies here as it did there.</summary>
+        public void SetHealthFromNetwork(float health)
+        {
+            if (_isDead)
+            {
+                return;
+            }
+            _health = Mathf.Clamp(health, 0.0f, MaxHealth);
+            if (_health <= 0.0f)
+            {
+                Die();
+            }
+        }
 
         private float _health = MaxHealth;
         private bool _isDead;
@@ -265,6 +320,15 @@ namespace CityX.Character
                 FadeEyes(deltaTime);
                 return;
             }
+            if (IsCopy)
+            {
+                // Another machine's: its owner moves it and decides everything. Here it only plays the swipes it is told of.
+                if (IsAttacking)
+                {
+                    TickAttack(deltaTime);
+                }
+                return;
+            }
 
             HoverCorrect(deltaTime);
             _attackCooldownRemaining = Mathf.Max(0.0f, _attackCooldownRemaining - deltaTime);
@@ -300,8 +364,14 @@ namespace CityX.Character
 
             if (!Opponents.Alive(_target))
             {
+                // Nothing to fight: it drifts about where it is (NpcWander), turning before it goes.
+                _wander ??= new NpcWander(GetInstanceID());
+                NpcWander.Step stroll = _wander.Tick(NpcWanderProbe.Sense(transform, 0.0f, WanderRoomMetres, walks: false), deltaTime);
+                transform.rotation = Quaternion.Euler(0.0f, stroll.YawDegrees, 0.0f);
+                transform.position += transform.forward * (stroll.Move > 0.0f ? WanderSpeed : 0.0f) * deltaTime;
                 return;
             }
+            _wander?.Reset();
 
             Vector3 toTarget = _target.transform.position - transform.position;
             toTarget.y = 0.0f;
@@ -417,12 +487,21 @@ namespace CityX.Character
             transform.position = position;
         }
 
-        /// <summary>What it fights: the nearer of this machine's player and the nearest summon on the players' side (<see cref="Opponents"/>).</summary>
+        /// <summary>
+        /// What it fights: the nearest of this machine's player, in a session another player's copy here (owner, 2026-11-14: monsters are
+        /// the same for every player online), and the summons on the players' side (<see cref="Opponents"/>).
+        /// </summary>
         private IOpponent FindTarget()
         {
             IOpponent player = FindNearestPlayer();
             float reach = player != null ? Vector3.Distance(transform.position, player.transform.position) : DetectionRange;
             IOpponent best = player;
+            PlayerVitals other = PlayerBodies.NearestAlive(transform.position, reach);
+            if (other != null && !ReferenceEquals(other, player))
+            {
+                reach = Vector3.Distance(transform.position, other.transform.position);
+                best = other;
+            }
             foreach (IOpponent summon in Opponents.Summons)
             {
                 if (!Opponents.Alive(summon))
@@ -534,6 +613,7 @@ namespace CityX.Character
                 AttackAudio.clip = AttackSound;
                 AttackAudio.Play();
             }
+            AttackStarted?.Invoke(_nextAttackHandIsLeft);
         }
 
         private void TickAttack(float deltaTime)
@@ -548,6 +628,10 @@ namespace CityX.Character
 
             if (_attackPhaseTimer < _attackPhaseDuration)
             {
+                if (IsCopy)
+                {
+                    return;   // shown, not decided: the owner's claw is the one that cuts
+                }
                 if (_attackState == AttackState.Swing && _grabbing)
                 {
                     TryCatch();
@@ -748,6 +832,10 @@ namespace CityX.Character
             if (_isDead || amount <= 0.0f)
             {
                 return HitResponse.Ignored;
+            }
+            if (Relay != null && Relay.TryRelayHit(amount, fromPosition, hitstunSeconds, 0.0f))
+            {
+                return HitResponse.Landed;   // a copy: the hit goes to the machine that runs it, and its health comes back from there
             }
             _health = Mathf.Max(0.0f, _health - amount);
             if (_health <= 0.0f)

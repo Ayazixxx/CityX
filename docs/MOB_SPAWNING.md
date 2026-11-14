@@ -20,6 +20,15 @@ they behave"), this is the first piece: WHERE and WHAT. Levels and new behaviour
   so a cleared street fills again over a quarter of a minute, not at once.
 - **Gone when you leave**: an enemy 130 m behind you is taken out of the world. A killed one is simply gone (its body lies where it
   fell, to be looted, until you leave it); another appears somewhere else in its own time.
+- **A cleared building stays empty** (owner, 2026-11-14: "Cleared buildings should stop spawning enemies"): when the last enemy
+  alive in a building is killed, nothing appears in that building again for a day (the owner's earlier "about once a day"). The other
+  buildings go on being occupied.
+- **With nobody to fight they wander** (owner, 2026-11-14: "make sure that the mobs have patrol behaviors or in other words they
+  wander around in a natural way rather than awkwardly stand still"): a stroll of a few seconds, a stand of a few seconds (often
+  turning to look another way), another stroll; round what is in their way, back from a drop, and never far from where they began.
+  The swordsman, the Shoota and the Crimson Claw; the Wraith already drifted.
+- **The same for every player online** (owner, 2026-11-14: "monsters should appear in the same location between players when
+  online"): the Crimson Claw is now shared between machines like the others, so monsters appear in sessions too.
 - **None within 120 m of Old Guy's house**: a new character starts there with nothing in its hands.
 - **`/mobs off`** takes them all away and stops them appearing, **`/mobs on`** brings them back, **`/mobs`** says how many are alive.
 
@@ -33,6 +42,10 @@ they behave"), this is the first piece: WHERE and WHAT. Levels and new behaviour
 | Appears from / to | 45 m (18 m indoors) to 95 m | `MobSpawnRules.OutdoorsFromMetres`, `IndoorsFromMetres`, `ToMetres` |
 | Seconds between two appearing | 4 | `MobSpawnRules.SecondsBetweenSpawns` |
 | Taken away past | 130 m | `MobHabitats.CrowdMetres` |
+| A cleared building stays empty | a day | `MobHabitats.ClearedSeconds` |
+| Stroll / stand, seconds | 2.5 to 6 / 1.5 to 4.5 | `NpcWander.WalkSeconds*`, `PauseSeconds*` |
+| Strolling pace | 0.45 of a walk (the Claw 1.6 m/s) | `NpcWander.StrollShare`, `CrimsonClaw.WanderSpeed` |
+| Stays within | 9 m of where it began | `NpcWander.HomeRadiusMetres` |
 | Safe round Old Guy's house | 120 m | `MobHabitats.TutorialSafeMetres` |
 
 **The budget is a frame-rate budget, not a design choice**: bodies are what a crowd costs (`docs/CROWD_TEST.md`: about 0.65 ms a frame
@@ -61,6 +74,20 @@ Seen in the game's own city (`MobSpawnCapture`, 2026-11-14), the player stood in
 - **`MobSpawnRules`** (`View/Mobs`, pure): the distances, the pace, which enemy a family is, the random spot in the ring (every part
   of the ring as likely as any other).
 
+## Wandering
+
+`NpcWander` (`Character/NPC`, pure) says each frame which way to face and how much to walk; the enemy's own brain tells it where the
+body is and what is ahead (`NpcWanderProbe`: a ball cast ahead of the chest, and a ray for ground a stride ahead) and does what it
+says, only while it has nothing to fight (the swordsman with nobody within his 40 m notice, the Shoota in his idle state, the Claw
+with nobody within its 16 m). A fight over, it wanders from wherever it then is.
+
+- The Claw turns where it hovers, then goes. The walking bodies turn only as they walk (and snap round if sent straight off another
+  way), so they set off the way they face and come round to their heading in a curve; with something in the way they are steered,
+  they shuffle round until it is clear.
+- Measured in a walled yard with no player (`MobWanderPlayTests`): in a minute the swordsman covers 56 m, the Shoota 69 m, the Claw
+  39 m; none stands longer than 5.5 s; none turns faster than 150 degrees a second.
+- In a session the enemy's owner runs it and every copy is moved as the owner's body moves: every player sees the same wandering.
+
 ## In a session (two or more players)
 
 Each machine runs its own spawner for its own player and **asks the server for each enemy** (`EnemyNetwork.TrySpawnWorldMob`: an
@@ -71,11 +98,16 @@ Each machine runs its own spawner for its own player and **asks the server for e
 - **counts what is alive near the asker, whoever runs it**: with as many alive within 130 m of the asker's body as the budget allows
   (out of doors and indoors each their own), it refuses. Players standing together share one budget, so two players in one street
   meet 4 outdoor enemies, not 8;
-- is told of a kill by the machine that runs the enemy (`WorldMobKilled`; only that machine can), so a body lying dead does not count.
+- is told of a kill by the machine that runs the enemy (`WorldMobKilled`; only that machine can), so a body lying dead does not count;
+- **keeps the cleared buildings for everyone**: an indoor ask names its building; when the last of the world's enemies alive in a
+  building is reported killed, the server gives that building no more, to anyone, for a day, and says so to whoever asks
+  (`WorldMobReply.Cleared`), whose spawner then leaves the building alone.
 
-**Only kinds the session shares are asked for.** The Crimson Claw exists on one machine alone today (`docs/MULTIPLAYER_STATE.md`,
-"Not synced yet"), so in a session no monsters appear: every player sees the same world, with ghosts out of doors and humanoids
-indoors. Playing alone, the monsters are there.
+**The Crimson Claw is shared** (`NetworkedCrimsonClaw`, 2026-11-14): its owner's machine runs it; every other machine's copy is moved
+by the owner, decides nothing, plays the swipes the owner starts, sends the blows it takes to the owner, is told its health and dies
+when the owner's does. It goes for the nearest player, on any machine. It seizes and throws only its own machine's player (the body
+it holds is that machine's to move); another player is swiped at, and sees their friend thrown as any fallen body is seen. `/spawn
+crimsonclaw` is shared too.
 
 ## Tests and pictures
 
@@ -85,10 +117,14 @@ indoors. Playing alone, the monsters are there.
   the random spot is in the ring and favours no part of it.
 - `MobSpawnerPlayTests` (PlayMode, the real scene, alone): standing in a street, enemies appear round the player, each (the frame it
   is first seen) the right kind in the right place at the right distance, never more than the budget; a humanoid stays on its floor;
-  a killed one is counted no longer; the ones left behind are taken away; turned off they are taken away and none appear.
+  a killed one is counted no longer; the ones left behind are taken away; a building cleared of its enemies stays empty while others
+  fill; turned off they are taken away and none appear.
+- `NpcWanderTests` (EditMode) and `MobWanderPlayTests` (PlayMode): strolls and stands by turns, stays about where it began, turns
+  aside from a wall and from a drop, wanders from where a fight left it; the real swordsman, Shoota and Claw in a walled yard.
 - `NetworkedPlayerStateSyncPlayTests.TheWorldsEnemiesNearAPlaceAreOneBudgetForAllThePlayersThere` (two machines): one budget for
   players standing together, indoor ones their own, a dead one and one taken away count no longer, only its runner can call an enemy
-  killed, an unshared kind is not asked for.
+  killed, a building one player cleared is refused to both, a kind the session does not have is not asked for.
+- `NetworkedPlayerStateSyncPlayTests.ACrimsonClawIsInTheSamePlaceForBothPlayersAndItsCopySwipesIsHurtAndDiesWithIt` (two machines).
 - `MobSpawnCapture` (Explicit, `-Graphics`): `Logs/CityShots/mobs-<n>-<kind>-<outdoors|indoors>.png` in the game's own city, and the
   counts.
 
@@ -96,13 +132,12 @@ indoors. Playing alone, the monsters are there.
 
 - **Levels.** Asked on 2026-11-13 whether a mob's level should come from the place (my recommendation) or scale to the player, the
   owner has not said. Every enemy is as strong as `/spawn` makes it.
-- **Behaviour.** The enemies behave as they did: nothing is new about noticing the player, giving up a chase, or what they do with
-  nobody near. The Shoota shoots on sight, so one indoors will shoot from a window.
+- **Noticing and chasing.** Nothing is new about how an enemy notices the player or gives up a chase: the swordsman comes for anyone
+  within 40 m, through walls; the Shoota shoots on sight, so one indoors will shoot from a window.
 - **Minecraft's other rules**: nothing depends on light or the time of day, and nothing despawns on its own while the player is near.
-- **Cleared buildings.** The owner's earlier plan (2026-10-22) has unclaimed buildings refilled "about once a day": with random
-  spawning a building a player has cleared can have a humanoid appear in it again within seconds (18 m or more from the player).
-  Nothing here remembers that a building was cleared.
-- **The monster in a session** (the Claw is not shared between machines).
+- **Cleared buildings are remembered in memory only**: by the spawner playing alone (until the game is closed), by the server in a
+  session (until it ends). Nothing is saved to disk. "Cleared" means the last enemy alive in it was killed, however many that was.
+- **The Claw's grab is not shown on other machines** as a grab: they see the swipe, then the thrown player's body.
 - **The server deciding the spawns itself** (today each player's machine asks; with server authority it moves there with the rest,
   `docs/GAME_DESIGN.md` "Technical foundations").
 - **The sewers**: nothing appears below the streets.

@@ -311,9 +311,18 @@ namespace CityX.Weapons
 
         // --- what he does ---
 
+        private NpcWander _wander;
+
+        /// <summary>Wandering, the way he is steered (the body comes round to it as it walks).</summary>
+        private float _strollYaw;
+
         private LocomotionInput Act(ShootaState state, bool sees, bool reloading, float deltaTime)
         {
             _fireCooldown -= deltaTime;
+            if (state != ShootaState.Idle)
+            {
+                _wander?.Reset();   // he wanders again from wherever the fight leaves him
+            }
             switch (state)
             {
                 case ShootaState.Engage:
@@ -358,9 +367,12 @@ namespace CityX.Weapons
                     return _hasLastSeen ? MoveTo(_lastSeen, run: false, deltaTime) : Stand();
                 default:
                 {
-                    LocomotionInput input = Stand();
-                    input.Crouch = _mind.State == ShootaState.TakeCover;
-                    return input;
+                    // Nobody seen: he wanders (NpcWander), his rifle carried, as the swordsman does.
+                    _wander ??= new NpcWander(GetInstanceID(), turnsOnTheSpot: false);
+                    // (Standing, he is steered the way he faces: a stroll sets off from there and comes round.)
+                    NpcWander.Step stroll = _wander.Tick(NpcWanderProbe.SenseWalker(transform, _wander.Walking ? _strollYaw : transform.eulerAngles.y), deltaTime);
+                    _strollYaw = stroll.YawDegrees;
+                    return new LocomotionInput { Move = new Vector2(0.0f, stroll.Move), YawDegrees = stroll.YawDegrees, GunEquipped = true };
                 }
             }
         }

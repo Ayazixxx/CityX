@@ -339,6 +339,10 @@ namespace CityX.Weapons
 
         private bool _turnUsed;
         private float _turnHeldFor;
+        private NpcWander _wander;
+
+        /// <summary>He is wandering, with nothing to fight (for tests).</summary>
+        public bool IsWandering => _wander != null && !Opponents.Alive(_target);
 
         /// <summary>He holds the turn to attack his target now (EnemyPack.Turns). For tests.</summary>
         public bool HasTurn => EnemyPack.Turns.Holds(transform);
@@ -415,8 +419,26 @@ namespace CityX.Weapons
         /// <summary>What a player would press, handed to the same combat, dash and locomotion the player's keys reach.</summary>
         private void Act(DuelistMind.Intent intent, float deltaTime)
         {
-            float yaw = Facing(Opponents.Alive(_target) ? YawTo(_target.transform.position) : transform.eulerAngles.y, deltaTime);
             bool stunned = _vitals.IsStunned;
+            // NOTHING TO FIGHT: he wanders (NpcWander; owner, 2026-11-14: "they wander around in a natural way rather than awkwardly stand
+            // still"), his sword carried, until somebody comes within his notice.
+            bool wandering = !Opponents.Alive(_target) && !stunned && (_combat == null || !_combat.IsCommitted) && !_locomotion.IsDashing;
+            NpcWander.Step stroll = default;
+            float yaw;
+            if (wandering)
+            {
+                _wander ??= new NpcWander(GetInstanceID(), turnsOnTheSpot: false);
+                // (Standing, he is steered the way he faces: a stroll sets off from there and comes round.)
+                stroll = _wander.Tick(NpcWanderProbe.SenseWalker(transform, _wander.Walking && _facingSet ? _facingYaw : transform.eulerAngles.y), deltaTime);
+                yaw = stroll.YawDegrees;
+                _facingYaw = yaw;
+                _facingSet = true;
+            }
+            else
+            {
+                _wander?.Reset();
+                yaw = Facing(Opponents.Alive(_target) ? YawTo(_target.transform.position) : transform.eulerAngles.y, deltaTime);
+            }
 
             if (_combat != null && _combat.IsEquipped)
             {
@@ -445,7 +467,8 @@ namespace CityX.Weapons
                 TryDash(intent.DashDirection, yaw);
             }
 
-            Vector2 move = Vector2.ClampMagnitude(intent.Move + EnemyPack.SeparationMove(transform, yaw) * SeparationWeight, 1.0f);
+            Vector2 move = wandering ? new Vector2(0.0f, stroll.Move)
+                : Vector2.ClampMagnitude(intent.Move + EnemyPack.SeparationMove(transform, yaw) * SeparationWeight, 1.0f);
             bool slowed = _combat != null && _combat.SlowsMovement;
             bool blocking = _combat != null && _combat.IsBlocking;
             bool wantsSprint = intent.Sprint && !slowed && !blocking && move.y > 0.0f;
