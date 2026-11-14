@@ -637,6 +637,11 @@ namespace CityX.Character
                 float s = 1.0f - Mathf.Clamp01(_takeoverRemaining / Mathf.Max(_takeoverSeconds, 1e-4f));
                 frame = SwordStrikes.Lerp(_takeoverFrom, frame, Mathf.SmoothStep(0.0f, 1.0f, s));
             }
+            if (_striking && !stoppedOnGuard)
+            {
+                // The attack's own, after the takeover's blend: a ground strike's wrist holds firm from the first frame.
+                frame.WristRollDegrees = SwordStrikes.WristRollDegrees(_kind, Progress);
+            }
             if (_parryRemaining > 0.0f)
             {
                 // A pulse: out and back over ParrySeconds, the sword pushed forward and up into the blow, the torso turned into it.

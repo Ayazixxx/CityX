@@ -84,3 +84,26 @@ seeing the trails switching direction". Measured from behind, as the game's came
 
 Now: 2 and 5 degrees. The third swing's blade, measured against the body's own shape at its real size (the old check used a thin tube 18%
 too small), keeps 22 cm or more off it; `SwordArmsClearPlayTests` holds every weapon's blade 6 cm off the skin, the combo also at a walk.
+
+## The second cut's arm (owner, 2026-11-14)
+
+"work on the second swing make it more human like animation the arm bends strangly". Measured through each cut
+(`SwordGifComboPlayTests.TheFirstTwoCutsMoveTheArmAsAnArmMoves`: the angle between the forearm and the knuckles, the elbow against
+the line from shoulder to hand, the hand's distance from the head): the second cut's wrist was past 100 degrees through the whole hit and
+folded 154 degrees back on itself at the end of the follow-through. The first cut's peaked at 81.
+
+Why: the sword sits in the fist with its single edge where the knuckles face, and every pose keeps the edge leading the cut (owner,
+2026-10-16). In a right-handed backhand that turns the knuckles the way the cut travels while the forearm reaches forward, and once the
+blade swings on round after the hit the leading edge faces backwards and takes the hand round with it.
+
+What changed:
+- **The wrist gives** (`PlayerLocomotion.WithinAWristsBend`): a one-handed attack's hand rolls round the handle, the blade keeping its
+  line, as little as brings the wrist within 55 degrees. While the blade can hit it rolls at most 40 degrees, so the edge still leads
+  (`SwordStrikes.WristRollDegrees`); outside that, as far as it needs. A ground strike's wrist holds firm.
+- **A backhand's elbow can come across the chest** (`SwordFrame.ElbowOut` below 0): the second cut meets its target with the hand on the
+  right, the forearm level across the front and the elbow in front of the chest, and finishes with the arm carried out to the right.
+- **Its wind-up** has the elbow out and the sword cocked back over the left shoulder, not the forearm jammed across the face; its blade
+  turns less after the hit (the follow-through is quicker, the clip rebaked to match).
+
+Now: the first cut stays at or under 55 degrees; the second sits about 50 through the wind-up, 105-116 for the tenth of a second the
+sword whips through behind a hand already facing the cut, and about 85 after it. The test holds both under 120.

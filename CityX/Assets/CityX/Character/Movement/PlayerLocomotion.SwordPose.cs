@@ -41,6 +41,49 @@ namespace CityX.Character
         public const float HeldWristCockDegrees = 35.0f;
 
         /// <summary>
+        /// The most a one-handed sword hand bends from its forearm, degrees (a wrist goes about 70 one way, less two ways at once). Past it the
+        /// hand rolls round the handle (<see cref="WithinAWristsBend"/>).
+        /// </summary>
+        public const float MostWristBendDegrees = 55.0f;
+
+
+        /// <summary>The tries at rolling the hand round the handle, from none to the whole roll that bends the wrist least.</summary>
+        private const int WristRollSteps = 10;
+
+        /// <summary>
+        /// A one-handed sword hand turned <paramref name="wanted"/>, rolled round the blade's own line (the blade keeps pointing the same way)
+        /// as little as brings the wrist within <see cref="MostWristBendDegrees"/> of the <paramref name="forearm"/>. The poses keep the edge
+        /// leading the blade's motion, and where the blade swings on round behind after a hit (the second cut's follow-through) that turned the
+        /// knuckles back against a forearm reaching forward: the hand folded 154 degrees back on the wrist (owner, 2026-11-14: "make it more
+        /// human like animation the arm bends strangly"). A wrist gives instead, by at most <paramref name="mostRollDegrees"/>: while the blade
+        /// can hit only a little, so the edge still leads (owner, 2026-10-16); outside it as far as it needs (<see cref="SwordStrikes.WristRollDegrees"/>).
+        /// </summary>
+        private static Quaternion WithinAWristsBend(Quaternion wanted, Vector3 forearm, Vector3 blade, float mostRollDegrees)
+        {
+            Vector3 fingers = wanted * Vector3.right;   // the hand bone's +X runs to the knuckles
+            if (Vector3.Angle(forearm, fingers) <= MostWristBendDegrees)
+            {
+                return wanted;
+            }
+            Vector3 fromFingers = Vector3.ProjectOnPlane(fingers, blade), toForearm = Vector3.ProjectOnPlane(forearm, blade);
+            if (fromFingers.sqrMagnitude < 1e-6f || toForearm.sqrMagnitude < 1e-6f)
+            {
+                return wanted;
+            }
+            float roll = Mathf.Clamp(Vector3.SignedAngle(fromFingers, toForearm, blade), -mostRollDegrees, mostRollDegrees);
+            Quaternion best = wanted;
+            for (int step = 1; step <= WristRollSteps; step++)
+            {
+                best = Quaternion.AngleAxis(roll * step / WristRollSteps, blade) * wanted;
+                if (Vector3.Angle(forearm, best * Vector3.right) <= MostWristBendDegrees)
+                {
+                    break;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
         /// How far a one-handed held stance's hand gives way, 0 to 1, toward where an arm with that cocked wrist can actually put it: the stance
         /// keys place the hand without the arm's lengths in mind, and pinned there the elbow could not get low enough for the wrist to stay at
         /// HeldWristCockDegrees (it was bent 57). The blade still points where the stance says; only the hand moves, a few centimetres.
@@ -235,8 +278,9 @@ namespace CityX.Character
             float armLength = Vector3.Distance(_rightUpperArm.position, _rightLowerArm.position) + Vector3.Distance(_rightLowerArm.position, _handR.position);
             Vector3 h = _swordFrame.Hand;
             Vector3 target = _rightUpperArm.position + (right * h.x + up * h.y + forward * h.z) * armLength;
-            float elbowOut = Mathf.Clamp01(_swordFrame.ElbowOut);
-            Vector3 hint = -up * (1.0f - 0.8f * elbowOut) + right * (0.55f + 0.9f * elbowOut);
+            // Out to the right side (up to 1), or below 0 across the chest: a backhand's elbow leads the cut from the left.
+            float elbowOut = Mathf.Clamp(_swordFrame.ElbowOut, -1.0f, 1.0f);
+            Vector3 hint = -up * (1.0f - 0.8f * Mathf.Abs(elbowOut)) + right * (0.55f + 0.9f * elbowOut);
             TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
 
             // The hand turned so the blade points where the frame says, edge first.
@@ -307,6 +351,10 @@ namespace CityX.Character
                 }
             }
 
+            if (!_swordFrame.TwoHanded && _swordFrame.WristRollDegrees > 0.0f)
+            {
+                wanted = WithinAWristsBend(wanted, (_handR.position - _rightLowerArm.position).normalized, bladeWorld, _swordFrame.WristRollDegrees);
+            }
             _handR.rotation = Quaternion.Slerp(_handR.rotation, wanted, w);
 
             // BOTH HANDS STAY ON A TWO-HANDED GRIP (owner, 2026-10-16: "use inverse kinematic so the hands reach the correct grip points on each

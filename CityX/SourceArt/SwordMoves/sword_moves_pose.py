@@ -88,7 +88,7 @@ ATTACKS = {
     # THE SECOND: from over the left shoulder steeply down to the right. The shoulders turned away to the left; the right foot steps through as the
     # body comes round, and it unwinds to the right behind the blade.
     "sword1h_cut": attack(
-        (0.20, 0.05, 0.12, 0.10, 0.06, 0.24), 0.50,
+        (0.20, 0.05, 0.12, 0.06, 0.10, 0.24), 0.50,
         key(twist=-66.0, hips=-30.0, lean=-6.0, tilt=-5.0, drop=0.13, shift=(-0.07, -0.09)),
         key(twist=-70.0, hips=-32.0, lean=-7.0, tilt=-5.0, drop=0.14, shift=(-0.07, -0.10)),
         key(twist=25.0, hips=32.0, lean=22.0, tilt=-6.0, drop=0.19, shift=(0.05, 0.10), chin=5.0, staged=True),

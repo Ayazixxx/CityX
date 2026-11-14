@@ -68,7 +68,7 @@ namespace CityX.Character
         /// <summary>The way the cutting edge faces, perpendicular to the blade, in the body's axes (unit). It leads every cut.</summary>
         public Vector3 Edge;
 
-        /// <summary>How far the sword arm's elbow is pushed out to the side rather than hanging down (0 to 1).</summary>
+        /// <summary>How far the sword arm's elbow is pushed out to the side rather than hanging down (0 to 1); below 0, across the chest instead (a backhand, to -1).</summary>
         public float ElbowOut;
 
         /// <summary>The SHOULDERS' turn about the vertical, degrees, positive to the body's right (the hips' share included).</summary>
@@ -114,6 +114,12 @@ namespace CityX.Character
 
         /// <summary>0 to 1: how much the elbow is placed so the forearm runs straight into the hand (no bent wrist) rather than where the key bows it. The held stances (carry, ready, guard) use it; the cuts keep their authored elbows.</summary>
         public float ForearmAlign;
+
+        /// <summary>
+        /// How far a one-handed sword hand may roll round the handle to keep its wrist within a wrist's bend, degrees
+        /// (PlayerLocomotion.WithinAWristsBend); 0, not at all (every pose but an attack's). Set by <see cref="SwordStrikes.WristRollDegrees"/>.
+        /// </summary>
+        public float WristRollDegrees;
     }
 
     /// <summary>
@@ -295,7 +301,7 @@ namespace CityX.Character
             switch (kind)
             {
                 case SwordStrikeKind.Slash1H: return new StrikeTiming(0.22f, 0.06f, 0.12f, 0.05f, 0.12f, 0.24f);
-                case SwordStrikeKind.Cut1H: return new StrikeTiming(0.20f, 0.05f, 0.12f, 0.10f, 0.06f, 0.24f);
+                case SwordStrikeKind.Cut1H: return new StrikeTiming(0.20f, 0.05f, 0.12f, 0.06f, 0.10f, 0.24f);
                 case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.20f, 0.08f, 0.10f, 0.06f, 0.05f, 0.24f);
                 // The blade is in the ground and the body stays down over it a quarter of a second before it rises (the reference holds it longer still).
                 case SwordStrikeKind.Overhead1H: return new StrikeTiming(0.34f, 0.30f, 0.13f, 0.12f, 0.26f, 0.34f);
@@ -341,6 +347,32 @@ namespace CityX.Character
         {
             StrikeTiming t = TimingOf(kind);
             return (t.Contact + t.Follow * LiveToFollowShare) / t.Total;
+        }
+
+        /// <summary>How long the wrist takes to give, or to firm up for the blade's live window, seconds.</summary>
+        public const float WristGivesOverSeconds = 0.06f;
+
+        /// <summary>
+        /// While the blade can hit, how far the hand may roll round the handle, degrees: enough to take the worst out of the wrist a backhand
+        /// bends (a single-edged sword in a fist whose knuckles face its edge), little enough that the edge still leads (owner, 2026-10-16).
+        /// </summary>
+        public const float MostLiveWristRollDegrees = 40.0f;
+
+        /// <summary>
+        /// How far a one-handed hand may roll round the handle to keep a wrist's bend <paramref name="progress"/> into an attack (0-1), degrees:
+        /// <see cref="MostLiveWristRollDegrees"/> while the blade can hit, and as far as it needs outside that, eased between them over
+        /// <see cref="WristGivesOverSeconds"/>. The second cut's hand had folded back on the wrist (owner, 2026-11-14: "the arm bends strangly").
+        /// </summary>
+        public static float WristRollDegrees(SwordStrikeKind kind, float progress)
+        {
+            if (StrikesTheGround(kind))
+            {
+                return 0.0f;   // the blade held in the ground: the wrist holds firm (a roll would sink the tip)
+            }
+            float ramp = WristGivesOverSeconds / Mathf.Max(Seconds(kind), 1e-3f);
+            float before = 1.0f - Mathf.InverseLerp(ActiveStart(kind) - ramp, ActiveStart(kind), progress);
+            float after = Mathf.InverseLerp(ActiveEnd(kind), ActiveEnd(kind) + ramp, progress);
+            return Mathf.Lerp(MostLiveWristRollDegrees, 180.0f, Mathf.SmoothStep(0.0f, 1.0f, Mathf.Max(before, after)));
         }
 
         /// <summary>The moment of contact (0-1): the end of the strike, where the blade is fastest and the reach is 1.</summary>
@@ -687,6 +719,8 @@ namespace CityX.Character
             public bool HasFreeHand;
             public Vector3 FreeHand;
             public bool IsStaged;
+            public bool RollsOver;
+            public Vector3 RolledEdge;
         }
 
         /// <summary>
@@ -742,6 +776,19 @@ namespace CityX.Character
         {
             key.HasFreeHand = true;
             key.FreeHand = freeHand;
+            return key;
+        }
+
+        /// <summary>
+        /// Through the follow-through into this key the hand rolls over: the edge, leading the blade into the contact, comes round to face
+        /// <paramref name="edge"/> (the body's standing frame) by the key, as a wrist gives once the cut has landed. Held leading all the way,
+        /// a cut swinging on round behind turns the edge backwards and folds the hand back on the forearm with it (owner, 2026-11-14, of the
+        /// second cut: "the arm bends strangly"; the wrist was bent 154 degrees).
+        /// </summary>
+        private static Key RollsOver(Key key, Vector3 edge)
+        {
+            key.RollsOver = true;
+            key.RolledEdge = edge.normalized;
             return key;
         }
 
@@ -920,10 +967,10 @@ namespace CityX.Character
                     CutPlane cut = SteepDown;
                     Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(0.70f, 2.12f, -0.10f), cut, -94.0f, elbow: 0.70f, twist: 50.0f, hips: 22.0f,
                         lean: -10.0f, tilt: -6.0f, drop: 0.12f, lead: -1.0f, depth: 0.70f), new Vector3(-0.18f, -0.72f, 0.60f));
-                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.0f, 1.62f, 0.76f), cut, 10.0f, elbow: 0.25f, twist: -25.0f, hips: -32.0f,
+                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.0f, 1.62f, 0.76f), cut, 10.0f, elbow: 0.60f, twist: -25.0f, hips: -32.0f,
                         lean: 30.0f, tilt: 10.0f, drop: 0.18f, lead: -1.0f, depth: 0.95f, reach: 1.0f), new Vector3(0.38f, 1.80f, 0.42f), 12.5f)), new Vector3(-0.42f, -0.78f, -0.38f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(-0.34f, 1.64f, 0.48f), cut, 46.0f, elbow: 0.45f, twist: -60.0f, hips: -46.0f,
-                        lean: 28.0f, tilt: 8.0f, drop: 0.20f, lead: -1.0f, depth: 0.90f, reach: 0.6f), new Vector3(-0.44f, -0.76f, -0.40f));
+                    Key follow = FreeArm(RollsOver(Pose(0.0f, Ease.SlowIn, new Vector3(-0.34f, 1.64f, 0.48f), cut, 46.0f, elbow: 0.45f, twist: -60.0f, hips: -46.0f,
+                        lean: 28.0f, tilt: 8.0f, drop: 0.20f, lead: -1.0f, depth: 0.90f, reach: 0.6f), new Vector3(-0.82f, 0.57f, 0.0f)), new Vector3(-0.44f, -0.76f, -0.40f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
                 case SwordStrikeKind.Cut1H:
@@ -932,11 +979,11 @@ namespace CityX.Character
                     // it, the right foot stepping through; then one straight diagonal, the first cut's mirror, down across the front to
                     // the lower right, the free arm swinging forward against it.
                     CutPlane cut = SteepDownBackhand;
-                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.40f, 1.92f, 0.30f), cut, -100.0f, elbow: 0.60f, twist: -48.0f, hips: -24.0f,
+                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.40f, 1.92f, 0.30f), cut, -90.0f, elbow: 0.40f, twist: -48.0f, hips: -24.0f,
                         lean: -6.0f, tilt: -4.0f, drop: 0.12f, lead: 1.0f, depth: 0.45f), new Vector3(-0.40f, -0.78f, -0.36f));
-                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.34f, 1.60f, 0.58f), cut, 10.0f, elbow: 0.35f, twist: 25.0f, hips: 30.0f,
+                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.47f, 1.65f, 0.34f), cut, 10.0f, elbow: -0.70f, twist: 25.0f, hips: 30.0f,
                         lean: 16.0f, tilt: -6.0f, drop: 0.15f, lead: 1.0f, depth: 0.62f, reach: 1.0f), new Vector3(-0.04f, 1.70f, 0.50f), -12.0f)), new Vector3(-0.38f, -0.76f, 0.48f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.50f, 1.52f, 0.44f), cut, 76.0f, elbow: 0.50f, twist: 48.0f, hips: 40.0f,
+                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.72f, 1.42f, 0.12f), cut, 50.0f, elbow: -0.40f, twist: 48.0f, hips: 40.0f,
                         lean: 13.0f, tilt: -4.0f, drop: 0.14f, lead: 1.0f, depth: 0.58f, reach: 0.6f), new Vector3(-0.38f, -0.74f, 0.52f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
@@ -1160,6 +1207,14 @@ namespace CityX.Character
                 {
                     edge = a.Edge;   // a hold: the edge stays as the key has it
                 }
+                else if (b.RollsOver)
+                {
+                    Vector3 rolled = b.RolledEdge - blade * Vector3.Dot(b.RolledEdge, blade);
+                    if (rolled.sqrMagnitude > 1e-6f)
+                    {
+                        edge = Vector3.Slerp(edge, rolled.normalized, uc);
+                    }
+                }
             }
             else
             {
@@ -1271,6 +1326,7 @@ namespace CityX.Character
                 FreeHandWeight = Mathf.Lerp(a.FreeHandWeight, b.FreeHandWeight, t),
                 Reach = Mathf.Lerp(a.Reach, b.Reach, t),
                 ForearmAlign = Mathf.Lerp(a.ForearmAlign, b.ForearmAlign, t),
+                WristRollDegrees = Mathf.Lerp(a.WristRollDegrees, b.WristRollDegrees, t),
             };
         }
 

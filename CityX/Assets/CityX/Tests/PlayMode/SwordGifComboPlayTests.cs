@@ -272,6 +272,98 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Owner, 2026-11-14, of the second cut: "make it more human like animation the arm bends strangly". Through each of the first two
+        /// cuts, wind-up to follow-through: the hand never folds back on the wrist (it folded 154 degrees through the second cut's
+        /// follow-through), the sword-arm's elbow is never raised above the line from its shoulder to its hand (a chicken wing), and the
+        /// hand stays a forearm's length off the face.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheFirstTwoCutsMoveTheArmAsAnArmMoves()
+        {
+#if UNITY_EDITOR
+            _player = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            _player.GetComponent<PlayerVitals>().InfiniteStamina = true;
+            var locomotion = _player.GetComponent<PlayerLocomotion>();
+            _sword = Sword();
+            _sword.OnEquip(_player, ItemInstanceData.None);
+            var combat = _player.GetComponent<SoulsSwordCombat>();
+            var poser = _player.GetComponent<SwordPoseDriver>();
+            combat.HitStopSeconds = 0.0f;
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            Transform shoulder = animator.GetBoneTransform(HumanBodyBones.RightUpperArm), elbow = animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+            Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand), head = animator.GetBoneTransform(HumanBodyBones.Head);
+            var input = new LocomotionInput { Sword1HEquipped = true };
+            for (int i = 0; i < 50; i++)
+            {
+                combat.Tick(Dt);
+                locomotion.Tick(input, Dt);
+                yield return null;
+            }
+            var failures = new System.Collections.Generic.List<string>();
+            var log = new System.Text.StringBuilder();
+            combat.RequestLight(0.0f);
+            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H })
+            {
+                SwordStrikes.StrikeTiming tm = SwordStrikes.TimingOf(kind);
+                float to = (tm.Contact + tm.Follow) / tm.Total;
+                float worstWrist = 0.0f, worstRise = float.MinValue, nearestFace = float.MaxValue;
+                string wristWhen = "", riseWhen = "", faceWhen = "";
+                bool seen = false;
+                for (int frame = 0; frame < 200; frame++)
+                {
+                    if (kind == SwordStrikeKind.Slash1H && poser.Kind == SwordStrikeKind.Slash1H && poser.Progress > to)
+                    {
+                        combat.RequestLight(0.0f);
+                    }
+                    combat.Tick(Dt);
+                    locomotion.Tick(input, Dt);
+                    yield return null;
+                    if (!(poser.IsStriking && poser.Kind == kind))
+                    {
+                        if (seen) break;
+                        continue;
+                    }
+                    if (poser.Progress > to || poser.ClipWeight < 0.99f)
+                    {
+                        continue;
+                    }
+                    seen = true;
+                    string when = $"{poser.Progress * tm.Total:0.00} s";
+                    Vector3 forearm = hand.position - elbow.position;
+                    float wrist = Vector3.Angle(forearm, hand.right);
+                    if (wrist > worstWrist) { worstWrist = wrist; wristWhen = when; }
+                    Vector3 chord = hand.position - shoulder.position;
+                    float t = Mathf.Clamp01(Vector3.Dot(elbow.position - shoulder.position, chord) / chord.sqrMagnitude);
+                    float rise = elbow.position.y - (shoulder.position.y + chord.y * t);
+                    if (rise > worstRise) { worstRise = rise; riseWhen = when; }
+                    float face = Vector3.Distance(hand.position, head.position);
+                    if (face < nearestFace) { nearestFace = face; faceWhen = when; }
+                }
+                float forearmLength = Vector3.Distance(elbow.position, hand.position);
+                log.AppendLine($"{kind}: the wrist bent at most {worstWrist:0} degrees ({wristWhen}), the elbow at most {worstRise * 100.0f:0} cm above the shoulder-hand line ({riseWhen}), the hand at least {nearestFace * 100.0f:0} cm from the head's middle ({faceWhen}; a forearm is {forearmLength * 100.0f:0} cm)");
+                if (!seen) failures.Add($"{kind}: never seen");
+                if (worstWrist > MostWristDegrees) failures.Add($"{kind}: the wrist bends {worstWrist:0} degrees ({wristWhen})");
+                if (worstRise > MostElbowRise) failures.Add($"{kind}: the elbow is raised {worstRise * 100.0f:0} cm above the line to the hand ({riseWhen})");
+                if (nearestFace < forearmLength) failures.Add($"{kind}: the hand comes within {nearestFace * 100.0f:0} cm of the head's middle ({faceWhen})");
+            }
+            Debug.Log("CityX the first two cuts' arm:\n" + log);
+            Assert.IsEmpty(failures, string.Join("; ", failures) + "\n" + log);
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// The most the knuckles may turn from the forearm through a swing, degrees. The knuckles face the single edge, and the edge leads
+        /// every cut (owner, 2026-10-16): through a backhand's whip, for a tenth of a second, the sword lags behind a hand that already faces
+        /// the cut and this reads up to 116 (2026-11-14). Past it the hand is folding back on the wrist, as the second cut's did at 154.
+        /// </summary>
+        private const float MostWristDegrees = 120.0f;
+
+        /// <summary>How far the sword-arm's elbow may sit above the line from the shoulder to the hand, metres.</summary>
+        private const float MostElbowRise = 0.05f;
+
         /// <summary>How far the way a diagonal cut's tip goes may turn between the halves of its sweep, degrees: a cut is an arc, not a line.</summary>
         private const float MostTipTurnDegrees = 35.0f;
     }
