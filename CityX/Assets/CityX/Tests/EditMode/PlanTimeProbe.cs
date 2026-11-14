@@ -16,7 +16,7 @@ namespace CityX.Tests
             CityScale.Active = CityScale.Default;
             try
             {
-                const int seed = PlanPrewarm.DefaultSeed;
+                const int seed = CitySeed.Default;
                 var watch = Stopwatch.StartNew();
                 PlanConfig config = PlanConfig.For(CityScale.Default);
                 CityPlanData data = CityPlan.Generate(seed, config);

@@ -32,9 +32,6 @@ namespace CityX.Character
         private readonly List<IDamageable> _out = new List<IDamageable>();
         private float _bodyTickDue;
 
-        /// <summary>How many bodies are on fire right now.</summary>
-        public static int BurningBodies => Instance != null ? Instance._burning.Count : 0;
-
         public static bool IsBurning(IDamageable target)
         {
             return Instance != null && target != null && Instance._burning.ContainsKey(target);

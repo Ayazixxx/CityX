@@ -1,7 +1,8 @@
 using System.Collections.Generic;
-using FishNet;
 using FishNet.Broadcast;
 using FishNet.Connection;
+using FishNet.Managing.Client;
+using FishNet.Managing.Server;
 using FishNet.Managing;
 using FishNet.Object;
 using FishNet.Transporting;
@@ -72,7 +73,7 @@ namespace CityX.Character
     /// the server which player's hit killed it, and the server tells that player's machine, whose player takes the XP (a kill on this machine's
     /// own enemy is credited where it happens, by the attack itself).
     /// </summary>
-    public sealed class EnemyNetwork : MonoBehaviour
+    public sealed class EnemyNetwork : SessionRelay
     {
         [System.Serializable]
         public struct Kind
@@ -100,9 +101,6 @@ namespace CityX.Character
         [Tooltip("The enemies a player may ask for, by the /spawn name (set by the scene builder).")]
         public Kind[] Kinds = System.Array.Empty<Kind>();
 
-        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
-        public NetworkManager Manager;
-
         /// <summary>This machine's (the game's one; a test makes one per machine and binds each to its own manager).</summary>
         public static EnemyNetwork Current { get; private set; }
 
@@ -112,9 +110,6 @@ namespace CityX.Character
         /// <summary>XP this machine's player was given for kills made on other machines' enemies (for tests).</summary>
         public int CreditedXp { get; private set; }
 
-        private NetworkManager _manager;
-        private bool _serverHandlers;
-        private bool _clientHandlers;
         private readonly SenderRate _spawnRate = new SenderRate(MaxSpawnsPerSecond);
         private readonly SenderRate _killRate = new SenderRate(MaxKillsPerSecond);
         private readonly List<NetworkObject> _alive = new List<NetworkObject>();
@@ -141,7 +136,7 @@ namespace CityX.Character
         public event System.Action<long> WorldMobRefusedAsCleared;
 
         /// <summary>This machine is in a running session: enemies are asked of its server, and only the kinds it shares can be.</summary>
-        public bool InSession => _clientHandlers && _manager != null && _manager.IsClientStarted;
+        public bool InSession => HearsAsClient && CanSend;
 
         /// <summary>Whether the session has a networked <paramref name="kind"/>.</summary>
         public bool Shares(string kind) => PrefabFor(kind) != null;
@@ -159,55 +154,36 @@ namespace CityX.Character
             }
         }
 
-        private void Update()
+        protected override void Update()
         {
-            if (_manager == null)
+            base.Update();
+            if (Session != null)
             {
-                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
-                if (_manager == null)
-                {
-                    return;
-                }
+                AnswerArrivals();
             }
+        }
 
-            bool server = _manager.IsServerStarted;
-            if (server != _serverHandlers)
+        protected override void HearAsServer(ServerManager server, bool on)
+        {
+            Hear<EnemySpawnRequest>(server, on, OnSpawnAtServer);
+            Hear<EnemyKillMessage>(server, on, OnKillAtServer);
+            Hear<WorldMobKilled>(server, on, OnWorldMobKilledAtServer);
+            if (!on)
             {
-                if (server)
-                {
-                    _manager.ServerManager.RegisterBroadcast<EnemySpawnRequest>(OnSpawnAtServer);
-                    _manager.ServerManager.RegisterBroadcast<EnemyKillMessage>(OnKillAtServer);
-                    _manager.ServerManager.RegisterBroadcast<WorldMobKilled>(OnWorldMobKilledAtServer);
-                }
-                else
-                {
-                    _manager.ServerManager.UnregisterBroadcast<EnemySpawnRequest>(OnSpawnAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<EnemyKillMessage>(OnKillAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<WorldMobKilled>(OnWorldMobKilledAtServer);
-                    _alive.Clear();
-                    _worldMobs.Clear();
-                    _clearedUntil.Clear();
-                }
-                _serverHandlers = server;
+                _alive.Clear();
+                _worldMobs.Clear();
+                _clearedUntil.Clear();
             }
+        }
 
-            bool client = _manager.IsClientStarted;
-            if (client != _clientHandlers)
+        protected override void HearAsClient(ClientManager client, bool on)
+        {
+            Hear<EnemyKillMessage>(client, on, OnKillAtClient);
+            Hear<WorldMobReply>(client, on, OnWorldMobReply);
+            if (!on)
             {
-                if (client)
-                {
-                    _manager.ClientManager.RegisterBroadcast<EnemyKillMessage>(OnKillAtClient);
-                    _manager.ClientManager.RegisterBroadcast<WorldMobReply>(OnWorldMobReply);
-                }
-                else
-                {
-                    _manager.ClientManager.UnregisterBroadcast<EnemyKillMessage>(OnKillAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<WorldMobReply>(OnWorldMobReply);
-                    _awaited.Clear();
-                }
-                _clientHandlers = client;
+                _awaited.Clear();
             }
-            AnswerArrivals();
         }
 
         /// <summary>
@@ -222,7 +198,7 @@ namespace CityX.Character
             {
                 return false;
             }
-            _manager.ClientManager.Broadcast(new EnemySpawnRequest { Kind = kind, Position = position, Rotation = rotation, WorldTicket = ticket, Building = building });
+            Session.ClientManager.Broadcast(new EnemySpawnRequest { Kind = kind, Position = position, Rotation = rotation, WorldTicket = ticket, Building = building });
             return true;
         }
 
@@ -231,7 +207,7 @@ namespace CityX.Character
         {
             if (ticket != 0L && InSession)
             {
-                _manager.ClientManager.Broadcast(new WorldMobKilled { WorldTicket = ticket });
+                Session.ClientManager.Broadcast(new WorldMobKilled { WorldTicket = ticket });
             }
         }
 
@@ -295,8 +271,8 @@ namespace CityX.Character
             {
                 (long ticket, int objectId, float until) = _awaited[i];
                 NetworkObject enemy = null;
-                bool here = _manager != null && _manager.IsClientStarted
-                    && _manager.ClientManager.Objects.Spawned.TryGetValue(objectId, out enemy) && enemy != null;
+                bool here = CanSend
+                    && Session.ClientManager.Objects.Spawned.TryGetValue(objectId, out enemy) && enemy != null;
                 if (here || Time.unscaledTime >= until)
                 {
                     _awaited.RemoveAt(i);
@@ -311,11 +287,11 @@ namespace CityX.Character
         /// </summary>
         public bool TrySpawn(string kind, Vector3 position, Quaternion rotation)
         {
-            if (!_clientHandlers || _manager == null || !_manager.IsClientStarted || PrefabFor(kind) == null)
+            if (!InSession || PrefabFor(kind) == null)
             {
                 return false;
             }
-            _manager.ClientManager.Broadcast(new EnemySpawnRequest { Kind = kind, Position = position, Rotation = rotation });
+            Session.ClientManager.Broadcast(new EnemySpawnRequest { Kind = kind, Position = position, Rotation = rotation });
             return true;
         }
 
@@ -364,19 +340,19 @@ namespace CityX.Character
             {
                 if (worlds)
                 {
-                    _manager.ServerManager.Broadcast(sender, new WorldMobReply { WorldTicket = request.WorldTicket, ObjectId = -1, Cleared = cleared });
+                    Session.ServerManager.Broadcast(sender, new WorldMobReply { WorldTicket = request.WorldTicket, ObjectId = -1, Cleared = cleared });
                 }
                 return;
             }
             Quaternion rotation = WireChecks.IsRotation(request.Rotation) ? request.Rotation : Quaternion.identity;
-            NetworkObject enemy = _manager.GetPooledInstantiated(prefab, request.Position, rotation, asServer: true);
-            _manager.ServerManager.Spawn(enemy, sender);
+            NetworkObject enemy = Session.GetPooledInstantiated(prefab, request.Position, rotation, asServer: true);
+            Session.ServerManager.Spawn(enemy, sender);
             _alive.Add(enemy);
             Spawned++;
             if (worlds)
             {
                 _worldMobs.Add((enemy, sender.ClientId, request.WorldTicket, worlds ? request.Building : -1));
-                _manager.ServerManager.Broadcast(sender, new WorldMobReply { WorldTicket = request.WorldTicket, ObjectId = enemy.ObjectId });
+                Session.ServerManager.Broadcast(sender, new WorldMobReply { WorldTicket = request.WorldTicket, ObjectId = enemy.ObjectId });
             }
         }
 
@@ -386,9 +362,9 @@ namespace CityX.Character
             {
                 return;
             }
-            if (_manager.ServerManager.Clients.TryGetValue(message.KillerClientId, out NetworkConnection killer) && killer != null && killer.IsValid)
+            if (Session.ServerManager.Clients.TryGetValue(message.KillerClientId, out NetworkConnection killer) && killer != null && killer.IsValid)
             {
-                _manager.ServerManager.Broadcast(killer, new EnemyKillMessage { KillerClientId = message.KillerClientId, Xp = Mathf.Min(message.Xp, MaxKillXp) });
+                Session.ServerManager.Broadcast(killer, new EnemyKillMessage { KillerClientId = message.KillerClientId, Xp = Mathf.Min(message.Xp, MaxKillXp) });
             }
         }
 
@@ -396,7 +372,7 @@ namespace CityX.Character
 
         private void OnKillAtClient(EnemyKillMessage message, Channel channel)
         {
-            PlayerVitals player = OwnPlayer(_manager.ClientManager.Connection);
+            PlayerVitals player = OwnPlayer(Session.ClientManager.Connection);
             int xp = Mathf.Clamp(message.Xp, 0, MaxKillXp);
             if (player != null && xp > 0)
             {

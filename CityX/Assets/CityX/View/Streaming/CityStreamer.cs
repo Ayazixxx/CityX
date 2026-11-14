@@ -28,7 +28,7 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. Requested: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 48398181;
+        public int WorldSeed = CitySeed.Default;
 
         [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
         public bool PlaceAtSpawn = false;
@@ -1147,9 +1147,8 @@ namespace CityX.View
         /// Turns a generated chunk into scene objects. Main thread only. With <paramref name="deferCollider"/> (everything the background
         /// streaming makes) the chunk is made INACTIVE and its big collider is left without its mesh: the caller has it cooked on a worker
         /// (BeginSwap) and switches the chunk on when that is done. Without it (the synchronous path) the collider is cooked here, at once.
-        /// </summary>
-        /// <summary>
-        /// The chunk as a scene object. With <paramref name="dressing"/> given, only its main mesh is made now and everything else in it (the
+        ///
+        /// With <paramref name="dressing"/> given, only its main mesh is made now and everything else in it (the
         /// glass and decals, the markings and the rail, the doors, the lamps, the interiors, the room lights) is queued as steps for the frames
         /// its collider spends cooking (BeginSwap, CompleteSwaps): made in one frame they were the worst hitch left while sprinting, a dozen mesh
         /// uploads and 170 components as each new chunk landed (docs/PERFORMANCE.md, 2026-10-31). The steps read <paramref name="payload"/>, so

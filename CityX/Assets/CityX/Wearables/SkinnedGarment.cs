@@ -72,64 +72,21 @@ namespace CityX.Wearables
 
         private SkinnedGarmentCombiner Combiner { get; set; }
 
-        private Transform _nearbyPlayer;
+        private readonly GroundPickup _pickup = new GroundPickup();
         private bool _equipped;
         private SkinnedMeshRenderer _bodySkin;
 
         private void Update()
         {
-            if (_equipped)
+            if (!_equipped && _pickup.TappedWithin(transform.position, InteractRange))
             {
-                return;
-            }
-            TickPickup();
-        }
-
-        private void OnTriggerEnter(Collider other)
-        {
-            Transform body = InteractionReach.LocalPlayerBody(other);
-            if (body != null)
-            {
-                _nearbyPlayer = body;
+                GroundPickup.Take(_pickup.Player, gameObject, ItemId);
             }
         }
 
-        private void OnTriggerExit(Collider other)
-        {
-            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
-            {
-                _nearbyPlayer = null;
-            }
-        }
+        private void OnTriggerEnter(Collider other) => _pickup.Entered(other);
 
-        /// <summary>Proximity only -- no look-direction check, matching the ground truth.</summary>
-        private void TickPickup()
-        {
-            if (_nearbyPlayer == null)
-            {
-                return;
-            }
-            if (!InteractKey.Tapped)
-            {
-                return;
-            }
-
-            Vector3 toSelf = transform.position - _nearbyPlayer.position;
-            if (toSelf.sqrMagnitude > InteractRange * InteractRange)
-            {
-                return;
-            }
-
-            var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
-            if (inventory == null)
-            {
-                return;
-            }
-            if (inventory.PickUp(ItemId))
-            {
-                Destroy(gameObject);
-            }
-        }
+        private void OnTriggerExit(Collider other) => _pickup.Left(other);
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
         {

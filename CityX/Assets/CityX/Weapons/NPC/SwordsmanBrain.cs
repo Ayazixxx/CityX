@@ -341,12 +341,6 @@ namespace CityX.Weapons
         private float _turnHeldFor;
         private NpcWander _wander;
 
-        /// <summary>He is wandering, with nothing to fight (for tests).</summary>
-        public bool IsWandering => _wander != null && !Opponents.Alive(_target);
-
-        /// <summary>He holds the turn to attack his target now (EnemyPack.Turns). For tests.</summary>
-        public bool HasTurn => EnemyPack.Turns.Holds(transform);
-
         /// <summary>
         /// FIGHTING IN A PACK (EnemyPack): he asks for his turn as he comes into reach and attacks only while it is his and no packmate stands in
         /// the line; he hands it on once his attack is over (or when he has not used it for a while); and he circles away from his nearest

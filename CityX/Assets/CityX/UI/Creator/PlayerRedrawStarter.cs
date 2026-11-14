@@ -34,7 +34,7 @@ namespace CityX.UI
 
         private CharacterIdentity _identity;
         private GameObject _overlay;
-        private bool _wasCursorCaptured;
+        private readonly MenuFocus _focus = new MenuFocus();
 
         public bool IsActive => _overlay != null;
 
@@ -69,11 +69,7 @@ namespace CityX.UI
                 return;
             }
 
-            _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            if (InputReader != null) InputReader.Hold(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = false;
+            _focus.Take(this, InputReader, OrbitCamera);
 
             _overlay = RedrawCreatorRuntime.Build(Body, HairMeshes, HairMaterial, OnConfirm, OnCancel);
             Active = this;
@@ -153,13 +149,7 @@ namespace CityX.UI
             {
                 Active = null;
             }
-            if (InputReader != null) InputReader.Release(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = true;
-            if (_wasCursorCaptured)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            _focus.GiveBack(this, InputReader, OrbitCamera);
         }
     }
 }

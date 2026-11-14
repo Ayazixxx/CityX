@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using CityX.World;
-using FishNet;
 using FishNet.Broadcast;
 using FishNet.Connection;
-using FishNet.Managing;
+using FishNet.Managing.Client;
+using FishNet.Managing.Server;
 using FishNet.Transporting;
 using UnityEngine;
 
@@ -57,13 +57,10 @@ namespace CityX.Character
     /// later. FishNet BROADCASTS, not RPCs on a body: glass broken across the city must be broken when you get there. Alone, nothing is started
     /// and this does nothing: GlassDamage.Relay stays null.
     /// </summary>
-    public sealed class GlassDamageNetwork : MonoBehaviour, IGlassRelay
+    public sealed class GlassDamageNetwork : SessionRelay, IGlassRelay
     {
         /// <summary>The most panes one player may break per second (automatic fire along a row of windows).</summary>
         public const int MaxChangesPerSecond = 30;
-
-        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
-        public NetworkManager Manager;
 
         /// <summary>The record other players' glass is merged into; null: the city's own (GlassDamage.Current). Tests give each machine one.</summary>
         public GlassDamage Target;
@@ -78,69 +75,37 @@ namespace CityX.Character
         /// <summary>What the server knows of the city's glass, for players who join later.</summary>
         private readonly GlassDamage _serverRecord = new GlassDamage();
 
-        private NetworkManager _manager;
-        private bool _serverHandlers;
-        private bool _clientHandlers;
-        private bool _requested;
         private readonly SenderRate _rate = new SenderRate(MaxChangesPerSecond);
 
         private GlassDamage Record => Target ?? GlassDamage.Current;
 
-        private void Update()
+        protected override void HearAsServer(ServerManager server, bool on)
         {
-            if (_manager == null)
-            {
-                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
-                if (_manager == null)
-                {
-                    return;
-                }
-            }
+            Hear<GlassPaneMessage>(server, on, OnChangeAtServer);
+            Hear<GlassStateRequest>(server, on, OnStateRequestAtServer);
+        }
 
-            bool server = _manager.IsServerStarted;
-            if (server != _serverHandlers)
+        protected override void HearAsClient(ClientManager client, bool on)
+        {
+            Hear<GlassPaneMessage>(client, on, OnChangeAtClient);
+            Hear<GlassStateMessage>(client, on, OnStateAtClient);
+            if (on)
             {
-                if (server)
-                {
-                    _manager.ServerManager.RegisterBroadcast<GlassPaneMessage>(OnChangeAtServer);
-                    _manager.ServerManager.RegisterBroadcast<GlassStateRequest>(OnStateRequestAtServer);
-                }
-                else
-                {
-                    _manager.ServerManager.UnregisterBroadcast<GlassPaneMessage>(OnChangeAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<GlassStateRequest>(OnStateRequestAtServer);
-                }
-                _serverHandlers = server;
+                GlassDamage.Relay = this;
             }
+            else
+            {
+                if (ReferenceEquals(GlassDamage.Relay, this))
+                {
+                    GlassDamage.Relay = null;
+                }
+            }
+        }
 
-            bool client = _manager.IsClientStarted;
-            if (client != _clientHandlers)
-            {
-                if (client)
-                {
-                    _manager.ClientManager.RegisterBroadcast<GlassPaneMessage>(OnChangeAtClient);
-                    _manager.ClientManager.RegisterBroadcast<GlassStateMessage>(OnStateAtClient);
-                    GlassDamage.Relay = this;
-                    _requested = false;   // asked for once the server has let this client in (below)
-                }
-                else
-                {
-                    _manager.ClientManager.UnregisterBroadcast<GlassPaneMessage>(OnChangeAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<GlassStateMessage>(OnStateAtClient);
-                    if (ReferenceEquals(GlassDamage.Relay, this))
-                    {
-                        GlassDamage.Relay = null;
-                    }
-                }
-                _clientHandlers = client;
-            }
-
-            // A joining player asks which panes are broken, once the server has authenticated it (a broadcast before that is dropped).
-            if (_clientHandlers && !_requested && _manager.ClientManager.Connection != null && _manager.ClientManager.Connection.IsAuthenticated)
-            {
-                _requested = true;
-                _manager.ClientManager.Broadcast(new GlassStateRequest());
-            }
+        // A joining player asks which panes are broken, once the server has authenticated it (a broadcast before that is dropped).
+        protected override void OnLetIn(ClientManager client)
+        {
+            client.Broadcast(new GlassStateRequest());
         }
 
         private void OnDisable()
@@ -153,9 +118,9 @@ namespace CityX.Character
 
         public void Send(in PaneChange change)
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
-                _manager.ClientManager.Broadcast(ToMessage(change));
+                Session.ClientManager.Broadcast(ToMessage(change));
             }
         }
 
@@ -166,7 +131,7 @@ namespace CityX.Character
                 return;
             }
             _serverRecord.Merge(ToChange(message), out _);
-            _manager.ServerManager.Broadcast(message);
+            Session.ServerManager.Broadcast(message);
         }
 
         private void OnStateRequestAtServer(NetworkConnection sender, GlassStateRequest request, Channel channel)
@@ -175,7 +140,7 @@ namespace CityX.Character
             {
                 return;
             }
-            _manager.ServerManager.Broadcast(sender, ToState(_serverRecord.Snapshot()));
+            Session.ServerManager.Broadcast(sender, ToState(_serverRecord.Snapshot()));
         }
 
         private void OnChangeAtClient(GlassPaneMessage message, Channel channel)

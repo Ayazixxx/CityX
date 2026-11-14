@@ -194,9 +194,6 @@ namespace CityX.World
         /// <summary>Height of the roof above sea level.</summary>
         public float Top => BaseHeight + Params.Height;
 
-        /// <summary>How far the podium has to reach down on the low side.</summary>
-        public float PodiumDepth => BaseHeight - PodiumBase;
-
         // The rectangle in the building's own frame, placed unturned around the centre (see the class comment).
         public double MinX => CentreX - Params.Width * 0.5;
         public double MaxX => CentreX + Params.Width * 0.5;

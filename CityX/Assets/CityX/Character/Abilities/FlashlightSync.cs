@@ -29,6 +29,8 @@ namespace CityX.Character
         private bool _sentLit;
         private Vector3 _sentPoint;
         private float _sinceAim;
+        private PlayerLocomotion _locomotion;
+        private bool _lookedForLocomotion;
 
         private void Update()
         {
@@ -38,7 +40,7 @@ namespace CityX.Character
         /// <summary>The owner's side: what the light in hand does, told; public so a test can step it.</summary>
         public void Tick(float deltaTime)
         {
-            ITorch torch = GetComponentInChildren<ITorch>();
+            ITorch torch = HeldTorch();
             bool lit = torch != null && torch.IsLit;
             if (lit != _sentLit)
             {
@@ -61,10 +63,29 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// The light in this body's hand, or null. The flashlight tells the body's locomotion when it is taken in hand (PlayerLocomotion.Torch),
+        /// so nothing is searched for; only a body with no locomotion is looked through.
+        /// </summary>
+        private ITorch HeldTorch()
+        {
+            if (!_lookedForLocomotion)
+            {
+                _lookedForLocomotion = true;
+                _locomotion = GetComponent<PlayerLocomotion>();
+            }
+            if (_locomotion == null)
+            {
+                return GetComponentInChildren<ITorch>();
+            }
+            Transform held = _locomotion.Torch;
+            return held != null ? held.GetComponent<ITorch>() : null;
+        }
+
         /// <summary>Another player's light, on this copy of their body: on or off, pointed where theirs points.</summary>
         public void PlayRemote(AbilityEvent evt)
         {
-            ITorch torch = GetComponentInChildren<ITorch>();
+            ITorch torch = HeldTorch();
             if (torch == null)
             {
                 return;

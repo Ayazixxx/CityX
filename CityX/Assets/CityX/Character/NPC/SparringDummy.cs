@@ -40,8 +40,6 @@ namespace CityX.Character
 
         private float _flinchRemaining;
 
-        public bool IsFlinching => _flinchRemaining > 0.0f;
-
         public event System.Action Felled;
 
         private void Awake()

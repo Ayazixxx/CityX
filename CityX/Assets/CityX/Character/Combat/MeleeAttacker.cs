@@ -127,9 +127,6 @@ namespace CityX.Character
 
         private bool UnarmedSwingInProgress => EquippedWeapon == null && _swingRemaining > 0.0f && _spinState == SpinState.None && FistStrikes.Has(_currentStage.Animation);
 
-        /// <summary>How far through the swing in progress it is, 0 to 1.</summary>
-        public float SwingProgress => _activeSwingSeconds > 0.0f && _swingRemaining > 0.0f ? Mathf.Clamp01(1.0f - _swingRemaining / _activeSwingSeconds) : 0.0f;
-
         private CharacterController _controller;
 
         /// <summary>How far the punch in progress has carried the body so far, metres of the clip's stride.</summary>

@@ -10,10 +10,10 @@ namespace CityX.Character
     /// </summary>
     public static class PlayerBodies
     {
-        /// <summary>The nearest living player's body within <paramref name="reach"/> metres of <paramref name="from"/>, or null.</summary>
         /// <summary>How many searches have run (for tests: a search scans the scene, so an enemy must ask about once a second, not every frame).</summary>
         public static int Searches { get; private set; }
 
+        /// <summary>The nearest living player's body within <paramref name="reach"/> metres of <paramref name="from"/>, or null.</summary>
         public static PlayerVitals NearestAlive(Vector3 from, float reach)
         {
             Searches++;

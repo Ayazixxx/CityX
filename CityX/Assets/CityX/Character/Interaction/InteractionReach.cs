@@ -62,6 +62,7 @@ namespace CityX.Character
         /// <summary>
         /// What every pickup asks: <paramref name="point"/> is within <paramref name="range"/> of the player's feet and inside the cone they look
         /// along (<paramref name="lookDot"/>, the cosine of its half-angle). The look's dot is given back, so the most directly looked at can win.
+        /// (The range is from the body, never the camera: the camera trails metres behind it, and only says where the player looks.)
         /// </summary>
         public static bool CanReach(UnityEngine.Vector3 point, UnityEngine.Transform player, float range, float lookDot, out float dot)
         {

@@ -84,9 +84,6 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>The Giant Boomerang is drawn into the aim, or being drawn.</summary>
-        public bool GiantAiming => _moves != null && _moves.IsAiming;
-
         /// <summary>This body throws its boomerang: the arm swings, it flies, and other players are told. Null if one is out already.</summary>
         public ThrownBoomerang Throw(Vector3 from, Vector3 way, float damage, float penetration)
         {

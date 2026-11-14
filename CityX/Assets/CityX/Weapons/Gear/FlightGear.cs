@@ -30,7 +30,7 @@ namespace CityX.Weapons
         public const float TiltSmoothTime = 0.25f;
 
         private SphereCollider _pickupTrigger;
-        private Transform _nearbyPlayer;
+        private readonly GroundPickup _pickup = new GroundPickup();
         private FlightModel _model;
         private ThirdPersonCamera _orbitCamera;
         private float _savedMinPitch;
@@ -110,11 +110,6 @@ namespace CityX.Weapons
         /// <summary>Current eased lean, x pitch, y roll, degrees.</summary>
         public Vector2 CurrentTilt => _currentTilt;
 
-        /// <summary>The camera's current flight widening, degrees, and pull-back, metres -- for tests and tuning.</summary>
-        public float FeelFovBonus => _feelFov;
-
-        public float FeelDistanceBonus => _feelDistance;
-
         /// <summary>The camera the flight feel drives. Set on equip; a test can point it at its own.</summary>
         public ThirdPersonCamera FeelCamera
         {
@@ -129,43 +124,17 @@ namespace CityX.Weapons
 
         protected virtual void Update()
         {
-            if (!IsEquipped)
+            if (!IsEquipped && _pickup.TappedWithin(transform.position, InteractRange))
             {
-                TickPickup();
+                GroundPickup.Take(_pickup.Player, gameObject, ItemId);
             }
         }
 
         // --- a pickup on the ground: proximity and E, every item's own convention ---
 
-        private void OnTriggerEnter(Collider other)
-        {
-            Transform body = InteractionReach.LocalPlayerBody(other);
-            if (body != null)
-            {
-                _nearbyPlayer = body;
-            }
-        }
+        private void OnTriggerEnter(Collider other) => _pickup.Entered(other);
 
-        private void OnTriggerExit(Collider other)
-        {
-            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
-            {
-                _nearbyPlayer = null;
-            }
-        }
-
-        private void TickPickup()
-        {
-            if (_nearbyPlayer == null || !InteractKey.Tapped || Vector3.Distance(transform.position, _nearbyPlayer.position) > InteractRange)
-            {
-                return;
-            }
-            var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
-            if (inventory != null && inventory.PickUp(ItemId))
-            {
-                Destroy(gameObject);
-            }
-        }
+        private void OnTriggerExit(Collider other) => _pickup.Left(other);
 
         // --- worn ---
 

@@ -1670,7 +1670,6 @@ namespace CityX.Character
         /// should react" needs and nothing in this project provided before
         /// now.
         /// </summary>
-
         private void OnControllerColliderHit(ControllerColliderHit hit)
         {
             // A REAL, DIRECT CONTACT CHECK, independent of the rigidbody

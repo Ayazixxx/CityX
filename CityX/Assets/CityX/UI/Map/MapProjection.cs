@@ -55,18 +55,6 @@ namespace CityX.UI
             return cursorOffsetFromCentre / scaleBefore - cursorOffsetFromCentre / scaleAfter;
         }
 
-        /// <summary>
-        /// A chunk's own top-left screen pixel and its pixel size, for
-        /// drawing and culling. World +Z is south, which is +Y (down) on
-        /// screen -- a plain north-up plan view with no flip.
-        /// </summary>
-        public static void ChunkRect(Vector2 panelCentre, int chunkX, int chunkY, float chunkSize,
-            float viewX, float viewZ, float scale, out Vector2 topLeft, out float pixelSize)
-        {
-            topLeft = ToScreen(panelCentre, chunkX * chunkSize, chunkY * chunkSize, viewX, viewZ, scale);
-            pixelSize = chunkSize * scale;
-        }
-
         /// <summary>Cheap off-screen test: a chunk fully past any edge of the panel costs nothing to skip.</summary>
         public static bool IsOffScreen(Vector2 topLeft, float pixelSize, Vector2 panelSize)
         {

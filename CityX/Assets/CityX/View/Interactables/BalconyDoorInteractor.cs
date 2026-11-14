@@ -82,9 +82,6 @@ namespace CityX.View
         private static AudioClip _slide;
         private static AudioClip _rattle;
 
-        /// <summary>The doors near the player at the last look (for tests and the HUD).</summary>
-        public IReadOnlyList<Near> NearDoors => _near;
-
         /// <summary>The last door this machine's player opened or shut, and whether it was one that does not open.</summary>
         public long LastUsed { get; private set; } = -1;
 

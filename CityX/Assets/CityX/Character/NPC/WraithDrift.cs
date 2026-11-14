@@ -66,9 +66,6 @@ namespace CityX.Character
         /// <summary>The way it faces and drifts: a unit vector, level.</summary>
         public Vector3 Heading => _heading;
 
-        /// <summary>The heading it is turning toward.</summary>
-        public Vector3 Goal => _goal;
-
         /// <summary>How fast it is drifting, metres per second (0 lingering).</summary>
         public float Speed => _speed;
 

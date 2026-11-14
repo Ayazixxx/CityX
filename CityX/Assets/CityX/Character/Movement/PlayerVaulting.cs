@@ -56,9 +56,6 @@ namespace CityX.Character
         /// <summary>How much of a dive this vault is: 0 an ordinary vault, 1 flat through a low window.</summary>
         public float Dive { get; private set; }
 
-        /// <summary>The lean at the middle of this vault, degrees (<see cref="LeanDegrees"/> to <see cref="DiveLeanDegrees"/>).</summary>
-        public float VaultLeanDegrees => _leanDegrees;
-
         private float _seconds = VaultSeconds;
 
         private static readonly Collider[] PaneOverlaps = new Collider[16];

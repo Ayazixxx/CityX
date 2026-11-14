@@ -40,13 +40,9 @@ namespace CityX.Weapons
         private WaterJet _remoteJet;
         private float _aimSendIn;
         private float _remoteLeft;
-        private float _sprayed;
 
         /// <summary>This body's jet is on.</summary>
         public bool IsSpraying { get; private set; }
-
-        /// <summary>How long the jet has been held, seconds.</summary>
-        public float SprayedSeconds => IsSpraying ? _sprayed : 0.0f;
 
         /// <summary>The bodies the jet is on this frame.</summary>
         public IReadOnlyList<IDamageable> InStream => _inStream;
@@ -81,7 +77,6 @@ namespace CityX.Weapons
             {
                 return;
             }
-            _sprayed += deltaTime;
             _locomotion?.HoldStaffOut();
             Spray(from, direction, deltaTime);
             _aimSendIn -= deltaTime;
@@ -100,7 +95,6 @@ namespace CityX.Weapons
         private void StartTheStream(Transform tip, Vector3 from, Vector3 direction)
         {
             IsSpraying = true;
-            _sprayed = 0.0f;
             _aimSendIn = WaterJetRules.AimSendSeconds;
             _ticks.Forget(Time.time);
             if (_jet == null && tip != null)

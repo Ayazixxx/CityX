@@ -448,18 +448,5 @@ namespace CityX.View
             AddTurnedBox(b, cx, cz, 0.40f, 0.40f, cos, sin, y + 1.1f, y + 1.2f);
             b.Look = saved;
         }
-
-        /// <summary>A dry lawn's kerb: a low concrete edge following an outline (chunk-local points), and the straw-coloured ground inside it is the caller's.</summary>
-        public static void AddLawnKerb(MeshBuffer b, Vector3[] outline, float height)
-        {
-            Color32 saved = b.Look;
-            b.Look = Concrete;
-            for (int i = 0; i < outline.Length; i++)
-            {
-                Vector3 a = outline[i], c = outline[(i + 1) % outline.Length];
-                AddBeam(b, new Vector3(a.x, a.y + height * 0.5f, a.z), new Vector3(c.x, c.y + height * 0.5f, c.z), height * 0.5f);
-            }
-            b.Look = saved;
-        }
     }
 }

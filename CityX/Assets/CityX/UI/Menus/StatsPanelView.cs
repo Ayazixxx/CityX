@@ -78,7 +78,7 @@ namespace CityX.UI
         }
 
         private readonly List<StatRow> _rows = new List<StatRow>();
-        private bool _wasCursorCaptured;
+        private readonly MenuFocus _focus = new MenuFocus();
 
         public bool IsOpen => Root != null && Root.activeSelf;
 
@@ -116,12 +116,7 @@ namespace CityX.UI
             {
                 return;
             }
-            _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-
-            if (InputReader != null) InputReader.Hold(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = false;
+            _focus.Take(this, InputReader, OrbitCamera);
 
             _opening = true;
             if (Root != null) Root.SetActive(true);
@@ -134,14 +129,7 @@ namespace CityX.UI
         {
             if (Root != null) Root.SetActive(false);
 
-            if (InputReader != null) InputReader.Release(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = true;
-
-            if (_wasCursorCaptured)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            _focus.GiveBack(this, InputReader, OrbitCamera);
         }
 
         /// <summary>Spends points on a stat: one, or <see cref="ShiftClickPoints"/> with Shift held.</summary>

@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BulletHoleCentreTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         /// <summary>How far the drawn hole's centre may be from the hit, metres (the decal stands 3 mm proud of the glass).</summary>
         private const float Tolerance = 0.01f;

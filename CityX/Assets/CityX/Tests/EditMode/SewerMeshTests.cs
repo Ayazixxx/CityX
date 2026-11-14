@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class SewerMeshTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         private sealed class Chunk
         {

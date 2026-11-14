@@ -553,9 +553,6 @@ namespace CityX.Character
         /// <summary>The two-handed finisher: from over the right shoulder, around and down across the front to the lower left (a 28 degree diagonal).</summary>
         public static readonly CutPlane DiagonalDown = new CutPlane(new Vector3(0.247f, -0.165f, 0.955f), new Vector3(-0.883f, -0.442f, 0.152f));
 
-        /// <summary>The one-handed backhand diagonal: from over the left shoulder down across the front to the lower right (the finisher's mirror).</summary>
-        public static readonly CutPlane DiagonalDownBackhand = new CutPlane(new Vector3(-0.247f, -0.165f, 0.955f), new Vector3(0.883f, -0.442f, 0.152f));
-
         /// <summary>The one-handed chain's first cut: from over the right shoulder, over the top and steeply down across the front to the lower left (46 degrees off the level).</summary>
         public static readonly CutPlane SteepDown = new CutPlane(new Vector3(0.20f, -0.20f, 0.96f), new Vector3(-0.68f, -0.73f, 0.05f));
 

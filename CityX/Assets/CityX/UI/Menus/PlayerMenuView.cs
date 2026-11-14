@@ -56,7 +56,7 @@ namespace CityX.UI
         [Tooltip("Opened (after this menu closes) by the Quests and Social buttons.")]
         public PlaceholderPanelView Placeholder;
 
-        private bool _wasCursorCaptured;
+        private readonly MenuFocus _focus = new MenuFocus();
 
         public bool IsOpen => Root != null && Root.activeSelf;
 
@@ -116,12 +116,7 @@ namespace CityX.UI
             {
                 return;
             }
-            _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-
-            if (InputReader != null) InputReader.Hold(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = false;
+            _focus.Take(this, InputReader, OrbitCamera);
             if (MenuCamera != null && CameraTransform != null && Player != null)
             {
                 MenuCamera.Begin(CameraTransform, Player);
@@ -140,14 +135,7 @@ namespace CityX.UI
             // closed mid-ease leaves this component and ThirdPersonCamera
             // both writing to the camera transform on the very same frame.
             MenuCamera?.Stop();
-            if (InputReader != null) InputReader.Release(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = true;
-
-            if (_wasCursorCaptured)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            _focus.GiveBack(this, InputReader, OrbitCamera);
         }
 
         private void OnQuestsClicked()

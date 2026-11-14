@@ -195,10 +195,11 @@ namespace CityX.View
                 for (int x = 0; x < cells; x++)
                 {
                     int left = (x + cells - 1) % cells, right = (x + 1) % cells;
-                    float low = Mathf.Min(from[z * cells + x], from[z * cells + left], from[z * cells + right]);
-                    low = Mathf.Min(low, from[above * cells + left], from[above * cells + x]);
-                    low = Mathf.Min(low, from[above * cells + right], from[below * cells + left]);
-                    low = Mathf.Min(low, from[below * cells + x], from[below * cells + right]);
+                    // (Two at a time: Mathf.Min with three makes an array a call, and this runs for every cell of the map.)
+                    float low = Mathf.Min(from[z * cells + x], Mathf.Min(from[z * cells + left], from[z * cells + right]));
+                    low = Mathf.Min(low, Mathf.Min(from[above * cells + left], from[above * cells + x]));
+                    low = Mathf.Min(low, Mathf.Min(from[above * cells + right], from[below * cells + left]));
+                    low = Mathf.Min(low, Mathf.Min(from[below * cells + x], from[below * cells + right]));
                     into[z * cells + x] = low;
                 }
             }

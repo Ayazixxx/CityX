@@ -220,7 +220,7 @@ namespace CityX.Weapons
         private bool _reloadRecording;   // the reload in progress plays the gun's own recording (FirearmProfile.ReloadSound), not the clicks
         private float _muzzleFlashRemaining;
         private bool _equipped;
-        private Transform _nearbyPlayer;
+        private readonly GroundPickup _pickup = new GroundPickup();
         private SphereCollider _pickupTrigger;
         private int _burstIndex;
         private float _sinceShot = 999.0f;
@@ -238,7 +238,7 @@ namespace CityX.Weapons
         private Quaternion _magazineRestRotation = Quaternion.identity;
         private bool _partsRestKnown;
 
-        public bool HasNearbyPlayer => _nearbyPlayer != null;
+        public bool HasNearbyPlayer => _pickup.Player != null;
 
         private void Awake()
         {
@@ -318,7 +318,10 @@ namespace CityX.Weapons
                 UpdateHeldPose();
                 return;
             }
-            TickPickup();
+            if (_pickup.Player != null)
+            {
+                TryPickup(_pickup.Player, InteractKey.Tapped);
+            }
         }
 
         /// <summary>The held grip pose; while a reload has no motion to play (a bare rig), the old procedural dip stands in for it.</summary>
@@ -428,64 +431,15 @@ namespace CityX.Weapons
 
         // ---- pickup ----
 
-        private void TickPickup()
-        {
-            if (_nearbyPlayer == null)
-            {
-                return;
-            }
-            bool ePressed = InteractKey.Tapped;
-            TryPickup(_nearbyPlayer, ePressed);
-        }
-
         public bool TryPickup(Transform player, bool ePressed)
         {
-            if (!ePressed)
-            {
-                return false;
-            }
-            // RANGE FROM THE PLAYER'S OWN BODY, NOT THE CAMERA (the camera trails metres behind the body); the camera only says where they look.
-            Vector3 toPlayer = transform.position - player.position;
-            if (toPlayer.sqrMagnitude > InteractRange * InteractRange)
-            {
-                return false;
-            }
-            Transform lookSource = InteractionReach.LookSource(player);
-            Vector3 toSelf = transform.position - lookSource.position;
-            if (toSelf.sqrMagnitude > 0.0001f &&
-                Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
-            {
-                return false;
-            }
-            var inventory = player.GetComponentInParent<Inventory>();
-            if (inventory == null)
-            {
-                return false;
-            }
-            if (inventory.PickUp(ItemId))
-            {
-                Destroy(gameObject);
-                return true;
-            }
-            return false;
+            return ePressed && InteractionReach.CanReach(transform.position, player, InteractRange, LookDotThreshold, out _)
+                && GroundPickup.Take(player, gameObject, ItemId);
         }
 
-        private void OnTriggerEnter(Collider other)
-        {
-            Transform body = InteractionReach.LocalPlayerBody(other);
-            if (body != null)
-            {
-                _nearbyPlayer = body;
-            }
-        }
+        private void OnTriggerEnter(Collider other) => _pickup.Entered(other);
 
-        private void OnTriggerExit(Collider other)
-        {
-            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
-            {
-                _nearbyPlayer = null;
-            }
-        }
+        private void OnTriggerExit(Collider other) => _pickup.Left(other);
 
         // ---- equip ----
 
@@ -1180,9 +1134,6 @@ namespace CityX.Weapons
 
         /// <summary>Seconds before the next shot can go (Fire Rate shortens the wait).</summary>
         public float FireCooldownRemaining => _fireCooldownRemaining;
-
-        /// <summary>How many shots of the current burst have been fired (0 once it has reset).</summary>
-        public int ShotsInBurst => _sinceShot <= Profile.RecoilResetSeconds ? _burstIndex : 0;
 
         private struct ShotTrace
         {

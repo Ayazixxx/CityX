@@ -74,7 +74,6 @@ namespace CityX.Character
         private MeshRenderer _patchRenderer;
         private Light _light;
         private MaterialPropertyBlock _tint;
-        private float _front;
         private float _sinceImpact = -1.0f;
         private float _mistDebt;
         private float _glitterDebt;
@@ -155,7 +154,6 @@ namespace CityX.Character
         public void Step(float front, float sunk, float deltaTime)
         {
             bool running = !HasImpacted;
-            _front = front;
             GlacierSpikesCast cast = _field.Cast;
             Vector3 frontPoint = cast.Start + cast.Direction * front;
             frontPoint.y = _field.Path.HeightAt(front);

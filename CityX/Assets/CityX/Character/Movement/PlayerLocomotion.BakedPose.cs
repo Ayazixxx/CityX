@@ -45,9 +45,6 @@ namespace CityX.Character
         /// <summary>How much of the body a baked pose holds, 0 to 1.</summary>
         public float BakedPoseWeight => _bakedPoseWeight;
 
-        /// <summary>How much the baked pose being applied holds the FINGERS this frame (0 when it has no finger bones): the hand grips keep off that much.</summary>
-        public float BakedFingerWeight => _bakedFingerWeight;
-
         /// <summary>
         /// True while the baked pose leaves the hips and legs to the Animator, wholly or in part (a gun reload; a sword attack on a body
         /// that is walking): the foot IK stays on, and what the pose still has of the legs is laid over it.

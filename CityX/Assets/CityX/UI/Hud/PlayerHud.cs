@@ -108,7 +108,7 @@ namespace CityX.UI
         private int _shownLevel = -1;
         private int _shownHealthPercent = -1;
         private int _shownManaPercent = -1;
-        private bool _wasCursorCaptured;
+        private readonly FreedCursor _cursor = new FreedCursor();
 
         private void Awake()
         {
@@ -424,7 +424,7 @@ namespace CityX.UI
         /// </summary>
         public static void Frame(Camera camera, Bounds head, float top, Vector3 facing)
         {
-            float radius = Mathf.Max(head.extents.x, head.extents.y, head.extents.z);
+            float radius = Mathf.Max(head.extents.x, Mathf.Max(head.extents.y, head.extents.z));
             float bottom = head.center.y - radius * PortraitShoulderDropHeadRadii;
             float centreY = (top + bottom) * 0.5f;
             float halfHeight = (top - bottom) * 0.5f * PortraitMargin;
@@ -796,14 +796,11 @@ namespace CityX.UI
 
             if (dead)
             {
-                _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                _cursor.Free();
             }
-            else if (_wasCursorCaptured)
+            else
             {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
+                _cursor.Restore();
             }
         }
 

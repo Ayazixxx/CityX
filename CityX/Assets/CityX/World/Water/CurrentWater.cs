@@ -82,13 +82,5 @@ namespace CityX.World
         }
 
         public static float DepthAt(Vector3 point) => At(point).Depth;
-
-        /// <summary>The surface over a point, or false where there is no water over it.</summary>
-        public static bool TrySurfaceAt(Vector3 point, out float surfaceY)
-        {
-            WaterHere water = At(point);
-            surfaceY = water.SurfaceY;
-            return water.Wet;
-        }
     }
 }

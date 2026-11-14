@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using CityX.Items;
-using FishNet;
 using FishNet.Broadcast;
 using FishNet.Connection;
-using FishNet.Managing;
+using FishNet.Managing.Client;
+using FishNet.Managing.Server;
 using FishNet.Object;
 using FishNet.Transporting;
 using UnityEngine;
@@ -89,7 +89,7 @@ namespace CityX.Character
     /// most <see cref="MaxDropsPerSecond"/> a second and <see cref="MaxLying"/> lying at once. In singleplayer nothing is started and this does
     /// nothing: DroppedItems.Relay stays null, and drops and pickups happen on this machine alone.
     /// </summary>
-    public sealed class DroppedItemsNetwork : MonoBehaviour, IDroppedItemRelay
+    public sealed class DroppedItemsNetwork : SessionRelay, IDroppedItemRelay
     {
         /// <summary>How far from the dropper's body a drop may start, metres (its hand, and a killing blow's fling).</summary>
         public const float DropReachMetres = 8.0f;
@@ -117,9 +117,6 @@ namespace CityX.Character
         /// <summary>The most items lying in the world at once; past it the oldest is cleared away for the new one.</summary>
         public const int MaxLying = 300;
 
-        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
-        public NetworkManager Manager;
-
         /// <summary>This machine's drops (DroppedItems.Shared in the game; a test gives each of its machines its own).</summary>
         public DroppedItems Target = DroppedItems.Shared;
 
@@ -132,80 +129,47 @@ namespace CityX.Character
 
         public int LastStateSize { get; private set; }
 
-        private NetworkManager _manager;
-        private bool _serverHandlers;
-        private bool _clientHandlers;
-        private bool _requested;
         private int _counter;
         private readonly Dictionary<long, ItemDropMessage> _lying = new Dictionary<long, ItemDropMessage>();
         private readonly List<long> _order = new List<long>();
         private readonly SenderRate _rate = new SenderRate(MaxDropsPerSecond);
 
-        private void Update()
+        protected override void HearAsServer(ServerManager server, bool on)
         {
-            if (_manager == null)
+            Hear<ItemDropMessage>(server, on, OnDropAtServer);
+            Hear<ItemTakeRequest>(server, on, OnTakeAtServer);
+            Hear<ItemDropStateRequest>(server, on, OnStateRequestAtServer);
+            if (!on)
             {
-                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
-                if (_manager == null)
-                {
-                    return;
-                }
+                _lying.Clear();
+                _order.Clear();
             }
+        }
 
-            bool server = _manager.IsServerStarted;
-            if (server != _serverHandlers)
+        protected override void HearAsClient(ClientManager client, bool on)
+        {
+            Hear<ItemDropMessage>(client, on, OnDropAtClient);
+            Hear<ItemTakenMessage>(client, on, OnTakenAtClient);
+            Hear<ItemDropStateMessage>(client, on, OnStateAtClient);
+            Hear<ItemTakeRefusedMessage>(client, on, OnTakeRefusedAtClient);
+            Hear<ItemDropRefusedMessage>(client, on, OnDropRefusedAtClient);
+            if (on)
             {
-                if (server)
-                {
-                    _manager.ServerManager.RegisterBroadcast<ItemDropMessage>(OnDropAtServer);
-                    _manager.ServerManager.RegisterBroadcast<ItemTakeRequest>(OnTakeAtServer);
-                    _manager.ServerManager.RegisterBroadcast<ItemDropStateRequest>(OnStateRequestAtServer);
-                }
-                else
-                {
-                    _manager.ServerManager.UnregisterBroadcast<ItemDropMessage>(OnDropAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<ItemTakeRequest>(OnTakeAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<ItemDropStateRequest>(OnStateRequestAtServer);
-                    _lying.Clear();
-                    _order.Clear();
-                }
-                _serverHandlers = server;
+                Target.Relay = this;
             }
+            else
+            {
+                if (ReferenceEquals(Target.Relay, this))
+                {
+                    Target.Relay = null;
+                }
+            }
+        }
 
-            bool client = _manager.IsClientStarted;
-            if (client != _clientHandlers)
-            {
-                if (client)
-                {
-                    _manager.ClientManager.RegisterBroadcast<ItemDropMessage>(OnDropAtClient);
-                    _manager.ClientManager.RegisterBroadcast<ItemTakenMessage>(OnTakenAtClient);
-                    _manager.ClientManager.RegisterBroadcast<ItemDropStateMessage>(OnStateAtClient);
-                    _manager.ClientManager.RegisterBroadcast<ItemTakeRefusedMessage>(OnTakeRefusedAtClient);
-                    _manager.ClientManager.RegisterBroadcast<ItemDropRefusedMessage>(OnDropRefusedAtClient);
-                    Target.Relay = this;
-                    _requested = false;   // asked for once the server has let this client in (below)
-                }
-                else
-                {
-                    _manager.ClientManager.UnregisterBroadcast<ItemDropMessage>(OnDropAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<ItemTakenMessage>(OnTakenAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<ItemDropStateMessage>(OnStateAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<ItemTakeRefusedMessage>(OnTakeRefusedAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<ItemDropRefusedMessage>(OnDropRefusedAtClient);
-                    if (ReferenceEquals(Target.Relay, this))
-                    {
-                        Target.Relay = null;
-                    }
-                }
-                _clientHandlers = client;
-            }
-
-            // A joining player asks what lies around, once the server has authenticated it (a broadcast before that is dropped).
-            if (_clientHandlers && !_requested && _manager.ClientManager.Connection != null && _manager.ClientManager.Connection.IsAuthenticated)
-            {
-                _requested = true;
-                _manager.ClientManager.Broadcast(new ItemDropStateRequest());
-            }
+        // A joining player asks what lies around, once the server has authenticated it (a broadcast before that is dropped).
+        protected override void OnLetIn(ClientManager client)
+        {
+            client.Broadcast(new ItemDropStateRequest());
         }
 
         private void OnDisable()
@@ -221,24 +185,24 @@ namespace CityX.Character
         /// <summary>The high half is this client's own (its id + 1), so ids from different machines never meet; the low half counts.</summary>
         public long NewId()
         {
-            int client = _manager != null && _manager.ClientManager.Connection != null ? _manager.ClientManager.Connection.ClientId : 0;
+            int client = Session != null && Session.ClientManager.Connection != null ? Session.ClientManager.Connection.ClientId : 0;
             return ((long)(client + 1) << 32) | (uint)++_counter;
         }
 
         public void SendDrop(ItemDrop drop)
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
-                _manager.ClientManager.Broadcast(ToMessage(drop));
+                Session.ClientManager.Broadcast(ToMessage(drop));
             }
         }
 
         public void RequestTake(long id)
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
                 DroppedItem shown = Target.Find(id);
-                _manager.ClientManager.Broadcast(new ItemTakeRequest { Id = id, At = shown != null ? shown.transform.position : Vector3.zero });
+                Session.ClientManager.Broadcast(new ItemTakeRequest { Id = id, At = shown != null ? shown.transform.position : Vector3.zero });
             }
         }
 
@@ -253,7 +217,7 @@ namespace CityX.Character
             if (!Acceptable(message) || !Near(sender, message.Position, DropReachMetres) || !_rate.Allow(sender.ClientId, Time.unscaledTime))
             {
                 // Told, or it lies on the dropper's screen as a ghost that can never be picked up (bug hunt M11): there it stays theirs alone.
-                _manager.ServerManager.Broadcast(sender, new ItemDropRefusedMessage { Id = message.Id });
+                Session.ServerManager.Broadcast(sender, new ItemDropRefusedMessage { Id = message.Id });
                 return;
             }
             while (_order.Count >= MaxLying)
@@ -262,12 +226,12 @@ namespace CityX.Character
                 _order.RemoveAt(0);
                 if (_lying.Remove(oldest))
                 {
-                    _manager.ServerManager.Broadcast(new ItemTakenMessage { Id = oldest, TakerClientId = -1 });
+                    Session.ServerManager.Broadcast(new ItemTakenMessage { Id = oldest, TakerClientId = -1 });
                 }
             }
             _lying[message.Id] = message;
             _order.Add(message.Id);
-            _manager.ServerManager.Broadcast(message);
+            Session.ServerManager.Broadcast(message);
         }
 
         private void OnTakeAtServer(NetworkConnection sender, ItemTakeRequest request, Channel channel)
@@ -279,19 +243,19 @@ namespace CityX.Character
             if (!_lying.TryGetValue(request.Id, out ItemDropMessage drop))
             {
                 // Gone already (someone was first, its word lost) or never shared: told it is gone, or it stays "asked for" there for good.
-                _manager.ServerManager.Broadcast(sender, new ItemTakenMessage { Id = request.Id, TakerClientId = -1 });
+                Session.ServerManager.Broadcast(sender, new ItemTakenMessage { Id = request.Id, TakerClientId = -1 });
                 return;
             }
             bool nearWhereItFell = CouldHaveFallenTo(drop.Position, request.At) && Near(sender, request.At, TakeReachMetres);
             if (!nearWhereItFell && !Near(sender, drop.Position, TakeReachMetres))
             {
                 // Asked for from across the city. Told, or it stays "asked for" on their machine and they can never pick it up.
-                _manager.ServerManager.Broadcast(sender, new ItemTakeRefusedMessage { Id = request.Id });
+                Session.ServerManager.Broadcast(sender, new ItemTakeRefusedMessage { Id = request.Id });
                 return;
             }
             _lying.Remove(request.Id);
             _order.Remove(request.Id);
-            _manager.ServerManager.Broadcast(new ItemTakenMessage { Id = request.Id, TakerClientId = sender.ClientId });
+            Session.ServerManager.Broadcast(new ItemTakenMessage { Id = request.Id, TakerClientId = sender.ClientId });
         }
 
         /// <summary>Whether an item let go at <paramref name="released"/> could have come to rest at <paramref name="at"/>: not above it, nor far off to one side.</summary>
@@ -334,7 +298,7 @@ namespace CityX.Character
                 state.Rotation[i] = shown != null ? shown.transform.rotation : drop.Rotation;
                 i++;
             }
-            _manager.ServerManager.Broadcast(sender, state);
+            Session.ServerManager.Broadcast(sender, state);
         }
 
         // ---- every client ----
@@ -365,7 +329,7 @@ namespace CityX.Character
         private void OnTakenAtClient(ItemTakenMessage message, Channel channel)
         {
             TakesHeard++;
-            bool mine = _manager.ClientManager.Connection != null && message.TakerClientId == _manager.ClientManager.Connection.ClientId;
+            bool mine = Session.ClientManager.Connection != null && message.TakerClientId == Session.ClientManager.Connection.ClientId;
             Target.Taken(message.Id, mine);
         }
 

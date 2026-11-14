@@ -104,9 +104,6 @@ namespace CityX.Weapons
         /// <summary>The stroke's angle now, degrees, positive up: see <see cref="StrokeAngle"/>.</summary>
         public float Angle => StrokeAngle(0.0f);
 
-        /// <summary>How much lift this instant gives, 0..1: the downstroke's, none on the way up.</summary>
-        public float LiftPulse => LiftAt(Phase);
-
         public void Tick(in WingBeatInput input, float deltaTime)
         {
             deltaTime = Mathf.Max(0.0f, deltaTime);

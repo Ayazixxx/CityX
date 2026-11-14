@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using CityX.World;
-using FishNet;
 using FishNet.Broadcast;
 using FishNet.Connection;
-using FishNet.Managing;
+using FishNet.Managing.Client;
+using FishNet.Managing.Server;
 using FishNet.Transporting;
 using UnityEngine;
 
@@ -41,13 +41,10 @@ namespace CityX.Character
     /// <see cref="MaxUsesPerSecond"/> a second per player. In singleplayer nothing is started and this does nothing: BalconyDoorState.Relay stays
     /// null and a door only changes on this machine.
     /// </summary>
-    public sealed class BalconyDoorsNetwork : MonoBehaviour, IBalconyDoorRelay
+    public sealed class BalconyDoorsNetwork : SessionRelay, IBalconyDoorRelay
     {
         /// <summary>The most doors one player may open or shut per second (a hand is not faster than this).</summary>
         public const int MaxUsesPerSecond = 8;
-
-        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
-        public NetworkManager Manager;
 
         /// <summary>How many door changes and full states this machine has heard from the server (for tests).</summary>
         public int UsesHeard { get; private set; }
@@ -56,68 +53,36 @@ namespace CityX.Character
         /// <summary>How many doors stood open in the last full state heard (for tests).</summary>
         public int LastStateSize { get; private set; }
 
-        private NetworkManager _manager;
-        private bool _serverHandlers;
-        private bool _clientHandlers;
-        private bool _requested;
         private readonly SenderRate _rate = new SenderRate(MaxUsesPerSecond);
         private readonly List<BalconyDoor> _doors = new List<BalconyDoor>();
 
-        private void Update()
+        protected override void HearAsServer(ServerManager server, bool on)
         {
-            if (_manager == null)
-            {
-                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
-                if (_manager == null)
-                {
-                    return;
-                }
-            }
+            Hear<BalconyDoorMessage>(server, on, OnUseAtServer);
+            Hear<BalconyDoorStateRequest>(server, on, OnStateRequestAtServer);
+        }
 
-            bool server = _manager.IsServerStarted;
-            if (server != _serverHandlers)
+        protected override void HearAsClient(ClientManager client, bool on)
+        {
+            Hear<BalconyDoorMessage>(client, on, OnUseAtClient);
+            Hear<BalconyDoorStateMessage>(client, on, OnStateAtClient);
+            if (on)
             {
-                if (server)
-                {
-                    _manager.ServerManager.RegisterBroadcast<BalconyDoorMessage>(OnUseAtServer);
-                    _manager.ServerManager.RegisterBroadcast<BalconyDoorStateRequest>(OnStateRequestAtServer);
-                }
-                else
-                {
-                    _manager.ServerManager.UnregisterBroadcast<BalconyDoorMessage>(OnUseAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<BalconyDoorStateRequest>(OnStateRequestAtServer);
-                }
-                _serverHandlers = server;
+                BalconyDoorState.Shared.Relay = this;
             }
+            else
+            {
+                if (ReferenceEquals(BalconyDoorState.Shared.Relay, this))
+                {
+                    BalconyDoorState.Shared.Relay = null;
+                }
+            }
+        }
 
-            bool client = _manager.IsClientStarted;
-            if (client != _clientHandlers)
-            {
-                if (client)
-                {
-                    _manager.ClientManager.RegisterBroadcast<BalconyDoorMessage>(OnUseAtClient);
-                    _manager.ClientManager.RegisterBroadcast<BalconyDoorStateMessage>(OnStateAtClient);
-                    BalconyDoorState.Shared.Relay = this;
-                    _requested = false;   // asked for once the server has let this client in (below)
-                }
-                else
-                {
-                    _manager.ClientManager.UnregisterBroadcast<BalconyDoorMessage>(OnUseAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<BalconyDoorStateMessage>(OnStateAtClient);
-                    if (ReferenceEquals(BalconyDoorState.Shared.Relay, this))
-                    {
-                        BalconyDoorState.Shared.Relay = null;
-                    }
-                }
-                _clientHandlers = client;
-            }
-
-            // A joining player asks which doors stand open, once the server has authenticated it (a broadcast before that is dropped).
-            if (_clientHandlers && !_requested && _manager.ClientManager.Connection != null && _manager.ClientManager.Connection.IsAuthenticated)
-            {
-                _requested = true;
-                _manager.ClientManager.Broadcast(new BalconyDoorStateRequest());
-            }
+        // A joining player asks which doors stand open, once the server has authenticated it (a broadcast before that is dropped).
+        protected override void OnLetIn(ClientManager client)
+        {
+            client.Broadcast(new BalconyDoorStateRequest());
         }
 
         private void OnDisable()
@@ -130,9 +95,9 @@ namespace CityX.Character
 
         public void Send(int building, int unit, int row, bool open)
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
-                _manager.ClientManager.Broadcast(new BalconyDoorMessage { Building = building, Unit = unit, Row = row, Open = open });
+                Session.ClientManager.Broadcast(new BalconyDoorMessage { Building = building, Unit = unit, Row = row, Open = open });
             }
         }
 
@@ -143,7 +108,7 @@ namespace CityX.Character
                 return;
             }
             BalconyDoorState.Shared.Set(message.Building, message.Unit, message.Row, message.Open);
-            _manager.ServerManager.Broadcast(message);
+            Session.ServerManager.Broadcast(message);
         }
 
         private void OnStateRequestAtServer(NetworkConnection sender, BalconyDoorStateRequest request, Channel channel)
@@ -158,7 +123,7 @@ namespace CityX.Character
             {
                 BalconyDoorState.Unkey(open[i], out state.Building[i], out state.Unit[i], out state.Row[i]);
             }
-            _manager.ServerManager.Broadcast(sender, state);
+            Session.ServerManager.Broadcast(sender, state);
         }
 
         private void OnUseAtClient(BalconyDoorMessage message, Channel channel)

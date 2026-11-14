@@ -51,9 +51,6 @@ namespace CityX.Character
         /// <summary>F would open a card now: whatever else F does (a flashlight's switch) stands aside.</summary>
         public bool ClaimsF => !IsOpen && Hovered != null;
 
-        /// <summary>Where the camera was when the card opened, and the camera it drives (null outside a scene with one).</summary>
-        public Vector3 CameraStart => _fromPosition;
-
         public Transform CameraTransform => _camera != null ? _camera.transform : null;
 
         private static readonly RaycastHit[] Hits = new RaycastHit[16];

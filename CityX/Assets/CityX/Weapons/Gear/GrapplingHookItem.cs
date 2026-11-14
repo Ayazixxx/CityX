@@ -91,7 +91,7 @@ namespace CityX.Weapons
 
         private Rigidbody _rigidbody;
         private SphereCollider _pickupTrigger;
-        private Transform _nearbyPlayer;
+        private readonly GroundPickup _pickup = new GroundPickup();
         private bool _equipped;
 
         /// <summary>
@@ -142,51 +142,15 @@ namespace CityX.Weapons
 
         private void Update()
         {
-            if (_equipped)
+            if (!_equipped && _pickup.TappedWithin(transform.position, InteractRange))
             {
-                return;
-            }
-            TickPickup();
-        }
-
-        private void OnTriggerEnter(Collider other)
-        {
-            Transform body = InteractionReach.LocalPlayerBody(other);
-            if (body != null)
-            {
-                _nearbyPlayer = body;
+                GroundPickup.Take(_pickup.Player, gameObject, ItemRegistry.GrapplingHook);
             }
         }
 
-        private void OnTriggerExit(Collider other)
-        {
-            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
-            {
-                _nearbyPlayer = null;
-            }
-        }
+        private void OnTriggerEnter(Collider other) => _pickup.Entered(other);
 
-        private void TickPickup()
-        {
-            if (_nearbyPlayer == null)
-            {
-                return;
-            }
-            if (!InteractKey.Tapped)
-            {
-                return;
-            }
-            if (Vector3.Distance(transform.position, _nearbyPlayer.position) > InteractRange)
-            {
-                return;
-            }
-
-            var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
-            if (inventory != null && inventory.PickUp(ItemRegistry.GrapplingHook))
-            {
-                Destroy(gameObject);
-            }
-        }
+        private void OnTriggerExit(Collider other) => _pickup.Left(other);
 
         /// <summary>
         /// Fires at whatever <paramref name="direction"/> is pointing at

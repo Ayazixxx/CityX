@@ -25,9 +25,6 @@ namespace CityX.Character
         /// <summary>The frame this body last took an ordinary step of its own (Tick, to its end): a copy moved by the network never does.</summary>
         private int _steppedFrame = -1;
 
-        /// <summary>The walls the body is being kept off (for tests).</summary>
-        public int WallsKeptOff => _standoff.Count;
-
         /// <summary>
         /// The pose after the Animator (PoseAfterTheAnimator), and then the body out of walls by that pose, the one that is drawn. Taken out by
         /// the pose before the Animator had moved the arms on, the walk swung them back in before the frame was drawn (measured: 5.6 cm).

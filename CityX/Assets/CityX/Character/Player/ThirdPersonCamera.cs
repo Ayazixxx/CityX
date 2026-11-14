@@ -198,12 +198,12 @@ namespace CityX.Character
         /// <summary>A hit this near a stair's post is on the post, metres (the spring arm's sphere touches its faces).</summary>
         private const float StairPostMargin = 0.05f;
 
+        /// <summary>What stands between the body and where the camera wants to be is read into this each frame, not into a new array.</summary>
+        private static readonly RaycastHit[] WallHits = new RaycastHit[64];
+
         private readonly List<Renderer> _bodyRenderers = new List<Renderer>();
         private readonly List<UnityEngine.Rendering.ShadowCastingMode> _bodyShadows = new List<UnityEngine.Rendering.ShadowCastingMode>();
         private bool _bodyHidden;
-
-        /// <summary>True while the body is not drawn because the camera is inside it (its shadow still falls).</summary>
-        public bool BodyHidden => _bodyHidden;
 
         /// <summary>Draws the body or only its shadow.</summary>
         private void ShowBody(bool shown)
@@ -259,9 +259,6 @@ namespace CityX.Character
         public float SprintBlendPerSecond = 2.0f;
 
         private float _sprintBlend;
-
-        /// <summary>0 (not sprinting) to 1 (the view fully widened).</summary>
-        public float SprintBlend => _sprintBlend;
 
         /// <summary>
         /// Extra field of view, in degrees, while flying fast -- widening the view
@@ -848,12 +845,19 @@ namespace CityX.Character
             // last few centimetres in front of the actual camera unchecked.
             float wantedDistance = Vector3.Distance(pivot, wanted);
             Vector3 direction = (wanted - pivot).normalized;
-            RaycastHit[] hits = Physics.SphereCastAll(
-                pivot, 0.25f * scale, direction, wantedDistance, CollisionLayers & CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);   // falling glass does not push the camera in
+            int hitCount = Physics.SphereCastNonAlloc(
+                pivot, 0.25f * scale, direction, WallHits, wantedDistance, CollisionLayers & CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);   // falling glass does not push the camera in
 
             float nearest = wantedDistance;
-            foreach (RaycastHit hit in hits)
+            for (int i = 0; i < hitCount; i++)
             {
+                RaycastHit hit = WallHits[i];
+                // A zero distance means the sphere began already overlapping, which carries no useful direction information. (Asked
+                // first: it is the cheapest question, and every limb of the body the cast starts in answers it.)
+                if (hit.distance <= 0.01f || hit.distance >= nearest)
+                {
+                    continue;
+                }
                 if (hit.transform.IsChildOf(Target) || hit.transform == Target || hit.collider.GetComponentInParent<ICameraPassesThrough>() != null)
                 {
                     continue;   // its own body, and what the camera goes through as if it were air (the Wraith)
@@ -862,12 +866,7 @@ namespace CityX.Character
                 {
                     continue;   // a post under an outside stair (owner, 2026-11-12: "the camera should ignore the support beams")
                 }
-                // A zero distance means the sphere began already overlapping,
-                // which carries no useful direction information.
-                if (hit.distance > 0.01f && hit.distance < nearest)
-                {
-                    nearest = hit.distance;
-                }
+                nearest = hit.distance;
             }
 
             bool underground = CityX.World.CurrentSewers.DarknessAt(Target.position + Vector3.up * (0.5f * scale)) > 0.05f;

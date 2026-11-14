@@ -145,7 +145,7 @@ namespace CityX.UI
         private string _carrying;
         private PlayerInputReader _input;
         private ThirdPersonCamera _camera;
-        private bool _wasCursorCaptured;
+        private readonly FreedCursor _cursor = new FreedCursor();
         private bool _dirty = true;
         private bool _placedOnce;
 
@@ -194,9 +194,7 @@ namespace CityX.UI
             _camera = camera;
             if (!IsOpen)
             {
-                _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                _cursor.Free();
                 if (_input != null) _input.enabled = false;
                 if (_camera != null) _camera.enabled = false;
             }
@@ -225,11 +223,7 @@ namespace CityX.UI
             ClosedOnFrame = Time.frameCount;
             if (_input != null) _input.enabled = true;
             if (_camera != null) _camera.enabled = true;
-            if (_wasCursorCaptured)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            _cursor.Restore();
         }
 
         private void Watch(PlayerSkills skills)

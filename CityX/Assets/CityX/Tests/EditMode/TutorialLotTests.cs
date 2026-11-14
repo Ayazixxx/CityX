@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class TutorialLotTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         private CityScale _scaleBefore;
 

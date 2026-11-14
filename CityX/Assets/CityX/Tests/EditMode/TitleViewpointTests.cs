@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class TitleViewpointTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         [Test]
         public void ItStandsJustInFromTheEdgeOfARealRoofLookingOutOverIt()

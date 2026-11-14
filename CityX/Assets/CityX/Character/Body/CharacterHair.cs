@@ -303,11 +303,6 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>Every head currently wearing hair, for finding one to tune.</summary>
-        public static IReadOnlyList<CharacterHair> Wearers => Live;
-
-        public Mesh CurrentMesh => MeshFor(_style);
-
         private void Awake()
         {
             Rebuild();
@@ -337,15 +332,6 @@ namespace CityX.Character
             }
             _style = style;
             Rebuild();
-        }
-
-        /// <summary>The next style along (or the previous one), wrapping round: the selector's whole job.</summary>
-        public void CycleStyle(int direction)
-        {
-            int index = System.Array.IndexOf(ValidStyles, _style);
-            int count = ValidStyles.Length;
-            int next = ((index + direction) % count + count) % count;
-            SetStyle(ValidStyles[next]);
         }
 
         /// <summary>

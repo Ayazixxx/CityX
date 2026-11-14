@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// <summary>The STOP signs and traffic lights as the chunks build them in the real city (docs/TRAFFIC_CONTROL.md): where the standard puts them, and what each lamp is told.</summary>
     public sealed class TrafficHardwareTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
         private const int Reach = 3;
 
         private static CityWorld _world;

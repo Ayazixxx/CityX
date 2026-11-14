@@ -534,42 +534,6 @@ namespace CityX.World.Plan
 
         // ------------------------------------------------------------------ graph editing
 
-        /// <summary>
-        /// Whether the segment a-b crosses any live road strictly between both segments' ends (an end touching a road is not a crossing),
-        /// other than the two roads given. For things laid over the finished network (an interchange's ramps) that must not cut across a street.
-        /// </summary>
-        public bool CrossesAnyRoad(Vec2 a, Vec2 b, RoadEdge ignore1 = null, RoadEdge ignore2 = null)
-        {
-            int x0 = CellOf(Math.Min(a.X, b.X));
-            int x1 = CellOf(Math.Max(a.X, b.X));
-            int y0 = CellOf(Math.Min(a.Y, b.Y));
-            int y1 = CellOf(Math.Max(a.Y, b.Y));
-            for (int cy = y0; cy <= y1; cy++)
-            {
-                for (int cx = x0; cx <= x1; cx++)
-                {
-                    if (!_edgeCells.TryGetValue(CellKey(cx, cy), out List<RoadEdge> list))
-                    {
-                        continue;
-                    }
-                    for (int i = 0; i < list.Count; i++)
-                    {
-                        RoadEdge e = list[i];
-                        if (!e.Alive || e == ignore1 || e == ignore2)
-                        {
-                            continue;
-                        }
-                        if (PlanMath.SegmentIntersect(a, b, e.A.P, e.B.P, out double t, out double u)
-                            && t > 1e-4 && t < 1.0 - 1e-4 && u > 1e-4 && u < 1.0 - 1e-4)
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
         /// <summary>Whether any node lies within <paramref name="radius"/> of a point (other than the ones given): a junction a ramp must not land on.</summary>
         public bool AnyNodeNear(Vec2 p, double radius, RoadNode ignore1 = null, RoadNode ignore2 = null)
         {
@@ -612,26 +576,6 @@ namespace CityX.World.Plan
             best = Math.Min(best, PlanMath.DistanceToSegment(c, a, b, out _));
             best = Math.Min(best, PlanMath.DistanceToSegment(d, a, b, out _));
             return best;
-        }
-
-        /// <summary>Every node within <paramref name="radius"/> of a point, in id order.</summary>
-        public void NodesNear(Vec2 p, double radius, List<RoadNode> result)
-        {
-            result.Clear();
-            int span = (int)(radius / CellSize) + 1;
-            int cx0 = CellOf(p.X), cy0 = CellOf(p.Y);
-            for (int cy = cy0 - span; cy <= cy0 + span; cy++)
-            {
-                for (int cx = cx0 - span; cx <= cx0 + span; cx++)
-                {
-                    if (!_nodeCells.TryGetValue(CellKey(cx, cy), out List<RoadNode> list)) continue;
-                    foreach (RoadNode n in list)
-                    {
-                        if ((n.P - p).Length <= radius) result.Add(n);
-                    }
-                }
-            }
-            result.Sort((x, y) => x.Id.CompareTo(y.Id));
         }
 
         private RoadNode NewNode(Vec2 p)

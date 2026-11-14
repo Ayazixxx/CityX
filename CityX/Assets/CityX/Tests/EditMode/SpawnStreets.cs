@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     internal static class SpawnStreets
     {
-        public const int Seed = 48398181;
+        public const int Seed = CitySeed.Default;
 
         private static CityWorld _world;
 

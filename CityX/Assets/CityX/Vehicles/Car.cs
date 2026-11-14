@@ -118,12 +118,6 @@ namespace CityX.Vehicles
         private Transform _transitioningSeat;
         private bool _transitioningIsEnter;
 
-        /// <summary>Test-only escape hatch -- see CarPhysicsPlayTests' own doc comment for why.</summary>
-        public void SetDriverForTest(PlayerInputReader driver)
-        {
-            _driver = driver;
-        }
-
         private void Awake()
         {
             _rb = GetComponent<Rigidbody>();

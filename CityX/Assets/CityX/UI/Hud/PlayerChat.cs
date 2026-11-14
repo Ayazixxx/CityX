@@ -59,7 +59,7 @@ namespace CityX.UI
         [Tooltip("Enter is ignored while the C-menu is open -- see MapPanelView's own Menu field for why.")]
         public PlayerMenuView Menu;
 
-        private bool _wasCursorCaptured;
+        private readonly MenuFocus _focus = new MenuFocus();
 
         public bool IsOpen => Panel != null && Panel.activeSelf;
 
@@ -142,12 +142,7 @@ namespace CityX.UI
             {
                 return;
             }
-            _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-
-            if (InputReader != null) InputReader.Hold(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = false;
+            _focus.Take(this, InputReader, OrbitCamera);
 
             if (Input != null)
             {
@@ -163,14 +158,7 @@ namespace CityX.UI
             if (Panel != null) Panel.SetActive(false);
             if (Input != null) Input.DeactivateInputField();
 
-            if (InputReader != null) InputReader.Release(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = true;
-
-            if (_wasCursorCaptured)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            _focus.GiveBack(this, InputReader, OrbitCamera);
         }
 
         public void Submit(string text)

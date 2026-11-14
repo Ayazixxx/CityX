@@ -10,7 +10,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class OpenGroundTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         [Test]
         public void TheFallLandsNearTheStartFurtherFromEveryBuildingThanItsCamerasSwingOut()

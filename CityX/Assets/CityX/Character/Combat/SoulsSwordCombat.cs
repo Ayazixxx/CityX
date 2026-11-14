@@ -1306,9 +1306,6 @@ namespace CityX.Character
         private readonly HashSet<NetworkedDamage> _watchedRelays = new HashSet<NetworkedDamage>();
         private float _verdictClock;
 
-        /// <summary>Hits on other players' copies still waiting for the owner's word (for tests).</summary>
-        public int PendingVerdicts => _pendingVerdicts.Count;
-
         private void WatchVerdict(NetworkedDamage relay, int hitId)
         {
             if (_watchedRelays.Add(relay))

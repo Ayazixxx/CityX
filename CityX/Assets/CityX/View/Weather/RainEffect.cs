@@ -321,12 +321,7 @@ namespace CityX.View
         /// <summary>Rings ever started, for tests and profiling.</summary>
         public int RipplesEmitted { get; private set; }
 
-        public int PendingLandingCount => _landings.Count;
-
         public int PendingThunderCount => _thunder.Count;
-
-        /// <summary>0..1 how hard a strike is lighting the world right now (0 between strikes), for tests.</summary>
-        public float FlashNow => LightningBoost(_lightningFlashRemaining, LightningFlashSeconds, LightningDecaySeconds) * _flashStrength;
 
         /// <summary>True while a bolt is drawn.</summary>
         public bool BoltVisible => _boltRemaining > 0.0f;

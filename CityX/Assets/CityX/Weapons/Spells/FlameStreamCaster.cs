@@ -44,14 +44,10 @@ namespace CityX.Weapons
         private FlameStreamLook _remoteFlame;
         private float _aimSendIn;
         private float _remoteLeft;
-        private float _held;
         private float _igniteDue;
 
         /// <summary>This body's stream is on.</summary>
         public bool IsBurning { get; private set; }
-
-        /// <summary>How long the stream has been held, seconds.</summary>
-        public float HeldSeconds => IsBurning ? _held : 0.0f;
 
         /// <summary>The bodies the stream is on this frame.</summary>
         public IReadOnlyList<IDamageable> InStream => _inStream;
@@ -86,7 +82,6 @@ namespace CityX.Weapons
             {
                 return;
             }
-            _held += deltaTime;
             _locomotion?.HoldStaffOut();
             Burn(from, direction, deltaTime);
             _aimSendIn -= deltaTime;
@@ -105,7 +100,6 @@ namespace CityX.Weapons
         private void StartTheStream(Transform tip, Vector3 from, Vector3 direction)
         {
             IsBurning = true;
-            _held = 0.0f;
             _aimSendIn = FlameStreamRules.AimSendSeconds;
             _ticks.Forget(Time.time);
             if (_flame == null)

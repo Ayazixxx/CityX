@@ -20,7 +20,7 @@ namespace CityX.Tests
     public sealed class FlashlightPlayTests
     {
         private const float Step = 1.0f / 60.0f;
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
         private readonly List<GameObject> _made = new List<GameObject>();
         private CityWorld _world;
 

@@ -149,14 +149,5 @@ namespace CityX.Character
             }
             return true;
         }
-
-        /// <summary>Stands the body straight back up (a respawn, a ragdoll getting up): the standing controller, no crouch shown.</summary>
-        public void ResetCrouch()
-        {
-            _crouch.Reset();
-            IsCrouching = false;
-            ApplyHull();
-            ShowCrouch();
-        }
     }
 }

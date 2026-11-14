@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class SewerPlanTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         /// <summary>Worlds tried, in turn, for something the first may not have near enough (a bridge with a mouth under it).</summary>
         private static readonly int[] Seeds = { Seed, 45678679, 91736402, 58203917, 63428175 };

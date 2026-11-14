@@ -240,13 +240,13 @@ namespace CityX.UI
                 switch (_kind)
                 {
                     case Kind.Line:
-                        return DistanceToSegment(point, _a, _b) <= _width * 0.5f;
+                        return IconGeometry.DistanceToSegment(point, _a, _b) <= _width * 0.5f;
                     case Kind.Circle:
                         return Vector2.Distance(point, _a) <= _radius;
                     case Kind.Arc:
                         return InArc(point);
                     default:
-                        return InPolygon(point);
+                        return IconGeometry.InPolygon(_points, point);
                 }
             }
 
@@ -263,34 +263,6 @@ namespace CityX.UI
                 float sweep = _to - _from;
                 float relative = Mathf.Repeat(angle - _from, Mathf.PI * 2.0f);
                 return relative <= sweep;
-            }
-
-            private bool InPolygon(Vector2 point)
-            {
-                bool inside = false;
-                for (int i = 0, j = _points.Length - 1; i < _points.Length; j = i++)
-                {
-                    Vector2 p = _points[i];
-                    Vector2 q = _points[j];
-                    if (p.y > point.y != q.y > point.y
-                        && point.x < (q.x - p.x) * (point.y - p.y) / (q.y - p.y) + p.x)
-                    {
-                        inside = !inside;
-                    }
-                }
-                return inside;
-            }
-
-            private static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)
-            {
-                Vector2 along = b - a;
-                float lengthSquared = along.sqrMagnitude;
-                if (lengthSquared < 1e-6f)
-                {
-                    return Vector2.Distance(point, a);
-                }
-                float t = Mathf.Clamp01(Vector2.Dot(point - a, along) / lengthSquared);
-                return Vector2.Distance(point, a + along * t);
             }
         }
     }

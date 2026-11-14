@@ -304,17 +304,6 @@ namespace CityX.Character
             _steering.Reset();
         }
 
-        public void CancelWalk()
-        {
-            if (!IsWalkingSomewhere)
-            {
-                return;
-            }
-            _walkTarget = Vector3Inf;
-            _walkFacing = Vector3Inf;
-            StopWalking();
-        }
-
         private void DriveWalk(float deltaTime)
         {
             // Gravity owns the vertical for every frame, walking or not --

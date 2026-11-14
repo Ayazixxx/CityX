@@ -108,12 +108,6 @@ namespace CityX.UI
             SetVerticesDirty();
         }
 
-        /// <summary>The world (x, z) under a screen point, for tests and tools.</summary>
-        public Vector2 WorldAt(Vector2 screenPosition)
-        {
-            return TryLocalPoint(screenPosition, out Vector2 local) ? Frame().ToWorld(LocalToPanel(local)) : Vector2.zero;
-        }
-
         /// <summary>Where a world (x, z) point is on the screen, for tests and tools.</summary>
         public Vector2 ScreenAt(Vector2 world)
         {

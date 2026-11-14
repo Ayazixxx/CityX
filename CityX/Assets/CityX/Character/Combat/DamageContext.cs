@@ -277,13 +277,6 @@ namespace CityX.Character
             return vitals != null ? vitals.gameObject : striker;
         }
 
-        /// <summary>The penetration of a body's blows: its Armor Penetration stat, or none for a body without stats.</summary>
-        public static float PenetrationOf(UnityEngine.Component attacker)
-        {
-            PlayerVitals vitals = attacker != null ? attacker.GetComponentInParent<PlayerVitals>() : null;
-            return vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-        }
-
         public readonly struct Scope : IDisposable
         {
             private readonly DamageKind _kindBefore;

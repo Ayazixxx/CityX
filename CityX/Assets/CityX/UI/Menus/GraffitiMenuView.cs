@@ -86,7 +86,7 @@ namespace CityX.UI
         private float _value = 0.95f;
         private Vector2? _last;
         private AudioSource _hiss;
-        private bool _wasCursorCaptured;
+        private readonly FreedCursor _cursor = new FreedCursor();
 
         private PlayerInputReader _reader;
         private Behaviour _cameraDriver;
@@ -233,9 +233,7 @@ namespace CityX.UI
             {
                 _cameraDriver.enabled = false;
             }
-            _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            _cursor.Free();
         }
 
         /// <summary>Closes it: with <paramref name="apply"/> the piece goes up for everyone; without, the wall is left as it was.</summary>
@@ -273,11 +271,7 @@ namespace CityX.UI
             {
                 _cameraDriver.enabled = true;
             }
-            if (_wasCursorCaptured)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            _cursor.Restore();
         }
 
         /// <summary>Sprays at a point of the canvas, 0..1 across and up (the mouse goes through this; so do tests).</summary>

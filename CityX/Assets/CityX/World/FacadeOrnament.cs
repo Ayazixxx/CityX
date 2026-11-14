@@ -59,7 +59,6 @@ namespace CityX.World
         public const float PierWidth = 0.34f;
         public const float PierDepth = 0.14f;
         public const float CornerPierHalf = 0.28f;
-        public const float CornerPierDepth = 0.12f;
         public const float LintelHeight = 0.17f;
         public const float LintelDepth = 0.07f;
         public const float LintelOverhang = 0.10f;

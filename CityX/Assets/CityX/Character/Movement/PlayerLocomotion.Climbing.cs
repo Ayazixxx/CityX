@@ -15,8 +15,6 @@ namespace CityX.Character
 
         private float _climbIkBlend;
 
-        private int _lastClimbDirection = 1;
-
         private static readonly int ClimbDirectionParameterHash = Animator.StringToHash("ClimbDirection");
 
         /// <summary>True while the limbs are being placed on the wall by the climb stepper.</summary>
@@ -59,10 +57,6 @@ namespace CityX.Character
             }
 
             int direction = _animator.GetInteger(ClimbDirectionParameterHash);
-            if (direction != 0)
-            {
-                _lastClimbDirection = direction;
-            }
             // Where the body is going on the wall: what the climb (or, on a copy, the network) said; failing that, the Animator's up or down.
             Vector2 travel = _climbTravel.sqrMagnitude > 1e-4f ? _climbTravel : new Vector2(0.0f, direction);
             Vector3 n = _climbWallNormal;

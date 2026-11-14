@@ -61,9 +61,6 @@ namespace CityX.Weapons
         /// <summary>The longest one frame of the last cover search took, milliseconds (for the cost test).</summary>
         public float LastCoverSearchMs { get; private set; }
 
-        /// <summary>How many rays the last cover search has cast.</summary>
-        public int CoverSearchQueries => _search.Queries;
-
         /// <summary>The last cover search in a line (for the capture's log).</summary>
         public string CoverSearchSummary => $"{_search.Queries} rays, {_search.OpenSpots} open spots, {_search.DetourSpots} ways round tried";
 

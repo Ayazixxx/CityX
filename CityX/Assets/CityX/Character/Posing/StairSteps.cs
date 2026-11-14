@@ -292,12 +292,6 @@ namespace CityX.Character
             _phase = Mathf.Repeat(_phase + (_backward ? -rate : rate) * deltaTime + caughtUp, 1.0f);
         }
 
-        /// <summary>Where a flat foot's ankle is, its ball on <paramref name="ball"/>.</summary>
-        public static Vector3 FlatAnkle(Vector3 ball, Vector3 toes, in Body body)
-        {
-            return ball - toes * body.BallForward + Vector3.up * body.SoleHeight;
-        }
-
         /// <summary>Where the ankle is with the foot rolled about its ball, the heel up by <paramref name="pitch"/> degrees.</summary>
         public static Vector3 RolledAnkle(Vector3 ball, Vector3 toes, float pitch, in Body body)
         {

@@ -78,9 +78,6 @@ namespace CityX.World.Plan
             set => _active = value;
         }
 
-        /// <summary>What <see cref="TryParse"/> reads back: the preset name, or the two numbers of a custom scale.</summary>
-        public string Spec => Name == "custom" ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0},{1}", Footprint, Height) : Name;
-
         public bool IsClassic => Footprint == 1.0 && Height == 1.0 && MinFootprint == 1.0 && MinHeight == 1.0;
 
         /// <summary>Whether the size changes from district to district.</summary>

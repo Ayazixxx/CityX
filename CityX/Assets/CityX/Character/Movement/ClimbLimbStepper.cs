@@ -107,9 +107,6 @@ namespace CityX.Character
         private readonly float[] _t = { 1.0f, 1.0f, 1.0f, 1.0f };
         private bool _planted;
 
-        /// <summary>True once the limbs have been put on the wall (<see cref="Plant"/>).</summary>
-        public bool IsPlanted => _planted;
-
         public bool IsStepping(Limb limb) => _t[(int)limb] < 1.0f;
 
         /// <summary>True while either limb of the diagonal pair (left hand + right foot, or right hand + left foot) is mid-step.</summary>

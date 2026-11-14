@@ -315,13 +315,6 @@ namespace CityX.World
             return new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
         }
 
-        /// <summary>
-        /// The corner a basement's flight uses, city_chunk.gd's own
-        /// BASEMENT_STAIR_CORNER. Fixed rather than rotating, because there is
-        /// only ever one floor below ground and nothing above it to meet.
-        /// </summary>
-        public const int BasementStairCorner = 2;
-
         /// <summary>How much of the floor the carved corner room takes.</summary>
         public const float RoomWidthFraction = 0.4f;
 

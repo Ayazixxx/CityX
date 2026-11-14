@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoadPaintTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         [Test]
         public void PaintLiesFlatOnTheAsphaltWhereverItShows()

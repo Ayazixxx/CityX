@@ -42,9 +42,6 @@ namespace CityX.Weapons
 
         public bool IsSpraying { get; private set; }
 
-        /// <summary>The bodies in the spray this frame.</summary>
-        public IReadOnlyList<IDamageable> InSpray => _inSpray;
-
         private void Awake()
         {
             Bind();

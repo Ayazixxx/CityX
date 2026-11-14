@@ -1,8 +1,8 @@
 using CityX.World;
-using FishNet;
 using FishNet.Broadcast;
 using FishNet.Connection;
-using FishNet.Managing;
+using FishNet.Managing.Client;
+using FishNet.Managing.Server;
 using FishNet.Transporting;
 using UnityEngine;
 
@@ -39,13 +39,10 @@ namespace CityX.Character
     /// THE SERVER CHECKS: the piece is one the house has (TutorialHouseDamage.Acceptable, from the plan every machine has), and at most
     /// <see cref="MaxBreaksPerSecond"/> a second per player. In singleplayer nothing is started and this does nothing.
     /// </summary>
-    public sealed class TutorialHouseNetwork : MonoBehaviour, ITutorialHouseRelay
+    public sealed class TutorialHouseNetwork : SessionRelay, ITutorialHouseRelay
     {
         /// <summary>The most pieces one player may break per second (a spray of bullets through a row of windows).</summary>
         public const int MaxBreaksPerSecond = 12;
-
-        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
-        public NetworkManager Manager;
 
         /// <summary>How many breaks and full states this machine has heard from the server (for tests).</summary>
         public int BreaksHeard { get; private set; }
@@ -54,73 +51,42 @@ namespace CityX.Character
         /// <summary>How many pieces were broken in the last full state heard (for tests).</summary>
         public int LastStateSize { get; private set; }
 
-        private NetworkManager _manager;
-        private bool _serverHandlers;
-        private bool _clientHandlers;
-        private bool _requested;
         private readonly SenderRate _rate = new SenderRate(MaxBreaksPerSecond);
 
         /// <summary>The server's own word on the power, for joiners: not read off TutorialHousePower.Shared, which a dedicated server never hears.</summary>
         private bool _powerOn;
 
-        private void Update()
+        protected override void HearAsServer(ServerManager server, bool on)
         {
-            if (_manager == null)
+            Hear<TutorialHouseBreakMessage>(server, on, OnBreakAtServer);
+            Hear<TutorialHouseStateRequest>(server, on, OnStateRequestAtServer);
+            Hear<TutorialHousePowerMessage>(server, on, OnPowerAtServer);
+            if (!on)
             {
-                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
-                if (_manager == null)
-                {
-                    return;
-                }
+                _powerOn = false;
             }
+        }
 
-            bool server = _manager.IsServerStarted;
-            if (server != _serverHandlers)
+        protected override void HearAsClient(ClientManager client, bool on)
+        {
+            Hear<TutorialHouseBreakMessage>(client, on, OnBreakAtClient);
+            Hear<TutorialHouseStateMessage>(client, on, OnStateAtClient);
+            Hear<TutorialHousePowerMessage>(client, on, OnPowerAtClient);
+            if (on)
             {
-                if (server)
-                {
-                    _manager.ServerManager.RegisterBroadcast<TutorialHouseBreakMessage>(OnBreakAtServer);
-                    _manager.ServerManager.RegisterBroadcast<TutorialHouseStateRequest>(OnStateRequestAtServer);
-                    _manager.ServerManager.RegisterBroadcast<TutorialHousePowerMessage>(OnPowerAtServer);
-                }
-                else
-                {
-                    _manager.ServerManager.UnregisterBroadcast<TutorialHouseBreakMessage>(OnBreakAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<TutorialHouseStateRequest>(OnStateRequestAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<TutorialHousePowerMessage>(OnPowerAtServer);
-                    _powerOn = false;
-                }
-                _serverHandlers = server;
+                TutorialHouseDamage.Shared.Relay = this;
+                TutorialHousePower.Shared.Relay = this;
             }
+            else
+            {
+                LetGoOfTheHouse();
+            }
+        }
 
-            bool client = _manager.IsClientStarted;
-            if (client != _clientHandlers)
-            {
-                if (client)
-                {
-                    _manager.ClientManager.RegisterBroadcast<TutorialHouseBreakMessage>(OnBreakAtClient);
-                    _manager.ClientManager.RegisterBroadcast<TutorialHouseStateMessage>(OnStateAtClient);
-                    _manager.ClientManager.RegisterBroadcast<TutorialHousePowerMessage>(OnPowerAtClient);
-                    TutorialHouseDamage.Shared.Relay = this;
-                    TutorialHousePower.Shared.Relay = this;
-                    _requested = false;   // asked for once the server has let this client in (below)
-                }
-                else
-                {
-                    _manager.ClientManager.UnregisterBroadcast<TutorialHouseBreakMessage>(OnBreakAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<TutorialHouseStateMessage>(OnStateAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<TutorialHousePowerMessage>(OnPowerAtClient);
-                    LetGoOfTheHouse();
-                }
-                _clientHandlers = client;
-            }
-
-            // A joining player asks what is broken, once the server has authenticated it (a broadcast before that is dropped).
-            if (_clientHandlers && !_requested && _manager.ClientManager.Connection != null && _manager.ClientManager.Connection.IsAuthenticated)
-            {
-                _requested = true;
-                _manager.ClientManager.Broadcast(new TutorialHouseStateRequest());
-            }
+        // A joining player asks what is broken, once the server has authenticated it (a broadcast before that is dropped).
+        protected override void OnLetIn(ClientManager client)
+        {
+            client.Broadcast(new TutorialHouseStateRequest());
         }
 
         private void OnDisable()
@@ -142,9 +108,9 @@ namespace CityX.Character
 
         public void SendPowerOn()
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
-                _manager.ClientManager.Broadcast(new TutorialHousePowerMessage());
+                Session.ClientManager.Broadcast(new TutorialHousePowerMessage());
             }
         }
 
@@ -158,7 +124,7 @@ namespace CityX.Character
                 return;
             }
             _powerOn = true;
-            _manager.ServerManager.Broadcast(message);
+            Session.ServerManager.Broadcast(message);
         }
 
         private void OnPowerAtClient(TutorialHousePowerMessage message, Channel channel)
@@ -169,9 +135,9 @@ namespace CityX.Character
 
         public void Send(int piece)
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
-                _manager.ClientManager.Broadcast(new TutorialHouseBreakMessage { Piece = piece });
+                Session.ClientManager.Broadcast(new TutorialHouseBreakMessage { Piece = piece });
             }
         }
 
@@ -182,7 +148,7 @@ namespace CityX.Character
                 return;
             }
             TutorialHouseDamage.Shared.Told(message.Piece);
-            _manager.ServerManager.Broadcast(message);
+            Session.ServerManager.Broadcast(message);
         }
 
         private void OnStateRequestAtServer(NetworkConnection sender, TutorialHouseStateRequest request, Channel channel)
@@ -191,7 +157,7 @@ namespace CityX.Character
             {
                 return;
             }
-            _manager.ServerManager.Broadcast(sender, new TutorialHouseStateMessage { Pieces = TutorialHouseDamage.Shared.All().ToArray(), PowerOn = _powerOn });
+            Session.ServerManager.Broadcast(sender, new TutorialHouseStateMessage { Pieces = TutorialHouseDamage.Shared.All().ToArray(), PowerOn = _powerOn });
         }
 
         private void OnBreakAtClient(TutorialHouseBreakMessage message, Channel channel)

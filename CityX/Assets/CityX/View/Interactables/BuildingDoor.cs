@@ -282,9 +282,6 @@ namespace CityX.View
         /// <summary>How far open it is, in degrees from shut (positive inward, negative outward).</summary>
         public float Angle => _angle;
 
-        /// <summary>The way it opens (or last opened): +1 inward, -1 outward.</summary>
-        public int SwingSign => _swingSign;
-
         /// <summary>
         /// Opens or shuts the door programmatically, without needing an
         /// E-press from anyone standing nearby -- what OldGuy uses to let

@@ -38,9 +38,6 @@ namespace CityX.Character
         /// <summary>Where the lit light points: the crosshair's point (on a copy, its owner's, sent).</summary>
         public Vector3 TorchAimPoint { get; set; }
 
-        /// <summary>The way the held light points this frame (after its lag).</summary>
-        public Vector3 TorchDirection => _torchDirection;
-
         private void ApplyTorchPose()
         {
             if (Torch == null || _rightUpperArm == null || _rightLowerArm == null || _handR == null)

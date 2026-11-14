@@ -18,7 +18,7 @@ namespace CityX.Wearables
         bool IWornItem.IsWorn => Equipped;
 
         private SphereCollider _pickupTrigger;
-        private Transform _nearbyPlayer;
+        private readonly GroundPickup _pickup = new GroundPickup();
 
         /// <summary>The registry id the pickup adds to the inventory.</summary>
         protected abstract string ItemId { get; }
@@ -33,50 +33,15 @@ namespace CityX.Wearables
 
         private void Update()
         {
-            if (!Equipped)
+            if (!Equipped && _pickup.TappedWithin(transform.position, InteractRange))
             {
-                TickPickup();
+                GroundPickup.Take(_pickup.Player, gameObject, ItemId);
             }
         }
 
-        private void OnTriggerEnter(Collider other)
-        {
-            Transform body = InteractionReach.LocalPlayerBody(other);
-            if (body != null)
-            {
-                _nearbyPlayer = body;
-            }
-        }
+        private void OnTriggerEnter(Collider other) => _pickup.Entered(other);
 
-        private void OnTriggerExit(Collider other)
-        {
-            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
-            {
-                _nearbyPlayer = null;
-            }
-        }
-
-        private void TickPickup()
-        {
-            if (_nearbyPlayer == null)
-            {
-                return;
-            }
-            if (!InteractKey.Tapped)
-            {
-                return;
-            }
-            if (Vector3.Distance(transform.position, _nearbyPlayer.position) > InteractRange)
-            {
-                return;
-            }
-
-            var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
-            if (inventory != null && inventory.PickUp(ItemId))
-            {
-                Destroy(gameObject);
-            }
-        }
+        private void OnTriggerExit(Collider other) => _pickup.Left(other);
 
         /// <summary>Put on: the pickup trigger off and the pickup no longer looked for.</summary>
         protected void MarkEquipped()

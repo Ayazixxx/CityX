@@ -77,13 +77,11 @@ namespace CityX.Character
             var flat = new Vector3(hit.normal.x, 0.0f, hit.normal.z);
             return flat.sqrMagnitude > 1e-6f && Vector3.Dot(flat.normalized, _wallNormal) > 0.9f;
         }
+
         public const float GrabCheckDistance = 1.0f;
         public const float WallMaxSlopeDot = 0.3f;
-        public const float TopCheckHeight = 1.8f;
         public const float HopOffOutwardSpeed = 3.5f;
         public const float HopOffUpwardSpeed = 2.0f;
-        public const float MantleUp = 0.4f;
-        public const float MantleForward = 0.6f;
 
         /// <summary>
         /// player.gd PUNCH_ORIGIN_HEIGHT (1.5), re-expressed as a fraction of

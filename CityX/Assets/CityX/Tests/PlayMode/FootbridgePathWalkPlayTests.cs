@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FootbridgePathWalkPlayTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         /// <summary>
         /// The street stairs are rare (a straight run only under a low deck with room along its wall), and a world seed may have none near its

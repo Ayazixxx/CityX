@@ -44,7 +44,7 @@ namespace CityX.View
         [Tooltip("Whose position the skyline is kept around (the main camera, as CityStreamer's).")]
         public Transform Viewer;
 
-        public int WorldSeed = 48398181;
+        public int WorldSeed = CitySeed.Default;
 
         public Material GroundMaterial;
         public Material StructureMaterial;

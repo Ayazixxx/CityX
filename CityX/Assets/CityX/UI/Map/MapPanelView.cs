@@ -44,7 +44,7 @@ namespace CityX.UI
         [Tooltip("M is ignored while chat is open -- typing a message with the letter M in it should not also open the map.")]
         public PlayerChat Chat;
 
-        private bool _wasCursorCaptured;
+        private readonly MenuFocus _focus = new MenuFocus();
 
         public bool IsOpen => Root != null && Root.activeSelf;
 
@@ -61,8 +61,6 @@ namespace CityX.UI
         }
 
         public Mode Current { get; private set; } = Mode.Hidden;
-
-        public bool MiniMapShowing => MiniMap != null && MiniMap.activeSelf;
 
         private void Awake()
         {
@@ -132,12 +130,7 @@ namespace CityX.UI
             {
                 return;
             }
-            _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-
-            if (InputReader != null) InputReader.Hold(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = false;
+            _focus.Take(this, InputReader, OrbitCamera);
 
             // Recentred on the player every time it opens, so the map can
             // never come up showing empty space panned off to last time and
@@ -160,14 +153,7 @@ namespace CityX.UI
                 Current = Mode.Hidden;
             }
 
-            if (InputReader != null) InputReader.Release(this);
-            if (OrbitCamera != null) OrbitCamera.enabled = true;
-
-            if (_wasCursorCaptured)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            _focus.GiveBack(this, InputReader, OrbitCamera);
         }
     }
 }

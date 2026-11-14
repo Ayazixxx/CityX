@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class SewerWaterPlayTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
         private const float Dt = 1.0f / 60.0f;
 
         private readonly List<GameObject> _made = new List<GameObject>();

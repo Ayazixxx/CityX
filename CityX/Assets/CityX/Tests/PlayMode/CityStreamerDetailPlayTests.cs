@@ -34,7 +34,7 @@ namespace CityX.Tests
             _made.Add(go);
             go.SetActive(false);   // set the fields before Awake runs
             var streamer = go.AddComponent<CityStreamer>();
-            streamer.WorldSeed = 48398181;
+            streamer.WorldSeed = CitySeed.Default;
             streamer.RadiusChunks = radius;
             streamer.FullDetailRadiusChunks = fullRadius;
             streamer.DetailHysteresisChunks = 1;
@@ -152,7 +152,7 @@ namespace CityX.Tests
         public IEnumerator ABrokenWindowInAFarChunkKeepsItFar()
         {
             // Round the spawn, which is built up, not the origin (open ground on seed 23481876; the east side alone on 58203917).
-            var world = new CityWorld(48398181);
+            var world = new CityWorld(CitySeed.Default);
             Assert.IsTrue(world.Plan.TryFindSpawn(out double sx, out double sz), "the world has no spawn point");
             int cx = CityX.World.Plan.PlanWorld.ChunkOf(sx), cy = CityX.World.Plan.PlanWorld.ChunkOf(sz);
             CityStreamer streamer = Streamer("Detail", radius: 5, fullRadius: 1, Viewer(CentreOfChunk(cx, cy)));

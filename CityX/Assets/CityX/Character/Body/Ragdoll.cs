@@ -473,49 +473,87 @@ namespace CityX.Character
                 // DepenetrationMinDistance's own doc comment -- the
                 // same reasoning applies here, just one-shot rather than
                 // ongoing.
-                float deepest = DepenetrationMinDistance;
-                Vector3 push = Vector3.zero;
-
-                foreach (Rigidbody body in Bodies)
-                {
-                    if (body == null)
-                    {
-                        continue;
-                    }
-                    Collider self = body.GetComponent<Collider>();
-                    if (self == null || !self.enabled)
-                    {
-                        continue;
-                    }
-
-                    Bounds bounds = self.bounds;
-                    Collider[] overlaps = Physics.OverlapBox(
-                        bounds.center, bounds.extents, self.transform.rotation,
-                        ~0, QueryTriggerInteraction.Ignore);
-
-                    foreach (Collider other in overlaps)
-                    {
-                        if (other == null || other == self || IsOwnCollider(other))
-                        {
-                            continue;
-                        }
-                        if (Physics.ComputePenetration(
-                                self, self.transform.position, self.transform.rotation,
-                                other, other.transform.position, other.transform.rotation,
-                                out Vector3 direction, out float distance) && distance > deepest)
-                        {
-                            deepest = distance;
-                            push = direction * (distance + DepenetrationSkin);
-                        }
-                    }
-                }
-
-                if (deepest <= DepenetrationMinDistance)
+                if (!DeepestOverlap(out Vector3 direction, out float distance))
                 {
                     return;   // clear -- nothing left to push out of
                 }
-                transform.position += push;
+                transform.position += direction * (distance + DepenetrationSkin);
             }
+        }
+
+        /// <summary>
+        /// The deepest any body's collider sits in something of the world (never the rig's own colliders), past
+        /// <see cref="DepenetrationMinDistance"/>: the way out of it and how deep. False when nothing is in that far.
+        /// </summary>
+        private bool DeepestOverlap(out Vector3 direction, out float distance)
+        {
+            direction = Vector3.zero;
+            distance = DepenetrationMinDistance;
+            bool found = false;
+            for (int i = 0; i < Bodies.Length; i++)
+            {
+                Collider self = EnabledColliderOf(i);
+                if (self == null)
+                {
+                    continue;
+                }
+                int count = OverlapsOf(self);
+                for (int k = 0; k < count; k++)
+                {
+                    Collider other = Overlaps[k];
+                    if (other == null || other == self || IsOwnCollider(other))
+                    {
+                        continue;
+                    }
+                    if (Physics.ComputePenetration(
+                            self, self.transform.position, self.transform.rotation,
+                            other, other.transform.position, other.transform.rotation,
+                            out Vector3 way, out float depth) && depth > distance)
+                    {
+                        distance = depth;
+                        direction = way;
+                        found = true;
+                    }
+                }
+            }
+            return found;
+        }
+
+        /// <summary>What a body's box overlaps is read into this, not into a new array a call: every limp body asks at every physics step. Main thread only.</summary>
+        private static readonly Collider[] Overlaps = new Collider[64];
+
+        private Rigidbody[] _colliderBodies;
+        private Collider[] _bodyColliders;
+
+        /// <summary>Everything the box round <paramref name="self"/> touches, into <see cref="Overlaps"/>: how many.</summary>
+        private static int OverlapsOf(Collider self)
+        {
+            Bounds bounds = self.bounds;
+            return Physics.OverlapBoxNonAlloc(bounds.center, bounds.extents, Overlaps, self.transform.rotation, ~0, QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>Body <paramref name="index"/>'s own collider, looked up once and again only if the body or the collider has gone; null with none.</summary>
+        private Collider ColliderOf(int index)
+        {
+            Rigidbody body = Bodies[index];
+            if (_bodyColliders == null || _bodyColliders.Length != Bodies.Length)
+            {
+                _colliderBodies = new Rigidbody[Bodies.Length];
+                _bodyColliders = new Collider[Bodies.Length];
+            }
+            if (!ReferenceEquals(_colliderBodies[index], body) || _bodyColliders[index] == null)
+            {
+                _colliderBodies[index] = body;
+                _bodyColliders[index] = body != null ? body.GetComponent<Collider>() : null;
+            }
+            return _bodyColliders[index];
+        }
+
+        /// <summary>Body <paramref name="index"/>'s collider if it has one switched on, else null (a cut-off limb's is off, Dismemberer: it has no bounds to push out).</summary>
+        private Collider EnabledColliderOf(int index)
+        {
+            Collider self = Bodies[index] != null ? ColliderOf(index) : null;
+            return self != null && self.enabled ? self : null;
         }
 
         /// <summary>The rig's own colliders (bodies plus the standing capsule) never count as something to depenetrate FROM.</summary>
@@ -529,9 +567,9 @@ namespace CityX.Character
             {
                 return false;
             }
-            foreach (Rigidbody body in Bodies)
+            for (int i = 0; i < Bodies.Length; i++)
             {
-                if (body != null && body.GetComponent<Collider>() == other)
+                if (Bodies[i] != null && ColliderOf(i) == other)
                 {
                     return true;
                 }
@@ -615,25 +653,18 @@ namespace CityX.Character
                 return;
             }
 
-            foreach (Rigidbody body in Bodies)
+            for (int i = 0; i < Bodies.Length; i++)
             {
-                if (body == null)
+                Collider self = EnabledColliderOf(i);
+                if (self == null)
                 {
                     continue;
                 }
-                Collider self = body.GetComponent<Collider>();
-                if (self == null || !self.enabled)   // a cut-off limb's collider is off (Dismemberer): it has no bounds to push out
+                Rigidbody body = Bodies[i];
+                int count = OverlapsOf(self);
+                for (int k = 0; k < count; k++)
                 {
-                    continue;
-                }
-
-                Bounds bounds = self.bounds;
-                Collider[] overlaps = Physics.OverlapBox(
-                    bounds.center, bounds.extents, self.transform.rotation,
-                    ~0, QueryTriggerInteraction.Ignore);
-
-                foreach (Collider other in overlaps)
-                {
+                    Collider other = Overlaps[k];
                     if (other == null || other == self || IsOwnCollider(other))
                     {
                         continue;
@@ -693,44 +724,11 @@ namespace CityX.Character
                 return;
             }
 
-            float deepest = DepenetrationMinDistance;
-            Vector3 push = Vector3.zero;
-
-            foreach (Rigidbody body in Bodies)
+            if (!DeepestOverlap(out Vector3 direction, out float distance))
             {
-                if (body == null)
-                {
-                    continue;
-                }
-                Collider self = body.GetComponent<Collider>();
-                if (self == null || !self.enabled)
-                {
-                    continue;
-                }
-
-                Bounds bounds = self.bounds;
-                Collider[] overlaps = Physics.OverlapBox(
-                    bounds.center, bounds.extents, self.transform.rotation,
-                    ~0, QueryTriggerInteraction.Ignore);
-
-                foreach (Collider other in overlaps)
-                {
-                    if (other == null || other == self || IsOwnCollider(other))
-                    {
-                        continue;
-                    }
-                    if (Physics.ComputePenetration(
-                            self, self.transform.position, self.transform.rotation,
-                            other, other.transform.position, other.transform.rotation,
-                            out Vector3 direction, out float distance) && distance > deepest)
-                    {
-                        deepest = distance;
-                        push = direction * Mathf.Min(
-                            distance + DepenetrationSkin, LiveDepenetrationMaxStepPerFixedUpdate);
-                    }
-                }
+                return;
             }
-
+            Vector3 push = direction * Mathf.Min(distance + DepenetrationSkin, LiveDepenetrationMaxStepPerFixedUpdate);
             if (push != Vector3.zero)
             {
                 transform.position += push;

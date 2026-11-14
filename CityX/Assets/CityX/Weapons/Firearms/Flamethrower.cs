@@ -76,7 +76,7 @@ namespace CityX.Weapons
         public LayerMask TargetLayers = ~0;
 
         private SphereCollider _pickupTrigger;
-        private Transform _nearbyPlayer;
+        private readonly GroundPickup _pickup = new GroundPickup();
         private bool _equipped;
         private float _flickerPhase;
         private float _igniteDue;
@@ -93,39 +93,15 @@ namespace CityX.Weapons
 
         private void Update()
         {
-            if (_equipped)
+            if (!_equipped && _pickup.Player != null)
             {
-                return;
-            }
-            TickPickup();
-        }
-
-        private void OnTriggerEnter(Collider other)
-        {
-            Transform body = InteractionReach.LocalPlayerBody(other);
-            if (body != null)
-            {
-                _nearbyPlayer = body;
+                TryPickup(_pickup.Player, InteractKey.Tapped);
             }
         }
 
-        private void OnTriggerExit(Collider other)
-        {
-            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
-            {
-                _nearbyPlayer = null;
-            }
-        }
+        private void OnTriggerEnter(Collider other) => _pickup.Entered(other);
 
-        private void TickPickup()
-        {
-            if (_nearbyPlayer == null)
-            {
-                return;
-            }
-            bool ePressed = InteractKey.Tapped;
-            TryPickup(_nearbyPlayer, ePressed);
-        }
+        private void OnTriggerExit(Collider other) => _pickup.Left(other);
 
         /// <summary>
         /// The actual pickup decision, factored out so a test can drive it
@@ -136,36 +112,8 @@ namespace CityX.Weapons
         /// </summary>
         public bool TryPickup(Transform player, bool ePressed)
         {
-            if (!ePressed)
-            {
-                return false;
-            }
-
-            Vector3 toPlayer = transform.position - player.position;
-            if (toPlayer.sqrMagnitude > InteractRange * InteractRange)
-            {
-                return false;
-            }
-
-            Transform lookSource = InteractionReach.LookSource(player);
-            Vector3 toSelf = transform.position - lookSource.position;
-            if (toSelf.sqrMagnitude > 0.0001f &&
-                Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
-            {
-                return false;
-            }
-
-            var inventory = player.GetComponentInParent<Inventory>();
-            if (inventory == null)
-            {
-                return false;
-            }
-            if (inventory.PickUp(ItemRegistry.Flamethrower))
-            {
-                Destroy(gameObject);
-                return true;
-            }
-            return false;
+            return ePressed && InteractionReach.CanReach(transform.position, player, InteractRange, LookDotThreshold, out _)
+                && GroundPickup.Take(player, gameObject, ItemRegistry.Flamethrower);
         }
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData)

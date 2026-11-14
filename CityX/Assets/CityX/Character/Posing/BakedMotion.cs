@@ -241,27 +241,6 @@ namespace CityX.Character
 
         public float SegmentSeconds(string name) => SegmentFrames(name) / (float)FramesPerSecond;
 
-        /// <summary>
-        /// When the named event falls inside the segment, seconds from the segment's start to it; -1 when the segment has no such event.
-        /// (Both of a gun's reloads have a "seat"; each is found within its own segment.)
-        /// </summary>
-        public float EventSeconds(string segment, string eventName)
-        {
-            if (!HasSegment(segment))
-            {
-                return -1.0f;
-            }
-            Vector2Int range = _segments[segment];
-            foreach (KeyValuePair<string, int> e in _events)
-            {
-                if (e.Key == eventName && e.Value >= range.x && e.Value <= range.y)
-                {
-                    return (e.Value - range.x) / (float)FramesPerSecond;
-                }
-            }
-            return -1.0f;
-        }
-
         /// <summary>Every event inside the segment, as (name, seconds from its start), in frame order.</summary>
         public List<KeyValuePair<string, float>> EventsIn(string segment)
         {
@@ -289,8 +268,6 @@ namespace CityX.Character
 
         /// <summary>Prop <paramref name="prop"/>'s local position (in the held thing's frame) on frame <paramref name="frame"/>.</summary>
         public Vector3 PropPositionAt(int frame, int prop) => _propPositions[prop][Mathf.Clamp(frame, 0, FrameCount - 1)];
-
-        public Quaternion PropRotationAt(int frame, int prop) => _propRotations[prop][Mathf.Clamp(frame, 0, FrameCount - 1)];
 
         public bool PropVisibleAt(int frame, int prop) => _propVisible[prop][Mathf.Clamp(frame, 0, FrameCount - 1)];
 

@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class HillTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CityX.World.CitySeed.Default;
 
         [Test]
         public void TheGamesCityHasSteepHills()

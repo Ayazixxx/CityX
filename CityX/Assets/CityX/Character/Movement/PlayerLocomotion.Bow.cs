@@ -86,9 +86,6 @@ namespace CityX.Character
         private float _bowRelease;
         private Vector3 _bowAim = Vector3.forward;
 
-        /// <summary>A bow is in the left hand.</summary>
-        public bool HoldsBow => _bow != null;
-
         /// <summary>How far the bow is up at the aim, 0 hanging .. 1 aimed.</summary>
         public float BowRaise => _bowRaise;
 
@@ -100,9 +97,6 @@ namespace CityX.Character
 
         /// <summary>The string hand has an arrow (it reached the quiver; a slingshot's pebble is in the pouch from the start).</summary>
         public bool BowArrowInHand => _bowDraw >= _bowStyle.NockShare * 0.5f;
-
-        /// <summary>The way the bow aims (unit), as last told.</summary>
-        public Vector3 BowAim => _bowAim;
 
         /// <summary>Where the string hand holds the string now (world): the nock, where the arrow sits.</summary>
         public Vector3 BowNock => _handR != null ? _handR.position : transform.position;

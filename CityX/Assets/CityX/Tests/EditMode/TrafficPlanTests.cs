@@ -9,7 +9,7 @@ namespace CityX.Tests
     /// <summary>Which of the real city's junctions get lights, STOP signs or nothing, and how the lights are timed (docs/TRAFFIC_CONTROL.md).</summary>
     public sealed class TrafficPlanTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         private static PlanWorld _plan;
 

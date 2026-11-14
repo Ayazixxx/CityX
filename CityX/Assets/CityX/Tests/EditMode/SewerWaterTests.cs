@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class SewerWaterTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         private static CityWorld _world;
 

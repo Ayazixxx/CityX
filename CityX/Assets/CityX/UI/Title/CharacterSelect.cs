@@ -80,8 +80,6 @@ namespace CityX.UI
         public CharacterSave Selected =>
             _selectedIndex >= 0 && _selectedIndex < _characters.Count ? _characters[_selectedIndex] : null;
 
-        public Color PendingSkin => _pendingSkin;
-
         /// <summary>
         /// Paint handed over by the creator, waiting for a name.
         ///

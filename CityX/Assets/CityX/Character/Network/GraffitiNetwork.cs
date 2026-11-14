@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using FishNet;
 using FishNet.Broadcast;
 using FishNet.Connection;
-using FishNet.Managing;
+using FishNet.Managing.Client;
+using FishNet.Managing.Server;
 using FishNet.Object;
 using FishNet.Transporting;
 using UnityEngine;
@@ -41,7 +41,7 @@ namespace CityX.Character
     /// near it (<see cref="MaxReachMetres"/>), and that nobody puts up more than one piece every <see cref="MinSecondsBetween"/>. In
     /// singleplayer nothing is started and this does nothing: a piece is only put up on this machine.
     /// </summary>
-    public sealed class GraffitiNetwork : MonoBehaviour
+    public sealed class GraffitiNetwork : SessionRelay
     {
         /// <summary>The furthest a painter's body may be from the piece they put up, metres.</summary>
         public const float MaxReachMetres = 12.0f;
@@ -52,9 +52,6 @@ namespace CityX.Character
         [Tooltip("The material graffiti is drawn with: URP Lit, see-through (built by the scene builder). Lit, so the city's light falls on it.")]
         public Material PaintMaterial;
 
-        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
-        public NetworkManager Manager;
-
         /// <summary>The network this machine sends its pieces through (null in singleplayer).</summary>
         public static GraffitiNetwork Active { get; private set; }
 
@@ -63,10 +60,6 @@ namespace CityX.Character
 
         public int LastHeardId { get; private set; }
 
-        private NetworkManager _manager;
-        private bool _serverHandlers;
-        private bool _clientHandlers;
-        private bool _requested;
         private readonly Dictionary<int, float> _lastFrom = new Dictionary<int, float>();
 
         private void Awake()
@@ -77,59 +70,32 @@ namespace CityX.Character
             }
         }
 
-        private void Update()
+        protected override void HearAsServer(ServerManager server, bool on)
         {
-            if (_manager == null)
-            {
-                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
-                if (_manager == null)
-                {
-                    return;
-                }
-            }
+            Hear<GraffitiMessage>(server, on, OnPieceAtServer);
+            Hear<GraffitiStateRequest>(server, on, OnStateRequestAtServer);
+        }
 
-            bool server = _manager.IsServerStarted;
-            if (server != _serverHandlers)
+        protected override void HearAsClient(ClientManager client, bool on)
+        {
+            Hear<GraffitiMessage>(client, on, OnPieceAtClient);
+            if (on)
             {
-                if (server)
-                {
-                    _manager.ServerManager.RegisterBroadcast<GraffitiMessage>(OnPieceAtServer);
-                    _manager.ServerManager.RegisterBroadcast<GraffitiStateRequest>(OnStateRequestAtServer);
-                }
-                else
-                {
-                    _manager.ServerManager.UnregisterBroadcast<GraffitiMessage>(OnPieceAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<GraffitiStateRequest>(OnStateRequestAtServer);
-                }
-                _serverHandlers = server;
+                Active = this;
             }
+            else
+            {
+                if (ReferenceEquals(Active, this))
+                {
+                    Active = null;
+                }
+            }
+        }
 
-            bool client = _manager.IsClientStarted;
-            if (client != _clientHandlers)
-            {
-                if (client)
-                {
-                    _manager.ClientManager.RegisterBroadcast<GraffitiMessage>(OnPieceAtClient);
-                    Active = this;
-                    _requested = false;
-                }
-                else
-                {
-                    _manager.ClientManager.UnregisterBroadcast<GraffitiMessage>(OnPieceAtClient);
-                    if (ReferenceEquals(Active, this))
-                    {
-                        Active = null;
-                    }
-                }
-                _clientHandlers = client;
-            }
-
-            // A joining player asks for every piece already up, once the server has let it in.
-            if (_clientHandlers && !_requested && _manager.ClientManager.Connection != null && _manager.ClientManager.Connection.IsAuthenticated)
-            {
-                _requested = true;
-                _manager.ClientManager.Broadcast(new GraffitiStateRequest());
-            }
+        // A joining player asks for every piece already up, once the server has let it in.
+        protected override void OnLetIn(ClientManager client)
+        {
+            client.Broadcast(new GraffitiStateRequest());
         }
 
         private void OnDisable()
@@ -161,9 +127,9 @@ namespace CityX.Character
         /// <summary>Sends a piece to the server, for every other machine (nothing when this machine is not in a session).</summary>
         public void Send(GraffitiPiece piece)
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
-                _manager.ClientManager.Broadcast(GraffitiMessage.Of(piece));
+                Session.ClientManager.Broadcast(GraffitiMessage.Of(piece));
             }
         }
 
@@ -175,7 +141,7 @@ namespace CityX.Character
             }
             // A host's own client already put it up; a dedicated server keeps it too, for whoever joins later.
             GraffitiWall.Put(message.Piece);
-            _manager.ServerManager.Broadcast(message);
+            Session.ServerManager.Broadcast(message);
         }
 
         private void OnStateRequestAtServer(NetworkConnection sender, GraffitiStateRequest request, Channel channel)
@@ -186,7 +152,7 @@ namespace CityX.Character
             }
             foreach (GraffitiPiece piece in GraffitiWall.All())
             {
-                _manager.ServerManager.Broadcast(sender, GraffitiMessage.Of(piece));
+                Session.ServerManager.Broadcast(sender, GraffitiMessage.Of(piece));
             }
         }
 

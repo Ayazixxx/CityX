@@ -150,24 +150,5 @@ namespace CityX.World
 
             return PointOn(plan, g, along, side);
         }
-
-        /// <summary>
-        /// A deterministic spawn point for pedestrian <paramref name="index"/> near <paramref name="centre"/>, on a pavement.
-        /// Deterministic on purpose: the same seed puts the same crowd in the same places on every machine.
-        /// </summary>
-        public static Vector3 SpawnPointNear(Vector3 centre, int index, int worldSeed, float radius)
-        {
-            var random = new DeterministicRandom(
-                WorldHash.Coord(index, 0, 0x5A11E, unchecked((ulong)(long)worldSeed)));
-
-            float angle = (float)random.Range(0.0, Mathf.PI * 2.0);
-            float distance = (float)random.Range(radius * 0.25, radius);
-            var point = new Vector3(
-                centre.x + Mathf.Cos(angle) * distance,
-                centre.y,
-                centre.z + Mathf.Sin(angle) * distance);
-
-            return SnapToPavement(point);
-        }
     }
 }

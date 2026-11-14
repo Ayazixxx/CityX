@@ -66,9 +66,6 @@ namespace CityX.Character
 
         public static float SlideStartSeconds => Frames(SlideStartFrame);
 
-        /// <summary>The body is still from here on.</summary>
-        public static float SlideEndSeconds => Frames(SlideStartFrame + SlidePixels.Length);
-
         /// <summary>How far along the slide the body is <paramref name="seconds"/> into the move, metres: 0 before it moves off, SlideMetres once it stops.</summary>
         public static float SlideDistance(float seconds)
         {

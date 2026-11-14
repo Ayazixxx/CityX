@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class KerbCornerTests
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
         private const int ReachChunks = 6;
 
         private static CityWorld _world;

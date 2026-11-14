@@ -39,6 +39,18 @@ conventions down and apply them every time.
      asset that prefabs or controllers hold: what still held the deleted one saves a blank.
    - `Character/NPC/KeyedMotion.Along`: one smooth curve through timed keys (the Crimson Claw's swipe and grab).
    - `Character/Body/MaterialBlocks`: each material's own property block, for a copy of a renderer to look like it (a dye lives there).
+   - `Character/Network/SessionRelay`: the base of everything kept the same between machines by broadcasts (light switches, balcony doors,
+     glass, graffiti, dropped items, the weather, the enemies). It finds the session, hooks and unhooks what the relay hears as this
+     machine becomes the server or a client (`HearAsServer`, `HearAsClient`, `Hear<T>`), and says when a joiner may ask for what it missed
+     (`OnLetIn`). A new shared piece of the world derives from it.
+   - `Character/Interaction/GroundPickup`: something on the ground picked up with E: who has walked into its trigger, whether they tapped
+     E in range, and `Take` into the inventory. Every item and wearable uses it; a pickup that also needs to be looked at asks
+     `InteractionReach.CanReach`.
+   - `UI/MenuFocus` and `FreedCursor`: what a page that takes over the screen does to the game (the pointer freed, the player's input held,
+     the orbit camera resting) and gives back on closing. Thirteen views use one or the other.
+   - `UI/Menus/SettingsPage`: the settings a player can change, shared by the pause menu and the title screen.
+   - `UI/IconGeometry`: inside-a-polygon and distance-to-a-stroke for the three icon painters.
+   - `World/CitySeed.Default`: the game's world seed, the one place it is written.
    - Already shared before: `TwoBoneIK`, `DeterministicRandom`, `CaptureGuard` (tests), the `*Strikes` keyframe tables and others.
 2. **One topic per file.** A file past about a thousand lines usually holds several topics. Split it into partial files by topic, named
    `Class.Topic.cs` (see `PlayerLocomotion.*.cs`), and where a topic can stand on its own, make it a class of its own. Pure logic in plain

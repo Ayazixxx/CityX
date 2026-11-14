@@ -78,12 +78,6 @@ namespace CityX.World
         }
 
         public bool IsSpecial => !string.IsNullOrEmpty(SpecialType);
-
-        /// <summary>
-        /// Height over the narrower footprint axis. The number that decides
-        /// whether something reads as a tower or as a mast.
-        /// </summary>
-        public float Slenderness => Height / (Width < Depth ? Width : Depth);
     }
 
     /// <summary>

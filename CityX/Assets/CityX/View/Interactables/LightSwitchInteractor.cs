@@ -52,21 +52,6 @@ namespace CityX.View
             InteractionFocus.Offer(InteractionFocus.DegreesOff(SwitchPoint(site, plan), eye, look), () => Flip(site, plan));
         }
 
-        /// <summary>
-        /// Flips the switch nearest the crosshair that is within reach, on the player's floor and in front of where they are looking. Public so a
-        /// test can drive it without a keyboard. False when there is none.
-        /// </summary>
-        public bool TryFlip(Vector3 feet, Vector3 eye, Vector3 look)
-        {
-            CityWorld world = CurrentWorld.Instance;
-            if (world == null || !TryFind(world, feet, eye, look, out BuildingSite site, out RoomLightPlan plan))
-            {
-                return false;
-            }
-            Flip(site, plan);
-            return true;
-        }
-
         private void Flip(BuildingSite site, RoomLightPlan plan)
         {
             RoomLights.Flip(plan.Key);

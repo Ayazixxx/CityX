@@ -27,9 +27,6 @@ namespace CityX.Weapons
         private int _staffShots;
         private float _remoteStaffOut;
 
-        /// <summary>The shards the staff has fired since its button went down.</summary>
-        public int StaffShotsThisHold => _staffShots;
-
         public void TickStaff(bool held, Transform tip, Vector3 eye, Vector3 look, float deltaTime)
         {
             if (_staffReady > 0.0f)

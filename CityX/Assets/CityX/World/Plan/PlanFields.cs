@@ -206,16 +206,6 @@ namespace CityX.World.Plan
             return Lerp(_cfg.MinScale, _cfg.Scale, DistrictAt(x, y));
         }
 
-        /// <summary>How much taller than the classic city buildings are here (a district that is bigger is taller too).</summary>
-        public double HeightScaleAt(double x, double y)
-        {
-            if (!_cfg.Varied)
-            {
-                return _cfg.HeightScale;
-            }
-            return Lerp(_cfg.MinHeightScale, _cfg.HeightScale, DistrictAt(x, y));
-        }
-
         /// <summary>
         /// How a block's district value (0 the classic city's size, 1 the biggest) becomes the size of the buildings on it: bent down in the middle,
         /// the ends where they were (owner, 2026-10-12: "the buildings are too big on average ... they should be able to be as big as the biggest they

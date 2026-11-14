@@ -1,8 +1,8 @@
 using CityX.World;
-using FishNet;
 using FishNet.Broadcast;
 using FishNet.Connection;
-using FishNet.Managing;
+using FishNet.Managing.Client;
+using FishNet.Managing.Server;
 using FishNet.Transporting;
 using UnityEngine;
 
@@ -29,80 +29,49 @@ namespace CityX.Character
     /// machines change together; a player who joins asks how it is. Before this, /weather changed only the machine it was typed on. Outside a session the order goes straight
     /// to the weather (<see cref="CurrentWeather.Order"/>). What falls and lies is all that is sent: each flake and each print is every machine's own.
     /// </summary>
-    public sealed class NetworkedWeather : MonoBehaviour, IWeatherRelay
+    public sealed class NetworkedWeather : SessionRelay, IWeatherRelay
     {
         /// <summary>The most orders from one player that are heeded, per second.</summary>
         public const int MaxOrdersPerSecond = 4;
-
-        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
-        public NetworkManager Manager;
 
         /// <summary>This machine's weather. Null: the game's (<see cref="CurrentWeather.Control"/>); a test gives each of its machines its own.</summary>
         public IWeatherControl Target;
 
         private readonly SenderRate _rate = new SenderRate(MaxOrdersPerSecond);
-        private NetworkManager _manager;
         private WeatherMessage _kept;
-        private bool _serverHandlers;
-        private bool _clientHandlers;
-        private bool _asked;
 
         private IWeatherControl Control => Target ?? CurrentWeather.Control;
 
-        private void Update()
+        protected override void HearAsServer(ServerManager server, bool on)
         {
-            if (_manager == null)
+            Hear<WeatherMessage>(server, on, OnOrderAtServer);
+            Hear<WeatherStateRequest>(server, on, OnStateRequestAtServer);
+            if (on)
             {
-                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
-                if (_manager == null)
-                {
-                    return;
-                }
+                WeatherOrder now = Control != null ? Control.Now : default;
+                _kept = new WeatherMessage { Rain = now.Rain, Snow = now.Snow, Cover = -1.0f };
             }
+        }
 
-            bool server = _manager.IsServerStarted;
-            if (server != _serverHandlers)
+        protected override void HearAsClient(ClientManager client, bool on)
+        {
+            Hear<WeatherMessage>(client, on, OnWeatherAtClient);
+            if (on)
             {
-                if (server)
+                if (Target == null)
                 {
-                    _manager.ServerManager.RegisterBroadcast<WeatherMessage>(OnOrderAtServer);
-                    _manager.ServerManager.RegisterBroadcast<WeatherStateRequest>(OnStateRequestAtServer);
-                    WeatherOrder now = Control != null ? Control.Now : default;
-                    _kept = new WeatherMessage { Rain = now.Rain, Snow = now.Snow, Cover = -1.0f };
+                    CurrentWeather.Relay = this;
                 }
-                else
-                {
-                    _manager.ServerManager.UnregisterBroadcast<WeatherMessage>(OnOrderAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<WeatherStateRequest>(OnStateRequestAtServer);
-                }
-                _serverHandlers = server;
             }
+            else
+            {
+                LetGoOfRelay();
+            }
+        }
 
-            bool client = _manager.IsClientStarted;
-            if (client != _clientHandlers)
-            {
-                if (client)
-                {
-                    _manager.ClientManager.RegisterBroadcast<WeatherMessage>(OnWeatherAtClient);
-                    if (Target == null)
-                    {
-                        CurrentWeather.Relay = this;
-                    }
-                    _asked = false;
-                }
-                else
-                {
-                    _manager.ClientManager.UnregisterBroadcast<WeatherMessage>(OnWeatherAtClient);
-                    LetGoOfRelay();
-                }
-                _clientHandlers = client;
-            }
-
-            if (_clientHandlers && !_asked && _manager.ClientManager.Connection != null && _manager.ClientManager.Connection.IsAuthenticated)
-            {
-                _asked = true;
-                _manager.ClientManager.Broadcast(new WeatherStateRequest());
-            }
+        protected override void OnLetIn(ClientManager client)
+        {
+            client.Broadcast(new WeatherStateRequest());
         }
 
         private void OnDisable()
@@ -120,9 +89,9 @@ namespace CityX.Character
 
         public void Send(in WeatherOrder order)
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
-                _manager.ClientManager.Broadcast(new WeatherMessage { Rain = order.Rain, Snow = order.Snow, Cover = order.Cover, Dry = order.Dry });
+                Session.ClientManager.Broadcast(new WeatherMessage { Rain = order.Rain, Snow = order.Snow, Cover = order.Cover, Dry = order.Dry });
             }
         }
 
@@ -133,7 +102,7 @@ namespace CityX.Character
                 return;
             }
             _kept = message;
-            _manager.ServerManager.Broadcast(message);
+            Session.ServerManager.Broadcast(message);
         }
 
         private void OnStateRequestAtServer(NetworkConnection sender, WeatherStateRequest request, Channel channel)
@@ -142,7 +111,7 @@ namespace CityX.Character
             WeatherMessage state = _kept;
             state.Dry = false;
             state.Cover = Control != null ? Control.Now.Cover : -1.0f;
-            _manager.ServerManager.Broadcast(sender, state);
+            Session.ServerManager.Broadcast(sender, state);
         }
 
         private void OnWeatherAtClient(WeatherMessage message, Channel channel)

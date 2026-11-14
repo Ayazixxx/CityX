@@ -17,7 +17,7 @@ namespace CityX.Tests
     [Explicit("a measurement, not a test")]
     public sealed class ChunkFingerprintBench
     {
-        private const int Seed = 48398181;
+        private const int Seed = CitySeed.Default;
 
         private const int Radius = 6;
 

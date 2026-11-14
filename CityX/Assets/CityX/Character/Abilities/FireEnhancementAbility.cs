@@ -46,9 +46,6 @@ namespace CityX.Character
         /// <summary>The fire waits for the body's next attack (on a copy: is shown waiting).</summary>
         public bool IsArmed => _armedLeft > 0.0f;
 
-        /// <summary>The swing that took the fire is still going: every blow it lands burns.</summary>
-        public bool IsSwingBurning => _burningSwing;
-
         /// <summary>The weapon shows the fire: while it waits, and through the swing that takes it.</summary>
         public bool IsAblaze => IsArmed || _burningSwing;
 

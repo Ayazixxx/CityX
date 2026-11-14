@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using CityX.World;
-using FishNet;
 using FishNet.Broadcast;
 using FishNet.Connection;
-using FishNet.Managing;
+using FishNet.Managing.Client;
+using FishNet.Managing.Server;
 using FishNet.Transporting;
 using UnityEngine;
 
@@ -39,16 +39,13 @@ namespace CityX.Character
     /// THE SERVER CHECKS: a sane room (building, floor and room in range) and at most <see cref="MaxFlipsPerSecond"/> flips a second per player.
     /// In singleplayer nothing is started and this does nothing: RoomLights.Relay stays null and a flip only changes this machine.
     /// </summary>
-    public sealed class RoomLightsNetwork : MonoBehaviour, IRoomLightRelay
+    public sealed class RoomLightsNetwork : SessionRelay, IRoomLightRelay
     {
         /// <summary>The most switches one player may flip per second (a hand is not faster than this).</summary>
         public const int MaxFlipsPerSecond = 12;
 
         /// <summary>No building has more floors than this (sanity only).</summary>
         public const int MaxFloor = 400;
-
-        [Tooltip("The session to work in; empty: the running one (FishNet's InstanceFinder). Tests bind one per machine.")]
-        public NetworkManager Manager;
 
         /// <summary>How many switch flips and full states this machine has heard from the server (for tests).</summary>
         public int FlipsHeard { get; private set; }
@@ -57,67 +54,35 @@ namespace CityX.Character
         /// <summary>How many lights were on in the last full state heard (for tests).</summary>
         public int LastStateSize { get; private set; }
 
-        private NetworkManager _manager;
-        private bool _serverHandlers;
-        private bool _clientHandlers;
-        private bool _requested;
         private readonly SenderRate _rate = new SenderRate(MaxFlipsPerSecond);
 
-        private void Update()
+        protected override void HearAsServer(ServerManager server, bool on)
         {
-            if (_manager == null)
-            {
-                _manager = Manager != null ? Manager : InstanceFinder.NetworkManager;
-                if (_manager == null)
-                {
-                    return;
-                }
-            }
+            Hear<LightSwitchMessage>(server, on, OnFlipAtServer);
+            Hear<LightSwitchStateRequest>(server, on, OnStateRequestAtServer);
+        }
 
-            bool server = _manager.IsServerStarted;
-            if (server != _serverHandlers)
+        protected override void HearAsClient(ClientManager client, bool on)
+        {
+            Hear<LightSwitchMessage>(client, on, OnFlipAtClient);
+            Hear<LightSwitchState>(client, on, OnStateAtClient);
+            if (on)
             {
-                if (server)
-                {
-                    _manager.ServerManager.RegisterBroadcast<LightSwitchMessage>(OnFlipAtServer);
-                    _manager.ServerManager.RegisterBroadcast<LightSwitchStateRequest>(OnStateRequestAtServer);
-                }
-                else
-                {
-                    _manager.ServerManager.UnregisterBroadcast<LightSwitchMessage>(OnFlipAtServer);
-                    _manager.ServerManager.UnregisterBroadcast<LightSwitchStateRequest>(OnStateRequestAtServer);
-                }
-                _serverHandlers = server;
+                RoomLights.Relay = this;
             }
+            else
+            {
+                if (ReferenceEquals(RoomLights.Relay, this))
+                {
+                    RoomLights.Relay = null;
+                }
+            }
+        }
 
-            bool client = _manager.IsClientStarted;
-            if (client != _clientHandlers)
-            {
-                if (client)
-                {
-                    _manager.ClientManager.RegisterBroadcast<LightSwitchMessage>(OnFlipAtClient);
-                    _manager.ClientManager.RegisterBroadcast<LightSwitchState>(OnStateAtClient);
-                    RoomLights.Relay = this;
-                    _requested = false;   // asked for once the server has let this client in (below)
-                }
-                else
-                {
-                    _manager.ClientManager.UnregisterBroadcast<LightSwitchMessage>(OnFlipAtClient);
-                    _manager.ClientManager.UnregisterBroadcast<LightSwitchState>(OnStateAtClient);
-                    if (ReferenceEquals(RoomLights.Relay, this))
-                    {
-                        RoomLights.Relay = null;
-                    }
-                }
-                _clientHandlers = client;
-            }
-
-            // A joining player asks which lights are on, once the server has authenticated it (a broadcast before that is dropped).
-            if (_clientHandlers && !_requested && _manager.ClientManager.Connection != null && _manager.ClientManager.Connection.IsAuthenticated)
-            {
-                _requested = true;
-                _manager.ClientManager.Broadcast(new LightSwitchStateRequest());
-            }
+        // A joining player asks which lights are on, once the server has authenticated it (a broadcast before that is dropped).
+        protected override void OnLetIn(ClientManager client)
+        {
+            client.Broadcast(new LightSwitchStateRequest());
         }
 
         private void OnDisable()
@@ -130,9 +95,9 @@ namespace CityX.Character
 
         public void Send(RoomKey key, bool on)
         {
-            if (_manager != null && _manager.IsClientStarted)
+            if (CanSend)
             {
-                _manager.ClientManager.Broadcast(new LightSwitchMessage { Building = key.Building, Floor = key.Floor, Room = key.Room, On = on });
+                Session.ClientManager.Broadcast(new LightSwitchMessage { Building = key.Building, Floor = key.Floor, Room = key.Room, On = on });
             }
         }
 
@@ -143,7 +108,7 @@ namespace CityX.Character
                 return;
             }
             RoomLights.Set(new RoomKey(message.Building, message.Floor, message.Room), message.On);
-            _manager.ServerManager.Broadcast(message);
+            Session.ServerManager.Broadcast(message);
         }
 
         private void OnStateRequestAtServer(NetworkConnection sender, LightSwitchStateRequest request, Channel channel)
@@ -160,7 +125,7 @@ namespace CityX.Character
                 state.Floor[i] = on[i].Floor;
                 state.Room[i] = on[i].Room;
             }
-            _manager.ServerManager.Broadcast(sender, state);
+            Session.ServerManager.Broadcast(sender, state);
         }
 
         private void OnFlipAtClient(LightSwitchMessage message, Channel channel)

@@ -61,12 +61,6 @@ namespace CityX.UI
 
         public Mood Current => _mood;
 
-        /// <summary>The volume the sound is easing towards.</summary>
-        public float TargetVolume => VolumeFor(_mood);
-
-        /// <summary>The cutoff (Hz) the sound is easing towards.</summary>
-        public float TargetCutoffHz => CutoffFor(_mood);
-
         /// <summary>Which mood a panel gets. Pure, so a test can read it without a scene.</summary>
         public static Mood MoodFor(TitleScreen.Panel panel)
         {

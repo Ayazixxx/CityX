@@ -21,8 +21,7 @@ namespace CityX.View
     ///
     /// IN A SESSION each machine does this for its own player and ASKS THE SERVER for each enemy (EnemyNetwork), which spawns it for
     /// everyone, run by the asker's machine as with /spawn, and counts what is alive near the asker whoever runs it: players standing
-    /// together share one budget. Only kinds the session shares are asked for: an enemy that exists on one machine alone (the monster,
-    /// today) is not put into a session.
+    /// together share one budget. Only kinds the session shares are asked for.
     ///
     /// An enemy is put down only where this machine has the city built in full (floors and their colliders) and the spot is sound: ground
     /// under it at the height the plan says, and indoors room to stand.
@@ -71,11 +70,11 @@ namespace CityX.View
             public int Building = -1;
         }
 
+        /// <summary>The session says a building this machine asked to put an enemy in has been cleared (by anyone): nothing is asked for it again for this long, seconds.</summary>
+        public const float ClearedAskAgainSeconds = 600.0f;
+
         /// <summary>The buildings cleared of their enemies, and when each may have enemies again (Time.time): MobHabitats.ClearedSeconds.</summary>
         private readonly Dictionary<int, float> _cleared = new Dictionary<int, float>();
-
-        /// <summary>Whether building <paramref name="building"/> (its id in the plan) has been cleared and is still empty.</summary>
-        public bool IsCleared(int building) => _cleared.TryGetValue(building, out float until) && Time.time < until;
 
         private static readonly MobHabitat[] Habitats = { MobHabitat.Outdoors, MobHabitat.Indoors };
 
@@ -97,6 +96,9 @@ namespace CityX.View
         private EnemyNetwork _network;
         private float _nextLook;
         private long _lastTicket;
+
+        /// <summary>Whether building <paramref name="building"/> (its id in the plan) has been cleared and is still empty.</summary>
+        public bool IsCleared(int building) => _cleared.TryGetValue(building, out float until) && Time.time < until;
 
         /// <summary>How many of the world's enemies this machine has alive (or asked for) just now.</summary>
         public int Alive => _held.Count + _asked.Count;
@@ -208,11 +210,23 @@ namespace CityX.View
                 }
                 _held.RemoveAt(i);
                 // The last one alive in its building: the building is cleared, and stays empty.
-                if (held.Building >= 0 && !_held.Exists(other => other.Building == held.Building))
+                if (held.Building >= 0 && !HoldsOneIn(held.Building))
                 {
                     _cleared[held.Building] = Time.time + MobHabitats.ClearedSeconds;
                 }
             }
+        }
+
+        private bool HoldsOneIn(int building)
+        {
+            foreach (Held held in _held)
+            {
+                if (held.Building == building)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>One look: what has been left behind is taken away, then spots are rolled for each habitat that has room.</summary>
@@ -366,9 +380,6 @@ namespace CityX.View
             _held.Add(new Held { Body = body, Life = body.GetComponent<IDamageable>(), Habitat = habitat, Building = building });
             return true;
         }
-
-        /// <summary>The session says a building this machine asked to put an enemy in has been cleared (by anyone): nothing is asked for it again for a while.</summary>
-        public const float ClearedAskAgainSeconds = 600.0f;
 
         private void OnRefusedAsCleared(long ticket)
         {

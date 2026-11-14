@@ -20,13 +20,13 @@ namespace CityX.Character
         /// <summary>How far off the middle it may be when fully in: enough for the feet (it starts 1.6 m above them) and the top of the head.</summary>
         public const float ReachMetres = 1.6f;
 
-        /// <summary>The camera one notch toward <paramref name="focus"/> (or away from it), held inside the limits without leaving the line through it.</summary>
         /// <summary>
         /// What a notch zooms toward: the point under the mouse, brought onto the body's middle line across (owner, 2026-11-05: "make it so that only
         /// works top and down not to the right and left"), so the camera only rises, sinks and comes in, never slides off to a side.
         /// </summary>
         public static Vector3 UpAndDownOnly(Vector3 focus, Vector3 home) => new Vector3(home.x, focus.y, focus.z);
 
+        /// <summary>The camera one notch toward <paramref name="focus"/> (or away from it), held inside the limits without leaving the line through it.</summary>
         public static Vector3 Step(Vector3 camera, Vector3 focus, bool closer, Vector3 home, float nearestDepth, float farthestDepth)
         {
             Vector3 away = camera - focus;

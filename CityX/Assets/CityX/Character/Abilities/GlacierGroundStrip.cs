@@ -65,9 +65,6 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>The distance down the line of row <paramref name="row"/>, metres (past the line's length on the arrow's tip).</summary>
-        public float RowDistance(int row) => _rowDistance[Mathf.Clamp(row, 0, MaxRows - 1)];
-
         /// <summary>
         /// Lays the strip along <paramref name="path"/>, <paramref name="lift"/> above the ground, each row level across: on the highest of
         /// the ground at its middle and at its two edges when <paramref name="overSteps"/> (the arrow, which must never be hidden under a kerb

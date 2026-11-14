@@ -70,9 +70,6 @@ namespace CityX.UI
         /// <summary>CREATE NEW has been pressed and the belt is about to bring a new body in (once the view is back and the belt has stopped).</summary>
         public bool Creating => _creating;
 
-        /// <summary>How far the view has closed in on the chosen character: 0 the row, 1 its card.</summary>
-        public float Inspected => _inspected;
-
         private Camera View => Lineup != null ? Lineup.View : null;
 
         /// <summary>The empty belt seen from where the creator sees it, the creator's own body away off the screen.</summary>

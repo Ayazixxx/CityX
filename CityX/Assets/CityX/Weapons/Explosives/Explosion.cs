@@ -38,7 +38,6 @@ namespace CityX.Weapons
 
         public const int Sparks = 70;
         public const int Chunks = 28;
-        public const int SmokePuffs = 22;
 
         /// <summary>The shockwave ring: how far it runs past the blast's reach (a real blast's visible edge outruns its lethal one), and how fast.</summary>
         public const float RingOvershoot = 1.6f;

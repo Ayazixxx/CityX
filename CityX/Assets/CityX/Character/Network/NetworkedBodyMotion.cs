@@ -47,9 +47,6 @@ namespace CityX.Character
 
         private bool IsLiveCopy => NetworkObject != null && IsSpawned && !IsOwner;
 
-        /// <summary>How far behind its owner a copy is shown, seconds (the line's own delay comes on top).</summary>
-        public static float ShownBehindSeconds => BodyMotionPlayback.DelaySeconds;
-
         public override void OnStartNetwork()
         {
             _playback.Clear();
@@ -155,7 +152,7 @@ namespace CityX.Character
             moment = new BodyMoment { Time = time, Position = position, Rotation = rotation, Scale = scale };
             return !double.IsNaN(time) && !double.IsInfinity(time)
                 && WireChecks.Finite(position) && WireChecks.IsRotation(rotation) && WireChecks.Finite(scale)
-                && Mathf.Min(scale.x, scale.y, scale.z) >= SmallestScale && Mathf.Max(scale.x, scale.y, scale.z) <= LargestScale;
+                && Mathf.Min(scale.x, Mathf.Min(scale.y, scale.z)) >= SmallestScale && Mathf.Max(scale.x, Mathf.Max(scale.y, scale.z)) <= LargestScale;
         }
     }
 }

@@ -80,20 +80,6 @@ namespace CityX.View
         public const float BridgeLandingMargin = 0.35f;
 
         /// <summary>
-        /// The stretch a footbridge's landing keeps clear on its wall, in the wall's u (from the building's centre) and heights over the building's
-        /// floor: the deck's width (or the door's, if wider) and a margin either side, from under the deck to over the door's head.
-        /// </summary>
-        public static void BridgeLanding(in BalconyDoor door, out float u0, out float u1, out float y0, out float y1)
-        {
-            float middle = (door.U0 + door.U1) * 0.5f;
-            float half = Mathf.Max(door.Width, Footbridges.DeckWidth) * 0.5f + BridgeLandingMargin;
-            u0 = middle - half;
-            u1 = middle + half;
-            y0 = door.Y0 - Footbridges.DeckThickness - BridgeLandingMargin;
-            y1 = door.Y1 + BridgeLandingMargin;
-        }
-
-        /// <summary>
         /// The stretches of a wall kept clear for the footbridges known for the building (Footbridges.ClearingsOn): each bridge's landing, as wide as
         /// its deck meets the wall (wider on the slant), from under the deck to over the door's head, and each street stair's run down the wall,
         /// with <see cref="BridgeLandingMargin"/> round them. Null when there are none.
