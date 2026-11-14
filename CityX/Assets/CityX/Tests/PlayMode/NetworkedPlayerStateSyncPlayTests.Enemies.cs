@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using CityX.Character;
 using CityX.Weapons;
+using CityX.World;
 using FishNet.Managing;
 using FishNet.Object;
 using NUnit.Framework;
@@ -338,6 +339,86 @@ namespace CityX.Tests
             yield return WaitUntil(() => copy.BloodShown > 0, "the blood to show on the other player's machine");
             Assert.Greater(real.BloodShown, 0);
             yield return WaitUntil(() => copy.Phase == WraithPhase.Thrown, "the copy to let go when its owner does");
+#else
+            Assert.Ignore("needs the editor to load the networked prefabs.");
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// The world's own enemies (docs/MOB_SPAWNING.md): each machine asks for enemies at random spots round its own player, as far off
+        /// as they appear. Players standing together share ONE budget (out of doors and indoors each their own), whoever's machine runs
+        /// the enemies; a killed one stops counting, and only the machine that runs an enemy can call it killed.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheWorldsEnemiesNearAPlaceAreOneBudgetForAllThePlayersThere()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            yield return StartEnemyNetworks();
+            EnemyNetwork server = _enemyNetworks[0], a = _enemyNetworks[1], b = _enemyNetworks[2];
+            var toA = new Dictionary<long, GameObject>();
+            var toB = new Dictionary<long, GameObject>();
+            a.WorldMobAnswered += (ticket, body) => toA[ticket] = body;
+            b.WorldMobAnswered += (ticket, body) => toB[ticket] = body;
+            // Further off than a /spawn may be put down: the world's enemies appear out of reach.
+            Vector3 Where(int n) => _aOnA.transform.position + new Vector3(n * 3.0f, 2.0f, EnemyNetwork.SpawnReachMetres + 20.0f);
+            Assert.Less(Vector3.Distance(_aOnA.transform.position, _bOnB.transform.position), 20.0f, "the two players are meant to stand together");
+
+            // A fills the outdoor budget.
+            for (int n = 1; n <= MobHabitats.MostOutdoors; n++)
+            {
+                Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(n), Quaternion.identity, n, false), "A's machine would not ask");
+            }
+            yield return WaitUntil(() => toA.Count == MobHabitats.MostOutdoors, "A to be answered");
+            foreach (GameObject body in toA.Values)
+            {
+                Assert.IsNotNull(body, "A was refused an enemy with room under the budget");
+                Assert.IsTrue(body.GetComponent<NetworkObject>().IsOwner, "A does not run the enemy it asked for");
+            }
+            Assert.AreEqual(MobHabitats.MostOutdoors, server.Spawned);
+            yield return WaitUntil(() => EnemyOn(_clients[1]) != null, "B to see A's enemies");
+            DisableCopyColliders();
+
+            // B, standing with A, is refused another outdoor one (the budget is the place's, not each player's), and A too.
+            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(10), Quaternion.identity, 1L, false));
+            Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(11), Quaternion.identity, 50L, false));
+            yield return WaitUntil(() => toB.ContainsKey(1L) && toA.ContainsKey(50L), "B and A to be answered");
+            Assert.IsNull(toB[1L], "B was given an enemy over the budget of the place it shares with A");
+            Assert.IsNull(toA[50L], "A was given an enemy over the budget");
+            Assert.AreEqual(MobHabitats.MostOutdoors, server.Spawned);
+
+            // Indoor ones have a budget of their own.
+            Assert.IsTrue(b.TrySpawnWorldMob("swordsman", Where(12), Quaternion.identity, 2L, true));
+            yield return WaitUntil(() => toB.ContainsKey(2L), "B to be answered for an indoor one");
+            Assert.IsNotNull(toB[2L], "the outdoor budget kept an indoor enemy out");
+            Assert.IsTrue(toB[2L].GetComponent<NetworkObject>().IsOwner);
+            DisableCopyColliders();
+
+            // B cannot call A's enemy killed (the ticket is A's own): still refused.
+            b.NoteWorldMobKilled(3L);
+            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(13), Quaternion.identity, 3L, false));
+            yield return WaitUntil(() => toB.ContainsKey(3L), "B to be answered again");
+            Assert.IsNull(toB[3L], "a player called another player's enemy killed");
+
+            // A's first is killed: it lies there, but counts no longer, and B is given one.
+            a.NoteWorldMobKilled(1L);
+            for (int i = 0; i < 10; i++) yield return null;
+            Assert.IsTrue(b.TrySpawnWorldMob("wraith", Where(14), Quaternion.identity, 4L, false));
+            yield return WaitUntil(() => toB.ContainsKey(4L), "B to be answered once one of A's is dead");
+            Assert.IsNotNull(toB[4L], "a dead enemy still counted toward the budget");
+
+            // One taken away (its player left it) counts no longer either.
+            EnemySession.Remove(toA[2L]);
+            yield return WaitUntil(() => toA[2L] == null, "A's enemy to be taken out of the session");
+            Assert.IsTrue(a.TrySpawnWorldMob("wraith", Where(15), Quaternion.identity, 51L, false));
+            yield return WaitUntil(() => toA.ContainsKey(51L), "A to be answered once one was taken away");
+            Assert.IsNotNull(toA[51L], "an enemy taken out of the session still counted toward the budget");
+
+            // A kind the session does not share is not asked for at all (the monster exists on one machine alone, today).
+            Assert.IsTrue(a.InSession);
+            Assert.IsFalse(a.Shares("crimsonclaw"));
+            Assert.IsFalse(a.TrySpawnWorldMob("crimsonclaw", Where(16), Quaternion.identity, 52L, false));
 #else
             Assert.Ignore("needs the editor to load the networked prefabs.");
             yield break;

@@ -74,6 +74,35 @@ namespace CityX.UI
             }
         }
 
+        /// <summary>/mobs: the world's own enemies on or off (docs/MOB_SPAWNING.md), or how many there are.</summary>
+        private void Mobs(string which)
+        {
+            var spawner = FindFirstObjectByType<CityX.View.MobSpawner>();
+            if (spawner == null)
+            {
+                Log("this scene has no mob spawner");
+                return;
+            }
+            switch (which)
+            {
+                case "on":
+                    spawner.SetSpawning(true);
+                    Log("the world's enemies are on: they appear as you come near them");
+                    return;
+                case "off":
+                    spawner.SetSpawning(false);
+                    Log("the world's enemies are off: taken away, and none appear");
+                    return;
+                case "":
+                case null:
+                    Log($"the world's enemies are {(spawner.Spawning ? "on" : "off")}: {spawner.AliveIn(CityX.World.MobHabitat.Outdoors)} alive out of doors round you (at most {CityX.World.MobHabitats.MostOutdoors}), {spawner.AliveIn(CityX.World.MobHabitat.Indoors)} indoors (at most {CityX.World.MobHabitats.MostIndoors})");
+                    return;
+                default:
+                    Log(DevCommands.UsageFor("mobs"));
+                    return;
+            }
+        }
+
         private void SpawnLog(string message)
         {
             if (!_spawnQuiet)

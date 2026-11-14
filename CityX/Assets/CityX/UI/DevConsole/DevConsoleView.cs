@@ -382,6 +382,10 @@ namespace CityX.UI
                     WaterCommand(line.Argument(0), line.Argument(1));
                     return;
 
+                case "mobs":
+                    Mobs(line.Argument(0));
+                    return;
+
                 case "time":
                     Time_(line.Argument(0));
                     return;

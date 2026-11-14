@@ -944,6 +944,14 @@ namespace CityX.ViewEditor
             streamerObject.AddComponent<CityX.Character.NetworkedSignalClock>();
             // Enemies (2026-10-27): /spawn in a session asks the server, and every player sees and fights what it spawns.
             streamerObject.AddComponent<CityX.Character.EnemyNetwork>().Kinds = networkedEnemies;
+            // The world's own enemies (2026-11-14, docs/MOB_SPAWNING.md): ghosts and monsters in the streets, humanoids in the buildings,
+            // kept round each machine's player; in a session asked of the server through EnemyNetwork.
+            var mobs = streamerObject.AddComponent<MobSpawner>();
+            mobs.Streamer = streamer;
+            mobs.WraithPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Wraith.prefab");
+            mobs.CrimsonClawPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrimsonClaw.prefab");
+            mobs.SwordsmanPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Swordsman.prefab");
+            mobs.ShootaPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Shoota.prefab");
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
             streamerObject.AddComponent<CityX.Character.GraffitiNetwork>().PaintMaterial = CityX.WeaponsEditor.SprayCanBuilder.EnsureGraffitiMaterial();
             streamer.RoadLineMaterial = roadLine;

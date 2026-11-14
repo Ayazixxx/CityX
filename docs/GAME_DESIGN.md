@@ -351,6 +351,7 @@ My suggestions, not agreed: 2-3 swings, extended only by skills that cancel a sw
   floats about, dies in two punches, and will sneak up and bite for heavy damage (the bite is not built yet). The swordsman, the Shoota and
   the Crimson Claw remain testers.
 - Enemy syncing across players: built 2026-10-27 for the swordsman, the Shoota and the Wraith (the machine that spawns one runs it, everyone sees and fights it; docs/MULTIPLAYER_STATE.md "Enemies"). Needs: animation LOD for crowds.
+- **Spawning in the world (owner, 2026-11-14):** "monster and ghost type enemies spawn outside and humanoid enemies spawn indoors for starters", and "it's not that the mobs have set spawn locations right? it should be more akin to minecraft where they spawn at random". Built that day as a first slice (docs/MOB_SPAWNING.md): enemies appear at random spots round a player (ghosts and monsters on open ground, humanoids on the floors of ordinary buildings), up to a budget near the player that players standing together share, are taken away when left behind, none near Old Guy's house, `/mobs on|off`. Uses the enemies there are (Wraith, Crimson Claw, swordsman, Shoota). The numbers are mine and to tune; levels and behaviour are not in it (asked 2026-11-13 whether level should come from the place, my recommendation, or scale to the player: not answered). It does not remember a cleared building, which the "about once a day" refill below would need.
 
 ## Loot, refills and repairs (owner, 2026-10-22)
 
