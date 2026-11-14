@@ -77,7 +77,7 @@ ATTACKS = {
     # THE FIRST: down from over the right shoulder to the lower left. The body arched back and coiled, a long stride onto the left foot, and the whole body drops into a deep
     # lunge behind the blade.
     "sword1h_slash": attack(
-        (0.22, 0.06, 0.12, 0.11, 0.06, 0.24), 0.45,
+        (0.22, 0.06, 0.12, 0.05, 0.12, 0.24), 0.45,
         key(twist=56.0, hips=26.0, lean=-11.0, tilt=-6.0, drop=0.10, shift=(0.07, -0.11)),
         key(twist=60.0, hips=28.0, lean=-13.0, tilt=-6.0, drop=0.12, shift=(0.07, -0.12)),
         key(twist=-25.0, hips=-36.0, lean=34.0, tilt=10.0, drop=0.21, shift=(-0.07, 0.07), chin=8.0, staged=True),
@@ -191,7 +191,7 @@ ATTACKS.update({
 # clips (SwordStrikes.ClipLegs), so the feet here simply stand and nothing is stepped. The body leans into its run all the way: the pace is the wind-up.
 ATTACKS.update({
     "sword1h_run": attack(
-        (0.24, 0.06, 0.13, 0.10, 0.10, 0.40), 0.0,
+        (0.24, 0.06, 0.13, 0.05, 0.15, 0.40), 0.0,
         key(twist=50.0, hips=20.0, lean=10.0, tilt=-5.0, drop=0.03),
         key(twist=54.0, hips=22.0, lean=9.0, tilt=-5.0, drop=0.02),
         key(twist=-25.0, hips=-36.0, lean=34.0, tilt=10.0, drop=0.16, chin=8.0, staged=True),

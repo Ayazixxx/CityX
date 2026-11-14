@@ -294,7 +294,7 @@ namespace CityX.Character
         {
             switch (kind)
             {
-                case SwordStrikeKind.Slash1H: return new StrikeTiming(0.22f, 0.06f, 0.12f, 0.11f, 0.06f, 0.24f);
+                case SwordStrikeKind.Slash1H: return new StrikeTiming(0.22f, 0.06f, 0.12f, 0.05f, 0.12f, 0.24f);
                 case SwordStrikeKind.Cut1H: return new StrikeTiming(0.20f, 0.05f, 0.12f, 0.10f, 0.06f, 0.24f);
                 case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.20f, 0.08f, 0.10f, 0.06f, 0.05f, 0.24f);
                 // The blade is in the ground and the body stays down over it a quarter of a second before it rises (the reference holds it longer still).
@@ -306,7 +306,7 @@ namespace CityX.Character
                 case SwordStrikeKind.Sweep2H: return new StrikeTiming(0.26f, 0.07f, 0.14f, 0.13f, 0.07f, 0.27f);
                 // The running attacks: the chain's last cut brought down on the run, quicker up (the run is the wind-up) and with a long
                 // recovery, in which the runner cannot attack again.
-                case SwordStrikeKind.Run1H: return new StrikeTiming(0.24f, 0.06f, 0.13f, 0.10f, 0.10f, 0.40f);
+                case SwordStrikeKind.Run1H: return new StrikeTiming(0.24f, 0.06f, 0.13f, 0.05f, 0.15f, 0.40f);
                 case SwordStrikeKind.Run2H: return new StrikeTiming(0.26f, 0.07f, 0.15f, 0.115f, 0.10f, 0.42f);
                 // A light, so no long hold, but with a hammer's weight: a higher wind-up than the diagonal, and a longer recovery once it lands.
                 case SwordStrikeKind.Smash2H: return new StrikeTiming(0.28f, 0.08f, 0.13f, 0.11f, 0.09f, 0.34f);
@@ -527,11 +527,16 @@ namespace CityX.Character
         /// <summary>The two-handed finisher: from over the right shoulder, around and down across the front to the lower left (a 28 degree diagonal).</summary>
         public static readonly CutPlane DiagonalDown = new CutPlane(new Vector3(0.247f, -0.165f, 0.955f), new Vector3(-0.883f, -0.442f, 0.152f));
 
-        /// <summary>The one-handed chain's first cut: from over the right shoulder, over the top and steeply down across the front to the lower left (46 degrees off the level).</summary>
-        public static readonly CutPlane SteepDown = new CutPlane(new Vector3(0.20f, -0.20f, 0.96f), new Vector3(-0.68f, -0.73f, 0.05f));
+        /// <summary>
+        /// The one-handed chain's first cut: from over the right shoulder steeply down across the front to the lower left (47 degrees off the
+        /// level). The plane holds the straight-ahead, so seen from behind (the game's camera) the tip draws one straight diagonal (owner,
+        /// 2026-11-14: "i dont like this change of direction mid swing", "im still seeing the trails switching direction"): tipped off it, as
+        /// it was, the arc's projection bent, the tip falling straight down and then sliding across along the ground.
+        /// </summary>
+        public static readonly CutPlane SteepDown = new CutPlane(Vector3.forward, new Vector3(-0.68f, -0.73f, 0.0f));
 
         /// <summary>Its mirror, the chain's second: from over the left shoulder steeply down across the front to the lower right.</summary>
-        public static readonly CutPlane SteepDownBackhand = new CutPlane(new Vector3(-0.20f, -0.20f, 0.96f), new Vector3(0.68f, -0.73f, 0.05f));
+        public static readonly CutPlane SteepDownBackhand = new CutPlane(Vector3.forward, new Vector3(0.68f, -0.73f, 0.0f));
 
         /// <summary>Straight down the middle: from behind the head over the top and down in front (the heavies).</summary>
         public static readonly CutPlane Overhead = new CutPlane(Vector3.forward, Vector3.down);
@@ -913,11 +918,11 @@ namespace CityX.Character
                     // off round behind): the hand goes down one line the whole way and the blade ends pointing down the cut, the body
                     // dropping into a deep lunge behind it, the free arm swinging back against it, long and low (owner, 2026-10-17).
                     CutPlane cut = SteepDown;
-                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(0.70f, 2.12f, -0.10f), cut, -145.0f, elbow: 0.70f, twist: 50.0f, hips: 22.0f,
+                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(0.70f, 2.12f, -0.10f), cut, -94.0f, elbow: 0.70f, twist: 50.0f, hips: 22.0f,
                         lean: -10.0f, tilt: -6.0f, drop: 0.12f, lead: -1.0f, depth: 0.70f), new Vector3(-0.18f, -0.72f, 0.60f));
-                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.0f, 1.45f, 0.76f), cut, 10.0f, elbow: 0.25f, twist: -25.0f, hips: -32.0f,
+                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.0f, 1.62f, 0.76f), cut, 10.0f, elbow: 0.25f, twist: -25.0f, hips: -32.0f,
                         lean: 30.0f, tilt: 10.0f, drop: 0.18f, lead: -1.0f, depth: 0.95f, reach: 1.0f), new Vector3(0.38f, 1.80f, 0.42f), 12.5f)), new Vector3(-0.42f, -0.78f, -0.38f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(-0.32f, 1.42f, 0.40f), cut, 125.0f, elbow: 0.45f, twist: -60.0f, hips: -46.0f,
+                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(-0.34f, 1.64f, 0.48f), cut, 46.0f, elbow: 0.45f, twist: -60.0f, hips: -46.0f,
                         lean: 28.0f, tilt: 8.0f, drop: 0.20f, lead: -1.0f, depth: 0.90f, reach: 0.6f), new Vector3(-0.44f, -0.76f, -0.40f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
@@ -927,11 +932,11 @@ namespace CityX.Character
                     // it, the right foot stepping through; then one straight diagonal, the first cut's mirror, down across the front to
                     // the lower right, the free arm swinging forward against it.
                     CutPlane cut = SteepDownBackhand;
-                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.40f, 1.92f, 0.30f), cut, -140.0f, elbow: 0.60f, twist: -48.0f, hips: -24.0f,
+                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.40f, 1.92f, 0.30f), cut, -100.0f, elbow: 0.60f, twist: -48.0f, hips: -24.0f,
                         lean: -6.0f, tilt: -4.0f, drop: 0.12f, lead: 1.0f, depth: 0.45f), new Vector3(-0.40f, -0.78f, -0.36f));
-                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.34f, 1.44f, 0.58f), cut, 10.0f, elbow: 0.35f, twist: 25.0f, hips: 30.0f,
+                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.34f, 1.60f, 0.58f), cut, 10.0f, elbow: 0.35f, twist: 25.0f, hips: 30.0f,
                         lean: 16.0f, tilt: -6.0f, drop: 0.15f, lead: 1.0f, depth: 0.62f, reach: 1.0f), new Vector3(-0.04f, 1.70f, 0.50f), -12.0f)), new Vector3(-0.38f, -0.76f, 0.48f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.52f, 1.34f, 0.36f), cut, 120.0f, elbow: 0.50f, twist: 48.0f, hips: 40.0f,
+                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.50f, 1.52f, 0.44f), cut, 76.0f, elbow: 0.50f, twist: 48.0f, hips: 40.0f,
                         lean: 13.0f, tilt: -4.0f, drop: 0.14f, lead: 1.0f, depth: 0.58f, reach: 0.6f), new Vector3(-0.38f, -0.74f, 0.52f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }

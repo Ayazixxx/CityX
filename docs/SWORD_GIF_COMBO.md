@@ -69,3 +69,18 @@ since a wind-up's keys are in the frame of the shoulders as they are wound (55 d
 behind the chest with the blade lying across the body, 12 to 21 cm inside it. The hand is now out past the left shoulder and in front,
 the blade back beside the body. `SwordArmsClearPlayTests` now also holds the blade, along its length past the hand, out of the torso and
 the head through every swing of every weapon (the least for the one-handed chain: 2 cm clear).
+
+## The trails turned (owner, 2026-11-14)
+
+"i dont like this change of direction mid swing it looks bad. fix the trail and trajectory of the swing", then, with a picture, "im still
+seeing the trails switching direction". Measured from behind, as the game's camera sees it (`SwordGifComboPlayTests
+.TheDiagonalCutsSweepTheTipOneWayAsTheCameraSeesIt`), the first cut's tip turned 127 degrees half way and the second's 89. Two causes:
+
+- The planes the two cuts swing in (`SteepDown`, `SteepDownBackhand`) were tipped off the straight-ahead, so the arc's shape on the
+  screen bent: the tip fell straight down, then went across. They now hold the straight-ahead, and seen from behind the tip draws one line.
+- Both cuts were aimed through the floor: the tip was held off it (`PlayerLocomotion.KeepTipAboveGround`) and slid along it, sideways.
+  They now finish higher and shorter (the first ends pointing forward and down to the left, not straight down), so the tip stays 20 to
+  35 cm off the floor by itself. The first cut's follow-through is quicker to keep the blade's speed through the hit (the clip rebaked).
+
+Now: 2 and 5 degrees. The third swing's blade, measured against the body's own shape at its real size (the old check used a thin tube 18%
+too small), keeps 22 cm or more off it; `SwordArmsClearPlayTests` holds every weapon's blade 6 cm off the skin, the combo also at a walk.

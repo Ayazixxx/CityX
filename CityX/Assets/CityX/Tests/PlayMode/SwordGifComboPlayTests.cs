@@ -196,5 +196,83 @@ namespace CityX.Tests
             yield break;
 #endif
         }
+
+        /// <summary>
+        /// Owner, 2026-11-14, twice, with pictures of the first cut's trail: "i dont like this change of direction mid swing it looks bad. fix
+        /// the trail and trajectory of the swing", "im still seeing the trails switching direction". Seen from behind, as the game's camera
+        /// sees it, the tip of each of the two diagonal cuts sweeps ONE WAY from where the cut sets off to where it ends: the way it goes in
+        /// the second half of the sweep is the way it went in the first.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheDiagonalCutsSweepTheTipOneWayAsTheCameraSeesIt()
+        {
+#if UNITY_EDITOR
+            _player = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            _player.GetComponent<PlayerVitals>().InfiniteStamina = true;
+            var locomotion = _player.GetComponent<PlayerLocomotion>();
+            _sword = Sword();
+            _sword.OnEquip(_player, ItemInstanceData.None);
+            var combat = _player.GetComponent<SoulsSwordCombat>();
+            var poser = _player.GetComponent<SwordPoseDriver>();
+            combat.HitStopSeconds = 0.0f;
+            var input = new LocomotionInput { Sword1HEquipped = true };
+            for (int i = 0; i < 50; i++)
+            {
+                combat.Tick(Dt);
+                locomotion.Tick(input, Dt);
+                yield return null;
+            }
+            var failures = new System.Collections.Generic.List<string>();
+            var log = new System.Text.StringBuilder();
+            combat.RequestLight(0.0f);
+            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H })
+            {
+                SwordStrikes.StrikeTiming tm = SwordStrikes.TimingOf(kind);
+                float from = (tm.WindUp + tm.Hold) / tm.Total, to = (tm.Contact + tm.Follow) / tm.Total;
+                var path = new System.Collections.Generic.List<Vector2>();
+                for (int frame = 0; frame < 120 && path.Count < 2 || (poser.IsStriking && poser.Kind == kind && frame < 200); frame++)
+                {
+                    if (kind == SwordStrikeKind.Slash1H && poser.Kind == SwordStrikeKind.Slash1H && poser.Progress > to)
+                    {
+                        combat.RequestLight(0.0f);   // the next cut, buffered as this one ends
+                    }
+                    combat.Tick(Dt);
+                    locomotion.Tick(input, Dt);
+                    yield return null;
+                    if (poser.IsStriking && poser.Kind == kind && poser.Progress >= from && poser.Progress <= to)
+                    {
+                        Vector3 tip = _player.transform.InverseTransformPoint(_sword.BladeTipWorld);
+                        path.Add(new Vector2(tip.x, tip.y));   // as seen from behind: across and up
+                    }
+                    else if (path.Count > 0 && poser.Kind != kind)
+                    {
+                        break;
+                    }
+                }
+                log.Append($"{kind}:");
+                foreach (Vector2 p in path) log.Append($" ({p.x:0.00},{p.y:0.00})");
+                log.AppendLine();
+                if (path.Count < 6)
+                {
+                    failures.Add($"{kind}: the sweep was never seen ({path.Count} frames)");
+                    continue;
+                }
+                Vector2 first = path[path.Count / 2] - path[0], second = path[path.Count - 1] - path[path.Count / 2];
+                float turn = Vector2.Angle(first, second);
+                log.AppendLine($"{kind}: the tip turns {turn:0} degrees between the halves of its sweep");
+                if (turn > MostTipTurnDegrees)
+                {
+                    failures.Add($"{kind}: the tip's sweep turns {turn:0} degrees half way, seen from behind");
+                }
+            }
+            Debug.Log("CityX the diagonal cuts' tips:\n" + log);
+            Assert.IsEmpty(failures, string.Join("; ", failures) + "\n" + log);
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>How far the way a diagonal cut's tip goes may turn between the halves of its sweep, degrees: a cut is an arc, not a line.</summary>
+        private const float MostTipTurnDegrees = 35.0f;
     }
 }

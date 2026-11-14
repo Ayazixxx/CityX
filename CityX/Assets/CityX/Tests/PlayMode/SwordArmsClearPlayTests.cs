@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using CityX.Character;
 using CityX.Weapons;
 using NUnit.Framework;
@@ -21,6 +22,12 @@ namespace CityX.Tests
 
         /// <summary>How far along the blade, from the hand to the tip (0-1), it is held out of the body: the handle is in the hand.</summary>
         private const float BladeFromShare = 0.2f;
+
+        /// <summary>
+        /// How far the blade stays off the skin, metres (owner, 2026-11-14, of a blade measured just touching the hip: "the third attack ...
+        /// still sends the sword through the users body"): grazing it reads as going through it.
+        /// </summary>
+        private const float BladeRoom = 0.06f;
 
         private GameObject _player;
         private GameObject _ground;
@@ -151,10 +158,10 @@ namespace CityX.Tests
                 }
 
                 // The whole light chain (each next cut buffered as the last one lands) and the heavy, standing; then on the move, the keys
-                // held all through: the first light at a walk, and the running attack at a sprint.
-                for (int pass = 0; pass < 4; pass++)
+                // held all through: the first light at a walk, the running attack at a sprint, and the whole light chain at a walk.
+                for (int pass = 0; pass < 5; pass++)
                 {
-                    int cuts = pass == 0 ? combat.LightChainLength : 1;
+                    int cuts = pass == 0 || pass == 4 ? combat.LightChainLength : 1;
                     LocomotionInput keys = input;
                     if (pass >= 2)
                     {
@@ -198,19 +205,28 @@ namespace CityX.Tests
                                 continue;
                             }
                             string when = $"{attack.Animation} at {t:0.00} s";
-                            // The blade along its length, past the hand that holds it, out of the torso and the head (owner, 2026-11-14:
-                            // "on the third swing, the sword goes through his body").
+                            // The blade along its length, past the hand that holds it, out of the body (owner, 2026-11-14: "on the third
+                            // swing, the sword goes through his body", twice): measured against the body's own shape, the pieces its skin is
+                            // made from (FusedBodyShape.Segments) at the size the body is, all but the sword arm, and the head.
                             var blade = (ISwordBlade)sword;
+                            float bodyScale = Vector3.Distance(hips.position, neck.position)
+                                / Vector3.Distance(BodyRig.ShapePositionOf(HumanBodyBones.Hips), BodyRig.ShapePositionOf(HumanBodyBones.Neck));
+                            List<FusedBodyShape.Segment> body = FusedBodyShape.Segments(b => animator.GetBoneTransform(b).position,
+                                FusedBodyShape.ReferenceHeight * bodyScale);
+                            // (The arms on the handle are where the blade begins: the sword arm's forearm, and with two hands both arms.)
+                            body.RemoveAll(s => s.Bone == HumanBodyBones.RightLowerArm || s.Bone == HumanBodyBones.RightHand
+                                || (!oneHanded && (s.Bone == HumanBodyBones.RightUpperArm || s.Bone == HumanBodyBones.LeftUpperArm
+                                    || s.Bone == HumanBodyBones.LeftLowerArm || s.Bone == HumanBodyBones.LeftHand)));
                             for (float along = BladeFromShare; along <= 1.0001f; along += 0.1f)
                             {
                                 Vector3 point = Vector3.Lerp(blade.BladeBaseWorld, blade.BladeTipWorld, along);
-                                float inTorso = ElbowClearance.Clearance(point, point, point, hips.position, neck.position, FusedBodyShape.TorsoRadius);
-                                float inHead = Vector3.Distance(point, head.position) - FusedBodyShape.HeadRadius;
-                                float out_ = Mathf.Min(inTorso, inHead);
+                                float inBody = FusedBodyShape.Distance(body, point);
+                                float inHead = Vector3.Distance(point, head.position) - FusedBodyShape.HeadRadius * bodyScale;
+                                float out_ = Mathf.Min(inBody, inHead);
                                 if (out_ < worstBlade)
                                 {
                                     worstBlade = out_;
-                                    bladeWhen = $"{(inTorso < inHead ? "torso" : "head")}, {along:0.0} along the blade, {when}";
+                                    bladeWhen = $"{(inBody < inHead ? FusedBodyShape.NearestBone(body, point).ToString() : "head")}, {along:0.0} along the blade, {when}";
                                 }
                             }
                             foreach ((string side, HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones hand) in new[]
@@ -250,15 +266,15 @@ namespace CityX.Tests
                             }
                         }
                     }
-                    string which = pass == 0 ? "light chain" : pass == 1 ? "heavy" : pass == 2 ? "first light at a walk" : "running attack";
-                    if (pass >= 2 && (lastThrown == combat.LightAttack(0).Animation) != (pass == 2)) failures.Add($"{weapon} {which}: {lastThrown} was thrown");
+                    string which = pass == 0 ? "light chain" : pass == 1 ? "heavy" : pass == 2 ? "first light at a walk" : pass == 3 ? "running attack" : "light chain at a walk";
+                    if (pass >= 2 && pass <= 3 && (lastThrown == combat.LightAttack(0).Animation) != (pass == 2)) failures.Add($"{weapon} {which}: {lastThrown} was thrown");
                     report.AppendLine($"{weapon} {which}: arms clear the torso by {worstTorso * 100.0f:0} cm at the least ({torsoWhen}), the wrists by {worstHand * 100.0f:0} cm ({handWhen}), the head by {worstHead * 100.0f:0} cm ({headWhen})");
                     if (!clipHeld) failures.Add($"{weapon} {which}: the attack's clip never held the body");
                     if (worstTorso < -SwingTouch) failures.Add($"{weapon} {which}: an arm is {-worstTorso * 100.0f:0.0} cm inside the torso ({torsoWhen})");
                     if (worstHand < -RestingHandDepth) failures.Add($"{weapon} {which}: a wrist is {-worstHand * 100.0f:0} cm inside the torso ({handWhen})");
                     if (worstHead < -Touch) failures.Add($"{weapon} {which}: an arm is {-worstHead * 100.0f:0} cm inside the head ({headWhen})");
                     report.AppendLine($"{weapon} {which}: the blade clears the body by {worstBlade * 100.0f:0} cm at the least ({bladeWhen})");
-                    if (worstBlade < -Touch) failures.Add($"{weapon} {which}: the blade is {-worstBlade * 100.0f:0} cm inside the body ({bladeWhen})");
+                    if (worstBlade < BladeRoom) failures.Add($"{weapon} {which}: the blade passes {worstBlade * 100.0f:0} cm from the skin, under the {BladeRoom * 100.0f:0} cm it keeps ({bladeWhen})");
                     for (int i = 0; i < 240; i++)
                     {
                         combat.Tick(Dt);
