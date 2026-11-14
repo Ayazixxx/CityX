@@ -295,7 +295,7 @@ def to_unity(b):
     return V(-b.x, b.z, -b.y)
 
 
-# A LEG IS NEVER LOCKED STRAIGHT. Driving off the rear foot, the hips outrun it: asked for all of the leg\x27s length the knee snapped straight in a frame and stood locked.
+# A LEG IS NEVER LOCKED STRAIGHT. Driving off the rear foot, the hips outrun it: asked for all of the leg's length the knee snapped straight in a frame and stood locked.
 # Past LEG_EASY of its length the ankle gives toward the hip instead (the heel rising further, the toes dragging), and never goes past LEG_MOST.
 LEG_EASY, LEG_MOST = 0.89, 0.975
 

@@ -52,7 +52,7 @@ Flags: `-force-d3d11`, `-bench-msaa N`, `-bench-shadow M`, `-bench-shadowres P`,
 `-bench-standing S`, `-bench-running S`, `-bench-flying S`, `-bench-flyspeed M/S` (default 22, a boosted jetpack),
 `-bench-exact S` (0 = off), `-bench-gcslice MS`, `-bench-settle S` (how long the city streams in before anything is timed: the whole
 view takes about 25 s, the default is 6), `-bench-vsync N`, `-bench-fps N`, `-bench-physics HZ` (what-ifs for the pacing, below),
-`-bench-effects S` (instead of the phases: each graphics effect's cost by day, by night and at night in heavy rain,
+`-bench-smaa 0` (the cameras' own smoothing pass off), `-bench-effects S` (instead of the phases: each graphics effect's cost by day, by night and at night in heavy rain,
 S seconds on and S off each; docs/GRAPHICS_SETTINGS.md). The benchmark runs with its window behind others (it sets
 `Application.runInBackground`; the game itself pauses there). Results go to `bench-result.txt`; the census (renderers, draws,
 triangles, in-frustum) is in it. Three phases: standing, sprinting, and flying 40 m over the ground (the body carried along a
@@ -348,3 +348,44 @@ pipeline: the house's swordsman, his sword and his helmet, put down as the bench
 frame the player gets into the house. `OldGuysHouseSite.WarmTheSwordsman` now makes him once and throws him away while the house is built at
 load (`OldGuysHousePlayTests.TheSwordsmanIsWarmedWhenTheHouseIsBuiltAndNoneIsLeftBehind`: a warm spawn under 100 ms, measured at 3). The same
 trick fits any enemy that first appears mid-play; the first body of each kind costs its code's first run and its assets' reads.
+
+## Update: a streamed chunk leaves 60% less for the collector (2026-11-13)
+
+Owner: "can you do a general pass through the existing code to simplify it, optimize the game, and aim for it to run smoother and perform
+better". Measured first (the benchmark above, at the new seed): at rest the game makes no garbage and the graphics card sets the frame
+(7.8 ms against 4.6 ms on the main thread), so there was nothing to win in the scripts. What was not smooth was the city streaming in:
+a collection every 0.7 s flying, each stopping every thread for 3 to 6 ms.
+
+- **Where a chunk's garbage came from** (`ChunkGarbageBench.WhichStageOfAChunkMakesGarbage`, probed step by step): all of it from
+  generating the chunk, and three quarters of that from the ground, not the buildings: the paving of each block (39 KB of about 105 KB
+  for a chunk built in full and again as its far version), the terrain (21 KB) and the pavement ring (15 KB). All three cut the ground
+  into small polygons, and every polygon went through helpers that made new lists at each step and threw them away.
+- **What changed** (`CitySurfaceBuilder`): `Clip` works in two lists kept by each generator thread and makes one list a call (five
+  before); `Subtract` makes a new list only for a cut that reaches the piece in hand (one for every cut of the chunk before, for every
+  piece); `Fan` lays its points in an array the thread keeps; a block's triangle and a pavement piece get their lists only once their
+  bounds are known to reach the chunk.
+- **Garbage a chunk** (same bench, full + far): about 105 KB before, **43 KB** after.
+- **The city is the same, bit for bit**: `ChunkFingerprintBench` hashes every vertex, normal, texture coordinate, colour and triangle of
+  338 chunk builds round the spawn; the fingerprints before and after are identical (full `4A6EABDB22375DD4`, far `9E00B37C75E283CA`).
+  Run it before and after any change that must not move a vertex.
+
+The benchmark, the same build flags, RTX 3070 Laptop at 2560x1600 (before: one run; after: two):
+
+| | before | after |
+|---|---|---|
+| Standing while the view loads | 110 fps, stopped 310 ms in 10 s | 112-114 fps, stopped 251-259 ms |
+| Sprinting | 103 fps, 99th percentile 15.6 ms, stopped 205 ms in 30 s | 112-114 fps, 99th percentile 10.1 ms, stopped 33 ms |
+| Flying at 22 m/s | 80 fps, main thread 7.4 ms, stopped 874 ms in 30 s | 100-103 fps, main thread 4.5 ms, stopped 184-203 ms |
+| Flying: allocated, collections | 29-36 MB/s, 46 | 19-20 MB/s, 31 |
+
+The garbage and the collections are the sure part. The frame rates before are from a single run, so the size of that gain is less
+certain; the same change also has one long frame followed by five physics steps at most instead of sixteen (below), which is part of
+the flying figure.
+
+**The numbers of 2026-11-10 and earlier are of another place**: the seed was rerolled on 2026-11-11 (48398181), and the benchmark stands
+and flies where the player starts. There are four times the triangles in view at the new start (1.8 million), so today's "before" is
+the one to compare with.
+
+Also 2026-11-13, for weaker machines (docs/PERFORMANCE_WEAK_PC.md): the first launch picks its preset for the graphics card, a
+four-thread processor gets two generator threads, `Maximum Allowed Timestep` is 0.1 s. New benchmark flag: `-bench-smaa 0` (the
+cameras' own smoothing off). Left for later: the terrain's cells over a cut (14 KB a chunk) and the buildings (13 KB).

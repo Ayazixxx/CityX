@@ -260,7 +260,7 @@ namespace CityX.Tests
         private const float RestingHandDepth = 0.07f;
 
         /// <summary>
-        /// In the fastest of a swing an elbow brushes the side a little deeper than standing: 4 cm, as the two-handed chain\x27s second cut had
+        /// In the fastest of a swing an elbow brushes the side a little deeper than standing: 4 cm, as the two-handed chain's second cut had
         /// it before the attacks had clips.
         /// </summary>
         private const float SwingTouch = 0.04f;

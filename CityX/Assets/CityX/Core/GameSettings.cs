@@ -91,13 +91,16 @@ namespace CityX.Core
 
         public static string Path_ => System.IO.Path.Combine(Directory, FileName);
 
-        /// <summary>Never throws and never returns null. A missing or corrupt file is just the defaults.</summary>
+        /// <summary>
+        /// Never throws and never returns null. A corrupt file is just the defaults; a missing one is what this machine starts on
+        /// (<see cref="FirstLaunch"/>).
+        /// </summary>
         public static GameSettingsData Load()
         {
             string path = Path_;
             if (!File.Exists(path))
             {
-                return new GameSettingsData();
+                return FirstLaunch();
             }
 
             try
@@ -112,6 +115,23 @@ namespace CityX.Core
                                "the file has been left where it is.");
                 return new GameSettingsData();
             }
+        }
+
+        /// <summary>
+        /// The settings of a machine whose player has saved none yet: the defaults, with the picture chosen for its graphics card
+        /// (<see cref="HardwareDefaults"/>). Tests (a scratch directory) and the builders (batch mode) get the defaults as the game is
+        /// made, whatever machine they run on.
+        /// </summary>
+        public static GameSettingsData FirstLaunch()
+        {
+            var data = new GameSettingsData();
+            if (Application.isBatchMode || !string.IsNullOrEmpty(DirectoryOverride))
+            {
+                return data;
+            }
+            Resolution screen = Screen.currentResolution;
+            data.Graphics = HardwareDefaults.For(SystemInfo.graphicsDeviceName, SystemInfo.graphicsMemorySize, screen.width, screen.height);
+            return data;
         }
 
         /// <summary>Writes the settings. Returns whether it got to disk.</summary>

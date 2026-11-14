@@ -4,8 +4,8 @@ Owner, 2026-11-13, after a friend played the shared build: "look into optimizing
 a weaker machine and it was experiencing performance issues which it shouldn't". The friend's machine is not known yet (graphics card,
 screen, whether it was a low frame rate or freezes).
 
-This page is what a read of the project found the same day. **Nothing here has been changed or measured yet**; each item says how to
-measure it.
+This page is what a read of the project found the same day; each item says how to measure it. **What has been done since is at the
+end** (Done and measured, 2026-11-13).
 
 ## What a fresh install starts on
 
@@ -74,6 +74,26 @@ back by its graphics card.
     cached, which hides it).
 14. Lighter bodies are **not** a gain here: `docs/CROWD_TEST.md` found 86k triangles against 6.5k made no difference; a body costs its
     ten draws, and a 1v1 has two bodies.
+
+## Done and measured, 2026-11-13
+
+- **1, the first launch picks its picture** (`HardwareDefaults`, `GameSettings.FirstLaunch`): with no settings saved yet, a graphics
+  card built into the processor (Intel HD, UHD, Iris; AMD Radeon Graphics, Vega) or one under 3 GB starts on LOW at 70% resolution
+  (50% on a screen bigger than 1080p); a 4 GB card on MEDIUM (fewer pixels on a bigger screen); a 6 GB card on HIGH at 1080p and
+  MEDIUM above; 7 GB and up on HIGH at full resolution, as before. The owner's laptop starts as it always did. Anything saved in
+  the settings is never overridden. Not measurable on the owner's machine: it rests on the benchmark's costs above.
+- **10, generator threads**: a processor of four threads gets two (three before), of two threads one (`CityStreamer.SpareThreads`);
+  six threads and up as before.
+- **11, `Maximum Allowed Timestep`** is 0.1 s (0.333): one long frame is followed by five physics steps at the most, not sixteen.
+- **4 (the cameras' SMAA off with anti-aliasing off) and 6 (the sun's shadows drawn less far on LOW): measured, no gain, not
+  kept.** With LOW's shadows, 260 m against 120 m: 143 against 144 fps. With anti-aliasing off, SMAA on against off: 117 against
+  116 fps (`-bench-smaa 0`). On this graphics card neither is worth changing the picture for.
+- **3, a frame cap by default: not done.** A fresh install starting uncapped is an earlier decision with tests of its own
+  (`MaxFpsSceneWiringPlayTests`); it is the owner's to change.
+- Not started: 2, 5, 7, 8, 9, 12, 13.
+
+Besides these, the city streaming in leaves 60% less garbage (docs/PERFORMANCE.md, 2026-11-13), which is what a slow processor's
+stops while moving follow.
 
 ## To learn from the friend's machine
 

@@ -42,7 +42,9 @@ rows says what the row last pointed at does and what it costs. Escape on the tit
 | MEDIUM | MEDIUM | 2X | ON | OFF | OFF |
 | HIGH (a new game) | HIGH | 4X | ON | ON | ON |
 
-A settings file from before this loads as HIGH, the game as it was. The black outlines, the haze and the bloom stay on in every preset: they
+**A machine with no settings saved starts on the preset its graphics card can carry** (`HardwareDefaults`, 2026-11-13,
+docs/PERFORMANCE_WEAK_PC.md): LOW with fewer pixels on one built into the processor, MEDIUM on a small card, HIGH on a card like the
+owner's. A settings file from before this loads as HIGH, the game as it was. The black outlines, the haze and the bloom stay on in every preset: they
 are the game's look, and cost about 0.2 ms each.
 
 `GraphicsQuality` puts the options into force: renderer features switched with `SetActive`, the rest set on the pipeline asset. Those are

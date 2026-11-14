@@ -138,7 +138,7 @@ namespace CityX.Tests
                                 long used = System.GC.GetTotalMemory(false);
                                 object payload = generate.Invoke(streamer, new object[] { key, false, far });
                                 long t1 = System.GC.GetTotalMemory(false);
-                                var chunk = (GameObject)assemble.Invoke(streamer, new object[] { payload, false });
+                                var chunk = (GameObject)assemble.Invoke(streamer, new object[] { payload, false, null });
                                 long t2 = System.GC.GetTotalMemory(false);
                                 recycle.Invoke(streamer, new[] { payload });
                                 long t3 = System.GC.GetTotalMemory(false);

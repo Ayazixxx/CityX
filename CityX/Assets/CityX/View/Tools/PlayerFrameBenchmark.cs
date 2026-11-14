@@ -134,6 +134,17 @@ namespace CityX.View
                 if (float.TryParse(Arg("-bench-scale"), out float scale)) { copy.renderScale = scale; text.Append($" renderScale={scale}"); }
                 QualitySettings.renderPipeline = copy;
             }
+            if (Arg("-bench-smaa") == "0")
+            {
+                foreach (Camera camera in Camera.allCameras)
+                {
+                    if (camera.TryGetComponent(out UnityEngine.Rendering.Universal.UniversalAdditionalCameraData data))
+                    {
+                        data.antialiasing = UnityEngine.Rendering.Universal.AntialiasingMode.None;
+                    }
+                }
+                text.Append(" SMAA=off");
+            }
             if (float.TryParse(Arg("-bench-gcslice"), out float sliceMs))
             {
                 GarbageCollector.incrementalTimeSliceNanoseconds = (ulong)(sliceMs * 1000000.0f);

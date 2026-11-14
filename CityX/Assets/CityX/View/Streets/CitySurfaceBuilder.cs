@@ -222,22 +222,35 @@ namespace CityX.View
             public bool Contains(Vec2 p) => Contains(p.X, p.Y);
         }
 
+        // A chunk's ground is cut into thousands of small polygons, each clipped and cut and laid within one call and never kept. The steps
+        // between are worked in these (one set a generator thread) so that only what a caller is handed is made new: the lists thrown away
+        // here were most of what a streamed chunk left for the garbage collector (docs/PERFORMANCE.md, 2026-11-13).
+        [ThreadStatic] private static List<Vec2> _clipA;
+
+        [ThreadStatic] private static List<Vec2> _clipB;
+
+        [ThreadStatic] private static Vector3[] _fanPoints;
+
         /// <summary>Sutherland-Hodgman against the chunk's square. Works for the convex pieces this is fed.</summary>
         private static List<Vec2> Clip(IList<Vec2> poly, Rect2 r)
         {
-            var current = new List<Vec2>(poly);
-            current = ClipEdge(current, 0, r.X0);
-            current = ClipEdge(current, 1, r.X1);
-            current = ClipEdge(current, 2, r.Z0);
-            current = ClipEdge(current, 3, r.Z1);
-            return current;
+            List<Vec2> a = _clipA ?? (_clipA = new List<Vec2>(16)), b = _clipB ?? (_clipB = new List<Vec2>(16));
+            a.Clear();
+            for (int i = 0; i < poly.Count; i++)
+            {
+                a.Add(poly[i]);
+            }
+            ClipEdge(a, b, 0, r.X0);
+            ClipEdge(b, a, 1, r.X1);
+            ClipEdge(a, b, 2, r.Z0);
+            ClipEdge(b, a, 3, r.Z1);
+            return new List<Vec2>(a);
         }
 
-        private static List<Vec2> ClipEdge(List<Vec2> input, int side, double limit)
+        private static void ClipEdge(List<Vec2> input, List<Vec2> output, int side, double limit)
         {
-            var output = new List<Vec2>(input.Count + 2);
+            output.Clear();
             int n = input.Count;
-            if (n == 0) return output;
             for (int i = 0; i < n; i++)
             {
                 Vec2 a = input[i];
@@ -253,7 +266,6 @@ namespace CityX.View
                     output.Add(Intersect(a, b, side, limit));
                 }
             }
-            return output;
         }
 
         private static bool Inside(Vec2 p, int side, double limit)
@@ -346,7 +358,11 @@ namespace CityX.View
         {
             int n = poly.Count;
             if (n < 3) return;
-            var pts = new Vector3[n];
+            Vector3[] pts = _fanPoints;
+            if (pts == null || pts.Length < n)
+            {
+                pts = _fanPoints = new Vector3[Math.Max(16, n * 2)];
+            }
             for (int i = 0; i < n; i++)
             {
                 pts[i] = ctx.Local(poly[i].X, heightAt(poly[i].X, poly[i].Y), poly[i].Y);
@@ -718,10 +734,13 @@ namespace CityX.View
             int[] t = block.InnerTriangles;
             for (int k = 0; k + 2 < t.Length; k += 3)
             {
-                var tri = new List<Vec2> { block.Inner[t[k]], block.Inner[t[k + 1]], block.Inner[t[k + 2]] };
-                if (PlanMath.SignedArea(tri) < 0.0) tri.Reverse();
-                Bounds(tri, out double mx, out double mz, out double Mx, out double Mz);
+                // (Its bounds before its list: most of a block's triangles lie in other chunks.)
+                Vec2 ta = block.Inner[t[k]], tb = block.Inner[t[k + 1]], tc = block.Inner[t[k + 2]];
+                double mx = Math.Min(ta.X, Math.Min(tb.X, tc.X)), Mx = Math.Max(ta.X, Math.Max(tb.X, tc.X));
+                double mz = Math.Min(ta.Y, Math.Min(tb.Y, tc.Y)), Mz = Math.Max(ta.Y, Math.Max(tb.Y, tc.Y));
                 if (!r.Overlaps(mx, mz, Mx, Mz)) continue;
+                var tri = new List<Vec2> { ta, tb, tc };
+                if (PlanMath.SignedArea(tri) < 0.0) tri.Reverse();
                 for (int iz = 0; iz < n; iz++)
                 {
                     for (int ix = 0; ix < n; ix++)
@@ -856,6 +875,7 @@ namespace CityX.View
             if (!ctx.Rect.Overlaps(bx0, bz0, bx1, bz1)) return;
 
             int n = block.Poly.Count;
+            Func<double, double, double> pavementHeight = null;
             for (int e = 0; e < n; e++)
             {
                 int f = (e + 1) % n;
@@ -875,17 +895,23 @@ namespace CityX.View
                     Vec2 ia = i0 + (i1 - i0) * sa, ib = i0 + (i1 - i0) * sb;
                     Vec2 oa = o0 + (o1 - o0) * sa, ob = o0 + (o1 - o0) * sb;
 
-                    var quad = new List<Vec2> { ia, ib, ob, oa };
-                    Bounds(quad, out double mx, out double mz, out double Mx, out double Mz);
+                    // (Its bounds before its list: a block's kerb runs through many chunks, and only an unpaved block lays the piece at all.)
+                    double mx = Math.Min(Math.Min(ia.X, ib.X), Math.Min(ob.X, oa.X)), Mx = Math.Max(Math.Max(ia.X, ib.X), Math.Max(ob.X, oa.X));
+                    double mz = Math.Min(Math.Min(ia.Y, ib.Y), Math.Min(ob.Y, oa.Y)), Mz = Math.Max(Math.Max(ia.Y, ib.Y), Math.Max(ob.Y, oa.Y));
                     if (!ctx.Rect.Overlaps(mx, mz, Mx, Mz)) continue;
 
                     if (!block.Paved)
                     {
                         // A paved block's pavement is part of its one paving (BuildBlockPaving); only an unpaved block keeps the ring.
                         buffer.Look = PavingLook(block.EdgeClass[e], e);
+                        var quad = new List<Vec2> { ia, ib, ob, oa };
+                        if (pavementHeight == null)
+                        {
+                            pavementHeight = (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight;
+                        }
                         foreach (List<Vec2> part in Subtract(Clip(quad, ctx.Rect), cuts))
                         {
-                            Fan(ctx, buffer, part, (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight, walk);
+                            Fan(ctx, buffer, part, pavementHeight, walk);
                         }
                     }
                     buffer.Look = KerbLook;

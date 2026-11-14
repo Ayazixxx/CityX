@@ -295,19 +295,33 @@ namespace CityX.View
             if (cuts == null || cuts.Count == 0) return pieces;
             foreach (Vec2[] cut in cuts)
             {
-                var next = new List<List<Vec2>>();
-                foreach (List<Vec2> p in pieces)
+                Bounds(cut, out double cx, out double cz, out double Cx, out double Cz);
+                // A new list only for a cut that reaches a piece: most cuts of a chunk are nowhere near the piece in hand, and a list made
+                // for each of them, for every piece, was a third of what a streamed chunk threw away.
+                List<List<Vec2>> next = null;
+                for (int i = 0; i < pieces.Count; i++)
                 {
+                    List<Vec2> p = pieces[i];
                     Bounds(p, out double px, out double pz, out double Px, out double Pz);
-                    Bounds(cut, out double cx, out double cz, out double Cx, out double Cz);
                     if (Px < cx || px > Cx || Pz < cz || pz > Cz)
                     {
-                        next.Add(p);
+                        next?.Add(p);
                         continue;
+                    }
+                    if (next == null)
+                    {
+                        next = new List<List<Vec2>>(pieces.Count + 2);
+                        for (int k = 0; k < i; k++)
+                        {
+                            next.Add(pieces[k]);
+                        }
                     }
                     Split(p, cut, next);   // what is inside the cut is dropped
                 }
-                pieces = next;
+                if (next != null)
+                {
+                    pieces = next;
+                }
             }
             return pieces;
         }

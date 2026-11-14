@@ -70,7 +70,7 @@ namespace CityX.View
 
         [Header("Background generation")]
         [Tooltip("Worker threads that generate chunk geometry while the game runs. The main thread then only makes the " +
-                 "objects. -1: as many as the machine can spare (half its logical cores less one, 3 to 6). " +
+                 "objects. -1: as many as the machine can spare (half its logical cores less one, 3 to 6; fewer on four threads or less). " +
                  "0 goes back to building every chunk on the main thread (the old, hitchy way).")]
         public int GeneratorThreads = -1;
 
@@ -88,9 +88,17 @@ namespace CityX.View
         /// <summary>
         /// The worker threads actually used: <see cref="GeneratorThreads"/>, or for -1 what the machine can spare. Fixed at three until
         /// 2026-10-12; the streaming bench (StreamingPopInBench) showed the detailed version of the chunks round a 45 m/s flyer arriving late on
-        /// three, and a Ryzen 7 5800H has sixteen.
+        /// three, and a Ryzen 7 5800H has sixteen. A processor of four threads gets two (2026-11-13): three generators beside the game's own
+        /// two threads and the collider cook had it fighting itself for every frame.
         /// </summary>
-        public int WorkerThreads => GeneratorThreads >= 0 ? GeneratorThreads : Mathf.Clamp(SystemInfo.processorCount / 2 - 1, 3, 6);
+        public int WorkerThreads => GeneratorThreads >= 0 ? GeneratorThreads : SpareThreads(SystemInfo.processorCount);
+
+        /// <summary>
+        /// The generator threads a machine of <paramref name="logicalCores"/> can spare: half of them less one, three to six, but never more
+        /// than it has left beside the main thread and the render thread (and one at the least).
+        /// </summary>
+        public static int SpareThreads(int logicalCores) =>
+            Mathf.Clamp(logicalCores / 2 - 1, Mathf.Clamp(logicalCores - 2, 1, 3), 6);
 
         /// <summary>
         /// How many chunks around the real player get force-built
