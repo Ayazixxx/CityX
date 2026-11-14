@@ -61,3 +61,11 @@ another player's copy; the second cut turns the shoulders once round standing an
 - The reference's third slash is at the height of the head and turns the body further; the owner asked for the game's own slash.
 
 - The two-handed heavies also strike the ground and throw no sparks: the owner asked for the one-handed charged attack.
+
+## The third swing's blade went through the body (owner, 2026-11-14)
+
+"on the third swing, the sword goes through his body". Its wind-up drew the hand across the chest with the blade back behind it, and
+since a wind-up's keys are in the frame of the shoulders as they are wound (55 degrees to the left here), the hand ended up beside and
+behind the chest with the blade lying across the body, 12 to 21 cm inside it. The hand is now out past the left shoulder and in front,
+the blade back beside the body. `SwordArmsClearPlayTests` now also holds the blade, along its length past the hand, out of the torso and
+the head through every swing of every weapon (the least for the one-handed chain: 2 cm clear).

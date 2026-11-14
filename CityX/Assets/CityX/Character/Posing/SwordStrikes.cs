@@ -939,16 +939,17 @@ namespace CityX.Character
                 {
                     // THE THIRD: THE LEVEL SLASH, LEFT TO RIGHT (owner, 2026-11-13: "you can reuse our horizontal slash animation for the third
                     // combo attack", then "match the direction of the gif": in the reference the blade crosses the front from the left to the
-                    // right). The chain's old level slash turned round: the hand drawn across to the left shoulder at chest height with the
-                    // blade level behind it, the hips and shoulders wound with it, the right foot stepping through; then a flat arc across
+                    // right). The chain's old level slash turned round: the hand drawn across out past the left shoulder at chest height,
+                    // well in front of the chest, with the blade back beside the body and never across it (owner, 2026-11-14: "on the third
+                    // swing, the sword goes through his body"; SwordArmsClearPlayTests holds it), the hips and shoulders wound with it, the right foot stepping through; then a flat arc across
                     // the front to the right, the power travelling up from the hips (Staged), the body driving in over the front foot and the
                     // free arm swinging forward against it.
                     CutPlane cut = BackhandFlat;
-                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.30f, 1.62f, 0.24f), cut, -140.0f, elbow: 0.45f, twist: -55.0f, hips: -28.0f,
+                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.34f, 1.72f, 0.46f), cut, -100.0f, elbow: 0.45f, twist: -55.0f, hips: -28.0f,
                         lean: -6.0f, tilt: -5.0f, drop: 0.12f, lead: 1.0f, depth: 0.50f), new Vector3(-0.40f, -0.78f, -0.36f));
                     Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.24f, 1.54f, 0.62f), cut, -8.0f, elbow: 0.30f, twist: 20.0f, hips: 28.0f,
                         lean: 16.0f, tilt: -4.0f, drop: 0.15f, lead: 1.0f, depth: 0.66f, reach: 1.0f), new Vector3(-0.50f, 1.56f, 0.60f), -17.0f)), new Vector3(-0.38f, -0.76f, 0.48f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.66f, 1.46f, 0.16f), cut, 110.0f, elbow: 0.40f, twist: 55.0f, hips: 40.0f,
+                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.66f, 1.46f, 0.16f), cut, 80.0f, elbow: 0.40f, twist: 55.0f, hips: 40.0f,
                         lean: 13.0f, tilt: -1.0f, drop: 0.14f, lead: 1.0f, depth: 0.62f, reach: 0.6f), new Vector3(-0.38f, -0.74f, 0.52f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }

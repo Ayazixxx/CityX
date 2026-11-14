@@ -19,6 +19,9 @@ namespace CityX.Tests
         /// <summary>How far into the torso an arm may still sink: the soft skin of the elbow brushing the side.</summary>
         private const float Touch = 0.03f;
 
+        /// <summary>How far along the blade, from the hand to the tip (0-1), it is held out of the body: the handle is in the hand.</summary>
+        private const float BladeFromShare = 0.2f;
+
         private GameObject _player;
         private GameObject _ground;
 
@@ -164,8 +167,8 @@ namespace CityX.Tests
                             yield return null;
                         }
                     }
-                    float worstTorso = float.MaxValue, worstHand = float.MaxValue, worstHead = float.MaxValue;
-                    string torsoWhen = "", handWhen = "", headWhen = "";
+                    float worstTorso = float.MaxValue, worstHand = float.MaxValue, worstHead = float.MaxValue, worstBlade = float.MaxValue;
+                    string torsoWhen = "", handWhen = "", headWhen = "", bladeWhen = "";
                     bool clipHeld = false;
                     string lastThrown = "";
                     for (int cut = 0; cut < cuts; cut++)
@@ -195,6 +198,21 @@ namespace CityX.Tests
                                 continue;
                             }
                             string when = $"{attack.Animation} at {t:0.00} s";
+                            // The blade along its length, past the hand that holds it, out of the torso and the head (owner, 2026-11-14:
+                            // "on the third swing, the sword goes through his body").
+                            var blade = (ISwordBlade)sword;
+                            for (float along = BladeFromShare; along <= 1.0001f; along += 0.1f)
+                            {
+                                Vector3 point = Vector3.Lerp(blade.BladeBaseWorld, blade.BladeTipWorld, along);
+                                float inTorso = ElbowClearance.Clearance(point, point, point, hips.position, neck.position, FusedBodyShape.TorsoRadius);
+                                float inHead = Vector3.Distance(point, head.position) - FusedBodyShape.HeadRadius;
+                                float out_ = Mathf.Min(inTorso, inHead);
+                                if (out_ < worstBlade)
+                                {
+                                    worstBlade = out_;
+                                    bladeWhen = $"{(inTorso < inHead ? "torso" : "head")}, {along:0.0} along the blade, {when}";
+                                }
+                            }
                             foreach ((string side, HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones hand) in new[]
                             {
                                 ("right", HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand),
@@ -239,6 +257,8 @@ namespace CityX.Tests
                     if (worstTorso < -SwingTouch) failures.Add($"{weapon} {which}: an arm is {-worstTorso * 100.0f:0.0} cm inside the torso ({torsoWhen})");
                     if (worstHand < -RestingHandDepth) failures.Add($"{weapon} {which}: a wrist is {-worstHand * 100.0f:0} cm inside the torso ({handWhen})");
                     if (worstHead < -Touch) failures.Add($"{weapon} {which}: an arm is {-worstHead * 100.0f:0} cm inside the head ({headWhen})");
+                    report.AppendLine($"{weapon} {which}: the blade clears the body by {worstBlade * 100.0f:0} cm at the least ({bladeWhen})");
+                    if (worstBlade < -Touch) failures.Add($"{weapon} {which}: the blade is {-worstBlade * 100.0f:0} cm inside the body ({bladeWhen})");
                     for (int i = 0; i < 240; i++)
                     {
                         combat.Tick(Dt);
