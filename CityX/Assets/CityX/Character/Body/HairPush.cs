@@ -21,6 +21,9 @@ namespace CityX.Character
 
         public const int PiecesPerBody = 5;
 
+        /// <summary>Which of a body's pieces is its neck column (FusedBodyShape.UpperBody): hair tucked under a collar is drawn in to its line.</summary>
+        public const int NeckPiece = 2;
+
         public const int MaxPieces = MaxBodies * PiecesPerBody;
 
         /// <summary>
@@ -41,6 +44,59 @@ namespace CityX.Character
         /// rather have a frame where the boomerang clips through the hair").
         /// </summary>
         public const float ScalpRoom = 0.01f;
+
+        private static readonly int TuckRimId = Shader.PropertyToID("_HairTuckRim");
+        private static readonly int TuckUpId = Shader.PropertyToID("_HairTuckUp");
+        private static readonly int TuckForwardId = Shader.PropertyToID("_HairTuckForward");
+
+        /// <summary>
+        /// A HIGH COLLAR the hair is tucked under (owner, 2026-11-15: "make it so the kick hair doesnt clip through the midnight coat ... right now the back spikes are
+        /// clipping through"): its rim, a point on the neck's line at the height of the collar's top behind the neck, and which way is up out of it and forward, all
+        /// in the frame of the bone the collar is skinned to, so it goes where the collar goes. A coat's fur collar stands centimetres off the body round the lower
+        /// head: hair in it is under the fur, but the locks hanging below it came out through the coat's back, where no push off the body reaches.
+        /// </summary>
+        private readonly struct Collar
+        {
+            public readonly Transform Bone;
+            public readonly Vector3 Rim, Up, Forward;
+
+            public Collar(Transform bone, Vector3 rim, Vector3 up, Vector3 forward)
+            {
+                Bone = bone;
+                Rim = rim;
+                Up = up;
+                Forward = forward;
+            }
+        }
+
+        private static readonly Dictionary<Animator, Collar> Collars = new Dictionary<Animator, Collar>();
+        private static readonly List<Animator> Gone = new List<Animator>();
+        private static readonly Vector4[] TuckRims = new Vector4[MaxBodies];
+        private static readonly Vector4[] TuckUps = new Vector4[MaxBodies];
+        private static readonly Vector4[] TuckForwards = new Vector4[MaxBodies];
+
+        /// <summary>
+        /// The body wears a high collar (skinned to <paramref name="bone"/>; the rim and the directions in its frame): the hair hanging below the rim behind and beside
+        /// the neck is tucked in under it, onto the body (the shader: CityXHairTuck).
+        /// </summary>
+        public static void TuckUnder(Animator body, Transform bone, Vector3 rimInBone, Vector3 upInBone, Vector3 forwardInBone)
+        {
+            if (body != null && bone != null)
+            {
+                Collars[body] = new Collar(bone, rimInBone, upInBone.normalized, forwardInBone.normalized);
+            }
+        }
+
+        public static void Untuck(Animator body)
+        {
+            if (body != null)
+            {
+                Collars.Remove(body);
+            }
+        }
+
+        /// <summary>The body has a collar its hair is tucked under (for tests).</summary>
+        public static bool Tucks(Animator body) => body != null && Collars.ContainsKey(body);
 
         private static readonly List<Animator> Bodies = new List<Animator>();
         private static readonly Vector4[] A = new Vector4[MaxPieces];
@@ -88,6 +144,19 @@ namespace CityX.Character
         public static void Upload(Camera camera)
         {
             Bodies.RemoveAll(b => b == null);
+            if (Collars.Count > 0)
+            {
+                // Bodies gone with their collars on.
+                Gone.Clear();
+                foreach (Animator body in Collars.Keys)
+                {
+                    if (body == null) Gone.Add(body);
+                }
+                foreach (Animator body in Gone)
+                {
+                    Collars.Remove(body);
+                }
+            }
             Nearest.Clear();
             foreach (Animator body in Bodies)
             {
@@ -115,6 +184,18 @@ namespace CityX.Character
                 }
                 // The head is a sphere round its bone (FusedBodyShape.HeadRadius on the rig of the player's size).
                 Vector3 head = BonePosition(HumanBodyBones.Head);
+                // Its collar, if it wears one, in the same place in the list as its head (and its pieces, PiecesPerBody to a body).
+                if (Collars.TryGetValue(body, out Collar collar) && collar.Bone != null)
+                {
+                    Vector3 rim = collar.Bone.TransformPoint(collar.Rim);
+                    TuckRims[heads] = new Vector4(rim.x, rim.y, rim.z, 1.0f);
+                    TuckUps[heads] = collar.Bone.TransformDirection(collar.Up);
+                    TuckForwards[heads] = collar.Bone.TransformDirection(collar.Forward);
+                }
+                else
+                {
+                    TuckRims[heads] = TuckUps[heads] = TuckForwards[heads] = Vector4.zero;
+                }
                 Heads[heads++] = new Vector4(head.x, head.y, head.z, (FusedBodyShape.HeadRadius + ScalpRoom) * scale);
             }
             _measuring = null;
@@ -124,8 +205,11 @@ namespace CityX.Character
             }
             for (int i = heads; i < MaxBodies; i++)
             {
-                Heads[i] = Vector4.zero;
+                Heads[i] = TuckRims[i] = TuckUps[i] = TuckForwards[i] = Vector4.zero;
             }
+            Shader.SetGlobalVectorArray(TuckRimId, TuckRims);
+            Shader.SetGlobalVectorArray(TuckUpId, TuckUps);
+            Shader.SetGlobalVectorArray(TuckForwardId, TuckForwards);
             Shader.SetGlobalVectorArray(AId, A);
             Shader.SetGlobalVectorArray(BId, B);
             Shader.SetGlobalFloat(CountId, count);

@@ -207,6 +207,18 @@ Owner, 2026-11-12: "is there a better fix for the shirt spikes stabbing through 
 
 The same pass tucks hair that comes out through a board slung on the back just inside the board (`docs/BOOMERANG.md`, "Hair under it on the back").
 
+## Tucked into a high collar (2026-11-15)
+
+Owner, 2026-11-15: "make it so the kick hair doesnt clip through the midnight coat after that, figure out what techniques would be best to visually attain a natural look because right now the back spikes are clipping through". The Midnight Coat's fur collar stands up round the lower head, centimetres off the body, so the push above (6 mm over the body) never reached it: the Kick hair's lowest locks went down behind the fur and their tips came out through the coat's back and shoulders.
+
+What games do (searched): hide the hair under hats and helmets, or cut hairstyles that avoid the trouble ([Unreal answers](https://answers.unrealengine.com/questions/663952/view.html)); make the clothing bigger so it covers the hair; give hair colliders a little larger than what it must not pass ([Unreal forum, MetaHuman hair collision](https://forums.unrealengine.com/t/metahuman-hair-collision/1965394)); fix each hair-and-outfit pair by hand ([Vintage Story's clipfix](https://mods.vintagestory.at/clipfix)). Laying the locks over the collar was not possible here: they start inside the fur. So they are **tucked in, as real hair goes down inside a high collar**:
+
+- A garment with a high collar says so (`SkinnedGarment.TucksHairUnderCollar`; only the Midnight Coat), and on going on reads its collar off its own mesh (`GarmentCollar`): the part skinned to the collar helper bone, its rim on the line up its middle at the height of its top behind the neck, given in that bone's frame so it moves with the collar. `HairPush.TuckUnder` sends it to the shader with the body's pieces; taking the coat off stops it. On other players' copies too (the coat is put on them the same way).
+- The shader (`CityXHairTuck`, after the push out of the body) draws hair below the rim in to the neck's own line, easing in over 4 cm under the rim, so it disappears into the fur. Not in front of the throat, where the coat's collar opens. Near the rim the head's sphere keeps the hair on the scalp and out of the head, so the gap between head and fur stays filled and no scalp shows; from 6 cm under it lets go (the sphere reaches the shoulders there, which is not the head).
+- Each wrong turn on the way, kept in the shader's comments: laid on the body the hair showed in the gap the coat opens under the collar as the shoulders turn; drawn to the nearest of torso, shoulder bar and neck, a lock beside the neck was stretched down through the coat's shoulder; left alone near the scalp, the curled nape locks still came out at a sprint.
+
+`HairPushCapture.RenderThePushOverTheCoat` renders `hair-push-coat-sheet.png` (from behind through idle, head back, walk, walking back, sprint and a punch, without and with) and close shots from either side, in front and from above behind (`hair-push-coat-sheet-*.png`, each with an `-unpushed` twin). Tests: `GarmentCollarTests` (the rim from the mesh; the coat's round the lower head), `HairPushPlayTests.TheCoatsCollarTucksTheHairInOnTheBodyAndOnACopyAndTheShirtsDoesNot`, and `HairPushTests` (the shader's piece count and neck piece match the code's; every pass compiles).
+
 ## Added 2026-10-21: dreads
 
 The owner's dreadlocks (701,603 triangles from Meshy) brought down in Blender to 5,983 (Decimate Collapse; 11 stray triangles below

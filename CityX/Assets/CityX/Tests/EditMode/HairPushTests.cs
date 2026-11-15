@@ -36,7 +36,7 @@ namespace CityX.Tests
             // LimbCapsules: the torso, the pelvis bar, the shoulder bar, the neck column, then the limbs.
             AssertSame(body[0], pieces[0], "the torso");
             AssertSame(body[2], pieces[1], "the shoulder bar");
-            AssertSame(body[3], pieces[2], "the neck column");
+            AssertSame(body[3], pieces[HairPush.NeckPiece], "the neck column");
         }
 
         [Test]
@@ -98,6 +98,9 @@ namespace CityX.Tests
             StringAssert.Contains($"#define CITYX_HAIR_PIECES_MAX {HairPush.MaxPieces}", shader, "the shader holds a different number of pieces");
             StringAssert.Contains($"#define CITYX_BACK_BOARDS_MAX {CityX.Items.BackClip.Max}", shader, "the shader holds a different number of boards");
             StringAssert.Contains($"#define CITYX_HAIR_BODIES_MAX {HairPush.MaxBodies}", shader, "the shader holds a different number of heads");
+            // Hair tucked under a collar is drawn in to its own body's neck column, found by its place in the list.
+            StringAssert.Contains($"#define CITYX_PIECES_PER_BODY {HairPush.PiecesPerBody}", shader, "the shader counts a body's pieces differently");
+            StringAssert.Contains($"#define CITYX_NECK_PIECE {HairPush.NeckPiece}", shader, "the shader tucks hair in to another piece than the neck");
         }
     }
 }

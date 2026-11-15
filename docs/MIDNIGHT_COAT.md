@@ -77,6 +77,12 @@ Behind the body the hips and the top of the thighs, down to 0.75 m, are always h
 triangles. It stores them as one bit each (about 11 KB in the prefab, not a 6.4 MB copy of the body). `BodyCover` builds the trimmed body once, when the coat goes on. A body with a different
 triangle count is drawn whole, so a stale list never cuts the wrong holes.
 
+## Hair goes down inside the collar (2026-11-15)
+
+The fur collar stands up round the lower head: the wearer's hair below its top is tucked in under it on the graphics card, rather than coming out
+through the coat's back (owner: "the back spikes are clipping through"). The coat says it has such a collar (`TucksHairUnderCollar`), and its rim is
+read off its own mesh when it goes on (`GarmentCollar`). The how and the why: `docs/HAIR.md`, "Tucked into a high collar".
+
 ## Tests
 
 - `MidnightCoatTests` (EditMode): a top named "Midnight Coat"; within 15k triangles and one 512 map; never on the head, hands or shins, every

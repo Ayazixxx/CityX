@@ -154,13 +154,30 @@ namespace CityX.Wearables
             }
             Combiner.Register(ItemId, GarmentMesh, GarmentMaterial);
             CoverBody(player);
+            if (TucksHairUnderCollar && GarmentCollar.TuckHairUnder(animator, GarmentMesh))
+            {
+                _tuckedUnder = animator;
+            }
             OnEquipped(player);
         }
+
+        /// <summary>
+        /// The garment has a high collar the wearer's hair goes down inside (GarmentCollar), as a coat's fur collar does, rather than being laid over the
+        /// garment as it is over a shirt.
+        /// </summary>
+        protected virtual bool TucksHairUnderCollar => false;
+
+        private Animator _tuckedUnder;
 
         /// <summary>What this garment hid of the body drawn again (WornBodyCover) and the worn skin unregistered.</summary>
         private void TakeOff()
         {
             OnUnequipped();
+            if (_tuckedUnder != null)
+            {
+                HairPush.Untuck(_tuckedUnder);
+                _tuckedUnder = null;
+            }
             WornBodyCover.Show(_bodySkin, this);
             _bodySkin = null;
             if (Combiner != null)

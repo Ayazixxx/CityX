@@ -10,7 +10,8 @@
 //     poking through", "they can clip through slightly around the edges"). Hair on a scalp is not pressed at all (nearer than 5 cm, less) nor any into a head, and the
 //     board goes through the hair there instead (owner: "there is a frame where the bald scalp is viewable ... i would much rather have a frame where
 //     the boomerang clips through the hair"; as it is put back the head leans into the board). Nothing is cut, so no scalp shows.
-// The board first and the body last, so the body always wins.
+//   * under a high collar (a coat's), drawn into the body below the collar's rim (CityXHairTuck).
+// The board first and the body after it, so the body wins over the board; the collar last, as what it tucks in is inside the body on purpose.
 #ifndef CITYX_HAIR_PUSH_INCLUDED
 #define CITYX_HAIR_PUSH_INCLUDED
 
@@ -35,6 +36,28 @@ float _BackClipCount;
 float4 _BackClipVeeA[CITYX_BACK_BOARDS_MAX];
 float4 _BackClipVeeB[CITYX_BACK_BOARDS_MAX];
 
+// The bodies' high collars (a coat's fur collar), by the same place in the list as their heads: a point on the neck's line at the height of the collar's
+// top behind the neck (w 1 when the body wears one), up out of the collar, and forward.
+float4 _HairTuckRim[CITYX_HAIR_BODIES_MAX];
+float4 _HairTuckUp[CITYX_HAIR_BODIES_MAX];
+float4 _HairTuckForward[CITYX_HAIR_BODIES_MAX];
+
+// Hair is tucked in full this far under a collar's rim, easing in from nothing at the rim, metres.
+#define CITYX_TUCK_EASE 0.04
+// In front of the throat nothing is tucked (a coat's collar opens there): from the neck's line forward, easing off over CITYX_TUCK_FRONT, and within
+// CITYX_TUCK_THROAT of the middle, easing back in over CITYX_TUCK_FRONT more, metres. The locks beside the ears, a little in front of the neck's line, are
+// tucked: left out, they went down outside the fur and on into the coat below it.
+#define CITYX_TUCK_FRONT 0.06
+#define CITYX_TUCK_THROAT 0.12
+// The head's sphere keeps tucked hair off the scalp and out of the head only near the rim, letting go from this far under it to twice as far, metres:
+// there the hair fills the gap between the head and the fur (drawn in, the scalp would show down that gap). Further down the sphere is not the head: it
+// reaches the shoulders (the collar's rim is under a head radius below its middle), and the locks hanging beside the neck, stopped at it, still came out
+// below the fur.
+#define CITYX_TUCK_DEEP 0.06
+// A body's pieces in the list: the torso, the shoulder bar, the neck column, the upper arms (Character/Body/HairPush: PiecesPerBody, FusedBodyShape.UpperBody).
+#define CITYX_PIECES_PER_BODY 5
+#define CITYX_NECK_PIECE 2
+
 // How far past a board's edges hair is still pressed into it, easing off to nothing, metres.
 #define CITYX_BOARD_EASE 0.04
 
@@ -50,8 +73,8 @@ float CityXBoardInArm(float2 p, float2 tip, float2 elbow, float elbowHalf, float
 #define CITYX_SCALP_FADE 0.05
 
 // Moved from one place toward another: not at all where it lies on a head's scalp (it covers the scalp there, so the board goes through it instead),
-// in full from CITYX_SCALP_FADE off it, and never on into a head.
-float3 CityXHairOffScalps(float3 from, float3 to)
+// in full from scalpFade off it (0: wherever it is off it, only what is already in the scalp's room staying), and never on into a head.
+float3 CityXHairOffScalps(float3 from, float3 to, float scalpFade)
 {
     float3 move = to - from;
     float reach = 1.0;
@@ -64,8 +87,15 @@ float3 CityXHairOffScalps(float3 from, float3 to)
         }
         float3 away = from - _HairPushHeads[h].xyz;
         float radius = _HairPushHeads[h].w;
-        reach = min(reach, smoothstep(radius, radius + CITYX_SCALP_FADE, length(away)));
         float outside = dot(away, away) - radius * radius;
+        if (scalpFade > 0.0)
+        {
+            reach = min(reach, smoothstep(radius, radius + scalpFade, length(away)));
+        }
+        else if (outside <= 0.0)
+        {
+            reach = 0.0;
+        }
         float a = dot(move, move), b = dot(move, away);
         float d = b * b - a * outside;
         if (outside > 0.0 && a > 1e-10 && b < 0.0 && d > 0.0)
@@ -74,6 +104,46 @@ float3 CityXHairOffScalps(float3 from, float3 to)
         }
     }
     return from + move * reach;
+}
+
+// Under a high collar (owner, 2026-11-15: "make it so the kick hair doesnt clip through the midnight coat ... the back spikes are clipping through"): hair hanging
+// below the collar's rim, behind and beside the neck, is drawn in to the neck's own line (its column's middle), under the coat, so it goes down into the
+// collar as hair does, rather than out through the coat's back. (Laid on the body instead, it showed in the gap the coat opens under the collar as the
+// shoulders turn: the body is not drawn there, under the coat. Drawn to the nearest of the torso, shoulder bar and neck, a lock beside the neck went down
+// to the shoulder bar, stretched out through the coat's shoulder.) It is done after the push out of the body, so the body does not put it back. Near the rim none goes into a head (CityXHairOffScalps, CITYX_TUCK_DEEP): hair on the scalp there is pressed down onto
+// it, so the head keeps its hair. (Left where it lay within a few centimetres of the scalp, as hair under a board is, the locks curling off the nape
+// still came out under the collar at a sprint.)
+float3 CityXHairTuck(float3 world)
+{
+    int heads = (int)_HairPushHeadCount;
+    for (int h = 0; h < CITYX_HAIR_BODIES_MAX; h++)
+    {
+        if (h >= heads)
+        {
+            break;
+        }
+        if (_HairTuckRim[h].w < 0.5)
+        {
+            continue;
+        }
+        float3 fromRim = world - _HairTuckRim[h].xyz;
+        float3 across = normalize(cross(_HairTuckUp[h].xyz, _HairTuckForward[h].xyz));
+        float throat = smoothstep(0.0, CITYX_TUCK_FRONT, dot(fromRim, _HairTuckForward[h].xyz))
+            * (1.0 - smoothstep(CITYX_TUCK_THROAT, CITYX_TUCK_THROAT + CITYX_TUCK_FRONT, abs(dot(fromRim, across))));
+        float below = -dot(fromRim, _HairTuckUp[h].xyz);
+        float under = smoothstep(0.0, CITYX_TUCK_EASE, below) * (1.0 - throat);
+        if (under <= 0.0)
+        {
+            continue;
+        }
+        int neck = h * CITYX_PIECES_PER_BODY + CITYX_NECK_PIECE;
+        float3 from = _HairPushA[neck].xyz, to = _HairPushB[neck].xyz;
+        float3 along = to - from;
+        float3 onto = from + along * saturate(dot(world - from, along) / max(dot(along, along), 1e-6));
+        float3 tucked = lerp(world, onto, under);
+        world = lerp(CityXHairOffScalps(world, tucked, 0.0), tucked, smoothstep(CITYX_TUCK_DEEP, 2.0 * CITYX_TUCK_DEEP, below));
+    }
+    return world;
 }
 
 float3 CityXHairPushWorld(float3 world)
@@ -92,7 +162,7 @@ float3 CityXHairPushWorld(float3 world)
         {
             float inside = max(CityXBoardInArm(p.xz, a.xy, a.zw, b.z, b.w), CityXBoardInArm(p.xz, b.xy, a.zw, b.z, b.w));
             p.y *= 1.0 - smoothstep(-CITYX_BOARD_EASE, 0.0, inside);
-            world = CityXHairOffScalps(world,mul(_BackClipFromBoard[i], float4(p, 1.0)).xyz);
+            world = CityXHairOffScalps(world, mul(_BackClipFromBoard[i], float4(p, 1.0)).xyz, CITYX_SCALP_FADE);
         }
     }
     int pieces = (int)_HairPushCount;
@@ -114,6 +184,7 @@ float3 CityXHairPushWorld(float3 world)
             world = nearest + away * (radius / distance);
         }
     }
+    world = CityXHairTuck(world);
 #endif
     return world;
 }
