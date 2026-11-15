@@ -109,6 +109,13 @@ namespace CityX.Character
 
         private BakedMotion _motion;
         private BakedPose _pose;
+
+        /// <summary>
+        /// True from the start of an attack whose clip has the sword arm until the stance after it has lowered back into the carry (or a guard or a
+        /// blow thrown back takes the arm): all that time the arm is the clip's over the carry's, never the keys'. Handed back to the keys while the
+        /// clip was still fading out, the arm jumped to the keys' own follow-through, 9 cm a frame.
+        /// </summary>
+        private bool _armFromClip;
         private BakedPose _crossfadeFrom;
         private float _crossfadeRemaining;
         private SwordStrikeKind _clipKind;
@@ -287,18 +294,29 @@ namespace CityX.Character
             _clipPlaying = SwordStrikes.HasClip(kind);
             if (!_clipPlaying)
             {
+                _armFromClip = false;
                 return;
             }
-            if (_motion == null)
+            BakedPose was = _pose;
+            BakedMotion motion = SwordStrikes.MotionFor(kind);
+            _armFromClip = ReferenceEquals(motion, SwordStrikes.ArmMotion);
+            if (!ReferenceEquals(motion, _motion))
             {
-                _motion = SwordStrikes.Motion;
+                // A clip of the other motion (one with the sword arm in it, or one without): its own poses, the one on the body handed over.
+                _motion = motion;
                 _pose = _motion.NewPose();
                 _crossfadeFrom = _motion.NewPose();
+                _motion.Sample(SwordStrikes.NameOf(kind), 0.0f, false, _pose);
+                _motion.Sample(SwordStrikes.NameOf(kind), 0.0f, false, _crossfadeFrom);
+                if (_holdsBody && _locomotion != null && _locomotion.HoldsBakedPose(was))
+                {
+                    _locomotion.SetBakedPose(_pose, _locomotion.BakedPoseWeight);
+                }
             }
             _clipEngageSeconds = Mathf.Max(ClipEngageSeconds, SwordStrikes.TimingOf(kind).WindUp * ClipEngageShareOfWindUp);
-            if (_clipWeight > 0.0f)
+            if (_clipWeight > 0.0f && was != null)
             {
-                _crossfadeFrom.CopyBodyFrom(_pose);
+                _crossfadeFrom.CopyBodyFrom(was);
                 _crossfadeRemaining = ClipCrossfadeSeconds;
                 _clipEngageSeconds = ClipEngageSeconds;
             }
@@ -325,7 +343,8 @@ namespace CityX.Character
                 _locomotion.SetClipStride(1.0f);
             }
             bool playing = _clipPlaying && _striking;
-            float seconds = playing ? _clipEngageSeconds : _rebounding ? ReboundTakeoverSeconds : ClipReleaseSeconds;
+            // A clip with the sword arm hands the arm back as the stance does, over the time the hand takes to come down to the thigh.
+            float seconds = playing ? _clipEngageSeconds : _rebounding ? ReboundTakeoverSeconds : _armFromClip ? ReadyToClipCarrySeconds : ClipReleaseSeconds;
             _clipWeight = Mathf.MoveTowards(_clipWeight, playing ? 1.0f : 0.0f, deltaTime / seconds);
             if (_clipWeight <= 0.0f || _pose == null)
             {
@@ -376,6 +395,7 @@ namespace CityX.Character
             _oneHanded = oneHanded;
             _striking = false;
             _clipPlaying = false;
+            _armFromClip = false;
             _guarding = true;
             _speed = 1.0f;
             enabled = true;
@@ -391,6 +411,7 @@ namespace CityX.Character
             _oneHanded = oneHanded;
             _striking = false;
             _clipPlaying = false;
+            _armFromClip = false;
             _guarding = false;
             _rebounding = true;
             _elapsed = 0.0f;
@@ -464,6 +485,7 @@ namespace CityX.Character
             _clipPlaying = false;
             _guarding = false;
             _rebounding = false;
+            _armFromClip = false;
             _speed = 1.0f;
             _takeoverRemaining = 0.0f;
             LetGoOfBody();
@@ -583,6 +605,11 @@ namespace CityX.Character
                 return;
             }
             ShowClip(deltaTime);
+            if (_engage <= 0.001f && !wantsPose)
+            {
+                _armFromClip = false;
+            }
+            _locomotion.SwordArmFromClip = _armFromClip;
             if (_engage <= 0.001f && !wantsPose)
             {
                 _locomotion.ClearSwordPose();

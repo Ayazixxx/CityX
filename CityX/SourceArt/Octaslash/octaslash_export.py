@@ -29,6 +29,8 @@ OUT = globals().get("EXPORT_PATH") or globals().get("OCTASLASH_EXPORT_PATH") or 
     REPO, "CityX", "Assets", "CityX", "Character", "Resources", "Octaslash", "OctaslashMotion.json")
 SEGMENTS = tuple(globals().get("EXPORT_SEGMENTS") or ("coil_in", "hold", "dash", "recover"))
 ONLY_BONES = globals().get("EXPORT_BONES")
+# Where each segment ends, by marker name, for segments that are not one after another on the timeline (the next listed segment's start otherwise).
+UNTIL = globals().get("EXPORT_UNTIL") or {}
 
 M = Matrix(((-1, 0, 0), (0, 0, 1), (0, -1, 0)))     # Blender -> Unity
 ARM_DOWN = math.degrees(math.atan2(1.9 - 0.88, 0.58 - 0.35))
@@ -48,11 +50,11 @@ def export():
     rest = {b.name: b.matrix_local.to_quaternion() for b in rig.data.bones}
     markers = {m.name: m.frame for m in scene.timeline_markers}
     starts = [markers[s] for s in SEGMENTS]
-    first, last = starts[0], markers["end"]
+    ends = [markers[UNTIL[s]] if s in UNTIL else (starts[i + 1] if i + 1 < len(SEGMENTS) else markers["end"]) for i, s in enumerate(SEGMENTS)]
+    first, last = starts[0], max(ends)
     segments = []
     for i, name in enumerate(SEGMENTS):
-        end = starts[i + 1] if i + 1 < len(SEGMENTS) else last
-        segments.append({"name": name, "start": starts[i] - first, "end": end - first})
+        segments.append({"name": name, "start": starts[i] - first, "end": ends[i] - first})
     cuts = sorted(m.frame - first for m in scene.timeline_markers if m.name.startswith("cut"))
 
     hips, rotations = [], []

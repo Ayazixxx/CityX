@@ -7,9 +7,9 @@
 #     coming up, the head kept on what is ahead.
 #
 # THE ARMS ARE NOT MADE HERE. The game poses the sword arm, the blade and the hand on the handle itself (SwordStrikes' keys, PlayerLocomotion.ApplySwordPose), from the
-# shoulders this clip turns: its poses suit the game's hold (the handle across the palm) on whichever sword is held, and they keep the arms out of the body. A draft that
-# posed the arms here too bent the wrists and put them through the chest (owner, 2026-11-13: "why are his wrists all twisted and poking through his torso"). The arms on the
-# preview's renders are stand-ins carried in front of the chest, and no arm bone is exported (sword_moves_build.py).
+# shoulders this clip turns, except for the one-handed cuts posed in sword_arms_1h.py, whose sword arm is baked into their own copy of the clip (SwordMotion1H.json). A
+# draft that posed the arms here bent the wrists and put them through the chest (owner, 2026-11-13: "why are his wrists all twisted and poking through his torso"). Other
+# arms on the preview's renders are stand-ins carried in front of the chest, and no arm bone is exported into SwordMotion.json (sword_moves_build.py).
 #
 # Needs the rig (../Octaslash/octaslash_rig.py), sword_hold.py (the game's hold), octaslash_pose.py's solver (with OCTASLASH_NO_BAKE set) and ../planted_feet.py loaded first;
 # sword_moves_build.py does all of it.
@@ -322,6 +322,7 @@ def bake_attacks():
         frames = int(round(move["seconds"] * FPS))
         scene.timeline_markers.new(name, frame=start)
         stats = {"reach": 0.0}
+        arm_stats = {}
         tightest_knee = 180.0
         for i in range(frames):
             seconds = i / float(FPS)
@@ -330,6 +331,8 @@ def bake_attacks():
             if move["two_handed"]:
                 P["free"] = left_on_the_handle(D, pos)
                 D, pos = solve(P)
+            if name in ARMS_1H:
+                pose_sword_arm(D, pos, arm_at(name, seconds, D, pos), arm_stats, seconds)
             for side in ("l", "r"):
                 thigh = pos["thigh_" + side] - pos["shin_" + side]
                 shin = pos["foot_" + side] - pos["shin_" + side]
@@ -351,6 +354,8 @@ def bake_attacks():
             rig.keyframe_insert("location", frame=f)
         print("%-17s %3d frames | tightest knee %3.0f deg | furthest ankle from its hip %.2f m of a %.2f m leg (%.2f m was asked for)"
               % (name, frames, tightest_knee, stats["used"], leg, stats["reach"]))
+        if arm_stats:
+            report_arm(name, arm_stats)
         spans[name] = (start, start + frames - 1, move)
         start += frames
     scene.timeline_markers.new("end", frame=start)    # one past the last frame: the exporter's segments end before their end marker

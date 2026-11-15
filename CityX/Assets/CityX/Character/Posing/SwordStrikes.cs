@@ -396,10 +396,27 @@ namespace CityX.Character
 
         public static BakedMotion Motion => BakedMotion.Load(MotionPath);
 
+        /// <summary>
+        /// The one-handed attacks whose SWORD ARM is posed in Blender too (SourceArt/SwordMoves/sword_arms_1h.py): the same body, with the arm,
+        /// the forearm and the hand, laid over the arm the keys pose (PlayerLocomotion.ApplyBakedPose). Owner, 2026-11-15, after the arm worked
+        /// out from the keys ended the cuts with the forearm turned over and the fingers facing back: "ITS JUST A DIAGONAL SLASH HOW FUCKING
+        /// HARD IS THAT". The sword stays in its own hold: the arm was posed holding it so.
+        /// </summary>
+        public const string ArmMotionPath = "Swords/SwordMotion1H";
+
+        public static BakedMotion ArmMotion => BakedMotion.Load(ArmMotionPath);
+
+        /// <summary>The clip <paramref name="kind"/> plays: the one with its sword arm, if it has one, else its body's.</summary>
+        public static BakedMotion MotionFor(SwordStrikeKind kind)
+        {
+            BakedMotion arms = ArmMotion;
+            return arms != null && arms.HasSegment(NameOf(kind)) ? arms : Motion;
+        }
+
         /// <summary>Whether <paramref name="kind"/> has a full-body clip.</summary>
         public static bool HasClip(SwordStrikeKind kind)
         {
-            BakedMotion motion = Motion;
+            BakedMotion motion = MotionFor(kind);
             return motion != null && motion.HasSegment(NameOf(kind));
         }
 

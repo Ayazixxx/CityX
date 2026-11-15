@@ -109,6 +109,12 @@ namespace CityX.Character
         /// <summary>True while a sword pose (an attack, a guard, the ready stance or the carry) is being applied.</summary>
         public bool SwordPoseActive => _swordFrame.Active && _swordFrame.Weight > 0.001f;
 
+        /// <summary>
+        /// True from the start of an attack whose clip has the sword arm until its stance has lowered back into the carry (SwordPoseDriver):
+        /// the sword pose turns the torso as ever but leaves the arm to the clip, which fades in over the arm as it is carried and back out to it.
+        /// </summary>
+        public bool SwordArmFromClip { get; set; }
+
         /// <summary>The sword pose being applied this frame (for tests and captures).</summary>
         public SwordFrame CurrentSwordFrame => _swordFrame;
 
@@ -274,6 +280,15 @@ namespace CityX.Character
                 Quaternion lean = Quaternion.AngleAxis(_swordFrame.LeanDegrees * torso, transform.right);
                 Quaternion tilt = Quaternion.AngleAxis(_swordFrame.TiltDegrees * torso, transform.forward);
                 _spine.rotation = twist * lean * tilt * _spine.rotation;
+            }
+
+            if (SwordArmFromClip)
+            {
+                // The attack's clip has the sword arm (SwordStrikes.ArmMotion): it fades in over the arm as it is carried. An arm posed here
+                // under it would be a second wind-up, and the two blended threw the hand 17 cm in a frame as the attack took over.
+                _swordWristTwist = 0.0f;
+                _swordElbowBow = Vector3.zero;
+                return;
             }
 
             // The sword arm: the wrist to the frame's point, the elbow down or out as it says.

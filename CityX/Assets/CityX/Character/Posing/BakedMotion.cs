@@ -404,11 +404,29 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>Makes this pose's bones and hips <paramref name="other"/>'s (a pose of the same motion).</summary>
+        /// <summary>
+        /// Makes this pose's bones and hips <paramref name="other"/>'s: every bone, for a pose of the same motion; for a pose of another (a
+        /// one-handed attack's clip with its sword arm after one without), the bones the two have, by name, and the rest left as they are.
+        /// </summary>
         public void CopyBodyFrom(BakedPose other)
         {
-            System.Array.Copy(other.Rotations, Rotations, Rotations.Length);
             Hips = other.Hips;
+            if (ReferenceEquals(other.Bones, Bones))
+            {
+                System.Array.Copy(other.Rotations, Rotations, Rotations.Length);
+                return;
+            }
+            for (int i = 0; i < Bones.Count; i++)
+            {
+                for (int j = 0; j < other.Bones.Count; j++)
+                {
+                    if (other.Bones[j] == Bones[i])
+                    {
+                        Rotations[i] = other.Rotations[j];
+                        break;
+                    }
+                }
+            }
         }
 
         /// <summary>

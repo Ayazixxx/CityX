@@ -51,17 +51,45 @@ and folded 154 degrees back on itself after it. Measured, not guessed: `SwordGif
 Now: the first cut 57 degrees from the hit on (61 in the whip), the second 73 (87). It was past 100 through the hit and 120 (folded)
 after it, counted the same way.
 
+## Later the same day: the arm posed in Blender
+
+The system above still ended the second cut with the forearm turned over and the fingers facing back (owner, with photos of his own arm:
+"ITS JUST A DIAGONAL SLASH HOW FUCKING HARD IS THAT"). The first two one-handed cuts now carry their SWORD ARM in their clips
+(`Resources/Swords/SwordMotion1H.json`, `SwordStrikes.ArmMotion`; made by `SourceArt/SwordMoves/sword_arms_1h.py`), laid over the arm
+the keys pose. The other attacks keep the game's arm until they are posed the same way.
+
+- **The grip is the owner's own tuned hold** (`WeaponGrips.asset`; `sword_hold.py` in Blender): the handle in the fist right under the
+  guard, the blade straight out past the thumb across the forearm, the edge toward the knuckles. The diagonal "handshake" grip some
+  fencing books teach was tried and rejected: it ran the handle back along the forearm ("your grip is like slipping down the arm").
+- **Keys joint by joint on the chest** (`arm(flex, abduct, twist, bend, turn, wrist)`), so the body's big turns carry the arm. The wind-up
+  is posed by hand (the sword raised by the head); the keys in the cut were found with an aid (the blade on the cut's plane, the edge
+  leading, the hand where it should be, the back of the hand up at the end of the second cut as the owner's photos show) and kept as
+  plain numbers.
+- **The trail is one straight stroke from the camera, one way.** Each cut has a plane through the game camera's eye; while the trail is
+  drawn the whole arm is turned a little at the shoulder to keep the outer half of the blade on it, eased in at the hold's end and out on
+  the way back. Solving the whole arm on the plane put the elbow into the chest; keyed joints alone swept the tip in a loop over the head.
+  The cut's first key on the plane is a frame BEFORE the trail starts: the game plays the clip between its frames, and from a key at the
+  moment itself the tip was still rising into the start of the trail, which turned back on itself. The first cut's wind-up stands the
+  blade up out of the fist by the right shoulder (the owner's sketch); its plane is steep (60 degrees) so the stroke falls from it.
+- **Into and out of the carry without a jump.** While a clip with the sword arm holds the body the game's own arm keys leave the arm alone
+  (`PlayerLocomotion.SwordArmFromClip`, from the attack's start until the stance has lowered into the carry): blended under the clip, they
+  were a second wind-up. The clip starts and ends in the carry (the arm at the side, the blade ahead and a little down), held in the body's
+  frame so the chest turning back does not swing it, reached 0.04 s before the attack ends so the hand is at rest when the game hands the
+  arm back, and the clip hands it back over the carry's own 0.6 s.
+- **Measured** (`SwordArmClipTests`): the same body as the trunk clip, the wrist within 32 degrees of straight every frame, the edge
+  leading wherever the blade cuts, the trail within 6% of a straight line from the camera and never going back along it, and the second
+  cut's end. In the game: `SwordGifComboPlayTests` (the sweep one way as the game's camera sees it in the live window),
+  `SwordArmsClearPlayTests`, `SwordCarryPlayTests`.
+- The Blender tooling: `sword_moves_build.py --render <dir> --only sword1h_slash,sword1h_cut` draws each attack with the trail its tip
+  leaves and prints, per attack, the arm at its keys, the room it keeps off the body, the edge's lead and the trail's bow and turns.
+- Mixamo's eight recorded sword clips (outside the repository) were studied for the ranges a real elbow, forearm and wrist move through;
+  nothing of them is played.
+
 ## Not done, and the next step if it is still not right
 
-- **The grip itself.** The game's one-handed hold has the handle square across the fist; a real hand holds it diagonally, pommel toward
-  the heel of the hand, which is what lets the blade continue the forearm with a straight wrist. Turning every one-handed hold that way
-  changes the carry, the guard and every attack, and the owner has tuned holds by hand (`WeaponGripSettings`), so it is a decision of its
-  own.
-- **Authoring the arms in Blender.** The full-body clips carry the legs, hips, torso and head; the arms are still the game's keys. The
-  Octaslash and the stab dash show the other way: the arm solved in Blender with the elbow chosen for the wrist, baked, and played as it
-  is. Moving the sword attacks' arms into the clips would let every swing be posed and checked by eye in Blender, frame by frame.
-- Only the first two one-handed cuts are measured so far; the other attacks and the two-handed weapons (whose right hand is held by the
-  grip of both hands) are not.
+- The level slash, the heavy into the ground and the running cut still have the game's arm: pose them the same way.
+- Only the first two one-handed cuts are measured so far; the two-handed weapons (whose right hand is held by the grip of both hands)
+  are not.
 
 ## Sources
 

@@ -199,9 +199,9 @@ namespace CityX.Tests
 
         /// <summary>
         /// Owner, 2026-11-14, twice, with pictures of the first cut's trail: "i dont like this change of direction mid swing it looks bad. fix
-        /// the trail and trajectory of the swing", "im still seeing the trails switching direction". Seen from behind, as the game's camera
-        /// sees it, the tip of each of the two diagonal cuts sweeps ONE WAY from where the cut sets off to where it ends: the way it goes in
-        /// the second half of the sweep is the way it went in the first.
+        /// the trail and trajectory of the swing", "im still seeing the trails switching direction"; 2026-11-15, "make it straight across like
+        /// the red line". Seen from the game's camera at rest while the trail is drawn (the live window), the tip of each of the two diagonal
+        /// cuts sweeps ONE WAY: the way it goes in the second half of the sweep is the way it went in the first.
         /// </summary>
         [UnityTest]
         public IEnumerator TheDiagonalCutsSweepTheTipOneWayAsTheCameraSeesIt()
@@ -227,8 +227,7 @@ namespace CityX.Tests
             combat.RequestLight(0.0f);
             foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H })
             {
-                SwordStrikes.StrikeTiming tm = SwordStrikes.TimingOf(kind);
-                float from = (tm.WindUp + tm.Hold) / tm.Total, to = (tm.Contact + tm.Follow) / tm.Total;
+                float from = SwordStrikes.ActiveStart(kind), to = SwordStrikes.ActiveEnd(kind);
                 var path = new System.Collections.Generic.List<Vector2>();
                 for (int frame = 0; frame < 120 && path.Count < 2 || (poser.IsStriking && poser.Kind == kind && frame < 200); frame++)
                 {
@@ -241,8 +240,7 @@ namespace CityX.Tests
                     yield return null;
                     if (poser.IsStriking && poser.Kind == kind && poser.Progress >= from && poser.Progress <= to)
                     {
-                        Vector3 tip = _player.transform.InverseTransformPoint(_sword.BladeTipWorld);
-                        path.Add(new Vector2(tip.x, tip.y));   // as seen from behind: across and up
+                        path.Add(AsTheCameraSeesIt(_player.transform.InverseTransformPoint(_sword.BladeTipWorld)));
                     }
                     else if (path.Count > 0 && poser.Kind != kind)
                     {
@@ -376,5 +374,21 @@ namespace CityX.Tests
 
         /// <summary>How far the way a diagonal cut's tip goes may turn between the halves of its sweep, degrees: a cut is an arc, not a line.</summary>
         private const float MostTipTurnDegrees = 35.0f;
+
+        /// <summary>
+        /// A point of the body's frame where the game's camera at rest sees it on its image (ThirdPersonCamera: 0.87 m to the right of the pivot at
+        /// 0.73 of the body's 2.6 m and 0.6 m over it, DefaultDistance back, DefaultPitch down).
+        /// </summary>
+        private static Vector2 AsTheCameraSeesIt(Vector3 point)
+        {
+            float pitch = ThirdPersonCamera.DefaultPitch * Mathf.Deg2Rad;
+            var eye = new Vector3(0.87f, 0.73f * BodyRig.StandingHeight + 0.6f + ThirdPersonCamera.DefaultDistance * Mathf.Sin(pitch),
+                -ThirdPersonCamera.DefaultDistance * Mathf.Cos(pitch));
+            Vector3 d = point - eye;
+            var forward = new Vector3(0.0f, -Mathf.Sin(pitch), Mathf.Cos(pitch));
+            var up = new Vector3(0.0f, Mathf.Cos(pitch), Mathf.Sin(pitch));
+            float depth = Mathf.Max(Vector3.Dot(d, forward), 0.1f);
+            return new Vector2(d.x / depth, Vector3.Dot(d, up) / depth);
+        }
     }
 }
