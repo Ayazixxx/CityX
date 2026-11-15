@@ -322,10 +322,13 @@ namespace CityX.Character
                 }
                 else
                 {
-                    bladeInHand = sword.localRotation * Vector3.up;
+                    // The hold the strike was written for: a knife spinning into its reverse grip (or out of it) spins IN the hand, which
+                    // keeps the turn the strike gives it. Turned to follow the knife, the hand would cancel the spin.
+                    Quaternion unflip = _posedBlade != null ? Quaternion.Inverse(_posedBlade.GripFlipInHand) : Quaternion.identity;
+                    bladeInHand = unflip * (sword.localRotation * Vector3.up);
                     // The sword's own edge (most face their -X; the combat sword's faces +X), in the hand's frame.
                     Vector3 edgeAlong = _posedBlade != null ? _posedBlade.EdgeDirectionWorld : Vector3.zero;
-                    edgeInHand = edgeAlong.sqrMagnitude > 1e-6f ? _handR.InverseTransformDirection(edgeAlong) : sword.localRotation * Vector3.left;
+                    edgeInHand = unflip * (edgeAlong.sqrMagnitude > 1e-6f ? _handR.InverseTransformDirection(edgeAlong) : sword.localRotation * Vector3.left);
                     _frozenBladeInHand = bladeInHand;
                     _frozenEdgeInHand = edgeInHand;
                     _holdEditFrozen = WeaponGripSettings.HoldBeingEdited;

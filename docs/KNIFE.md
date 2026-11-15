@@ -24,7 +24,7 @@ Every one of them: quicker, lighter blows, little or no stagger, a weak guard, a
 | Light blows | 8 and 8.5 (10 base) | 5.6 and 6 (7 base): about **90%** of the sword's damage a second |
 | Light stagger | 0.45 s | **none**: a knife's light does not stop what its target is doing, so it cannot trade blows with a sword (the sword's stuns until its next cut lands: `SoulsCombatRhythmTests`) and barely shoves (the shove follows the stagger) |
 | Light stamina | 16 | 11 |
-| Heavy (hold the click) | the overhead cut | **a lunging stab** (the thrust pose) that closes a metre, guard-breaking, 11 damage |
+| Heavy (hold the click) | the overhead cut | **the icepick stab** (below), guard-breaking, 11 damage |
 | Guard | 1 stamina a point of damage | **1.6**: a thin blade breaks sooner |
 | Backstab | **1.5x** | **3x** |
 
@@ -35,6 +35,38 @@ face it never happens: it takes a dash round someone, or catching them busy with
 
 The chain is the one-handed sword's first two cuts, back and forth: the flat slash and the backhand (`SwordStrikes`), the knife's run faster. The kitchen
 knife is edged, so an overkill blow cuts the part it hits off (docs/DISMEMBERMENT.md).
+
+## The heavy: the icepick stab (2026-11-15)
+
+Owner: "make it so when you hold click with the knife, it does a downward stab motion holding the knife upside down like the image attached"
+(a masked killer, knife raised overhead point down), then "make the flip to upside down quick and natural research if there are any game dev
+tricks for doings this".
+
+**What games do with a flip into a reverse grip** (the research; thin, it is rarely written up): Counter-Strike's knives spin over in the hand
+as they are drawn and inspected, a flick rather than a turn ([tradeit.gg](https://tradeit.gg/blog/best-cs2-knife-animations/)); engines change a
+held thing's grip by swapping the hold it is attached by rather than animating the hand round it, the animation hiding the swap
+([Roblox devforum](https://devforum.roblox.com/t/how-do-i-change-the-grip-of-a-tool-while-its-animating/932545)). What was used from that:
+
+- **The spin happens IN the fist** (`SwordWeapon.HoldReversed`): half a turn about the handle's middle in the fist, over the knuckles (the
+  blade passes out in front of the fingers, never back through the wrist), so the fist keeps hold of the same stretch of handle and the
+  blade, out past the thumb in the hold, comes out past the little finger. The edge ends facing the forearm (an edge-in reverse grip).
+- **The hand is not turned to undo it**: the stab's keys are written for the knife's own hold (`SwordStrikes.Upturned`), and the pose turns
+  the hand for that hold whatever the spin (`PlayerLocomotion.ApplySwordPose` takes `ISwordBlade.GripFlipInHand` off), so the spin shows.
+- **Hidden in the raise**: it starts 0.08 s into the wind-up, while the arm is snatched up (the stab takes the body over in 60% of its
+  wind-up, `SwordStrikes.TakeoverSeconds`), and takes 0.12 s of the attack's clock (0.09 s at the knife's pace, about four frames).
+- **A flick, not a turn** (`SwordStrikes.GripFlip`): an ease-out-back, fast off the mark, about 9 degrees past upside down and back.
+- **Spun back** once the stab has landed and its pose has been held, in the recovery; cut short (a dash, a ragdoll, another attack), it spins back as quickly.
+
+**The stab** (`SwordStrikeKind.Thrust1H`, still named `sword1h_thrust` on the network): the fist goes up beside the head, out to the right where
+the game's camera sees it, the elbow out, the knife point down at the one in front, the free hand reaching ahead as if to grab; held a beat; then
+driven down in front, the point at a standing body's chest, the body bending over the blow and the free arm thrown back. The spin runs on every
+body the attack plays on (`SwordPoseDriver`), so another player's copy, told only the attack's name, spins it too.
+
+Tests: `KnifeStabTests` (EditMode: only the stab turns the grip; quick, a flick, upside down from the top of the raise until the stab has
+landed, back before the end; raised above the head point down, driven down in front at chest height; the fist holds the same stretch of handle
+the other way up, the spin over the knuckles), `KnifeStabPlayTests` (on the real body and on a copy: the fist above the head with the knife upside
+down in it and its point down, the point driven down in front, the knife back in its hold after). Picture: `KnifeCapture.RenderTheStab`
+(`Logs/CityShots/knife-stab*.png`).
 
 ## The model (`KitchenKnifeBuilder`)
 

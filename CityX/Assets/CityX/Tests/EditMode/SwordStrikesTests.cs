@@ -266,22 +266,8 @@ namespace CityX.Tests
             Assert.LessOrEqual(one.FreeHand.x, 0.0f, "the free hand should hang at its own side, not across the body");
             Assert.AreEqual(0.0f, SwordStrikes.Ready(true).FreeHandWeight, 0.001f, "the stance after a swing holds the free hand up instead of leaving it relaxed");
             Assert.AreEqual(0.0f, SwordStrikes.Guard(true).FreeHandWeight, 0.001f, "the guard holds the free hand up instead of leaving it relaxed");
-            foreach (SwordStrikeKind kind in SwordStrikes.All)
-            {
-                // (The chain's cuts swing it against the blade: below. The heavy throws it up behind as the blade goes into the ground, as the
-                // owner's reference does: TheOneHandedHeavyGoesIntoTheGround.)
-                if (kind == SwordStrikeKind.Thrust1H)
-                {
-                    float most = float.MinValue, least = float.MaxValue;
-                    for (int i = 0; i <= 50; i++)
-                    {
-                        float z = SwordStrikes.Evaluate(kind, i / 50.0f).FreeHand.z;
-                        most = Mathf.Max(most, z);
-                        least = Mathf.Min(least, z);
-                    }
-                    Assert.LessOrEqual(most - least, 2.0f * SwordStrikes.FreeHandBalanceSwing + 0.001f, $"{kind}: the free hand flails");
-                }
-            }
+            // (The chain's cuts swing it against the blade: below. The heavy throws it up behind as the blade goes into the ground, as the
+            // owner's reference does: TheOneHandedHeavyGoesIntoTheGround. The knife's stab reaches it out ahead and throws it back: KnifeStabTests.)
 
             SwordFrame two = SwordStrikes.Evaluate(SwordStrikeKind.Cut2H, 0.3f);
             Assert.IsTrue(two.TwoHanded);

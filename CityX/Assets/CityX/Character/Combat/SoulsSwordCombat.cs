@@ -188,6 +188,17 @@ namespace CityX.Character
         {
         }
 
+        /// <summary>
+        /// Holds the sword <paramref name="weight"/> of the way through its spin in the fist into the reverse grip, upside down (the knife's
+        /// stab: SwordStrikes.GripFlip), and in its own hold at 0. SwordPoseDriver does it on every body the attack plays on.
+        /// </summary>
+        void HoldReversed(float weight)
+        {
+        }
+
+        /// <summary>The reverse grip's spin in the fist right now, in the hand's frame (identity in the sword's own hold).</summary>
+        Quaternion GripFlipInHand => Quaternion.identity;
+
         float GetMeleeDamage();
     }
 
@@ -286,13 +297,13 @@ namespace CityX.Character
 
         // THE KNIFE (KnifeRules, docs/KNIFE.md): the one-handed slash and backhand, back and forth, run KnifeRules.SwingSpeed faster, cheaper
         // in stamina and with NO STAGGER -- a knife's light does not stop what its target is doing, so it cannot trade blows with a sword
-        // (a sword's light stuns longer than it takes the next cut to arrive: SoulsCombatRhythmTests). The heavy is a lunging stab that
-        // closes the distance, guard-breaking as every heavy.
+        // (a sword's light stuns longer than it takes the next cut to arrive: SoulsCombatRhythmTests). The heavy is the icepick stab, the
+        // knife spun upside down and driven down from above the head (docs/KNIFE.md), guard-breaking as every heavy.
         [Header("Knife light chain (left click)")]
         public SoulsAttack KnifeLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.35f, 11.0f, 0.98f, 0.0f, 0.15f, 8.0f, false);
         public SoulsAttack KnifeLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.35f, 11.0f, 1.05f, 0.0f, 0.15f, 8.0f, false);
 
-        [Header("Knife heavy (held left click): the lunging stab")]
+        [Header("Knife heavy (held left click): the icepick stab")]
         public SoulsAttack KnifeHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.50f, 22.0f, 2.05f, 0.60f, 1.0f, 35.0f, true);
 
         [Header("Feel")]

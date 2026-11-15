@@ -153,6 +153,28 @@ namespace CityX.Character
         /// <summary>0 to 1: how much of the clip the legs have (1 standing, 0 on the move: the walk's or the run's own).</summary>
         public float ClipLegs => _clipLegs;
 
+        /// <summary>How far the knife is spun into its reverse grip (SwordStrikes.GripFlip): 0 in its own hold, 1 upside down.</summary>
+        private float _gripFlip;
+
+        public float GripFlip => _gripFlip;
+
+        /// <summary>
+        /// The knife spun into its reverse grip and back as the attack says (SwordStrikes.GripFlip), here on every body the attack plays on, so
+        /// another player's copy spins it too. An attack cut short spins it back as quickly; a move that takes the body (a baked one holds the
+        /// sword in its own grip) has it back in its hold at once. Left alone while it is in its own hold, so the baked moves' grips stand.
+        /// </summary>
+        private void SpinTheGrip(ISwordBlade held, bool busy, float deltaTime)
+        {
+            float flip = busy ? 0.0f
+                : _striking && SwordStrikes.ReversesGrip(_kind) ? SwordStrikes.GripFlip(_kind, _elapsed)
+                : Mathf.MoveTowards(_gripFlip, 0.0f, deltaTime / SwordStrikes.GripFlipSeconds);
+            if (held != null && (flip != 0.0f || _gripFlip != 0.0f))
+            {
+                held.HoldReversed(flip);
+            }
+            _gripFlip = flip;
+        }
+
         /// <summary>An attack is in progress.</summary>
         public bool IsStriking => _striking;
 
@@ -201,7 +223,12 @@ namespace CityX.Character
             if (_locomotion != null)
             {
                 _locomotion.ClearSwordPose();
+                if (_gripFlip != 0.0f && _locomotion.HeldSword is Component held && held != null)
+                {
+                    ((ISwordBlade)held).HoldReversed(0.0f);
+                }
             }
+            _gripFlip = 0.0f;
             if (_trail != null)
             {
                 _trail.Stop();
@@ -274,8 +301,7 @@ namespace CityX.Character
         /// </summary>
         public void Begin(SwordStrikeKind kind)
         {
-            SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(kind);
-            StartTakeover(timing.WindUp + timing.Hold);
+            StartTakeover(SwordStrikes.TakeoverSeconds(kind));
             _whooshed = false;
             _kind = kind;
             _oneHanded = SwordStrikes.IsOneHanded(kind);
@@ -592,6 +618,7 @@ namespace CityX.Character
                 }
             }
             ShowTheCut(held);
+            SpinTheGrip(held, busy, deltaTime);
 
             bool fighting = _striking || _guarding || _rebounding;
             bool wantsPose = fighting || CarryIsPosed;

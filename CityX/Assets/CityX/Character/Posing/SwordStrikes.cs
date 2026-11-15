@@ -14,7 +14,10 @@ namespace CityX.Character
         /// <summary>One-handed: the backhand that follows, a diagonal cut from the upper left down to the right.</summary>
         Cut1H,
 
-        /// <summary>One-handed: a thrust, the hilt drawn to the hip and driven straight out with a lunge onto the right foot.</summary>
+        /// <summary>
+        /// The knife's heavy: the ICEPICK STAB. The knife spun upside down in the fist as the hand is raised above the head, then driven down
+        /// in front (owner, 2026-11-15). Named a thrust for the network's sake: the name is what travels.
+        /// </summary>
         Thrust1H,
 
         /// <summary>One-handed heavy: an overhead cut from behind the head, down the middle.</summary>
@@ -305,7 +308,8 @@ namespace CityX.Character
             {
                 case SwordStrikeKind.Slash1H: return new StrikeTiming(0.22f, 0.06f, 0.12f, 0.05f, 0.12f, 0.24f);
                 case SwordStrikeKind.Cut1H: return new StrikeTiming(0.20f, 0.05f, 0.12f, 0.06f, 0.10f, 0.24f);
-                case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.20f, 0.08f, 0.10f, 0.06f, 0.05f, 0.24f);
+                // The knife's stab: raised (and the knife spun over) quickly, held up a beat where it can be seen coming, driven down.
+                case SwordStrikeKind.Thrust1H: return new StrikeTiming(0.26f, 0.10f, 0.10f, 0.06f, 0.08f, 0.30f);
                 // The blade is in the ground and the body stays down over it a quarter of a second before it rises (the reference holds it longer still).
                 case SwordStrikeKind.Overhead1H: return new StrikeTiming(0.34f, 0.30f, 0.13f, 0.12f, 0.26f, 0.34f);
                 // The chain's end: a bigger wind-up the target can see coming, the blow's pose held, and a long recovery in which the fighter is open.
@@ -474,6 +478,81 @@ namespace CityX.Character
 
         /// <summary>A tip further than this above the ground has not struck it, metres: a short blade (a knife) swung from a body that is running, say.</summary>
         public const float GroundStrikeReach = 0.35f;
+
+        // ---- the reverse grip -----------------------------------------------------------------------------------------------------------------
+        // Owner, 2026-11-15: the knife's heavy is "a downward stab motion holding the knife upside down", and "make the flip to upside down
+        // quick and natural". The knife spins half a turn in the fist (ISwordBlade.HoldReversed) inside the fast part of the raise, where the
+        // eye is following the arm, in about a tenth of a second, easing out a little past upside down and settling back as a spun thing does;
+        // it spins back once the stab has landed and the arm is coming down. The keys are written for the knife's own hold (the hand as it
+        // holds it either way), so the pose turns the hand as it would anyway and the spin shows inside it.
+
+        /// <summary>How long the knife takes to spin over in the fist, seconds on the attack's clock (a knife swings KnifeRules.SwingSpeed faster).</summary>
+        public const float GripFlipSeconds = 0.12f;
+
+        /// <summary>The spin starts this far into the wind-up, seconds: once the hand is under way (started sooner, it spun at the hip, pointing back, before the arm rose).</summary>
+        public const float GripFlipFromSeconds = 0.08f;
+
+        /// <summary>How far past upside down the spin goes before it settles, as an ease-out-back's pull (1: about 5%, 9 degrees).</summary>
+        private const float GripFlipPull = 1.0f;
+
+        /// <summary>The share of the stab's wind-up the hand takes to come up from wherever it was: snatched up, so the spin happens in the raise and the fist is at the top for the hold.</summary>
+        public const float StabTakeoverShareOfWindUp = 0.6f;
+
+        /// <summary>
+        /// How long <paramref name="kind"/> takes over from the pose the body is in (the carry, the last attack's recovery), seconds: across
+        /// its wind-up and hold, so the body is wholly in it as the strike leaves; the knife's stab in part of its wind-up. Taken over across
+        /// the whole hold, the fist was still at the face when the stab came down, and the knife spun over by the thigh before the arm rose.
+        /// </summary>
+        public static float TakeoverSeconds(SwordStrikeKind kind)
+        {
+            StrikeTiming timing = TimingOf(kind);
+            return ReversesGrip(kind) ? timing.WindUp * StabTakeoverShareOfWindUp : timing.WindUp + timing.Hold;
+        }
+
+        /// <summary>The attack is made with the knife upside down in the fist (the icepick stab).</summary>
+        public static bool ReversesGrip(SwordStrikeKind kind) => kind == SwordStrikeKind.Thrust1H;
+
+        /// <summary>
+        /// How far the knife has spun into the reverse grip <paramref name="seconds"/> into <paramref name="kind"/> (on its own clock): 0 in
+        /// its own hold, 1 upside down, a little over 1 as the spin settles. Over in the wind-up; spun back in the recovery.
+        /// </summary>
+        public static float GripFlip(SwordStrikeKind kind, float seconds)
+        {
+            if (!ReversesGrip(kind))
+            {
+                return 0.0f;
+            }
+            StrikeTiming timing = TimingOf(kind);
+            float over = SpinEase((seconds - GripFlipFromSeconds) / GripFlipSeconds);
+            float back = SpinEase((seconds - (timing.Contact + timing.Follow + timing.Settle)) / GripFlipSeconds);
+            return over - back;
+        }
+
+        /// <summary>Fast off the mark, a touch past the end and back (an ease-out-back): a flick, not a turn.</summary>
+        private static float SpinEase(float u)
+        {
+            if (u <= 0.0f)
+            {
+                return 0.0f;
+            }
+            if (u >= 1.0f)
+            {
+                return 1.0f;
+            }
+            float v = u - 1.0f;
+            return 1.0f + (GripFlipPull + 1.0f) * v * v * v + GripFlipPull * v * v;
+        }
+
+        /// <summary>
+        /// Which way the knife itself points <paramref name="t01"/> into <paramref name="kind"/> (body axes): the frame's blade, turned by the
+        /// spin in the fist. Upside down, the hold's blade points the other way about (the keys say where the hand holds it).
+        /// </summary>
+        public static Vector3 HeldBladeAt(SwordStrikeKind kind, float t01)
+        {
+            SwordFrame frame = Evaluate(kind, t01);
+            float spin = GripFlip(kind, Mathf.Clamp01(t01) * Seconds(kind)) * Mathf.PI;
+            return (Mathf.Cos(spin) * frame.Blade + Mathf.Sin(spin) * frame.Edge).normalized;
+        }
 
         // ---- on the move ------------------------------------------------------------------------------------------------------------------------
         // Owner, 2026-11-13: "You need to have the sword movements conserve momentum and move freely while attacking. It feels bad right
@@ -803,6 +882,18 @@ namespace CityX.Character
             return key;
         }
 
+        /// <summary>
+        /// A key written with the knife UPSIDE DOWN in the fist (<see cref="ReversesGrip"/>): its blade and edge are where the knife points, and
+        /// the key keeps where the hand holding it so points the knife's own hold, which is the other way about (the spin in the fist turns
+        /// the blade half round toward its edge, and the edge with it).
+        /// </summary>
+        private static Key Upturned(Key key)
+        {
+            key.Blade = -key.Blade;
+            key.Edge = -key.Edge;
+            return key;
+        }
+
         /// <summary>The free hand goes here at this key (from the left shoulder, arm lengths), not where it hangs relaxed: a big blow's arm working against the sword.</summary>
         private static Key FreeArm(Key key, Vector3 freeHand)
         {
@@ -1038,13 +1129,21 @@ namespace CityX.Character
                 }
                 case SwordStrikeKind.Thrust1H:
                 {
-                    // Drawn back to the hip, point forward, then driven straight out in a fencer's lunge onto the right foot.
-                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.52f, 1.40f, -0.10f), new Vector3(-0.08f, 0.12f, 0.99f), Vector3.left,
-                        elbow: 0.55f, twist: 28.0f, hips: 15.0f, lean: -2.0f, tilt: 0.0f, drop: 0.08f, lead: 0.5f, depth: 0.40f);
-                    Key contact = Pose(0.0f, Ease.Snap, new Vector3(0.30f, 1.62f, 0.86f), new Vector3(-0.03f, 0.04f, 1.0f), Vector3.left,
-                        elbow: 0.20f, twist: -20.0f, hips: -10.0f, lean: 14.0f, tilt: 0.0f, drop: 0.13f, lead: 1.0f, depth: 0.85f, reach: 1.0f);
-                    Key follow = Pose(0.0f, Ease.Linear, new Vector3(0.28f, 1.60f, 0.86f), new Vector3(-0.03f, 0.04f, 1.0f), Vector3.left,
-                        elbow: 0.20f, twist: -20.0f, hips: -10.0f, lean: 14.0f, tilt: 0.0f, drop: 0.13f, lead: 1.0f, depth: 0.85f, reach: 0.9f);
+                    // THE ICEPICK STAB (owner, 2026-11-15, with a picture of a masked killer's knife raised overhead point down: "a downward
+                    // stab motion holding the knife upside down"). The fist goes up beside the head, the elbow out, the knuckles forward and
+                    // the knife spun upside down in it (GripFlip), point down at the target; the free hand reaches out ahead as if to grab;
+                    // held a beat; then the fist is driven down in front, the knife at the chest, the body bending over the blow and the free
+                    // arm thrown back. Written with the knife as it points (Upturned): the wrist stays square behind it, the knife across the
+                    // forearm, as a reverse grip holds it.
+                    Key windup = FreeArm(Upturned(Pose(0.0f, Ease.Smooth, new Vector3(0.62f, 2.56f, 0.16f), new Vector3(-0.05f, -0.75f, 0.66f),
+                        new Vector3(0.0f, -0.66f, -0.75f), elbow: 0.80f, twist: 25.0f, hips: 12.0f, lean: -6.0f, tilt: -4.0f, drop: 0.08f, lead: -1.0f,
+                        depth: 0.45f)), new Vector3(0.10f, -0.35f, 0.78f));
+                    Key contact = FreeArm(Staged(Arc(Upturned(Pose(0.0f, Ease.Snap, new Vector3(0.22f, 2.02f, 0.78f), new Vector3(-0.05f, -0.90f, 0.40f),
+                        new Vector3(0.0f, -0.40f, -0.90f), elbow: 0.45f, twist: -12.0f, hips: -10.0f, lean: 16.0f, tilt: 4.0f, drop: 0.15f, lead: -1.0f,
+                        depth: 0.75f, reach: 1.0f)), new Vector3(0.34f, 2.52f, 0.58f), 8.0f)), new Vector3(-0.42f, -0.78f, -0.38f));
+                    Key follow = FreeArm(Upturned(Pose(0.0f, Ease.SlowIn, new Vector3(0.18f, 1.55f, 0.62f), new Vector3(0.0f, -0.92f, -0.38f),
+                        new Vector3(0.0f, 0.38f, -0.92f), elbow: 0.30f, twist: -15.0f, hips: -12.0f, lean: 24.0f, tilt: 4.0f, drop: 0.20f, lead: -1.0f,
+                        depth: 0.75f, reach: 0.6f)), new Vector3(-0.44f, -0.76f, -0.40f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
                 default:

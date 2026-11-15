@@ -259,6 +259,7 @@ namespace CityX.Weapons
         /// <summary>Holds the sword in the thrust grip, <paramref name="weight"/> of the way from its own hold (0: its own).</summary>
         public void HoldForThrust(float weight)
         {
+            _flipDegrees = 0.0f;
             transform.localPosition = Vector3.Lerp(HoldPosition, FistPoint + ThrustBladeAxisInHand * ThrustGripReach, weight);
             transform.localRotation = Quaternion.Slerp(HoldRotation, ThrustGripRotation, weight);
         }
@@ -282,13 +283,57 @@ namespace CityX.Weapons
         /// <summary>Holds the sword in the mocap grip a Blender move was posed with, <paramref name="weight"/> of the way from its own hold.</summary>
         public void HoldForMocap(float weight)
         {
+            _flipDegrees = 0.0f;
             transform.localPosition = Vector3.Lerp(HoldPosition, BakedTwoHandGripPosition, weight);
             transform.localRotation = Quaternion.Slerp(HoldRotation, BakedTwoHandGripRotation, weight);
+        }
+
+        // ---- THE REVERSE GRIP (the knife's heavy, the icepick stab) ----
+        //
+        // Owner, 2026-11-15: a downward stab "holding the knife upside down", and "make the flip to upside down quick and natural". The knife
+        // spins half a turn in the fist, OVER THE KNUCKLES (the blade passes out in front of the fingers, never through the hand or the
+        // wrist), about the middle of the handle in the fist: the fist keeps hold of the same stretch of handle, and the blade, out past the
+        // thumb in the hold, comes out past the little finger. Done this way rather than by an animated hand, as games swap a held thing's grip
+        // (a knife spun into a reverse grip as it is drawn): the hand is posed as it would be anyway and the spin happens inside it, quick.
+
+        private float _flipDegrees;
+
+        /// <summary>The axis the reverse grip spins the knife about, in the hand's frame: across the blade and its edge (the palm's normal, near enough).</summary>
+        private Vector3 FlipAxisInHand
+        {
+            get
+            {
+                Quaternion hold = HoldRotation;
+                Vector3 axis = Vector3.Cross(hold * Vector3.up, hold * EdgeLocal);
+                return axis.sqrMagnitude > 1e-6f ? axis.normalized : Vector3.up;
+            }
+        }
+
+        /// <summary>
+        /// The hold's turn in the fist right now (the reverse grip's spin, in the hand's frame): the sword's rotation in the hand is this times
+        /// its own hold. The pose takes it off to turn the hand for the hold the strike was written for (PlayerLocomotion.ApplySwordPose).
+        /// </summary>
+        public Quaternion GripFlipInHand => Quaternion.AngleAxis(_flipDegrees, FlipAxisInHand);
+
+        /// <summary>
+        /// Holds the sword <paramref name="weight"/> of the way through its spin into the reverse grip (1: upside down in the fist, 0: its own
+        /// hold). Past 1 it spins on a little and settles back (an overshoot ease is given here as it is).
+        /// </summary>
+        public void HoldReversed(float weight)
+        {
+            _flipDegrees = 180.0f * weight;
+            Vector3 hold = HoldPosition;
+            Vector3 blade = HoldRotation * Vector3.up;
+            Vector3 pivot = hold + blade * Vector3.Dot(FistPoint - hold, blade);   // the handle's middle in the fist
+            Quaternion flip = GripFlipInHand;
+            transform.localPosition = pivot + flip * (hold - pivot);
+            transform.localRotation = flip * HoldRotation;
         }
 
         /// <summary>Puts the sword and the left-hand marker where the current hold (saved or derived) says.</summary>
         public void ApplyGrip()
         {
+            _flipDegrees = 0.0f;
             transform.localPosition = HoldPosition;
             transform.localRotation = HoldRotation;
             if (_leftHandGrip != null)

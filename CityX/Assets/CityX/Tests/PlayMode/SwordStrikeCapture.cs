@@ -24,7 +24,7 @@ namespace CityX.Tests
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class SwordStrikeCapture
     {
-        private const int Cell = 300;
+        internal const int Cell = 300;
         private const float Dt = 1.0f / 60.0f;
 
         [UnityTest]
@@ -596,7 +596,7 @@ namespace CityX.Tests
         }
 
         /// <summary>One cell of the sheet: row 0 from the player's right, row 1 from the front, row 2 from behind the shoulder.</summary>
-        private static void Shoot(Camera camera, Texture2D sheet, int column, GameObject player, int row)
+        internal static void Shoot(Camera camera, Texture2D sheet, int column, GameObject player, int row)
         {
             float height = player.GetComponent<PlayerLocomotion>().StandingHeight;
             Vector3 chest = player.transform.position + Vector3.up * (height * 0.55f);
@@ -641,7 +641,7 @@ namespace CityX.Tests
             Object.Destroy(image);
         }
 
-        private static void Save(Texture2D sheet, string path)
+        internal static void Save(Texture2D sheet, string path)
         {
             sheet.Apply();
             // The test assembly has no ImageConversion reference (same as FistCapture): reached by name.
