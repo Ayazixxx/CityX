@@ -120,6 +120,9 @@ namespace CityX.Character
         /// (PlayerLocomotion.WithinAWristsBend); 0, not at all (every pose but an attack's). Set by <see cref="SwordStrikes.WristRollDegrees"/>.
         /// </summary>
         public float WristRollDegrees;
+
+        /// <summary>0 to 1: how far a one-handed sword arm's elbow goes where the forearm runs easily into the hand (SwordElbow) rather than where <see cref="ElbowOut"/> bows it. An attack's.</summary>
+        public float ElbowFindsTheGrip;
     }
 
     /// <summary>
@@ -771,6 +774,18 @@ namespace CityX.Character
             return key;
         }
 
+        /// <summary>
+        /// The hand put on the line from the shoulder along the blade, <paramref name="share"/> of an arm's length out: at the hit the sword
+        /// continues the arm, as every guide to a cut has it (the wrist straight behind the edge, the arm and the blade one line; docs/SWORD_GRIP_SYSTEM.md).
+        /// With the hand left at shoulder height and the blade down, the second cut's hand hung the sword from a wrist bent sideways
+        /// (owner, 2026-11-15: "why is his wrist twisted like that").
+        /// </summary>
+        private static Key ArmAlongBlade(Key key, float share)
+        {
+            key.Hand = key.Blade * share;
+            return key;
+        }
+
         /// <summary>The free hand goes here at this key (from the left shoulder, arm lengths), not where it hangs relaxed: a big blow's arm working against the sword.</summary>
         private static Key FreeArm(Key key, Vector3 freeHand)
         {
@@ -981,10 +996,10 @@ namespace CityX.Character
                     CutPlane cut = SteepDownBackhand;
                     Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.40f, 1.92f, 0.30f), cut, -90.0f, elbow: 0.40f, twist: -48.0f, hips: -24.0f,
                         lean: -6.0f, tilt: -4.0f, drop: 0.12f, lead: 1.0f, depth: 0.45f), new Vector3(-0.40f, -0.78f, -0.36f));
-                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.47f, 1.65f, 0.34f), cut, 10.0f, elbow: -0.70f, twist: 25.0f, hips: 30.0f,
-                        lean: 16.0f, tilt: -6.0f, drop: 0.15f, lead: 1.0f, depth: 0.62f, reach: 1.0f), new Vector3(-0.04f, 1.70f, 0.50f), -12.0f)), new Vector3(-0.38f, -0.76f, 0.48f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.72f, 1.42f, 0.12f), cut, 50.0f, elbow: -0.40f, twist: 48.0f, hips: 40.0f,
-                        lean: 13.0f, tilt: -4.0f, drop: 0.14f, lead: 1.0f, depth: 0.58f, reach: 0.6f), new Vector3(-0.38f, -0.74f, 0.52f));
+                    Key contact = FreeArm(Staged(Arc(ArmAlongBlade(Pose(0.0f, Ease.Snap, new Vector3(0.47f, 1.65f, 0.34f), cut, 10.0f, elbow: 0.0f, twist: 25.0f, hips: 30.0f,
+                        lean: 16.0f, tilt: -6.0f, drop: 0.15f, lead: 1.0f, depth: 0.62f, reach: 1.0f), 0.85f), new Vector3(-0.04f, 1.70f, 0.50f), -12.0f)), new Vector3(-0.38f, -0.76f, 0.48f));
+                    Key follow = FreeArm(ArmAlongBlade(Pose(0.0f, Ease.SlowIn, new Vector3(0.72f, 1.42f, 0.12f), cut, 50.0f, elbow: 0.0f, twist: 48.0f, hips: 40.0f,
+                        lean: 13.0f, tilt: -4.0f, drop: 0.14f, lead: 1.0f, depth: 0.58f, reach: 0.6f), 0.85f), new Vector3(-0.38f, -0.74f, 0.52f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
                 case SwordStrikeKind.Finisher1H:
@@ -1327,6 +1342,7 @@ namespace CityX.Character
                 Reach = Mathf.Lerp(a.Reach, b.Reach, t),
                 ForearmAlign = Mathf.Lerp(a.ForearmAlign, b.ForearmAlign, t),
                 WristRollDegrees = Mathf.Lerp(a.WristRollDegrees, b.WristRollDegrees, t),
+                ElbowFindsTheGrip = Mathf.Lerp(a.ElbowFindsTheGrip, b.ElbowFindsTheGrip, t),
             };
         }
 

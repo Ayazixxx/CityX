@@ -641,6 +641,7 @@ namespace CityX.Character
             {
                 // The attack's own, after the takeover's blend: a ground strike's wrist holds firm from the first frame.
                 frame.WristRollDegrees = SwordStrikes.WristRollDegrees(_kind, Progress);
+                frame.ElbowFindsTheGrip = 1.0f;
             }
             if (_parryRemaining > 0.0f)
             {

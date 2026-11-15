@@ -51,6 +51,8 @@ conventions down and apply them every time.
    - `UI/Menus/SettingsPage`: the settings a player can change, shared by the pause menu and the title screen.
    - `UI/IconGeometry`: inside-a-polygon and distance-to-a-stroke for the three icon painters.
    - `World/CitySeed.Default`: the game's world seed, the one place it is written.
+   - `Character/Posing/SwordElbow.Bow`: where a sword arm's elbow goes so the forearm runs into the hand as the grip wants it (the wrist
+     stays a wrist; docs/SWORD_GRIP_SYSTEM.md).
    - Already shared before: `TwoBoneIK`, `DeterministicRandom`, `CaptureGuard` (tests), the `*Strikes` keyframe tables and others.
 2. **One topic per file.** A file past about a thousand lines usually holds several topics. Split it into partial files by topic, named
    `Class.Topic.cs` (see `PlayerLocomotion.*.cs`), and where a topic can stand on its own, make it a class of its own. Pure logic in plain

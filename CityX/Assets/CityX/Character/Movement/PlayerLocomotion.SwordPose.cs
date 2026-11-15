@@ -27,6 +27,9 @@ namespace CityX.Character
         /// <summary>The sword wrist's and the support wrist's twists last frame (WristTwist's continuity: no forearm flip through the half turn).</summary>
         private float _swordWristTwist;
 
+        /// <summary>The way a one-handed swing's elbow bowed last frame (SwordElbow), zero when no swing has it.</summary>
+        private Vector3 _swordElbowBow;
+
         private float _supportWristTwist;
 
         /// <summary>The blade's tip is kept at least this far above the ground under the body, metres: a low follow-through pitches up rather than through the floor.</summary>
@@ -255,6 +258,7 @@ namespace CityX.Character
             if (!SwordPoseActive || _rightUpperArm == null || _rightLowerArm == null || _handR == null)
             {
                 _swordWristTwist = 0.0f;
+                _swordElbowBow = Vector3.zero;
                 return;
             }
             float w = Mathf.Clamp01(_swordFrame.Weight);
@@ -281,7 +285,6 @@ namespace CityX.Character
             // Out to the right side (up to 1), or below 0 across the chest: a backhand's elbow leads the cut from the left.
             float elbowOut = Mathf.Clamp(_swordFrame.ElbowOut, -1.0f, 1.0f);
             Vector3 hint = -up * (1.0f - 0.8f * Mathf.Abs(elbowOut)) + right * (0.55f + 0.9f * elbowOut);
-            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
 
             // The hand turned so the blade points where the frame says, edge first.
             Vector3 bladeWorld = (right * _swordFrame.Blade.x + up * _swordFrame.Blade.y + forward * _swordFrame.Blade.z).normalized;
@@ -318,6 +321,23 @@ namespace CityX.Character
                 _holdEditFrozen = false;
             }
             Quaternion wanted = Quaternion.LookRotation(bladeWorld, edgeWorld.normalized) * Quaternion.Inverse(Quaternion.LookRotation(bladeInHand, edgeInHand));
+
+            // A one-handed swing's elbow goes where the forearm runs into that hand at the grip's own easy angle (SwordElbow), not where a
+            // fixed rule bows it: the wrist stays a wrist.
+            float seeks = _swordFrame.TwoHanded ? 0.0f : Mathf.Clamp01(_swordFrame.ElbowFindsTheGrip);
+            if (seeks > 0.0f)
+            {
+                Vector3 easyForearm = wanted * Quaternion.AngleAxis(-HeldWristCockDegrees, Vector3.up) * Vector3.right;
+                Vector3 bow = SwordElbow.Bow(_rightUpperArm.position, target, Vector3.Distance(_rightUpperArm.position, _rightLowerArm.position),
+                    Vector3.Distance(_rightLowerArm.position, _handR.position), easyForearm, hint, _swordElbowBow, out _);
+                _swordElbowBow = bow;
+                hint = Vector3.Slerp(hint.normalized, bow, seeks);
+            }
+            else
+            {
+                _swordElbowBow = Vector3.zero;
+            }
+            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
 
             // THE FOREARM RUNS INTO THE HAND (owner, 2026-10-16, holding the sword: "angle the arm properly so theres no that weird bend"): in the
             // held stances the elbow is put where the forearm comes in along the hand (the hand bone's +X runs to the fingertips), as near as the

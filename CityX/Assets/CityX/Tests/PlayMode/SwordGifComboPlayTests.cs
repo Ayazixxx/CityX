@@ -274,8 +274,8 @@ namespace CityX.Tests
 
         /// <summary>
         /// Owner, 2026-11-14, of the second cut: "make it more human like animation the arm bends strangly". Through each of the first two
-        /// cuts, wind-up to follow-through: the hand never folds back on the wrist (it folded 154 degrees through the second cut's
-        /// follow-through), the sword-arm's elbow is never raised above the line from its shoulder to its hand (a chicken wing), and the
+        /// cuts, wind-up to follow-through: the hand bends no further from the relaxed grip than a wrist goes (the second cut's had folded
+        /// back on itself), the sword-arm's elbow is never raised above the line from its shoulder to its hand (a chicken wing), and the
         /// hand stays a forearm's length off the face.
         /// </summary>
         [UnityTest]
@@ -307,8 +307,8 @@ namespace CityX.Tests
             {
                 SwordStrikes.StrikeTiming tm = SwordStrikes.TimingOf(kind);
                 float to = (tm.Contact + tm.Follow) / tm.Total;
-                float worstWrist = 0.0f, worstRise = float.MinValue, nearestFace = float.MaxValue;
-                string wristWhen = "", riseWhen = "", faceWhen = "";
+                float worstWrist = 0.0f, worstHeld = 0.0f, worstRise = float.MinValue, nearestFace = float.MaxValue;
+                string wristWhen = "", heldWhen = "", riseWhen = "", faceWhen = "";
                 bool seen = false;
                 for (int frame = 0; frame < 200; frame++)
                 {
@@ -331,8 +331,11 @@ namespace CityX.Tests
                     seen = true;
                     string when = $"{poser.Progress * tm.Total:0.00} s";
                     Vector3 forearm = hand.position - elbow.position;
-                    float wrist = Vector3.Angle(forearm, hand.right);
+                    // How far the hand is bent away from the relaxed grip: the forearm comes into a fist holding a sword with the wrist tipped
+                    // toward the little finger (PlayerLocomotion.HeldWristCockDegrees), not straight along the knuckles.
+                    float wrist = Vector3.Angle(forearm, hand.rotation * Quaternion.AngleAxis(-PlayerLocomotion.HeldWristCockDegrees, Vector3.up) * Vector3.right);
                     if (wrist > worstWrist) { worstWrist = wrist; wristWhen = when; }
+                    if (poser.Progress * tm.Total >= tm.Contact - 0.5f * Dt && wrist > worstHeld) { worstHeld = wrist; heldWhen = when; }
                     Vector3 chord = hand.position - shoulder.position;
                     float t = Mathf.Clamp01(Vector3.Dot(elbow.position - shoulder.position, chord) / chord.sqrMagnitude);
                     float rise = elbow.position.y - (shoulder.position.y + chord.y * t);
@@ -341,9 +344,10 @@ namespace CityX.Tests
                     if (face < nearestFace) { nearestFace = face; faceWhen = when; }
                 }
                 float forearmLength = Vector3.Distance(elbow.position, hand.position);
-                log.AppendLine($"{kind}: the wrist bent at most {worstWrist:0} degrees ({wristWhen}), the elbow at most {worstRise * 100.0f:0} cm above the shoulder-hand line ({riseWhen}), the hand at least {nearestFace * 100.0f:0} cm from the head's middle ({faceWhen}; a forearm is {forearmLength * 100.0f:0} cm)");
+                log.AppendLine($"{kind}: the wrist bent at most {worstWrist:0} degrees ({wristWhen}), from the hit on {worstHeld:0} ({heldWhen}), the elbow at most {worstRise * 100.0f:0} cm above the shoulder-hand line ({riseWhen}), the hand at least {nearestFace * 100.0f:0} cm from the head's middle ({faceWhen}; a forearm is {forearmLength * 100.0f:0} cm)");
                 if (!seen) failures.Add($"{kind}: never seen");
-                if (worstWrist > MostWristDegrees) failures.Add($"{kind}: the wrist bends {worstWrist:0} degrees ({wristWhen})");
+                if (worstHeld > MostWristDegrees) failures.Add($"{kind}: from the hit on the wrist bends {worstHeld:0} degrees ({heldWhen})");
+                if (worstWrist > MostWhipWristDegrees) failures.Add($"{kind}: the wrist bends {worstWrist:0} degrees ({wristWhen})");
                 if (worstRise > MostElbowRise) failures.Add($"{kind}: the elbow is raised {worstRise * 100.0f:0} cm above the line to the hand ({riseWhen})");
                 if (nearestFace < forearmLength) failures.Add($"{kind}: the hand comes within {nearestFace * 100.0f:0} cm of the head's middle ({faceWhen})");
             }
@@ -355,11 +359,17 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The most the knuckles may turn from the forearm through a swing, degrees. The knuckles face the single edge, and the edge leads
-        /// every cut (owner, 2026-10-16): through a backhand's whip, for a tenth of a second, the sword lags behind a hand that already faces
-        /// the cut and this reads up to 116 (2026-11-14). Past it the hand is folding back on the wrist, as the second cut's did at 154.
+        /// The most a swinging hand bends from the relaxed grip, degrees: about what a wrist goes (70 to the little finger's side, 80 down or
+        /// up, less two ways at once). (Counted from the knuckles' own line, as this measured at first, the relaxed grip itself reads 35.)
         /// </summary>
-        private const float MostWristDegrees = 120.0f;
+        private const float MostWristDegrees = 75.0f;
+
+        /// <summary>
+        /// The most it bends anywhere in the swing, the strike's whip included, degrees: for the few frames the sword lags behind a hand
+        /// already turned to the cut it runs in line with the forearm (87 in the second cut). A hand folded back on the wrist reads far more
+        /// (the second cut's, before 2026-11-14, about 120).
+        /// </summary>
+        private const float MostWhipWristDegrees = 95.0f;
 
         /// <summary>How far the sword-arm's elbow may sit above the line from the shoulder to the hand, metres.</summary>
         private const float MostElbowRise = 0.05f;
