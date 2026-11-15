@@ -16,8 +16,8 @@ namespace CityX.Core
     /// </summary>
     public sealed class CharacterService
     {
-        /// <summary>How many characters one player may keep on a server.</summary>
-        public const int MaxCharactersPerPlayer = 20;
+        /// <summary>How many characters one player may keep on a server (owner, 2026-11-15: "increase the max characters to 36").</summary>
+        public const int MaxCharactersPerPlayer = 36;
 
         /// <summary>
         /// The time allowed for a character this server has not seen played since it started (it restarted while they played): about two
