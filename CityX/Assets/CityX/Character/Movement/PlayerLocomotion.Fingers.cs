@@ -29,6 +29,9 @@ namespace CityX.Character
         private IHandGripStyle _gripStyle;
         private int _gripStyleChildren = -1;
 
+        /// <summary>The right hand's fingers are in a slingshot's pinch, closing on the pouch or opening off it.</summary>
+        private bool _rightPinches;
+
         /// <summary>How closed each hand is, 0 (open) to 1 (round a handle), for tests.</summary>
         public float RightGrip => _rightGrip;
 
@@ -131,14 +134,18 @@ namespace CityX.Character
             float deltaTime = Mathf.Max(_lastTickDeltaTime, Time.deltaTime);
             // In an unarmed fight both hands are fists: an open hand thrown at somebody is a slap.
             bool fists = FistPoseActive;
-            bool rightHolds = RightHandHolds || LadderHandsGrip || fists;
+            // A slingshot's pouch is pinched (PlayerLocomotion.Slingshot.cs); the hand keeps the pinch's shape as it opens off the loose.
+            bool pinching = SlingshotPinching;
+            bool rightHolds = RightHandHolds || LadderHandsGrip || fists || pinching;
+            _rightPinches = pinching || (_rightPinches && _rightGrip > 0.0f && !(RightHandHolds || LadderHandsGrip || fists));
             // The support hand is on the weapon once its reach has blended in (a sword's second hand, the pistol's once it is aimed).
             bool leftHolds = LeftHandHolds || LadderHandsGrip || fists
                 || (_supportAnchor != null && _supportBlend > 0.5f && (!_supportOnlyWhenAiming || EasedGunAimBlend > 0.5f));
             _rightGrip = Mathf.MoveTowards(_rightGrip, rightHolds ? 1.0f : 0.0f, GripBlendPerSecond * deltaTime);
             _leftGrip = Mathf.MoveTowards(_leftGrip, leftHolds ? 1.0f : 0.0f, GripBlendPerSecond * deltaTime);
             IHandGripStyle style = GripStyle;
-            FingerAmounts right = style != null ? FingerAmounts.Lerp(FingerAmounts.Open, style.StrongHandGrip, _rightGrip) : FingerAmounts.Wrap(_rightGrip);
+            FingerAmounts right = _rightPinches ? FingerAmounts.Lerp(FingerAmounts.Open, SlingshotPinch, _rightGrip)
+                : style != null ? FingerAmounts.Lerp(FingerAmounts.Open, style.StrongHandGrip, _rightGrip) : FingerAmounts.Wrap(_rightGrip);
             FingerAmounts left = style != null && !LeftHandHolds ? FingerAmounts.Lerp(FingerAmounts.Open, style.SupportHandGrip, _leftGrip) : FingerAmounts.Wrap(_leftGrip);
             HandGrip.Apply(_rightDigits, true, right, _bakedFingerWeight);
             HandGrip.Apply(_leftDigits, false, left, _bakedFingerWeight);

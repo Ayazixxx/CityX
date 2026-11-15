@@ -20,10 +20,56 @@ namespace CityX.Character
         public const float SlingshotCantDegrees = 30.0f;
 
         /// <summary>
-        /// The anchor the pouch is drawn to, from the head's middle in head radii: this far to the right, up (down when negative) and forward,
-        /// so it sits beside the right cheekbone and outside the head (its length is over one radius).
+        /// The anchor the pouch is drawn to, from the head's middle in head radii: this far to the right, up (down when negative) and forward.
+        /// Out beside the jaw, clear of the face (owner, 2026-11-15: "make sure his hand or the string isnt clipping through his face, make it
+        /// held away from his face enough so theres no clipping and it is visible and looks good from the players perspective"): at the
+        /// cheekbone (0.85 right, 0.75 forward) the pinching fingers, which curl in toward the face, went into it, and from the camera over the
+        /// right shoulder the hand and the bands lay over the head. Out here the camera sees them past the head's edge.
         /// </summary>
-        public static readonly Vector3 SlingshotAnchor = new Vector3(0.85f, 0.0f, 0.75f);
+        public static readonly Vector3 SlingshotAnchor = new Vector3(1.55f, -0.2f, 0.6f);
+
+        /// <summary>
+        /// THE PINCH (owner, 2026-11-15: "make him pinch the pouch part with his index middle and thumb fingers"): the index and middle fingers
+        /// a little bent and reaching on toward the fork, the thumb folded across to meet their pads, the pouch's pebble between, and the ring
+        /// and little fingers folded away into the palm. Found by search against the hand's own digits (FusedBodyShape.Digits): the thumb's tip
+        /// a finger's width, its own and the pebble's from each of theirs. Pressed tip to tip (the index and middle bent two thirds to meet the
+        /// thumb) the hand read as a fist with the thumb on top.
+        /// </summary>
+        public static FingerAmounts SlingshotPinch => new FingerAmounts(0.4f, 0.35f, 1.0f, 1.0f, 0.7f, 65.0f);
+
+        /// <summary>Where the pinch holds the pouch, in the right hand bone's frame at the hand's modelled size: amid the thumb's, the index's and the middle finger's tips.</summary>
+        public static Vector3 SlingshotPinchInHand
+        {
+            get
+            {
+                FingerAmounts pinch = SlingshotPinch;
+                return (HandGrip.TipInHand(0, pinch) + HandGrip.TipInHand(1, pinch) + HandGrip.TipInHand(4, pinch)) / 3.0f;
+            }
+        }
+
+        /// <summary>
+        /// The pouch is pinched: the slingshot up and its draw begun, here or on another player's copy (the draw is replicated), so the fingers
+        /// close on it as it comes into the hand and let go as it is loosed.
+        /// </summary>
+        private bool SlingshotPinching => _bow != null && _bowStyle.Slingshot && _bowRaise > 0.5f && BowPull > 0.0f;
+
+        /// <summary>
+        /// The hand's size against the modelled one it was laid out from, read off the index finger's own bone (its knuckle's distance from its
+        /// root), so a point given at the modelled size lands on this rig's hand whatever its height.
+        /// </summary>
+        private float HandScale
+        {
+            get
+            {
+                Transform[] digits = _rightDigits ?? FindDigits(_handR, true);
+                FusedBodyShape.Digit index = FusedBodyShape.Digits[0];
+                float modelled = (index.Knuckle - index.Root).magnitude;
+                return digits != null && digits[1] != null && modelled > 1e-6f ? digits[1].localPosition.magnitude / modelled : 1.0f;
+            }
+        }
+
+        /// <summary>Where the right hand pinches the pouch now (world).</summary>
+        private Vector3 SlingshotPinchPoint => _handR.TransformPoint(SlingshotPinchInHand * HandScale);
 
         /// <summary>The fork arm's reach as a share of the arm's whole length: straight, a hair short of locked (0.97 still bent it 29 degrees).</summary>
         public const float SlingshotArmStraight = 0.995f;
@@ -86,10 +132,13 @@ namespace CityX.Character
                 float flick = Mathf.Sin(_bowRelease / BowReleaseSeconds * Mathf.PI);
                 pouchHand += (right * BowReleaseFlick.x + up * BowReleaseFlick.y + aim * BowReleaseFlick.z) * (scale * flick);
             }
-            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, pouchHand, right - aim * SlingshotElbowBack + up * SlingshotElbowUp, raise);
             // Pinching the pouch: the fingers toward the fork, the palm in toward the cheek, the thumb up (+X runs down the right hand to the
-            // fingers, -Y is the palm, +Z the thumb: HandGrip). Run on along the forearm, which rises from the low elbow, it waved.
-            _handR.rotation = Quaternion.Slerp(_handR.rotation, Quaternion.LookRotation(up, Vector3.Cross(up, aim)), raise);
+            // fingers, -Y is the palm, +Z the thumb: HandGrip). Run on along the forearm, which rises from the low elbow, it waved. The wrist goes
+            // where that hand puts its pinch on the pouch.
+            Quaternion pinching = Quaternion.LookRotation(up, Vector3.Cross(up, aim));
+            Vector3 wrist = pouchHand - pinching * (SlingshotPinchInHand * HandScale * _handR.lossyScale.x);
+            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, wrist, right - aim * SlingshotElbowBack + up * SlingshotElbowUp, raise);
+            _handR.rotation = Quaternion.Slerp(_handR.rotation, pinching, raise);
             return lean;
         }
 

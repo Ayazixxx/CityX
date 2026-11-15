@@ -40,12 +40,29 @@ head (0.85, 0, 0.75 head radii to the right, up and forward of its middle), the 
 palm to the cheek, the elbow low and back so the forearm rises to the face; the fork stands on the line from that anchor along the aim, as a
 shooter lines it up with the eye, which also keeps it clear of the head from the camera over the right shoulder.
 
+**The pinch and the face (owner, 2026-11-15)**: "make him pinch the pouch part with his index middle and thumb fingers and make sure his hand or
+the string isnt clipping through his face, make it held away from his face enough so theres no clipping and it is visible and looks good from the
+players perspective". The drawing hand used to stay open (it holds no item, so nothing closed it) with the bands tied to the wrist, and drawn to
+the cheekbone its curled fingers went into the big head, while from the camera over the right shoulder the hand and the bands lay over the head.
+Now:
+
+- **The pinch** (`PlayerLocomotion.SlingshotPinch`): the index and middle fingers a little bent and reaching on toward the fork, the thumb folded
+  across to meet their pads with the pebble between, the ring and little fingers folded away into the palm. Searched against the hand's own digits
+  (`HandGrip.TipInHand`) so the pads sit a pebble apart. It closes as the draw begins (the pouch comes into the hand) and opens off the loose
+  in the same shape; on other players' copies too, since the draw is replicated.
+- **The pouch is in the pinch**: the bands end amid the three tips (`BowNock` is the pinch point for a slingshot, read off the finger bones' own
+  size), and the wrist is placed so that pinch is on the line from the anchor along the aim.
+- **Out beside the jaw**: the anchor is 1.55 head radii to the right, 0.2 down and 0.6 forward of the head's middle (it was 0.85 right, 0.75
+  forward, at the cheekbone): every fingertip and both bands stay at least 8 cm clear of the head, and from the aiming camera the hand, the pouch
+  and the fork's tips all show past the head's edge.
+
 Aiming alone leaves the bands slack (owner, 2026-11-05: "when you hold right click the animation stretches the string instead of it doing it only when you hold click"): the pouch and pebble hang between the prongs, and the hand waits 45% of the way back from the fork (`SlingshotRestPull`), since the arm cannot reach the fork from the turned-back shoulder. Holding left click draws: the pouch is in the hand within the first quarter of the pull (`BowWeapon.PouchInHandByPull`), and both go back to the cheek. On the loose the bands snap back and shiver, as the bow's string does, and the hand flicks off
 them. `SlingshotCapture` renders it from the side and from the game's own aiming camera (`slingshot-drawn-aim-view.png`: the player's view).
 
 ## The model (`ArcheryBuilder.BuildSlingshot`, `BuildPebble`)
 
-A stand-in drawn in code until the owner's: a wooden fork (a leather-wrapped grip under the crotch, two prongs curving up and out) 29 cm tall,
+A stand-in drawn in code until the owner's: a wooden fork (a leather-wrapped grip under the crotch, two prongs curving up and out) 38 cm tall
+(drawn at 29 and built 1.3 times that, `SlingshotRules.ModelScale`: owner, 2026-11-15, "mayve scale up the slingshot model slightly it is pretty small"),
 rubber bands drawn as a line through a leather pouch (the line wide in its middle), and a lumpy grey pebble.
 
 ## Sounds (`ArcherySounds`)
@@ -60,7 +77,9 @@ events (`IReplicatedAbility`) as the bow's are; a loose says which weapon (`B`, 
 
 ## Tests
 
-`SlingshotRulesTests` (EditMode: quicker, lighter and shorter than the bow; tapping no quicker to kill with than drawing), `SlingshotPlayTests` (in
-the left hand, fully drawn in half a second with the pouch back by the face and the pebble in it; a full draw hits 20 m off for its full damage
-and the pebble drops off rather than sticking, gone after 3 s; a second shot waits for the next pebble; a copy draws with the shooter and flings
-a pebble of its own), the replication guard tests. `SlingshotCapture` (Explicit, -Graphics) renders `Logs/CityShots/slingshot-*.png`.
+`SlingshotRulesTests` (EditMode: quicker, lighter and shorter than the bow; tapping no quicker to kill with than drawing; the pinch's pads a pebble
+apart with the ring and little fingers folded away; the model a third bigger), `SlingshotPlayTests` (in the left hand, fully drawn in half a second
+with the pebble in the pinch, every fingertip and both bands 8 cm clear of the head; from the aiming camera the hand, the pouch and the fork's tips
+seen past the head; a full draw hits 20 m off for its full damage and the pebble drops off rather than sticking, gone after 3 s; a second shot waits
+for the next pebble; a copy draws with the shooter, pinches the pouch and flings a pebble of its own), the replication guard tests.
+`SlingshotCapture` (Explicit, -Graphics) renders `Logs/CityShots/slingshot-*.png` (the pinch close from in front and behind, and from overhead).

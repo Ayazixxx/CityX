@@ -39,8 +39,14 @@ namespace CityX.Weapons
         /// <summary>How far the pouch is drawn back from the fork, metres: to the chin, short of a bow's draw to the cheek.</summary>
         public const float DrawLength = 0.5f;
 
+        /// <summary>
+        /// The slingshot's size against the one first drawn (29 cm tall): a third bigger, 38 cm (owner, 2026-11-15: "mayve scale up the slingshot
+        /// model slightly it is pretty small"; the 2.6 m body's big hands and head dwarfed it). ArcheryBuilder draws it at this size.
+        /// </summary>
+        public const float ModelScale = 1.3f;
+
         /// <summary>How far above the grip the pouch rests and the pebble flies: between the prongs' tips.</summary>
-        public const float PouchAbove = 0.2f;
+        public const float PouchAbove = 0.2f * ModelScale;
 
         /// <summary>A pebble that has hit something drops off it and lies this long, seconds.</summary>
         public const float LieSeconds = 3.0f;

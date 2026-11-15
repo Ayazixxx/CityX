@@ -98,7 +98,8 @@ namespace CityX.WeaponsEditor
         /// THE SLINGSHOT (docs/SLINGSHOT.md), a stand-in drawn in code: a wooden fork -- a grip wrapped in leather under the crotch, two prongs
         /// curving up and out -- and rubber bands from the prongs' tips through a leather pouch, drawn as a line through the pouch (wide in its
         /// middle) like the bow's string; the pebble shown in the pouch while drawing. Held and drawn as the bow is (BowWeapon, Kind Slingshot):
-        /// its origin the grip's middle, +Y up, +Z the way it shoots. 29 cm tall (a real one's 22 at the game's 1.3x): the prongs clear the fist.
+        /// its origin the grip's middle, +Y up, +Z the way it shoots. Drawn 29 cm tall (a real one's 22 at the game's 1.3x) and built
+        /// <see cref="SlingshotRules.ModelScale"/> that: the fork's parts in a scaled child, its tips, pouch and bands placed to match.
         /// </summary>
         public static GameObject BuildSlingshot(GameObject pebblePrefab)
         {
@@ -108,22 +109,26 @@ namespace CityX.WeaponsEditor
             var root = new GameObject("Slingshot");
             try
             {
-                Part(root.transform, "Grip", Lathe(new[]
+                const float size = SlingshotRules.ModelScale;
+                var fork = new GameObject("Fork").transform;
+                fork.SetParent(root.transform, false);
+                fork.localScale = Vector3.one * size;
+                Part(fork, "Grip", Lathe(new[]
                 {
                     new Vector2(0.0f, SlingGripBottom), new Vector2(0.012f, SlingGripBottom + 0.002f), new Vector2(0.014f, SlingGripBottom + 0.02f),
                     new Vector2(0.013f, SlingCrotch), new Vector2(0.0f, SlingCrotch + 0.012f),
                 }, "SlingshotGrip", 10), wood, Quaternion.identity);
-                Part(root.transform, "Wrap", Lathe(new[]
+                Part(fork, "Wrap", Lathe(new[]
                 {
                     new Vector2(0.0145f, -0.055f), new Vector2(0.0155f, -0.05f), new Vector2(0.0155f, 0.05f), new Vector2(0.0145f, 0.055f),
                 }, "SlingshotWrap", 10), wrap, Quaternion.identity);
-                Part(root.transform, "RightProng", ProngMesh("SlingshotRightProng", 1.0f), wood, Quaternion.identity);
-                Part(root.transform, "LeftProng", ProngMesh("SlingshotLeftProng", -1.0f), wood, Quaternion.identity);
-                Vector3 rest = new Vector3(0.0f, SlingTip.y - 0.01f, -0.035f);
-                Transform left = Point(root.transform, "LeftTip", new Vector3(-SlingTip.x, SlingTip.y - 0.008f, 0.0f));
-                Transform right = Point(root.transform, "RightTip", new Vector3(SlingTip.x, SlingTip.y - 0.008f, 0.0f));
+                Part(fork, "RightProng", ProngMesh("SlingshotRightProng", 1.0f), wood, Quaternion.identity);
+                Part(fork, "LeftProng", ProngMesh("SlingshotLeftProng", -1.0f), wood, Quaternion.identity);
+                Vector3 rest = new Vector3(0.0f, SlingTip.y - 0.01f, -0.035f) * size;
+                Transform left = Point(root.transform, "LeftTip", new Vector3(-SlingTip.x, SlingTip.y - 0.008f, 0.0f) * size);
+                Transform right = Point(root.transform, "RightTip", new Vector3(SlingTip.x, SlingTip.y - 0.008f, 0.0f) * size);
                 LineRenderer bands = StringLine(root.transform, new[] { left.localPosition, rest, right.localPosition });
-                bands.widthMultiplier = 0.007f;
+                bands.widthMultiplier = 0.007f * size;
                 // The pouch: the line's middle, wide.
                 bands.widthCurve = new AnimationCurve(new Keyframe(0.0f, 1.0f), new Keyframe(0.4f, 1.0f), new Keyframe(0.5f, 3.2f),
                     new Keyframe(0.6f, 1.0f), new Keyframe(1.0f, 1.0f));

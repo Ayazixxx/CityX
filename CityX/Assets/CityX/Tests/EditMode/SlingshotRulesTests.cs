@@ -1,6 +1,8 @@
+using CityX.Character;
 using CityX.Items;
 using CityX.Weapons;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace CityX.Tests
 {
@@ -23,6 +25,35 @@ namespace CityX.Tests
             Assert.AreEqual(sling.FullDamage, sling.DamageFor(5.0f), 1e-4f, "past full is full");
             Assert.AreSame(sling, DrawnProfile.For(DrawnKind.Slingshot));
             Assert.AreSame(bow, DrawnProfile.For((DrawnKind)99), "an unknown kind from another player is the bow's");
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-15: "make him pinch the pouch part with his index middle and thumb fingers": the thumb's pad across from the index's and
+        /// the middle finger's with the pebble between (a pad's width, the thumb's and the pebble's apart), the ring and little fingers folded
+        /// back into the palm short of them, and the pouch held amid the three.
+        /// </summary>
+        [Test]
+        public void ThePinchHoldsThePebbleBetweenTheThumbAndTheFirstTwoFingers()
+        {
+            FingerAmounts pinch = PlayerLocomotion.SlingshotPinch;
+            Vector3 thumb = HandGrip.TipInHand(4, pinch), index = HandGrip.TipInHand(0, pinch), middle = HandGrip.TipInHand(1, pinch);
+            float pads = FusedBodyShape.FingerRadius + FusedBodyShape.ThumbRadius;
+            float pebble = SlingshotRules.PebbleSize * FusedBodyShape.ReferenceHeight / BodyRig.StandingHeight;
+            Assert.That(Vector3.Distance(thumb, index), Is.InRange(pads, pads + pebble + 0.01f), "the thumb and the index finger do not pinch the pebble");
+            Assert.That(Vector3.Distance(thumb, middle), Is.InRange(pads, pads + pebble + 0.02f), "the thumb and the middle finger do not pinch the pebble");
+            Assert.Less(HandGrip.TipInHand(2, pinch).x, index.x - 0.04f, "the ring finger reaches on with the pinching ones");
+            Assert.Less(HandGrip.TipInHand(3, pinch).x, index.x - 0.04f, "the little finger reaches on with the pinching ones");
+            Assert.Less(Vector3.Distance(PlayerLocomotion.SlingshotPinchInHand, (thumb + index + middle) / 3.0f), 1e-4f);
+            Assert.Greater(PlayerLocomotion.SlingshotPinchInHand.x, FusedBodyShape.PalmLength * 0.5f, "the pouch is held in the palm, not between the fingertips");
+        }
+
+        [Test]
+        public void TheSlingshotIsAThirdBiggerAndItsPouchRestsBetweenItsTips()
+        {
+            // Owner, 2026-11-15: "mayve scale up the slingshot model slightly it is pretty small".
+            Assert.AreEqual(1.3f, SlingshotRules.ModelScale, 1e-4f);
+            Assert.AreEqual(0.2f * SlingshotRules.ModelScale, SlingshotRules.PouchAbove, 1e-4f, "the pouch rests where the old fork's tips were");
+            Assert.AreEqual(SlingshotRules.PouchAbove, DrawnProfile.Slingshot.Style.NockAbove, 1e-4f, "the body draws to another pouch than the fork has");
         }
 
         [Test]

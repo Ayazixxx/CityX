@@ -203,6 +203,19 @@ namespace CityX.Character
             return CurlFor(index, rightHand, FingerAmounts.Wrap(Mathf.Clamp01(amount)));
         }
 
+        /// <summary>
+        /// Where the tip of a right-hand digit (0 index .. 3 little, 4 thumb: FusedBodyShape.Digits) is with the hand's fingers at
+        /// <paramref name="amounts"/>, in the hand bone's frame at the hand's modelled size (FusedBodyShape's metres): the finger bones rest
+        /// square to the hand, so each joint's fold is all there is to their turn.
+        /// </summary>
+        public static Vector3 TipInHand(int digit, in FingerAmounts amounts)
+        {
+            FusedBodyShape.Digit d = FusedBodyShape.Digits[digit];
+            Quaternion root = CurlFor(digit * 2, true, amounts);
+            Quaternion tip = root * CurlFor(digit * 2 + 1, true, amounts);
+            return d.Root + root * (d.Knuckle - d.Root) + tip * (d.Tip - d.Knuckle);
+        }
+
         /// <summary>The rotation of the i-th finger bone for the given amounts.</summary>
         public static Quaternion CurlFor(int index, bool rightHand, in FingerAmounts amounts)
         {

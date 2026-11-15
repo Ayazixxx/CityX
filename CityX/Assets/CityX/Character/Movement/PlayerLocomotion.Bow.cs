@@ -98,8 +98,8 @@ namespace CityX.Character
         /// <summary>The string hand has an arrow (it reached the quiver; a slingshot's pebble is in the pouch from the start).</summary>
         public bool BowArrowInHand => _bowDraw >= _bowStyle.NockShare * 0.5f;
 
-        /// <summary>Where the string hand holds the string now (world): the nock, where the arrow sits.</summary>
-        public Vector3 BowNock => _handR != null ? _handR.position : transform.position;
+        /// <summary>Where the string hand holds the string now (world): the nock, where the arrow sits; a slingshot's pouch, between the pinching fingertips.</summary>
+        public Vector3 BowNock => _handR == null ? transform.position : _bowStyle.Slingshot ? SlingshotPinchPoint : _handR.position;
 
         /// <summary>A bow (or a slingshot, drawn in its own <paramref name="style"/>) is now in the left hand.</summary>
         public void SetBow(Transform bow, DrawStyle style)

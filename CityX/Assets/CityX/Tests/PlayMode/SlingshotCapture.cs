@@ -62,6 +62,11 @@ namespace CityX.Tests
             yield return Shoot(camera, "slingshot-aimed", body + new Vector3(3.2f, 2.2f, 1.8f), body + new Vector3(0.0f, 1.9f, 0.5f));
             yield return Hold(player, sling, true, true, SlingshotRules.FullDrawSeconds + 0.3f);
             yield return Shoot(camera, "slingshot-drawn", body + new Vector3(3.2f, 2.2f, 1.8f), body + new Vector3(0.0f, 1.9f, 0.5f));
+            // The pinch close, from above and in front (the thumb's side), and from behind the hand; then from overhead, the hand and the
+            // bands clear of the head.
+            Vector3 pinch = player.GetComponent<PlayerLocomotion>().BowNock;
+            yield return Shoot(camera, "slingshot-pinch-front", pinch + new Vector3(0.25f, 0.35f, 0.55f), pinch);
+            yield return Shoot(camera, "slingshot-pinch-back", pinch + new Vector3(0.35f, 0.25f, -0.55f), pinch);            yield return Shoot(camera, "slingshot-drawn-top", body + new Vector3(0.3f, 6.5f, 0.3f), body + new Vector3(0.3f, 2.0f, 0.31f));
             // As the player sees it: the game's camera, behind and to the right, its aim field of view (docs/CAMERA.md).
             camera.fieldOfView = 50.0f;
             yield return Shoot(camera, "slingshot-drawn-game-view", body + new Vector3(0.87f, 3.2f, -5.0f), body + new Vector3(0.87f, 2.6f, 10.0f));
