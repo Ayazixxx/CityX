@@ -70,7 +70,7 @@ namespace CityX.Tests
 
         /// <summary>The foot that strides into an attack: the right in the cuts from the left (it passes the left foot), the left in every other.</summary>
         private static string StridingFoot(SwordStrikeKind kind) =>
-            kind == SwordStrikeKind.Cut1H || kind == SwordStrikeKind.Finisher1H || kind == SwordStrikeKind.Reverse2H ? "foot_r" : "foot_l";
+            kind == SwordStrikeKind.Cut1H || kind == SwordStrikeKind.Reverse2H ? "foot_r" : "foot_l";
 
         private static string StandingFoot(SwordStrikeKind kind) => StridingFoot(kind) == "foot_r" ? "foot_l" : "foot_r";
 
@@ -174,7 +174,7 @@ namespace CityX.Tests
         /// <summary>Which way each cut travels: its body is wound up turned the other way (+1 the shoulders turned to the right first, a cut from the right).</summary>
         private static readonly (SwordStrikeKind kind, int woundTo)[] Ways =
         {
-            (SwordStrikeKind.Slash1H, 1), (SwordStrikeKind.Cut1H, -1), (SwordStrikeKind.Finisher1H, -1),
+            (SwordStrikeKind.Slash1H, 1), (SwordStrikeKind.Cut1H, -1), (SwordStrikeKind.Finisher1H, 1),
             (SwordStrikeKind.Sweep2H, 1), (SwordStrikeKind.Reverse2H, -1), (SwordStrikeKind.Cut2H, 1),
             (SwordStrikeKind.Run1H, 1), (SwordStrikeKind.Run2H, 1),
         };

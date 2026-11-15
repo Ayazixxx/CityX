@@ -43,7 +43,7 @@ namespace CityX.Tests
 
         private static readonly (SwordStrikeKind kind, bool rightStrides)[] OneHanded =
         {
-            (SwordStrikeKind.Slash1H, false), (SwordStrikeKind.Cut1H, true), (SwordStrikeKind.Finisher1H, true),
+            (SwordStrikeKind.Slash1H, false), (SwordStrikeKind.Cut1H, true), (SwordStrikeKind.Finisher1H, false),
         };
 
         private static readonly (SwordStrikeKind kind, bool rightStrides)[] TwoHanded =

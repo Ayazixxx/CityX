@@ -96,18 +96,18 @@ ATTACKS = {
         key(twist=28.0, hips=20.0, lean=8.0, drop=0.11, shift=(0.03, 0.04)),
         right=[(0.09, 0.31, (0.18, 0.40), 0.12)],
         left=[(0.37, 0.60, (-STANCE_X, 0.60), 0.05)]),
-    # THE THIRD: the level slash, left to right (owner, 2026-11-13: "you can reuse our horizontal slash animation for the third combo attack", then "match the direction of
-    # the gif"): the chain's old level slash turned round, on the finisher's timing. The shoulders turned right round to the left after the blade, the weight back; the
-    # right foot steps through, and the hips bring the body round to the right, driving in over the front foot.
+    # THE THIRD: the level slash, right to left (owner, 2026-11-15: "switch the direction of the third swing make it a horizontal swing right to left", "you can reuse the
+    # old horizontal swing animation"): the chain's old first cut as it was before the reference combo, on the finisher's timing. The shoulders turned right round to the
+    # right after the blade, the weight back; a stride onto the left foot, and the hips bring the body round to the left, driving in over the front foot.
     "sword1h_finisher": attack(
         (0.30, 0.12, 0.13, 0.10, 0.12, 0.55), 0.55,
-        key(twist=-72.0, hips=-34.0, lean=-7.0, tilt=-5.0, drop=0.14, shift=(-0.07, -0.10)),
-        key(twist=-76.0, hips=-36.0, lean=-8.0, tilt=-5.0, drop=0.15, shift=(-0.07, -0.11)),
-        key(twist=20.0, hips=30.0, lean=18.0, tilt=-3.0, drop=0.17, shift=(0.05, 0.10), chin=4.0, staged=True),
-        key(twist=64.0, hips=44.0, lean=14.0, tilt=-1.0, drop=0.16, shift=(0.07, 0.09), chin=4.0),
-        key(twist=20.0, hips=14.0, lean=8.0, drop=0.11, shift=(0.02, 0.04)),
-        right=[(0.14, 0.44, (0.18, 0.45), 0.12)],
-        left=[(0.58, 0.86, (-STANCE_X, 0.65), 0.05)]),
+        key(twist=72.0, hips=34.0, lean=-7.0, tilt=5.0, drop=0.14, shift=(0.07, -0.10)),
+        key(twist=76.0, hips=36.0, lean=-8.0, tilt=5.0, drop=0.15, shift=(0.07, -0.11)),
+        key(twist=-15.0, hips=-30.0, lean=18.0, tilt=3.0, drop=0.17, shift=(-0.05, 0.10), chin=4.0, staged=True),
+        key(twist=-64.0, hips=-44.0, lean=14.0, tilt=1.0, drop=0.16, shift=(-0.07, 0.09), chin=4.0),
+        key(twist=-20.0, hips=-14.0, lean=8.0, drop=0.11, shift=(-0.02, 0.04)),
+        left=[(0.14, 0.44, (-0.22, 0.65), 0.11)],
+        right=[(0.58, 0.86, (STANCE_X, 0.45), 0.05)]),
     # THE HEAVY: into the ground. The body arched back under the sword raised behind the head and held there (the tell); a long stride under the held blade, and the body
     # folds into a deep lunge over the front knee as the blade goes into the ground, and stays down over it before it rises.
     "sword1h_overhead": attack(

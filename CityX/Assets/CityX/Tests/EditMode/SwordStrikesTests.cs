@@ -154,10 +154,11 @@ namespace CityX.Tests
         /// <summary>
         /// Owner, 2026-11-13, of a reference combo (docs/SWORD_GIF_COMBO.md): "two sort of downward/diagonal slashes and then 1 horizontal
         /// slash ... I want the first 3 to replace the 3 hit combo animations we have now"; and of the third, "reuse our horizontal slash
-        /// animation ... match the direction of the gif" (in it the blade crosses the front from the left to the right).
+        /// animation"; 2026-11-15, "switch the direction of the third swing make it a horizontal swing right to left", "you can reuse the old
+        /// horizontal swing animation".
         /// </summary>
         [Test]
-        public void TheOneHandedChainIsTwoSteepCutsAndThenALevelSlashFromLeftToRight()
+        public void TheOneHandedChainIsTwoSteepCutsAndThenALevelSlashFromRightToLeft()
         {
             // The two steep cuts: the first from over the right shoulder to the lower left, the second its mirror.
             foreach ((SwordStrikeKind kind, float side) in new[] { (SwordStrikeKind.Slash1H, 1.0f), (SwordStrikeKind.Cut1H, -1.0f) })
@@ -175,22 +176,22 @@ namespace CityX.Tests
                 Assert.IsFalse(landing.TwoHanded);
             }
 
-            // The level slash, left to right.
+            // The level slash, right to left (owner, 2026-11-15: "switch the direction of the third swing make it a horizontal swing right to left").
             SwordStrikeKind third = SwordStrikeKind.Finisher1H;
             SwordFrame windup = SwordStrikes.Evaluate(third, SwordStrikes.ActiveStart(third) - 0.03f);
             SwordFrame contact = SwordStrikes.Evaluate(third, SwordStrikes.ContactFraction(third));
             SwordFrame follow = SwordStrikes.Evaluate(third, SwordStrikes.ActiveEnd(third) + 0.08f);
-            Assert.Less(windup.Hand.x, -0.3f, "the slash is not wound up across to the left");
-            Assert.Greater(follow.Hand.x, 0.3f, "the slash does not carry through to the right");
+            Assert.Greater(windup.Hand.x, 0.3f, "the slash is not wound up out to the right");
+            Assert.Less(follow.Hand.x, -0.3f, "the slash does not carry through to the left");
             Assert.Less(Mathf.Abs(contact.Blade.y), 0.2f, $"the blade is not flat at the contact (y {contact.Blade.y:0.00})");
             Assert.Less(Mathf.Abs(contact.Hand.y - windup.Hand.y), 0.25f, "the hand's height changes too much for a level cut");
-            // The edge leads the motion: at the contact the tip is moving to the right, and the edge faces the way the tip moves ACROSS the
+            // The edge leads the motion: at the contact the tip is moving to the left, and the edge faces the way the tip moves ACROSS the
             // blade (a slash also draws along its own length, which no edge can face).
             Vector3 before = SwordStrikes.TipOffset(SwordStrikes.Evaluate(third, SwordStrikes.ContactFraction(third) - 0.02f), ArmLength, 1.39f);
             Vector3 at = SwordStrikes.TipOffset(contact, ArmLength, 1.39f);
             Vector3 motion = (at - before).normalized;
             Vector3 across = (motion - contact.Blade * Vector3.Dot(motion, contact.Blade)).normalized;
-            Assert.Greater(motion.x, 0.5f, "the tip is not sweeping to the right at the contact");
+            Assert.Less(motion.x, -0.5f, "the tip is not sweeping to the left at the contact");
             Assert.Greater(Vector3.Dot(contact.Edge, across), 0.7f, "the edge is not leading the cut: the flat of the blade arrives");
             Assert.IsFalse(contact.TwoHanded);
         }
@@ -572,7 +573,7 @@ namespace CityX.Tests
         {
             foreach ((SwordStrikeKind kind, FootSteps stride) in new[]
             {
-                (SwordStrikeKind.Slash1H, FootSteps.OnlyLeft), (SwordStrikeKind.Cut1H, FootSteps.OnlyRight), (SwordStrikeKind.Finisher1H, FootSteps.OnlyRight),
+                (SwordStrikeKind.Slash1H, FootSteps.OnlyLeft), (SwordStrikeKind.Cut1H, FootSteps.OnlyRight), (SwordStrikeKind.Finisher1H, FootSteps.OnlyLeft),
             })
             {
                 SwordStrikes.StrikeTiming t = SwordStrikes.TimingOf(kind);

@@ -1004,20 +1004,19 @@ namespace CityX.Character
                 }
                 case SwordStrikeKind.Finisher1H:
                 {
-                    // THE THIRD: THE LEVEL SLASH, LEFT TO RIGHT (owner, 2026-11-13: "you can reuse our horizontal slash animation for the third
-                    // combo attack", then "match the direction of the gif": in the reference the blade crosses the front from the left to the
-                    // right). The chain's old level slash turned round: the hand drawn across out past the left shoulder at chest height,
-                    // well in front of the chest, with the blade back beside the body and never across it (owner, 2026-11-14: "on the third
-                    // swing, the sword goes through his body"; SwordArmsClearPlayTests holds it), the hips and shoulders wound with it, the right foot stepping through; then a flat arc across
-                    // the front to the right, the power travelling up from the hips (Staged), the body driving in over the front foot and the
-                    // free arm swinging forward against it.
-                    CutPlane cut = BackhandFlat;
-                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(-0.34f, 1.72f, 0.46f), cut, -100.0f, elbow: 0.45f, twist: -55.0f, hips: -28.0f,
-                        lean: -6.0f, tilt: -5.0f, drop: 0.12f, lead: 1.0f, depth: 0.50f), new Vector3(-0.40f, -0.78f, -0.36f));
-                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(0.24f, 1.54f, 0.62f), cut, -8.0f, elbow: 0.30f, twist: 20.0f, hips: 28.0f,
-                        lean: 16.0f, tilt: -4.0f, drop: 0.15f, lead: 1.0f, depth: 0.66f, reach: 1.0f), new Vector3(-0.50f, 1.56f, 0.60f), -17.0f)), new Vector3(-0.38f, -0.76f, 0.48f));
-                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(0.66f, 1.46f, 0.16f), cut, 80.0f, elbow: 0.40f, twist: 55.0f, hips: 40.0f,
-                        lean: 13.0f, tilt: -1.0f, drop: 0.14f, lead: 1.0f, depth: 0.62f, reach: 0.6f), new Vector3(-0.38f, -0.74f, 0.52f));
+                    // THE THIRD: THE LEVEL SLASH, RIGHT TO LEFT (owner, 2026-11-15: "switch the direction of the third swing make it a horizontal
+                    // swing right to left", "you can reuse the old horizontal swing animation"): the chain's old first cut as it was before the
+                    // reference combo (2026-11-13), on the finisher's timing. Coiled against the cut: the arm out to the right at chest height with
+                    // the blade trailing behind, the hips and shoulders wound with it, the free arm ahead, and the left foot striding out through the
+                    // wind-up so it is down before the blade arrives. A flat arc across the front, the power travelling up from the hips (Staged),
+                    // the body driving in over the front foot and the free arm swinging back.
+                    CutPlane cut = ForehandFlat;
+                    Key windup = FreeArm(Pose(0.0f, Ease.Smooth, new Vector3(0.85f, 1.58f, -0.08f), cut, -140.0f, elbow: 0.60f, twist: 55.0f, hips: 28.0f,
+                        lean: -6.0f, tilt: 5.0f, drop: 0.12f, lead: -1.0f, depth: 0.60f), new Vector3(-0.18f, -0.72f, 0.60f));
+                    Key contact = FreeArm(Staged(Arc(Pose(0.0f, Ease.Snap, new Vector3(-0.02f, 1.50f, 0.78f), cut, -8.0f, elbow: 0.25f, twist: -15.0f, hips: -28.0f,
+                        lean: 16.0f, tilt: 4.0f, drop: 0.15f, lead: -1.0f, depth: 0.72f, reach: 1.0f), new Vector3(0.80f, 1.55f, 0.55f), 20.0f)), new Vector3(-0.42f, -0.78f, -0.38f));
+                    Key follow = FreeArm(Pose(0.0f, Ease.SlowIn, new Vector3(-0.52f, 1.42f, 0.42f), cut, 110.0f, elbow: 0.40f, twist: -55.0f, hips: -40.0f,
+                        lean: 13.0f, tilt: 1.0f, drop: 0.14f, lead: -1.0f, depth: 0.68f, reach: 0.6f), new Vector3(-0.44f, -0.76f, -0.40f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
                 case SwordStrikeKind.Thrust1H:
@@ -1096,10 +1095,10 @@ namespace CityX.Character
             switch (kind)
             {
                 case SwordStrikeKind.Slash1H:
+                case SwordStrikeKind.Finisher1H:
                     stride = FootSteps.OnlyLeft;
                     break;
                 case SwordStrikeKind.Cut1H:
-                case SwordStrikeKind.Finisher1H:
                     stride = FootSteps.OnlyRight;
                     break;
                 default:
