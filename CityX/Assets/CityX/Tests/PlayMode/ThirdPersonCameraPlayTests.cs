@@ -288,6 +288,40 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>Stands in for an enemy, a civilian or another player: a body that can be hurt.</summary>
+        private sealed class ABody : MonoBehaviour, IDamageable
+        {
+            public bool IsAlive => true;
+
+            public HitResponse ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds) => default;
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-15: "make it so the camera ignores npcs and enemies right now it get caught on them and then the camera gets zoomed
+        /// into an angle i dont want". A body between the camera and the player leaves the camera where it was.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheCameraGoesThroughEnemiesAndNpcs()
+        {
+            yield return null;
+            float clear = Vector3.Distance(_cameraObject.transform.position, _target.transform.position);
+            var enemy = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            enemy.transform.position = _target.transform.position - Vector3.forward * 2.0f + Vector3.up * 1.5f;
+            enemy.transform.localScale = new Vector3(2.0f, 2.0f, 2.0f);
+            try
+            {
+                enemy.AddComponent<ABody>();
+                yield return null;
+                yield return null;
+                Assert.AreEqual(clear, Vector3.Distance(_cameraObject.transform.position, _target.transform.position), 0.01f,
+                    "the camera came in front of the enemy");
+            }
+            finally
+            {
+                Object.Destroy(enemy);
+            }
+        }
+
         /// <summary>
         /// THE ACTUAL BUG this exists to catch: a wall right on top of the
         /// pivot used to clamp the camera down to its old 0.4m minimum,

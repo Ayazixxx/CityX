@@ -862,6 +862,12 @@ namespace CityX.Character
                 {
                     continue;   // its own body, and what the camera goes through as if it were air (the Wraith)
                 }
+                if (hit.collider.GetComponentInParent<IDamageable>() != null)
+                {
+                    // Any body (an enemy, a civilian, another player): the camera goes through it. Pulled in on them, it swung into a close
+                    // angle in the middle of a fight (owner, 2026-11-15: "make it so the camera ignores npcs and enemies").
+                    continue;
+                }
                 if (CityX.World.StairPosts.IsPostAt(CityX.World.CurrentWorld.Instance, hit.point, StairPostMargin))
                 {
                     continue;   // a post under an outside stair (owner, 2026-11-12: "the camera should ignore the support beams")
