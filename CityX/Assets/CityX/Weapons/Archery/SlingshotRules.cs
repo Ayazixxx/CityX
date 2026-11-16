@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace CityX.Weapons
 {
     /// <summary>
@@ -45,8 +47,18 @@ namespace CityX.Weapons
         /// </summary>
         public const float ModelScale = 1.3f;
 
+        /// <summary>
+        /// THE OWNER'S HOLD (2026-11-16, set by hand on the live Transform in the editor): lowered, the slingshot sits still in the left hand here,
+        /// in the hand bone's frame, and half as big again as built, aimed too (aimed it is turned upright to the aim: PlayerLocomotion.Bow.cs).
+        /// </summary>
+        public static readonly Vector3 LoweredHoldPosition = new Vector3(-0.1f, -0.03f, 0.02f);
+
+        public static readonly Vector3 LoweredHoldEuler = new Vector3(29.4f, -97.8f, -89.4f);
+
+        public const float HeldScale = 1.5f;
+
         /// <summary>How far above the grip the pouch rests and the pebble flies: between the prongs' tips.</summary>
-        public const float PouchAbove = 0.2f * ModelScale;
+        public const float PouchAbove = 0.2f * ModelScale * HeldScale;
 
         /// <summary>A pebble that has hit something drops off it and lies this long, seconds.</summary>
         public const float LieSeconds = 3.0f;

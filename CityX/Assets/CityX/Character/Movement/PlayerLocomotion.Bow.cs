@@ -18,6 +18,9 @@ namespace CityX.Character
         /// <summary>How long the arms take to come up to the aim (and down), seconds.</summary>
         public const float BowRaiseSeconds = 0.15f;
 
+        /// <summary>A weapon with its own lowered hold (the slingshot) is upright at the aim by this share of the raise: 1 / this.</summary>
+        public const float BowUprightByRaise = 2.0f;
+
         /// <summary>How long one <see cref="HoldBow"/> keeps the bow up, seconds.</summary>
         public const float BowHoldSeconds = 0.1f;
 
@@ -85,6 +88,10 @@ namespace CityX.Character
         private float _bowDrawWanted;
         private float _bowRelease;
         private Vector3 _bowAim = Vector3.forward;
+        private bool _bowLoweredInHand;
+        private bool _bowLoweredSettled;
+        private Vector3 _bowLoweredPosition;
+        private Quaternion _bowLoweredRotation = Quaternion.identity;
 
         /// <summary>How far the bow is up at the aim, 0 hanging .. 1 aimed.</summary>
         public float BowRaise => _bowRaise;
@@ -101,11 +108,22 @@ namespace CityX.Character
         /// <summary>Where the string hand holds the string now (world): the nock, where the arrow sits; a slingshot's pouch, between the pinching fingertips.</summary>
         public Vector3 BowNock => _handR == null ? transform.position : _bowStyle.Slingshot ? SlingshotPinchPoint : _handR.position;
 
-        /// <summary>A bow (or a slingshot, drawn in its own <paramref name="style"/>) is now in the left hand.</summary>
-        public void SetBow(Transform bow, DrawStyle style)
+        /// <summary>
+        /// A bow (or a slingshot, drawn in its own <paramref name="style"/>) is now in the left hand. <paramref name="loweredInHand"/>: lowered,
+        /// it stays still in the hand where it was put (its own hold, which the owner tunes on the live Transform in the editor), rather than
+        /// set upright at the side every frame.
+        /// </summary>
+        public void SetBow(Transform bow, DrawStyle style, bool loweredInHand = false)
         {
             _bow = bow;
             _bowStyle = style;
+            _bowLoweredInHand = loweredInHand && bow != null;
+            _bowLoweredSettled = true;
+            if (_bowLoweredInHand)
+            {
+                _bowLoweredPosition = bow.localPosition;
+                _bowLoweredRotation = bow.localRotation;
+            }
             _bowRaise = 0.0f;
             _bowDraw = 0.0f;
             _bowDrawWanted = 0.0f;
@@ -155,6 +173,23 @@ namespace CityX.Character
             _bowDraw = Mathf.MoveTowards(_bowDraw, wanted ? _bowDrawWanted : 0.0f, BowDrawFollowPerSecond * deltaTime);
             float raise = _bowRaise * _bowRaise * (3.0f - 2.0f * _bowRaise);
             float scale = WorldHeight / BodyRig.StandingHeight;
+            if (_bowLoweredInHand && raise <= 0.0f)
+            {
+                // Down: left where it is in the hand, so an edit to its Transform holds; back down from an aim, put back where it was.
+                if (_bowLoweredSettled)
+                {
+                    _bowLoweredPosition = _bow.localPosition;
+                    _bowLoweredRotation = _bow.localRotation;
+                }
+                else
+                {
+                    _bow.localPosition = _bowLoweredPosition;
+                    _bow.localRotation = _bowLoweredRotation;
+                    _bowLoweredSettled = true;
+                }
+                return;
+            }
+            _bowLoweredSettled = false;
 
             Vector3 aim = _bowAim;
             Vector3 up = Vector3.ProjectOnPlane(Vector3.up, aim);
@@ -208,7 +243,17 @@ namespace CityX.Character
             Vector3 bodyForward = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
             Quaternion lowered = Quaternion.LookRotation(bodyForward.sqrMagnitude > 1e-6f ? bodyForward.normalized : Vector3.forward, Vector3.up);
             Quaternion raised = Quaternion.LookRotation(aim, weaponUp);
-            _bow.SetPositionAndRotation(palm, Quaternion.Slerp(lowered, raised, raise));
+            Vector3 loweredAt = palm;
+            float turn = raise;
+            if (_bowLoweredInHand && _bow.parent != null)
+            {
+                loweredAt = _bow.parent.TransformPoint(_bowLoweredPosition);
+                lowered = _bow.parent.rotation * _bowLoweredRotation;
+                // Turned out of its own hold upright to the aim in the first part of the raise, so even a quick shot leaves it straight (owner,
+                // 2026-11-16: "make him hold it straight when firing").
+                turn = Mathf.Clamp01(raise * BowUprightByRaise);
+            }
+            _bow.SetPositionAndRotation(Vector3.Lerp(loweredAt, palm, turn), Quaternion.Slerp(lowered, raised, turn));
         }
     }
 }

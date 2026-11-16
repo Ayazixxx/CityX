@@ -59,6 +59,18 @@ Now:
 Aiming alone leaves the bands slack (owner, 2026-11-05: "when you hold right click the animation stretches the string instead of it doing it only when you hold click"): the pouch and pebble hang between the prongs, and the hand waits 45% of the way back from the fork (`SlingshotRestPull`), since the arm cannot reach the fork from the turned-back shoulder. Holding left click draws: the pouch is in the hand within the first quarter of the pull (`BowWeapon.PouchInHandByPull`), and both go back to the cheek. On the loose the bands snap back and shiver, as the bow's string does, and the hand flicks off
 them. `SlingshotCapture` renders it from the side and from the game's own aiming camera (`slingshot-drawn-aim-view.png`: the player's view).
 
+**Lowered, the owner's own hold (2026-11-16).** The owner set it by hand on the live Transform in the editor: position (-0.1, -0.03, 0.02),
+rotation (29.4, -97.8, -89.4) in the left hand bone's frame, scale 1.5 (`SlingshotRules.LoweredHoldPosition`/`LoweredHoldEuler`/`HeldScale`;
+the scale stays when aimed, and `PouchAbove` grows with it so the pull still meets the pouch). Lowered, the body leaves the slingshot where it
+is in the hand (`BowWeapon.LoweredInHand`), so the Transform can be tuned live in Play mode again; a bow is still set upright at the side. Raised,
+"hold it straight when firing": it turns out of that hold upright to the aim by half the raise (`BowUprightByRaise`), so a quick click shoots
+it straight.
+
+**A weak shot lobbed onto the crosshair (2026-11-16)**, owner: "make it better at going towards the crosshair during less charges shots". A tap
+flies flat only 8 m, then falls, so what the crosshair was on past that was undershot. `ShotLift` now tilts a pebble's shot up just enough to
+come down on that point (looked for 60 m down the line, at most 35 degrees up), as far as the pull can reach; out of reach, or inside the flat
+range, it goes as aimed. Another player's copy lobs its pebble the same way. The bow is unchanged.
+
 ## The model (`ArcheryBuilder.BuildSlingshot`, `BuildPebble`)
 
 A stand-in drawn in code until the owner's: a wooden fork (a leather-wrapped grip under the crotch, two prongs curving up and out) 38 cm tall

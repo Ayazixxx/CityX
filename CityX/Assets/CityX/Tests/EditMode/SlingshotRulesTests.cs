@@ -52,7 +52,10 @@ namespace CityX.Tests
         {
             // Owner, 2026-11-15: "mayve scale up the slingshot model slightly it is pretty small".
             Assert.AreEqual(1.3f, SlingshotRules.ModelScale, 1e-4f);
-            Assert.AreEqual(0.2f * SlingshotRules.ModelScale, SlingshotRules.PouchAbove, 1e-4f, "the pouch rests where the old fork's tips were");
+            // Owner, 2026-11-16: held half as big again (their own hold, SlingshotRules.HeldScale).
+            Assert.AreEqual(1.5f, SlingshotRules.HeldScale, 1e-4f);
+            Assert.AreEqual(0.2f * SlingshotRules.ModelScale * SlingshotRules.HeldScale, SlingshotRules.PouchAbove, 1e-4f,
+                "the pouch rests where the held fork's tips are");
             Assert.AreEqual(SlingshotRules.PouchAbove, DrawnProfile.Slingshot.Style.NockAbove, 1e-4f, "the body draws to another pouch than the fork has");
         }
 

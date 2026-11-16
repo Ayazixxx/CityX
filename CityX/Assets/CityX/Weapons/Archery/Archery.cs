@@ -90,7 +90,8 @@ namespace CityX.Weapons
                     GameObject shot = profile.Kind == DrawnKind.Slingshot ? PebblePrefab : ArrowPrefab;
                     float draw = profile.Clamp(evt.A);
                     ArrowProjectile.Loose(shot, evt.Origin, evt.Origin, evt.Direction.normalized, profile.FlatRangeFor(draw), profile.FallSpeedFor(draw),
-                        0.0f, 0.0f, gameObject, GetComponentsInChildren<Collider>(), cosmetic: true, out _, out _, evt.N == 1);
+                        0.0f, 0.0f, gameObject, GetComponentsInChildren<Collider>(), cosmetic: true, out _, out _, evt.N == 1,
+                        liftToCrosshair: profile.Kind == DrawnKind.Slingshot);
                     if (Application.isPlaying)
                     {
                         AudioSource.PlayClipAtPoint(ArcherySounds.LooseOf(profile.Kind), evt.Origin, 0.7f);

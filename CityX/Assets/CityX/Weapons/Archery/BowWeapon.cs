@@ -51,6 +51,12 @@ namespace CityX.Weapons
         [Tooltip("Where the string (a slingshot's pouch) rests, in the weapon's frame.")]
         public Vector3 RestPoint = StringRest;
 
+        /// <summary>
+        /// Lowered (not aimed), a slingshot sits still in the left hand, so its Transform can be tuned live in the editor (owner, 2026-11-16: "i
+        /// want to adjust the hold on the slingshot ... just when idle"); a bow is set upright at the side every frame.
+        /// </summary>
+        public bool LoweredInHand => _kind == DrawnKind.Slingshot;
+
         /// <summary>The string's twang after a loose: this far forward and back at first, this many times a second, gone in this long.</summary>
         public const float TwangMetres = 0.05f;
 
@@ -153,16 +159,21 @@ namespace CityX.Weapons
             if (hand != null)
             {
                 transform.SetParent(hand, false);
-                transform.localPosition = Vector3.zero;
-                transform.localRotation = Quaternion.identity;
-                transform.localScale = Vector3.one;
+                bool sling = LoweredInHand;
+                transform.localPosition = sling ? SlingshotRules.LoweredHoldPosition : Vector3.zero;
+                transform.localRotation = sling ? Quaternion.Euler(SlingshotRules.LoweredHoldEuler) : Quaternion.identity;
+                transform.localScale = Vector3.one * (sling ? SlingshotRules.HeldScale : 1.0f);
+                if (sling && NockedArrow != null)
+                {
+                    NockedArrow.localScale = Vector3.one / SlingshotRules.HeldScale;   // the pebble in the pouch the size of the one loosed
+                }
             }
             foreach (Collider c in GetComponentsInChildren<Collider>())
             {
                 c.enabled = false;
             }
             _locomotion = body != null ? body.GetComponent<PlayerLocomotion>() : null;
-            _locomotion?.SetBow(transform, Profile.Style);
+            _locomotion?.SetBow(transform, Profile.Style, LoweredInHand && hand != null);
         }
 
         private void Release()
@@ -237,7 +248,7 @@ namespace CityX.Weapons
             // The Fire Enhancement: an arrow burns (a pebble has no shaft to burn along: it leaves the enhancement waiting).
             bool burning = _kind == DrawnKind.Bow && FireEnhancementAbility.TakeShot(wielder);
             ArrowProjectile.Loose(ArrowPrefab, origin, nock, direction, profile.FlatRangeFor(draw), profile.FallSpeedFor(draw), damage,
-                penetration, wielder, own, cosmetic: false, out bool hit, out Vector3 point, burning);
+                penetration, wielder, own, cosmetic: false, out bool hit, out Vector3 point, burning, liftToCrosshair: _kind == DrawnKind.Slingshot);
             if (Application.isPlaying)
             {
                 AudioSource.PlayClipAtPoint(ArcherySounds.LooseOf(_kind), nock, 0.8f);

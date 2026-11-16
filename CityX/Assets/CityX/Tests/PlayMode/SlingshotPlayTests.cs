@@ -283,6 +283,46 @@ namespace CityX.Tests
         }
 
         [UnityTest]
+        public IEnumerator ATapIsLobbedOntoWhatTheCrosshairIsOnPastItsFlatRange()
+        {
+            // Owner, 2026-11-16: "make it better at going towards the crosshair during less charges shots" (ShotLift).
+            GameObject player = Body(Vector3.zero);
+            BowWeapon sling = Slingshot();
+            sling.OnEquip(player, ItemInstanceData.None);
+            Dummy far = Target(new Vector3(0.0f, 1.6f, 16.0f));
+            yield return Hold(player, sling, false, true, 0.3f);
+            yield return Hold(player, sling, true, true, Step);
+            yield return Hold(player, sling, false, true, Step);
+            Assert.AreEqual(0, far.Hits, "the flat part of a tap reached 16 m: nothing to lob");
+            yield return Hold(player, sling, false, true, 2.0f);
+            Assert.AreEqual(1, far.Hits, "a tap at a body 16 m ahead, past its flat range, fell short of it");
+        }
+
+        [UnityTest]
+        public IEnumerator LoweredItSitsInTheOwnersHoldAndAimedItTurnsUprightBeforeTheShot()
+        {
+            // Owner, 2026-11-16: their hold set on the Transform by hand ("set the hold as this but make him hold it straight when firing").
+            GameObject player = Body(Vector3.zero);
+            BowWeapon sling = Slingshot();
+            sling.OnEquip(player, ItemInstanceData.None);
+            yield return Hold(player, sling, false, false, 0.3f);
+            Assert.Less(Vector3.Distance(sling.transform.localPosition, SlingshotRules.LoweredHoldPosition), 1e-3f, "lowered, it left the owner's hold");
+            Assert.Less(Quaternion.Angle(sling.transform.localRotation, Quaternion.Euler(SlingshotRules.LoweredHoldEuler)), 0.5f, "lowered, it turned out of the owner's hold");
+            Assert.AreEqual(SlingshotRules.HeldScale, sling.transform.localScale.x, 1e-4f);
+
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            for (int i = 0; i < 30 && locomotion.BowRaise < 0.5f; i++)
+            {
+                yield return Hold(player, sling, true, true, Step);
+            }
+            Assert.Greater(Vector3.Dot(sling.transform.forward, player.transform.forward), 0.95f, "half raised, it does not point at the aim yet");
+            yield return Hold(player, sling, true, true, 0.3f);
+            yield return Hold(player, sling, false, false, 0.6f);
+            Assert.Less(Vector3.Distance(sling.transform.localPosition, SlingshotRules.LoweredHoldPosition), 1e-3f, "lowered again, it is not back in the owner's hold");
+            Assert.Less(Quaternion.Angle(sling.transform.localRotation, Quaternion.Euler(SlingshotRules.LoweredHoldEuler)), 0.5f);
+        }
+
+        [UnityTest]
         public IEnumerator ASecondShotWaitsForTheNextPebbleInThePouch()
         {
             GameObject player = Body(Vector3.zero);

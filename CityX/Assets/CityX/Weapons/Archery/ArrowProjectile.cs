@@ -61,6 +61,7 @@ namespace CityX.Weapons
         private Vector3 _flatEnd;
         private Collider _flatHit;
         private Vector3 _direction;
+        private Vector3 _fallDirection;
         private float _fallSpeed;
         private float _damage;
         private float _penetration;
@@ -78,12 +79,19 @@ namespace CityX.Weapons
         /// <paramref name="damage"/>, a physical blow with a short stagger, unless <paramref name="cosmetic"/> -- then the arrow shown flying there
         /// from <paramref name="shownFrom"/> (the bow's nock), and on past the flat range falling at <paramref name="fallSpeed"/> if it met nothing.
         /// Says whether and where it hit, for the bow's own feedback. <paramref name="burning"/>: it burns (the Fire Enhancement).
+        /// <paramref name="liftToCrosshair"/>: tilted up to come down on what the line is on past the flat range (<see cref="ShotLift"/>).
         /// </summary>
         public static ArrowProjectile Loose(GameObject prefab, Vector3 traceFrom, Vector3 shownFrom, Vector3 direction, float flatRange, float fallSpeed,
             float damage, float penetration, GameObject striker, Collider[] ignore, bool cosmetic, out bool hitSomething, out Vector3 hitPoint,
-            bool burning = false)
+            bool burning = false, bool liftToCrosshair = false)
         {
             direction = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector3.forward;
+            // A pebble: what the line is on past the flat range is lobbed onto (ShotLift).
+            if (liftToCrosshair && Sweep(traceFrom, direction, ShotLift.LookReach, ignore, out RaycastHit beyond) && beyond.distance > flatRange
+                && ShotLift.Solve(traceFrom, direction, flatRange, fallSpeed, beyond.point, out Vector3 lifted))
+            {
+                direction = lifted;
+            }
             hitSomething = Sweep(traceFrom, direction, flatRange, ignore, out RaycastHit hit);
             hitPoint = hitSomething ? hit.point : traceFrom + direction * flatRange;
             if (hitSomething && !cosmetic)
@@ -91,9 +99,16 @@ namespace CityX.Weapons
                 var shot = prefab != null ? prefab.GetComponent<ArrowProjectile>() : null;
                 Strike(hit.collider, damage, traceFrom, penetration, striker, hit.point, burning, shot != null && shot.Blunt);
             }
-            Vector3 shown = hitPoint - shownFrom;
-            return Show(prefab, shownFrom, hitPoint, hitSomething ? hit.collider : null, shown.sqrMagnitude > 1e-4f ? shown.normalized : direction,
-                fallSpeed, damage, penetration, striker, ignore, cosmetic, burning);
+            Vector3 seen = hitPoint - shownFrom;
+            ArrowProjectile shown = Show(prefab, shownFrom, hitPoint, hitSomething ? hit.collider : null,
+                seen.sqrMagnitude > 1e-4f ? seen.normalized : direction, fallSpeed, damage, penetration, striker, ignore, cosmetic, burning);
+            if (liftToCrosshair && shown != null)
+            {
+                // Past the flat range it falls on along the line it was aimed down: a tap's flat range ends only a few metres past the hand, and
+                // from the hand through there it veered off to the side of the crosshair.
+                shown._fallDirection = direction;
+            }
+            return shown;
         }
 
         /// <summary>
@@ -117,6 +132,7 @@ namespace CityX.Weapons
             arrow._flatEnd = flatEnd;
             arrow._flatHit = flatHit;
             arrow._direction = direction;
+            arrow._fallDirection = direction;
             arrow._fallSpeed = fallSpeed;
             arrow._damage = damage;
             arrow._penetration = Mathf.Clamp01(penetration);
@@ -178,7 +194,7 @@ namespace CityX.Weapons
                 return;
             }
             CurrentPhase = Phase.Falling;
-            _velocity = _direction * _fallSpeed;
+            _velocity = _fallDirection * _fallSpeed;
             _age = 0.0f;
         }
 
