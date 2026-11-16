@@ -70,6 +70,18 @@ namespace CityX.Tests
         }
 
         [UnityTest]
+        public IEnumerator HeHas20LessHealthThanAPlayer()
+        {
+            // Owner, 2026-11-15: "give the swordsmen like 20 less health".
+            SwordsmanBrain brain = Build(seed: 424242);
+            yield return null;
+            var vitals = brain.GetComponent<PlayerVitals>();
+            Assert.AreEqual(PlayerVitals.BaseMaxHealth - 20.0f, vitals.MaxHealth, 1e-3f, "his health is not a player's less 20");
+            Assert.AreEqual(vitals.MaxHealth, vitals.Health, 1e-3f, "he does not start whole");
+            Assert.AreEqual(PlayerVitals.BaseMaxHealth, _player.GetComponent<PlayerVitals>().MaxHealth, 1e-3f, "the player's health changed too");
+        }
+
+        [UnityTest]
         public IEnumerator HeBlocksPunishesTheReboundDashesAndHitsBackOnHisOwnWalk()
         {
             SwordsmanBrain brain = Build(seed: 20261017);
