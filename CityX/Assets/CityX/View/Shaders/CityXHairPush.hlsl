@@ -54,6 +54,13 @@ float4 _HairTuckForward[CITYX_HAIR_BODIES_MAX];
 // reaches the shoulders (the collar's rim is under a head radius below its middle), and the locks hanging beside the neck, stopped at it, still came out
 // below the fur.
 #define CITYX_TUCK_DEEP 0.06
+// Only the wearer's own hair is tucked: within this far of the neck's line across, and this far below the rim, easing off over CITYX_TUCK_FADE more,
+// metres (the head is 0.35 m round and its hair a little wider). Unbounded, "below the rim" was a half of the whole world: as the wearer's head swayed,
+// the hair of everyone near enough below its tilted rim, the characters standing beside them on the belt, was drawn in to the wearer's neck and vanished
+// (owner, 2026-11-15: "on the character select screen the hair is disappearing every couple seconds").
+#define CITYX_TUCK_REACH 0.6
+#define CITYX_TUCK_DOWN 1.0
+#define CITYX_TUCK_FADE 0.1
 // A body's pieces in the list: the torso, the shoulder bar, the neck column, the upper arms (Character/Body/HairPush: PiecesPerBody, FusedBodyShape.UpperBody).
 #define CITYX_PIECES_PER_BODY 5
 #define CITYX_NECK_PIECE 2
@@ -131,7 +138,10 @@ float3 CityXHairTuck(float3 world)
         float throat = smoothstep(0.0, CITYX_TUCK_FRONT, dot(fromRim, _HairTuckForward[h].xyz))
             * (1.0 - smoothstep(CITYX_TUCK_THROAT, CITYX_TUCK_THROAT + CITYX_TUCK_FRONT, abs(dot(fromRim, across))));
         float below = -dot(fromRim, _HairTuckUp[h].xyz);
-        float under = smoothstep(0.0, CITYX_TUCK_EASE, below) * (1.0 - throat);
+        float off = length(fromRim + _HairTuckUp[h].xyz * below);
+        float own = (1.0 - smoothstep(CITYX_TUCK_REACH, CITYX_TUCK_REACH + CITYX_TUCK_FADE, off))
+            * (1.0 - smoothstep(CITYX_TUCK_DOWN, CITYX_TUCK_DOWN + CITYX_TUCK_FADE, below));
+        float under = smoothstep(0.0, CITYX_TUCK_EASE, below) * (1.0 - throat) * own;
         if (under <= 0.0)
         {
             continue;
