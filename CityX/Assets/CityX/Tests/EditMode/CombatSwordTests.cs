@@ -14,10 +14,10 @@ namespace CityX.Tests
 
         /// <summary>Owner, 2026-11-15: "raise the sword damage to fill that 17% damage per second gap" (with the kitchen knife's): only this sword's.</summary>
         [Test]
-        public void ItHits11Point7AndTheOtherMeleeWeaponsKeepTheirs()
+        public void ItHits12AndTheOtherMeleeWeaponsKeepTheirs()
         {
             float Damage(string path) => AssetDatabase.LoadAssetAtPath<GameObject>(path).GetComponent<SwordWeapon>().GetMeleeDamage();
-            Assert.AreEqual(11.7f, Damage(PrefabPath), 1e-4f);
+            Assert.AreEqual(12.0f, Damage(PrefabPath), 1e-4f);
             Assert.AreEqual(9.0f, Damage("Assets/CityX/Weapons/KitchenKnife.prefab"), 1e-4f);
             foreach (string other in new[] { "SpikeSword", "BaseballBat", "MetalCrowbar", "Sledgehammer" })
             {

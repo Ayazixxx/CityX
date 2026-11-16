@@ -71,9 +71,10 @@ namespace CityX.Tests
             float swordDps = ChainDamagePerSecond(sword);
             float knifeDps = ChainDamagePerSecond(knife);
             // Owner, 2026-11-15: "make the kitchen knife do 9 damage instead of 7", then "raise the sword damage to fill that 17% damage per second
-            // gap": a knife blow is 9 and it swings 1.3 times as often, the sword's blow 11.7, so the two do the same damage a second.
+            // gap", "round up to 12 damage per hit": a knife blow is 9 and it swings 1.3 times as often, the sword's blow 12, so the two do about
+            // the same damage a second (the knife 97.5% of the sword's).
             Assert.AreEqual(9.0f, KnifeRules.BaseDamage);
-            Assert.AreEqual(11.7f, CombatTuning.OneHandedSwordDamage, 1e-4f);
+            Assert.AreEqual(12.0f, CombatTuning.OneHandedSwordDamage);
             Assert.AreEqual(1.0f, knifeDps / swordDps, 0.05f, "the knife and the sword do not do the same damage a second");
             Assert.AreEqual(KnifeRules.DamagePerSecondShare, knifeDps / swordDps, 0.05f);
         }

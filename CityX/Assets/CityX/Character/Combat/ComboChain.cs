@@ -140,10 +140,11 @@ namespace CityX.Character
         public const float PunchDamage = 10.0f;
 
         /// <summary>
-        /// The one-handed sword's (the combat sword's) blow: as much damage a second as the kitchen knife's at its 1.3 times the swings, 11.7
-        /// (owner, 2026-11-15: "raise the sword damage to fill that 17% damage per second gap"). Other blades and the blunt weapons keep PunchDamage.
+        /// The one-handed sword's (the combat sword's) blow: about as much damage a second as the kitchen knife's at its 1.3 times the swings
+        /// (owner, 2026-11-15: "raise the sword damage to fill that 17% damage per second gap", then "round up to 12 damage per hit"). Other blades
+        /// and the blunt weapons keep PunchDamage.
         /// </summary>
-        public const float OneHandedSwordDamage = KnifeRules.BaseDamage * KnifeRules.SwingSpeed;
+        public const float OneHandedSwordDamage = 12.0f;
 
         /// <summary>player.gd HITSTUN_SECONDS</summary>
         public const float HitstunSeconds = 0.5f;

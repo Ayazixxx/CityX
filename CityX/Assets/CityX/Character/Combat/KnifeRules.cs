@@ -24,7 +24,7 @@ namespace CityX.Character
         /// <summary>How many times the stamina a blow on a held guard costs with a knife: a thin blade stops little, and breaks sooner.</summary>
         public const float GuardStaminaShare = 1.6f;
 
-        /// <summary>The knife's damage a second as a share of the one-handed sword's: less per blow, more blows, the same in all (1).</summary>
+        /// <summary>The knife's damage a second as a share of the one-handed sword's: less per blow, more blows, about the same in all (0.975).</summary>
         public static float DamagePerSecondShare => BaseDamage / CombatTuning.OneHandedSwordDamage * SwingSpeed;
     }
 }
