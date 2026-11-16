@@ -161,15 +161,17 @@ namespace CityX.Character
             if (_locomotion == null || _locomotion.Staff != null)
             {
                 origin = chest;
-                direction = ConvergedDirection(chest, aimSource);
+                direction = CrosshairDirection(chest, aimSource.position, aimSource.forward, transform);
                 return;
             }
             if (_locomotion.Wand == null)
             {
                 // From the free hand's palm, held out toward the crosshair (PlayerLocomotion.Casting.cs; owner, 2026-11-15: "it comes out of your
-                // hand that isnt holding a weapon").
+                // hand that isnt holding a weapon"), straight at what the crosshair is on: the palm sits far off the camera's line (the left
+                // one most), so aiming at a point a fixed way ahead missed beside anything nearer or farther (owner, 2026-11-16: "the fireball
+                // doesnt go towards where your crosshair is pointed its off a bit").
                 origin = _locomotion.CastPalmPoint(CrosshairAim(aimSource));
-                direction = ConvergedDirection(origin, aimSource);
+                direction = CrosshairDirection(origin, aimSource.position, aimSource.forward, transform);
                 return;
             }
             Vector3 aimPoint = CrosshairPoint(chest, aimSource.position, aimSource.forward, transform);
