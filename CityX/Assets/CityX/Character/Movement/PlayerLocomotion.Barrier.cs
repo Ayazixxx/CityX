@@ -61,13 +61,7 @@ namespace CityX.Character
             float raise, bool rightHand)
         {
             Vector3 target = upper.position + (outward * BarrierHand.x + Vector3.up * BarrierHand.y + forward * BarrierHand.z) * scale;
-            TwoBoneIK.Solve(upper, lower, hand, target, outward + Vector3.down * 0.8f, raise);
-            // The hand bone: +X to the fingertips on the right hand and back up the arm on the left, -Y the palm, +Z the thumb (HandGrip).
-            Vector3 palm = forward;
-            Quaternion held = rightHand
-                ? Quaternion.LookRotation(Vector3.Cross(fingers, -palm), -palm)
-                : Quaternion.LookRotation(Vector3.Cross(fingers, palm), -palm);
-            hand.rotation = Quaternion.Slerp(hand.rotation, held, raise);
+            HoldPalmOut(upper, lower, hand, target, outward + Vector3.down * 0.8f, forward, fingers, raise, rightHand);
         }
     }
 }

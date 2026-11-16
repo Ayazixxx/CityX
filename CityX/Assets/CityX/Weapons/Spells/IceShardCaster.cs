@@ -225,7 +225,7 @@ namespace CityX.Weapons
             if (evt.N == 0)
             {
                 float total = evt.B > 0.0f ? evt.B : FollowThroughSeconds;
-                RemoteAbilityPose.Show(gameObject, Mathf.Max(0.0f, total - FollowThroughSeconds), FollowThroughSeconds);
+                RemoteAbilityPose.Show(gameObject, Mathf.Max(0.0f, total - FollowThroughSeconds), FollowThroughSeconds, evt.Direction);
             }
         }
 

@@ -1,5 +1,7 @@
 using System.Collections;
 using CityX.Character;
+using CityX.Items;
+using CityX.Weapons;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -7,24 +9,16 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The fireball cast's own raised-right-hand pose (PlayerLocomotion.
-    /// SetCastPose/ApplyCastingPose). Needs the real Player.prefab and a
-    /// real yielded frame, the same reason PlayerLocomotionHipsPlayTests
-    /// does: LateUpdate is where the offset is actually applied, and there
-    /// is no RightUpperArm/RightHand bone on a bare GameObject with no
-    /// Animator/rig.
-    ///
-    /// CHECKS BONE POSITION, NOT A RENDER -- confirmed directly while
-    /// tuning CastRaiseDegrees that a static Edit Mode Camera.Render() does
-    /// not reflect a skinned mesh's pose at all (Unity only refreshes skin
-    /// buffers on a real player-loop frame tick), so this asserts on the
-    /// same hand-position math that tuning actually used, which Unity keeps
-    /// synchronously correct regardless of skinning.
+    /// The cast pose (PlayerLocomotion.Casting.cs; owner, 2026-11-15: "when you are holding a 1 handed weapon and use a projectile spell like
+    /// fireball or ice shards, it comes out of your hand that isnt holding a weapon so typically your left ... he just lifs his left arm up and
+    /// faces the palm of his hand toward the target. make the right hand unarmed projectile magic cast also face the palm of the hand toward the
+    /// target"): on the real Player.prefab, read off the bones after real frames (LateUpdate poses them).
     /// </summary>
     public sealed class PlayerLocomotionCastPosePlayTests
     {
         private GameObject _ground;
         private GameObject _player;
+        private GameObject _sword;
         private PlayerLocomotion _locomotion;
         private Animator _animator;
 
@@ -42,164 +36,99 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
+            if (_sword != null) Object.Destroy(_sword);
             if (_player != null) Object.Destroy(_player);
             if (_ground != null) Object.Destroy(_ground);
         }
 
-        [UnityTest]
-        public IEnumerator CastingRaisesTheRightHandUpAndOutRatherThanAcrossTheBody()
+        private IEnumerator Spawn(bool swordInHand)
         {
-#if UNITY_EDITOR
-            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/CityX/Character/Player.prefab");
-            Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
-
-            _player = Object.Instantiate(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity);
+            _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
+                new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity);
+            _player.GetComponent<PlayerInputReader>().enabled = false;
             _locomotion = _player.GetComponent<PlayerLocomotion>();
             _animator = _player.GetComponentInChildren<Animator>();
-            Assert.IsNotNull(_animator, "Player.prefab has no Animator");
-
-            Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
-            Transform hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
-            Assert.IsNotNull(hand, "Player.prefab's Animator has no RightHand bone mapped");
-            Assert.IsNotNull(hips, "Player.prefab's Animator has no Hips bone mapped");
-
-            var idle = new LocomotionInput();
-
-            // Settle into a real idle pose first, matching
-            // PlayerLocomotionHipsPlayTests' own reasoning for not
-            // asserting against the very first, still-blending-in frame.
-            for (int step = 0; step < 30; step++)
+            if (swordInHand)
             {
-                _locomotion.Tick(idle, StepSeconds);
-                yield return null;
+                _sword = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/CombatSword.prefab"),
+                    new Vector3(30.0f, 1.0f, 30.0f), Quaternion.identity);
+                _sword.GetComponent<SwordWeapon>().OnEquip(_player, ItemInstanceData.None);
             }
-
-            Vector3 handBeforeRelative = hand.position - hips.position;
-
-            // Held across several frames, not read after just one -- a real
-            // cast holds CastFraction at 1 for a real 0.4s window (many
-            // frames), so a single-frame read here is a stricter, more
-            // timing-fragile check than production ever actually needs.
-            _locomotion.SetCastPose(1.0f);
-            for (int step = 0; step < 5; step++)
-            {
-                _locomotion.Tick(idle, StepSeconds);
-                yield return null;
-            }
-
-            Vector3 delta = (hand.position - hips.position) - handBeforeRelative;
-            float up = Vector3.Dot(delta, hips.up);
-            float right = Vector3.Dot(delta, hips.right);
-
-            Assert.Greater(up, 0.3f, $"a full cast should visibly lift the hand -- moved {up:0.000}m up");
-            Assert.Greater(right, 0.0f,
-                $"the raised right hand should swing out to its OWN side, not cross the body -- moved {right:0.000}m right");
-
-            Object.Destroy(_player);
-            _player = null;
-#else
-            Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
-            yield break;
-#endif
+            yield return Frames(30, 0.0f, Vector3.zero);   // into a settled idle first
         }
 
-        /// <summary>
-        /// The grapple gun's own hand -- explicit ask: casting while it is
-        /// equipped raises the LEFT arm instead, since the right one is
-        /// holding the gun. Same shape as the right-hand test above, but
-        /// the "swings out to its own side" check is mirrored: the left
-        /// arm's own side is the NEGATIVE hips.right direction.
-        /// </summary>
-        [UnityTest]
-        public IEnumerator CastingWithTheLeftArmRaisesTheLeftHandUpAndOutToItsOwnSide()
+        private IEnumerator Frames(int count, float cast, Vector3 aim)
         {
-#if UNITY_EDITOR
-            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/CityX/Character/Player.prefab");
-            Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
-
-            _player = Object.Instantiate(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity);
-            _locomotion = _player.GetComponent<PlayerLocomotion>();
-            _animator = _player.GetComponentInChildren<Animator>();
-            Assert.IsNotNull(_animator, "Player.prefab has no Animator");
-
-            Transform hand = _animator.GetBoneTransform(HumanBodyBones.LeftHand);
-            Transform hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
-            Assert.IsNotNull(hand, "Player.prefab's Animator has no LeftHand bone mapped");
-            Assert.IsNotNull(hips, "Player.prefab's Animator has no Hips bone mapped");
-
-            var idle = new LocomotionInput();
-
-            for (int step = 0; step < 30; step++)
+            for (int step = 0; step < count; step++)
             {
-                _locomotion.Tick(idle, StepSeconds);
+                _locomotion.SetCastPose(cast, aim);
+                _locomotion.Tick(new LocomotionInput(), StepSeconds);
                 yield return null;
             }
+        }
 
-            Vector3 handBeforeRelative = hand.position - hips.position;
+        private static Vector3 Palm(Transform hand) => -hand.up;   // the hand bone's -Y is the palm (HandGrip)
 
-            _locomotion.SetCastPose(1.0f, useLeftArm: true);
-            for (int step = 0; step < 5; step++)
-            {
-                _locomotion.Tick(idle, StepSeconds);
-                yield return null;
-            }
+        [UnityTest]
+        public IEnumerator UnarmedTheRightHandComesUpWithItsPalmToTheTargetAndTheSpellLeavesFromIt()
+        {
+            yield return Spawn(false);
+            Transform right = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            Transform left = _animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            Vector3 rightBefore = right.position, leftBefore = left.position;
+            Vector3 aim = (_player.transform.forward + Vector3.up * 0.15f).normalized;
+            Assert.IsFalse(_locomotion.CastsWithLeftHand, "an empty right hand casts from the left");
 
-            Vector3 delta = (hand.position - hips.position) - handBeforeRelative;
-            float up = Vector3.Dot(delta, hips.up);
-            float right = Vector3.Dot(delta, hips.right);
+            yield return Frames(12, 1.0f, aim);
 
-            Assert.Greater(up, 0.3f, $"a full cast should visibly lift the left hand -- moved {up:0.000}m up");
-            Assert.Less(right, 0.0f,
-                $"the raised left hand should swing out to ITS OWN side, not cross the body -- moved {right:0.000}m along hips.right");
+            Assert.Greater(right.position.y - rightBefore.y, 0.4f, "the right hand did not come up");
+            Assert.Greater(Vector3.Dot(Palm(right), aim), 0.85f, "the right palm does not face where the spell goes");
+            Assert.Greater(Vector3.Dot(right.right, Vector3.up), 0.7f, "the right hand's fingers do not point up");
+            Assert.Less((left.position - leftBefore).magnitude, 0.1f, "the left hand moved for a cast from the right");
+            Vector3 palm = right.position + right.right * PlayerLocomotion.PalmOffsetMetres * (_locomotion.WorldHeight / BodyRig.StandingHeight);
+            Assert.Less(Vector3.Distance(_locomotion.CastPalmPoint(aim), palm), 0.2f, "the spell does not leave from the palm");
+        }
 
-            Object.Destroy(_player);
-            _player = null;
-#else
-            Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
-            yield break;
-#endif
+        [UnityTest]
+        public IEnumerator WithASwordInTheRightHandTheLeftHandCastsItsPalmToTheTarget()
+        {
+            yield return Spawn(true);
+            Transform right = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            Transform left = _animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            Assert.IsTrue(_locomotion.CastsWithLeftHand, "a sword in the right hand still casts from the right");
+            Vector3 leftBefore = left.position;
+            Vector3 aim = _player.transform.forward;
+
+            yield return Frames(12, 1.0f, aim);
+
+            Assert.Greater(left.position.y - leftBefore.y, 0.4f, "the left hand did not come up");
+            Assert.Greater(Vector3.Dot(Palm(left), aim), 0.85f, "the left palm does not face where the spell goes");
+            Assert.Greater(Vector3.Dot(-left.right, Vector3.up), 0.7f, "the left hand's fingers do not point up");   // the left hand's +X runs back up the arm
+            Assert.Less(Vector3.Dot(left.position - _player.transform.position, _player.transform.right), 0.0f, "the left hand crossed to the right");
+            Vector3 palm = left.position - left.right * PlayerLocomotion.PalmOffsetMetres * (_locomotion.WorldHeight / BodyRig.StandingHeight);
+            Assert.Less(Vector3.Distance(_locomotion.CastPalmPoint(aim), palm), 0.2f, "the spell does not leave from the left palm");
+        }
+
+        [UnityTest]
+        public IEnumerator AimingHigherRaisesTheHandHigher()
+        {
+            yield return Spawn(false);
+            Transform right = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            yield return Frames(12, 1.0f, _player.transform.forward);
+            float level = right.position.y;
+            yield return Frames(12, 1.0f, (_player.transform.forward + Vector3.up).normalized);
+            Assert.Greater(right.position.y - level, 0.2f, "aiming up did not raise the hand");
         }
 
         [UnityTest]
         public IEnumerator ZeroFractionLeavesTheArmWhereLocomotionAlonePutIt()
         {
-#if UNITY_EDITOR
-            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/CityX/Character/Player.prefab");
-            _player = Object.Instantiate(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity);
-            _locomotion = _player.GetComponent<PlayerLocomotion>();
-            _animator = _player.GetComponentInChildren<Animator>();
-
+            yield return Spawn(false);
             Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
             Transform hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
-            var idle = new LocomotionInput();
-
-            for (int step = 0; step < 30; step++)
-            {
-                _locomotion.Tick(idle, StepSeconds);
-                yield return null;
-            }
-
             Vector3 before = hand.position - hips.position;
-
-            // Never cast at all -- SetCastPose defaults to 0 and is never
-            // called here, matching a normal frame where PlayerInputReader
-            // never presses 1.
-            _locomotion.Tick(idle, StepSeconds);
-            yield return null;
-
-            Vector3 after = hand.position - hips.position;
-            Assert.Less(Vector3.Distance(before, after), 0.01f,
-                "the hand moved even though nothing ever cast a fireball");
-
-            Object.Destroy(_player);
-            _player = null;
-#else
-            Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
-            yield break;
-#endif
+            yield return Frames(1, 0.0f, Vector3.zero);
+            Assert.Less(Vector3.Distance(before, hand.position - hips.position), 0.01f, "the hand moved even though nothing was cast");
         }
     }
 }

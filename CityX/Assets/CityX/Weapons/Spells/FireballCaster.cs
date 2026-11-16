@@ -168,7 +168,7 @@ namespace CityX.Weapons
             }
             else
             {
-                RemoteAbilityPose.Show(gameObject, 0.0f, CastPoseSeconds);
+                RemoteAbilityPose.Show(gameObject, 0.0f, CastPoseSeconds, forward);
             }
             if (Application.isPlaying && CastAudio != null && CastAudio.clip != null)
             {

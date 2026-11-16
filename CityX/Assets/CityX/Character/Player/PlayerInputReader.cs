@@ -759,13 +759,10 @@ namespace CityX.Character
                 // SWINGING (this whole block returns before reaching it),
                 // and that branch is the only other place SetCastPose gets
                 // called -- so without this, casting while swinging would
-                // fire the fireball but show no left-arm raise at all.
-                // GrappleSwing itself never touches this bone any more (see
-                // its own class doc comment), so PlayerLocomotion's normal
-                // ApplyCastingPose is free to layer this on top of whatever
-                // the swing's own DriveAnimatorFromExternalVelocity pose is,
-                // exactly like it would during ordinary ground movement.
-                _locomotion.SetCastPose(SpellCastFraction, useLeftArm: true);
+                // fire the fireball but show no raised hand at all (the left:
+                // the grapple gun is in the right). GrappleSwing never touches
+                // that arm, so the cast pose goes on top of the swing's.
+                _locomotion.SetCastPose(SpellCastFraction, SpellAim(swingYawSource));
 
                 _grappleSwing.Tick(swingMove, swingYaw, boostedRelease, plainRelease,
                     reelHeld, payoutHeld, deltaTime);
@@ -1248,12 +1245,8 @@ namespace CityX.Character
             // rather than a second state sharing LocomotionInput.Aiming.
             bool isCastingFireball = IsCastingSpell;
             bool isAiming = _isAimingGun || isCastingFireball;
-            // THE GRAPPLE GUN OWNS THE RIGHT HAND -- see SetCastPose's own
-            // doc comment. EquippedHook alone, not GrappleSwing.IsActive:
-            // the gun is in that hand whether or not a rope currently
-            // happens to be attached.
-            bool castRaisesLeftArm = _grappleSwing != null && _grappleSwing.EquippedHook != null;
-            _locomotion.SetCastPose(SpellCastFraction, castRaisesLeftArm);
+            // The free hand out to what the crosshair is on; the body picks the hand (the left when the right holds something).
+            _locomotion.SetCastPose(SpellCastFraction, SpellAim(yawSource));
             if (_orbitCamera != null)
             {
                 _orbitCamera.IsSprinting = sprinting;   // the view widens a touch at a sprint (ThirdPersonCamera.SprintFieldOfViewScale)

@@ -28,7 +28,23 @@ ability.Fired(event) ───────► SendAbilityToServer ────�
 - **`PlayRemote` shows, it never does**: no damage, no cooldown, no input, and it must never raise `Fired` (that would bounce it across the
   network for ever). Projectiles have a `Cosmetic` flag for this: a cosmetic projectile flies, bursts, sticks and sounds like the real one but
   hurts nothing. Be tolerant of anything in the event: it came from a stranger's machine.
-- **`RemoteAbilityPose`**: holds the raised-hand cast pose on a remote copy (a remote copy runs no input reader, so nothing else would).
+- **`RemoteAbilityPose`**: holds the raised-hand cast pose on a remote copy (a remote copy runs no input reader, so nothing else would),
+  its palm toward the way the spell went (the event's direction).
+
+### The cast pose (2026-11-15)
+
+Owner: "when you are holding a 1 handed weapon and use a projectile spell like fireball or ice shards, it comes out of your hand that isnt
+holding a weapon so typically your left ... he just lifs his left arm up and faces the palm of his hand toward the target. make the right hand
+unarmed projectile magic cast also face the palm of the hand toward the target if it doesnt already" (it did not: the old pose swung the right
+upper arm up 130 degrees about a fixed axis, no elbow or wrist, the palm wherever it ended). Now (`PlayerLocomotion.Casting.cs`): the free hand
+reaches out toward where the spell goes (two-bone IK, from its shoulder 72 cm along the aim, 30 cm out to its own side and 20 cm down, so the
+game's camera over the right shoulder sees the left one past the head), the palm to the target, the fingers up and open (in a fist fight
+too). The right hand, or the LEFT when the right holds anything (`CastsWithLeftHand`: a sword, a knife, the grapple gun, a pistol...); a
+staff or a wand still casts through itself. A spell from the bar (fireball, ice shards, arcane orb) leaves from that palm
+(`CastPalmPoint`, worked out from the shoulder since the hand has not come up yet on the frame it is cast) toward the crosshair; the event
+carries that origin, so a copy's spell leaves its copy's palm too, and the copy picks its own free hand by what it holds. Applied after the
+straight wrists, which it bends, as the barrier's hands are (they share `HoldPalmOut`). Tests: `PlayerLocomotionCastPosePlayTests`;
+`CastPoseCapture` renders `Logs/CityShots/cast-*.png`.
 
 ## What each ability sends
 

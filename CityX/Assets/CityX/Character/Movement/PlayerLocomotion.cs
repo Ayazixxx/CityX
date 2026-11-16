@@ -905,7 +905,6 @@ namespace CityX.Character
             // Thrown by a blow (HitReactions): the spine and head, before the arm poses are solved from the thrown shoulders.
             ApplyFlinchPose();
             ApplyDrivingWheelPose();
-            ApplyCastingPose();
             ApplyGunAimPose();
             // A sword attack's clip (the legs, the hips, the torso, the head): before the arm it carries is solved from its shoulders.
             ApplyBakedTrunk();
@@ -931,6 +930,9 @@ namespace CityX.Character
             ApplyLadderLimbs();
             // Both hands pushed out flat against a raised Arcane Barrier (PlayerLocomotion.Barrier.cs): after the straight wrists, which it bends.
             ApplyBarrierPose();
+            // A spell from the bar: the free hand out to the target, palm to it (PlayerLocomotion.Casting.cs), after the straight wrists, which
+            // it bends, and over whatever the sword or the support hand gave that arm.
+            ApplyCastingPose();
             // A bow in the left hand: the bow arm out along the aim, the string hand nocking and drawing (PlayerLocomotion.Bow.cs).
             ApplyBowPose();
             // The arm's swing of a throw (PlayerLocomotion.Throw.cs).

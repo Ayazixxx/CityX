@@ -134,13 +134,17 @@ namespace CityX.Character
             float deltaTime = Mathf.Max(_lastTickDeltaTime, Time.deltaTime);
             // In an unarmed fight both hands are fists: an open hand thrown at somebody is a slap.
             bool fists = FistPoseActive;
+            // The hand a spell is cast from is open, its palm to the target (PlayerLocomotion.Casting.cs), in a fist fight too.
+            bool castOpen = _castRaise > 0.3f && CastsFromHand;
+            bool castLeft = castOpen && CastsWithLeftHand;
+            bool castRight = castOpen && !castLeft;
             // A slingshot's pouch is pinched (PlayerLocomotion.Slingshot.cs); the hand keeps the pinch's shape as it opens off the loose.
             bool pinching = SlingshotPinching;
-            bool rightHolds = RightHandHolds || LadderHandsGrip || fists || pinching;
+            bool rightHolds = RightHandHolds || LadderHandsGrip || (fists && !castRight) || pinching;
             _rightPinches = pinching || (_rightPinches && _rightGrip > 0.0f && !(RightHandHolds || LadderHandsGrip || fists));
             // The support hand is on the weapon once its reach has blended in (a sword's second hand, the pistol's once it is aimed).
-            bool leftHolds = LeftHandHolds || LadderHandsGrip || fists
-                || (_supportAnchor != null && _supportBlend > 0.5f && (!_supportOnlyWhenAiming || EasedGunAimBlend > 0.5f));
+            bool leftHolds = LeftHandHolds || LadderHandsGrip || (fists && !castLeft)
+                || (!castLeft && _supportAnchor != null && _supportBlend > 0.5f && (!_supportOnlyWhenAiming || EasedGunAimBlend > 0.5f));
             _rightGrip = Mathf.MoveTowards(_rightGrip, rightHolds ? 1.0f : 0.0f, GripBlendPerSecond * deltaTime);
             _leftGrip = Mathf.MoveTowards(_leftGrip, leftHolds ? 1.0f : 0.0f, GripBlendPerSecond * deltaTime);
             IHandGripStyle style = GripStyle;

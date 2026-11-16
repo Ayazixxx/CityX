@@ -1,133 +1,134 @@
-using CityX.Core;
-using CityX.World;
 using UnityEngine;
 
 namespace CityX.Character
 {
     /// <summary>
-    /// THE CAST POSE: an arm raised for a spell (SetCastPose), the left one when the right is holding something.
+    /// THE CAST POSE (owner, 2026-11-15: "when you are holding a 1 handed weapon and use a projectile spell like fireball or ice shards, it comes
+    /// out of your hand that isnt holding a weapon so typically your left ... not really a whole animation he just lifts his left arm up and
+    /// faces the palm of his hand toward the target. make the right hand unarmed projectile magic cast also face the palm of the hand toward
+    /// the target"): the free hand raised out toward where the spell goes, the arm nearly straight, the palm to the target and the fingers up,
+    /// open. The right hand, or the left when the right holds something (a sword, a knife, the grapple gun, a pistol); a spell from the bar
+    /// leaves from that palm (<see cref="CastPalmPoint"/>). A staff or a wand in the hand casts through itself instead (their own poses), so
+    /// this stays down then. After the straight wrists, which it bends (the palm turned back off the forearm), as the barrier's hands are.
+    /// It used to swing the right upper arm up 130 degrees about a fixed axis: no elbow, no wrist, the palm wherever the swing left it.
     /// </summary>
     public sealed partial class PlayerLocomotion
     {
+        /// <summary>How long the hand takes to come up into the cast, seconds (it drops as the spell's own pose eases out).</summary>
+        public const float CastRaiseSeconds = 0.07f;
+
         /// <summary>
-        /// How far the right arm lifts at full cast, in degrees around the
-        /// arm's own local Z (Vector3.forward) -- NOT local X, which turned
-        /// out to be this rig's own twist/roll axis: an equal-magnitude
-        /// rotation there left the hand's own WORLD POSITION almost
-        /// unchanged (checked directly, since a static Edit Mode render
-        /// cannot show a skinned mesh's pose at all -- Unity only refreshes
-        /// skin buffers on a real player-loop frame tick, which a
-        /// synchronous out-of-band Camera.Render() call outside Play Mode
-        /// never gets). The AXIS was picked by comparing six axis/sign
-        /// candidates at 80 degrees against hand_r's own real-Play-Mode
-        /// world position -- +forward was the clear winner (hand moves
-        /// mostly up, with a natural outward swing and only a slight
-        /// forward lean, unlike every other candidate, which crossed the
-        /// hand over the body instead). That same real-pose measurement
-        /// showed 80 degrees only lifting the hand ~0.21m from its resting,
-        /// arm-hanging height -- a bit subtle for "raises his right hand" --
-        /// so the MAGNITUDE here was then raised past that to 130, verified
-        /// against PlayerLocomotionCastPosePlayTests' own >0.3m threshold.
+        /// Where the palm goes at full cast, from the casting arm's shoulder, metres (the body at its built height): along the aim, out to the
+        /// arm's own side, up. Out and a little low, so the game's camera behind the shoulder sees it past the head (straight out from the
+        /// shoulder, the left hand hid behind it).
         /// </summary>
-        public const float CastRaiseDegrees = 130.0f;
+        public const float CastReach = 0.72f;
+
+        public const float CastOut = 0.3f;
+        public const float CastLift = -0.2f;
+
+        /// <summary>How far the fingers lean out to the hand's own side from straight up, degrees.</summary>
+        public const float CastFingerOutDegrees = 15.0f;
+
+        /// <summary>How far in front of the palm a spell appears, metres at the built height (so it does not start inside the hand).</summary>
+        public const float CastLeaveAhead = 0.08f;
 
         private float _castPoseFraction;
-
-        /// <summary>Which arm ApplyCastingPose raises -- see SetCastPose's own doc comment.</summary>
-        private bool _castUsesLeftArm;
-
-        /// <summary>
-        /// The raising arm's own animated pose, BEFORE this frame's cast
-        /// offset is layered onto it -- see ApplyCastingPose's own doc
-        /// comment for why this has to be refreshed only while the
-        /// Animator is actually live, not read back off the bone itself
-        /// every frame.
-        /// </summary>
-        private Quaternion _castBaseRotation = Quaternion.identity;
-
-        private bool _castBaseIsLeftArm;
+        private float _castRaise;
+        private Vector3 _castAim;
 
         /// <summary>
-        /// Called every frame by PlayerInputReader with FireballCaster's own
-        /// CastFraction -- the explicit ask was "an animation where he
-        /// raises his right hand" for the fireball spell, so this layers an
-        /// additive raise onto the RightUpperArm bone rather than swapping
-        /// in a whole separate Animator state the way gun-aiming's own
-        /// pistol_aim_in does, matching ApplyDrivingWheelPose's own
-        /// procedural-pose shape for the same "no real animation clip fits"
-        /// reason.
-        ///
-        /// <paramref name="useLeftArm"/>: A LATER, SEPARATE ask -- the
-        /// grapple gun occupies the right hand, so casting while it is
-        /// equipped raises the left arm instead ("it still works just comes
-        /// from your left hand"). PlayerInputReader passes
-        /// GrappleSwing.EquippedHook != null for this every frame it calls
-        /// SetCastPose, so the raised arm follows whichever hand is
-        /// actually free without this needing to know about weapons itself.
+        /// How strongly the hand is raised for a spell this frame, 0 to 1 (the spell's own pose: held at the cast, then easing out), toward
+        /// <paramref name="aim"/>, the way the spell goes (zero: the way the body faces). Called every frame by PlayerInputReader on the owner
+        /// and by RemoteAbilityPose on another player's copy.
         /// </summary>
-        public void SetCastPose(float fraction, bool useLeftArm = false)
+        public void SetCastPose(float fraction, Vector3 aim)
         {
             _castPoseFraction = Mathf.Clamp01(fraction);
-            _castUsesLeftArm = useLeftArm;
+            _castAim = aim;
+        }
+
+        public void SetCastPose(float fraction) => SetCastPose(fraction, Vector3.zero);
+
+        /// <summary>How far up the casting hand is, 0 down .. 1 raised.</summary>
+        public float CastRaise => _castRaise;
+
+        /// <summary>A spell from the bar is cast from the left hand: the right holds something.</summary>
+        public bool CastsWithLeftHand => RightHandHolds;
+
+        /// <summary>The hand casts (no staff or wand to cast through).</summary>
+        private bool CastsFromHand => Staff == null && Wand == null;
+
+        /// <summary>
+        /// Where a spell cast toward <paramref name="aim"/> leaves the free hand: in front of the palm where the cast pose puts it. Worked out
+        /// from the shoulder rather than read off the hand, which has not come up yet on the frame the spell is cast.
+        /// </summary>
+        public Vector3 CastPalmPoint(Vector3 aim)
+        {
+            Transform shoulder = CastsWithLeftHand ? _leftUpperArm : _rightUpperArm;
+            Vector3 from = shoulder != null ? shoulder.position : transform.position + Vector3.up * (WorldHeight * 0.8f);
+            Vector3 direction = CastDirection(aim);
+            float scale = WorldHeight / BodyRig.StandingHeight;
+            return PalmAt(from, direction, CastsWithLeftHand ? -transform.right : transform.right, scale) + direction * (CastLeaveAhead * scale);
+        }
+
+        private Vector3 CastDirection(Vector3 aim) => aim.sqrMagnitude > 1e-6f ? aim.normalized : transform.forward;
+
+        private static Vector3 PalmAt(Vector3 shoulder, Vector3 aim, Vector3 outward, float scale) =>
+            shoulder + (aim * CastReach + outward * CastOut + Vector3.up * CastLift) * scale;
+
+        /// <summary>The fingers of a palm facing <paramref name="palm"/>: up, leaning out to the hand's side, square to the palm.</summary>
+        private static Vector3 FingersUp(Vector3 palm, Vector3 outward)
+        {
+            Vector3 up = Quaternion.AngleAxis(CastFingerOutDegrees, Vector3.Cross(outward, Vector3.up).normalized) * Vector3.up;
+            Vector3 fingers = Vector3.ProjectOnPlane(up, palm);
+            if (fingers.sqrMagnitude < 1e-6f)
+            {
+                fingers = Vector3.ProjectOnPlane(Vector3.Cross(palm, outward), palm);
+            }
+            return fingers.normalized;
+        }
+
+        private void ApplyCastingPose()
+        {
+            float deltaTime = Mathf.Max(0.0f, Time.deltaTime);
+            _castRaise = _castPoseFraction > _castRaise ? Mathf.MoveTowards(_castRaise, _castPoseFraction, deltaTime / CastRaiseSeconds) : _castPoseFraction;
+            if (_castRaise <= 0.0f || !CastsFromHand)
+            {
+                return;
+            }
+            bool left = CastsWithLeftHand;
+            Transform upper = left ? _leftUpperArm : _rightUpperArm;
+            Transform lower = left ? _leftLowerArm : _rightLowerArm;
+            Transform hand = left ? _handL : _handR;
+            if (upper == null || lower == null || hand == null)
+            {
+                return;
+            }
+            float raise = _castRaise * _castRaise * (3.0f - 2.0f * _castRaise);
+            float scale = WorldHeight / BodyRig.StandingHeight;
+            Vector3 aim = CastDirection(_castAim);
+            Vector3 outward = left ? -transform.right : transform.right;
+            Vector3 fingers = FingersUp(aim, outward);
+            // The wrist sits a palm's length back down the fingers from the palm's middle.
+            Vector3 wrist = PalmAt(upper.position, aim, outward, scale) - fingers * (PalmOffsetMetres * scale);
+            HoldPalmOut(upper, lower, hand, wrist, outward + Vector3.down * 0.8f, aim, fingers, raise, !left);
         }
 
         /// <summary>
-        /// Layers onto the arm's LIVE animated rotation, refreshed fresh
-        /// every frame rather than a one-time captured base the way
-        /// ApplyDrivingWheelPose uses -- a cast can happen mid-walk or
-        /// mid-run, and the raise is meant to track whatever the current
-        /// locomotion pose is doing with that arm, not freeze it to a
-        /// snapshot from the moment the cast began.
-        ///
-        /// "LIVE" ONLY WHILE THE ANIMATOR IS ACTUALLY EVALUATING IT, THOUGH.
-        /// Bug report ("stretched out... until I left console" /
-        /// mid-swing contortion): this used to read arm.localRotation back
-        /// off the bone itself every frame and multiply the offset onto
-        /// THAT -- which is only ever the clean, un-offset clip pose
-        /// because the Animator overwrites this same bone with it earlier
-        /// in the very same frame, every frame, while it is enabled. The
-        /// instant the Animator is disabled for consecutive frames (the
-        /// dev console freezing the pose, or a grapple swing owning it) and
-        /// a cast is still in progress, nothing refreshes the bone between
-        /// frames any more, so that read-back was re-multiplying last
-        /// frame's OWN already-offset output into itself -- a genuine
-        /// runaway, same shape as GrappleSwing's own leg-sway/ground-clamp
-        /// feedback loop (see PlayerLocomotion.ClampFeetAboveGround's own
-        /// doc comment) but from an unrelated cause. Fixed by only
-        /// refreshing the captured base while the Animator is actually
-        /// live, and composing off THAT rather than off the bone's own
-        /// current (possibly already-compounded) value -- matches
-        /// ApplyDrivingWheelPose's own base-capture shape, just re-captured
-        /// every live frame instead of once per drive.
-        ///
-        /// THE LEFT ARM'S OWN RAISE IS THE MIRROR IMAGE, not the same
-        /// signed angle -- confirmed by this rig's own established mirror
-        /// convention: PlayerRigBuilder/CaptureGrip's own PoseArmsDown pose
-        /// already rotates arm_l by +78 degrees and arm_r by -78 for what
-        /// is visually the SAME hanging-down shape on both sides, so a
-        /// raise that reads as "up and out" on the right needs the opposite
-        /// sign on the left to read the same way rather than folding the
-        /// arm across the chest.
+        /// An arm reaching its wrist to <paramref name="wrist"/> (two-bone IK, the elbow toward <paramref name="elbowHint"/>), the hand turned so
+        /// its palm faces <paramref name="palm"/> with the fingers along <paramref name="fingers"/>, <paramref name="weight"/> of the way from the
+        /// pose it had. The cast and the Arcane Barrier's hands.
         /// </summary>
-        private void ApplyCastingPose()
+        private static void HoldPalmOut(Transform upper, Transform lower, Transform hand, Vector3 wrist, Vector3 elbowHint, Vector3 palm,
+            Vector3 fingers, float weight, bool rightHand)
         {
-            if (_castPoseFraction <= 0.0f)
-            {
-                return;
-            }
-            Transform arm = _castUsesLeftArm ? _leftUpperArm : _rightUpperArm;
-            if (arm == null)
-            {
-                return;
-            }
-            if ((_animator != null && _animator.enabled) || _castUsesLeftArm != _castBaseIsLeftArm)
-            {
-                _castBaseRotation = arm.localRotation;
-                _castBaseIsLeftArm = _castUsesLeftArm;
-            }
-            float sign = _castUsesLeftArm ? -1.0f : 1.0f;
-            Quaternion offset = Quaternion.AngleAxis(CastRaiseDegrees * _castPoseFraction * sign, Vector3.forward);
-            arm.localRotation = _castBaseRotation * offset;
+            TwoBoneIK.Solve(upper, lower, hand, wrist, elbowHint, weight);
+            // The hand bone: +X to the fingertips on the right hand and back up the arm on the left, -Y the palm, +Z the thumb (HandGrip).
+            Quaternion held = rightHand
+                ? Quaternion.LookRotation(Vector3.Cross(fingers, -palm), -palm)
+                : Quaternion.LookRotation(Vector3.Cross(fingers, palm), -palm);
+            hand.rotation = Quaternion.Slerp(hand.rotation, held, weight);
         }
     }
 }

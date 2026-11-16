@@ -129,6 +129,24 @@ namespace CityX.Character
             (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting)
             || (_poisonBreath != null && _poisonBreath.IsCasting) || (_arcaneOrb != null && _arcaneOrb.IsCasting);
 
+        /// <summary>
+        /// Which way a spell from the bar goes: from the chest to what the crosshair is on (the cast pose turns the palm to it). Only looked
+        /// for while a spell is being cast (it casts a ray); otherwise zero, the way the body faces.
+        /// </summary>
+        private Vector3 SpellAim(Transform aimSource) => SpellCastFraction <= 0.0f && !IsCastingSpell ? Vector3.zero : CrosshairAim(aimSource);
+
+        /// <summary>From the chest to what the crosshair is on (a ray), or zero with nothing to aim by.</summary>
+        private Vector3 CrosshairAim(Transform aimSource)
+        {
+            if (aimSource == null)
+            {
+                return Vector3.zero;
+            }
+            Vector3 chest = SpellChest;
+            Vector3 toCrosshair = CrosshairPoint(chest, aimSource.position, aimSource.forward, transform) - chest;
+            return toCrosshair.sqrMagnitude > 1e-6f ? toCrosshair.normalized : aimSource.forward;
+        }
+
         /// <summary>Roughly chest height: where a spell leaves the body (MeleeAttacker.SwingOrigin and a thrown weapon use the same fraction).</summary>
         private Vector3 SpellChest => transform.position + Vector3.up * ((_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f);
 
@@ -140,10 +158,18 @@ namespace CityX.Character
         private void SpellLaunch(Transform aimSource, out Vector3 origin, out Vector3 direction)
         {
             Vector3 chest = SpellChest;
-            if (_locomotion == null || _locomotion.Wand == null)
+            if (_locomotion == null || _locomotion.Staff != null)
             {
                 origin = chest;
                 direction = ConvergedDirection(chest, aimSource);
+                return;
+            }
+            if (_locomotion.Wand == null)
+            {
+                // From the free hand's palm, held out toward the crosshair (PlayerLocomotion.Casting.cs; owner, 2026-11-15: "it comes out of your
+                // hand that isnt holding a weapon").
+                origin = _locomotion.CastPalmPoint(CrosshairAim(aimSource));
+                direction = ConvergedDirection(origin, aimSource);
                 return;
             }
             Vector3 aimPoint = CrosshairPoint(chest, aimSource.position, aimSource.forward, transform);

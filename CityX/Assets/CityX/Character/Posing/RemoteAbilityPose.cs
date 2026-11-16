@@ -12,12 +12,16 @@ namespace CityX.Character
         private PlayerLocomotion _locomotion;
         private float _remaining;
         private float _ease = 0.4f;
+        private Vector3 _aim;
 
         /// <summary>How strongly the pose is held right now, 0 to 1.</summary>
         public float Fraction { get; private set; }
 
-        /// <summary>Raises the hand on <paramref name="body"/> for <paramref name="holdSeconds"/> and then eases it down over <paramref name="easeSeconds"/>.</summary>
-        public static void Show(GameObject body, float holdSeconds, float easeSeconds)
+        /// <summary>
+        /// Raises the hand on <paramref name="body"/> for <paramref name="holdSeconds"/> and then eases it down over <paramref name="easeSeconds"/>,
+        /// its palm toward <paramref name="aim"/> (the way the spell went; zero, the way the body faces).
+        /// </summary>
+        public static void Show(GameObject body, float holdSeconds, float easeSeconds, Vector3 aim = default)
         {
             if (body == null)
             {
@@ -29,6 +33,7 @@ namespace CityX.Character
                 pose = body.AddComponent<RemoteAbilityPose>();
             }
             pose._locomotion = body.GetComponent<PlayerLocomotion>();
+            pose._aim = aim;
             pose._ease = Mathf.Max(0.01f, easeSeconds);
             pose._remaining = Mathf.Max(pose._remaining, Mathf.Max(0.0f, holdSeconds) + pose._ease);
             pose.enabled = true;
@@ -52,7 +57,7 @@ namespace CityX.Character
             Fraction = _remaining > _ease ? 1.0f : Mathf.Clamp01(_remaining / _ease);
             if (_locomotion != null)
             {
-                _locomotion.SetCastPose(Fraction);
+                _locomotion.SetCastPose(Fraction, _aim);
             }
             if (_remaining <= 0.0f)
             {

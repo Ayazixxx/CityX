@@ -261,7 +261,7 @@ namespace CityX.Weapons
                     }
                     else
                     {
-                        RemoteAbilityPose.Show(gameObject, 0.0f, CastPoseSeconds);
+                        RemoteAbilityPose.Show(gameObject, 0.0f, CastPoseSeconds, evt.Direction);
                     }
                     PlayCast(evt.Origin);
                     break;
