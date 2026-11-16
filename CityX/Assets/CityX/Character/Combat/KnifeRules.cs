@@ -15,8 +15,8 @@ namespace CityX.Character
         /// <summary>The share of the sword's reach a knife's swing catches a body at.</summary>
         public const float ReachShare = 0.9f;
 
-        /// <summary>A knife blow's base damage, the sword's being <see cref="CombatTuning.PunchDamage"/> (10).</summary>
-        public const float BaseDamage = 7.0f;
+        /// <summary>A knife blow's base damage, the sword's being <see cref="CombatTuning.PunchDamage"/> (10). 9 (owner, 2026-11-15: "make the kitchen knife do 9 damage instead of 7").</summary>
+        public const float BaseDamage = 9.0f;
 
         /// <summary>A dull knife's blow (the butter knife): a rounded blade that bruises more than it cuts, and cuts nothing off.</summary>
         public const float DullDamage = 4.0f;
@@ -24,7 +24,7 @@ namespace CityX.Character
         /// <summary>How many times the stamina a blow on a held guard costs with a knife: a thin blade stops little, and breaks sooner.</summary>
         public const float GuardStaminaShare = 1.6f;
 
-        /// <summary>The knife's damage a second as a share of the one-handed sword's: less per blow, more blows (about 0.9).</summary>
+        /// <summary>The knife's damage a second as a share of the one-handed sword's: less per blow, more blows (about 1.17).</summary>
         public static float DamagePerSecondShare => BaseDamage / CombatTuning.PunchDamage * SwingSpeed;
     }
 }

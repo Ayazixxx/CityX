@@ -21,7 +21,7 @@ Every one of them: quicker, lighter blows, little or no stagger, a weak guard, a
 |---|---|---|
 | Reach | 2.2 m (`SoulsSwordCombat.ReachMetres`) | 90%: 1.98 m |
 | Swing speed | 1x | **1.3x** -- wind-up, cut, recovery and lunge (`KnifeRules.SwingSpeed`, on top of Melee Speed) |
-| Light blows | 8 and 8.5 (10 base) | 5.6 and 6 (7 base): about **90%** of the sword's damage a second |
+| Light blows | 8 and 8.5 (10 base) | 7.2 and 7.7 (9 base; 7 until the owner's 2026-11-15 "make the kitchen knife do 9 damage instead of 7"): about **117%** of the sword's damage a second |
 | Light stagger | 0.45 s | **none**: a knife's light does not stop what its target is doing, so it cannot trade blows with a sword (the sword's stuns until its next cut lands: `SoulsCombatRhythmTests`) and barely shoves (the shove follows the stagger) |
 | Light stamina | 16 | 11 |
 | Heavy (hold the click) | the overhead cut | **the icepick stab** (below), guard-breaking, 11 damage |
@@ -85,7 +85,7 @@ writes the shared one-handed hold).
 
 Made for Old Guy's kitchen counter (docs/OLD_GUYS_HOUSE.md; owner: "butter knife on the counter"), where it lies beside the knife block. A **dull
 knife** (`SwordWeapon.Dull`): the kitchen knife's moves, speed, reach and backstab, but its blows land as `KnifeRules.DullDamage` (4, the kitchen
-knife's 7) and it has no edge, so it cuts nothing off. The stand-in model comes from the same builder (`KitchenKnifeBuilder.BuildButterKnife`): a short
+knife's 9) and it has no edge, so it cuts nothing off. The stand-in model comes from the same builder (`KitchenKnifeBuilder.BuildButterKnife`): a short
 blade (17.5 cm) with a rounded tip and a blunt edge, all steel. `/equip butterknife` (or `butter`). The numbers are mine.
 
 ## Other players (docs/MULTIPLAYER_STATE.md)

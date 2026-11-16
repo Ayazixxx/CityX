@@ -56,7 +56,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void AKnifeSwingsAThirdFasterReachesAlmostAsFarAndDoesLessDamageASecond()
+        public void AKnifeSwingsAThirdFasterReachesAlmostAsFarAndHits9AsOftenAsItSwings()
         {
             var sword = new Blade { Knife = false };
             var knife = new Blade { Knife = true };
@@ -70,8 +70,9 @@ namespace CityX.Tests
 
             float swordDps = ChainDamagePerSecond(sword);
             float knifeDps = ChainDamagePerSecond(knife);
-            Assert.Less(knifeDps, swordDps, "less damage on average");
-            Assert.Greater(knifeDps, swordDps * 0.8f, $"a knife does {knifeDps / swordDps:P0} of the sword's damage a second: too little to be worth it");
+            // Owner, 2026-11-15: "make the kitchen knife do 9 damage instead of 7". A blow is 9 against the sword's 10, and it swings 1.3 times as
+            // often, so it does about 1.17 times the sword's damage a second (at 7 it was 0.91).
+            Assert.AreEqual(9.0f, KnifeRules.BaseDamage);
             Assert.AreEqual(KnifeRules.DamagePerSecondShare, knifeDps / swordDps, 0.05f);
         }
 
