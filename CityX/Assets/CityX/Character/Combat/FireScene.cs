@@ -173,6 +173,50 @@ namespace CityX.Character
             Ensure()._look.Explode(at, radius);
         }
 
+        // The fire spells' look (docs/FIRE.md, "The fire spells"; FireLook.Spells.cs), shown wherever a spell burns, a copy's included. Only
+        // while playing, as all of the fire.
+
+        /// <summary>A fireball's wake over the stretch it flew this frame (<see cref="FireLook.Wake"/>).</summary>
+        public static void Wake(Vector3 from, Vector3 to, Vector3 heading, float size, ref float debt, float deltaTime)
+        {
+            FireScene scene = Ensure();
+            if (scene != null)
+            {
+                scene._look.Wake(from, to, heading, size, ref debt, deltaTime);
+            }
+        }
+
+        /// <summary>A fireball's burst on a surface facing <paramref name="normal"/> (<see cref="FireLook.Burst"/>).</summary>
+        public static void Burst(Vector3 at, Vector3 normal, float size)
+        {
+            FireScene scene = Ensure();
+            if (scene != null)
+            {
+                scene._look.Burst(at, normal, size);
+            }
+        }
+
+        /// <summary>One frame of a flame staff's stream (<see cref="FireLook.Jet"/>).</summary>
+        public static void Jet(Vector3 from, Vector3 direction, float reach, float end, bool hit, Vector3 hitPoint, Vector3 hitNormal, float strength,
+            float scale, Vector3 carried, ref FireJetDebts debts, float deltaTime)
+        {
+            FireScene scene = Ensure();
+            if (scene != null)
+            {
+                scene._look.Jet(from, direction, reach, end, hit, hitPoint, hitNormal, strength, scale, carried, ref debts, deltaTime);
+            }
+        }
+
+        /// <summary>A ball of fire forming at a staff's head while its shot is charged (<see cref="FireLook.Gather"/>).</summary>
+        public static void Gather(Vector3 at, float charge, ref float debt, float deltaTime)
+        {
+            FireScene scene = Ensure();
+            if (scene != null)
+            {
+                scene._look.Gather(at, charge, ref debt, deltaTime);
+            }
+        }
+
         /// <summary>Water on the ground within <paramref name="radius"/> of <paramref name="point"/>: the fire there goes out and the ground will not catch for a while.</summary>
         public static int Douse(Vector3 point, float radius, bool cosmetic = false)
         {

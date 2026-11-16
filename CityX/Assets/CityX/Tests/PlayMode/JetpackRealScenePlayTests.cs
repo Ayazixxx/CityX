@@ -92,21 +92,13 @@ namespace CityX.Tests
             Assert.IsNotNull(jetpack, "no live Jetpack component after equipping");
             Assert.IsNotNull(jetpack.FlameEffect, "the equipped jetpack has no FlameEffect at all");
 
-            // Requested: "replace the flame effect... with the same one
-            // you used for the flamethrower" -- FlamethrowerBuilder's own
-            // outer+core layering, not the old single flat cone. Checking
-            // the REAL prefab instance, not the builder's own return value,
-            // is what would have caught a stale Jetpack.prefab that never
-            // got rebuilt after JetpackBuilder.cs changed.
-            Transform core = jetpack.FlameEffect.transform.Find("CoreFlame");
-            Assert.IsNotNull(core, "the real equipped jetpack's flame has no CoreFlame child -- " +
-                "still the old single-layer cone, not the flamethrower's own two-layer flame");
-
-            var flameRenderer = jetpack.FlameEffect.GetComponent<ParticleSystemRenderer>();
-            Assert.IsNotNull(flameRenderer.sharedMaterial, "the flame has no material at all");
-            Assert.IsNotNull(flameRenderer.sharedMaterial.mainTexture,
-                "the flame material has no texture -- it will render as a hard-edged square, " +
-                "the exact problem the flamethrower's own material was built to avoid");
+            // Requested: "replace the flame effect... with the same one you used for the flamethrower", and since 2026-11-15 that fire is
+            // the fire spells' stream ("just try to improve all the fire"): a small one, pointing down, not sooting walls. Checking the REAL
+            // prefab instance is what would catch a stale Jetpack.prefab that never got rebuilt after JetpackBuilder.cs changed.
+            Assert.AreEqual(Jetpack.FlameScale, jetpack.FlameEffect.Scale, 1e-4f, "the exhaust is not the small stream");
+            Assert.IsFalse(jetpack.FlameEffect.Soots, "the jetpack's exhaust soots walls");
+            Assert.Greater(Vector3.Dot(jetpack.FlameEffect.transform.forward, -jetpack.transform.up), 0.9f, "the exhaust does not point down");
+            Assert.IsNull(jetpack.GetComponentInChildren<ParticleSystem>(true), "the old soft-dot flame is still on the jetpack");
 
             // Unequipping restores the ordinary look-around range, so a
             // player back on foot cannot still stare straight up or down.
@@ -278,7 +270,7 @@ namespace CityX.Tests
                 // other tests -- gets the flame/audio genuinely playing without
                 // needing a real simulated key press.
                 Fly(jetpack, true, new Vector2(0.0f, 1.0f), false, 1.0f / 60.0f);
-                Assert.IsTrue(jetpack.FlameEffect.isEmitting, "setup failed -- the flame never started");
+                Assert.IsTrue(jetpack.FlameEffect.IsOn, "setup failed -- the flame never started");
                 Assert.IsTrue(jetpack.ThrustAudio.isPlaying, "setup failed -- the thrust audio never started");
 
                 var ragdoll = console.Vitals.GetComponent<Ragdoll>();
@@ -293,7 +285,7 @@ namespace CityX.Tests
                 // EquippedFlightGear.StopThrustEffects() now.
                 yield return null;
 
-                Assert.IsFalse(jetpack.FlameEffect.isEmitting,
+                Assert.IsFalse(jetpack.FlameEffect.IsOn,
                     "the flame kept burning after the ragdoll went limp");
                 Assert.IsFalse(jetpack.ThrustAudio.isPlaying,
                     "the thrust audio kept looping after the ragdoll went limp");

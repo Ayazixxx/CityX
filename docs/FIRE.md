@@ -92,7 +92,107 @@ gone when the can is empty).
 sent as an event and replayed as cosmetic fire on every other machine, so everyone runs the same fire from the same events (the spread's
 randomness drifts a little between machines; it is only the look).
 
+## The fire spells (2026-11-12)
+
+The owner shared achrefelouafi's MIT-licensed Three.js spell sandbox
+([LinearAbiltyCastingThreeJS](https://github.com/achrefelouafi/LinearAbiltyCastingThreeJS)) and asked "can you use this to improve our elemental
+spells", then of the spells "just make them all look better". After Glacier Spikes (docs/GLACIER_SPIKES.md) came the fire: the **Fireball**
+(key 1, and the Fireball Staff's shots and charge) and the **Flame Staff's stream**, after the sandbox's meteor ("Cinder Fall": its burning
+rock, its fire wake, its detonation, its molten ground cracks). **Only the look changed**: damage, speed, reach, mana, cooldowns and what sets
+what alight are as they were. The game is cel shaded with black lines, so the fire is drawn in **bold bands of heat** rather than a smooth
+ramp: white-hot, yellow, orange, red, a dark ember red, then smoke (the sandbox's own colours: #fff3d0, #ffb02e, #ff6a12, #ff3d10, #2b0d05;
+`View/Shaders/CityXFireBands.hlsl`, `SpellFire.Band` in C#), each band edge a pixel wide, the hot bands past 1 so the bloom catches them.
+
+**The Fireball in flight.**
+- **A molten core** (`CityX/FireballCore`, `View/Shaders/CityXFireballCore.shader`): the sandbox's meteor rock as a ball of fire. Lava seams
+  are the zero crossings of a noise field read in the ball's own space (thin, forking, turning with it as it tumbles at 160 degrees a second):
+  the open seam hot, its middle hotter, a charred lip round it, between them a mottled red crust. It heats as it flies (`SpellFire.CoreHeatAt`:
+  0 at the hand, fully hot after 0.6 s): the seams prise open and brighten, and the face it flies into and its rim go yellow and white, so it
+  arrives hotter than it left. Unlit (a light, not a surface), no shadow, and the cel line traces it like anything solid. Its glow light is the
+  one it had.
+- **A wake of burning gas** (`FireScene.Wake`, `FireLook.Wake`): the sandbox raymarches a volume of fire behind its rock; the cheap equivalent
+  here is puffs of burning gas left every 12 cm of the flight (as thick at any frame rate), 42 cm across, living a fifth of a second, drifting
+  back and up and narrowing as they cool: each puff is white-hot in its middle and red at its rim when it leaves the ball, and cools through
+  the bands to smoke (`CityX/Fire`'s third mode, "burning gas": a tongue of fire, below). Each is left 12 cm ahead of where the ball was, so
+  the wake's tongues start on the ball rather than a ball's width behind it. So
+  the wake runs white and yellow at the ball through orange and red to a dark smoke a few metres behind, seen from behind (the game's camera)
+  as well as from the side. Embers, sparks and puffs of smoke are shed off it.
+
+**The burst** (`FireBurst`, `FireScene.Burst`): a flash of light (12, 7 m, falling off on a cubic over 0.3 s), a white-hot core for a few
+frames, 16 puffs of burning gas thrown out of the surface it hit and away from it, billowing and slowing as they burn down to smoke, 24 sparks
+streaking out, falling and bouncing, embers, 7 glowing cinders (rock chunks, `RockChunk`, shared with the grenade's debris) tumbling out and
+cooling in steps (white, yellow, orange, red, grey) where they land, a little smoke rising, on a floor a moment of flames licking up, and the
+camera of a player near it nudged (`SpellFire.ShakeMetres`: 4 cm within 8 m; a full charge's 15 cm within 20 m, well under a grenade's). A
+charged ball's is bigger in all of it, up to twice the fire.
+
+**The scorch and its molten cracks** (`FireMarks.ScorchOn`, `MoltenCracks`): the burst blackens what it hit, a wall as well as a floor (the
+fire's own scorch, 1.5 m across, 2.5 times that for a full charge, staying the fire's minute), and burns cracks into it: arms running out from
+where it struck, veering and shedding branches (the sandbox's ground fissures, painted once into three pictures instead of grown as ribbons: a
+fireball's cracks are a metre across, not a crater's five), white-hot cracks in an orange underglow, cooling in the bands over 4.5 seconds,
+white, yellow, orange, red, ember, gone. Never on a body or anything loose, nor in the air. Bursts' and streams' scorches are kept to 48 at a
+time (the oldest goes).
+
+**The Fireball Staff's charge**: the glow at its head is as it was (the owner's); inside it now a ball of fire gathers, puffs of burning gas
+drawn in from round the head and small flames licking up off it, more and hotter as the charge grows (`FireScene.Gather`).
+
+**The Flame Staff's stream** (`FlameStreamLook`, `FireScene.Jet`): it was the flamethrower's soft additive dots, which read pink by day and
+ran through walls. Now burning gas pours from the staff's head along the stream at 15 m/s, 110 puffs a second swelling from 45 cm to over a
+metre, white-hot at the staff (a core of small short-lived puffs), cooling through yellow, orange and red to smoke at its end, with a soft
+orange glow along it, embers flung off it and smoke rising off its end. It stops where it meets something: each puff lives only as long as
+it takes to reach the first wall or floor on the stream's line (`SpellFire.JetLife`), dying there still hot, and there the stream splashes,
+flames licking up, gas spreading over the surface, sparks; a wall it plays on is sooted every half second (`FireMarks.ScorchOn`, no cracks);
+the floor catches as before (`FireScene.IgniteAlongStream`). Rain shortens it as it shortens the stream's reach. Its light is the one it had.
+
+**One fire, few draws.** The gas, the sparks and the cinders are five systems shared by every fireball and stream in the city
+(`FireLook.Spells.cs`), fed by hand like the ground fire's, the gas three of them (a wake narrows as it cools, a burst billows out and slows,
+a stream swells as it flies) on one material; a fireball is its core, its light, and puffs in those systems. Nothing of it makes garbage a
+frame (`FireSpellLookPlayTests`). The ground fire (gasoline, burning cells), the burning bodies and the burning weapons are drawn as before.
+
+**Other players** see all of it with nothing new sent: a copy of a fireball is the same prefab flying the same way and bursting where it
+lands; a copy's stream is the same `FlameStreamLook` on the copy's staff, pointed where its owner points it; a copy's charge gathers its fire
+as the glow does. Only the caster's machine hurts anyone, as before.
+
+### Finished and taken further (2026-11-15)
+
+The work above was paused untested on 2026-11-12 (kept aside, never in the game). The owner, 2026-11-15: "work on the fireball attack it doesnt
+look good enough. maybe use that same spell pack thing that you used for the glacier line attack", with a video of a torch's flame "just an
+example of good video game fire", then "just try to improve all the fire not just the fireball". Rendered in the city, the gas still read as a
+string of round beads with grey middles, the stream as a dotted line, the cracks as a star. What changed:
+
+- **Tongues, not puffs.** Every puff of burning gas is drawn stretched along its flight (`FireLook.Spells` `Stretch`; `SpellFire.WakeStretch`,
+  `BlastStretch`, `JetStretch`, the burst's and the stream's longer the faster they fly), and the gas mode of `CityX/Fire` draws a tongue on
+  it: a round head, a tail narrowing to a point, the coarse noise flowing back along it and whipping the tail, the fine one tearing its edge
+  more toward the tail and as it ages, hottest in the head's middle. Overlapping, they make one body of curling fire, as the torch's. A
+  stream's head leads; a wake's trails its drift back off the ball (vertex green 0), so the flames stream back from the ball and never point
+  ahead of it. Seen end on they keep their width (freeform stretching).
+- **White-hot is a pale gold.** The game's tone mapping (Neutral) greys a colour that bright and that pale: the sandbox's #fff3d0 read as grey
+  smoke in the heart of the fire. The hottest band is now a pale gold (`CityXFireBands.hlsl`, `SpellFire.BandColours[4]`), and the ground
+  fire's black body tops out golden instead of white for the same reason. The gas hides 92% of what is behind it (`FireSprites.GasOcclusion`;
+  at the ground flames' 60% a window behind the hottest band turned it grey-blue).
+- **Cracks, not a star.** The molten cracks jag (`MoltenCracks.Wander`, 9 radians a unit, was 1.8) and curl slowly (`Curl`): six straight
+  spokes before.
+- **One fire for every stream.** The flamethrower (the gun) and the jetpack burn the Flame Staff's fire now (`FlameStreamLook` on each,
+  `FlamethrowerBuilder.BuildStream`): the gun's 7 m stream at three quarters of the staff's size, a jetpack's 1.4 m exhaust at 0.35, burning at
+  its hover's or climb's share, keeping the flyer's velocity so it stays under them (the gas keeps its source's velocity, capped at 16 m/s
+  so a copy's ten-a-second re-aim is no kick), splashing low over the ground less hot and fewer, sooting nothing. Their three layers of soft
+  additive dots are gone (`FlamethrowerFlame.mat` with them; the smoke material stays, the Wraith draws with it).
+
+`FireSpellsCapture` renders the gun and a jetpack too (`fire-spells-*-gun-side`, `-jetpack-close`). Still the flamethrower's own gap: another
+player does not see a flamethrower fire (it never sent its trigger; the staff's stream does).
+
+Not yet: heat haze; a flash on the screen (the sandbox has one); the core's seams lighting the street (the ball's light is one colour).
+
 ## Tests
+
+`SpellFireTests` (EditMode): the core leaves warm and arrives white-hot; the wake is as thick at any frame rate; a charged burst is bigger
+but never wild, its shake under a grenade's; a stream's puff dies where the stream meets a wall; the heat comes in five bands, hotter never
+darker. `MoltenCracksTests`: the cracks run out from the middle and never reach the quad's edge, a network not a blob, cooling from white-hot
+through red to nothing. `FireballCasterTests.AFireballsCoreIsMoltenFireThatCastsNoShadowAndItsWakeIsTheFiresOwn`;
+`FireSpritesTests.TheFireSpellsBurningGasIsTheFireShadersThirdModeWithTheNoiseOnIt`. `FireSpellLookPlayTests` (PlayMode): a fireball leaves
+a wake of burning gas behind it and its core heats as it flies; a burst on a wall throws fire, sparks and cinders and scorches the wall with
+cracks that cool and go dark, the same from another player's copy; no scorch on a body; the look makes no garbage.
+`FlameStaffPlayTests.TheFireStopsAtAWallSplashingOverItAndBlackensIt`, and a copy pours its fire from its own staff.
+`FireSpellsCapture` (Explicit, `-Graphics`) renders it all in the real city by day and at midnight (`Logs/CityShots/fire-spells-*.png`).
 
 `FireSpritesTests` (EditMode): the noise tiles without a seam and fills its range; the flames and the smoke are the fire shader's with the
 noise on them; the materials are assets. `FireFieldTests` (EditMode): a lit trail burns along its length; bare pavement burns out and spreads no further; gasoline leaves scorched
@@ -108,6 +208,6 @@ night, the flames close, somebody burning, the scorch after (Logs/CityShots/fire
 ## Not yet
 
 Heat distortion over the fire (a refraction pass); fire on walls and furniture; the can blowing up when shot or burnt; buildings burning
-(waits for building destruction); the flame staff's stream drawn with the fire shader (owner: "use it for the fire staff too once you have
-it looking good"; a first try with the old flipbook sheet looked like red tents and was dropped: a jet needs its own shape, stretched along
-the flow).
+(waits for building destruction). The flame staff's stream is drawn with the fire shader since 2026-11-12 (owner: "use it for the fire staff
+too once you have it looking good"; a first try with the old flipbook sheet looked like red tents and was dropped; the stream now has its own
+shape, the burning gas puffs above).

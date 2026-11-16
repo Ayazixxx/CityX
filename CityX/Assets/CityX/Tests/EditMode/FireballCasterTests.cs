@@ -143,5 +143,21 @@ namespace CityX.Tests
             Assert.GreaterOrEqual(glow.range, 8.0f, "too small a glow to light the street it flies over");
             Assert.Greater(glow.color.r, glow.color.b * 2.0f, "fire is warm");
         }
+
+        [Test]
+        public void AFireballsCoreIsMoltenFireThatCastsNoShadowAndItsWakeIsTheFiresOwn()
+        {
+            // docs/FIRE.md, "The fire spells": the core's seams heat as it flies; the wake, the embers and the smoke are the shared fire's.
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/FireballProjectile.prefab");
+            Assert.IsNotNull(prefab);
+            var fireball = prefab.GetComponent<FireballProjectile>();
+            Assert.IsNotNull(fireball.Core, "no molten core");
+            Assert.AreEqual("CityX/FireballCore", fireball.Core.sharedMaterial.shader.name);
+            Assert.AreEqual(UnityEngine.Rendering.ShadowCastingMode.Off, fireball.Core.shadowCastingMode, "a ball of fire casts a shadow");
+            Assert.IsNull(prefab.GetComponentInChildren<ParticleSystem>(true), "the fireball still carries particles of its own");
+            Assert.IsNotNull(fireball.BurstPrefab, "no burst where it lands");
+            Assert.IsNull(fireball.BurstPrefab.GetComponentInChildren<ParticleSystem>(true), "the burst still carries particles of its own");
+            Assert.IsNotNull(fireball.BurstPrefab.GetComponentInChildren<Light>(true), "the burst has no flash");
+        }
     }
 }

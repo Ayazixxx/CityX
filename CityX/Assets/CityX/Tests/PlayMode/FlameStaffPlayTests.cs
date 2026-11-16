@@ -40,6 +40,11 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
+            FireScene.Clear();
+            if (FireScene.Instance != null)
+            {
+                Object.Destroy(FireScene.Instance.gameObject);
+            }
             foreach (GameObject go in _made)
             {
                 if (go != null) Object.Destroy(go);
@@ -173,6 +178,54 @@ namespace CityX.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheFireStopsAtAWallSplashingOverItAndBlackensIt()
+        {
+            // docs/FIRE.md, "The fire spells": the stream's gas dies where it meets the wall, flames lick up there, and the wall is sooted.
+            GameObject player = Body(Vector3.zero);
+            StaffItem staff = Staff();
+            staff.OnEquip(player, ItemInstanceData.None);
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.transform.position = new Vector3(0.0f, 2.0f, 4.5f);
+            wall.transform.localScale = new Vector3(8.0f, 4.0f, 0.4f);
+            _made.Add(wall);
+            Physics.SyncTransforms();
+            const float face = 4.3f;
+            yield return Hold(player, staff, false, 0.3f);
+            yield return Hold(player, staff, true, 1.0f);
+
+            ParticleSystem.Particle[] jet = FireSpellLookPlayTests.Live("Jet");
+            Assert.Greater(jet.Length, 20, "no fire in the stream");
+            int atTheWall = 0;
+            foreach (ParticleSystem.Particle puff in jet)
+            {
+                Assert.Less(puff.position.z, face + 0.4f, "the stream's fire went through the wall");
+                if (puff.position.z > face - 1.2f)
+                {
+                    atTheWall++;
+                }
+            }
+            Assert.Greater(atTheWall, 3, "the stream's fire does not reach the wall");
+            int licking = 0;
+            foreach (ParticleSystem.Particle flame in FireSpellLookPlayTests.Live("Flames"))
+            {
+                if (flame.position.z > face - 1.0f && flame.position.z < face + 0.2f)
+                {
+                    licking++;
+                }
+            }
+            Assert.Greater(licking, 3, "no flames licking up where the stream meets the wall");
+            int soot = 0;
+            foreach (GroundMark mark in Object.FindObjectsByType<GroundMark>(FindObjectsSortMode.None))
+            {
+                if (mark.name == "SootMark" && Vector3.Dot(mark.transform.up, Vector3.back) > 0.95f && Mathf.Abs(mark.transform.position.z - face) < 0.05f)
+                {
+                    soot++;
+                }
+            }
+            Assert.Greater(soot, 0, "the wall the stream played on is not blackened");
+        }
+
+        [UnityTest]
         public IEnumerator AnotherPlayersCopyShowsTheFireOnItsStaffPointedWhereTheWearerPointsIt()
         {
             GameObject wearer = Body(Vector3.zero);
@@ -192,6 +245,17 @@ namespace CityX.Tests
             Assert.IsTrue(copyFlame.IsOn, "the copy's fire is not burning");
             Assert.Less(Vector3.Distance(copyFlame.transform.position, copyStaff.Tip.position), 0.05f, "the copy's fire is not at its staff's head");
             Assert.Greater(Vector3.Dot(copyFlame.transform.forward, wearer.transform.forward), 0.9f, "the copy's fire does not go where the wearer points");
+            int nearCopy = 0;
+            foreach (ParticleSystem.Particle puff in FireSpellLookPlayTests.Live("Jet"))
+            {
+                // On the copy's own stream: ahead of its staff along where the wearer points, not off on the wearer's stream 10 m away.
+                Vector3 off = puff.position - copyStaff.Tip.position;
+                if (Vector3.Dot(off, wearer.transform.forward) > -0.5f && Vector3.ProjectOnPlane(off, wearer.transform.forward).magnitude < 2.0f)
+                {
+                    nearCopy++;
+                }
+            }
+            Assert.Greater(nearCopy, 5, "the copy pours no fire from its own staff");
 
             yield return Hold(wearer, staff, false, 0.1f);
             Assert.IsFalse(copyFlame.IsOn, "the copy's fire did not go out with the wearer's");

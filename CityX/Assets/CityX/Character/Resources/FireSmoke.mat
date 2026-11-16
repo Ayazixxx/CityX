@@ -30,11 +30,14 @@ Material:
     m_Ints: []
     m_Floats:
     - _Brightness: 2
+    - _HeadAtStart: 0
     - _Mode: 1
     - _NearFade: 0.8
     - _Occlusion: 0.6
     - _Rise: 1.5
+    - _SmokeAlpha: 0.45
     - _SoftFade: 0.4
-    m_Colors: []
+    m_Colors:
+    - _SmokeTint: {r: 0.23999995, g: 0.19999996, b: 0.17999998, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

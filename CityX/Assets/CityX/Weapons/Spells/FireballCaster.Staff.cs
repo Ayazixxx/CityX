@@ -52,6 +52,7 @@ namespace CityX.Weapons
         private bool _remoteCharging;
         private float _remoteChargeSeconds;
         private float _remoteFollowThrough;
+        private float _gatherDebt;
 
         /// <summary>A charge held <paramref name="seconds"/>, as a share of a full one.</summary>
         public static float StaffChargeFraction(float seconds) => Mathf.Clamp01(seconds / StaffFullChargeSeconds);
@@ -133,7 +134,10 @@ namespace CityX.Weapons
             _remoteFollowThrough = StaffCharge.FollowThroughSeconds;
         }
 
-        /// <summary>The staff held out and its head glowing while it charges, on this body and on other players' copies of it.</summary>
+        /// <summary>
+        /// The staff held out and its head glowing while it charges, a ball of fire gathering in the glow (FireScene.Gather: docs/FIRE.md, "The
+        /// fire spells"), on this body and on other players' copies of it.
+        /// </summary>
         private void Update()
         {
             float deltaTime = Time.deltaTime;
@@ -156,10 +160,15 @@ namespace CityX.Weapons
             Transform staff = _locomotion != null ? _locomotion.Staff : null;
             var item = staff != null ? staff.GetComponent<StaffItem>() : null;
             Transform tip = item != null && item.Tip != null ? item.Tip : staff;
+            float charge = _staff.Charging ? StaffChargeNow : StaffChargeFraction(_remoteChargeSeconds);
             StaffChargeGlow glow = StaffChargeGlow.On(tip, FireGlow, FireHot, FireColour, 0, FullChargeGlowSize);
             if (glow != null)
             {
-                glow.Show(_staff.Charging ? StaffChargeNow : StaffChargeFraction(_remoteChargeSeconds), 0);
+                glow.Show(charge, 0);
+            }
+            if (tip != null)
+            {
+                FireScene.Gather(tip.position, charge, ref _gatherDebt, deltaTime);
             }
         }
 

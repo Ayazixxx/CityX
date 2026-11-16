@@ -11,9 +11,10 @@ namespace CityX.Character
     /// away from its tips as it ages (the shader reads each particle's own random number and age through custom vertex streams); flames stand
     /// upright (vertical billboards), smoke faces the camera. Under them an additive orange glow on the ground, and embers that rise, drift and
     /// fall, bright enough for the game's bloom. A handful of flickering point lights park over the hottest clusters. Cells far from the camera
-    /// emit less, and past <see cref="FarMetres"/> nothing (a flame a pixel high is not worth a particle).
+    /// emit less, and past <see cref="FarMetres"/> nothing (a flame a pixel high is not worth a particle). The fire spells' burning gas, sparks
+    /// and cinders are the other half (FireLook.Spells.cs).
     /// </summary>
-    public sealed class FireLook
+    public sealed partial class FireLook
     {
         public const int MaxLights = 6;
         public const float LightRange = 9.0f;
@@ -98,6 +99,7 @@ namespace CityX.Character
             StyleGlow(_glow);
             StyleEmbers(_embers);
             StyleSmoke(_smoke);
+            MakeSpellSystems(parent);
             for (int i = 0; i < MaxLights; i++)
             {
                 var go = new GameObject("FireLight" + i);
@@ -308,11 +310,17 @@ namespace CityX.Character
 
         private void EmitEmber(Vector3 at, float strength)
         {
+            EmitEmber(at, Vector3.zero, strength);
+        }
+
+        /// <summary>An ember rising from <paramref name="at"/>, <paramref name="thrown"/> on top of its rise (a burst flings them, a wake sheds them).</summary>
+        private void EmitEmber(Vector3 at, Vector3 thrown, float strength)
+        {
             var emit = new ParticleSystem.EmitParams
             {
                 applyShapeToPosition = false,
                 position = at,
-                velocity = Vector3.up * Random.Range(1.2f, 2.6f) * strength + new Vector3(Random.Range(-0.5f, 0.5f), 0.0f, Random.Range(-0.5f, 0.5f)),
+                velocity = thrown + Vector3.up * Random.Range(1.2f, 2.6f) * strength + new Vector3(Random.Range(-0.5f, 0.5f), 0.0f, Random.Range(-0.5f, 0.5f)),
                 startSize = Random.Range(0.03f, 0.06f),
                 startLifetime = Random.Range(0.9f, 2.2f),
                 startColor = EmberColour,
@@ -406,6 +414,7 @@ namespace CityX.Character
             _glow.Clear(true);
             _embers.Clear(true);
             _smoke.Clear(true);
+            ClearSpellSystems();
             _debts.Clear();
             for (int i = 0; i < MaxLights; i++)
             {

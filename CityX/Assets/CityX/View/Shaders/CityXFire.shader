@@ -10,19 +10,23 @@
 //
 // _Mode 0, flame: premultiplied, its light added to what is behind it and only part of that hidden (_Occlusion), so it glows at night and
 // stays orange against a bright sky (an additive flame washed out pink there). _Mode 1, smoke: a billowing puff eaten at its edges by the
-// same noise, lit orange by the fire under it while young, alpha-blended. Both fade where they meet the street or a wall (soft particles,
-// from the depth texture) and close to the camera, and write no depth.
+// same noise, lit orange by the fire under it while young, alpha-blended. _Mode 2, burning gas (the fire spells): a billowing puff of fire
+// cooling as it ages, in the fire spells' bold heat bands (CityXFireBands.hlsl), its cold part smoke. All fade where they meet the street or a
+// wall (soft particles, from the depth texture) and close to the camera, and write no depth.
 Shader "CityX/Fire"
 {
     Properties
     {
         _NoiseTex("Noise (tileable: R fine, G coarse)", 2D) = "gray" {}
-        _Mode("Mode (0 flame, 1 smoke)", Float) = 0
+        _Mode("Mode (0 flame, 1 smoke, 2 burning gas)", Float) = 0
         _Brightness("Brightness", Float) = 2.0
         _Occlusion("How much a flame hides what is behind it", Range(0, 1)) = 0.6
+        _SmokeAlpha("How much burning gas's smoke hides", Range(0, 1)) = 0.45
+        _SmokeTint("Burning gas's smoke", Color) = (0.24, 0.2, 0.18, 1)
         _Rise("How fast the flame's noise rises", Float) = 1.5
         _SoftFade("Soft fade where it meets something (m)", Float) = 0.4
         _NearFade("Fade close to the camera (m)", Float) = 0.8
+        _HeadAtStart("Burning gas: its head at uv.x 0 (1) or 1 (0) of a stretched quad", Float) = 0
     }
 
     SubShader
@@ -52,6 +56,7 @@ Shader "CityX/Fire"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "CityXFireBands.hlsl"
 
             TEXTURE2D(_NoiseTex);
             SAMPLER(sampler_NoiseTex);
@@ -61,9 +66,12 @@ Shader "CityX/Fire"
             float _Mode;
             float _Brightness;
             float _Occlusion;
+            float _SmokeAlpha;
+            float4 _SmokeTint;
             float _Rise;
             float _SoftFade;
             float _NearFade;
+            float _HeadAtStart;
             CBUFFER_END
 
             struct Attributes
@@ -139,8 +147,9 @@ Shader "CityX/Fire"
                 heat *= smoothstep(0.0, 0.2, uv.y) * smoothstep(0.0, 0.1, 1.0 - uv.y) * smoothstep(0.0, 0.08, uv.x) * smoothstep(0.0, 0.08, 1.0 - uv.x);
                 float c = saturate(heat * 1.8);
 
-                // Black body: red falls off slowest, green faster, blue fastest -- dark red, orange, yellow, white-hot.
-                float3 colour = float3(1.5 * c, 1.5 * c * c * c, c * c * c * c * c * c) * _Brightness * input.color.rgb;
+                // Black body: red falls off slowest, green faster, blue fastest -- dark red, orange, yellow, a golden white-hot. Not a true
+                // white: the tone mapping greyed it, and the hearts of the flames read as grey (2026-11-15, as the fire spells' bands).
+                float3 colour = float3(1.5 * c, 1.3 * c * c * c, 0.45 * c * c * c * c * c * c) * _Brightness * input.color.rgb;
                 float fade = Fades(input);
                 float alpha = smoothstep(0.0, 0.4, c) * _Occlusion * fade;
                 return half4(colour * fade, alpha);
@@ -166,9 +175,56 @@ Shader "CityX/Fire"
                 return half4(colour * alpha, alpha);
             }
 
+            // Burning gas: a TONGUE of fire, its quad stretched along its flight by the renderer (uv.x runs along it), a round head forward
+            // and a tail licking back, torn ragged by the noise flowing back along it the way fire streams off anything moving. Drawn as round
+            // puffs, a fireball's wake and a stream read as a string of beads with grey middles (2026-11-15: "it doesnt look good enough", the
+            // owner's reference a torch whose flame is one body of curling tongues). The vertex colour's red is the share of a full life the
+            // puff will live (a puff cut short by a wall dies hot, not cooled), its alpha the heat it is born with.
+            half4 Gas(Varyings input)
+            {
+                float2 uv = input.uv.xy;
+                float2 seed = float2(input.uv.z * 7.31, input.uv.z * 2.93);
+                float age = input.uv.w;
+                float life = age * max(input.color.r, 0.05);
+                float t = _Time.y;
+
+                // 0 at the tail, 1 at the head. The head leads where the puff flies, but a wake's trails it (vertex green 0): a wake's puffs
+                // drift back off the ball, and their flames must stream back from it, not point ahead of it.
+                float along = _HeadAtStart > 0.5 ? 1.0 - uv.x : uv.x;
+                along = input.color.g < 0.5 ? 1.0 - along : along;
+                float tail = 1.0 - along;
+                float across = uv.y * 2.0 - 1.0;
+
+                // The coarse noise flows back along the tongue, bending it and whipping its tail; the fine one tears its edge, more toward the
+                // tail and as it ages.
+                float coarse = Coarse(float2(along * 0.55 + t * 0.7, uv.y * 0.75) + seed);
+                float fine = Fine(float2(along * 1.4 + t * 2.1, uv.y * 1.7) + seed.yx);
+                across += (coarse - 0.5) * 1.2 * tail * tail;
+
+                // Its outline: a round head (to 0.6 along), narrowing to a point at the tail.
+                float head = (along - 0.6) / 0.4;
+                float width = along > 0.6 ? sqrt(saturate(1.0 - head * head)) : pow(saturate(along / 0.6), 0.65);
+                float edge = width * (0.72 + 0.5 * coarse) - fine * (0.1 + 0.55 * tail + 0.3 * life) - abs(across);
+                float density = saturate(edge / 0.07);
+                density *= smoothstep(0.0, 0.05, age) * (1.0 - smoothstep(0.7, 1.0, age));
+
+                // Hottest in its head's middle while it is young; its rim and its tail cool first, then the whole of it, down to smoke.
+                float inner = saturate(edge / max(width, 0.05));
+                float heat = input.color.a * saturate(1.0 - life * 1.15) * (0.3 + 0.85 * inner) * (0.6 + 0.4 * along) + (coarse - 0.5) * 0.12;
+                float burning = FireBurning(heat);
+                float fade = Fades(input);
+                float alpha = density * lerp(_SmokeAlpha, _Occlusion, burning) * fade;
+                float3 colour = FireBands(heat) * burning * density * fade + _SmokeTint.rgb * alpha * (1.0 - burning);
+                return half4(colour, alpha);
+            }
+
             half4 Frag(Varyings input) : SV_Target
             {
-                return _Mode < 0.5 ? Flame(input) : Smoke(input);
+                if (_Mode < 0.5)
+                {
+                    return Flame(input);
+                }
+                return _Mode < 1.5 ? Smoke(input) : Gas(input);
             }
             ENDHLSL
         }

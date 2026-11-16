@@ -67,17 +67,24 @@ namespace CityX.Weapons
         /// <summary>Seconds for the wind loop to fade in and out across its whole range (a rapid tap of Shift never sounds slower than a hold).</summary>
         public const float WindFadeSeconds = 0.5f;
 
-        [Tooltip("Set by JetpackBuilder -- burns while flying, low in a hover.")]
-        public ParticleSystem FlameEffect;
+        [Tooltip("Set by JetpackBuilder -- its exhaust (the fire spells' stream, small: docs/FIRE.md), burning while flying, low in a hover.")]
+        public FlameStreamLook FlameEffect;
+
+        /// <summary>
+        /// THE FLAMETHROWER'S FIRE, small (owner: "replace the flame effect... with the same one you used for the flamethrower it looks way
+        /// better"; since 2026-11-15 that fire is the fire spells' burning gas, "just try to improve all the fire"): an exhaust this many
+        /// metres long and this many times the flame staff's stream, from the bottom of the tanks straight down. It keeps the flyer's velocity
+        /// (FlameStreamLook), so it stays under them; low over the ground it splashes. No light (a thrust, not a weapon firing), no soot.
+        /// </summary>
+        public const float FlameReach = 1.4f;
+
+        public const float FlameScale = 0.35f;
 
         [Tooltip("Set by JetpackBuilder (jetpack_thrust_loop.wav) -- loops while flying.")]
         public AudioSource ThrustAudio;
 
         [Tooltip("Set by JetpackBuilder (jetpack_wind_loop.wav) -- fades in on a boost, quickens with speed.")]
         public AudioSource WindAudio;
-
-        private ParticleSystem[] _flames;
-        private float[] _flameRates;
 
         protected override Vector3 MountPosition => BackPosition;
 
@@ -194,39 +201,22 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>The flame at <paramref name="share"/> of the builder's rate (0 puts it out): every system under FlameEffect, the core with the outer.</summary>
+        /// <summary>The flame burning at <paramref name="share"/> of its climb's strength (0 puts it out).</summary>
         private void ShowFlame(float share)
         {
             if (FlameEffect == null)
             {
                 return;
             }
-            if (_flames == null)
-            {
-                _flames = FlameEffect.GetComponentsInChildren<ParticleSystem>(true);
-                _flameRates = new float[_flames.Length];
-                for (int i = 0; i < _flames.Length; i++)
-                {
-                    _flameRates[i] = _flames[i].emission.rateOverTimeMultiplier;
-                }
-            }
             if (share <= 0.0f)
             {
-                if (FlameEffect.isEmitting)
+                if (FlameEffect.IsOn)
                 {
-                    FlameEffect.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                    FlameEffect.Stop();
                 }
                 return;
             }
-            for (int i = 0; i < _flames.Length; i++)
-            {
-                ParticleSystem.EmissionModule emission = _flames[i].emission;
-                emission.rateOverTimeMultiplier = _flameRates[i] * share;
-            }
-            if (!FlameEffect.isEmitting)
-            {
-                FlameEffect.Play();
-            }
+            FlameEffect.Run(share);
         }
     }
 }

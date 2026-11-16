@@ -10,6 +10,10 @@ namespace CityX.Weapons
     /// itself), just for a spell instead of a thrown item. No Godot
     /// equivalent to port -- an explicit new-mechanic ask, same footing as
     /// Jetpack.cs.
+    ///
+    /// Its look (docs/FIRE.md, "The fire spells"): a molten core that tumbles and heats as it flies (<see cref="Core"/>), a wake of burning gas
+    /// left behind it, embers, sparks and smoke shed off it (FireScene.Wake), and its burst where it lands (<see cref="FireBurst"/>). All of it
+    /// is the ball's own, so another player's copy of a fireball looks the same as the caster's.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public sealed class FireballProjectile : MonoBehaviour
@@ -18,6 +22,14 @@ namespace CityX.Weapons
 
         public GameObject BurstPrefab;
         public AudioClip ImpactSound;
+
+        [Tooltip("The molten core (CityX/FireballCore): its seams prise open and brighten as it flies. Set by FireballProjectileBuilder.")]
+        public MeshRenderer Core;
+
+        private static readonly int ChargeId = Shader.PropertyToID("_Charge");
+        private static readonly int SeedId = Shader.PropertyToID("_Seed");
+        private static readonly int HeadingId = Shader.PropertyToID("_Heading");
+        private static MaterialPropertyBlock _coreBlock;
 
         private Rigidbody _rigidbody;
         /// <summary>Points in the caster's Spell Power (2% a point, CombatTuning.DamageFor), and how much of the target's armour and block it ignores.</summary>
@@ -41,11 +53,20 @@ namespace CityX.Weapons
 
         public float BlastRadius => _blastRadius;
 
+        /// <summary>How long it has flown, seconds (its core heats over it: SpellFire.CoreHeatAt).</summary>
+        public float Age => _age;
+
         /// <summary>
         /// True for the copy another player's machine shows of a fireball they cast: it flies, bursts and sounds exactly as the real one
         /// does, but hurts nothing (the caster's own machine decides what the real fireball hits).
         /// </summary>
         public bool Cosmetic { get; private set; }
+
+        private float _age;
+        private Vector3 _wakeFrom;
+        private float _wakeDebt;
+        private Vector3 _spinAxis = Vector3.up;
+        private float _seed;
 
         public static FireballProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity,
             float casterStrength, Collider[] ignoreColliders, bool cosmetic = false, float penetration = 0.0f, GameObject striker = null,
@@ -69,6 +90,7 @@ namespace CityX.Weapons
             fireball.Cosmetic = cosmetic;
             fireball._size = Mathf.Max(0.1f, size);
             fireball._blastRadius = Mathf.Max(0.0f, blastRadius);
+            fireball._wakeFrom = origin;
             if (!Mathf.Approximately(fireball._size, 1.0f))
             {
                 Grow(instance, fireball._size);
@@ -121,23 +143,18 @@ namespace CityX.Weapons
             _rigidbody = GetComponent<Rigidbody>();
             _glow = GetComponentInChildren<Light>();
             _flickerSeed = Random.value * 100.0f;
+            _seed = Random.value * 10.0f;
+            _spinAxis = Random.onUnitSphere;
         }
 
         /// <summary>
-        /// Keeps facing wherever it is CURRENTLY flying, not just where it
-        /// was thrown from. Spawn() only sets transform.rotation once, from
-        /// the launch velocity -- fine for a straight shot, since nothing
-        /// else here ever changes _rigidbody.linearVelocity afterward, but
-        /// a future reflect ability will: the trail is authored as a fixed
-        /// local rotation pointing backward off THIS transform (see
-        /// FireballProjectileBuilder.BuildTrail), not something that
-        /// re-aims itself independently, so if a reflection changes the
-        /// velocity without this the trail would keep streaming out of
-        /// wherever the ball ORIGINALLY faced instead of "out of the back"
-        /// relative to its new, reflected direction.
+        /// Keeps facing wherever it is CURRENTLY flying, not just where it was thrown from (a reflect ability will change its velocity; its
+        /// wake and its core's hot face go by this), flickers its light, turns and heats its core, and leaves its wake for the stretch it flew.
         /// </summary>
         private void Update()
         {
+            float deltaTime = Time.deltaTime;
+            _age += deltaTime;
             if (_glow != null)
             {
                 float noise = Mathf.PerlinNoise(Time.time * GlowFlickerSpeed, _flickerSeed) * 2.0f - 1.0f;
@@ -145,10 +162,26 @@ namespace CityX.Weapons
             }
 
             Vector3 velocity = _rigidbody.linearVelocity;
-            if (velocity.sqrMagnitude > 0.0001f)
+            Vector3 heading = velocity.sqrMagnitude > 0.0001f ? velocity.normalized : transform.forward;
+            transform.rotation = Quaternion.LookRotation(heading);
+            HeatCore(heading);
+            Vector3 at = transform.position;
+            FireScene.Wake(_wakeFrom, at, heading, _size, ref _wakeDebt, deltaTime);
+            _wakeFrom = at;
+        }
+
+        private void HeatCore(Vector3 heading)
+        {
+            if (Core == null)
             {
-                transform.rotation = Quaternion.LookRotation(velocity.normalized);
+                return;
             }
+            Core.transform.localRotation = Quaternion.AngleAxis(_age * SpellFire.CoreSpinDegreesPerSecond, _spinAxis);
+            _coreBlock ??= new MaterialPropertyBlock();
+            _coreBlock.SetFloat(ChargeId, SpellFire.CoreHeatAt(_age));
+            _coreBlock.SetFloat(SeedId, _seed);
+            _coreBlock.SetVector(HeadingId, heading);
+            Core.SetPropertyBlock(_coreBlock);
         }
 
         private void OnCollisionEnter(Collision collision)
@@ -183,6 +216,7 @@ namespace CityX.Weapons
             {
                 LightGasoline(point, target);
             }
+            FireScene.Wake(_wakeFrom, point, transform.forward, _size, ref _wakeDebt, 0.0f);   // the wake runs on into the burst
             FireBurst.Spawn(BurstPrefab, point, normal, _size);
             if (ImpactSound != null)
             {
@@ -226,15 +260,10 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>A charged ball, <paramref name="size"/> times a plain one: its look, its trail, its reach and its light grow with it.</summary>
+        /// <summary>A charged ball, <paramref name="size"/> times a plain one: its core, its reach and its light grow with it (its wake by its size).</summary>
         private static void Grow(GameObject ball, float size)
         {
             ball.transform.localScale = Vector3.one * size;
-            foreach (ParticleSystem particles in ball.GetComponentsInChildren<ParticleSystem>(true))
-            {
-                ParticleSystem.MainModule main = particles.main;
-                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
-            }
             foreach (Light light in ball.GetComponentsInChildren<Light>(true))
             {
                 light.range *= size;

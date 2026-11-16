@@ -5,7 +5,8 @@ using UnityEngine;
 namespace CityX.CharacterEditor
 {
     /// <summary>
-    /// The fire's two materials (docs/FIRE.md), on the CityX/Fire shader, as assets in Resources: FireSprites copies them at runtime and puts
+    /// The fire's materials (docs/FIRE.md: the flames, the smoke, the fire spells' burning gas), on the CityX/Fire shader, as assets in
+    /// Resources: FireSprites copies them at runtime and puts
     /// the noise on the copies. Assets so that a player build keeps the shader (a shader no asset references is left out of a build; the
     /// noise itself is made at runtime and is no asset). Rebuilt with the scene (CityMassingSceneBuilder).
     /// </summary>
@@ -18,6 +19,7 @@ namespace CityX.CharacterEditor
         {
             Ensure(FireSprites.FlameMaterialName, 0.0f);
             Ensure(FireSprites.SmokeMaterialName, 1.0f);
+            Ensure(FireSprites.GasMaterialName, 2.0f);
             AssetDatabase.SaveAssets();
         }
 

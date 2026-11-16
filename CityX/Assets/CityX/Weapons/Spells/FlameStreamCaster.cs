@@ -11,7 +11,8 @@ namespace CityX.Weapons
     /// 0.15 s for as long as it is held on them, a spell (Spell Power and Armor Penetration apply, magic resistance stops a share), with no
     /// stagger (the flamethrower's own choice: a stream that locked its target every frame would never let it move) and no blood (fire does
     /// not cut: DamageContext.WithoutBlood). It drinks mana while held and stops when the mana is gone.
-    /// Rain halves it and shortens it, as it does the flamethrower. The fire is the flamethrower's (<see cref="FlameStreamLook"/>, a prefab).
+    /// Rain halves it and shortens it, as it does the flamethrower. Its fire is burning gas poured along the stream (<see cref="FlameStreamLook"/>,
+    /// a prefab; docs/FIRE.md "The fire spells").
     ///
     /// Other players see it (<see cref="IReplicatedAbility"/>): the stream starting on this body's staff, where it points (sent ten times a
     /// second), and stopping. Only this machine's stream burns.
@@ -127,7 +128,7 @@ namespace CityX.Weapons
         {
             float flame = Weather.FlameStrength(CurrentWeather.QuenchingOn(from));
             float reach = FlameStreamRules.ReachFor(flame);
-            _flame?.Aim(from, direction, deltaTime);
+            _flame?.Aim(from, direction);
             FireScene.IgniteAlongStream(from, direction, reach, transform, gameObject, ref _igniteDue, deltaTime);   // the ground catches (docs/FIRE.md)
 
             // A spell: Spell Power makes it hurt more (2% a point), and the caster's Armor Penetration goes with it.
@@ -208,7 +209,7 @@ namespace CityX.Weapons
                         return;
                     }
                     _remoteFlame.Run();
-                    _remoteFlame.Aim(tip != null ? tip.position : evt.Origin, evt.Direction.normalized, FlameStreamRules.AimSendSeconds);
+                    _remoteFlame.Aim(tip != null ? tip.position : evt.Origin, evt.Direction.normalized);
                     _remoteLeft = RemoteGraceSeconds;
                     break;
                 case StreamStopped:

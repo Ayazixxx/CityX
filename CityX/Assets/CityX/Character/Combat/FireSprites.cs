@@ -5,15 +5,16 @@ namespace CityX.Character
     /// <summary>
     /// THE FIRE'S MATERIALS AND PICTURES (docs/FIRE.md). The flames and the smoke are the CityX/Fire shader (View/Shaders/CityXFire.shader):
     /// every flame worked out per pixel from a noise texture made here once a session (tileable, so it scrolls up through the flames forever
-    /// without a seam: R a fine noise, G a coarse one). The shader's two materials come from Resources (FireMaterialsBuilder makes them, so a
-    /// player build keeps the shader) and are copied before the noise goes on, never changed in place. The glow and the embers are URP's
-    /// particle shader with a soft dot.
+    /// without a seam: R a fine noise, G a coarse one). The shader's materials (the flames, the smoke, the fire spells' burning gas) come from
+    /// Resources (FireMaterialsBuilder makes them, so a player build keeps the shader) and are copied before the noise goes on, never changed in
+    /// place. The glow and the embers are URP's particle shader with a soft dot.
     /// </summary>
     public static class FireSprites
     {
         public const string ShaderName = "CityX/Fire";
         public const string FlameMaterialName = "FireFlames";
         public const string SmokeMaterialName = "FireSmoke";
+        public const string GasMaterialName = "FireGas";
 
         public const int NoiseSize = 256;
         public const int DotSize = 64;
@@ -30,6 +31,7 @@ namespace CityX.Character
         private static Texture2D _dot;
         private static Material _flames;
         private static Material _smoke;
+        private static Material _gas;
 
         /// <summary>The flames' material (CityX/Fire, mode 0), the noise on it.</summary>
         public static Material Flames()
@@ -50,6 +52,23 @@ namespace CityX.Character
             }
             return _smoke;
         }
+
+        /// <summary>The fire spells' burning gas (CityX/Fire, mode 2: docs/FIRE.md "The fire spells"), the noise on it.</summary>
+        public static Material Gas()
+        {
+            if (_gas == null)
+            {
+                _gas = FireMaterial(GasMaterialName, 2.0f, 2);
+                _gas.SetFloat("_Occlusion", GasOcclusion);
+            }
+            return _gas;
+        }
+
+        /// <summary>
+        /// How much a tongue of burning gas hides what is behind it: nearly all, unlike a ground flame's 0.6 (a window or the sky showing through
+        /// the hottest band turned it a pale grey-blue).
+        /// </summary>
+        public const float GasOcclusion = 0.92f;
 
         /// <summary>The flames' brightness: past 1 at the core so the bloom catches it, not so far that the whole fire goes white by day.</summary>
         public const float FlameBrightness = 1.5f;

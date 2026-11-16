@@ -63,6 +63,16 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TheFireSpellsBurningGasIsTheFireShadersThirdModeWithTheNoiseOnIt()
+        {
+            Material gas = FireSprites.Gas();
+            Assert.AreEqual(FireSprites.ShaderName, gas.shader.name, "the fire spells' gas is not drawn by the fire shader");
+            Assert.AreEqual(2.0f, gas.GetFloat("_Mode"));
+            Assert.AreSame(FireSprites.Noise(), gas.GetTexture("_NoiseTex"));
+            Assert.IsNotNull(Resources.Load<Material>(FireSprites.GasMaterialName), "no FireGas material in Resources -- run CityX/Rebuild Fire Materials");
+        }
+
+        [Test]
         public void TheFireMaterialsAreAssetsSoABuildKeepsTheShader()
         {
             Assert.IsNotNull(Resources.Load<Material>(FireSprites.FlameMaterialName), "no FireFlames material in Resources -- run CityX/Rebuild Fire Materials");

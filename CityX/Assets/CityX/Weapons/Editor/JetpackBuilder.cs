@@ -96,7 +96,8 @@ namespace CityX.WeaponsEditor
                 flameObject.transform.SetParent(root.transform, false);
                 flameObject.transform.localPosition = new Vector3(0.0f, -TankHeight * 0.5f - 0.02f, PlateThickness * 0.5f);
                 flameObject.transform.localRotation = Quaternion.Euler(90.0f, 0.0f, 0.0f);
-                ParticleSystem flame = BuildFlame(flameObject.transform);
+                FlameStreamLook flame = FlamethrowerBuilder.BuildStream(flameObject.transform, Jetpack.FlameReach, Jetpack.FlameScale);
+                flame.Soots = false;
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
@@ -132,40 +133,6 @@ namespace CityX.WeaponsEditor
             return tank.transform;
         }
 
-        /// <summary>
-        /// THE SAME FLAME FlamethrowerBuilder BUILDS, Requested: "replace
-        /// the flame effect... with the same one you used for the
-        /// flamethrower it looks way better." The old jetpack flame was one
-        /// flat, untextured cone -- Unity's Particles/Unlit shader with no
-        /// texture assigned renders a hard-edged square per particle rather
-        /// than a soft flame-like blob (see FlamethrowerBuilder's own
-        /// BuildFlameMaterial doc comment, confirmed there directly by
-        /// rendering without one first). Reuses FlamethrowerBuilder's own
-        /// outer+core layers verbatim (promoted to internal for exactly
-        /// this call) rather than copying their setup by hand, so the two
-        /// stay identical for free if that tuning ever changes.
-        ///
-        /// NO SMOKE OR MUZZLE LIGHT, unlike the flamethrower's own build --
-        /// those read as a WEAPON being fired, not a thrust exhaust the
-        /// player flies around with continuously; "the flame effect" is the
-        /// two fire layers themselves, which is what actually got the "way
-        /// better" verdict.
-        ///
-        /// Parented under flameObject exactly as the old single-layer cone
-        /// was -- flameObject's own transform (pointed straight down, see
-        /// the call site) is what aims it, unchanged.
-        /// </summary>
-        private static ParticleSystem BuildFlame(Transform flameObject)
-        {
-            Texture2D particleTexture = FlamethrowerBuilder.BuildParticleTexture();
-            Material flameMaterial = FlamethrowerBuilder.BuildFlameMaterial(particleTexture);
-
-            ParticleSystem outer = FlamethrowerBuilder.BuildOuterFlame(flameObject, flameMaterial);
-            FlamethrowerBuilder.BuildCoreFlame(outer.transform, flameMaterial);
-
-            outer.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            return outer;
-        }
 
         /// <summary>
         /// Directly on the root, not a positioned child the way Flame is --

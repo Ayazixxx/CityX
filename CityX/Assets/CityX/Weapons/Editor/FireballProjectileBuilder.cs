@@ -1,28 +1,23 @@
-using CityX.CharacterEditor;
 using CityX.Weapons;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace CityX.WeaponsEditor
 {
     /// <summary>
-    /// Builds the fireball projectile -- a glowing sphere with a short
-    /// trailing ember stream, procedural: a fireball is a sphere, which needs
-    /// no authored mesh at all. No Godot
-    /// source to port numbers from -- see FireballCaster.cs's own doc
-    /// comment.
+    /// Builds the fireball projectile (docs/FIRE.md, "The fire spells"): a ball of molten fire -- Unity's sphere on the CityX/FireballCore
+    /// shader, its seams heating as it flies -- with its own light. Its wake, embers and smoke are the fire's shared look, left as it flies
+    /// (FireballProjectile, FireScene.Wake), not particles of its own. No Godot source to port numbers from (FireballCaster's doc comment).
     /// </summary>
     public static class FireballProjectileBuilder
     {
         private const string PrefabPath = "Assets/CityX/Weapons/FireballProjectile.prefab";
+        private const string CoreMaterialPath = "Assets/CityX/Weapons/FireballCore.mat";
+        public const string CoreShaderName = "CityX/FireballCore";
 
         /// <summary>"LARGE", from the explicit ask -- noticeably bigger than a thrown bottle or a bullet.</summary>
         private const float Radius = 0.16f;
-
-        // Biased well down on green from a first attempt at (1.0, 0.7,
-        // 0.15) -- rendered and confirmed that read as pale yellow rather
-        // than fire, since red and green sat too close together.
-        private static readonly Color CoreColour = new Color(1.0f, 0.45f, 0.05f);
 
         [MenuItem("CityX/Rebuild Fireball Projectile")]
         public static GameObject Build()
@@ -40,24 +35,10 @@ namespace CityX.WeaponsEditor
                 Object.DestroyImmediate(visual.GetComponent<Collider>());
                 visual.transform.SetParent(root.transform, false);
                 visual.transform.localScale = Vector3.one * (Radius * 2.0f);
-
-                Material material = CharacterSkin.Ensure("FireballCore", CoreColour);
-                // EMISSIVE, not lit -- a fireball is a light source, not a
-                // surface reflecting one; without this it reads as an
-                // orange ball sitting in shadow rather than something on
-                // fire.
-                material.EnableKeyword("_EMISSION");
-                // 1.4x, not higher -- confirmed directly by rendering it at
-                // 2.5x first: with no HDR/bloom pipeline in a plain camera
-                // capture, that clipped the orange straight to a pale
-                // near-white disc instead of reading as fire.
-                material.SetColor("_EmissionColor", CoreColour * 1.4f);
-                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
-                material.SetFloat("_Metallic", 0.0f);
-                material.SetFloat("_Smoothness", 0.2f);
-                visual.GetComponent<MeshRenderer>().sharedMaterial = material;
-
-                BuildTrail(root.transform);
+                var core = visual.GetComponent<MeshRenderer>();
+                core.sharedMaterial = CoreMaterial();
+                core.shadowCastingMode = ShadowCastingMode.Off;   // a light, not a thing in its light
+                core.receiveShadows = false;
 
                 // Its glow: a real light, so it lights what it flies past at night (FireballProjectile.GlowColour; flickered at run time).
                 var glowObject = new GameObject("Glow");
@@ -77,6 +58,7 @@ namespace CityX.WeaponsEditor
                 rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
                 var fireball = root.AddComponent<FireballProjectile>();
+                fireball.Core = core;
                 fireball.BurstPrefab = FireBurstBuilder.Build();
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
@@ -90,58 +72,19 @@ namespace CityX.WeaponsEditor
             }
         }
 
-        /// <summary>
-        /// The trail streaming off the ball -- Requested, to look like
-        /// the jetpack/flamethrower's own fire rather than its own
-        /// hand-rolled lookalike: "make the fireball trail... the same as
-        /// the jetpack and flamethrower fire effect... turn it into the
-        /// flamethrower fire effect that one looks better." Reuses
-        /// FlamethrowerBuilder's own outer/core flame construction exactly
-        /// the way JetpackBuilder.BuildFlame already does (both builders
-        /// live in this same namespace), rather than re-deriving a second,
-        /// visually different fire -- the old version here was an
-        /// untextured, non-additive, Lit-shader cone with no noise/flicker,
-        /// which is the whole reason it read as a marble's dust trail
-        /// rather than fire.
-        /// </summary>
-        private static void BuildTrail(Transform parent)
+        /// <summary>The core's material, an asset so a build keeps its shader; each ball's heat and seams go on it per ball (a property block).</summary>
+        private static Material CoreMaterial()
         {
-            var trailObject = new GameObject("Trail");
-            trailObject.transform.SetParent(parent, false);
-            // A 180-degree YAW, not a pitch -- WRONG UNTIL THIS FIX,
-            // reported directly as "the fireball trail is aimed upward."
-            // FlamethrowerBuilder's Cone shape (see BuildOuterFlame/
-            // BuildCoreFlame) emits along local +Z unrotated -- confirmed
-            // by FlamethrowerBuilder's own "Nozzle" wrapper, which needs
-            // NO rotation at all because the gun's muzzle already faces
-            // +Z. The old -90-degree-pitch value here was carried over
-            // unchanged from this trail's original hand-rolled
-            // ParticleSystem and happened to point local +Z to local +Y
-            // (up) -- invisible on the old faint, non-additive trail, but
-            // glaring on this additive one. Instantiate orients the whole
-            // prefab with +Z toward the launch direction (see
-            // FireballProjectile.Spawn's own Quaternion.LookRotation), so
-            // the fix is a straight 180-degree turn: +Z becomes -Z,
-            // pointing the flame straight out the back.
-            trailObject.transform.localRotation = Quaternion.Euler(0.0f, 180.0f, 0.0f);
-
-            Texture2D particleTexture = FlamethrowerBuilder.BuildParticleTexture();
-            Material flameMaterial = FlamethrowerBuilder.BuildFlameMaterial(particleTexture);
-
-            ParticleSystem outer = FlamethrowerBuilder.BuildOuterFlame(trailObject.transform, flameMaterial);
-            FlamethrowerBuilder.BuildCoreFlame(outer.transform, flameMaterial);
-
-            // Unlike the jetpack/flamethrower, which toggle their flame on
-            // input and so build it stopped-and-cleared, a flying
-            // fireball's trail streams continuously from the moment it
-            // spawns to the moment it's destroyed on impact -- both layers
-            // need to play immediately.
-            foreach (ParticleSystem particles in outer.GetComponentsInChildren<ParticleSystem>(true))
+            Shader shader = Shader.Find(CoreShaderName);
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(CoreMaterialPath);
+            if (material == null)
             {
-                ParticleSystem.MainModule main = particles.main;
-                main.playOnAwake = true;
-                particles.Play();
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, CoreMaterialPath);
             }
+            material.shader = shader;
+            EditorUtility.SetDirty(material);
+            return material;
         }
     }
 }

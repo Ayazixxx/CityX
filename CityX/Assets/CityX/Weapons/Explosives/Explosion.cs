@@ -60,7 +60,6 @@ namespace CityX.Weapons
         private static Material _chunkMaterial;
         private static Material _coreMaterial;
         private static Material _ringMaterial;
-        private static Mesh _chunkMesh;
 
         private Light _flash;
         private Transform _ring;
@@ -85,7 +84,7 @@ namespace CityX.Weapons
             CoreMaterial();
             ChunkMaterial();
             RingMaterial();
-            ChunkMesh();
+            _ = RockChunk.Mesh;
             _ = ExplosionSounds.Boom;
             _ = ExplosionSounds.Pin;
             FireMarks.PrewarmScorches();
@@ -347,7 +346,7 @@ namespace CityX.Weapons
         {
             ParticleSystem chunks = System("Debris", ChunkMaterial(), ParticleSystemRenderMode.Mesh, Chunks + 4);
             var renderer = chunks.GetComponent<ParticleSystemRenderer>();
-            renderer.mesh = ChunkMesh();
+            renderer.mesh = RockChunk.Mesh;
             ParticleSystem.MainModule main = chunks.main;
             main.gravityModifier = 1.2f;
             main.startSize3D = true;
@@ -501,23 +500,5 @@ namespace CityX.Weapons
             return _ringMaterial;
         }
 
-        /// <summary>A rough chunk: an octahedron pulled out of true, so tumbling it reads as rock, not a die.</summary>
-        private static Mesh ChunkMesh()
-        {
-            if (_chunkMesh != null)
-            {
-                return _chunkMesh;
-            }
-            _chunkMesh = new Mesh { name = "ExplosionChunk", hideFlags = HideFlags.DontSave };
-            _chunkMesh.SetVertices(new[]
-            {
-                new Vector3(0.0f, 0.55f, 0.0f), new Vector3(0.0f, -0.45f, 0.08f), new Vector3(0.5f, 0.05f, 0.0f), new Vector3(-0.42f, -0.06f, 0.1f),
-                new Vector3(0.05f, 0.0f, 0.48f), new Vector3(-0.08f, 0.08f, -0.52f),
-            });
-            _chunkMesh.SetTriangles(new[] { 0, 4, 2, 0, 2, 5, 0, 5, 3, 0, 3, 4, 1, 2, 4, 1, 5, 2, 1, 3, 5, 1, 4, 3 }, 0);
-            _chunkMesh.RecalculateNormals();
-            _chunkMesh.RecalculateBounds();
-            return _chunkMesh;
-        }
     }
 }

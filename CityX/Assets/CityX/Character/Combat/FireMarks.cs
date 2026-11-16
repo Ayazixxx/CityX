@@ -7,8 +7,9 @@ namespace CityX.Character
     /// <summary>
     /// WHAT FIRE LEAVES ON THE GROUND (docs/FIRE.md): a dark glossy puddle under every cell with gasoline on it (so the trail you pour is
     /// there to see), and the black burned spot under every cell that has burned, darkening as the cell burns and staying
-    /// <see cref="FireRules.ScorchLifeSeconds"/>; and an explosion's scorch (<see cref="ScorchAt"/>). Drawn the blood splats' way: a flat quad a
-    /// centimetre over the floor, alpha blended, unlit, its picture made in code.
+    /// <see cref="FireRules.ScorchLifeSeconds"/>; an explosion's scorch (<see cref="ScorchAt"/>); and a fire spell's on whatever it hit, a wall
+    /// as well as a floor (<see cref="ScorchOn"/>: a fireball's burst, with molten cracks cooling in it, and the soot of a flame staff's stream).
+    /// Drawn the blood splats' way: a flat quad a centimetre over the surface, alpha blended, unlit, its picture made in code.
     /// </summary>
     public static class FireMarks
     {
@@ -29,12 +30,24 @@ namespace CityX.Character
         /// <summary>A blast's scorch is laid on ground no further below it than this, metres.</summary>
         public const float BlastScorchReach = 2.5f;
 
+        /// <summary>A spell's scorch is laid on a surface within this of where it struck, metres either side.</summary>
+        public const float SurfaceReach = 0.3f;
+
+        /// <summary>The most scorches of blasts and spells lying about at once: past it the oldest goes (a staff's fireballs every half second).</summary>
+        public const int MaxSurfaceMarks = 48;
+
+        /// <summary>The molten cracks lie this far over their scorch and cover this share of it.</summary>
+        public const float CracksLift = 0.004f;
+
+        public const float CracksShare = 0.9f;
+
         private static readonly Dictionary<FireCell, GroundMark> Gasoline = new Dictionary<FireCell, GroundMark>();
         private static readonly Dictionary<FireCell, GroundMark> Scorch = new Dictionary<FireCell, GroundMark>();
         private static readonly List<GroundMark> Blasts = new List<GroundMark>();
         private static Texture2D[] _scorches;
         private static Texture2D[] _puddles;
         private static Material _material;
+        private static Material _cracksMaterial;
         private static FireField _watched;
 
         public static int GasolineCount => Gasoline.Count;
@@ -150,23 +163,77 @@ namespace CityX.Character
             {
                 return;
             }
-            GroundMark mark = Place("BlastMark", ground.point, Random.Range(0.0f, 360.0f), Scorches()[Random.Range(0, Variants)], ScorchColour);
+            GroundMark mark = Place("BlastMark", ground.point, Vector3.up, Random.Range(0.0f, 360.0f), Scorches()[Random.Range(0, Variants)], ScorchColour);
             mark.SetSize(size);
             mark.SetAlpha(ScorchAlpha);
             mark.FadeAfter(FireRules.ScorchLifeSeconds, FireRules.ScorchFadeSeconds);
+            Remember(mark);
+        }
+
+        /// <summary>
+        /// A burned spot on the surface a fire spell struck at <paramref name="at"/>, facing <paramref name="normal"/> (docs/FIRE.md, "The fire
+        /// spells"), <paramref name="size"/> across, a wall as well as a floor: black at once, staying the fire's own while; with
+        /// <paramref name="cracks"/> (a fireball's burst), molten cracks glowing in it, cooling to nothing in a few seconds
+        /// (<see cref="MoltenCracks"/>). Never on a body or anything loose, nor in the air: null where there is no surface there.
+        /// </summary>
+        public static GroundMark ScorchOn(Vector3 at, Vector3 normal, float size, bool cracks)
+        {
+            Vector3 away = normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.up;
+            if (!BloodSplats.Surface(at + away * SurfaceReach, -away, SurfaceReach * 2.0f, null, out RaycastHit surface))
+            {
+                return null;
+            }
+            GroundMark mark = Place(cracks ? "BurstMark" : "SootMark", surface.point, surface.normal, Random.Range(0.0f, 360.0f),
+                Scorches()[Random.Range(0, Variants)], ScorchColour);
+            mark.SetSize(size);
+            mark.SetAlpha(ScorchAlpha);
+            mark.FadeAfter(FireRules.ScorchLifeSeconds, FireRules.ScorchFadeSeconds);
+            if (cracks)
+            {
+                LayCracks(mark);
+            }
+            Remember(mark);
+            return mark;
+        }
+
+        /// <summary>Molten cracks over a scorch, glowing and cooling (CoolingCracks), drawn after it.</summary>
+        private static void LayCracks(GroundMark mark)
+        {
+            var go = new GameObject("MoltenCracks");
+            go.transform.SetParent(mark.transform, false);
+            go.transform.localPosition = Vector3.up * CracksLift;
+            go.transform.localScale = new Vector3(CracksShare, 1.0f, CracksShare);
+            go.AddComponent<MeshFilter>().sharedMesh = BloodSplats.Quad();
+            MeshRenderer renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = CracksMaterial();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            go.AddComponent<CoolingCracks>().Begin(renderer, MoltenCracks.Texture(Random.Range(0, MoltenCracks.Variants)));
+        }
+
+        /// <summary>A blast's or a spell's scorch, kept to <see cref="MaxSurfaceMarks"/>: the oldest goes first.</summary>
+        private static void Remember(GroundMark mark)
+        {
             Blasts.RemoveAll(left => left == null);
+            while (Blasts.Count >= MaxSurfaceMarks)
+            {
+                Object.Destroy(Blasts[0].gameObject);
+                Blasts.RemoveAt(0);
+            }
             Blasts.Add(mark);
         }
 
         private static GroundMark Place(string name, FireCell cell, Texture2D texture, Color tint)
         {
-            return Place(name, cell.Centre, Mathf.Abs(cell.Column * 31 + cell.Row * 17) % 360, texture, tint);
+            return Place(name, cell.Centre, Vector3.up, Mathf.Abs(cell.Column * 31 + cell.Row * 17) % 360, texture, tint);
         }
 
-        private static GroundMark Place(string name, Vector3 at, float spin, Texture2D texture, Color tint)
+        private static GroundMark Place(string name, Vector3 at, Vector3 normal, float spin, Texture2D texture, Color tint)
         {
             var go = new GameObject(name);
-            go.transform.SetPositionAndRotation(at + Vector3.up * SurfaceOffset, Quaternion.Euler(0.0f, spin, 0.0f));
+            Quaternion onSurface = Quaternion.FromToRotation(Vector3.up, normal) * Quaternion.Euler(0.0f, spin, 0.0f);
+            go.transform.SetPositionAndRotation(at + normal * SurfaceOffset, onSurface);
             MeshFilter filter = go.AddComponent<MeshFilter>();
             filter.sharedMesh = BloodSplats.Quad();
             MeshRenderer renderer = go.AddComponent<MeshRenderer>();
@@ -187,6 +254,17 @@ namespace CityX.Character
                 _material = BloodSplats.AlphaBlended("FireMark");
             }
             return _material;
+        }
+
+        /// <summary>The cracks' light: added, its picture and its cooling tint each crack's own (a property block), drawn over the scorch.</summary>
+        private static Material CracksMaterial()
+        {
+            if (_cracksMaterial == null)
+            {
+                _cracksMaterial = GlowShapes.Painted("MoltenCracks", Color.white, true, MoltenCracks.Texture(0));
+                _cracksMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 1;
+            }
+            return _cracksMaterial;
         }
 
         public static void Clear()

@@ -82,7 +82,7 @@ namespace CityX.Tests
 
             Assert.Greater(locomotion.Velocity.y, 0.0f,
                 "pressing space while grounded with the jetpack equipped should still jump");
-            Assert.IsFalse(jetpack.FlameEffect.isEmitting,
+            Assert.IsFalse(jetpack.FlameEffect.IsOn,
                 "the jetpack's own thrust fired while still standing on the ground");
 
             Release(_keyboard.spaceKey);
@@ -133,12 +133,12 @@ namespace CityX.Tests
             Assert.IsFalse(locomotion.IsGrounded, "setup failed -- the jump never actually left the ground");
 
             Press(_keyboard.spaceKey);
-            for (int i = 0; i < 10 && !jetpack.FlameEffect.isEmitting; i++)
+            for (int i = 0; i < 10 && !jetpack.FlameEffect.IsOn; i++)
             {
                 yield return null;
             }
 
-            Assert.IsTrue(jetpack.FlameEffect.isEmitting,
+            Assert.IsTrue(jetpack.FlameEffect.IsOn,
                 "holding space once airborne should activate the jetpack's own thrust");
 
             Release(_keyboard.spaceKey);

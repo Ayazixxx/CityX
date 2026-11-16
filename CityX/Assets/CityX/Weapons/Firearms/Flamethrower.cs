@@ -64,8 +64,8 @@ namespace CityX.Weapons
         public static readonly Vector3 GripHandRotationEuler = Vector3.zero;
         public const float GripScale = 1.0f;
 
-        [Tooltip("Plays while the trigger is held, stopped otherwise -- same Play()/Stop() shape as Jetpack.FlameEffect. The core flame and smoke layers are children of this one in the prefab, so Play()/Stop()'s own default withChildren:true starts and stops all three together -- no separate field needed for either.")]
-        public ParticleSystem FlameEffect;
+        [Tooltip("The fire, at the nozzle: burns while the trigger is held, pointed where the shot goes (the fire spells' stream, docs/FIRE.md).")]
+        public FlameStreamLook Flame;
 
         [Tooltip("Flickers while firing -- see TickFlicker's own doc comment.")]
         public Light FlameLight;
@@ -170,15 +170,16 @@ namespace CityX.Weapons
         {
             IsFiring = triggerHeld;
 
-            if (FlameEffect != null)
+            if (Flame != null)
             {
-                if (triggerHeld && !FlameEffect.isEmitting)
+                if (triggerHeld)
                 {
-                    FlameEffect.Play();
+                    Flame.Aim(Flame.transform.position, direction);
+                    Flame.Run();
                 }
-                else if (!triggerHeld && FlameEffect.isEmitting)
+                else if (Flame.IsOn)
                 {
-                    FlameEffect.Stop();
+                    Flame.Stop();
                 }
             }
             if (FireLoopAudio != null)
