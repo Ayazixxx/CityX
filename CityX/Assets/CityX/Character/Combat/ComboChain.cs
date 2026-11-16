@@ -139,6 +139,12 @@ namespace CityX.Character
         /// <summary>player.gd PUNCH_DAMAGE: the base every melee figure scales from (a sword blow's; a bare straight is half of it, 2026-11-03).</summary>
         public const float PunchDamage = 10.0f;
 
+        /// <summary>
+        /// The one-handed sword's (the combat sword's) blow: as much damage a second as the kitchen knife's at its 1.3 times the swings, 11.7
+        /// (owner, 2026-11-15: "raise the sword damage to fill that 17% damage per second gap"). Other blades and the blunt weapons keep PunchDamage.
+        /// </summary>
+        public const float OneHandedSwordDamage = KnifeRules.BaseDamage * KnifeRules.SwingSpeed;
+
         /// <summary>player.gd HITSTUN_SECONDS</summary>
         public const float HitstunSeconds = 0.5f;
 

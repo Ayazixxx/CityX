@@ -190,19 +190,7 @@ namespace CityX.Character
         private float _highestAirborneY;
         private bool _wasAirborne;
 
-        public float MaxHealth => _networkMaxHealth > 0.0f ? _networkMaxHealth : BaseMaxHealth + _maxHealthAdjustment + Stats.Effect(StatId.MaxHealth);
-
-        private float _maxHealthAdjustment;
-
-        /// <summary>
-        /// More or less health than a player's base, for a body that is not a player (the swordsman's 20 less: owner, 2026-11-15, "give the swordsmen like 20
-        /// less health"). Set at spawn: the body starts at its new whole.
-        /// </summary>
-        public void AdjustMaxHealth(float amount)
-        {
-            _maxHealthAdjustment = amount;
-            _health = MaxHealth;
-        }
+        public float MaxHealth => _networkMaxHealth > 0.0f ? _networkMaxHealth : BaseMaxHealth + Stats.Effect(StatId.MaxHealth);
         public float MaxStamina => BaseMaxStamina + Stats.Effect(StatId.MaxStamina);
 
         public float Health => _health;

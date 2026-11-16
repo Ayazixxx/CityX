@@ -12,6 +12,19 @@ namespace CityX.Tests
     {
         private const string PrefabPath = "Assets/CityX/Weapons/CombatSword.prefab";
 
+        /// <summary>Owner, 2026-11-15: "raise the sword damage to fill that 17% damage per second gap" (with the kitchen knife's): only this sword's.</summary>
+        [Test]
+        public void ItHits11Point7AndTheOtherMeleeWeaponsKeepTheirs()
+        {
+            float Damage(string path) => AssetDatabase.LoadAssetAtPath<GameObject>(path).GetComponent<SwordWeapon>().GetMeleeDamage();
+            Assert.AreEqual(11.7f, Damage(PrefabPath), 1e-4f);
+            Assert.AreEqual(9.0f, Damage("Assets/CityX/Weapons/KitchenKnife.prefab"), 1e-4f);
+            foreach (string other in new[] { "SpikeSword", "BaseballBat", "MetalCrowbar", "Sledgehammer" })
+            {
+                Assert.AreEqual(CombatTuning.PunchDamage, Damage($"Assets/CityX/Weapons/{other}.prefab"), 1e-4f, other);
+            }
+        }
+
         [Test]
         public void ItIsAOneHandedSwordItemOfItsOwn()
         {

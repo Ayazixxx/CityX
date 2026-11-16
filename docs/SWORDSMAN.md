@@ -20,8 +20,7 @@
 - **The player's dash**: double-tap Shift with a sword out (`PlayerInputReader.TickDash`, which the sword combat calls its roll -- there is no
   rolling; it is the dash), with its stamina cost and its moment of invulnerability. He keeps a dash's worth of stamina in hand.
 - **The player's health and ragdoll**: he can be hit by anything, knocked down, and dies limp; the body goes after 25 s. Beating him is worth
-  **80 XP**. His health is **80**, 20 less than a player's 100 (owner, 2026-11-15: "give the swordsmen like 20 less health";
-  `SwordsmanBrain.HealthAdjustment`, `PlayerVitals.AdjustMaxHealth`).
+  **80 XP**.
 
 ## How he fights (`Character/NPC/DuelistMind.cs`, pure)
 

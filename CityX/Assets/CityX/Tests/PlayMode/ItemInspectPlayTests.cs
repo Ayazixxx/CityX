@@ -168,7 +168,7 @@ namespace CityX.Tests
             string text = _card.AllText;
             StringAssert.Contains("KITCHEN KNIFE", text);
             StringAssert.Contains("Knife / One Hand", text);
-            StringAssert.Contains("Attack: 7", text);
+            StringAssert.Contains("Attack: 9", text);
             StringAssert.Contains(ItemCardView.Title, text);
             Assert.AreEqual(1.0f / ItemCardView.UnitsPerMetre, ((RectTransform)_card.transform.GetChild(0)).localScale.x, 1e-6f, "the card is not fully unfolded");
             Assert.IsFalse(_prompt.Showing, "the prompt should hide behind the card");
@@ -248,7 +248,7 @@ namespace CityX.Tests
             _inspector.Open(_knife);
             yield return UntilOpen();
             string text = _card.AllText;
-            StringAssert.Contains("Attack: 7 " + ItemCardView.Worse, text);
+            StringAssert.Contains("Attack: 9 " + ItemCardView.Worse, text);
             StringAssert.Contains("Quick (x1.3) " + ItemCardView.Better, text);
         }
     }

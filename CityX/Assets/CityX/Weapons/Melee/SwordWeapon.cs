@@ -396,7 +396,8 @@ namespace CityX.Weapons
                 && GroundPickup.Take(player, gameObject, _itemId);
         }
 
-        public float GetMeleeDamage() => _knife ? (_dull ? KnifeRules.DullDamage : KnifeRules.BaseDamage) : BaseMeleeDamage;
+        public float GetMeleeDamage() => _knife ? (_dull ? KnifeRules.DullDamage : KnifeRules.BaseDamage)
+            : _oneHanded && IsEdged ? CombatTuning.OneHandedSwordDamage : BaseMeleeDamage;
 
         public float MeleeCooldownSeconds => MeleeCooldownSecondsConst;
 

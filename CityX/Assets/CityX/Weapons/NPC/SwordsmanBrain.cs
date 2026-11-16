@@ -33,9 +33,6 @@ namespace CityX.Weapons
         [Tooltip("His dice: 0 picks new ones each time he is spawned; a test sets one to replay the same fight.")]
         public int Seed;
 
-        /// <summary>His health against a player's 100 (owner, 2026-11-15: "give the swordsmen like 20 less health"): 80.</summary>
-        public const float HealthAdjustment = -20.0f;
-
         /// <summary>How long his body lies there once beaten, seconds.</summary>
         public const float CorpseSeconds = 25.0f;
 
@@ -135,7 +132,6 @@ namespace CityX.Weapons
                 _vitals.Damaged += OnDamaged;
                 _vitals.Died += OnDied;
                 _vitals.XpRewardOnDeath = XpReward;
-                _vitals.AdjustMaxHealth(HealthAdjustment);
             }
             if (_driver != null)
             {

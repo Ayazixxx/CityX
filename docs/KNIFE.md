@@ -21,7 +21,7 @@ Every one of them: quicker, lighter blows, little or no stagger, a weak guard, a
 |---|---|---|
 | Reach | 2.2 m (`SoulsSwordCombat.ReachMetres`) | 90%: 1.98 m |
 | Swing speed | 1x | **1.3x** -- wind-up, cut, recovery and lunge (`KnifeRules.SwingSpeed`, on top of Melee Speed) |
-| Light blows | 8 and 8.5 (10 base) | 7.2 and 7.7 (9 base; 7 until the owner's 2026-11-15 "make the kitchen knife do 9 damage instead of 7"): about **117%** of the sword's damage a second |
+| Light blows | 9.4 and 9.9 (11.7 base) | 7.2 and 7.7 (9 base; 7 until the owner raised it on 2026-11-15, and the sword to 11.7 with it: "raise the sword damage to fill that 17% damage per second gap"): the **same** damage a second as the sword |
 | Light stagger | 0.45 s | **none**: a knife's light does not stop what its target is doing, so it cannot trade blows with a sword (the sword's stuns until its next cut lands: `SoulsCombatRhythmTests`) and barely shoves (the shove follows the stagger) |
 | Light stamina | 16 | 11 |
 | Heavy (hold the click) | the overhead cut | **the icepick stab** (below), guard-breaking, 11 damage |
