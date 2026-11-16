@@ -74,6 +74,13 @@ A stand-in drawn in code until the owner's Meshy model: a flat steel chef's blad
 thick at the spine and thin at the edge) on a turned dark wooden handle with a steel bolster, in the one-handed sword's frame
 (`SwordWeapon`: the root at the bolster, the blade up +Y, the edge on -X). `/equip knife` (or `kitchenknife`).
 
+**Size and hold set by the owner (2026-11-15).** The owner made it bigger and placed it in the fist by hand in the editor, then sent the
+Transform's numbers: the parts sit under a `Model` child scaled 2.11 (`KitchenModelScale`; the blade now reaches 55 cm and a swing reaches as
+far), and the knife has its own hold (`SwordWeapon.SetOwnHold`: position (0.109, -0.04, 0.17), rotation (-85.6, -5.15, -178.1) in the right
+hand bone's space) instead of the one shared by the combat sword, the crowbar and the butter knife. To change it again: in Play Mode select
+`KitchenKnife(Clone)` in the Hierarchy, adjust its Transform, and put the numbers into `KitchenKnifeBuilder` (not "Save this hold", which
+writes the shared one-handed hold).
+
 ## The Butter Knife (2026-10-30)
 
 Made for Old Guy's kitchen counter (docs/OLD_GUYS_HOUSE.md; owner: "butter knife on the counter"), where it lies beside the knife block. A **dull

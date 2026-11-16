@@ -200,11 +200,32 @@ namespace CityX.Weapons
             edgeOnPlusX ? Quaternion.AngleAxis(180.0f, OneHandBladeAxisInHand) * DefaultOneHandGripRotation : DefaultOneHandGripRotation;
 
         /// <summary>This sword's position in the right hand: the hold for its kind (saved or derived).</summary>
-        public Vector3 HoldPosition => _oneHanded ? OneHandGripPosition : GripPosition;
+        public Vector3 HoldPosition => _ownHold ? _ownHoldPosition : _oneHanded ? OneHandGripPosition : GripPosition;
 
-        public Quaternion HoldRotation => _oneHanded
+        public Quaternion HoldRotation => _ownHold ? Quaternion.Euler(_ownHoldEuler)
+            : _oneHanded
             ? (WeaponGripSettings.Current.OneHandTuned ? SavedOneHandHoldFor(_edgeOnPlusX) : DefaultOneHandGripRotationFor(_edgeOnPlusX))
             : GripRotation;
+
+        /// <summary>
+        /// A hold of this weapon's own, set by its builder, in place of the shared one-handed or two-handed hold: the kitchen knife's, which the
+        /// owner placed by hand in the editor (2026-11-15) when it was made bigger.
+        /// </summary>
+        [SerializeField] private bool _ownHold;
+
+        [SerializeField] private Vector3 _ownHoldPosition;
+
+        [SerializeField] private Vector3 _ownHoldEuler;
+
+        public bool HasOwnHold => _ownHold;
+
+        /// <summary>Gives this weapon its own hold in the right hand: where it sits in the hand bone's space, and how it is turned (degrees).</summary>
+        public void SetOwnHold(Vector3 position, Vector3 euler)
+        {
+            _ownHold = true;
+            _ownHoldPosition = position;
+            _ownHoldEuler = euler;
+        }
 
         /// <summary>The edge of the sword the saved one-handed hold was set on: the combat sword's, +X (the owner's hold, 2026-10-17).</summary>
         public const bool SavedOneHandHoldEdgeOnPlusX = true;

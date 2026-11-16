@@ -54,7 +54,25 @@ namespace CityX.WeaponsEditor
 
             public bool SteelHandle;
             public bool Dull;
+
+            /// <summary>How much bigger than drawn the knife is made (about the bolster, where it meets the hand's hold).</summary>
+            public float ModelScale = 1.0f;
+
+            /// <summary>Its own hold in the right hand, if it has one: the hand bone's space, and degrees.</summary>
+            public bool OwnHold;
+            public Vector3 HoldPosition;
+            public Vector3 HoldEuler;
         }
+
+        /// <summary>
+        /// The kitchen knife's size and hold, set by the owner by hand in the editor (2026-11-15: "the knife model needs to be scaled up and
+        /// adjust", then the Transform's numbers: "set this as the hold for the kitchen knife").
+        /// </summary>
+        public const float KitchenModelScale = 2.11f;
+
+        public static readonly Vector3 KitchenHoldPosition = new Vector3(0.109f, -0.04f, 0.17f);
+
+        public static readonly Vector3 KitchenHoldEuler = new Vector3(-85.6f, -5.15f, -178.1f);
 
         private static readonly KnifeDrawing Kitchen = new KnifeDrawing
         {
@@ -78,6 +96,10 @@ namespace CityX.WeaponsEditor
             {
                 new Vector2(0.0f, -0.015f), new Vector2(0.0135f, -0.015f), new Vector2(0.0145f, -0.006f), new Vector2(0.012f, 0.0f), new Vector2(0.0f, 0.002f),
             },
+            ModelScale = KitchenModelScale,
+            OwnHold = true,
+            HoldPosition = KitchenHoldPosition,
+            HoldEuler = KitchenHoldEuler,
         };
 
         private static readonly KnifeDrawing Butter = new KnifeDrawing
@@ -127,9 +149,12 @@ namespace CityX.WeaponsEditor
             var root = new GameObject(knife.Name);
             try
             {
-                HeldModelBaker.Part(root.transform, "Blade", blade, steel);
-                HeldModelBaker.Part(root.transform, "Bolster", bolster, steel);
-                HeldModelBaker.Part(root.transform, "Handle", handle, grip);
+                var model = new GameObject("Model").transform;
+                model.SetParent(root.transform, false);
+                model.localScale = Vector3.one * knife.ModelScale;
+                HeldModelBaker.Part(model, "Blade", blade, steel);
+                HeldModelBaker.Part(model, "Bolster", bolster, steel);
+                HeldModelBaker.Part(model, "Handle", handle, grip);
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
@@ -140,7 +165,11 @@ namespace CityX.WeaponsEditor
                 weapon.OneHanded = true;
                 weapon.Knife = true;
                 weapon.Dull = knife.Dull;
-                weapon.BladeLength = knife.BladeLength;
+                weapon.BladeLength = knife.BladeLength * knife.ModelScale;
+                if (knife.OwnHold)
+                {
+                    weapon.SetOwnHold(knife.HoldPosition, knife.HoldEuler);
+                }
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, knife.PrefabPath);
                 AssetDatabase.SaveAssets();
