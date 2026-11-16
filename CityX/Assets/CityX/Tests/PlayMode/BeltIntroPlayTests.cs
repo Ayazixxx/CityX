@@ -46,9 +46,10 @@ namespace CityX.Tests
 
             public void Play(string characterId, Action<CharacterSave, bool> done) => done(Characters.Find(c => c.Id == characterId), false);
 
-            public void Save(CharacterSave character, bool adminEdited)
-            {
-            }
+            /// <summary>The characters it was asked to save, in order.</summary>
+            public readonly List<CharacterSave> Saved = new List<CharacterSave>();
+
+            public void Save(CharacterSave character, bool adminEdited) => Saved.Add(character);
         }
 
         public override void Setup()

@@ -140,6 +140,11 @@ namespace CityX.Tests
             Transform bin = card.First(t => t.name == "TrashButton");
             Assert.AreEqual(ButtonAction.Kind.SelectBeginDeleteSelected, bin.GetComponent<ButtonAction>().Action);
             Assert.LessOrEqual(((RectTransform)bin).sizeDelta.x, 32.0f, "the bin is not little");
+            Transform pencil = card.First(t => t.name == "PencilButton");
+            Assert.AreEqual(ButtonAction.Kind.SelectBeginRedrawSelected, pencil.GetComponent<ButtonAction>().Action);
+            Assert.AreSame(bin.parent, pencil.parent, "the pencil is not beside the bin");
+            float gap = ((RectTransform)bin).anchoredPosition.x - ((RectTransform)pencil).anchoredPosition.x - ((RectTransform)pencil).sizeDelta.x;
+            Assert.That(gap, Is.InRange(0.0f, 16.0f), "the pencil is not next to the bin, on its left");
             Assert.AreEqual(ButtonAction.Kind.SelectPlaySelected, card.First(t => t.name == "PlayButton").GetComponent<ButtonAction>().Action);
             Assert.IsNull(card.FirstOrDefault(t => t.name == "DeleteButton"), "the card has a DELETE button beside PLAY");
             Assert.AreEqual(ButtonAction.Kind.TitleBack, card.First(t => t.name == "BackButton").GetComponent<ButtonAction>().Action);
@@ -214,6 +219,7 @@ namespace CityX.Tests
                     case ButtonAction.Kind.SelectPlaySelected:
                     case ButtonAction.Kind.SelectBeginDeleteSelected:
                     case ButtonAction.Kind.SelectCreateNew:
+                    case ButtonAction.Kind.SelectBeginRedrawSelected:
                         Require(unwired, go, action.Select, "a CharacterSelect");
                         break;
 

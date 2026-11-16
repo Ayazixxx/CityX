@@ -73,48 +73,7 @@ namespace CityX.UI
 
             _overlay = RedrawCreatorRuntime.Build(Body, HairMeshes, HairMaterial, OnConfirm, OnCancel);
             Active = this;
-            Seed(character);
-        }
-
-        /// <summary>
-        /// Paint/hair are read from CharacterSave, not off the live
-        /// renderer -- the save is the single source of truth
-        /// CharacterIdentity itself always writes to and reads from.
-        /// </summary>
-        private void Seed(CharacterSave character)
-        {
-            CreatorOverlays overlays = _overlay != null ? _overlay.GetComponent<CreatorOverlays>() : null;
-            CharacterCreator creator = overlays != null ? overlays.Creator : null;
-            if (creator == null || creator.Paint == null)
-            {
-                return;
-            }
-
-            byte[] paint = character.GetPaint();
-            if (paint != null)
-            {
-                creator.Paint.Decode(paint);
-            }
-            else
-            {
-                // No paint saved (a legacy or Godot-imported character) --
-                // start from their flat skin colour rather than the blank
-                // white a fresh creator otherwise opens on, matching
-                // CharacterIdentity.Apply's own Recolour fallback.
-                creator.Paint.Clear(character.Skin);
-            }
-            creator.SetHairStyle(character.HairStyle);
-            creator.SetHairColour(character.HairColour);
-
-            // The colour picker beside the creator has to show the character's own hair colour, not
-            // the colour it was built with.
-            HairColourControls hairControls = _overlay != null
-                ? _overlay.GetComponentInChildren<HairColourControls>(true)
-                : null;
-            if (hairControls != null)
-            {
-                hairControls.Refresh();
-            }
+            RedrawCreatorRuntime.Seed(_overlay, character);
         }
 
         private void OnConfirm(CharacterCreator creator)

@@ -117,6 +117,7 @@ namespace CityX.UI
 
         private void OnDisable()
         {
+            CloseTheRedraw();
             ViewFrom(0.0f);
             if (Intro != null)
             {
@@ -169,7 +170,7 @@ namespace CityX.UI
         /// </summary>
         public void CreateNew()
         {
-            if (_creating)
+            if (_creating || _mode == Mode.Redrawing)
             {
                 return;
             }
@@ -269,7 +270,7 @@ namespace CityX.UI
                 }
             }
 
-            bool closeIn = _mode == Mode.Inspecting || _mode == Mode.Confirming;
+            bool closeIn = _mode == Mode.Inspecting || _mode == Mode.Confirming || _mode == Mode.Redrawing;
             _inspected = Mathf.MoveTowards(_inspected, closeIn ? 1.0f : 0.0f, deltaTime / InspectSeconds);
             ViewFrom(_inspected);
             ShowTheTag(deltaTime);

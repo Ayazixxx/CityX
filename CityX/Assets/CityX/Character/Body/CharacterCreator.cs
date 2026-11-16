@@ -343,7 +343,12 @@ namespace CityX.Character
                 foreach (Collider collider in GetComponentsInChildren<Collider>(true))
                 {
                     // Except the two a click is tested against.
-                    if (collider != BodyCollider && collider != HeadCollider)
+                    if (collider.isTrigger)
+                    {
+                        // A worn item's pickup trigger (the shoes': a redrawn character comes dressed): its item needs it, so it is only switched off.
+                        collider.enabled = false;
+                    }
+                    else if (collider != BodyCollider && collider != HeadCollider)
                     {
                         Remove(collider);
                     }

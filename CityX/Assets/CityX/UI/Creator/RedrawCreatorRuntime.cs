@@ -35,6 +35,9 @@ namespace CityX.UI
     {
         private static readonly Vector2 DesignResolution = new Vector2(1152.0f, 648.0f);
 
+        /// <summary>The layer the redraw's stage is drawn and lit on, alone.</summary>
+        public const string Layer = "CityXRedraw";
+
         /// <summary>
         /// Builds the whole overlay -- 3D stage plus tool column -- and
         /// returns its root. Destroy the returned GameObject to tear the
@@ -97,6 +100,41 @@ namespace CityX.UI
             return root;
         }
 
+        /// <summary>
+        /// Puts the character's paint and hair on the creator <see cref="Build"/> made. Read from the save, not off a body's renderer: the save is
+        /// the single source of truth CharacterIdentity itself always writes to and reads from.
+        /// </summary>
+        public static void Seed(GameObject overlay, CharacterSave character)
+        {
+            CreatorOverlays overlays = overlay != null ? overlay.GetComponent<CreatorOverlays>() : null;
+            CharacterCreator creator = overlays != null ? overlays.Creator : null;
+            if (creator == null || creator.Paint == null || character == null)
+            {
+                return;
+            }
+
+            byte[] paint = character.GetPaint();
+            if (paint != null)
+            {
+                creator.Paint.Decode(paint);
+            }
+            else
+            {
+                // No paint saved (a legacy or Godot-imported character): its flat skin colour rather than the blank white a fresh creator opens
+                // on, matching CharacterIdentity.Apply's own Recolour fallback.
+                creator.Paint.Clear(character.Skin);
+            }
+            creator.SetHairStyle(character.HairStyle);
+            creator.SetHairColour(character.HairColour);
+
+            // The colour picker beside the creator has to show the character's own hair colour, not the colour it was built with.
+            HairColourControls hairControls = overlay.GetComponentInChildren<HairColourControls>(true);
+            if (hairControls != null)
+            {
+                hairControls.Refresh();
+            }
+        }
+
         // --- the 3D half ---
 
         /// <summary>
@@ -148,6 +186,8 @@ namespace CityX.UI
             // that component's own [RequireComponent(CharacterIdentity)]
             // blocks CharacterIdentity's own removal below until this is gone.
             Strip<PlayerRedrawStarter>(body);
+            // A figure from the character list (CharacterSelect's pencil) idles and plants its feet on the belt.
+            Strip<LineupFigure>(body);
             Strip<PlayerInputReader>(body);
             Strip<PlayerLocomotion>(body);
             Strip<PlayerClimbing>(body);
@@ -164,7 +204,22 @@ namespace CityX.UI
             // The clone already wears one, cloned from the live player --
             // CharacterHair fights over the same head bone if two land on
             // the same body, and AddHair below builds a fresh one anyway.
-            Strip<CharacterHair>(body);
+            // At once, not at the end of the frame: the stage comes up this frame, and a copied CharacterHair still waiting to go wakes then
+            // and grows a second hair of its own.
+            foreach (CharacterHair copied in body.GetComponentsInChildren<CharacterHair>(includeInactive: true))
+            {
+                Object.DestroyImmediate(copied);
+            }
+            // ...and the hair it wore is a plain object under the head, copied too: left there, the fresh hair sat inside the old and the two
+            // showed through each other in speckles (owner, 2026-11-15: "make sure there isnt a new hair overlapping with the old one").
+            foreach (Transform part in body.GetComponentsInChildren<Transform>(includeInactive: true))
+            {
+                if (part.name == CharacterHair.WornName && part.GetComponent<MeshRenderer>() != null)
+                {
+                    part.name = "CopiedHair";   // gone at the end of the frame; renamed now, so nothing finds it before then
+                    Object.Destroy(part.gameObject);
+                }
+            }
 
             // Ragdoll (every Joint/Rigidbody/Collider except the two a click
             // is tested against) and the frozen T-pose (every Animator
@@ -197,20 +252,13 @@ namespace CityX.UI
 
             CharacterHair hair = AddHair(body, hairMeshes, hairMaterial);
 
-            // THE LAYER MUST ALREADY EXIST -- a runtime script cannot add one
-            // to the project the way CharacterCreatorBuilder.EnsureLayer does
-            // at edit time (that needs TagManager.asset, an editor-only
-            // asset). The title screen's own creator already creates
-            // "CityXCreator" the first time it is built, so in practice this
-            // is always there by the time ReDraw ships; this only degrades
-            // rather than throwing if a project somehow reaches ReDraw
-            // without ever having built the title screen.
-            int layer = LayerMask.NameToLayer("CityXCreator");
+            // ITS OWN LAYER, set up in the project's layers (a runtime script cannot add one): not the title's creator layer, as the character
+            // list's pencil opens it over the title's belt, whose figures, belt and lights are on that one. Shared, the redraw camera drew the
+            // belt and the characters behind the one redrawn, and the belt's lights lit it twice over.
+            int layer = LayerMask.NameToLayer(Layer);
             if (layer < 0)
             {
-                Debug.LogWarning("CityX: no CityXCreator layer -- ReDraw will render the whole " +
-                                 "city behind the character. Build the title screen scene once " +
-                                 "in the editor to create it.");
+                Debug.LogWarning($"CityX: no {Layer} layer -- ReDraw will render the whole scene behind the character.");
                 layer = 0;
             }
             SetLayerRecursively(stage, layer);

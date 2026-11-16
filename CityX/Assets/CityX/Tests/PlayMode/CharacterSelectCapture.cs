@@ -92,6 +92,59 @@ namespace CityX.Tests
             Shoot("tools-up");
         }
 
+        /// <summary>
+        /// The row with hair on every character and the middle one in the Midnight Coat, shot every 0.4 s for 3 s (owner, 2026-11-15: "on the
+        /// character select screen the hair is disappearing every couple seconds"), then the card and its pencil, and the redraw creator it opens
+        /// (owner: "add a pencil icon next to the trash icon to redraw"), to Logs/CityShots/select-hair-*.png and select-redraw-*.png.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RenderTheHairOverTimeAndThePencilsRedraw()
+        {
+            CaptureGuard.NeedsGraphics();
+            Time.captureFramerate = 60;
+            _sourceWas = CharacterSources.Current;
+            _firstStartWas = TitleScreen.BeltOnFirstStart;
+            TitleScreen.BeltOnFirstStart = false;
+            var server = new BeltIntroPlayTests.Server();
+            string[] styles = { CityX.Character.CharacterHair.KickHair, CityX.Character.CharacterHair.KickHair, CityX.Character.CharacterHair.Dreads };
+            for (int i = 0; i < styles.Length; i++)
+            {
+                CharacterSave save = CharacterSave.Create("Hair" + i, new Color(0.78f, 0.62f, 0.53f));
+                save.HairStyle = styles[i];
+                save.HairColour = new Color(0.15f, 0.1f, 0.08f);
+                save.Wearing = new List<string> { i == 1 ? ItemRegistry.MidnightCoat : ItemRegistry.TShirt, ItemRegistry.GreyJeans, ItemRegistry.WhiteSneaker };
+                server.Characters.Add(save);
+            }
+            CharacterSources.Current = server;
+            yield return CharacterCreatorPlayTests.LoadTitle();
+            _title = SceneManager.GetSceneByPath(CharacterCreatorPlayTests.ScenePath);
+            var title = Object.FindFirstObjectByType<TitleScreen>();
+            _belt = title.CreatorPanel.GetComponent<BeltIntro>();
+            _select = title.Select;
+            View.CityHaze.Clear();
+            _belt.MakingCamera.aspect = (float)BuildingShapeCapture.ShotWidth / BuildingShapeCapture.ShotHeight;
+
+            title.Show(TitleScreen.Panel.CharacterSelect);
+            yield return Frames(40);
+            _select.Next();
+            yield return Until(() => _select.Line.Settled);
+            for (int i = 0; i < 8; i++)
+            {
+                Shoot($"hair-{i * 4:00}");
+                yield return Frames(24);
+            }
+            _select.Inspect();
+            yield return Frames(40);
+            Shoot("redraw-card");
+            _select.BeginRedrawSelected();
+            yield return Frames(10);
+            GameObject overlay = _select.RedrawOverlay;
+            Assert.IsNotNull(overlay, "the pencil opened no redraw");
+            Camera redraw = overlay.GetComponent<CreatorStage>().Stage.GetComponentInChildren<Camera>();
+            redraw.aspect = _belt.MakingCamera.aspect;
+            Shoot("redraw-open", redraw, overlay.GetComponent<Canvas>());
+        }
+
         private static IEnumerator Frames(int count)
         {
             for (int i = 0; i < count; i++)
@@ -110,10 +163,11 @@ namespace CityX.Tests
         }
 
         /// <summary>The belt's camera, with the title's interface drawn into the picture.</summary>
-        private void Shoot(string name)
+        private void Shoot(string name) => Shoot(name, _belt.MakingCamera, _select.GetComponentInParent<Canvas>().rootCanvas);
+
+        /// <summary>A camera, with an interface drawn into the picture.</summary>
+        private void Shoot(string name, Camera camera, Canvas canvas)
         {
-            Camera camera = _belt.MakingCamera;
-            Canvas canvas = _select.GetComponentInParent<Canvas>().rootCanvas;
             RenderMode modeWas = canvas.renderMode;
             Transform[] drawn = canvas.GetComponentsInChildren<Transform>(true);
             var layersWere = new int[drawn.Length];

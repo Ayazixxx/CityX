@@ -202,6 +202,7 @@ namespace CityX.UIEditor
             binRect.anchoredPosition = new Vector2(0.0f, 178.0f);
             binRect.sizeDelta = new Vector2(BinRowWidth, 40.0f);
             MakeTrashButton(binRect, select);
+            MakePencilButton(binRect, select);
 
             Button play = ArrowButtons.Straight(panel.transform, "PlayButton", "PLAY", ArrowSize, ArrowButtons.GreenTop, ArrowButtons.GreenBottom);
             Place(play, Anchor(0.0f, 0.5f), new Vector2(ArrowSize.x * 0.5f, -40.0f));
@@ -277,12 +278,42 @@ namespace CityX.UIEditor
         /// </summary>
         private static void MakeTrashButton(Transform card, CharacterSelect select)
         {
-            var buttonObject = new GameObject("TrashButton", typeof(RectTransform));
+            GameObject buttonObject = IconButton(card, "TrashButton", -6.0f, Danger, ButtonAction.Kind.SelectBeginDeleteSelected, select);
+            var bin = new Color(0.62f, 0.62f, 0.66f, 1.0f);
+            IconPart(buttonObject.transform, "Handle", bin, new Vector2(0.0f, 8.5f), new Vector2(6.0f, 2.0f));
+            IconPart(buttonObject.transform, "Lid", bin, new Vector2(0.0f, 6.0f), new Vector2(16.0f, 2.5f));
+            IconPart(buttonObject.transform, "Can", bin, new Vector2(0.0f, -3.0f), new Vector2(12.0f, 13.0f));
+            var slot = new Color(0.05f, 0.06f, 0.08f, 1.0f);
+            IconPart(buttonObject.transform, "SlotLeft", slot, new Vector2(-2.5f, -3.0f), new Vector2(1.5f, 9.0f));
+            IconPart(buttonObject.transform, "SlotRight", slot, new Vector2(2.5f, -3.0f), new Vector2(1.5f, 9.0f));
+        }
+
+        /// <summary>
+        /// The pencil beside the bin (owner, 2026-11-15: "add a pencil icon next to the trash icon to redraw"): the chosen character opens in the
+        /// redraw creator, the one the Player menu's ReDraw opens in the world. A yellow pencil leaning up to the right, its tip at the bottom left,
+        /// drawn from plain rectangles as the bin is. Its square lights gold under the pointer.
+        /// </summary>
+        private static void MakePencilButton(Transform card, CharacterSelect select)
+        {
+            GameObject buttonObject = IconButton(card, "PencilButton", -6.0f - 26.0f - 8.0f, Gold, ButtonAction.Kind.SelectBeginRedrawSelected, select);
+            const float Lean = 45.0f;
+            Vector2 along = new Vector2(Mathf.Cos(Lean * Mathf.Deg2Rad), Mathf.Sin(Lean * Mathf.Deg2Rad));
+            IconPart(buttonObject.transform, "Body", new Color(0.96f, 0.76f, 0.18f, 1.0f), along * 1.5f, new Vector2(13.0f, 5.0f), Lean);
+            IconPart(buttonObject.transform, "Band", new Color(0.62f, 0.62f, 0.66f, 1.0f), along * 9.0f, new Vector2(2.0f, 5.0f), Lean);
+            IconPart(buttonObject.transform, "Eraser", new Color(0.93f, 0.48f, 0.52f, 1.0f), along * 11.0f, new Vector2(2.5f, 5.0f), Lean);
+            IconPart(buttonObject.transform, "Wood", new Color(0.93f, 0.82f, 0.62f, 1.0f), along * -6.5f, new Vector2(3.5f, 3.5f), Lean);
+            IconPart(buttonObject.transform, "Lead", new Color(0.05f, 0.06f, 0.08f, 1.0f), along * -8.8f, new Vector2(1.8f, 1.8f), Lean);
+        }
+
+        /// <summary>A little square button on the card's top row, <paramref name="fromRight"/> pixels in from its right end, clear until pointed at.</summary>
+        private static GameObject IconButton(Transform card, string name, float fromRight, Color lit, ButtonAction.Kind action, CharacterSelect select)
+        {
+            var buttonObject = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)buttonObject.transform;
             rect.SetParent(card, false);
             rect.anchorMin = rect.anchorMax = new Vector2(1.0f, 1.0f);
             rect.pivot = new Vector2(1.0f, 1.0f);
-            rect.anchoredPosition = new Vector2(-6.0f, -6.0f);
+            rect.anchoredPosition = new Vector2(fromRight, -6.0f);
             rect.sizeDelta = new Vector2(26.0f, 26.0f);
 
             Image background = buttonObject.AddComponent<Image>();
@@ -291,31 +322,25 @@ namespace CityX.UIEditor
             button.targetGraphic = background;
             ColorBlock colours = button.colors;
             colours.normalColor = new Color(1.0f, 1.0f, 1.0f, 0.0f);
-            colours.highlightedColor = new Color(Danger.r, Danger.g, Danger.b, 0.85f);
+            colours.highlightedColor = new Color(lit.r, lit.g, lit.b, 0.85f);
             colours.selectedColor = colours.normalColor;
-            colours.pressedColor = Danger;
+            colours.pressedColor = lit;
             button.colors = colours;
 
             var wiring = buttonObject.AddComponent<ButtonAction>();
-            wiring.Action = ButtonAction.Kind.SelectBeginDeleteSelected;
+            wiring.Action = action;
             wiring.Select = select;
-
-            var bin = new Color(0.62f, 0.62f, 0.66f, 1.0f);
-            TrashPart(buttonObject.transform, "Handle", bin, new Vector2(0.0f, 8.5f), new Vector2(6.0f, 2.0f));
-            TrashPart(buttonObject.transform, "Lid", bin, new Vector2(0.0f, 6.0f), new Vector2(16.0f, 2.5f));
-            TrashPart(buttonObject.transform, "Can", bin, new Vector2(0.0f, -3.0f), new Vector2(12.0f, 13.0f));
-            var slot = new Color(0.05f, 0.06f, 0.08f, 1.0f);
-            TrashPart(buttonObject.transform, "SlotLeft", slot, new Vector2(-2.5f, -3.0f), new Vector2(1.5f, 9.0f));
-            TrashPart(buttonObject.transform, "SlotRight", slot, new Vector2(2.5f, -3.0f), new Vector2(1.5f, 9.0f));
+            return buttonObject;
         }
 
-        private static void TrashPart(Transform parent, string name, Color colour, Vector2 centre, Vector2 size)
+        private static void IconPart(Transform parent, string name, Color colour, Vector2 centre, Vector2 size, float degrees = 0.0f)
         {
             GameObject part = MakeRect(name, parent, colour);
             var rect = (RectTransform)part.transform;
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = centre;
             rect.sizeDelta = size;
+            rect.localRotation = Quaternion.Euler(0.0f, 0.0f, degrees);
             part.GetComponent<Image>().raycastTarget = false;
         }
 

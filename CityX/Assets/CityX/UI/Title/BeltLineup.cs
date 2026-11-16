@@ -95,6 +95,19 @@ namespace CityX.UI
             Remove(slot);
         }
 
+        /// <summary>The figure in <paramref name="slot"/> made again for <paramref name="character"/> (its look changed: redrawn).</summary>
+        public void Remake(int slot, CharacterSave character)
+        {
+            if (slot < 0 || slot >= _slots.Count)
+            {
+                return;
+            }
+            _slots[slot] = character;
+            Remove(slot);
+            Make(slot);
+            Place();
+        }
+
         /// <summary>Takes away every figure standing left of <paramref name="along"/> (out of sight: a new body is about to be rolled in there).</summary>
         public void ClearLeftOf(float along)
         {

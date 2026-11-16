@@ -111,6 +111,9 @@ namespace CityX.UI
 
             /// <summary>The character list's CREATE NEW: the belt rolls a blank body in behind the characters on it (CharacterSelect.CreateNew). Needs Select. Appended.</summary>
             SelectCreateNew,
+
+            /// <summary>The pencil on the chosen character's card: redraws its look (CharacterSelect.BeginRedrawSelected). Needs Select. Appended.</summary>
+            SelectBeginRedrawSelected,
         }
 
         public Kind Action;
@@ -203,6 +206,9 @@ namespace CityX.UI
                     break;
                 case Kind.SelectBeginDeleteSelected:
                     if (Select != null) Select.BeginDeleteSelected();
+                    break;
+                case Kind.SelectBeginRedrawSelected:
+                    if (Select != null) Select.BeginRedrawSelected();
                     break;
 
                 case Kind.SettingsResolutionPrevious:

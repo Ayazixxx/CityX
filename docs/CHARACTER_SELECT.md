@@ -33,6 +33,15 @@ select character should work"). It replaced the five pedestals in the night city
 - **Deleting.** The bin asks first (the old KEEP / DELETE check). Deleted, the character goes from the belt and its place stays empty
   while the screen is up (on a belt, a gap closes only by everything on it moving, which would make everyone jump); the belt rolls the next
   one (or else the one before) to the middle. Opened again, the row is closed up.
+- **Redrawing** (2026-11-15, owner: "add a pencil icon next to the trash icon to redraw"). The pencil just left of the bin opens the chosen
+  character in the redraw creator, the one the Player menu's ReDraw opens in the world (`RedrawCreatorRuntime`, on a copy of its figure,
+  seeded from its save: `CharacterSelect.Redraw.cs`). SAVE sends the new paint and hair to the server played on (`ICharacterSource.Save`,
+  which takes a character's look and keeps the rest) and the figure on the belt is made again wearing them; CANCEL (with the usual "are you
+  sure" after painting) changes nothing. Either way the card is back up. The redraw stage is drawn and lit on its own layer, `CityXRedraw`:
+  on the title's creator layer it showed the belt and the characters behind the one redrawn, and the belt's lights lit it twice over. The
+  copied body's hair component is removed at once and its hair object with it (owner: "make sure there isnt a new hair overlapping with
+  the old one"): removed at the end of the frame, the copy woke as the stage came up and grew a second hair inside the new one, speckling
+  through it. The in-world ReDraw had the same double hair, fixed with it.
 - **CREATE NEW** is in the top right corner whatever else is up (the gold arrow). Pressed, the view draws back if it had closed in, and
   once the belt stands still the creator takes the belt over (`TitleScreen.BringNewCharacter`, `BeltIntro.Bring`): it runs right by
   itself at 5 m/s (`BeltIntro.BringSpeed`), the row riding off the screen's right, and a plain white body comes in behind the leftmost

@@ -110,6 +110,67 @@ namespace CityX.Tests
             found.GetComponent<Button>().onClick.Invoke();
         }
 
+        /// <summary>
+        /// Owner, 2026-11-15: "add a pencil icon next to the trash icon to redraw". The pencil on the card opens the chosen character in the redraw
+        /// creator with its own look; CANCEL changes nothing; SAVE sends the new look to the server and the figure on the belt wears it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ThePencilRedrawsTheChosenCharacterAndSaveKeepsTheNewLook()
+        {
+            yield return Open(2);
+            CharacterSave chosen = _server.Characters[0];
+            chosen.HairStyle = CharacterHair.ValidStyles[1];
+            _select.Refresh();
+            yield return Frames(3);
+            yield return Tap(_keyboard.enterKey);
+            yield return Frames(30);
+            Assert.AreEqual(CharacterSelect.Mode.Inspecting, _select.Showing);
+
+            PressButton("PencilButton");
+            yield return Frames(3);
+            Assert.AreEqual(CharacterSelect.Mode.Redrawing, _select.Showing, "the pencil did not open the redraw");
+            Assert.IsNotNull(_select.RedrawOverlay, "no redraw creator");
+            Assert.IsFalse(_select.CardPanel.activeSelf, "the card is still up under the redraw creator");
+            CreatorOverlays overlays = _select.RedrawOverlay.GetComponent<CreatorOverlays>();
+            Assert.AreEqual(chosen.HairStyle, overlays.Creator.HairStyle, "the redraw does not open on the character's own hair");
+            // Owner, 2026-11-15: "make sure there isnt a new hair overlapping with the old one".
+            Transform redrawnHead = TransformSearch.FindDeep(overlays.Creator.RotationPivot, "head");
+            int hairs = 0;
+            foreach (Transform child in redrawnHead)
+            {
+                if (child.name == CharacterHair.WornName) hairs++;
+            }
+            Assert.AreEqual(1, hairs, "the redrawn body wears its copied hair and a new one, one inside the other");
+            int beltLayer = _select.Lineup.gameObject.layer;
+            Assert.AreEqual(0, overlays.Creator.Camera.cullingMask & (1 << beltLayer), "the redraw sees the belt and the characters on it");
+            foreach (Light light in _select.Lineup.GetComponentsInChildren<Light>())
+            {
+                Assert.AreEqual(0, light.cullingMask & (1 << overlays.Creator.Camera.gameObject.layer), $"the belt's {light.name} lights the redrawn body");
+            }
+
+            // CANCEL with nothing changed: back to the card, nothing saved.
+            overlays.TryGoBack();
+            yield return Frames(2);
+            Assert.IsNull(_select.RedrawOverlay, "CANCEL left the redraw creator up");
+            Assert.AreEqual(CharacterSelect.Mode.Inspecting, _select.Showing, "CANCEL did not go back to the card");
+            Assert.IsEmpty(_server.Saved, "CANCEL saved something");
+
+            PressButton("PencilButton");
+            yield return Frames(3);
+            overlays = _select.RedrawOverlay.GetComponent<CreatorOverlays>();
+            string newStyle = CharacterHair.ValidStyles[2];
+            overlays.Creator.SetHairStyle(newStyle);
+            overlays.SaveRedraw();
+            yield return Frames(3);
+            Assert.IsNull(_select.RedrawOverlay, "SAVE left the redraw creator up");
+            Assert.AreEqual(CharacterSelect.Mode.Inspecting, _select.Showing, "SAVE did not go back to the card");
+            Assert.AreEqual(1, _server.Saved.Count, "SAVE did not send the character to the server");
+            Assert.AreEqual(chosen.Id, _server.Saved[0].Id, "SAVE sent another character");
+            Assert.AreEqual(newStyle, _server.Saved[0].HairStyle, "the new hair was not saved");
+            CharacterHair worn = _select.Lineup.FigureAt(0).GetComponent<CharacterHair>();
+            Assert.AreEqual(newStyle, worn.Style, "the figure on the belt does not wear the new hair");
+        }
+
         [UnityTest]
         public IEnumerator TheCharactersStandInARowOnTheBeltTheChosenOneInTheMiddle()
         {

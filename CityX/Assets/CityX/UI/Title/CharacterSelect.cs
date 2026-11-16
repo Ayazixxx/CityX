@@ -34,6 +34,9 @@ namespace CityX.UI
 
             /// <summary>Closed in on the chosen character, its card up.</summary>
             Inspecting,
+
+            /// <summary>The chosen character's look being redrawn in the redraw creator, over everything (CharacterSelect.Redraw.cs).</summary>
+            Redrawing,
         }
 
         [Header("Wired by CharacterSelectBuilder")]
@@ -145,6 +148,10 @@ namespace CityX.UI
         /// </summary>
         public void Back()
         {
+            if (Time.frameCount == _redrawEndedOnFrame)
+            {
+                return;   // the Escape that just closed the redraw creator, not a second step back
+            }
             switch (_mode)
             {
                 case Mode.Confirming:
