@@ -64,6 +64,11 @@ namespace CityX.WeaponsEditor
                 weapon.OneHanded = false;
                 weapon.BladeLength = reach;
 
+                // The owner's size slider (WeaponGripSettings.BaseballBatSize), applied on top of the size built here.
+                BatSize size = root.AddComponent<BatSize>();
+                size.Model = model.transform;
+                size.BuiltReach = reach;
+
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();
                 return saved;

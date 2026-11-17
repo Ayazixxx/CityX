@@ -157,6 +157,44 @@ namespace CityX.Tests
             Assert.Less(wood.GetFloat("_Metallic"), 0.1f, "wood is not metal");
         }
 
+        /// <summary>
+        /// The owner's bat size (2026-11-16: "let me adjust the baseball bat size in unity"): the model grows about the bottom hand, so the knob stays just under it in
+        /// proportion and both hands stay on the handle, and a swing reaches the bigger barrel's end. 1 is the bat as built.
+        /// </summary>
+        [TestCase(1.0f)]
+        [TestCase(1.5f)]
+        [TestCase(0.6f)]
+        public void TheBatGrowsAboutTheBottomHandAndItsSwingReachesTheBarrel(float size)
+        {
+            GameObject prefab = Load(BatPath);
+            Span(RootSpaceVertices(prefab, out _), out float builtBottom, out float builtTop);
+            WeaponGripSettings real = WeaponGripSettings.Current;
+            var settings = ScriptableObject.CreateInstance<WeaponGripSettings>();
+            GameObject bat = Object.Instantiate(prefab);
+            try
+            {
+                settings.BaseballBatSize = size;
+                WeaponGripSettings.Current = settings;
+                BatSize sizer = bat.GetComponent<BatSize>();
+                Assert.IsNotNull(sizer, "nothing on the bat reads the size slider");
+                sizer.Apply();
+
+                Span(RootSpaceVertices(bat, out _), out float bottom, out float top);
+                float pivot = BatSize.Pivot.y;
+                Assert.AreEqual(BatLength * size, top - bottom, 0.03f * size, "the bat is not that size");
+                Assert.AreEqual(pivot + (builtBottom - pivot) * size, bottom, 0.005f, "the knob moved off the bottom hand");
+                Assert.Less(bottom, pivot, "the bottom hand is off the knob's end");
+                Assert.AreEqual(top, bat.GetComponent<SwordWeapon>().BladeLength, 0.01f, "a swing does not reach the barrel's end");
+                Assert.AreEqual(pivot + (builtTop - pivot) * size, top, 0.005f);
+            }
+            finally
+            {
+                WeaponGripSettings.Current = real;
+                Object.DestroyImmediate(bat);
+                Object.DestroyImmediate(settings);
+            }
+        }
+
         [Test]
         public void TheGrainIsWoodColouredWithDarkerLinesAndWrapsRound()
         {

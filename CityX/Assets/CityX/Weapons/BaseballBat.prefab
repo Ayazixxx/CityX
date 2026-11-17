@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 4932957919117782960}
   - component: {fileID: 8588095159033159533}
   - component: {fileID: 5507618447358542174}
+  - component: {fileID: 2525301323293957025}
   m_Layer: 0
   m_Name: BaseballBat
   m_TagString: Untagged
@@ -70,7 +71,27 @@ MonoBehaviour:
   _itemId: baseball_bat
   _oneHanded: 0
   _bladeLength: 1.19
+  _knife: 0
+  _hammer: 0
+  _dull: 0
   _edgeOnPlusX: 0
+  _ownHold: 0
+  _ownHoldPosition: {x: 0, y: 0, z: 0}
+  _ownHoldEuler: {x: 0, y: 0, z: 0}
+--- !u!114 &2525301323293957025
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1427942689939762654}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0a5de04faf57eb4cb3972deef3bf233, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BatSize
+  _model: {fileID: 7828455725914936570}
+  _builtReach: 1.19
 --- !u!1 &1642096565736658083
 GameObject:
   m_ObjectHideFlags: 0

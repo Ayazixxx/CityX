@@ -56,6 +56,17 @@ namespace CityX.Character
                  "Also what a clip-played swing or guard keeps of its own spine motion.")]
         public float TorsoFollowStrength = 1.0f;
 
+        /// <summary>The smallest and largest a weapon's size slider goes, against the size it was built at.</summary>
+        public const float SmallestSize = 0.5f;
+
+        public const float LargestSize = 2.0f;
+
+        [Header("Sizes")]
+        [Range(SmallestSize, LargestSize)]
+        [Tooltip("The baseball bat's size against the size it was built at (1). The bottom hand stays just over the knob and the reach of a swing grows with it. " +
+                 "Changed while the game runs, a bat in hand grows or shrinks at once, and the size is kept after you stop.")]
+        public float BaseballBatSize = 1.0f;
+
         private static WeaponGripSettings _current;
 
         /// <summary>

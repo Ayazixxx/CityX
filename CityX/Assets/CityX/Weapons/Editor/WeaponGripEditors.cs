@@ -137,6 +137,7 @@ namespace CityX.WeaponsEditor
         {
             EditorGUILayout.Space(10.0f);
             EditorGUILayout.LabelField("Sword hold", EditorStyles.boldLabel);
+            DrawBatSize(sword);
 
             if (sword.OneHanded)
             {
@@ -268,6 +269,28 @@ namespace CityX.WeaponsEditor
             }
             EditorGUILayout.HelpBox(
                 "The free hand only comes up while you aim (hold right-click), so aim while you drag the marker.", MessageType.None);
+        }
+
+        /// <summary>
+        /// The bat's size slider (owner, 2026-11-16: "let me adjust the baseball bat size in unity"), on the bat in hand while the game runs and on the prefab
+        /// when it does not: dragged, every bat changes at once, and the size is saved in the WeaponGrips asset, so it is kept after the game stops.
+        /// </summary>
+        private static void DrawBatSize(SwordWeapon sword)
+        {
+            if (sword.GetComponent<BatSize>() == null)
+            {
+                return;
+            }
+            WeaponGripSettings settings = EnsureAsset();
+            EditorGUI.BeginChangeCheck();
+            float size = EditorGUILayout.Slider("Bat size", settings.BaseballBatSize, WeaponGripSettings.SmallestSize, WeaponGripSettings.LargestSize);
+            if (EditorGUI.EndChangeCheck())
+            {
+                settings.BaseballBatSize = size;
+                Persist(settings);
+            }
+            EditorGUILayout.HelpBox("1 is the size the bat was built at. The hands stay on the handle and a swing reaches as far as the bigger or smaller barrel. " +
+                "Kept after you stop the game.", MessageType.None);
         }
 
         private static void DrawTorso(WeaponGripSettings settings)

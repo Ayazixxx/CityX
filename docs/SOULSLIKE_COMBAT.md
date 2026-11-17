@@ -728,3 +728,11 @@ Owner: the swings are "stilted and awkward. they only use the arms so It looks o
   `TwoHandedRunUprightPlayTests` holds the run's head as straight as the plain run's; `TwoHandedRunCapture` (Explicit, -Graphics) renders both runs from
   behind and from the game camera's place, with the head's tip and turn logged. Tried first and taken out: baking Mixamo's run again with the hips
   upright, on the guess that the body leaned (it did not).
+
+## Update 2026-11-16: the bat's size is the owner's
+
+Owner: "let me adjust the baseball bat size in unity". The Bat size slider on the bat's Inspector (CityX > Weapon Grips > Select the held sword while it is
+in hand, or the BaseballBat prefab) and Baseball Bat Size on the WeaponGrips asset, 0.5 to 2 times the size it was built at. Dragged while the game runs,
+every bat changes at once: in hand, on the ground and in other players' hands (each copy reads the same asset). The model grows about the bottom hand, so
+both hands stay on the handle and the knob just under the bottom fist, and a swing reaches the barrel's end (`Weapons/Melee/BatSize`). Kept after the game
+stops. `BluntWeaponTests`, `BatSizePlayTests`.
