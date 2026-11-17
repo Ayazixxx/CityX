@@ -270,11 +270,14 @@ namespace CityX.Character
         /// <summary>He counts himself behind only this far inside the backstab's arc, degrees: the target turns while his cut winds up.</summary>
         public const float BehindMarginDegrees = 15.0f;
 
-        /// <summary>A flanker within this of the target's face is in front of it, degrees; at its side or further round he may cut at once.</summary>
-        public const float FlankSideDegrees = 75.0f;
+        /// <summary>
+        /// A clear shot at the back: he is already this far round the target, degrees from its face (past its side, the back a step away). Only
+        /// then does a flanker go for the back; anywhere further in front he fights it face on (owner, 2026-11-17: "the crazy guy always seems to
+        /// go for backstabs make it so he only goes for that when he has a clear shot").
+        /// </summary>
+        public const float ClearShotDegrees = 110.0f;
 
-        /// <summary>How long a flanker has been trying to get round the target since his last attack, seconds.</summary>
-        private float _flanking;
+        private bool ClearShotAtTheBack(in Senses s) => _style.FlanksForBackstab && Mathf.Abs(s.RoundTargetDegrees) >= ClearShotDegrees && !Behind(s);
 
         /// <summary>Which way he steps (his right +1, his left -1) to work round toward the target's back.</summary>
         private static float TowardItsBack(in Senses s) => s.RoundTargetDegrees >= 0.0f ? -1.0f : 1.0f;
@@ -460,10 +463,8 @@ namespace CityX.Character
                 StartAttack(ref intent, s, heavy: false, mayHeavy: false);
                 return intent;
             }
-            // A flanker cuts from in front of the target only once he has tried a while to get round it.
-            _flanking += deltaTime;
-            bool mayCutHere = !_style.FlanksForBackstab || Mathf.Abs(s.RoundTargetDegrees) >= FlankSideDegrees || _flanking >= _style.FlankPatienceSeconds;
-            if (canStart && mayCutHere && _backOff <= 0.0f && _attackCooldown <= 0.0f && !s.TargetAttacking)
+            // With a clear shot at the back he holds his cut for the step round to it; anywhere else he cuts where he stands.
+            if (canStart && !ClearShotAtTheBack(s) && _backOff <= 0.0f && _attackCooldown <= 0.0f && !s.TargetAttacking)
             {
                 if (!s.TargetBlocking || Chance() < _style.IntoGuardChance)
                 {
@@ -474,13 +475,14 @@ namespace CityX.Character
             }
 
             // 5. APPROACH, then CIRCLE -- further out while another has the turn, and the other way from the nearest packmate, so the pack
-            // spreads round the target. A knife works round toward the target's back instead (alone; in a pack the spreading comes first).
+            // spreads round the target. A knife with a clear shot at the back works round to it instead (alone; in a pack the spreading comes
+            // first).
             float ring = s.Waiting ? WaitMetres : _style.EngageMetres;
             if (s.CrowdSide != 0.0f)
             {
                 _circleSign = -Mathf.Sign(s.CrowdSide);
             }
-            else if (_style.FlanksForBackstab && !Behind(s))
+            else if (ClearShotAtTheBack(s))
             {
                 _circleSign = TowardItsBack(s);
             }
@@ -518,10 +520,8 @@ namespace CityX.Character
                             && !s.TargetAttacking && !_guardUp;
             if (pressing)
             {
-                // His pause is over: in to cut -- straight in once he is behind it or at its side; from in front, mostly round toward its back,
-                // closing as he goes.
-                bool round = _style.FlanksForBackstab && Mathf.Abs(s.RoundTargetDegrees) < FlankSideDegrees && _flanking < _style.FlankPatienceSeconds;
-                intent.Move = round ? new Vector2(_circleSign * 0.9f, 0.45f) : new Vector2(0.0f, 1.0f);
+                // His pause is over: in to cut -- straight in, or, with a clear shot at the back, round to it, closing as he goes.
+                intent.Move = ClearShotAtTheBack(s) ? new Vector2(_circleSign * 0.9f, 0.45f) : new Vector2(0.0f, 1.0f);
                 return intent;
             }
             if (_backOff > 0.0f || s.Distance < ring - 0.7f)
@@ -541,7 +541,6 @@ namespace CityX.Character
             Become(DuelistState.Attack);
             _guardUp = false;   // the guard comes down to swing (the sword combat drops it)
             _guardStance = false;
-            _flanking = 0.0f;
             if (heavy || (mayHeavy && Chance() < _style.HeavyChance))
             {
                 intent.Heavy = true;

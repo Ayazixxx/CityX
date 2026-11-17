@@ -111,10 +111,12 @@ He fights by `DuelistStyle.Knife` (the swordsman by `DuelistStyle.Swordsman`, th
 slashes stagger no one, its guard thin and its backstab the biggest (3x). So he
 - fights close (2.6 m ring, the knife's reach) and fast (pauses of 0.35 to 0.9 s, presses at the knife's swing speed), in flurries of two to four cuts;
 - hardly ever guards (5% of spells) and dashes more (out of a slow blow 70%, away after a hit 50%, out after a flurry 60%);
-- works round toward the target's back (`Senses.RoundTargetDegrees`); behind it, in reach, he cuts at once with a quick cut whatever the target is doing;
-  from in front he cuts only after two seconds of trying to get round (a player keeps turning to face him);
+- goes for the back only with a clear shot at it (owner, 2026-11-17: "only goes for that when he has a clear shot"): already round past the target's
+  side (`DuelistMind.ClearShotDegrees`, 110 degrees from its face, `Senses.RoundTargetDegrees`) he holds his cut and steps round to the back; behind it,
+  in reach, he cuts at once with a quick cut whatever the target is doing; anywhere further in front he fights face on, cutting where he stands
+  (until 2026-11-17 he always worked round, cutting from in front only after two seconds of trying);
 - dashes ROUND a slow blow, past its side toward the back, instead of away;
 - steps in to cut once his pause is over, instead of waiting for the target to come into reach as the swordsman does;
 - now and then the icepick stab (the knife's heavy), never from behind.
-Against a player standing still for 15 s: 9 hits, 6 of them backstabs (`CrazyGuyPlayTests`). `KnifeDuelistTests`, `SwordsmanLookTests`;
+Against a player standing still (`CrazyGuyPlayTests`): face to face, his cuts land mostly from the front; started past its side, he takes the backstab. `KnifeDuelistTests`, `SwordsmanLookTests`;
 `CrazyGuyCapture` (Explicit, -Graphics). Not in the world's spawns yet (only `/spawn`).

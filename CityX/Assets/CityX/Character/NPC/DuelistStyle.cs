@@ -16,8 +16,9 @@ namespace CityX.Character
     /// THE KNIFE'S (owner, 2026-11-16, of Crazy Guy: "make him wield a kitchen knife and utilize its advantages"; docs/KNIFE.md): the knife is quick
     /// and light, a little short in reach, its slashes stagger no one, its guard is thin, and its backstab is the biggest of any weapon (3x,
     /// Backstab.KnifeMultiplier). So he fights close and fast: in tight, flurries of two to four quick cuts with short pauses, hardly ever a guard
-    /// (dashing instead, more often), always working round to the target's back (<see cref="FlanksForBackstab"/>), cutting the moment he is behind
-    /// it, and when a slow blow comes, dashing round it rather than away (<see cref="DashesRound"/>). Now and then the icepick stab (its heavy).
+    /// (dashing instead, more often), taking the target's back when he has a clear shot at it (<see cref="FlanksForBackstab"/>; owner, 2026-11-17:
+    /// "only goes for that when he has a clear shot"), cutting the moment he is behind it, and when a slow blow comes, dashing round it rather than
+    /// away (<see cref="DashesRound"/>). Now and then the icepick stab (its heavy).
     /// </summary>
     public sealed class DuelistStyle
     {
@@ -43,14 +44,11 @@ namespace CityX.Character
 
         public int ExtraCutsMax;
 
-        /// <summary>Circling, he works round toward the target's back, and cuts the moment he is behind it (a backstab).</summary>
-        public bool FlanksForBackstab;
-
         /// <summary>
-        /// Flanking, he cuts from in front of the target (inside <see cref="DuelistMind.FlankSideDegrees"/> of its face) only after trying this long to
-        /// get round it: a player keeps turning to face him, and he cannot wait for the back for ever. Seconds.
+        /// With a clear shot at the target's back (already round past its side, <see cref="DuelistMind.ClearShotDegrees"/>) he steps round to it,
+        /// and he cuts the moment he is behind it (a backstab). In front of it he fights it face on.
         /// </summary>
-        public float FlankPatienceSeconds;
+        public bool FlanksForBackstab;
 
         /// <summary>Out of a slow blow he dashes round the target, toward its back, instead of away.</summary>
         public bool DashesRound;
@@ -104,7 +102,6 @@ namespace CityX.Character
             ExtraCutsMin = 1,
             ExtraCutsMax = 3,
             FlanksForBackstab = true,
-            FlankPatienceSeconds = 2.0f,
             DashesRound = true,
             StepsInToCut = true,
         };

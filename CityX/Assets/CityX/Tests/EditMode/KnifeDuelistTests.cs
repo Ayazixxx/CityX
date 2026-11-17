@@ -6,7 +6,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Crazy Guy's mind: the duelist fighting the knife's way (DuelistStyle.Knife; owner, 2026-11-16: "make him wield a kitchen knife and utilize its
-    /// advantages"). Close and fast, hardly a guard, round to the back for the knife's backstab, round a slow blow instead of away from it.
+    /// advantages"). Close and fast, hardly a guard, round to the back for the knife's backstab when he has a clear shot at it, round a slow blow
+    /// instead of away from it.
     /// </summary>
     public sealed class KnifeDuelistTests
     {
@@ -19,27 +20,67 @@ namespace CityX.Tests
             return new DuelistMind.Senses { HasTarget = true, Distance = distance, Stamina = 1.0f, CanDash = true, RoundTargetDegrees = roundDegrees };
         }
 
-        [Test]
-        public void AtTheTargetsSideHeWorksRoundTowardItsBack()
+        private const int CirclingSeeds = 20;
+        private const float CirclingSeconds = 2.0f;
+
+        /// <summary>The seconds <see cref="Circling"/> watches him for, over all its seeds.</summary>
+        private const float Watched = CirclingSeeds * CirclingSeconds;
+
+        /// <summary>Seconds he spends moving toward the target's back and toward its front, standing <paramref name="round"/> degrees round it.</summary>
+        private static (float towardBack, float towardFront) Circling(float round)
         {
-            foreach (float side in new[] { 90.0f, -90.0f })
+            float towardBack = 0.0f, towardFront = 0.0f;
+            for (int seed = 1; seed <= CirclingSeeds; seed++)
             {
-                float towardBack = 0.0f, away = 0.0f;
+                DuelistMind mind = Knife(seed);
+                for (float t = 0.0f; t < CirclingSeconds; t += Dt)
+                {
+                    // Just out of his reach, so he circles rather than cuts.
+                    DuelistMind.Intent intent = mind.Tick(At(DuelistStyle.Knife.EngageMetres, round), Dt);
+                    if (intent.Light || intent.Heavy || intent.Dash) continue;
+                    // On its right (+), his left (-x) takes him behind it; on its left, his right.
+                    float back = round > 0.0f ? -intent.Move.x : intent.Move.x;
+                    if (back > 0.3f) towardBack += Dt;
+                    if (back < -0.3f) towardFront += Dt;
+                }
+            }
+            return (towardBack, towardFront);
+        }
+
+        [Test]
+        public void WithAClearShotAtItsBackHeWorksRoundToIt()
+        {
+            foreach (float round in new[] { 130.0f, -130.0f })
+            {
+                (float towardBack, float towardFront) = Circling(round);
+                Assert.Greater(towardBack, towardFront * 10.0f, $"past the target's {(round > 0 ? "right" : "left")} side he circles toward its front as much as its back");
+            }
+        }
+
+        /// <summary>Owner, 2026-11-17: "the crazy guy always seems to go for backstabs make it so he only goes for that when he has a clear shot".</summary>
+        [Test]
+        public void InFrontOfTheTargetHeDoesNotWorkRoundForItsBack()
+        {
+            foreach (float round in new[] { 20.0f, 60.0f, 90.0f, -60.0f })
+            {
+                (float towardBack, float towardFront) = Circling(round);
+                // Ready to cut, he steps straight in (neither way round); between cuts he circles both ways.
+                Assert.LessOrEqual(towardBack, towardFront + 0.25f * Watched,
+                    $"{round} degrees round the target, with no clear shot, he still works round for its back");
+            }
+        }
+
+        [Test]
+        public void InFrontOfTheTargetInReachHeCutsFaceOn()
+        {
+            foreach (float round in new[] { 0.0f, 45.0f, -90.0f })
+            {
                 for (int seed = 1; seed <= 20; seed++)
                 {
                     DuelistMind mind = Knife(seed);
-                    for (float t = 0.0f; t < 2.0f; t += Dt)
-                    {
-                        // Just out of his reach, so he circles rather than cuts.
-                        DuelistMind.Intent intent = mind.Tick(At(DuelistStyle.Knife.EngageMetres, side), Dt);
-                        if (intent.Light || intent.Heavy || intent.Dash) continue;
-                        // On its right (+), his left (-x) takes him behind it; on its left, his right.
-                        float back = side > 0.0f ? -intent.Move.x : intent.Move.x;
-                        if (back > 0.3f) towardBack += Dt;
-                        if (back < -0.3f) away += Dt;
-                    }
+                    DuelistMind.Intent intent = mind.Tick(At(DuelistStyle.Knife.StrikeMetres - 0.2f, round), Dt);
+                    Assert.IsTrue(intent.Light || intent.Heavy, $"seed {seed}, {round} degrees round: in reach and ready, he held his cut to go for the back");
                 }
-                Assert.Greater(towardBack, away * 10.0f, $"at the target's {(side > 0 ? "right" : "left")} he circles toward its front as much as its back");
             }
         }
 

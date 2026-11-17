@@ -1172,6 +1172,8 @@ namespace CityX.ViewEditor
         /// <summary>
         /// An enemy built in one of the owner's characters wears its hair too (Crazy Guy: guycrazy's kick hair): the body comes without the hair
         /// component, which HairAssets (UI.Editor, reached from here) adds as it does the player's, then styled and coloured as the character is.
+        /// Only the style and colour are saved, not the hair styling builds: the component grows its own at spawn, and a built one saved in the
+        /// prefab stayed on as a second, undyed (gold) head of hair inside the first (owner, 2026-11-17: "two hairstyles clipping").
         /// </summary>
         private static void WearTheLooksHair(GameObject prefab, string lookPath)
         {
@@ -1189,6 +1191,10 @@ namespace CityX.ViewEditor
                 {
                     hair.SetStyle(look.HairStyle);
                     hair.SetColour(look.HairColour);
+                    if (hair.Worn != null)
+                    {
+                        Object.DestroyImmediate(hair.Worn.gameObject);
+                    }
                     PrefabUtility.SaveAsPrefabAsset(contents, path);
                 }
             }

@@ -27,8 +27,73 @@ namespace CityX.Tests
             if (_ground != null) Object.Destroy(_ground);
         }
 
+        /// <summary>
+        /// One head of hair, guycrazy's colour (owner, 2026-11-17: "the crazy guy has two hairstyles clipping over eachother one blonde one blue,
+        /// remove the blonde"): a copy built into the prefab used to stay on, undyed, inside the one grown at spawn.
+        /// </summary>
         [UnityTest]
-        public IEnumerator HeGoesRoundAStandingPlayerAndStabsItInTheBack()
+        public IEnumerator HeWearsOneHeadOfHairInHisOwnColour()
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrazyGuy.prefab");
+            Assert.IsNotNull(prefab, "CrazyGuy.prefab is missing -- rebuild the scene");
+            _crazyGuy = Object.Instantiate(prefab, new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            yield return null;
+            var hair = _crazyGuy.GetComponent<CharacterHair>();
+            Assert.IsNotNull(hair, "Crazy Guy has no hair component");
+            Assert.AreEqual("kickhair", hair.Style);
+            int worn = 0;
+            foreach (Transform child in _crazyGuy.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name == CharacterHair.WornName && child.GetComponent<MeshRenderer>() != null) worn++;
+            }
+            Assert.AreEqual(1, worn, "Crazy Guy wears more than one head of hair");
+            var block = new MaterialPropertyBlock();
+            hair.Worn.GetComponent<MeshRenderer>().GetPropertyBlock(block, 0);
+            Color dyed = block.GetColor(Shader.PropertyToID("_BaseColor"));
+            Assert.Less(Vector4.Distance(dyed, hair.Colour), 0.01f, "the hair he wears is not dyed his colour");
+            Assert.Greater(hair.Colour.b, hair.Colour.r, "guycrazy's hair is blue");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Face to face, he fights face on (owner, 2026-11-17: "the crazy guy always seems to go for backstabs make it so he only goes for that when
+        /// he has a clear shot"): most of his cuts land from in front.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator FaceToFaceHeCutsFromTheFront()
+        {
+#if UNITY_EDITOR
+            yield return Fight(0.0f, 10.0f);
+            Assert.Greater(_hits, 2, "face to face he hardly cut the player");
+            Assert.Less(_hitsFromBehind, _hits - _hitsFromBehind, "face to face he still cut the player mostly from behind");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>Already round past the player's side, he has a clear shot at its back: he steps round to it and stabs it there.</summary>
+        [UnityTest]
+        public IEnumerator BesideThePlayersBackHeTakesTheBackstab()
+        {
+#if UNITY_EDITOR
+            yield return Fight(135.0f, 4.0f);
+            Assert.Greater(_hitsFromBehind, 0, "with a clear shot at the player's back he never cut it from behind");
+#else
+            yield break;
+#endif
+        }
+
+        private int _hits;
+        private int _hitsFromBehind;
+
+        /// <summary>
+        /// Crazy Guy against a player who stands still facing +z, starting 3.5 m from it, <paramref name="startRound"/> degrees round from its face;
+        /// counts his hits and how many land from behind.
+        /// </summary>
+        private IEnumerator Fight(float startRound, float seconds)
         {
 #if UNITY_EDITOR
             _ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -42,7 +107,8 @@ namespace CityX.Tests
 
             var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrazyGuy.prefab");
             Assert.IsNotNull(prefab, "CrazyGuy.prefab is missing -- rebuild the scene");
-            _crazyGuy = Object.Instantiate(prefab, new Vector3(0.0f, 0.05f, 6.0f), Quaternion.Euler(0.0f, 180.0f, 0.0f));   // in front of the player, facing it
+            Vector3 start = Quaternion.Euler(0.0f, startRound, 0.0f) * Vector3.forward * 3.5f + Vector3.up * 0.05f;
+            _crazyGuy = Object.Instantiate(prefab, start, Quaternion.LookRotation(-new Vector3(start.x, 0.0f, start.z)));   // facing the player
             var brain = _crazyGuy.GetComponent<SwordsmanBrain>();
             brain.Seed = 20261116;
             brain.Target = vitals;
@@ -50,22 +116,19 @@ namespace CityX.Tests
             Assert.IsNotNull(brain.Combat, "Crazy Guy's knife did not equip");
             Assert.IsTrue(brain.Combat.IsOneHanded, "Crazy Guy's blade is not one-handed");
 
-            int hits = 0, hitsFromBehind = 0;
+            _hits = 0;
+            _hitsFromBehind = 0;
             vitals.Hit += from =>
             {
-                hits++;
-                if (Backstab.IsBehind(_player.transform.position, _player.transform.forward, _crazyGuy.transform.position)) hitsFromBehind++;
+                _hits++;
+                if (Backstab.IsBehind(_player.transform.position, _player.transform.forward, _crazyGuy.transform.position)) _hitsFromBehind++;
             };
-            float behindFor = 0.0f;
-            for (float clock = 0.0f; clock < 15.0f; clock += Dt)
+            for (float clock = 0.0f; clock < seconds; clock += Dt)
             {
                 vitals.TickHitstun(Dt);
                 yield return null;
-                if (Backstab.IsBehind(_player.transform.position, _player.transform.forward, _crazyGuy.transform.position)) behindFor += Dt;
             }
-            Debug.Log($"CityX crazy guy: {hits} hits, {hitsFromBehind} from behind, {behindFor:0.0} s of 15 behind the player");
-            Assert.Greater(behindFor, 3.0f, "he hardly ever got round behind a player who stood still");
-            Assert.Greater(hitsFromBehind, 0, "he never cut the player from behind");
+            Debug.Log($"CityX crazy guy from {startRound} degrees round: {_hits} hits, {_hitsFromBehind} from behind in {seconds} s");
 #else
             yield break;
 #endif
