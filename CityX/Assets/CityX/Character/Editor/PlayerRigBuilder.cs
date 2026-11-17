@@ -1357,7 +1357,15 @@ namespace CityX.CharacterEditor
                 return;
             }
 
-            AnimationClip sprint = FindClip("2hsw_sprint");
+            // THE RUN'S LEGS ARE THE ONE-HANDED SWORD'S (owner, 2026-11-16: "the legs look like they are shifted diagonally instead of just running
+            // straight, copy the leg movement of the one handed melee"): its run is the game's own (SwordCarryBaker, from the Godot run). Mixamo's
+            // 2hsw_sprint ran its hips 11 cm to the right of the body's middle and its legs slanted under them. The arms are the carry's
+            // (SwordStrikes.Carry) over either.
+            AnimationClip sprint = SwordCarryBaker.Load("run");
+            if (sprint == null)
+            {
+                sprint = FindClip("2hsw_sprint");
+            }
             AnimationClip back = FindClip("2hsw_backwardwalk");
 
             // Bug report, with a screenshot: "this is the current

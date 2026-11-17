@@ -736,3 +736,10 @@ in hand, or the BaseballBat prefab) and Baseball Bat Size on the WeaponGrips ass
 every bat changes at once: in hand, on the ground and in other players' hands (each copy reads the same asset). The model grows about the bottom hand, so
 both hands stay on the handle and the knob just under the bottom fist, and a swing reaches the barrel's end (`Weapons/Melee/BatSize`). Kept after the game
 stops. `BluntWeaponTests`, `BatSizePlayTests`.
+
+## Update 2026-11-16 (later): the two-handed run's legs are the one-handed sword's
+
+Owner, after the head was straightened: "the two handed melee run is still looking off the legs look like they are shifted diagonally instead of just
+running straight, copy the leg movement of the one handed melee". The `SwordLocomotion` tree's run is now `SwordCarryBaker`'s `sword1h_run` (the game's own
+run, from the Godot clip), where it was Mixamo's `2hsw_sprint`, whose hips ran 11 cm right of the body's middle with the legs slanting in under them. The arms
+are the two-handed carry's over it, as before; the walk, the strafes and the idle keep the Mixamo clips. `PlayerRigTests.TheTwoHandedRunIsTheOneHandedSwordsRun`.

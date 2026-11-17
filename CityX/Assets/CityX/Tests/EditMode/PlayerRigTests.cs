@@ -390,6 +390,36 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// The two-handed run is the one-handed sword's run, legs and all (owner, 2026-11-16: "the legs look like they are shifted diagonally instead of
+        /// just running straight, copy the leg movement of the one handed melee"): Mixamo's 2hsw_sprint ran its hips 11 cm off the body's middle.
+        /// </summary>
+        [Test]
+        public void TheTwoHandedRunIsTheOneHandedSwordsRun()
+        {
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+            Assert.IsNotNull(controller);
+            Motion twoHanded = StraightAheadFastest(TreeOf(controller, "SwordLocomotion"));
+            Assert.IsNotNull(twoHanded, "the two-handed set has no run");
+            Assert.AreEqual(StraightAheadFastest(TreeOf(controller, "Sword1HLocomotion")), twoHanded, $"the two-handed run plays {twoHanded.name}");
+        }
+
+        /// <summary>The clip at the fastest straight-ahead sample.</summary>
+        private static Motion StraightAheadFastest(BlendTree tree)
+        {
+            Motion fastest = null;
+            float speed = 0.0f;
+            foreach (ChildMotion child in tree.children)
+            {
+                if (Mathf.Abs(child.position.x) < 0.01f && child.position.y > speed && !(child.motion is BlendTree))
+                {
+                    speed = child.position.y;
+                    fastest = child.motion;
+                }
+            }
+            return fastest;
+        }
+
         private static BlendTree TreeOf(AnimatorController controller, string state)
         {
             foreach (ChildAnimatorState child in controller.layers[0].stateMachine.states)
