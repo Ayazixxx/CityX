@@ -108,6 +108,27 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void OldGuyWaitsInHisDenClearOfTheFurnitureFacingTheDoorway()
+        {
+            Vector3 spot = House.OldGuyInTheDen;
+            Assert.AreEqual("Old Guy's den", House.RoomAt(1, spot.x, spot.z)?.Name);
+            Assert.AreEqual(House.LevelY(1), spot.y, 1e-3f, "not on the den's floor");
+            foreach (House.Furniture piece in House.FurnitureList)
+            {
+                if (Mathf.Abs(piece.Position.y - spot.y) > 2.0f || piece.Kind == House.FurnitureKind.Rug)
+                {
+                    continue;
+                }
+                float apart = new Vector2(piece.Position.x - spot.x, piece.Position.z - spot.z).magnitude;
+                Assert.GreaterOrEqual(apart, 1.5f, $"he stands in the {piece.Kind} at {piece.Position}");
+            }
+            // The den's doorway from the hall is at x 19-21 on the hall row's wall (z 12).
+            Vector3 facing = Quaternion.Euler(0.0f, House.OldGuyInTheDenYaw, 0.0f) * Vector3.forward;
+            Vector3 toDoor = new Vector3(20.0f - spot.x, 0.0f, 12.0f - spot.z).normalized;
+            Assert.Greater(Vector3.Dot(facing, toDoor), 0.95f, "he does not face the way in");
+        }
+
+        [Test]
         public void TheFiveWeaponsAreRealItemsLyingInRooms()
         {
             var ids = new HashSet<string>();

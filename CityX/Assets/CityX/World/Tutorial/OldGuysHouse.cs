@@ -682,6 +682,11 @@ namespace CityX.World
         /// <summary>Where Old Guy waits: at the foot of the outdoor steps, then in his den.</summary>
         public static readonly Vector3 OldGuyAtTheSteps = new Vector3(OutdoorStepsX0 - 1.2f, 0, -5.0f);
 
+        /// <summary>Old Guy in his den once the house is cleared: between the sofa and the TV, facing the doorway from the hall (x 19-21).</summary>
+        public static readonly Vector3 OldGuyInTheDen = new Vector3(23.0f, LevelY(1), 15.2f);
+
+        public const float OldGuyInTheDenYaw = 225.0f;
+
         /// <summary>Where the player lands (the intro's fall ends here): on his driveway, the house the nearest building, Old Guy at the steps watching.</summary>
         public static readonly Vector3 Landing = new Vector3((float)Plan.TutorialLot.LandingX, 0, (float)Plan.TutorialLot.LandingZ);
 

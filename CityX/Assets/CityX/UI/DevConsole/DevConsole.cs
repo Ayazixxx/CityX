@@ -142,6 +142,7 @@ namespace CityX.UI
             "equip",
             "unequip",
             "goto",
+            "tutorial",
             "pistol",
             "aim",
             "camera",
@@ -183,6 +184,8 @@ namespace CityX.UI
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|shield|legs|top|back|helmet>";
                 case "goto": return "/goto <slope|highway|manhole|mouth> -- teleports to the nearest one (onto an expressway's deck for highway; beside the " +
                     "nearest open manhole; into the open cut before the nearest sewer mouth)";
+                case "tutorial": return "/tutorial <getin|findweapon|intruder|reportback|power|backtooldguy|stats|skill|lasttalk|ambush> -- " +
+                    "puts Old Guy's tutorial straight onto that step (from reportback on he waits in his den); alone, says which step it is on";
                 case "pistol": return "/pistol <pos|rot> <x> <y> <z>, /pistol scale <value>, or /pistol pose -- " +
                     "live-tunes the equipped pistol's own grip in the hand";
                 case "aim": return "/aim offset <metres>, /aim yaw <degrees>, /aim armyaw <degrees>, or /aim pose -- " +

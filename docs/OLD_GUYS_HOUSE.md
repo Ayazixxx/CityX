@@ -123,8 +123,9 @@ Owner: "leave the boarded door, make it so you have to break the wood planks", "
   bookcases, the wand's pedestal under a glass case, the wardrobe, the grandson's toy chest, poster and drawing.
 - **The weapons** lie where the plan puts them, held exactly there until picked up with E (`ItemDrop.Placed`: a dropped item that does not fall); the
   **swordsman** waits in Old Guy's bedroom (`OldGuysHouseSite`). The **Butter Knife** is new (docs/KNIFE.md).
-- Not yet: the power, the claim, the faction talk and the cutscene (step 3); door leaves inside (doorways are framed and open); the bottles may not
-  react to a pebble yet.
+- Not yet: the claim; door leaves inside (doorways are framed and open); the bottles may not react to a pebble yet. The tutorial played in the
+  house (the objectives, Old Guy in his den, the faction talk, the ending through the den's windows) is in docs/TUTORIAL.md since 2026-11-16,
+  and the swordsman there waits until he sees you.
 - Tests: `OldGuysHousePlanTests` (doorways fit the player, stairs under 34 degrees arriving on each floor, no overlapping rooms, every room reachable
   from the street through the front door, the weapons real items in rooms and the bat in the cellar, every piece of furniture in a room, the swordsman
   upstairs, rooms sized for the camera, nothing in front of a doorway, the breakable pieces numbered), `OldGuysHousePlayTests` (the real body walks up

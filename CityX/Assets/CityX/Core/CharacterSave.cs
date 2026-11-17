@@ -145,6 +145,12 @@ namespace CityX.Core
         /// </summary>
         public string PrimaryWeapon = "";
 
+        /// <summary>
+        /// The tutorial was played to its end (docs/TUTORIAL.md): Old Guy is dead, and is not put by his house again. A save from before loads
+        /// without it, and meets him again.
+        /// </summary>
+        public bool TutorialDone;
+
         /// <summary>Seconds played, shown on the select screen.</summary>
         public double PlaytimeSeconds;
 

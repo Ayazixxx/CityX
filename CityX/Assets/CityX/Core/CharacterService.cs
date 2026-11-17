@@ -115,6 +115,7 @@ namespace CityX.Core
             stored.Hotbar = reported.Hotbar;
             stored.Wearing = reported.Wearing;
             stored.PrimaryWeapon = reported.PrimaryWeapon;
+            stored.TutorialDone |= reported.TutorialDone;
             stored.LastPlayedUnixSeconds = reported.LastPlayedUnixSeconds;
             CopyLook(reported, stored);
             if (refusal != null)

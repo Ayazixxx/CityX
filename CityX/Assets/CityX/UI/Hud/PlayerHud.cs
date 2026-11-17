@@ -149,7 +149,20 @@ namespace CityX.UI
             {
                 gameObject.AddComponent<GraffitiMenuView>();
             }
+
+            // The objective in the top-right corner, and the tutorial that sets it (docs/TUTORIAL.md).
+            if (GetComponent<ObjectiveView>() == null)
+            {
+                gameObject.AddComponent<ObjectiveView>();
+            }
+            if (GetComponent<TutorialDirector>() == null)
+            {
+                gameObject.AddComponent<TutorialDirector>();
+            }
         }
+
+        /// <summary>A death the game has scripted (the tutorial's ending): no death screen, and the pointer stays as it is.</summary>
+        public bool DeathScreenHeld { get; set; }
 
         private void OnEnable()
         {
@@ -760,12 +773,18 @@ namespace CityX.UI
 
         private void OnDied()
         {
-            ShowDead(true);
+            if (!DeathScreenHeld)
+            {
+                ShowDead(true);
+            }
         }
 
         private void OnRevived()
         {
-            ShowDead(false);
+            if (!DeathScreenHeld)
+            {
+                ShowDead(false);
+            }
         }
 
         /// <summary>

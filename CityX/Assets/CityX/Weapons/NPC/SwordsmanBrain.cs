@@ -68,6 +68,18 @@ namespace CityX.Weapons
         /// <summary>He only takes on someone within this, metres.</summary>
         public const float NoticeMetres = 40.0f;
 
+        /// <summary>
+        /// He fights nobody until he has seen them, been hurt, or had them come right up to him: put down on a spot something marked
+        /// (WaitingEnemies), as Old Guy's swordsman is. Otherwise he noticed whoever was within <see cref="NoticeMetres"/>, through floors too.
+        /// </summary>
+        public bool WaitsToSee { get; set; }
+
+        /// <summary>How far to either side of where he faces he sees, degrees.</summary>
+        public const float SightHalfAngle = 80.0f;
+
+        /// <summary>Closer than this he notices someone whether he sees them or not, metres.</summary>
+        public const float HearMetres = 2.5f;
+
         /// <summary>What he is doing (the mind's state).</summary>
         public DuelistState State => Mind.State;
 
@@ -119,6 +131,7 @@ namespace CityX.Weapons
         private bool _removed;
         private float _facingYaw;
         private bool _facingSet;
+        private bool _spotChecked;
 
         private void Awake()
         {
@@ -209,6 +222,7 @@ namespace CityX.Weapons
         private void OnDamaged(float amount)
         {
             _hurt = true;
+            WaitsToSee = false;
         }
 
         /// <summary>
@@ -553,6 +567,11 @@ namespace CityX.Weapons
         /// </summary>
         private void FindTarget()
         {
+            if (!_spotChecked)
+            {
+                _spotChecked = true;
+                WaitsToSee |= WaitingEnemies.Claim(transform.position);
+            }
             if (_pinned)
             {
                 if (!Opponents.Here(_target))
@@ -577,10 +596,42 @@ namespace CityX.Weapons
             }
             _nextSearch = Time.time + TargetSearchSeconds;
             IOpponent best = Opponents.NearestAlive(transform.position, NoticeMetres);
+            if (WaitsToSee && best != null)
+            {
+                if (Notices(transform, best.transform))
+                {
+                    WaitsToSee = false;
+                }
+                else
+                {
+                    best = null;
+                }
+            }
             if (best != _target)
             {
                 SetTarget(best);
             }
+        }
+
+        /// <summary>Whether a swordsman standing as <paramref name="self"/> notices <paramref name="someone"/>: right beside him, or in front of him with nothing solid between his eyes and their chest or head.</summary>
+        public static bool Notices(Transform self, Transform someone)
+        {
+            Vector3 feet = someone.position;
+            Vector3 apart = feet - self.position;
+            if (apart.magnitude <= HearMetres)
+            {
+                return true;
+            }
+            Vector3 flat = new Vector3(apart.x, 0.0f, apart.z);
+            Vector3 facing = new Vector3(self.forward.x, 0.0f, self.forward.z);
+            if (Vector3.Angle(facing, flat) > SightHalfAngle)
+            {
+                return false;
+            }
+            float height = BodyRig.StandingHeight;
+            Vector3 eye = self.position + Vector3.up * (height * 0.92f);
+            return !Sight.SolidBetween(eye, feet + Vector3.up * (height * 0.62f), self, someone)
+                   || !Sight.SolidBetween(eye, feet + Vector3.up * (height * 0.9f), self, someone);
         }
     }
 }

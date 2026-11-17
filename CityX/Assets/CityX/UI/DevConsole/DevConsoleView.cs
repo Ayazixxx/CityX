@@ -459,6 +459,10 @@ namespace CityX.UI
                     Goto(line.Argument(0));
                     return;
 
+                case "tutorial":
+                    Tutorial(line.Argument(0));
+                    return;
+
                 case "pistol":
                     PistolCommand(line.Argument(0), line.Argument(1), line.Argument(2), line.Argument(3));
                     return;

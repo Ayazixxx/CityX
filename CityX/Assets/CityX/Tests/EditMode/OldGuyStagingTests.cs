@@ -5,12 +5,8 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The two pure decision primitives behind OldGuy's out-of-view staging
-    /// (see OnPlayerClaimedBuilding's own doc comment) -- HasClearRun and
-    /// IsInCameraFrustum, both public static for exactly this reason,
-    /// tested directly rather than through the full staging orchestration
-    /// (which also needs a streamed building and a real ClaimSystem -- see
-    /// OldGuyTests' own class comment on why that half stays untested here).
+    /// Whether Old Guy would be seen moving (OldGuy.IsSeenBy, IsInCameraFrustum): he steps into his den only where the player's camera sees
+    /// neither where he stands nor where he goes (TryMoveUnseen).
     /// </summary>
     public sealed class OldGuyStagingTests
     {
@@ -58,28 +54,22 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void HasClearRunIsTrueWithNothingInTheWay()
+        public void APointAheadWithNothingInTheWayIsSeen()
         {
-            Assert.IsTrue(OldGuy.HasClearRun(Vector3.zero, new Vector3(0.0f, 0.0f, 20.0f)));
+            Camera camera = MakeCamera(Vector3.zero, Quaternion.identity);
+            Assert.IsTrue(OldGuy.IsSeenBy(camera, new Vector3(0.0f, 0.0f, 20.0f)));
         }
 
         [Test]
-        public void HasClearRunIsFalseWhenAWallBlocksIt()
+        public void APointBehindAWallIsNotSeen()
         {
+            Camera camera = MakeCamera(Vector3.zero, Quaternion.identity);
             _wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            _wall.transform.position = new Vector3(0.0f, 1.3f, 10.0f);
+            _wall.transform.position = new Vector3(0.0f, 0.0f, 10.0f);
             _wall.transform.localScale = new Vector3(20.0f, 5.0f, 1.0f);
             Physics.SyncTransforms();
 
-            Assert.IsFalse(OldGuy.HasClearRun(Vector3.zero, new Vector3(0.0f, 0.0f, 20.0f)),
-                "a wall spanning the path should block the line of sight");
-        }
-
-        [Test]
-        public void HasClearRunIsTrueForTheSameStartAndEndPoint()
-        {
-            Assert.IsTrue(OldGuy.HasClearRun(Vector3.one * 5.0f, Vector3.one * 5.0f),
-                "a zero-length run has nothing to be blocked by");
+            Assert.IsFalse(OldGuy.IsSeenBy(camera, new Vector3(0.0f, 0.0f, 20.0f)), "a wall between should hide it");
         }
     }
 }

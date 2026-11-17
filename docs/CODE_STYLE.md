@@ -38,6 +38,8 @@ conventions down and apply them every time.
    - `Character/Editor/ClipAsset.Store`: save a generated animation clip into the one already at its path. Never delete and re-create an
      asset that prefabs or controllers hold: what still held the deleted one saves a blank.
    - `Character/NPC/KeyedMotion.Along`: one smooth curve through timed keys (the Crimson Claw's swipe and grab).
+   - `Character/NPC/Sight.SolidBetween`: whether a wall, floor or glass stands between two points, for an enemy's eyes (the Shoota, the
+     swordsman, Old Guy unseen).
    - `Character/Body/MaterialBlocks`: each material's own property block, for a copy of a renderer to look like it (a dye lives there).
    - `Character/Network/SessionRelay`: the base of everything kept the same between machines by broadcasts (light switches, balcony doors,
      glass, graffiti, dropped items, the weather, the enemies). It finds the session, hooks and unhooks what the relay hears as this
@@ -73,14 +75,14 @@ conventions down and apply them every time.
    | `Network` | everything that sends state to other players |
    | `Voice` | proximity voice: the codec, the hearing, playback (sending it is `Network`'s `NetworkedVoice`) |
    | `Interaction` | picking things up and graffiti |
-   | `Story` | the intro cutscene and claiming buildings |
+   | `Story` | the intro cutscene, the tutorial's steps and words, and claiming buildings |
 
    `View`, `UI` and `Weapons` are sorted the same way (since 2026-10-20):
 
    | Area | Folders |
    |---|---|
    | `View` | `Streaming` (chunk streaming and mesh buffers), `Mobs` (the world's own enemies round the player: `MobSpawner`, `MobSpawnRules`), `Skyline`, `Buildings` (`CityMeshBuilder` and its partials, facades), `Streets` (`CitySurfaceBuilder`, props), `Glass`, `Interactables` (doors, switches, benches, books, the radio), `Lighting` (day and night, room lights, haze), `Weather` (rain, lightning, thunder), `Water` (water surfaces, splashes, rising water), `Tools` (the fly camera, the frame benchmark) |
-   | `UI` | `Hud`, `Menus`, `Map`, `Title`, `Creator` (the character creator and ReDraw), `DevConsole`; `UiKit` and `ButtonAction` at the root |
+   | `UI` | `Hud`, `Menus`, `Map`, `Title`, `Creator` (the character creator and ReDraw), `DevConsole`, `Story` (the tutorial's director); `UiKit` and `ButtonAction` at the root |
    | `Weapons` | `Melee`, `Firearms`, `Spells`, `Gear` (jetpack, parachute, grapple, spray can, flashlight), `Archery`, `Explosives` (the grenade and its explosion), `Thrown` (the boomerang), `NPC` (the enemies' minds); `GripMarker` at the root |
 
    Move a script together with its `.meta` file (`git mv` both, or move it in the Unity editor). The `.meta` holds the GUID that prefabs

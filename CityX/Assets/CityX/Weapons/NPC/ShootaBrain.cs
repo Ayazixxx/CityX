@@ -640,31 +640,8 @@ namespace CityX.Weapons
             return _target.transform.position + Vector3.up * (Height * 0.62f);
         }
 
-        /// <summary>Something solid between two points: not either body (his, the target's), not glass breaking under fire.</summary>
-        private bool SolidBetween(Vector3 from, Vector3 to, Transform alsoIgnore)
-        {
-            Vector3 along = to - from;
-            float distance = along.magnitude;
-            if (distance < 1e-3f)
-            {
-                return false;
-            }
-            int count = Physics.RaycastNonAlloc(from, along / distance, Hits16, distance, ~0, QueryTriggerInteraction.Ignore);
-            for (int i = 0; i < count; i++)
-            {
-                Collider c = Hits16[i].collider;
-                if (c == null || c.transform.IsChildOf(transform) || (alsoIgnore != null && c.transform.IsChildOf(alsoIgnore)))
-                {
-                    continue;
-                }
-                if (c.GetComponentInParent<IDamageable>() != null || (c.attachedRigidbody != null && !c.attachedRigidbody.isKinematic))
-                {
-                    continue;   // bodies and loose things are not cover
-                }
-                return true;
-            }
-            return false;
-        }
+        /// <summary>Something solid between two points: not either body (his, the target's).</summary>
+        private bool SolidBetween(Vector3 from, Vector3 to, Transform alsoIgnore) => Sight.SolidBetween(from, to, transform, alsoIgnore);
 
         // --- cover ---
 

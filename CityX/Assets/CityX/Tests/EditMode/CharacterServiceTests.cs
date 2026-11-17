@@ -111,6 +111,22 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TheTutorialOncePlayedThroughStaysDone()
+        {
+            CharacterSave made = _service.Create(Ayaz, CharacterSave.Create("Ayaz", Color.white));
+            Assert.IsFalse(made.TutorialDone, "a new character starts with the tutorial already done");
+            CharacterSave playing = _service.Play(Ayaz, made.Id);
+            playing.TutorialDone = true;
+            Assert.IsTrue(_service.Save(Ayaz, playing));
+            Assert.IsTrue(_service.Play(Ayaz, made.Id).TutorialDone, "the end of the tutorial was not saved: Old Guy would greet them again");
+
+            CharacterSave stale = JsonUtility.FromJson<CharacterSave>(JsonUtility.ToJson(playing));
+            stale.TutorialDone = false;
+            _service.Save(Ayaz, stale);
+            Assert.IsTrue(_service.Play(Ayaz, made.Id).TutorialDone, "a later save took the tutorial's end back");
+        }
+
+        [Test]
         public void APlayerCannotMakeMoreThanTheirShare()
         {
             for (int i = 0; i < CharacterService.MaxCharactersPerPlayer; i++)

@@ -130,7 +130,8 @@ namespace CityX.Character
 
         private void Spawn()
         {
-            if (OldGuyPrefab == null)
+            // Dead once the tutorial was played through (CharacterSave.TutorialDone).
+            if (OldGuyPrefab == null || (PlaySession.Character != null && PlaySession.Character.TutorialDone))
             {
                 return;
             }

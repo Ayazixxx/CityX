@@ -207,6 +207,29 @@ namespace CityX.UI
             Log($"teleported to the nearest {found}");
         }
 
+        /// <summary>Puts Old Guy's tutorial onto a step, to try one part of it (docs/TUTORIAL.md); alone, says where it is.</summary>
+        private void Tutorial(string step)
+        {
+            TutorialDirector director = FindFirstObjectByType<TutorialDirector>();
+            if (director == null)
+            {
+                Log("no tutorial here");
+                return;
+            }
+            if (string.IsNullOrEmpty(step))
+            {
+                Log(director.OldGuy != null ? $"the tutorial is on {director.OldGuy.Progress.Step}" : "Old Guy is not here");
+                return;
+            }
+            if (!System.Enum.TryParse(step, true, out TutorialStep wanted) || wanted == TutorialStep.Offered || wanted == TutorialStep.Done)
+            {
+                Log(DevCommands.UsageFor("tutorial"));
+                return;
+            }
+            string refusal = director.JumpTo(wanted);
+            Log(refusal ?? $"the tutorial is on {wanted}");
+        }
+
         /// <summary>
         /// A way into the sewers nearest a place (docs/SEWERS.md): beside the nearest manhole whose lid is off, or in the open cut a few
         /// metres out from the nearest tunnel mouth, looking at neither (the body keeps its facing).

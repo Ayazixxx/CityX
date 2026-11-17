@@ -182,12 +182,20 @@ namespace CityX.View
             DestroyImmediate(warm);   // woken (Awake, OnEnable) and gone before any frame runs him
         }
 
-        /// <summary>The swordsman in Old Guy's bedroom: in a session spawned for everyone and run by this machine, otherwise here alone.</summary>
+        /// <summary>Whether the swordsman has been put down (here, or asked of the session).</summary>
+        public bool SwordsmanPutDown { get; private set; }
+
+        /// <summary>
+        /// The swordsman in Old Guy's bedroom: in a session spawned for everyone and run by this machine, otherwise here alone. He waits there
+        /// until he sees the player (WaitingEnemies).
+        /// </summary>
         public void PutDownSwordsman()
         {
             _swordsmanDue = false;
+            SwordsmanPutDown = true;
             Vector3 where = transform.TransformPoint(OldGuysHouse.SwordsmanSpot);
             Quaternion facing = transform.rotation * Quaternion.Euler(0, OldGuysHouse.SwordsmanYaw, 0);
+            WaitingEnemies.Mark(where);
             EnemyNetwork network = EnemyNetwork.Current;
             if (network == null || !network.TrySpawn("swordsman", where, facing))
             {
@@ -212,6 +220,7 @@ namespace CityX.View
                 Destroy(Swordsman);
                 Swordsman = null;
             }
+            SwordsmanPutDown = false;
             if (Built != null)
             {
                 Destroy(Built);
