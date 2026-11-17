@@ -349,6 +349,8 @@ namespace CityX.ViewEditor
             // --- the swordsman (2026-10-17): the player's own body, slate blue, with the combat sword and a duelist's mind. After the player rig
             // --- and the combat sword; spawned by /spawn swordsman, and the one in Old Guy's house.
             GameObject swordsmanPrefab = CityX.WeaponsEditor.SwordsmanBuilder.Build();
+            // --- Crazy Guy (2026-11-16): the swordsman's make in the owner's guycrazy, with the kitchen knife; /spawn crazyguy.
+            WearTheLooksHair(CityX.WeaponsEditor.CrazyGuyBuilder.Build(), CityX.WeaponsEditor.CrazyGuyBuilder.LookPath);
 
             // --- the giant (2026-10-29): the player's own body at the Grow spell's size, stone grey, that leaps and slams the ground. After the
             // --- player rig; spawned only by /spawn giant.
@@ -1167,6 +1169,35 @@ namespace CityX.ViewEditor
         /// How much world the texture covers. Tiling is its reciprocal, because
         /// UVs are in metres.
         /// </param>
+        /// <summary>
+        /// An enemy built in one of the owner's characters wears its hair too (Crazy Guy: guycrazy's kick hair): the body comes without the hair
+        /// component, which HairAssets (UI.Editor, reached from here) adds as it does the player's, then styled and coloured as the character is.
+        /// </summary>
+        private static void WearTheLooksHair(GameObject prefab, string lookPath)
+        {
+            CityX.Core.CharacterSave look = CityX.WeaponsEditor.DuelistBuilder.Look(lookPath);
+            if (prefab == null || look == null)
+            {
+                return;
+            }
+            string path = AssetDatabase.GetAssetPath(prefab);
+            GameObject contents = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                CharacterHair hair = CityX.UIEditor.HairAssets.AddTo(contents);
+                if (hair != null)
+                {
+                    hair.SetStyle(look.HairStyle);
+                    hair.SetColour(look.HairColour);
+                    PrefabUtility.SaveAsPrefabAsset(contents, path);
+                }
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
+        }
+
         /// <summary>
         /// The sky dome. Its colours are overwritten by DayNightCycle every
         /// frame; what is set here is the geometry of the gradient -- the two

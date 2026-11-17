@@ -210,6 +210,11 @@ namespace CityX.Character
 
             /// <summary>Which side of him his nearest packmate is, as he faces the target: +1 right, -1 left, 0 none near. He circles the other way.</summary>
             public float CrowdSide;
+
+            /// <summary>
+            /// Where he stands round the target, degrees from straight in front of it: positive on its right, negative on its left, 180 straight behind.
+            /// </summary>
+            public float RoundTargetDegrees;
         }
 
         /// <summary>What he presses this frame. Move is in the target's frame: x to his right as he faces it, y toward it.</summary>
@@ -234,6 +239,7 @@ namespace CityX.Character
         }
 
         private readonly System.Random _random;
+        private readonly DuelistStyle _style;
         private float _stateTime;
         private bool _threatSeen;
         private float _reaction;
@@ -249,12 +255,29 @@ namespace CityX.Character
         private float _dashBusy;
         private bool _recovering;
 
-        public DuelistMind(int seed)
+        /// <summary>A duelist who fights by <paramref name="style"/> (the swordsman's when none is given).</summary>
+        public DuelistMind(int seed, DuelistStyle style = null)
         {
             _random = new System.Random(seed);
-            _circleLeft = Range(CircleMin, CircleMax);
-            _guardStance = Chance() < GuardStanceChance;
+            _style = style ?? DuelistStyle.Swordsman;
+            _circleLeft = Range(_style.CircleMin, _style.CircleMax);
+            _guardStance = Chance() < _style.GuardStanceChance;
         }
+
+        /// <summary>Straight behind the target, near enough that a cut from here is a backstab (Backstab.BehindDegrees, with a margin).</summary>
+        private static bool Behind(in Senses s) => Mathf.Abs(s.RoundTargetDegrees) >= 180.0f - Backstab.BehindDegrees + BehindMarginDegrees;
+
+        /// <summary>He counts himself behind only this far inside the backstab's arc, degrees: the target turns while his cut winds up.</summary>
+        public const float BehindMarginDegrees = 15.0f;
+
+        /// <summary>A flanker within this of the target's face is in front of it, degrees; at its side or further round he may cut at once.</summary>
+        public const float FlankSideDegrees = 75.0f;
+
+        /// <summary>How long a flanker has been trying to get round the target since his last attack, seconds.</summary>
+        private float _flanking;
+
+        /// <summary>Which way he steps (his right +1, his left -1) to work round toward the target's back.</summary>
+        private static float TowardItsBack(in Senses s) => s.RoundTargetDegrees >= 0.0f ? -1.0f : 1.0f;
 
         public DuelistState State { get; private set; } = DuelistState.Idle;
 
@@ -287,8 +310,8 @@ namespace CityX.Character
             if (_circleLeft <= 0.0f)
             {
                 _circleSign = -_circleSign;
-                _circleLeft = Range(CircleMin, CircleMax);
-                _guardStance = Chance() < GuardStanceChance;   // the next spell: behind his guard or not, decided now, not when a blow comes
+                _circleLeft = Range(_style.CircleMin, _style.CircleMax);
+                _guardStance = Chance() < _style.GuardStanceChance;   // the next spell: behind his guard or not, decided now, not when a blow comes
             }
 
             if (s.Dead || !s.HasTarget)
@@ -317,7 +340,7 @@ namespace CityX.Character
             {
                 _threatSeen = true;
                 _reaction = Range(DodgeReactionMin, DodgeReactionMax);
-                _dodge = Chance() < DodgeChance;
+                _dodge = Chance() < _style.DodgeChance;
             }
             if (!s.TargetAttacking)
             {
@@ -332,10 +355,10 @@ namespace CityX.Character
                 Become(DuelistState.Punish);
                 _recovering = false;
                 _guardUp = false;
-                if (s.Distance > StrikeMetres)
+                if (s.Distance > _style.StrikeMetres)
                 {
                     intent.Move = new Vector2(0.0f, 1.0f);
-                    intent.Sprint = s.Distance > EngageMetres;
+                    intent.Sprint = s.Distance > _style.EngageMetres;
                     if (s.Distance > DashInBeyondMetres && s.CanDash && !s.Committed)
                     {
                         Dash(ref intent, new Vector2(0.0f, 1.0f));
@@ -346,7 +369,7 @@ namespace CityX.Character
                 if (opening || _pressTimer <= 0.0f)
                 {
                     intent.Light = true;   // the first the moment the opening shows, then one a press-time on (the chain takes them in turn)
-                    _pressTimer = PressSeconds;
+                    _pressTimer = _style.PressSeconds;
                 }
                 _chainLeft = 0;
                 return intent;
@@ -362,14 +385,15 @@ namespace CityX.Character
                     _dodge = false;
                     if (s.TargetWindingUp && !_guardUp && s.CanDash && s.Stamina >= DashStamina)
                     {
-                        Dash(ref intent, AwayDirection());
+                        // The knife dashes ROUND the blow, past its side toward the target's back; anyone else away from it.
+                        Dash(ref intent, _style.DashesRound && !Behind(s) ? new Vector2(TowardItsBack(s), 0.6f) : AwayDirection());
                         return intent;
                     }
                 }
             }
 
             // Hit (and not already swinging): sometimes he dashes away from it.
-            if (s.TookHit && !s.Committed && s.CanDash && Chance() < DashWhenHitChance)
+            if (s.TookHit && !s.Committed && s.CanDash && Chance() < _style.DashWhenHitChance)
             {
                 Dash(ref intent, AwayDirection());
                 return intent;
@@ -403,7 +427,7 @@ namespace CityX.Character
                     {
                         intent.Light = true;
                         _chainLeft--;
-                        _pressTimer = PressSeconds;
+                        _pressTimer = _style.PressSeconds;
                     }
                     return intent;
                 }
@@ -411,9 +435,9 @@ namespace CityX.Character
                 {
                     // ...and over: he gets back out -- with a dash now and then, else walking.
                     _chainLeft = 0;
-                    _backOff = BackOffSeconds;
-                    _attackCooldown = Range(AttackCooldownMin, AttackCooldownMax);
-                    if (s.CanDash && s.Stamina >= DashStamina && Chance() < DashOutChance)
+                    _backOff = _style.BackOffSeconds;
+                    _attackCooldown = Range(_style.AttackCooldownMin, _style.AttackCooldownMax);
+                    if (s.CanDash && s.Stamina >= DashStamina && Chance() < _style.DashOutChance)
                     {
                         Dash(ref intent, AwayDirection());
                         return intent;
@@ -427,24 +451,38 @@ namespace CityX.Character
             }
 
             // ...or a new one.
-            bool inReach = s.Distance <= StrikeMetres + 0.3f;
-            if (inReach && _backOff <= 0.0f && _attackCooldown <= 0.0f && s.Stamina >= AttackStamina && !s.TargetDashing && !s.Committed
-                && !s.TargetAttacking && !s.Waiting)
+            bool inReach = s.Distance <= _style.StrikeMetres + 0.3f;
+            bool canStart = inReach && s.Stamina >= AttackStamina && !s.TargetDashing && !s.Committed && !s.Waiting;
+            // BEHIND IT WITH A KNIFE: cut now, whatever the pause or the target is doing -- the knife's backstab is the biggest there is. A quick
+            // cut, never the slow icepick: the target would turn round under it.
+            if (canStart && _style.FlanksForBackstab && Behind(s))
             {
-                if (!s.TargetBlocking || Chance() < IntoGuardChance)
+                StartAttack(ref intent, s, heavy: false, mayHeavy: false);
+                return intent;
+            }
+            // A flanker cuts from in front of the target only once he has tried a while to get round it.
+            _flanking += deltaTime;
+            bool mayCutHere = !_style.FlanksForBackstab || Mathf.Abs(s.RoundTargetDegrees) >= FlankSideDegrees || _flanking >= _style.FlankPatienceSeconds;
+            if (canStart && mayCutHere && _backOff <= 0.0f && _attackCooldown <= 0.0f && !s.TargetAttacking)
+            {
+                if (!s.TargetBlocking || Chance() < _style.IntoGuardChance)
                 {
                     StartAttack(ref intent, s, heavy: s.TargetBlocking);
                     return intent;
                 }
-                _attackCooldown = Range(AttackCooldownMin, AttackCooldownMax);   // a raised guard: wait it out
+                _attackCooldown = Range(_style.AttackCooldownMin, _style.AttackCooldownMax);   // a raised guard: wait it out
             }
 
             // 5. APPROACH, then CIRCLE -- further out while another has the turn, and the other way from the nearest packmate, so the pack
-            // spreads round the target.
-            float ring = s.Waiting ? WaitMetres : EngageMetres;
+            // spreads round the target. A knife works round toward the target's back instead (alone; in a pack the spreading comes first).
+            float ring = s.Waiting ? WaitMetres : _style.EngageMetres;
             if (s.CrowdSide != 0.0f)
             {
                 _circleSign = -Mathf.Sign(s.CrowdSide);
+            }
+            else if (_style.FlanksForBackstab && !Behind(s))
+            {
+                _circleSign = TowardItsBack(s);
             }
             // His guard: up for this spell of circling if he chose it, once near his ring -- raised only while no blow of the target's is on
             // its way, so it is there before a swing starts or not at all, and never lowered under one, so the guard a swing started against
@@ -466,9 +504,9 @@ namespace CityX.Character
             {
                 Become(DuelistState.Approach);
                 intent.Move = new Vector2(0.0f, 1.0f);
-                intent.Sprint = s.Distance > SprintBeyondMetres;
+                intent.Sprint = s.Distance > _style.SprintBeyondMetres;
                 if (!s.Waiting && s.Distance >= DashInFromMetres && s.CanDash && s.Stamina >= DashStamina * 2.0f
-                    && Chance() < DashInPerSecond * deltaTime)
+                    && Chance() < _style.DashInPerSecond * deltaTime)
                 {
                     Dash(ref intent, new Vector2(0.0f, 1.0f));   // closing the gap
                 }
@@ -476,6 +514,16 @@ namespace CityX.Character
             }
             Become(_guardUp ? DuelistState.Guard : DuelistState.Circle);
             float inOut = 0.0f;
+            bool pressing = _style.StepsInToCut && _backOff <= 0.0f && _attackCooldown <= 0.0f && s.Stamina >= AttackStamina && !s.Waiting
+                            && !s.TargetAttacking && !_guardUp;
+            if (pressing)
+            {
+                // His pause is over: in to cut -- straight in once he is behind it or at its side; from in front, mostly round toward its back,
+                // closing as he goes.
+                bool round = _style.FlanksForBackstab && Mathf.Abs(s.RoundTargetDegrees) < FlankSideDegrees && _flanking < _style.FlankPatienceSeconds;
+                intent.Move = round ? new Vector2(_circleSign * 0.9f, 0.45f) : new Vector2(0.0f, 1.0f);
+                return intent;
+            }
             if (_backOff > 0.0f || s.Distance < ring - 0.7f)
             {
                 inOut = -0.8f;
@@ -488,12 +536,13 @@ namespace CityX.Character
             return intent;
         }
 
-        private void StartAttack(ref Intent intent, in Senses s, bool heavy = false)
+        private void StartAttack(ref Intent intent, in Senses s, bool heavy = false, bool mayHeavy = true)
         {
             Become(DuelistState.Attack);
             _guardUp = false;   // the guard comes down to swing (the sword combat drops it)
             _guardStance = false;
-            if (heavy || Chance() < HeavyChance)
+            _flanking = 0.0f;
+            if (heavy || (mayHeavy && Chance() < _style.HeavyChance))
             {
                 intent.Heavy = true;
                 _chainLeft = 0;
@@ -501,9 +550,9 @@ namespace CityX.Character
             else
             {
                 intent.Light = true;
-                _chainLeft = _random.Next(0, 2);   // one or two cuts: a duelist, not a berserker
+                _chainLeft = _random.Next(_style.ExtraCutsMin, _style.ExtraCutsMax + 1);   // the swordsman one or two cuts, a duelist; the knife a flurry
             }
-            _pressTimer = PressSeconds;
+            _pressTimer = _style.PressSeconds;
         }
 
         private void Dash(ref Intent intent, Vector2 direction)

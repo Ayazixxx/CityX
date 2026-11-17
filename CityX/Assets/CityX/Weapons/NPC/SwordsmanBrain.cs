@@ -18,14 +18,21 @@ namespace CityX.Weapons
     /// with this switched off (NetworkedEnemy), which plays his swings, guard and tell as he does (by name, PlayerAnimationDriver). He fights
     /// whichever player is nearest, another player's copy too (PlayerBodies): his blows on a copy go to that player's own body. Offline he is
     /// the plain Swordsman.prefab, as before.
+    ///
+    /// CRAZY GUY (owner, 2026-11-16: "make a hostile npcs called "Crazy Guy" and use my character named "guycrazy" for the playermodel. make him wield
+    /// a kitchen knife and utilize its advantages") is this brain with the kitchen knife and the knife's style (DuelistStyle.Knife: close, fast,
+    /// no guard, round to the back for the knife's backstab). CrazyGuyBuilder.
     /// </summary>
     public sealed class SwordsmanBrain : MonoBehaviour, IHostile
     {
-        [Tooltip("The sword he fights with: the combat sword, equipped at spawn as the player equips it.")]
+        [Tooltip("The blade he fights with (the combat sword; Crazy Guy's kitchen knife), equipped at spawn as the player equips it.")]
         public GameObject SwordPrefab;
 
-        [Tooltip("What he wears on his head (the Knight Helmet), put on at spawn as the player puts one on.")]
-        public GameObject HelmetPrefab;
+        [Tooltip("What he wears (the swordsman the Knight Helmet; Crazy Guy his jeans and sneakers), each put on at spawn as the player puts it on.")]
+        public GameObject[] Wearing = new GameObject[0];
+
+        [Tooltip("How he fights (DuelistStyle): the swordsman's measured duel, or the knife's (Crazy Guy).")]
+        public DuelistStyleKind Style = DuelistStyleKind.Swordsman;
 
         [Tooltip("XP for beating him.")]
         public int XpReward = 80;
@@ -106,7 +113,7 @@ namespace CityX.Weapons
         private DuelistMind _mind;
 
         /// <summary>His mind, made on first use so a test can set <see cref="Seed"/> after spawning him.</summary>
-        private DuelistMind Mind => _mind ?? (_mind = new DuelistMind(Seed != 0 ? Seed : System.Environment.TickCount));
+        private DuelistMind Mind => _mind ?? (_mind = new DuelistMind(Seed != 0 ? Seed : System.Environment.TickCount, DuelistStyle.For(Style)));
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
         private Ragdoll _ragdoll;
@@ -160,7 +167,7 @@ namespace CityX.Weapons
                 gameObject.AddComponent<HitImpactEffects>();
             }
             EquipSword();
-            EquipHelmet();
+            PutOnClothes();
         }
 
         private void OnDestroy()
@@ -247,16 +254,19 @@ namespace CityX.Weapons
             _sword = null;
         }
 
-        /// <summary>His helmet on his head, worn as the player wears one; it stays on his body when he falls.</summary>
-        private void EquipHelmet()
+        /// <summary>What he wears, each piece worn as the player wears it; it stays on his body when he falls. On every machine (Awake), so a copy wears it too.</summary>
+        private void PutOnClothes()
         {
-            if (HelmetPrefab == null)
+            foreach (GameObject piece in Wearing)
             {
-                return;
+                if (piece == null)
+                {
+                    continue;
+                }
+                GameObject worn = Instantiate(piece);
+                worn.name = piece.name;
+                worn.GetComponent<IEquippableItem>()?.OnEquip(gameObject, ItemInstanceData.None);
             }
-            GameObject helmet = Instantiate(HelmetPrefab);
-            helmet.name = HelmetPrefab.name;
-            helmet.GetComponent<IEquippableItem>()?.OnEquip(gameObject, ItemInstanceData.None);
         }
 
         /// <summary>The combat sword in his right hand, equipped exactly as the player equips one (the hold, the sword combat, the posing).</summary>
@@ -421,6 +431,9 @@ namespace CityX.Weapons
             senses.TargetBlocking = _target.IsBlocking || (_targetCombat != null && _targetCombat.IsBlocking);
             senses.TargetStaggered = _target.IsStunned && Time.time < _targetOpenUntil;
             senses.TargetDashing = (_targetBody != null && _targetBody.IsDashing) || _target.IsInvulnerable;
+            Vector3 targetFacing = _target.transform.forward;
+            targetFacing.y = 0.0f;
+            senses.RoundTargetDegrees = Vector3.SignedAngle(targetFacing, -apart, Vector3.up);
             return senses;
         }
 

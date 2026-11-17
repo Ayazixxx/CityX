@@ -24,6 +24,8 @@ namespace CityX.CharacterEditor
         public const string WraithPath = "Assets/CityX/Character/Wraith.prefab";
         public const string GiantPath = "Assets/CityX/Character/Giant.prefab";
         public const string NetworkedSwordsmanPath = "Assets/CityX/Character/NetworkedSwordsman.prefab";
+        public const string CrazyGuyPath = "Assets/CityX/Character/CrazyGuy.prefab";
+        public const string NetworkedCrazyGuyPath = "Assets/CityX/Character/NetworkedCrazyGuy.prefab";
         public const string NetworkedShootaPath = "Assets/CityX/Character/NetworkedShoota.prefab";
         public const string NetworkedWraithPath = "Assets/CityX/Character/NetworkedWraith.prefab";
         public const string NetworkedGiantPath = "Assets/CityX/Character/NetworkedGiant.prefab";
@@ -41,6 +43,7 @@ namespace CityX.CharacterEditor
         {
             var kinds = new System.Collections.Generic.List<EnemyNetwork.Kind>();
             Add(kinds, "swordsman", BuildBody(SwordsmanPath, NetworkedSwordsmanPath, typeof(SwordsmanBrain)));
+            Add(kinds, "crazyguy", BuildBody(CrazyGuyPath, NetworkedCrazyGuyPath, typeof(SwordsmanBrain)));
             Add(kinds, "shoota", BuildBody(ShootaPath, NetworkedShootaPath, typeof(ShootaBrain)));
             Add(kinds, "wraith", BuildWraith());
             Add(kinds, WraithSummonKind, BuildWraithSummon());

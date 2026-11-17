@@ -188,6 +188,16 @@ namespace CityX.UI
                     SpawnLog("spawned a swordsman -- draw your sword: he blocks, rolls and punishes a blade that bounces off his guard");
                     return true;
 
+                case "crazyguy":
+                    if (CrazyGuyPrefab == null)
+                    {
+                        Log("no crazy guy prefab wired");
+                        return false;
+                    }
+                    PutDown("crazyguy", CrazyGuyPrefab, origin.position + origin.forward * SwordsmanSpawnDistance + offset, facing);
+                    SpawnLog("spawned Crazy Guy -- a kitchen knife and no guard: he comes in fast and works round to your back. Don't turn it to him");
+                    return true;
+
                 case "giant":
                     if (GiantPrefab == null)
                     {

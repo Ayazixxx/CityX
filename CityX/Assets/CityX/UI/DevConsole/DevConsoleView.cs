@@ -70,6 +70,9 @@ namespace CityX.UI
         [Tooltip("What /spawn swordsman puts down -- a slate-blue player-model NPC with the combat sword who duels you: blocks, rolls, punishes.")]
         public GameObject SwordsmanPrefab;
 
+        [Tooltip("What /spawn crazyguy puts down -- Crazy Guy: the owner's guycrazy with a kitchen knife, fast, no guard, after your back.")]
+        public GameObject CrazyGuyPrefab;
+
         [Tooltip("What /spawn wraith puts down -- a ghost that floats about the street; its sneaking up and its bite come later.")]
         public GameObject WraithPrefab;
 

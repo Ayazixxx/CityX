@@ -98,3 +98,23 @@ are. The damage (a backstab's included) is dealt on the striker's machine and re
 `KnifeRulesTests` (EditMode: speed, reach, damage a second against the sword, no stagger, a cheaper swing and a thinner guard, where a
 backstab comes from), `KnifePlayTests` (a knife's light lands without staggering where a sword's does; from behind, three times the blow,
 a stagger and a critical number, a sword's 1.5 times; the swing over in 1/1.3 of the sword's time; the kitchen knife's prefab).
+
+## Crazy Guy: an enemy with the kitchen knife (2026-11-16)
+
+Owner: "make a hostile npcs called "Crazy Guy" and use my character named "guycrazy" for the playermodel. make him wield a kitchen knife and utilize
+its advantages". `/spawn crazyguy`. The swordsman's make (`DuelistBuilder`, shared with `SwordsmanBuilder`: the player's own body, `SwordsmanBrain`,
+the blade combat a player has) wearing the owner's guycrazy: its paint, kick hair, bred jeans and black-and-white sneakers (its save copied from the built
+game's account to `Character/NpcLooks/GuyCrazy.json`; the clothes put on at spawn on every machine, so other players' copies wear them), with the kitchen
+knife. Shared online like the swordsman (`NetworkedCrazyGuy.prefab`, `EnemyReplicationGuardTests`).
+
+He fights by `DuelistStyle.Knife` (the swordsman by `DuelistStyle.Swordsman`, the mind's old constants, unchanged): the knife is quick, short, its
+slashes stagger no one, its guard thin and its backstab the biggest (3x). So he
+- fights close (2.6 m ring, the knife's reach) and fast (pauses of 0.35 to 0.9 s, presses at the knife's swing speed), in flurries of two to four cuts;
+- hardly ever guards (5% of spells) and dashes more (out of a slow blow 70%, away after a hit 50%, out after a flurry 60%);
+- works round toward the target's back (`Senses.RoundTargetDegrees`); behind it, in reach, he cuts at once with a quick cut whatever the target is doing;
+  from in front he cuts only after two seconds of trying to get round (a player keeps turning to face him);
+- dashes ROUND a slow blow, past its side toward the back, instead of away;
+- steps in to cut once his pause is over, instead of waiting for the target to come into reach as the swordsman does;
+- now and then the icepick stab (the knife's heavy), never from behind.
+Against a player standing still for 15 s: 9 hits, 6 of them backstabs (`CrazyGuyPlayTests`). `KnifeDuelistTests`, `SwordsmanLookTests`;
+`CrazyGuyCapture` (Explicit, -Graphics). Not in the world's spawns yet (only `/spawn`).

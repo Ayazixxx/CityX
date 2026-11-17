@@ -125,3 +125,9 @@ moves on the sword's walk, the rebound is announced by name; he can be beaten an
 `HisCutHoldsItsTellAndDoesNotFollowADashRoundHim`: the tell is held with its glint, and a dash round him in the tell is not followed and not
 hit), `EnemyPrefabAnimatorTests`. `SwordsmanCapture` (Explicit, `-Graphics`) renders `duel-rebound.png`, `duel-dash.png`,
 `duel-circle.png` and `duel-tell.png` (his tell and glint, then the cut) in `Logs/CityShots`.
+
+## 2026-11-16: his numbers are a style, and Crazy Guy shares his brain
+
+`DuelistMind` takes a `DuelistStyle`; the swordsman's is the mind's own constants, so he fights exactly as before. Crazy Guy is this brain with the
+kitchen knife and `DuelistStyle.Knife` (docs/KNIFE.md). `SwordsmanBrain.Wearing` (a list) replaces `HelmetPrefab`; `SwordsmanBuilder` builds through
+`DuelistBuilder`, as Crazy Guy's builder does.

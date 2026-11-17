@@ -25,6 +25,7 @@ namespace CityX.Tests
         private static readonly (string kind, System.Type brain)[] Enemies =
         {
             ("swordsman", typeof(SwordsmanBrain)),
+            ("crazyguy", typeof(SwordsmanBrain)),   // Crazy Guy: the swordsman's brain with the knife (2026-11-16)
             ("shoota", typeof(ShootaBrain)),
             ("wraith", null),
             ("wraith_summon", null),   // the Wraith Staff's summon (docs/WRAITH_STAFF.md)
