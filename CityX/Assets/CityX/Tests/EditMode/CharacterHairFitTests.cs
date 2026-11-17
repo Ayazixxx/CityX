@@ -349,13 +349,15 @@ namespace CityX.Tests
         /// <summary>
         /// Owner, 2026-11-04: "there is a slit where you can see underneath the hair and the sky shows behind it". A surface is drawn only from outside, so any open edge standing off
         /// the head lets the eye in under the hair and out through its far side. Worn where the owner placed it (the head bone at the head's centre), every open edge ends inside the head.
+        /// The IDK hair the same (owner, 2026-11-16: "give this hairstyle the same treatment you gave the kick hairstyle"): it showed through under its lowest side locks and at the nape.
         /// </summary>
-        [Test]
-        public void EveryOpenEdgeOfTheKickHairEndsInsideTheHead()
+        [TestCase(CharacterHair.KickHair)]
+        [TestCase(CharacterHair.IdkNeedsWork)]
+        public void EveryOpenEdgeOfTheHairEndsInsideTheHead(string style)
         {
-            Mesh mesh = BakedMesh(CharacterHair.KickHair);
+            Mesh mesh = BakedMesh(style);
             var saved = UnityEditor.AssetDatabase.LoadAssetAtPath<HairFitSettings>(UIEditor.HairAssets.FitSettingsPath);
-            Assert.IsTrue(saved.TryGet(CharacterHair.KickHair, out CharacterHair.Fit fit));
+            Assert.IsTrue(saved.TryGet(style, out CharacterHair.Fit fit));
             Matrix4x4 worn = Matrix4x4.TRS(fit.Position, Quaternion.Euler(fit.Euler), fit.Scale);
 
             // Corners at the same place are one corner, however the mesh split them.
@@ -397,7 +399,7 @@ namespace CityX.Tests
                 foreach (int end in new[] { edge.Key.Item1, edge.Key.Item2 })
                 {
                     Vector3 placed = worn.MultiplyPoint3x4(vertices[end]);
-                    Assert.Less(placed.magnitude, FusedBodyShape.HeadRadius, $"an open edge of the kick hair stands off the head at {placed}: the sky shows under it");
+                    Assert.Less(placed.magnitude, FusedBodyShape.HeadRadius, $"an open edge of the {style} hair stands off the head at {placed}: the sky shows under it");
                 }
             }
             Assert.Greater(open, 0, "the hair is closed all round: the test no longer says anything");

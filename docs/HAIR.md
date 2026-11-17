@@ -194,8 +194,29 @@ textures; style `kickhair`, button KICK, baked as usual. `TitleScreenCapture.Reb
 2026-11-04, owner: "there is a slit where you can see underneath the hair and the sky shows behind it, can you make it roll inward into the head". The hair is an open shell standing
 up to 8 cm off the head, and a surface is drawn only from outside, so a look in under its edge went out through the far side. `kickhair_roll_in.py` carries every open edge on, curling
 under and in, to end inside the head (the head's place comes from the owner's fit), and fills the three pinholes. 9,000 triangles to about 10,300. Its input is `KickHair-reduced.glb`.
-`HairAssets.RebakeKickHair` bakes into the same asset, so nothing else needs rebuilding. `EveryOpenEdgeOfTheKickHairEndsInsideTheHead`. A fit moved far from the owner's numbers would need
-the script run again. The model check's `--kind hat` budget does not suit hair; its holes are the openings left buried in the head.
+`HairAssets.RebakeKickHair` bakes into the same asset, so nothing else needs rebuilding. `EveryOpenEdgeOfTheHairEndsInsideTheHead`. A fit moved far from the owner's numbers would need
+the script run again. The model check's `--kind hat` budget does not suit hair; its holes are the openings left buried in the head. The rolling itself is
+`CityX/SourceArt/Hair/hair_roll_in.py`, shared with the IDK hair below.
+
+### The IDK hair rolled in (2026-11-16)
+
+Owner, with the kick hair's fix as the model: "give this hairstyle the same treatment you gave the kick hairstyle where it goes inward in the spots that have visibility underneath",
+marking the inside of the lowest side lock by the jaw and a spot on top. The IDK hair (1,602 triangles) has one open edge, round its underside. It hugs the head but runs under the
+lowest side locks, which hang off the jaw, and stands 3 to 5 cm off the nape: from in front and a little below, the eye went in under a side lock and saw the shell's far side from
+inside, which is not drawn. `SourceArt/IdkNeedsWork/idk_roll_in.py` rolls the edge into the head (the head's place from the owner's fit, 0, -2.26, 0.01 at 0.99). Its input is
+`IdkNeedsWork-original.glb`, the model as it came; then `HairAssets.RebakeIdkNeedsWork`. Checked by casting rays at every face from all round the head, from well below it to above,
+past the head and a neck: 119 faces showed their inside before, none after.
+
+The same day, the back: "i did a bad trim, can you make the spikes in the middle look like more like the ones on the sides? you could also just copy them. just make it blend
+smoothly", the good ones circled (the group on either side, the thin pair just off the middle), then "just make it look clean" and, of a first try at the good ones' size seen
+from low behind, "that doesnt read as hair spikes ... make them bigger spikes in the back". Between them the hem only dipped 1 to 3 cm over 10 cm. The script cuts the band
+straight down at each new corner and draws the hem down to three bigger spikes a side (5 to 6 cm wide, 9 to 10 cm long, sides curving in to a point: `STRETCHES`), ending on
+the good spikes' own notches; the hair above the band does not move.
+
+The curl under the back is built for the spikes: from each edge of a back spike it runs straight up the inside of the spike to the line through the notches, then straight
+forward into the head (`curl_under_the_spikes`, `curl_end`). Rolled toward the head's centre as the kick hair's is, it hung from the spike edges and slid toward the middle,
+and seen from below and behind it filled the gaps between the spikes with hair. Now each spike has hair inside it, the underside is closed at the notches, and the gaps stay
+open. 2,201 triangles.
 
 2026-11-04, owner: "when walking around and doing certain animations the hair pokes through the shirt in the back". Shortening the back was offered and refused ("option 1 changes the fitting"), so the kick hair **bent at the nape** until 2026-11-12: its lowest locks were weighted to follow the neck instead of the head (`HairBend`, a two-bone skinned mesh), so a head tipped back no longer drove their tips 30 cm into the back. It only roughly followed the body, and in the idle it swung those tips back out through the Giant Boomerang on the back. Replaced by the push below; the kick hair is rigid on the head again, like every style.
 

@@ -215,6 +215,10 @@ namespace CityX.UIEditor
         [MenuItem("CityX/Rebake Kick Hair")]
         public static void RebakeKickHair() => Rebake(KickHairSource, KickHairBaked, "KickHairMesh");
 
+        /// <summary>The IDK hair baked again into the same asset, its edges rolled into the head (SourceArt/IdkNeedsWork/idk_roll_in.py).</summary>
+        [MenuItem("CityX/Rebake IDK Hair")]
+        public static void RebakeIdkNeedsWork() => Rebake(IdkNeedsWorkSource, IdkNeedsWorkBaked, "IdkNeedsWorkMesh");
+
         private static void Rebake(string sourcePath, string bakedPath, string meshName)
         {
             var existing = AssetDatabase.LoadAssetAtPath<Mesh>(bakedPath);
