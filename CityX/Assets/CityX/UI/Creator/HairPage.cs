@@ -59,6 +59,7 @@ namespace CityX.UI
             HairColourControls controls = square.gameObject.AddComponent<HairColourControls>();
             controls.Creator = creator;
             controls.Card = group;
+            CreatorKit.AddColourMarker(square, controls);
 
             for (int i = 0; i < Swatches.Length; i++)
             {

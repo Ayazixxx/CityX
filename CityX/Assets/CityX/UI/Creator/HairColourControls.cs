@@ -45,6 +45,10 @@ namespace CityX.UI
         /// <summary>The colour the picker is showing.</summary>
         public Color Current => Color.HSVToRGB(_hue, _saturation, _value);
 
+        public float Saturation => _saturation;
+
+        public float Value => _value;
+
         private void Awake()
         {
             if (Square.texture == null)

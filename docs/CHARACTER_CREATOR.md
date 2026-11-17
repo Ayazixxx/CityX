@@ -115,12 +115,14 @@ Owner: "try to improve upon the UI of the character creation, I think later im g
 
 - **Three tabs** under the heading of the left column, now 232 units wide (`CreatorTabs`, `ButtonAction.Kind.CreatorTab`). One page shows at a time. A page is hidden by its CanvasGroup, never switched off, so every button on it stays wired. The action bar (ENTER THE CITY / BACK, ReDraw's SAVE / CANCEL) stays under every tab. Both creators get the same tabs, as both are built from `CreatorKit`.
 - **PAINT** holds the paint tools as before, 38 units lower (`CreatorKit.PaintPageDrop`).
-- **The colour pickers** (DRAW's and HAIR's alike; owner, 2026-11-17): the hue strip's handle is a round knob filled with the hue it is on, a
-  white ring with a dark line round it so it shows on the pale hues, grabbed and dragged along the strip (`HueKnob`, its pictures drawn on
-  waking). The bar under each picker is the colour with its code over it, #RRGGBB (`ColourCodeField`, `ColourCode`): it follows the picker
+- **The colour pickers** (DRAW's and HAIR's alike; owner, 2026-11-17): a circle on the colour square where the colour is (saturation across,
+  brightness up), filled with the colour, a white ring with a dark line round it so it shows on the pale corner (`ColourMarker`, its pictures
+  drawn on waking). It takes no clicks: a drag on the square, starting on the circle or anywhere, moves the colour and the circle with it
+  ("i want it in the box where you select your color so i can drag and down and make it a bit darker"; it was first put on the hue slider,
+  which keeps its thin handle). The bar under each picker is the colour with its code over it, #RRGGBB (`ColourCodeField`, `ColourCode`): it follows the picker
   whatever moved it, and a code typed into it (six digits or three, with or without the #; only hex digits are taken) picks that exact
   colour on Enter or a click away; one it cannot read puts the old one back. While a box has the keyboard the belt's A/D and T are not
-  read (`TypingFocus`). Tests: `ColourCodeTests`, `CharacterCreatorPlayTests.EachHueStripsHandleIsACircleShowingTheHueItIsOn` and
+  read (`TypingFocus`). Tests: `ColourCodeTests`, `CharacterCreatorPlayTests.EachColourSquareHasACircleWhereTheColourIsThatADragMoves` and
   `...EachPickersBarShowsTheColourCodeAndTakesOneTypedIn`; picture `CharacterCreatorPlayTests.PickersCapture` (Explicit, -Graphics).
 - **HAIR** shows each hairstyle as a picture of a plain white head wearing it, four to a row in a grid that scrolls past four rows (`HairPage`, `CreatorPageKit`). The worn style's tile is framed in gold (`HairStyleTiles`). The hair colour (square, swatches, hue, preview) sits under the styles and hides while bald. The right-hand hair cards are gone (`HairColourPanel` and `HairButtonRow` deleted).
 - **The pictures** are baked by CityX/Bake Hair Icons (`HairIconBaker`, batch: `CityX.UIEditor.HairIconBaker.RebuildAndBake`) into `UI/Resources/HairIcons/{style}.png`. It uses the creator's own camera, lights and cel lines, one framing for every style fitted to the largest, a 3/4 view from the key light's side, brown hair and 128 px. A new hairstyle needs a rebake and a title rebuild; until then its tile shows its short name.

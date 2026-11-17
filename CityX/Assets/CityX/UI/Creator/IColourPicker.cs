@@ -8,6 +8,11 @@ namespace CityX.UI
         /// <summary>The colour the picker is on.</summary>
         Color Current { get; }
 
+        /// <summary>Where on its square the colour is: saturation across and value (brightness) up, 0 to 1 (kept as picked, so black keeps its place).</summary>
+        float Saturation { get; }
+
+        float Value { get; }
+
         /// <summary>Picks <paramref name="colour"/>: the square, the hue and the preview move to it, and it is used.</summary>
         void Adopt(Color colour);
     }

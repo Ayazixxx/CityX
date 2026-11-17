@@ -6,7 +6,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The creator's colour codes (owner, 2026-11-17: "make the color code visible at the bottom and it lets you enter color codes to get an
-    /// exact hue") and the hue strip's round knob ("puts a circle over your selected hue").
+    /// exact hue") and the circle on the colour square where the colour is ("i want it in the box where you select your color").
     /// </summary>
     public sealed class ColourCodeTests
     {
@@ -61,22 +61,22 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheKnobIsARingWithAClearMiddleAndADarkOutsideLine()
+        public void TheColourMarkerIsARingWithAClearMiddleAndADarkOutsideLine()
         {
-            const int size = HueKnob.PictureSize;
-            Color32[] ring = HueKnob.RingPixels(size);
+            const int size = ColourMarker.PictureSize;
+            Color32[] ring = ColourMarker.RingPixels(size);
             Color32 At(Color32[] pixels, float share) => pixels[(size / 2) * size + Mathf.Clamp(Mathf.RoundToInt(size * 0.5f * (1.0f + share)), 0, size - 1)];
             Assert.AreEqual(0, At(ring, 0.0f).a, "the ring's middle is not see-through (the hue shows there)");
             Assert.AreEqual(0, ring[0].a, "the ring's corner is not see-through");
-            Color32 band = At(ring, (HueKnob.RingInner + HueKnob.RingOuter) * 0.5f);
+            Color32 band = At(ring, (ColourMarker.RingInner + ColourMarker.RingOuter) * 0.5f);
             Assert.AreEqual(255, band.a, "the ring's band is not solid");
             Assert.Greater(band.r, 200, "the ring's band is not white");
-            Color32 rim = At(ring, HueKnob.RingOuter - HueKnob.Outline * 0.5f);
-            Assert.Less(rim.r, 100, "the ring has no dark line round its outside (it would vanish on the pale hues)");
+            Color32 rim = At(ring, ColourMarker.RingOuter - ColourMarker.Outline * 0.5f);
+            Assert.Less(rim.r, 100, "the ring has no dark line round its outside (it would vanish on the pale corner)");
 
-            Color32[] disc = HueKnob.DiscPixels(size);
-            Assert.AreEqual(255, At(disc, 0.0f).a, "the hue disc is not solid in the middle");
-            Assert.AreEqual(0, At(disc, HueKnob.RingOuter).a, "the hue disc spills past the ring");
+            Color32[] disc = ColourMarker.DiscPixels(size);
+            Assert.AreEqual(255, At(disc, 0.0f).a, "the colour disc is not solid in the middle");
+            Assert.AreEqual(0, At(disc, ColourMarker.RingOuter).a, "the colour disc spills past the ring");
         }
 
         [Test]

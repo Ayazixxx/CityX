@@ -965,31 +965,51 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Owner, 2026-11-17: "the hue selector shows which color you are on currently, like it puts a circle over your selected hue so you can
-        /// hold click on the circle and move it around to select an exact hue". Each hue strip's handle is a round knob, as wide as it is tall,
-        /// standing proud of the strip, filled with the hue it is on, the slider's own handle (the part that is dragged).
+        /// Owner, 2026-11-17: "i want it in the box where you select your color so i can drag and down and make it a bit darker if needed or move it
+        /// around how i want not the little slider". Each colour square has a circle where the picked colour is (saturation across, brightness
+        /// up), filled with that colour; dragging in the square, from on the circle or anywhere, takes the colour and the circle there. The hue
+        /// slider keeps its own thin handle.
         /// </summary>
         [UnityTest]
-        public IEnumerator EachHueStripsHandleIsACircleShowingTheHueItIsOn()
+        public IEnumerator EachColourSquareHasACircleWhereTheColourIsThatADragMoves()
         {
             yield return ShowTheHairTab();
             _creator.SetHairStyle(CharacterHair.Hair1);
             yield return null;
             var paint = Object.FindFirstObjectByType<CreatorControls>(FindObjectsInactive.Include);
             var hair = Object.FindFirstObjectByType<HairColourControls>(FindObjectsInactive.Include);
-            foreach ((string which, Slider hue) in new[] { ("paint", paint.Hue), ("hair", hair.Hue) })
+            foreach ((string which, IColourPicker picker, RawImage square, System.Action<PointerEventData> drag, Slider hue) in
+                     new (string, IColourPicker, RawImage, System.Action<PointerEventData>, Slider)[]
+                     {
+                         ("paint", paint, paint.SVSquare, paint.OnDrag, paint.Hue),
+                         ("hair", hair, hair.GetComponent<RawImage>(), hair.OnDrag, hair.Hue),
+                     })
             {
-                var knob = hue.GetComponent<HueKnob>();
-                Assert.IsNotNull(knob, $"the {which} hue strip has no knob");
-                Assert.AreSame(knob.Ring.transform, hue.handleRect, $"the {which} knob is not the slider's handle");
-                hue.value = 0.6f;
+                var marker = square.GetComponentInChildren<ColourMarker>();
+                Assert.IsNotNull(marker, $"the {which} colour square has no circle");
+                Assert.IsNull(hue.GetComponentInChildren<ColourMarker>(), $"the {which} hue slider has the circle");
+                Assert.IsFalse(marker.Ring.raycastTarget, $"the {which} circle takes the press the square should");
+                var area = ((RectTransform)square.transform).rect;
+                var circle = (RectTransform)marker.transform;
+
+                picker.Adopt(Color.HSVToRGB(0.6f, 0.3f, 0.4f));
                 yield return null;
-                Rect knobRect = hue.handleRect.rect, strip = ((RectTransform)hue.transform).rect;
-                Assert.AreEqual(knobRect.width, knobRect.height, 0.5f, $"the {which} knob is not round");
-                Assert.Greater(knobRect.height, strip.height, $"the {which} knob does not stand proud of the strip");
-                Color shown = knob.Fill.color, wanted = Color.HSVToRGB(0.6f, 1.0f, 1.0f);
-                Assert.Less(Vector4.Distance(shown, wanted), 0.02f, $"the {which} knob does not show the hue it is on");
-                Assert.IsNotNull(knob.Ring.texture, $"the {which} knob's ring is not drawn");
+                Assert.Less(Vector2.Distance(circle.anchoredPosition, new Vector2(0.3f * area.width, 0.4f * area.height)), 1.5f,
+                    $"the {which} circle is not where the colour is on the square");
+                Assert.Less(Vector4.Distance(marker.Fill.color, picker.Current), 0.01f, $"the {which} circle is not the colour");
+
+                // Dragged down and across: darker, and the circle goes with it.
+                Vector3 world = square.transform.TransformPoint(new Vector3(area.xMin + 0.75f * area.width, area.yMin + 0.25f * area.height, 0.0f));
+                drag(new PointerEventData(EventSystem.current)
+                {
+                    position = RectTransformUtility.WorldToScreenPoint(null, world),
+                    pointerPressRaycast = new RaycastResult { gameObject = square.gameObject },
+                });
+                yield return null;
+                Assert.AreEqual(0.75f, picker.Saturation, 0.03f, $"the {which} drag did not pick across the square");
+                Assert.AreEqual(0.25f, picker.Value, 0.03f, $"the {which} drag did not pick down the square (darker)");
+                Assert.Less(Vector2.Distance(circle.anchoredPosition, new Vector2(0.75f * area.width, 0.25f * area.height)), 1.5f,
+                    $"the {which} circle did not follow the drag");
             }
         }
 

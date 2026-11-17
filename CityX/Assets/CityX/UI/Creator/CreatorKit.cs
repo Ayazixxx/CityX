@@ -226,6 +226,7 @@ namespace CityX.UI
             // whatever hue is selected, plus a separate hue strip -- this is
             // that shape, not the hue/saturation wheel it replaced.
             controls.SVSquare = MakeSquare(t, "SVSquare", At(-166.0f), 128.0f);
+            AddColourMarker(controls.SVSquare, controls);
 
             controls.Hue = MakeHueSlider(t, "HueSlider", At(-244.0f), 150.0f);
             controls.Preview = MakeColourCode(t, "Preview", At(-266.0f), new Vector2(150.0f, 16.0f), controls);
@@ -348,27 +349,17 @@ namespace CityX.UI
             Image fill = fillArea.AddComponent<Image>();
             fill.color = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
-            // The handle is a ring round a disc of the hue it is on, standing a little proud of the strip: grabbed and dragged
-            // (HueKnob; owner, 2026-11-17, "puts a circle over your selected hue so you can hold click on the circle and move it around").
             var handle = new GameObject("Handle", typeof(RectTransform));
             var handleRect = (RectTransform)handle.transform;
             handleRect.SetParent(go.transform, false);
-            handleRect.sizeDelta = new Vector2(HueKnobSize, HueKnobSize - 16.0f);   // (the slider stretches it over the strip's height)
-            RawImage ring = handle.AddComponent<RawImage>();
-            var fillDisc = new GameObject("HueFill", typeof(RectTransform));
-            var discRect = (RectTransform)fillDisc.transform;
-            discRect.SetParent(handleRect, false);
-            UiKit.Stretch(discRect);
-            RawImage disc = fillDisc.AddComponent<RawImage>();
-            disc.raycastTarget = false;
+            handleRect.sizeDelta = new Vector2(6.0f, 20.0f);
+            Image handleImage = handle.AddComponent<Image>();
+            handleImage.color = Paper;
 
             Slider slider = go.AddComponent<Slider>();
             slider.fillRect = fillRect;
             slider.handleRect = handleRect;
-            slider.targetGraphic = ring;
-            HueKnob knob = go.AddComponent<HueKnob>();
-            knob.Ring = ring;
-            knob.Fill = disc;
+            slider.targetGraphic = handleImage;
             slider.direction = Slider.Direction.LeftToRight;
             slider.minValue = 0.0f;
             slider.maxValue = 1.0f;
@@ -377,8 +368,36 @@ namespace CityX.UI
             return slider;
         }
 
-        /// <summary>The hue strip's handle across, canvas units: the strip is 16 high, the circle stands proud of it.</summary>
-        public const float HueKnobSize = 24.0f;
+        /// <summary>The circle on a colour square where the colour is, across, canvas units.</summary>
+        public const float ColourMarkerSize = 14.0f;
+
+        /// <summary>
+        /// A circle on a picker's colour square where its colour is (ColourMarker; owner, 2026-11-17: "i want it in the box where you select your
+        /// color so i can drag and down and make it a bit darker if needed or move it around how i want"). It takes no clicks: a press on it is
+        /// the square's, which drags the colour (and the circle with it).
+        /// </summary>
+        public static ColourMarker AddColourMarker(RawImage square, MonoBehaviour picker)
+        {
+            var go = new GameObject("ColourMarker", typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(square.transform, false);
+            rect.anchorMin = rect.anchorMax = Vector2.zero;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(ColourMarkerSize, ColourMarkerSize);
+            RawImage ring = go.AddComponent<RawImage>();
+            ring.raycastTarget = false;
+            var fillDisc = new GameObject("Fill", typeof(RectTransform));
+            var discRect = (RectTransform)fillDisc.transform;
+            discRect.SetParent(rect, false);
+            UiKit.Stretch(discRect);
+            RawImage disc = fillDisc.AddComponent<RawImage>();
+            disc.raycastTarget = false;
+            ColourMarker marker = go.AddComponent<ColourMarker>();
+            marker.Picker = picker;
+            marker.Ring = ring;
+            marker.Fill = disc;
+            return marker;
+        }
 
         /// <summary>
         /// A picker's preview bar that shows the colour's code over it and takes one typed in (ColourCodeField; owner, 2026-11-17: "make the

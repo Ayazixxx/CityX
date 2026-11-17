@@ -74,6 +74,10 @@ namespace CityX.UI
         /// <summary>The colour the picker is on.</summary>
         public Color Current => Color.HSVToRGB(_hue, _saturation, _value);
 
+        public float Saturation => _saturation;
+
+        public float Value => _value;
+
         /// <summary>The colour this panel last gave the creator: when the creator's differs, something else (the eyedropper) chose it.</summary>
         private Color _shown = Color.white;
 
