@@ -36,6 +36,7 @@ namespace CityX.Tests
         private PlayerLocomotion _locomotion;
         private Animator _animator;
         private PistolWeapon _pistol;
+        private WeaponGripSettings _realSettings;
 
         [TearDown]
         public void TearDown()
@@ -44,11 +45,19 @@ namespace CityX.Tests
             if (_pistolObject != null) Object.Destroy(_pistolObject);
             if (_ground != null) Object.Destroy(_ground);
             if (_light != null) Object.Destroy(_light);
+            // The real holds back, or every test after this one holds its weapons in the untuned hold.
+            if (_realSettings != null)
+            {
+                Object.Destroy(WeaponGripSettings.Current);
+                WeaponGripSettings.Current = _realSettings;
+                _realSettings = null;
+            }
         }
 
         private void Build()
         {
 #if UNITY_EDITOR
+            _realSettings ??= WeaponGripSettings.Current;
             WeaponGripSettings.Current = ScriptableObject.CreateInstance<WeaponGripSettings>();
             _ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
             _ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);

@@ -29,6 +29,7 @@ namespace CityX.Tests
         private PlayerLocomotion _locomotion;
         private Animator _animator;
         private PistolWeapon _pistol;
+        private WeaponGripSettings _realSettings;
 
         [TearDown]
         public void TearDown()
@@ -37,11 +38,20 @@ namespace CityX.Tests
             if (_pistolObject != null) Object.Destroy(_pistolObject);
             if (_ground != null) Object.Destroy(_ground);
             if (_light != null) Object.Destroy(_light);
+            // The real holds back: left blank, every test after this one held its weapons in the untuned hold (the crowbar's swings went
+            // through the body in SwordArmsClearPlayTests, in a full run only).
+            if (_realSettings != null)
+            {
+                Object.Destroy(WeaponGripSettings.Current);
+                WeaponGripSettings.Current = _realSettings;
+                _realSettings = null;
+            }
         }
 
         private void Build(bool supportHand, bool kick)
         {
 #if UNITY_EDITOR
+            _realSettings ??= WeaponGripSettings.Current;
             WeaponGripSettings.Current = ScriptableObject.CreateInstance<WeaponGripSettings>();
 
             _ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
