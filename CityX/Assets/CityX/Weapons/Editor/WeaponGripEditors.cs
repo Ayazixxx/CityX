@@ -186,10 +186,10 @@ namespace CityX.WeaponsEditor
 
             DrawTorso(settings);
             EditorGUILayout.HelpBox(
-                "Move slides the sword along the hand; Rotate turns the blade (its edge is the gold-trimmed side; on the spike sword, the spikes). " +
-                "While the sword or the marker is selected the hand holds still, so you see the sword move in it; deselect it and the stance " +
-                "points the blade again with the new hold. The left hand follows the orange marker wherever the swing takes the sword. " +
-                "Save keeps it after you stop the game.",
+                "Move slides the sword through both hands; Rotate turns the blade (its edge is the gold-trimmed side; on the spike sword, the spikes). " +
+                "While the sword or the marker is selected the hands hold still, so you see the sword move in them; deselect it and the stance " +
+                "points the blade again with the new hold. Select the orange marker to move the left hand along the handle; it follows the marker " +
+                "wherever the swing takes the sword. Save keeps it after you stop the game.",
                 MessageType.None);
         }
 
@@ -290,7 +290,7 @@ namespace CityX.WeaponsEditor
                 Persist(settings);
             }
             EditorGUILayout.HelpBox("1 is the size the bat was built at. The hands stay on the handle and a swing reaches as far as the bigger or smaller barrel. " +
-                "Kept after you stop the game.", MessageType.None);
+                "Kept after you stop the game. Use this, not the Transform's Scale: scaling the Transform moves the bat off the hands.", MessageType.None);
         }
 
         private static void DrawTorso(WeaponGripSettings settings)
@@ -333,10 +333,21 @@ namespace CityX.WeaponsEditor
     [InitializeOnLoad]
     internal static class SwordHoldEditWatch
     {
+        /// <summary>
+        /// A two-handed sword selected itself (not its marker): moving it slides it through BOTH hands. The left hand's marker is a child of the sword, so
+        /// it was carried along and the left hand with it, and past the left arm's reach the right arm was drawn after it (owner, 2026-11-16, of the bat:
+        /// "when i try to adjust position the hands move with it and they are stuck not holding it properly"). The marker is held where it was against
+        /// the right hand; Save then keeps where the left hand ends up on the sword.
+        /// </summary>
+        private static SwordWeapon _sliding;
+
+        private static Vector3 _markerInRightHand;
+
         static SwordHoldEditWatch()
         {
             Selection.selectionChanged += Refresh;
             EditorApplication.playModeStateChanged += _ => Refresh();
+            EditorApplication.update += KeepTheLeftHand;
         }
 
         private static void Refresh()
@@ -345,6 +356,21 @@ namespace CityX.WeaponsEditor
             WeaponGripSettings.HoldBeingEdited = Application.isPlaying && selected != null
                 && selected.GetComponentInParent<SwordWeapon>() != null
                 && selected.GetComponentInParent<Animator>() != null;   // a sword in a body's hand, not one lying on the ground
+            SwordWeapon sword = WeaponGripSettings.HoldBeingEdited ? selected.GetComponent<SwordWeapon>() : null;
+            _sliding = sword != null && sword.LeftHandGrip != null && sword.transform.parent != null ? sword : null;
+            if (_sliding != null)
+            {
+                _markerInRightHand = _sliding.transform.parent.InverseTransformPoint(_sliding.LeftHandGrip.position);
+            }
+        }
+
+        private static void KeepTheLeftHand()
+        {
+            if (!Application.isPlaying || _sliding == null || _sliding.LeftHandGrip == null || _sliding.transform.parent == null)
+            {
+                return;
+            }
+            _sliding.LeftHandGrip.position = _sliding.transform.parent.TransformPoint(_markerInRightHand);
         }
     }
 

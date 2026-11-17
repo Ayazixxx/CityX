@@ -22,3 +22,4 @@ MonoBehaviour:
   PistolTuned: 0
   PistolLeftHand: {x: 0, y: 0, z: 0}
   TorsoFollowStrength: 1
+  BaseballBatSize: 1.4
