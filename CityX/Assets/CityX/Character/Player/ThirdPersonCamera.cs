@@ -198,6 +198,83 @@ namespace CityX.Character
         /// <summary>A hit this near a stair's post is on the post, metres (the spring arm's sphere touches its faces).</summary>
         private const float StairPostMargin = 0.05f;
 
+        // ---- INDOORS (CameraRoom) ----
+
+        [Header("Indoors (in a room: under a roof with walls on most sides)")]
+        [Tooltip("How far behind the body the camera hangs in a room, metres (Distance outside). Never further than outside.")]
+        public float IndoorDistance = DefaultIndoorDistance;
+
+        public const float DefaultIndoorDistance = 3.6f;
+
+        [Tooltip("How far above the pivot the camera's line sits in a room, metres (FramingHeight outside): lower, under the ceiling.")]
+        public float IndoorFramingHeight = 0.3f;
+
+        [Tooltip("How many degrees wider the view is in a room: a closer camera still sees the room round the body.")]
+        public float IndoorFieldOfViewBonus = 6.0f;
+
+        [Tooltip("Per second: how fast the room framing comes in (2 = half a second) and goes again out of doors.")]
+        public float IndoorBlendInPerSecond = 2.0f;
+
+        public float IndoorBlendOutPerSecond = 1.2f;
+
+        [Tooltip("Metres per second the camera drifts back out once a wall no longer stands in its way (it always pulls in at once).")]
+        public float ArmOutMetresPerSecond = 5.0f;
+
+        /// <summary>A ceiling within this far above the camera's pivot is a roof, metres on the 2.6 m body.</summary>
+        public const float RoofProbeMetres = 4.5f;
+
+        /// <summary>A wall within this far round the pivot is near, metres on the 2.6 m body.</summary>
+        public const float WallProbeMetres = 6.0f;
+
+        /// <summary>The pivot moving further than this in a frame is a teleport: the arm and the room framing start again where they are.</summary>
+        private const float TeleportMetres = 8.0f;
+
+        private static readonly RaycastHit[] ProbeHits = new RaycastHit[16];
+
+        private float _indoorBlend;
+        private float _arm = -1.0f;
+        private float _wantedArm;
+        private Vector3 _lastPivot;
+
+        /// <summary>0 (outside) to 1 (in a room): how much of the room framing is on now.</summary>
+        public float IndoorBlend => Mathf.SmoothStep(0.0f, 1.0f, _indoorBlend);
+
+        /// <summary>Whether a ray from <paramref name="origin"/> meets the world (not a body, not the player, not what the camera passes through) within <paramref name="metres"/>.</summary>
+        private bool Blocked(Vector3 origin, Vector3 direction, float metres)
+        {
+            int count = Physics.RaycastNonAlloc(origin, direction, ProbeHits, metres, CollisionLayers & CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                Transform hit = ProbeHits[i].transform;
+                if (hit == Target || hit.IsChildOf(Target) || ProbeHits[i].collider.GetComponentInParent<IDamageable>() != null
+                    || ProbeHits[i].collider.GetComponentInParent<ICameraPassesThrough>() != null)
+                {
+                    continue;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>How enclosed the pivot is now (CameraRoom.Enclosure): a roof straight up, and walls round it.</summary>
+        private float MeasureEnclosure(Vector3 pivot, float scale)
+        {
+            if (!Blocked(pivot, Vector3.up, RoofProbeMetres * scale))
+            {
+                return 0.0f;
+            }
+            int walls = 0;
+            for (int i = 0; i < CameraRoom.WallProbes; i++)
+            {
+                Vector3 direction = Quaternion.Euler(0.0f, i * 360.0f / CameraRoom.WallProbes, 0.0f) * Vector3.forward;
+                if (Blocked(pivot, direction, WallProbeMetres * scale))
+                {
+                    walls++;
+                }
+            }
+            return CameraRoom.Enclosure(true, walls);
+        }
+
         /// <summary>What stands between the body and where the camera wants to be is read into this each frame, not into a new array.</summary>
         private static readonly RaycastHit[] WallHits = new RaycastHit[64];
 
@@ -807,6 +884,14 @@ namespace CityX.Character
                 pivot += Vector3.up * ((PistolAim ? PistolAimPivotRaise : AimPivotRaise) * AimCameraBlend * scale);
             }
 
+            // IN A ROOM, the shot tightens (CameraRoom): eased in and out, started again where it stands after a teleport.
+            bool teleported = (pivot - _lastPivot).sqrMagnitude > TeleportMetres * TeleportMetres * scale * scale;
+            _lastPivot = pivot;
+            float enclosure = MeasureEnclosure(pivot, scale);
+            _indoorBlend = teleported || _arm < 0.0f ? enclosure
+                : Mathf.MoveTowards(_indoorBlend, enclosure, (enclosure > _indoorBlend ? IndoorBlendInPerSecond : IndoorBlendOutPerSecond) * Time.deltaTime);
+            float indoor = IndoorBlend;
+
             // The recoil kick and roll jolt ride on top of where you are
             // aiming; a positive kick raises the view, i.e. LOWERS the pitch, and a spray's sideways wander turns it.
             Quaternion rotation = Quaternion.Euler(_pitch - _recoilPitch, _yaw + _recoilYaw, _shakeRoll);
@@ -825,9 +910,10 @@ namespace CityX.Character
                 _currentShoulderSide, _shoulderSide, ShoulderSwapPerSecond * Time.deltaTime);
             // Over the head (FramingHeight): the body sits low in the frame and the middle of the screen shows what is in front. Aiming eases
             // down to its own over-the-shoulder framing.
-            float raise = FramingHeight * (1.0f - AimCameraBlend) * scale;
+            float raise = Mathf.Lerp(FramingHeight, IndoorFramingHeight, indoor) * (1.0f - AimCameraBlend) * scale;
             Vector3 shoulderPivot = pivot + rotation * new Vector3(_currentShoulderOffset * _currentShoulderSide * scale, raise, 0.0f);
-            float distance = Mathf.Lerp(Distance + FlightDistanceBonus, PistolAim ? PistolAimDistance : AimDistance, AimCameraBlend) * scale;
+            float outdoors = Mathf.Lerp(Distance + FlightDistanceBonus, PistolAim ? PistolAimDistance : AimDistance, AimCameraBlend);
+            float distance = Mathf.Lerp(outdoors, Mathf.Min(outdoors, IndoorDistance), indoor) * scale;
             Vector3 wanted = shoulderPivot - rotation * Vector3.forward * distance;
 
             // Pull in if a wall is in the way. The sphere radius keeps the near
@@ -876,10 +962,13 @@ namespace CityX.Character
             }
 
             bool underground = CityX.World.CurrentSewers.DarknessAt(Target.position + Vector3.up * (0.5f * scale)) > 0.05f;
-            if (nearest < wantedDistance)
-            {
-                wanted = pivot + direction * Mathf.Max((underground ? UndergroundMinDistance : MinDistance) * scale, nearest - 0.1f * scale);
-            }
+            float allowed = nearest < wantedDistance
+                ? Mathf.Max((underground ? UndergroundMinDistance : MinDistance) * scale, nearest - 0.1f * scale)
+                : wantedDistance;
+            // In at once, back out at a drift (CameraRoom.Arm): a door frame or a pillar passing no longer pops the picture in and out.
+            _arm = _arm < 0.0f || teleported ? allowed : CameraRoom.Arm(_arm, allowed, wantedDistance, _wantedArm, ArmOutMetresPerSecond * scale, Time.deltaTime);
+            _wantedArm = wantedDistance;
+            wanted = pivot + direction * _arm;
             ShowBody(!underground || Vector3.Distance(pivot, wanted) >= HideBodyWithin * scale);
 
             // The impact shake, last: after the walls have had their say, and only on where the picture is taken from.
@@ -891,7 +980,7 @@ namespace CityX.Character
             if (_camera != null)
             {
                 // The sprint's widening rides on the rest field of view and blends on its own clock (_sprintBlend); the flight bonus the same.
-                float rest = _restFieldOfView * Mathf.Lerp(1.0f, SprintFieldOfViewScale, _sprintBlend) + FlightFovBonus;
+                float rest = _restFieldOfView * Mathf.Lerp(1.0f, SprintFieldOfViewScale, _sprintBlend) + FlightFovBonus + IndoorFieldOfViewBonus * indoor;
                 float target = IsAiming ? (PistolAim ? PistolAimFieldOfView : AimFieldOfView) : rest;
                 _camera.fieldOfView = Mathf.MoveTowards(
                     _camera.fieldOfView, target, (IsAiming ? AimZoomDegreesPerSecond : AimZoomOutDegreesPerSecond) * Time.deltaTime);

@@ -130,3 +130,23 @@ limits stay at the full +/-90 the owner asked for. `/camera` tunes the same four
 Renders: `CameraViewCapture` now compares the 2026-10-17 framing (top) with this one (bottom) at the start pitch, level and in sword reach,
 and adds `camera-sr3-aim.png` for fine aim. Tests: `ThirdPersonCameraPlayTests` (the head at the middle and the body filling the lower
 half, aiming in over the shoulder with the zoom, in fast and out slower, sprinting widening the view).
+
+## Indoors (2026-11-16)
+
+Owner: "is there any way we can improve the indoor cam, how do third person games do it and can ours be improved upon", then "ok go ahead try to make it
+better". The camera only had the spring arm: a wall between body and camera pulled it in within the frame and let it out the same way, so indoors it
+popped in and out at every door frame, hung at the street's 6 m, and could end up in the next room looking back through a doorway.
+
+`CameraRoom` (pure maths) and `ThirdPersonCamera`, as third-person games do it (Unreal's spring arm, Cinemachine's deoccluder, Sifu's and God of War's
+close cameras):
+- **In a room the shot tightens.** Each frame a ray straight up (a roof within 4.5 m of the pivot) and eight round it (a wall within 6 m) say how enclosed
+  the body is: a roof and walls on 4 of 8 sides is a room, a roof with at most one is open air (a porch, under a footbridge), a street with no roof never
+  is. In a room the camera comes in to `IndoorDistance` (3.6 m), lower (`IndoorFramingHeight` 0.3) and 6 degrees wider, eased in over half a second and
+  out over most of a second. All on the camera's Inspector under Indoors.
+- **The arm snaps in and eases out.** A wall still pulls the camera in within the frame; once it is gone the camera drifts back at
+  `ArmOutMetresPerSecond` (5) instead of jumping. A longer wanted distance with nothing in the way (an aim let go, a giant growing) is followed as it is.
+- Probes ignore the body, every damageable body and what the camera passes through. A teleport starts both again where they stand.
+
+`IndoorCameraPlayTests` (Old Guy's den is a room, the camera in it is in the room, the open yard is not and the way out does not jump), `CameraRoomTests`;
+`IndoorCameraCapture` (Explicit, -Graphics) renders the house before and after at five places. Not done yet: fading the body when the camera is pressed
+close, and side probes that see a corner coming.
