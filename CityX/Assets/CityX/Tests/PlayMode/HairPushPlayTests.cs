@@ -39,6 +39,7 @@ namespace CityX.Tests
             var meshes = new Mesh[CharacterHair.ValidStyles.Length - 1];
             meshes[System.Array.IndexOf(CharacterHair.ValidStyles, CharacterHair.KickHair) - 1] = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/Hair/KickHairMesh.asset");
             meshes[System.Array.IndexOf(CharacterHair.ValidStyles, CharacterHair.Hair1) - 1] = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/Hair/Hair1Mesh.asset");
+            meshes[System.Array.IndexOf(CharacterHair.ValidStyles, CharacterHair.IdkNeedsWork) - 1] = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/Hair/IdkNeedsWorkMesh.asset");
             hair.StyleMeshes = meshes;
             return hair;
         }

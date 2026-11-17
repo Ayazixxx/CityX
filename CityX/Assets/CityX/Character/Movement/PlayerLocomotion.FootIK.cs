@@ -386,8 +386,8 @@ namespace CityX.Character
         /// <summary>
         /// Standing or walking with a sword, the neck and the head are carried as at idle (<see cref="IdleNeckLeanDegrees"/>,
         /// <see cref="IdleFacePitchDegrees"/>), in the body's own frame: the neck first, so the head sits over the shoulders where it does at idle,
-        /// then the face, keeping the heading ApplyHeadForward gave it. Eased in and out like it. A cut (ApplySwordPose, after this) still turns
-        /// the torso, and the head goes with it.
+        /// then the face, straight ahead and level as ApplyHeadForward has it. Eased in and out like it. A cut (ApplySwordPose, after this) still
+        /// turns the torso, and the head goes with it.
         /// </summary>
         private void ApplySwordHeadCarriage()
         {
@@ -413,11 +413,14 @@ namespace CityX.Character
                 _neck.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(line, upright), w) * _neck.rotation;
             }
 
-            // The face: tipped to the idle's own angle, keeping its heading.
-            Vector3 face = Quaternion.Inverse(body) * _head.forward;
-            float heading = Mathf.Atan2(face.x, face.z) * Mathf.Rad2Deg;
-            Vector3 level = body * (Quaternion.Euler(-IdleFacePitchDegrees, heading, 0.0f) * Vector3.forward);
-            _head.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(_head.forward, level), w) * _head.rotation;
+            // The face: tipped to the idle's own angle, looking where the body goes and level from side to side, with the posture's own turn and tilt as
+            // ApplyHeadForward gives them. Standing the neck up turns the head with it, by whatever twist the clip has in the neck: the two-handed run's
+            // tipped the head 10 degrees and turned it 7, both to the left (owner, 2026-11-16: "the two handed melee running animations is tilted slightly
+            // to the left make it straight"), when only the face's pitch was set.
+            BodyPostureSettings posture = BodyPostureSettings.Current;
+            Quaternion straight = body * Quaternion.Euler(0.0f, posture.HeadTurnRight, 0.0f) * Quaternion.Euler(-IdleFacePitchDegrees, 0.0f, 0.0f)
+                * Quaternion.Euler(0.0f, 0.0f, -posture.HeadTiltRight);
+            _head.rotation = Quaternion.Slerp(_head.rotation, straight, w);
         }
 
         private static float LeadYaw(Transform foot, Vector3 heading, float side)

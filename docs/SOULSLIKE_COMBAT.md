@@ -718,3 +718,13 @@ Owner: the swings are "stilted and awkward. they only use the arms so It looks o
 - **The swordsman's own tells are shorter by what the wind-ups grew** (`SwordsmanBrain.Telegraph*Seconds`): his cuts land as long after they start as they did.
 - **The legs, hips, torso and head of each attack are a clip**; the sword arm, the blade and the hands are still this page's keys, solved from the clip's shoulders.
 - **At a sprint the first light is a running attack** (the same day: "if you are sprinting it does a different attack"): the chain's diagonal cut brought down on the run. `docs/SWORD_MOMENTUM.md`.
+
+## Update 2026-11-16: the head straight in the two-handed run
+
+- **The run** (owner: "the two handed melee running animations is tilted slightly to the left make it straight"). Measured in the game, the body was upright
+  over its feet (the hips 0.5 degrees off them, the plain run 2); the HEAD was tipped 10 degrees and turned 7, both to the left (the plain run: 0 and 0).
+  `ApplySwordHeadCarriage` stands the neck up to the idle's lean, which turned the head with it by the clip's own twist in the neck, and then set only the
+  face's pitch. It now sets the whole face: the idle's pitch, straight ahead and level, with the posture's turn and tilt as `ApplyHeadForward` has them.
+  `TwoHandedRunUprightPlayTests` holds the run's head as straight as the plain run's; `TwoHandedRunCapture` (Explicit, -Graphics) renders both runs from
+  behind and from the game camera's place, with the head's tip and turn logged. Tried first and taken out: baking Mixamo's run again with the hips
+  upright, on the guess that the body leaned (it did not).
