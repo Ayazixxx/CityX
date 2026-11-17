@@ -271,6 +271,74 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// Owner, 2026-11-17, with a red line drawn over the first cut from the upper right to the lower left: "make the first swing with the combat
+        /// sword more diagonal like the red line, and make the second swing follow through the same distance as the first slash. right now the
+        /// second slash stops halfway through". Seen from the game's camera at rest, from the moment the trail starts to the end of the
+        /// follow-through: the first cut's tip goes down to the left at about 45 degrees (it went at 60), and the second's goes as far as the
+        /// first's (it went about half as far).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheFirstCutGoesDownAt45DegreesAndTheSecondFollowsThroughAsFar()
+        {
+#if UNITY_EDITOR
+            _player = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            _player.GetComponent<PlayerVitals>().InfiniteStamina = true;
+            var locomotion = _player.GetComponent<PlayerLocomotion>();
+            _sword = Sword();
+            _sword.OnEquip(_player, ItemInstanceData.None);
+            var combat = _player.GetComponent<SoulsSwordCombat>();
+            var poser = _player.GetComponent<SwordPoseDriver>();
+            combat.HitStopSeconds = 0.0f;
+            var input = new LocomotionInput { Sword1HEquipped = true };
+            for (int i = 0; i < 50; i++)
+            {
+                combat.Tick(Dt);
+                locomotion.Tick(input, Dt);
+                yield return null;
+            }
+            var sweeps = new System.Collections.Generic.Dictionary<SwordStrikeKind, Vector2>();
+            combat.RequestLight(0.0f);
+            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H })
+            {
+                SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(kind);
+                float from = SwordStrikes.ActiveStart(kind), to = (timing.Contact + timing.Follow) / timing.Total;
+                Vector2? first = null, last = null;
+                for (int frame = 0; frame < 200; frame++)
+                {
+                    if (poser.Kind == SwordStrikeKind.Slash1H && poser.Progress > SwordStrikes.ActiveEnd(SwordStrikeKind.Slash1H))
+                    {
+                        combat.RequestLight(0.0f);   // the next cut, buffered as this one's blade goes dead
+                    }
+                    combat.Tick(Dt);
+                    locomotion.Tick(input, Dt);
+                    yield return null;
+                    if (poser.IsStriking && poser.Kind == kind && poser.Progress >= from && poser.Progress <= to)
+                    {
+                        last = AsTheCameraSeesIt(_player.transform.InverseTransformPoint(_sword.BladeTipWorld));
+                        first ??= last;
+                    }
+                    else if (last.HasValue)
+                    {
+                        break;
+                    }
+                }
+                Assert.IsTrue(first.HasValue && last.HasValue, $"{kind}: the sweep was never seen");
+                sweeps[kind] = last.Value - first.Value;
+            }
+            Vector2 slash = sweeps[SwordStrikeKind.Slash1H], cut = sweeps[SwordStrikeKind.Cut1H];
+            float slashBelowLevel = Mathf.Atan2(-slash.y, Mathf.Abs(slash.x)) * Mathf.Rad2Deg;
+            Debug.Log($"CityX first two cuts as the camera sees them: the first {slash.magnitude:0.00} long, {slashBelowLevel:0} degrees below level, "
+                      + $"to the {(slash.x < 0.0f ? "left" : "right")}; the second {cut.magnitude:0.00} long, to the {(cut.x < 0.0f ? "left" : "right")}");
+            Assert.Less(slash.x, 0.0f, "the first cut does not go to the left");
+            Assert.That(slashBelowLevel, Is.InRange(38.0f, 52.0f), "the first cut is not a 45 degree diagonal");
+            Assert.Greater(cut.x, 0.0f, "the second cut does not go to the right");
+            Assert.Greater(cut.magnitude, slash.magnitude * 0.9f, "the second cut stops short of the first's follow-through");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
         /// Owner, 2026-11-14, of the second cut: "make it more human like animation the arm bends strangly". Through each of the first two
         /// cuts, wind-up to follow-through: the hand bends no further from the relaxed grip than a wrist goes (the second cut's had folded
         /// back on itself), the sword-arm's elbow is never raised above the line from its shoulder to its hand (a chicken wing), and the

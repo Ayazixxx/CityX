@@ -107,3 +107,23 @@ What changed:
 
 Now: the first cut stays at or under 55 degrees; the second sits about 50 through the wind-up, 105-116 for the tenth of a second the
 sword whips through behind a hand already facing the cut, and about 85 after it. The test holds both under 120.
+
+## 2026-11-17: the first cut at 45 degrees, the second's follow-through, the hand-over into the third
+
+Owner, with a red line drawn over the first cut from the upper right to the lower left: "make the first swing with the combat sword more
+diagonal like the red line, and make the second swing follow through the same distance as the first slash. right now the second slash
+stops halfway through"; then "when you spam click, right before the third swing the body glitches a little".
+
+- **The first cut's plane** (`SourceArt/SwordMoves/sword_arms_1h.py`, `PLANES_1H`) runs at 45 degrees across the screen, not 60. Its keys
+  were kept: the arm is turned onto the new plane at the shoulder, and the room off the body and the edge leading are as they were.
+- **The second cut's follow-through** carries the arm on down past the right hip (the wrist snapped toward the little finger), the tip
+  down to 0.5 m instead of stopping at 1.3 m: seen from the game's camera it travels as far as the first's (0.41 against 0.37).
+- **Into the third cut**, whose clip has no sword arm, after the second, whose clip has it: the body was drawn for one frame in the
+  third's first frame (standing straight up) before the crossfade began, and both hands jumped to the arm the game had kept posing
+  unseen under the clip's (the sword hand 86 cm). Now the new clip's pose starts as the body is (`SwordPoseDriver.BeginClip`), the body is
+  told at once who has the arm (`TellWhoHasTheArm`), and the arms start where the clip left them and come into their own pose over
+  0.15 s (`PlayerLocomotion.HandTheArmsOverFromTheClip`, after the baked pose).
+
+Tests: `SwordGifComboPlayTests.TheFirstCutGoesDownAt45DegreesAndTheSecondFollowsThroughAsFar`,
+`SwordChainHandOverPlayTests` (each part's jolt as the third cut takes over: was 29 cm at the hips, 1.4 m at the sword hand; now 1 to
+6 cm). Picture: `SwordCutsFromBehindCapture` (Explicit, -Graphics).

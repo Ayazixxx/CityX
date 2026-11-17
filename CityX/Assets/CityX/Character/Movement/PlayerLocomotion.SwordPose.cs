@@ -290,7 +290,68 @@ namespace CityX.Character
                 _swordElbowBow = Vector3.zero;
                 return;
             }
+            ApplySwordArms(w);
+        }
 
+        /// <summary>How long the arms take to go from the clip's to the ones posed here when an attack without the sword arm in its clip follows one with it, seconds.</summary>
+        public const float ArmsFromClipHandOverSeconds = 0.15f;
+
+        private readonly Quaternion[] _clipArms = new Quaternion[6];
+        private bool _hasClipArms;
+        private float _armsHandOverLeft;
+
+        private Transform[] _armBones;
+
+        private Transform[] ArmBones => _armBones ??= new[] { _rightUpperArm, _rightLowerArm, _handR, _leftUpperArm, _leftLowerArm, _handL };
+
+        /// <summary>
+        /// The chain's third cut, whose clip has no sword arm, after the second, whose clip had it: the arms posed here start where the clip left
+        /// them and come into their own pose over <see cref="ArmsFromClipHandOverSeconds"/>. The pose here was carried on unseen under the
+        /// clip's arm, and took over from where IT had got to: the sword hand jumped 48 cm in a frame, the free one 70 (owner, 2026-11-17).
+        /// After the baked pose, which puts the clip's arm on.
+        /// </summary>
+        private void HandTheArmsOverFromTheClip()
+        {
+            if (!SwordPoseActive || _rightUpperArm == null)
+            {
+                _hasClipArms = false;
+                return;
+            }
+            Transform[] bones = ArmBones;
+            if (SwordArmFromClip)
+            {
+                // The arms as the clip has them this frame, to hand over from if the next attack poses them here.
+                for (int i = 0; i < bones.Length; i++)
+                {
+                    _clipArms[i] = bones[i] != null ? bones[i].localRotation : Quaternion.identity;
+                }
+                _hasClipArms = true;
+                _armsHandOverLeft = ArmsFromClipHandOverSeconds;
+                return;
+            }
+            if (!_hasClipArms)
+            {
+                return;
+            }
+            _armsHandOverLeft -= Time.deltaTime;
+            if (_armsHandOverLeft <= 0.0f)
+            {
+                _hasClipArms = false;
+                return;
+            }
+            float own = Mathf.SmoothStep(0.0f, 1.0f, 1.0f - _armsHandOverLeft / ArmsFromClipHandOverSeconds);
+            for (int i = 0; i < bones.Length; i++)
+            {
+                if (bones[i] != null)
+                {
+                    bones[i].localRotation = Quaternion.Slerp(_clipArms[i], bones[i].localRotation, own);
+                }
+            }
+        }
+
+        /// <summary>The sword arm (and a two-handed grip's other, or the free hand) posed from the frame, at weight <paramref name="w"/>.</summary>
+        private void ApplySwordArms(float w)
+        {
             // The sword arm: the wrist to the frame's point, the elbow down or out as it says.
             Quaternion axes = ArmAxesUnderTheClip();
             Vector3 right = axes * Vector3.right, up = axes * Vector3.up, forward = axes * Vector3.forward;

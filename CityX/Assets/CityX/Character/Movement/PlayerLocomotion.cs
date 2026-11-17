@@ -914,6 +914,7 @@ namespace CityX.Character
             // The sword arms round the body, not through it (ElbowClearance): after the support hand has its grip.
             KeepArmsOutOfTorso();
             ApplyBakedPose();
+            HandTheArmsOverFromTheClip();
             // A raised shield has the left arm (PlayerLocomotion.Shield.cs); lowered, the shield rides the forearm wherever it is.
             ApplyShieldPose();
             // A staff in the right hand: carried upright, thrust out to cast (PlayerLocomotion.Staff.cs).

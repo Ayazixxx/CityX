@@ -72,7 +72,9 @@ def ready():
 # Each attack: its plane, and its arm at its keys' moments (sword_moves_pose.attack): ready, [rising,] wound up, the hold's end, the contact, the
 # follow-through's end, held through the settle, a moment on the way back, ready.
 PLANES_1H = {
-    "sword1h_slash": plane((-0.5, -0.87, 0.0), (0.15, 0.1, 0.0)),    # from over the right shoulder steeply down to the lower left
+    # From over the right shoulder down to the lower left at 45 degrees on the screen (owner, 2026-11-17: "make the first swing with the combat sword more
+    # diagonal like the red line"; it was 60 degrees, across (-0.5, -0.87)).
+    "sword1h_slash": plane((-0.71, -0.71, 0.0), (0.15, 0.1, 0.0)),
     "sword1h_cut": plane((0.68, -0.73, 0.0)),                        # over the left shoulder down to the lower right
 }
 
@@ -93,15 +95,17 @@ def slash_arms():
 
 # The second cut ends as the owner showed with his own arm (2026-11-15, photos: "IT NEEDS TO BE LIKE THE HAND POSITION IN THE SECOND IMAGE ITS JUST A
 # DIAGONAL SLASH"): the arm reaching down to the right, the back of the hand up and the knuckles leading, the wrist straight, the blade trailing back
-# up to the left across the front. (The game's arm had ended it with the forearm turned over and the fingers facing back.)
+# up to the left across the front. (The game's arm had ended it with the forearm turned over and the fingers facing back.) Its follow-through carries
+# the tip as far across the screen as the first cut's (owner, 2026-11-17: "make the second swing follow through the same distance as the first slash.
+# right now the second slash stops halfway through"): the arm goes on down to the right past the hip, the wrist snapped toward the little finger.
 def cut_arms():
     return [
         ready(),
         arm(69.0, -20.0, 48.0, 122.0, -84.0, 4.0),       # wound: the hand by the left ear, the blade back over the left shoulder
         arm(69.0, -20.0, 48.0, 124.0, -84.0, 4.0),
         arm(76.0, -5.0, 0.0, 14.0, -41.0, -11.0),        # the hit: the arm reaching forward and down to the right, the back of the hand up
-        arm(56.0, -22.0, -9.0, 5.0, -54.0, -4.0),        # carried through low to the right, the blade trailing up to the left
-        arm(56.0, -22.0, -9.0, 5.0, -54.0, -4.0),
+        arm(42.0, 6.0, -14.0, 5.0, -48.0, -25.0),        # carried through low to the right past the hip
+        arm(42.0, 6.0, -14.0, 5.0, -48.0, -25.0),
         arm(25.0, 15.0, 0.0, 35.0, 10.0),                # on the way back, the arm out to the side clear of the belly
         ready(),
     ]

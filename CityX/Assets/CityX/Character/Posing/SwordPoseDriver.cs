@@ -311,7 +311,21 @@ namespace CityX.Character
             _duration = SwordStrikes.Seconds(kind);
             _speed = 1.0f;
             BeginClip(kind);
+            TellWhoHasTheArm();
             enabled = true;
+        }
+
+        /// <summary>
+        /// Who poses the sword arm, told to the body at once: an attack can start after this frame's Step (the combat ticks in its own
+        /// Update), and the body, still told the old clip had the arm, drew it as no one had it, then the new attack's arm a frame later: the
+        /// hand jumped 86 cm and back as the third cut followed the second (owner, 2026-11-17).
+        /// </summary>
+        private void TellWhoHasTheArm()
+        {
+            if (_locomotion != null)
+            {
+                _locomotion.SwordArmFromClip = _armFromClip;
+            }
         }
 
         /// <summary>The attack's clip, if it has one, from its start; one still on the body is crossfaded from.</summary>
@@ -329,11 +343,19 @@ namespace CityX.Character
             if (!ReferenceEquals(motion, _motion))
             {
                 // A clip of the other motion (one with the sword arm in it, or one without): its own poses, the one on the body handed over.
+                // The new pose starts as the body is, not on the new clip's first frame: the body is drawn once more before the clip is next
+                // shown and crossfaded, and from the second cut into the third (the arm's clip into the one without) that one frame stood it
+                // straight up in the ready stance mid-chain (owner, 2026-11-17: "right before the third swing the body glitches a little").
                 _motion = motion;
                 _pose = _motion.NewPose();
                 _crossfadeFrom = _motion.NewPose();
                 _motion.Sample(SwordStrikes.NameOf(kind), 0.0f, false, _pose);
                 _motion.Sample(SwordStrikes.NameOf(kind), 0.0f, false, _crossfadeFrom);
+                if (was != null)
+                {
+                    _pose.CopyBodyFrom(was);
+                    _pose.LegsWeight = was.LegsWeight;
+                }
                 if (_holdsBody && _locomotion != null && _locomotion.HoldsBakedPose(was))
                 {
                     _locomotion.SetBakedPose(_pose, _locomotion.BakedPoseWeight);
@@ -422,6 +444,7 @@ namespace CityX.Character
             _striking = false;
             _clipPlaying = false;
             _armFromClip = false;
+            TellWhoHasTheArm();
             _guarding = true;
             _speed = 1.0f;
             enabled = true;
@@ -438,6 +461,7 @@ namespace CityX.Character
             _striking = false;
             _clipPlaying = false;
             _armFromClip = false;
+            TellWhoHasTheArm();
             _guarding = false;
             _rebounding = true;
             _elapsed = 0.0f;
