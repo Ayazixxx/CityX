@@ -18,7 +18,8 @@ namespace CityX.Weapons
         public const string Id = "boomerang";
 
         /// <summary>
-        /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the hand, Direction its way, A its speed, N 1 for the giant one), TurnedBack (A 1 if a
+        /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the hand, Direction its way, A its speed, N 1 for the giant one), TurnedBack (by a
+        /// wall, the floor or a thing: Origin where it struck, Direction the way that faced, for the bang and burst there too; A 1 if a
         /// person did it), Caught (A 1 if it got home, 0 if lost), GiantAim (A 1 drawn into the aim, 0 put away) and GiantThrowStarted.
         /// </summary>
         public const int Thrown = 0;
@@ -161,7 +162,9 @@ namespace CityX.Weapons
             {
                 return null;
             }
-            boomerang.TurnedBack += person => Fired?.Invoke(new AbilityEvent(TurnedBack, boomerang.transform.position, Vector3.zero, person ? 1.0f : 0.0f));
+            boomerang.TurnedBack += person => Fired?.Invoke(person
+                ? new AbilityEvent(TurnedBack, boomerang.transform.position, Vector3.zero, 1.0f)
+                : new AbilityEvent(TurnedBack, boomerang.LastImpactPoint, boomerang.LastImpactNormal, 0.0f));
             boomerang.Gone += () => Fired?.Invoke(new AbilityEvent(Caught, transform.position, Vector3.zero, boomerang.Caught ? 1.0f : 0.0f));
             Fired?.Invoke(new AbilityEvent(Thrown, from, way.normalized, speed, 0.0f, giant ? 1 : 0));
             return boomerang;
@@ -185,7 +188,7 @@ namespace CityX.Weapons
                 case TurnedBack:
                     if (_flying != null)
                     {
-                        _flying.TurnBackFromNetwork(evt.A > 0.5f);
+                        _flying.TurnBackFromNetwork(evt.A > 0.5f, evt.Origin, evt.Direction);
                     }
                     break;
                 case Caught:

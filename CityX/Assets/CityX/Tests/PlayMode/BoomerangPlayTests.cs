@@ -222,6 +222,94 @@ namespace CityX.Tests
             Assert.Less(Vector3.Distance(player.transform.position, onTheWay.From), 0.5f, "a hit coming home does not push away from the thrower");
         }
 
+        /// <summary>
+        /// Owner, 2026-11-17: "when thrown against a wall or the floor or any type of object there is some sort of bang noise and some impact fx".
+        /// Into a wall, the bang and burst are on the wall's face, facing back at the thrower; thrown down at the floor, on the floor, facing up.
+        /// Another player's copy, told where by the owner, bursts at the same place facing the same way.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AWallOrTheFloorItStrikesBangsAndBurstsWhereItStruckOnEveryScreen()
+        {
+            GameObject player = Body(Vector3.zero);
+            GameObject copy = Body(new Vector3(30.0f, 0.0f, 0.0f));
+            BoomerangItem item = Held();
+            item.OnEquip(player, ItemInstanceData.None);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            var copyThrower = copy.GetComponent<BoomerangThrower>();
+            var told = new List<AbilityEvent>();
+            thrower.Fired += told.Add;
+            Wall(new Vector3(0.0f, 2.0f, 5.0f));
+            Time.captureFramerate = 60;
+
+            int before = ImpactBurst.Shown;
+            Throw(player, item);
+            copyThrower.PlayRemote(new AbilityEvent(BoomerangThrower.Thrown, Hand(copy), copy.transform.forward, BoomerangRules.OutSpeed));
+            ThrownBoomerang flying = thrower.Flying;
+            yield return new WaitUntil(() => flying == null || flying.Returning);
+            Assert.AreEqual(before + 1, ImpactBurst.Shown, "the wall it struck shows no burst");
+            Assert.AreEqual(5.0f - 0.2f, ImpactBurst.LastPoint.z, 0.15f, "the burst is not on the wall's face");
+            Assert.Greater(Vector3.Dot(ImpactBurst.LastNormal, Vector3.back), 0.9f, "the burst does not face back off the wall");
+
+            AbilityEvent turned = told.Find(e => e.Kind == BoomerangThrower.TurnedBack);
+            Assert.AreEqual(0.0f, turned.A, "the wall was told as a person");
+            Vector3 wallPoint = ImpactBurst.LastPoint;
+            copyThrower.PlayRemote(turned);
+            Assert.AreEqual(before + 2, ImpactBurst.Shown, "another player's copy shows no burst");
+            Assert.Less(Vector3.Distance(wallPoint, ImpactBurst.LastPoint), 0.01f, "the copy's burst is not where it struck");
+            Assert.Greater(Vector3.Dot(ImpactBurst.LastNormal, Vector3.back), 0.9f, "the copy's burst does not face back off the wall");
+            copyThrower.PlayRemote(new AbilityEvent(BoomerangThrower.Caught, Vector3.zero, Vector3.zero));
+            yield return UntilHome(thrower);
+
+            // Down at the floor.
+            yield return new WaitForSeconds(BoomerangRules.ThrowEverySeconds);
+            item.Throw(player, Hand(player), (player.transform.forward + Vector3.down * 1.2f).normalized);
+            flying = thrower.Flying;
+            yield return new WaitUntil(() => flying == null || flying.Returning);
+            Assert.AreEqual(before + 3, ImpactBurst.Shown, "the floor it struck shows no burst");
+            Assert.AreEqual(0.0f, ImpactBurst.LastPoint.y, 0.15f, "the burst is not on the floor");
+            Assert.Greater(ImpactBurst.LastNormal.y, 0.9f, "the burst on the floor does not face up");
+            thrower.Fired -= told.Add;
+        }
+
+        [Test]
+        public void TheBangCracksAtOnceAndIsGoneInAThirdOfASecond()
+        {
+            float[] bang = BoomerangSounds.BangSamples();
+            Assert.LessOrEqual(bang.Length / 44100.0f, 0.35f, "the bang rings on");
+            float loudest = 0.0f, loudestAt = 0.0f;
+            for (int i = 0; i < bang.Length; i++)
+            {
+                if (Mathf.Abs(bang[i]) > loudest)
+                {
+                    loudest = Mathf.Abs(bang[i]);
+                    loudestAt = i / 44100.0f;
+                }
+            }
+            Assert.Greater(loudest, 0.5f, "the bang is quiet");
+            Assert.Less(loudestAt, 0.03f, "the bang does not hit at once");
+            float tail = 0.0f;
+            for (int i = bang.Length - 2205; i < bang.Length; i++) tail = Mathf.Max(tail, Mathf.Abs(bang[i]));
+            Assert.Less(tail, 0.05f, "the bang has not died away by its end (it would click off)");
+        }
+
+        [Test]
+        public void TheBurstsChipsFlyOutOfTheSurfaceWithinItsCone()
+        {
+            foreach (Vector3 normal in new[] { Vector3.up, Vector3.back, new Vector3(1.0f, 0.3f, 0.2f).normalized })
+            {
+                for (int i = 0; i <= 10; i++)
+                {
+                    for (int j = 0; j <= 10; j++)
+                    {
+                        Vector3 way = ImpactBurst.Scatter(normal, ImpactBurst.SpreadDegrees, i / 10.0f, j / 10.0f);
+                        Assert.AreEqual(1.0f, way.magnitude, 1e-4f);
+                        Assert.LessOrEqual(Vector3.Angle(normal, way), ImpactBurst.SpreadDegrees + 0.01f, "a chip flies outside the cone");
+                    }
+                }
+                Assert.Less(Vector3.Angle(normal, ImpactBurst.Scatter(normal, ImpactBurst.SpreadDegrees, 0.3f, 0.0f)), 0.01f, "the cone's middle is not straight out");
+            }
+        }
+
         [UnityTest]
         public IEnumerator OnlyOneIsOutAtATime()
         {

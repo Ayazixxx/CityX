@@ -237,6 +237,7 @@ namespace CityX.Tests
             Dummy behind = Target(new Vector3(0.0f, 1.3f, 18.0f));
             Physics.SyncTransforms();
             yield return null;
+            int bursts = ImpactBurst.Shown;
             Assert.IsTrue(thrower.StartGiantThrow(Vector3.forward, 30.0f, 0.0f));
             yield return Wait(1.0f, () => thrower.IsOut);
             ThrownBoomerang flying = thrower.Flying;
@@ -248,6 +249,10 @@ namespace CityX.Tests
                 if (flying.Returning && !turnedAtTheWall)
                 {
                     turnedAtTheWall = true;
+                    // (Owner, 2026-11-17: "some sort of bang noise and some impact fx"): on the wall, not on the people it cut through.
+                    Assert.AreEqual(bursts + 1, ImpactBurst.Shown, "the wall it struck shows no burst (or the people did)");
+                    Assert.AreEqual(15.8f, ImpactBurst.LastPoint.z, 0.2f, "the burst is not on the wall's face");
+                    Assert.Greater(Vector3.Dot(ImpactBurst.LastNormal, Vector3.back), 0.9f, "the burst does not face back off the wall");
                     Assert.AreEqual(1, near.Hits, "the first one in its way was not hit on the way out");
                     Assert.AreEqual(1, far.Hits, "the one behind them was not hit on the way out: it stopped at the first");
                 }

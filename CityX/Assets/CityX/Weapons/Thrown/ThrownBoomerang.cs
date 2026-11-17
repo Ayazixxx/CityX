@@ -132,13 +132,45 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>The owner says something turned it back on their screen: it turns back here too, and sounds it.</summary>
-        public void TurnBackFromNetwork(bool hitSomeone)
+        /// <summary>
+        /// The owner says something turned it back on their screen: it turns back here too, and sounds it. A wall, the floor or a thing struck at
+        /// <paramref name="point"/> facing <paramref name="normal"/> bangs and bursts here as there (a zero normal: where it is, facing back).
+        /// </summary>
+        public void TurnBackFromNetwork(bool hitSomeone, Vector3 point, Vector3 normal)
         {
-            if (_flight != null && !_flight.Returning)
+            if (_flight == null || _flight.Returning)
             {
-                _flight.TurnBack();
-                Clack(transform.position, hitSomeone);
+                return;
+            }
+            Vector3 way = _flight.Velocity;
+            _flight.TurnBack();
+            if (hitSomeone)
+            {
+                Clack(transform.position, true);
+                return;
+            }
+            bool told = normal.sqrMagnitude > 1e-6f;
+            Bang(told ? point : transform.position, told ? normal : -way);
+        }
+
+        /// <summary>Where the last wall, floor or thing it struck was met, and which way that faced (the thrower's boomerang; for the network and tests).</summary>
+        public Vector3 LastImpactPoint { get; private set; }
+
+        public Vector3 LastImpactNormal { get; private set; }
+
+        /// <summary>The boomerang's own size of <see cref="ImpactBurst"/>, and the giant one's.</summary>
+        public const float BurstSize = 1.0f, GiantBurstSize = 1.8f;
+
+        private const float BangVolume = 0.9f, BangReachMetres = 60.0f;
+
+        /// <summary>A wall, the floor or anything hard struck (owner, 2026-11-17: "some sort of bang noise and some impact fx"): the bang, and the burst on it.</summary>
+        private void Bang(Vector3 point, Vector3 normal)
+        {
+            bool giant = _profile.Heavy;
+            ImpactBurst.At(point, normal, giant ? GiantBurstSize : BurstSize);
+            if (Application.isPlaying)
+            {
+                CityX.View.PositionalSound.Play(BoomerangSounds.Bang, point, BangVolume, giant ? BoomerangSounds.GiantBangPitch : 1.0f, 0.0f, BangReachMetres);
             }
         }
 
@@ -246,7 +278,11 @@ namespace CityX.Weapons
             {
                 var breakable = _hits[first].collider.GetComponentInParent<CityX.World.IBreakableSurface>();
                 breakable?.TakeBlow(point, way, heavy ? CityX.World.BlowStrength.Heavy : CityX.World.BlowStrength.Light);
-                Clack(point, false);
+                // (A sweep that began already touching says nothing of the surface's facing: straight back along the way it came.)
+                Vector3 normal = _hits[first].distance > 0.0f ? _hits[first].normal : -way;
+                LastImpactPoint = point;
+                LastImpactNormal = normal;
+                Bang(point, normal);
             }
             _flight.TurnBack();
             TurnedBack?.Invoke(firstBody != null);
