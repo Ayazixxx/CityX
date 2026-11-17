@@ -1347,7 +1347,13 @@ namespace CityX.CharacterEditor
         /// </summary>
         private static void AddSwordLocomotion(AnimatorController controller, AnimatorStateMachine root, AnimationClip left, AnimationClip right)
         {
-            AnimationClip idle = FindClip("2hsw_idle");
+            // STANDING, THE ONE-HANDED SWORD'S IDLE TOO (owner, 2026-11-16, of 2hsw_idle's legs slanting forward from the hips: "i dont like how his legs
+            // are so far forward ... make him stand straight"): the game's own idle (SwordCarryBaker), the carry posing the arms over it.
+            AnimationClip idle = SwordCarryBaker.Load("idle");
+            if (idle == null)
+            {
+                idle = FindClip("2hsw_idle");
+            }
             AnimationClip walk = FindClip("2hsw_walk");
             AnimatorState locomotion = FindState(root, "Locomotion");
             if (idle == null || walk == null || locomotion == null)

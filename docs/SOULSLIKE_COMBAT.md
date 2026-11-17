@@ -743,3 +743,5 @@ Owner, after the head was straightened: "the two handed melee run is still looki
 running straight, copy the leg movement of the one handed melee". The `SwordLocomotion` tree's run is now `SwordCarryBaker`'s `sword1h_run` (the game's own
 run, from the Godot clip), where it was Mixamo's `2hsw_sprint`, whose hips ran 11 cm right of the body's middle with the legs slanting in under them. The arms
 are the two-handed carry's over it, as before; the walk, the strafes and the idle keep the Mixamo clips. `PlayerRigTests.TheTwoHandedRunIsTheOneHandedSwordsRun`.
+Standing too (owner, of `2hsw_idle`'s legs slanting forward from the upright hips: "i dont like how his legs are so far forward ... make him stand straight"):
+the tree's idle is `sword1h_idle`, the game's own idle. `PlayerRigTests.TheTwoHandedStanceIsTheOneHandedSwordsIdle`.

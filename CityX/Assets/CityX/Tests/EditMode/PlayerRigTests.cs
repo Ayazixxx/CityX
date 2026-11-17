@@ -404,6 +404,29 @@ namespace CityX.Tests
             Assert.AreEqual(StraightAheadFastest(TreeOf(controller, "Sword1HLocomotion")), twoHanded, $"the two-handed run plays {twoHanded.name}");
         }
 
+        /// <summary>Standing with a two-handed weapon is the one-handed sword's idle (owner, 2026-11-16: "i dont like how his legs are so far forward ... make him stand straight").</summary>
+        [Test]
+        public void TheTwoHandedStanceIsTheOneHandedSwordsIdle()
+        {
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+            Assert.IsNotNull(controller);
+            Motion twoHanded = AtRest(TreeOf(controller, "SwordLocomotion"));
+            Assert.IsNotNull(twoHanded, "the two-handed set has no idle");
+            Assert.AreEqual(AtRest(TreeOf(controller, "Sword1HLocomotion")), twoHanded, $"the two-handed stance plays {twoHanded.name}");
+        }
+
+        private static Motion AtRest(BlendTree tree)
+        {
+            foreach (ChildMotion child in tree.children)
+            {
+                if (child.position.sqrMagnitude < 1e-4f && !(child.motion is BlendTree))
+                {
+                    return child.motion;
+                }
+            }
+            return null;
+        }
+
         /// <summary>The clip at the fastest straight-ahead sample.</summary>
         private static Motion StraightAheadFastest(BlendTree tree)
         {
