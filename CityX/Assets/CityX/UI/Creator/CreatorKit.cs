@@ -228,8 +228,7 @@ namespace CityX.UI
             controls.SVSquare = MakeSquare(t, "SVSquare", At(-166.0f), 128.0f);
 
             controls.Hue = MakeHueSlider(t, "HueSlider", At(-244.0f), 150.0f);
-            controls.Preview = MakeSwatch(t, "Preview", At(-266.0f),
-                new Vector2(150.0f, 16.0f), Color.white);
+            controls.Preview = MakeColourCode(t, "Preview", At(-266.0f), new Vector2(150.0f, 16.0f), controls);
 
             MakePalette(t, creator, controls, -292.0f);
 
@@ -349,23 +348,62 @@ namespace CityX.UI
             Image fill = fillArea.AddComponent<Image>();
             fill.color = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
+            // The handle is a ring round a disc of the hue it is on, standing a little proud of the strip: grabbed and dragged
+            // (HueKnob; owner, 2026-11-17, "puts a circle over your selected hue so you can hold click on the circle and move it around").
             var handle = new GameObject("Handle", typeof(RectTransform));
             var handleRect = (RectTransform)handle.transform;
             handleRect.SetParent(go.transform, false);
-            handleRect.sizeDelta = new Vector2(6.0f, 20.0f);
-            Image handleImage = handle.AddComponent<Image>();
-            handleImage.color = Paper;
+            handleRect.sizeDelta = new Vector2(HueKnobSize, HueKnobSize - 16.0f);   // (the slider stretches it over the strip's height)
+            RawImage ring = handle.AddComponent<RawImage>();
+            var fillDisc = new GameObject("HueFill", typeof(RectTransform));
+            var discRect = (RectTransform)fillDisc.transform;
+            discRect.SetParent(handleRect, false);
+            UiKit.Stretch(discRect);
+            RawImage disc = fillDisc.AddComponent<RawImage>();
+            disc.raycastTarget = false;
 
             Slider slider = go.AddComponent<Slider>();
             slider.fillRect = fillRect;
             slider.handleRect = handleRect;
-            slider.targetGraphic = handleImage;
+            slider.targetGraphic = ring;
+            HueKnob knob = go.AddComponent<HueKnob>();
+            knob.Ring = ring;
+            knob.Fill = disc;
             slider.direction = Slider.Direction.LeftToRight;
             slider.minValue = 0.0f;
             slider.maxValue = 1.0f;
             slider.wholeNumbers = false;
             slider.value = 0.0f;
             return slider;
+        }
+
+        /// <summary>The hue strip's handle across, canvas units: the strip is 16 high, the circle stands proud of it.</summary>
+        public const float HueKnobSize = 24.0f;
+
+        /// <summary>
+        /// A picker's preview bar that shows the colour's code over it and takes one typed in (ColourCodeField; owner, 2026-11-17: "make the
+        /// color code visible at the bottom and it lets you enter color codes").
+        /// </summary>
+        public static Image MakeColourCode(Transform parent, string name, Vector2 position, Vector2 size, MonoBehaviour picker)
+        {
+            Image bar = MakeSwatch(parent, name, position, size, Color.white);
+            bar.raycastTarget = true;
+            Text typed = Caption(bar.transform, string.Empty, Mathf.RoundToInt(Mathf.Min(13.0f, size.y - 3.0f)), Paper);
+            typed.name = "Code";
+            typed.supportRichText = false;
+            typed.verticalOverflow = VerticalWrapMode.Overflow;
+            typed.fontStyle = FontStyle.Bold;
+
+            InputField field = bar.gameObject.AddComponent<InputField>();
+            field.targetGraphic = bar;
+            field.transition = Selectable.Transition.None;   // a tint would change the colour it shows
+            field.textComponent = typed;
+            field.characterLimit = 7;
+            field.lineType = InputField.LineType.SingleLine;
+            field.customCaretColor = true;
+            ColourCodeField code = bar.gameObject.AddComponent<ColourCodeField>();
+            code.Picker = picker;
+            return bar;
         }
 
         /// <summary>A flat colour that takes no clicks: a picker's preview.</summary>

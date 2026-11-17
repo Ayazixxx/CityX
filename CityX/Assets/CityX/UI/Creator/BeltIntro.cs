@@ -641,7 +641,7 @@ namespace CityX.UI
         private bool PoseKeyPressed()
         {
             Keyboard keyboard = Keyboard.current;
-            return keyboard != null && keyboard.tKey.wasPressedThisFrame && (Overlays == null || !Overlays.Blocking);
+            return keyboard != null && keyboard.tKey.wasPressedThisFrame && (Overlays == null || !Overlays.Blocking) && !TypingFocus.AnyTextBoxFocused();
         }
 
         // --- what is shown ---
@@ -651,7 +651,8 @@ namespace CityX.UI
         {
             float push = 0.0f;
             Keyboard keyboard = Keyboard.current;
-            if (keyboard != null)
+            // (Not while a box has the keyboard: A and D are digits of a colour code being typed.)
+            if (keyboard != null && !TypingFocus.AnyTextBoxFocused())
             {
                 if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) push += 1.0f;
                 if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) push -= 1.0f;

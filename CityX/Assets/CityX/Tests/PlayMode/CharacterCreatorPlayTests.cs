@@ -285,6 +285,64 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// Saves Logs/CityShots/creator-pickers.png: the DRAW tab's colour picker and the HAIR tab's, side by side, each with its hue knob and the
+        /// colour code under it (owner, 2026-11-17). The panel is drawn through the creator's camera for the picture. Needs a graphics device.
+        /// </summary>
+        [UnityTest, Explicit]
+        public IEnumerator PickersCapture()
+        {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                yield break;
+            }
+            _creator.SetHairStyle(CharacterHair.Hair1);
+            var paint = Object.FindFirstObjectByType<CreatorControls>(FindObjectsInactive.Include);
+            var hair = Object.FindFirstObjectByType<HairColourControls>(FindObjectsInactive.Include);
+            paint.Adopt(new Color32(0x3A, 0x6B, 0xD9, 255));
+            hair.Adopt(new Color32(0xE0, 0xB0, 0x40, 255));
+            Canvas canvas = paint.GetComponentInParent<Canvas>().rootCanvas;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = _camera;
+            canvas.planeDistance = _camera.nearClipPlane + 0.05f;
+            int mask = _camera.cullingMask;
+            _camera.cullingMask = mask | (1 << canvas.gameObject.layer);
+            var shots = new List<Texture2D>();
+            foreach (int tab in new[] { CreatorTabs.Paint, CreatorTabs.Hair })
+            {
+                paint.GetComponent<CreatorTabs>().Show(tab);
+                for (int i = 0; i < 3; i++) yield return null;
+                Canvas.ForceUpdateCanvases();
+                int w = Screen.width, h = Screen.height;
+                var rt = RenderTexture.GetTemporary(w, h, 24);
+                RenderTexture previous = _camera.targetTexture;
+                _camera.targetTexture = rt;
+                _camera.Render();
+                RenderTexture.active = rt;
+                Rect column = ((RectTransform)paint.transform).rect;
+                float scale = canvas.scaleFactor;
+                int width = Mathf.Min(w, Mathf.CeilToInt(column.width * scale));
+                var image = new Texture2D(width, h, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, width, h), 0, 0);
+                image.Apply();
+                _camera.targetTexture = previous;
+                RenderTexture.active = null;
+                RenderTexture.ReleaseTemporary(rt);
+                shots.Add(image);
+            }
+            var sheet = new Texture2D(shots[0].width + shots[1].width, shots[0].height, TextureFormat.RGB24, false);
+            sheet.SetPixels(0, 0, shots[0].width, shots[0].height, shots[0].GetPixels());
+            sheet.SetPixels(shots[0].width, 0, shots[1].width, shots[1].height, shots[1].GetPixels());
+            sheet.Apply();
+            string directory = System.IO.Path.Combine(System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(directory);
+            var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
+            var encode = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(directory, "creator-pickers.png"), (byte[])encode.Invoke(null, new object[] { sheet }));
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _camera.cullingMask = mask;
+        }
+
+        /// <summary>
         /// Saves Logs/CityShots/brush-sizes.png: taps of sizes 1 to 8 across the chest, a wavy size-1 and size-3 line, a stroke down the
         /// outstretched arm, and the brush ring. Run with a graphics device and look at it.
         /// </summary>
@@ -904,6 +962,84 @@ namespace CityX.Tests
             Assert.AreEqual(expected.r, _creator.HairColour.r, 0.03f, "a click in the colour square did not dye the hair");
             Assert.AreEqual(expected.g, _creator.HairColour.g, 0.03f);
             Assert.AreEqual(expected.b, _creator.HairColour.b, 0.03f);
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-17: "the hue selector shows which color you are on currently, like it puts a circle over your selected hue so you can
+        /// hold click on the circle and move it around to select an exact hue". Each hue strip's handle is a round knob, as wide as it is tall,
+        /// standing proud of the strip, filled with the hue it is on, the slider's own handle (the part that is dragged).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EachHueStripsHandleIsACircleShowingTheHueItIsOn()
+        {
+            yield return ShowTheHairTab();
+            _creator.SetHairStyle(CharacterHair.Hair1);
+            yield return null;
+            var paint = Object.FindFirstObjectByType<CreatorControls>(FindObjectsInactive.Include);
+            var hair = Object.FindFirstObjectByType<HairColourControls>(FindObjectsInactive.Include);
+            foreach ((string which, Slider hue) in new[] { ("paint", paint.Hue), ("hair", hair.Hue) })
+            {
+                var knob = hue.GetComponent<HueKnob>();
+                Assert.IsNotNull(knob, $"the {which} hue strip has no knob");
+                Assert.AreSame(knob.Ring.transform, hue.handleRect, $"the {which} knob is not the slider's handle");
+                hue.value = 0.6f;
+                yield return null;
+                Rect knobRect = hue.handleRect.rect, strip = ((RectTransform)hue.transform).rect;
+                Assert.AreEqual(knobRect.width, knobRect.height, 0.5f, $"the {which} knob is not round");
+                Assert.Greater(knobRect.height, strip.height, $"the {which} knob does not stand proud of the strip");
+                Color shown = knob.Fill.color, wanted = Color.HSVToRGB(0.6f, 1.0f, 1.0f);
+                Assert.Less(Vector4.Distance(shown, wanted), 0.02f, $"the {which} knob does not show the hue it is on");
+                Assert.IsNotNull(knob.Ring.texture, $"the {which} knob's ring is not drawn");
+            }
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-17: "make the color code visible at the bottom and it lets you enter color codes to get an exact hue". The bar under
+        /// each picker shows the colour's code, follows the picker, and a code typed into it picks that exact colour (one it cannot read puts
+        /// the old one back).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EachPickersBarShowsTheColourCodeAndTakesOneTypedIn()
+        {
+            yield return ShowTheHairTab();
+            _creator.SetHairStyle(CharacterHair.Hair1);
+            yield return null;
+            var paint = Object.FindFirstObjectByType<CreatorControls>(FindObjectsInactive.Include);
+            var hair = Object.FindFirstObjectByType<HairColourControls>(FindObjectsInactive.Include);
+            foreach ((string which, Image bar, System.Func<Color> used) in new (string, Image, System.Func<Color>)[]
+                     {
+                         ("paint", paint.Preview, () => _creator.Colour),
+                         ("hair", hair.Preview, () => _creator.HairColour),
+                     })
+            {
+                var field = bar.GetComponent<InputField>();
+                Assert.IsNotNull(field, $"the {which} picker's bar takes no typing");
+                yield return null;
+                Assert.AreEqual(ColourCode.Of(used()), field.text, $"the {which} bar does not show the colour's code");
+
+                field.text = "#3a6bd9";
+                field.onEndEdit.Invoke(field.text);
+                yield return null;
+                Color typed = new Color32(0x3A, 0x6B, 0xD9, 255);
+                Assert.Less(Vector4.Distance(used(), typed), 0.004f, $"the {which} code typed in did not pick that colour");
+                Assert.AreEqual("#3A6BD9", field.text, $"the {which} bar does not show the code it took");
+                Assert.Less(Vector4.Distance(bar.color, typed), 0.004f, $"the {which} bar is not the colour typed in");
+
+                field.text = "#12Z";
+                field.onEndEdit.Invoke(field.text);
+                yield return null;
+                Assert.AreEqual("#3A6BD9", field.text, $"the {which} bar kept a code it could not read");
+                Assert.Less(Vector4.Distance(used(), typed), 0.004f, $"the {which} colour changed on a code it could not read");
+            }
+            // It follows the picker, whatever moved it: a swatch.
+            Button swatch = null;
+            foreach (Button candidate in Resources.FindObjectsOfTypeAll<Button>())
+            {
+                if (candidate.gameObject.name == "HairSwatch0" && candidate.gameObject.scene.IsValid()) swatch = candidate;
+            }
+            swatch.onClick.Invoke();
+            yield return null;
+            Assert.AreEqual(ColourCode.Of(_creator.HairColour), hair.Preview.GetComponent<InputField>().text, "the hair bar did not follow a swatch");
         }
 
         /// <summary>

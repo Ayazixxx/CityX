@@ -20,7 +20,7 @@ namespace CityX.UI
     /// listener added from an editor script does not survive the scene being saved.
     /// </summary>
     [RequireComponent(typeof(RawImage))]
-    public sealed class HairColourControls : MonoBehaviour, IPointerClickHandler, IDragHandler
+    public sealed class HairColourControls : MonoBehaviour, IPointerClickHandler, IDragHandler, IColourPicker
     {
         public CharacterCreator Creator;
 

@@ -14,7 +14,7 @@ namespace CityX.UI
     /// ButtonAction. A listener added from an editor script is not serialized,
     /// so a slider wired that way moves and changes nothing.
     /// </summary>
-    public sealed class CreatorControls : MonoBehaviour, IPointerClickHandler, IDragHandler
+    public sealed class CreatorControls : MonoBehaviour, IPointerClickHandler, IDragHandler, IColourPicker
     {
         public CharacterCreator Creator;
 
@@ -70,6 +70,9 @@ namespace CityX.UI
 
         /// <summary>Matches the Value slider's own old default, so a fresh creator still opens on white.</summary>
         private float _value = 1.0f;
+
+        /// <summary>The colour the picker is on.</summary>
+        public Color Current => Color.HSVToRGB(_hue, _saturation, _value);
 
         /// <summary>The colour this panel last gave the creator: when the creator's differs, something else (the eyedropper) chose it.</summary>
         private Color _shown = Color.white;

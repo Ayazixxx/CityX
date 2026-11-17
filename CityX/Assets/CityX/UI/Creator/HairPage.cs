@@ -67,7 +67,7 @@ namespace CityX.UI
             }
 
             controls.Hue = CreatorKit.MakeHueSlider(t, "HairHueSlider", new Vector2(0.0f, -474.0f), PickerWidth);
-            controls.Preview = CreatorKit.MakeSwatch(t, "Preview", new Vector2(0.0f, -494.0f), new Vector2(PickerWidth, 10.0f), Color.white);
+            controls.Preview = CreatorKit.MakeColourCode(t, "Preview", new Vector2(0.0f, -496.0f), new Vector2(PickerWidth, 16.0f), controls);
 
             CreatorKit.MakeLabel(page, "HairHintLabel", "Drag the body to turn it.\nScroll over it to zoom.", 10,
                 CreatorKit.Hint, new Vector2(0.0f, -526.0f), 30.0f);
