@@ -61,6 +61,21 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Forgets the walls now beside the body: the other half of <see cref="ForgetAheadAndBehind"/>, for the walls the hands are kept out of
+        /// ahead (PlayerLocomotion.ReachClearance), which a body that turns along the wall has stopped reaching into.
+        /// </summary>
+        public void ForgetBeside(Vector3 ahead, float headOnDot)
+        {
+            ahead.y = 0.0f;
+            if (ahead.sqrMagnitude < 1e-8f)
+            {
+                return;
+            }
+            ahead.Normalize();
+            _walls.RemoveAll(wall => Mathf.Abs(Vector3.Dot(wall.Out, ahead)) <= headOnDot);
+        }
+
+        /// <summary>
         /// Forgets the walls no longer there beside the body (<paramref name="stillBeside"/>, asked with each wall's way out): a body that sidesteps
         /// past a rail's end is let go at once, not held by the rail it has left behind.
         /// </summary>

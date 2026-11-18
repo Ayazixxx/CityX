@@ -35,11 +35,14 @@ namespace CityX.Character
             if (_steppedFrame == Time.frameCount)
             {
                 KeepTheBodyOutOfWalls();
+                KeepTheHandsOutOfWalls();
             }
             else
             {
                 _standoff.Clear();   // climbing, on a ladder, limp, moved by the network: whatever walls it was kept off are someone else's business
+                _aheadStandoff.Clear();
             }
+            KeepTheBladeOutOfWalls();
         }
 
         /// <summary>A wall whose way out is this nearly straight ahead or behind is one the body is going into or out of, not one beside it.</summary>
@@ -77,6 +80,7 @@ namespace CityX.Character
             if (IsSitting || InCarSeat || _controller == null || !_controller.enabled)
             {
                 _standoff.Clear();
+                _aheadStandoff.Clear();
                 return;
             }
             if (!_wallRagdollLooked)
@@ -89,12 +93,41 @@ namespace CityX.Character
                 return;
             }
             int contacts = BesideTheBody(_wallRagdoll.WallContacts(_wallContacts));
+            int ahead = 0;
+            Vector3 forward = transform.forward;
+            forward.y = 0.0f;
+            forward.Normalize();
+            int hands = HandsIntoWalls(_handContacts);
+            for (int i = 0; i < hands; i++)
+            {
+                if (Mathf.Abs(Vector3.Dot(_handContacts[i].normalized, forward)) > HeadOnDot)
+                {
+                    _aheadContacts[ahead++] = _handContacts[i];
+                }
+                else if (contacts < _wallContacts.Length)
+                {
+                    _wallContacts[contacts++] = _handContacts[i];
+                }
+            }
+
             _standoff.ForgetAheadAndBehind(transform.forward, HeadOnDot);
+            _wallStillBeside ??= WallStillBeside;
             if (_standoff.Count > 0)
             {
-                _standoff.ForgetUnless(_wallStillBeside ??= WallStillBeside);
+                _standoff.ForgetUnless(_wallStillBeside);
             }
             int needs = _standoff.Needs(transform.position, _wallContacts, contacts, _lastTickDeltaTime, BodyScale, _wallNeeds);
+
+            _aheadStandoff.ForgetBeside(transform.forward, HeadOnDot);
+            if (_aheadStandoff.Count > 0)
+            {
+                _aheadStandoff.ForgetUnless(_wallStillBeside);
+            }
+            int aheadNeeds = _aheadStandoff.Needs(transform.position, _aheadContacts, ahead, _lastTickDeltaTime, BodyScale, _aheadNeeds);
+            for (int i = 0; i < aheadNeeds && needs < _wallNeeds.Length; i++)
+            {
+                _wallNeeds[needs++] = _aheadNeeds[i];
+            }
             Vector3 push = Vector3.ClampMagnitude(WallClearance.Combined(_wallNeeds, needs, SqueezeDot), MostOutOfWallsPerStep * BodyScale);
             if (push.sqrMagnitude > 1e-8f)
             {

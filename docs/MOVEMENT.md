@@ -101,3 +101,27 @@ smaller capsule, which touches stairs, climbing, crouching and doors.
 
 Tests: `WallClearanceTests`, `BodyWallClearancePlayTests` (standing, walking along, squeezed), `RealCityDoorwayPlayTests`. Picture:
 `BodyWallCapture`.
+
+### Hands and swords out of the wall ahead (2026-11-18)
+
+Owner: "i spawned 10 swordsman outside and they we poking through at first with their swords and body parts" (asked whether that could
+stay: "stop the poking too"). Pressed at a wall face-on, the arms and the sword reach past the capsule, and only walls beside were held off:
+in `SwordsmenAtAWallPlayTests` (ten swordsmen at Old Guy's workshop wall, the player inside) fingers came 25 cm into the room and blades
+1.4 m.
+
+- **The hands keep the body back** (`PlayerLocomotion.ReachClearance`, `HandsIntoWalls`): each hand and middle fingertip is traced from
+  the body's middle, at its own height, out to where it is; a wall on that line is one it is in. Ahead, it is remembered as the arms' walls
+  beside are (a second `WallStandoff`, forgotten once beside the body or out of reach); beside (a hand reaching past the edge of a window it
+  stands in front of into the wall next to it), it joins the arms' own. Traced from the middle, running into a window opening the line goes
+  through the opening, so the hands on its sides hold nothing back, as before.
+- **A body that cannot step back bends its arms** (`KeepTheHandsOutOfWalls`): pressed from behind by its pack it could not be moved, and its
+  hands stayed in the wall; each hand still in is moved out and the arm solved to it (`TwoBoneIK`), the hand keeping its turn.
+- **The blade turns along the wall** (`KeepTheBladeOutOfWalls`): from the hand to the tip, a wall on the way turns the hand about the
+  upright until the tip lies on the wall's face. Tipped toward the wall instead, a blade held low into the foot of a wall went into the
+  ground. Every body, network copies too (it is only the drawn pose).
+- **What breaks is let through:** glass and planks never hold the hands off (a fist still cracks a pane), and the blade only while a cut is
+  live (a cut still takes a pane out).
+- A building is one collider and answers a line once, with the first face it meets: under a window's ledge that was the ledge's underside,
+  and the wall behind it was never heard of. Tops and undersides are looked past (`WallOnTheWay`).
+
+Not reproduced: the two the owner saw get through the wall. Ten pressing for 40 s never did.
