@@ -39,6 +39,7 @@ namespace CityX.Items
         public const string Sledgehammer = "sledgehammer";
 
         public const string Spear = "spear";
+        public const string BoStaff = "bo_staff";
         public const string KitchenKnife = "kitchen_knife";
         public const string ButterKnife = "butter_knife";
         public const string Flamethrower = "flamethrower";
@@ -130,6 +131,8 @@ namespace CityX.Items
             [Sledgehammer] = new ItemDefinition(Sledgehammer, "Sledgehammer", "weapon", EquipSlots.Primary, 1),
             // The spear (2026-11-18, docs/SPEAR.md): thrusts, a sweep for the heavy, beside a shield or in both hands. Character/SpearRules.
             [Spear] = new ItemDefinition(Spear, "Spear", "weapon", EquipSlots.Primary, 1),
+            // The bo staff (2026-11-19, docs/BO_STAFF.md): a plain metal pole, swung near one end in both hands, from the owner's clip. Character/StaffRules.
+            [BoStaff] = new ItemDefinition(BoStaff, "Bo Staff", "weapon", EquipSlots.Primary, 1),
             // A knife: one-handed, quicker and lighter than the sword, with the biggest backstab (docs/KNIFE.md, KnifeRules).
             [KitchenKnife] = new ItemDefinition(KitchenKnife, "Kitchen Knife", "weapon", EquipSlots.Primary, 1),
             // A dull knife: the kitchen knife's moves, softer blows, no edge.

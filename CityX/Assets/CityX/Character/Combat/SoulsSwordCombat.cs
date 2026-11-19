@@ -32,6 +32,9 @@ namespace CityX.Character
         [Tooltip("Lands as a heavy blow whatever its stun: a chain's finisher.")]
         public bool LandsHeavily;
 
+        [Tooltip("A landed blow throws the target down limp: the bo staff's finisher and heavy.")]
+        public bool KnocksDown;
+
         [Tooltip("Stamina spent to start this swing.")]
         public float StaminaCost;
 
@@ -115,6 +118,13 @@ namespace CityX.Character
             return attack;
         }
 
+        /// <summary>The attack throws whoever it lands on down limp (StaffRules.KnockdownSpeed): the bo staff's rising blow and its spin.</summary>
+        public static SoulsAttack AsKnockdown(SoulsAttack attack)
+        {
+            attack.KnocksDown = true;
+            return attack;
+        }
+
         /// <summary>
         /// The stun it leaves on a target, swung at <paramref name="swingSpeed"/> (Melee Speed). A finisher's shrinks with the swing: its recovery does, and a
         /// fast enough blade would otherwise be free before its target is.
@@ -180,6 +190,9 @@ namespace CityX.Character
         /// shaft for an attack or a guard when it is free, and usable beside a shield.
         /// </summary>
         bool IsSpear => false;
+
+        /// <summary>True for a bo staff (docs/BO_STAFF.md): its own attacks (a chain of four and a spinning heavy), held in both hands like a two-handed blade, carried over the shoulder.</summary>
+        bool IsStaff => false;
 
         /// <summary>
         /// Holds the sword in the thrust grip at <paramref name="weight"/> (the handle in the fist, turned so the blade leans out toward the
@@ -324,6 +337,19 @@ namespace CityX.Character
         public SoulsAttack SpearHeavy = SoulsAttack.FromStrike(SwordStrikeKind.SpearSweep, 0.55f, 34.0f, 1.70f, 0.90f, SwordStrikes.StepMetres(SwordStrikeKind.SpearSweep), 50.0f, true);
 
         public SoulsAttack SpearRunAttack = SoulsAttack.FromStrike(SwordStrikeKind.SpearRun, 0.45f, 20.0f, 1.50f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.SpearRun), 28.0f, false);
+
+        // THE BO STAFF (StaffRules, docs/BO_STAFF.md): a chain of four from the owner's clip, each a little lighter than a greatsword's (a pole, blunt) and
+        // reaching further; the fourth, the rising blow, and the heavy, the spin, throw whoever they land on down; at a sprint, the thrust. My numbers.
+        [Header("Bo staff light chain (left click)")]
+        public SoulsAttack StaffLight1 = SoulsAttack.FromStrike(SwordStrikeKind.StaffChop, 0.35f, 18.0f, 1.10f, 0.55f, SwordStrikes.StepMetres(SwordStrikeKind.StaffChop), 22.0f, false);
+        public SoulsAttack StaffLight2 = SoulsAttack.FromStrike(SwordStrikeKind.StaffSweep, 0.35f, 18.0f, 1.05f, 0.55f, SwordStrikes.StepMetres(SwordStrikeKind.StaffSweep), 22.0f, false);
+        public SoulsAttack StaffLight3 = SoulsAttack.FromStrike(SwordStrikeKind.StaffThrust, 0.35f, 18.0f, 1.15f, 0.50f, SwordStrikes.StepMetres(SwordStrikeKind.StaffThrust), 20.0f, false);
+        public SoulsAttack StaffLight4 = SoulsAttack.AsKnockdown(SoulsAttack.AsFinisher(SoulsAttack.FromStrike(SwordStrikeKind.StaffRising, 1.0f, 26.0f, 1.90f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.StaffRising), 40.0f, false)));
+
+        [Header("Bo staff heavy (held left click): the spin")]
+        public SoulsAttack StaffHeavy = SoulsAttack.AsKnockdown(SoulsAttack.FromStrike(SwordStrikeKind.StaffSpin, 0.55f, 36.0f, 2.00f, 0.95f, SwordStrikes.StepMetres(SwordStrikeKind.StaffSpin), 55.0f, true));
+
+        public SoulsAttack StaffRunAttack = SoulsAttack.FromStrike(SwordStrikeKind.StaffRun, 0.45f, 20.0f, 1.50f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.StaffRun), 28.0f, false);
 
         [Header("Feel")]
         [Tooltip("How long an early attack press is remembered. Long enough that a click during a light swing still chains at its window, " +
@@ -496,6 +522,7 @@ namespace CityX.Character
         private bool _knife;
         private bool _hammer;
         private bool _spear;
+        private bool _staff;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
         private PlayerAnimationDriver _driver;
@@ -540,6 +567,10 @@ namespace CityX.Character
         /// <summary>The light chain for the sword in hand (0-2).</summary>
         public SoulsAttack LightAttack(int index)
         {
+            if (_staff)
+            {
+                return index == 0 ? StaffLight1 : index == 1 ? StaffLight2 : index == 2 ? StaffLight3 : StaffLight4;
+            }
             if (_spear)
             {
                 return index == 0 ? SpearLight1 : (index == 1 ? SpearLight2 : SpearLight3);
@@ -561,6 +592,10 @@ namespace CityX.Character
         /// </summary>
         public SoulsAttack OpenerAt(float forwardSpeed)
         {
+            if (_staff)
+            {
+                return SwordStrikes.StaffOpenerFor(forwardSpeed) == SwordStrikeKind.StaffRun ? StaffRunAttack : StaffLight1;
+            }
             if (_spear)
             {
                 return forwardSpeed >= SwordStrikes.RunOpenerFromSpeed ? SpearRunAttack : SpearLight1;
@@ -577,17 +612,17 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>How many lights the chain runs through before it starts again: three, ending in the finisher; a knife's two, back and forth.</summary>
-        public int LightChainLength => _knife ? 2 : 3;
+        /// <summary>How many lights the chain runs through before it starts again: three, ending in the finisher; a knife's two, back and forth; a staff's four.</summary>
+        public int LightChainLength => _knife ? 2 : _staff ? 4 : 3;
 
         /// <summary>The heavy for the sword in hand.</summary>
-        public SoulsAttack HeavyAttack => _spear ? SpearHeavy : _knife ? KnifeHeavy : (_oneHanded ? OneHandHeavy : Heavy);
+        public SoulsAttack HeavyAttack => _spear ? SpearHeavy : _staff ? StaffHeavy : _knife ? KnifeHeavy : (_oneHanded ? OneHandHeavy : Heavy);
 
         /// <summary>How much faster than its own timings the blade in hand swings: a knife's <see cref="KnifeRules.SwingSpeed"/>, else 1.</summary>
         public float BladeSwingSpeed => _knife ? KnifeRules.SwingSpeed : 1.0f;
 
         /// <summary>How far ahead of the body a swing catches a target, metres: <see cref="ReachMetres"/>, a knife's a little short of it.</summary>
-        public float Reach => ReachMetres * (_spear ? SpearRules.ReachShare : _knife ? KnifeRules.ReachShare : 1.0f);
+        public float Reach => ReachMetres * (_spear ? SpearRules.ReachShare : _staff ? StaffRules.ReachShare : _knife ? KnifeRules.ReachShare : 1.0f);
 
         /// <summary>The stamina a blow on the held guard costs, per point of damage: a knife's guard pays more for each.</summary>
         public float GuardStaminaPerDamage => BlockStaminaPerDamage * (_knife ? KnifeRules.GuardStaminaShare : 1.0f);
@@ -654,6 +689,7 @@ namespace CityX.Character
             _knife = sword != null && sword.IsKnife;
             _hammer = sword != null && sword.IsHammer;
             _spear = sword != null && sword.IsSpear;
+            _staff = sword != null && sword.IsStaff;
             _equipped = true;
             if (_vitals != null)
             {
@@ -1341,6 +1377,14 @@ namespace CityX.Character
             {
                 // Another player's copy: "landed" is only what THIS machine saw. Their own body decides (a parry, a roll), and says so.
                 WatchVerdict(relay, relay.LastRelayedHitId);
+            }
+
+            if (response == HitResponse.Landed && _current.KnocksDown && target.IsAlive)
+            {
+                // THROWN DOWN (the bo staff's rising blow and spin): away from the blow and up off the ground, limp (sent to its owner when it is another player's copy).
+                Vector3 away = point - transform.position;
+                away.y = 0.0f;
+                Throws.Limp(target, (away.sqrMagnitude > 1e-4f ? away.normalized : transform.forward) * StaffRules.KnockdownSpeed + Vector3.up * StaffRules.KnockdownLift);
             }
         }
 

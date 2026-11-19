@@ -26,6 +26,7 @@ namespace CityX.Items
             [ItemRegistry.BaseballBat] = Rarity.Common,
             [ItemRegistry.Sledgehammer] = Rarity.Common,   // not on GAME_DESIGN's list: my placement, beside the bat
             [ItemRegistry.Spear] = Rarity.Common,   // my placement too
+            [ItemRegistry.BoStaff] = Rarity.Common,   // a metal pole: my placement
             [ItemRegistry.GlassBottle] = Rarity.Common,
             [ItemRegistry.TShirt] = Rarity.Common,
             [ItemRegistry.LongSleeveTShirt] = Rarity.Common,

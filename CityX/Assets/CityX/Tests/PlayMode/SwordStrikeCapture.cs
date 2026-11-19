@@ -42,6 +42,13 @@ namespace CityX.Tests
             });
         }
 
+        /// <summary>The bo staff alone (docs/BO_STAFF.md): strike-staff-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheBoStaffAttacks()
+        {
+            yield return RenderTheAttacksOf(new[] { ("staff", "Assets/CityX/Weapons/BoStaff.prefab") });
+        }
+
         /// <summary>The spear alone (docs/SPEAR.md): strike-spear-*.png.</summary>
         [UnityTest]
         public IEnumerator RenderTheSpearAttacks()
@@ -152,6 +159,7 @@ namespace CityX.Tests
                     ("light1", () => combat.RequestLight(0.0f), combat.LightAttack(0), 0.0f),
                     ("light2", () => { combat.RequestLight(0.0f); }, combat.LightAttack(1), 0.0f),
                     ("light3", () => { combat.RequestLight(0.0f); }, combat.LightAttack(2), 0.0f),
+                    ("light4", () => { combat.RequestLight(0.0f); }, combat.LightAttack(3), 0.0f),
                     ("heavy", () => combat.RequestHeavy(0.0f), combat.HeavyAttack, 0.0f),
                     ("walk", () => combat.RequestLight(0.0f), combat.OpenerAt(locomotion.WalkSpeed), locomotion.WalkSpeed),
                     ("run", () => combat.RequestLight(0.0f), combat.OpenerAt(locomotion.SprintSpeed), locomotion.SprintSpeed),
@@ -162,6 +170,10 @@ namespace CityX.Tests
                     if (label == "light3" && combat.LightChainLength < 3)
                     {
                         continue;   // a knife's chain is two cuts back and forth: no third
+                    }
+                    if (label == "light4" && combat.LightChainLength < 4)
+                    {
+                        continue;   // only a staff's chain has a fourth
                     }
                     if (pace > 0.0f && combat.IsKnife)
                     {
@@ -180,8 +192,8 @@ namespace CityX.Tests
                             yield return null;
                         }
                     }
-                    // Chain into the second and third lights: throw the earlier ones and buffer the next at each window.
-                    for (int earlier = 0; earlier < a && a < 3; earlier++)
+                    // Chain into the later lights: throw the earlier ones and buffer the next at each window.
+                    for (int earlier = 0; earlier < a && a < 4; earlier++)
                     {
                         combat.RequestLight(0.0f);
                         SoulsAttack before = combat.LightAttack(earlier);

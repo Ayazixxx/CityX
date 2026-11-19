@@ -102,6 +102,16 @@ namespace CityX.Weapons
 
         public bool IsSpear => _spear;
 
+        /// <summary>
+        /// A BO STAFF (docs/BO_STAFF.md): its own attacks (SwordStrikes.IsStaff), held in both hands near one end like a two-handed blade, and carried
+        /// upright before the right shoulder.
+        /// </summary>
+        [SerializeField] private bool _staff;
+
+        public bool Staff { get => _staff; set => _staff = value; }
+
+        public bool IsStaff => _staff;
+
         /// <summary>A DULL knife (the butter knife): the knife's moves, but its blows land as <see cref="KnifeRules.DullDamage"/>.</summary>
         [SerializeField] private bool _dull;
 

@@ -200,7 +200,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 4497680133916288691}
+      addedObject: {fileID: 191909447060538152}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -489,6 +489,8 @@ MonoBehaviour:
     Prefab: {fileID: 758825499452304336, guid: b9ce40b6c38f8374aa1ba023199fae64, type: 3}
   - ItemId: spear
     Prefab: {fileID: 5183785787317396449, guid: b1ba99fc3b31d854e99d1ba0296bd67c, type: 3}
+  - ItemId: bo_staff
+    Prefab: {fileID: 4939107151757833994, guid: b350810d098f0224fa4cfc395ab5425c, type: 3}
   - ItemId: kitchen_knife
     Prefab: {fileID: 7746254663578898335, guid: 0b0407cf948881a46ac449408aecbe2b, type: 3}
   - ItemId: butter_knife
@@ -549,6 +551,8 @@ MonoBehaviour:
     Prefab: {fileID: 2038061724502903381, guid: d61b2f70f156baf4da7b54cbc160166c, type: 3}
   - ItemId: claw_skull
     Prefab: {fileID: 1020301439625593680, guid: bd5758c050d57c040a2cf3a7afec3f27, type: 3}
+  - ItemId: 3d_glasses
+    Prefab: {fileID: 8598591680074986982, guid: 78d08bddf20705e4db9fc04e90dc7a6b, type: 3}
   - ItemId: round_shield
     Prefab: {fileID: 3541695584487383428, guid: 98c0e07f7ac9ff447b8b7d220008bf1f, type: 3}
   - ItemId: riot_shield
@@ -1129,7 +1133,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &4497680133916288691
+--- !u!114 &191909447060538152
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

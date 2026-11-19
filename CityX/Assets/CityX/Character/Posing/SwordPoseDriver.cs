@@ -469,12 +469,12 @@ namespace CityX.Character
 
         /// <summary>
         /// A bullet the held guard turned aside knocks it to angle <paramref name="pose"/> (SwordStrikes.PickDeflect): the blade snaps there
-        /// from wherever it is and stays until the next one. Nothing without a sword's guard up (a spear's guard does not turn).
+        /// from wherever it is and stays until the next one. Nothing without a sword's guard up (a spear's or a staff's guard does not turn).
         /// </summary>
         public void Deflect(int pose)
         {
             ISwordBlade held = _locomotion != null ? _locomotion.HeldSword : null;
-            if (!_guarding || held == null || held.IsSpear)
+            if (!_guarding || held == null || held.IsSpear || held.IsStaff)
             {
                 return;
             }
@@ -734,7 +734,7 @@ namespace CityX.Character
             }
             else if (_guarding)
             {
-                frame = held != null && held.IsSpear ? SwordStrikes.SpearGuard() : SwordStrikes.Guard(_oneHanded, _deflectPose);
+                frame = held != null && held.IsSpear ? SwordStrikes.SpearGuard() : held != null && held.IsStaff ? SwordStrikes.StaffGuard() : SwordStrikes.Guard(_oneHanded, _deflectPose);
                 frame.Footwork *= _stanceGate;
                 if (_deflectRemaining > 0.0f)
                 {
@@ -744,7 +744,7 @@ namespace CityX.Character
             }
             else if (CarryIsPosed)
             {
-                frame = held.IsSpear ? SwordStrikes.SpearCarry(_run01) : SwordStrikes.Carry(_run01);
+                frame = held.IsSpear ? SwordStrikes.SpearCarry(_run01) : held.IsStaff ? SwordStrikes.StaffCarry(_run01) : SwordStrikes.Carry(_run01);
             }
             else
             {

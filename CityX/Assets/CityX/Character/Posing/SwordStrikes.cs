@@ -61,6 +61,24 @@ namespace CityX.Character
 
         /// <summary>The spear at a sprint: the lunge driven in with the run behind it.</summary>
         SpearRun,
+
+        /// <summary>The bo staff's first light (docs/BO_STAFF.md): a chop from over the right shoulder down across the front.</summary>
+        StaffChop,
+
+        /// <summary>The staff's second light: sunk low and swept flat round the front at the knees.</summary>
+        StaffSweep,
+
+        /// <summary>The staff's third light: the lunging thrust, the staff driven straight out at the chest.</summary>
+        StaffThrust,
+
+        /// <summary>The staff's fourth light, the chain's end: a rising blow from low on the left up past the right shoulder.</summary>
+        StaffRising,
+
+        /// <summary>The staff's heavy: wound right round to the right, held, and let go flat round the front with the whole body.</summary>
+        StaffSpin,
+
+        /// <summary>The staff at a sprint: the thrust driven in with the run behind it.</summary>
+        StaffRun,
     }
 
     /// <summary>
@@ -230,6 +248,8 @@ namespace CityX.Character
             SwordStrikeKind.Cut2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Slam2H, SwordStrikeKind.Finisher1H,
             SwordStrikeKind.Smash2H, SwordStrikeKind.Run1H, SwordStrikeKind.Run2H,
             SwordStrikeKind.SpearJab, SwordStrikeKind.SpearThrust, SwordStrikeKind.SpearLunge, SwordStrikeKind.SpearSweep, SwordStrikeKind.SpearRun,
+            SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffThrust, SwordStrikeKind.StaffRising, SwordStrikeKind.StaffSpin,
+            SwordStrikeKind.StaffRun,
         };
 
         public static bool TryGet(string animation, out SwordStrikeKind kind)
@@ -253,6 +273,12 @@ namespace CityX.Character
                 case SpearLungeName: kind = SwordStrikeKind.SpearLunge; return true;
                 case SpearSweepName: kind = SwordStrikeKind.SpearSweep; return true;
                 case SpearRunName: kind = SwordStrikeKind.SpearRun; return true;
+                case StaffChopName: kind = SwordStrikeKind.StaffChop; return true;
+                case StaffSweepName: kind = SwordStrikeKind.StaffSweep; return true;
+                case StaffThrustName: kind = SwordStrikeKind.StaffThrust; return true;
+                case StaffRisingName: kind = SwordStrikeKind.StaffRising; return true;
+                case StaffSpinName: kind = SwordStrikeKind.StaffSpin; return true;
+                case StaffRunName: kind = SwordStrikeKind.StaffRun; return true;
                 default: kind = SwordStrikeKind.Slash1H; return false;
             }
         }
@@ -288,6 +314,12 @@ namespace CityX.Character
                 case SwordStrikeKind.SpearLunge: return SpearLungeName;
                 case SwordStrikeKind.SpearSweep: return SpearSweepName;
                 case SwordStrikeKind.SpearRun: return SpearRunName;
+                case SwordStrikeKind.StaffChop: return StaffChopName;
+                case SwordStrikeKind.StaffSweep: return StaffSweepName;
+                case SwordStrikeKind.StaffThrust: return StaffThrustName;
+                case SwordStrikeKind.StaffRising: return StaffRisingName;
+                case SwordStrikeKind.StaffSpin: return StaffSpinName;
+                case SwordStrikeKind.StaffRun: return StaffRunName;
                 default: return Slam2HName;
             }
         }
@@ -301,7 +333,8 @@ namespace CityX.Character
                 || kind == SwordStrikeKind.Run1H;
         }
 
-        public static bool IsHeavy(SwordStrikeKind kind) => kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Slam2H || kind == SwordStrikeKind.SpearSweep;
+        public static bool IsHeavy(SwordStrikeKind kind) => kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Slam2H || kind == SwordStrikeKind.SpearSweep
+            || kind == SwordStrikeKind.StaffSpin;
 
         /// <summary>A spear's attack (docs/SPEAR.md): thrusts, and the heavy's sweep. Held in both hands when the other is free, as the two-handed attacks are.</summary>
         public static bool IsSpear(SwordStrikeKind kind) => kind >= SwordStrikeKind.SpearJab && kind <= SwordStrikeKind.SpearRun;
@@ -309,7 +342,8 @@ namespace CityX.Character
         /// <summary>The swing is heard as a heavy one: the heavies, and a chain's finisher.</summary>
         public static bool SoundsHeavy(SwordStrikeKind kind) =>
             IsHeavy(kind) || kind == SwordStrikeKind.Finisher1H || kind == SwordStrikeKind.Run1H || kind == SwordStrikeKind.Run2H
-            || kind == SwordStrikeKind.SpearLunge || kind == SwordStrikeKind.SpearRun;
+            || kind == SwordStrikeKind.SpearLunge || kind == SwordStrikeKind.SpearRun
+            || kind == SwordStrikeKind.StaffRising || kind == SwordStrikeKind.StaffRun;
 
         /// <summary>
         /// THE PHASES OF AN ATTACK, in seconds (owner, 2026-10-23: "attacks should have clear anticipation -> acceleration -> impact -> recovery.
@@ -373,6 +407,14 @@ namespace CityX.Character
                 case SwordStrikeKind.SpearLunge: return new StrikeTiming(0.28f, 0.12f, 0.11f, 0.05f, 0.14f, 0.50f);
                 case SwordStrikeKind.SpearRun: return new StrikeTiming(0.20f, 0.06f, 0.11f, 0.05f, 0.14f, 0.42f);
                 case SwordStrikeKind.SpearSweep: return new StrikeTiming(0.38f, 0.32f, 0.15f, 0.13f, 0.14f, 0.40f);
+                // THE BO STAFF (docs/BO_STAFF.md): swung from the hips like the two-handed blades, a little quicker than a greatsword (a pole is lighter); the thrust is
+                // out and back as a spear's; the chain's rising blow is wound low and held a beat; the heavy is held wound up a third of a second, the tell.
+                case SwordStrikeKind.StaffChop: return new StrikeTiming(0.24f, 0.06f, 0.13f, 0.10f, 0.07f, 0.26f);
+                case SwordStrikeKind.StaffSweep: return new StrikeTiming(0.24f, 0.06f, 0.14f, 0.13f, 0.07f, 0.28f);
+                case SwordStrikeKind.StaffThrust: return new StrikeTiming(0.25f, 0.06f, 0.07f, 0.05f, 0.08f, 0.24f);
+                case SwordStrikeKind.StaffRising: return new StrikeTiming(0.28f, 0.08f, 0.14f, 0.12f, 0.10f, 0.50f);
+                case SwordStrikeKind.StaffSpin: return new StrikeTiming(0.40f, 0.30f, 0.16f, 0.15f, 0.14f, 0.40f);
+                case SwordStrikeKind.StaffRun: return new StrikeTiming(0.25f, 0.06f, 0.06f, 0.05f, 0.14f, 0.42f);
                 default: return new StrikeTiming(0.42f, 0.38f, 0.16f, 0.13f, 0.18f, 0.38f);
             }
         }
@@ -485,11 +527,17 @@ namespace CityX.Character
             {
                 case SwordStrikeKind.Run1H:
                 case SwordStrikeKind.Run2H:
+                case SwordStrikeKind.StaffRun:
                 case SwordStrikeKind.SpearRun: return 0.0f;
                 case SwordStrikeKind.SpearJab: return 0.30f;
                 case SwordStrikeKind.SpearThrust: return 0.40f;
                 case SwordStrikeKind.SpearLunge: return 0.80f;
                 case SwordStrikeKind.SpearSweep: return 0.45f;
+                case SwordStrikeKind.StaffChop: return 0.40f;
+                case SwordStrikeKind.StaffSweep: return 0.40f;
+                case SwordStrikeKind.StaffThrust: return 0.60f;
+                case SwordStrikeKind.StaffRising: return 0.50f;
+                case SwordStrikeKind.StaffSpin: return 0.55f;
                 case SwordStrikeKind.Slash1H: return 0.45f;
                 case SwordStrikeKind.Cut1H: return 0.50f;
                 case SwordStrikeKind.Finisher1H: return 0.55f;
@@ -648,7 +696,8 @@ namespace CityX.Character
         }
 
         /// <summary>The first light of a body that is sprinting: thrown only on the run, so its legs are never its clip's.</summary>
-        public static bool IsRunningAttack(SwordStrikeKind kind) => kind == SwordStrikeKind.Run1H || kind == SwordStrikeKind.Run2H || kind == SwordStrikeKind.SpearRun;
+        public static bool IsRunningAttack(SwordStrikeKind kind) => kind == SwordStrikeKind.Run1H || kind == SwordStrikeKind.Run2H || kind == SwordStrikeKind.SpearRun
+            || kind == SwordStrikeKind.StaffRun;
 
         /// <summary>How far a body going at <paramref name="ownSpeed"/> m/s by its own movement counts as standing, 0 to 1: what an attack's own step and its clip's legs are scaled by.</summary>
         public static float StandingShare(float ownSpeed) => 1.0f - Mathf.InverseLerp(LegsStandBelowSpeed, LegsWalkFromSpeed, ownSpeed);
@@ -749,7 +798,8 @@ namespace CityX.Character
         }
 
         /// <summary>The stance <paramref name="kind"/> starts from and returns to: its hold's, or a spear's own.</summary>
-        public static SwordFrame ReadyFor(SwordStrikeKind kind) => IsSpear(kind) ? Frame(SpearReadyKey, 1.0f, true) : Ready(IsOneHanded(kind));
+        public static SwordFrame ReadyFor(SwordStrikeKind kind) =>
+            IsSpear(kind) ? Frame(SpearReadyKey, 1.0f, true) : IsStaff(kind) ? Frame(StaffReadyKey, 1.0f, true) : Ready(IsOneHanded(kind));
 
         /// <summary>The held guard: one-handed, the blade across the body at chest height and the free arm relaxed (the clips'); two-handed, the blade up across the front, edge out.</summary>
         public static SwordFrame Guard(bool oneHanded)
@@ -1105,6 +1155,13 @@ namespace CityX.Character
             Key ready2 = ReadyKey2H;
             switch (kind)
             {
+                case SwordStrikeKind.StaffChop:
+                case SwordStrikeKind.StaffSweep:
+                case SwordStrikeKind.StaffThrust:
+                case SwordStrikeKind.StaffRising:
+                case SwordStrikeKind.StaffSpin:
+                case SwordStrikeKind.StaffRun:
+                    return BuildStaffKeys(kind);
                 case SwordStrikeKind.Sweep2H:
                 {
                     // THE FOREHAND: wound up beside the right shoulder like a bat, the blade back over it, hips and shoulders turned right; the
@@ -1351,7 +1408,7 @@ namespace CityX.Character
         {
             t01 = Mathf.Clamp01(t01);
             SwordFrame frame = Sample(KeysFor(kind), t01, !IsOneHanded(kind));
-            frame.HoldsItsLine = IsSpear(kind) && !IsHeavy(kind) ? 1.0f : 0.0f;
+            frame.HoldsItsLine = (IsSpear(kind) && !IsHeavy(kind)) || IsStaffThrust(kind) ? 1.0f : 0.0f;
             frame.Steps = StepsAt(kind, t01);
             return frame;
         }

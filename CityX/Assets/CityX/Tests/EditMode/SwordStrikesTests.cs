@@ -14,7 +14,7 @@ namespace CityX.Tests
         /// <summary>Shoulder to wrist on the rig (the hand offsets are in these), and the blade from the wrist (the grip's own offset included).</summary>
         private static readonly float ArmLength = BodyRig.WristT * BodyRig.ArmLength;
 
-        private static float BladeLength(SwordStrikeKind kind) => (SwordStrikes.IsOneHanded(kind) ? 1.39f : 2.1f) + 0.1f;
+        private static float BladeLength(SwordStrikeKind kind) => (SwordStrikes.IsOneHanded(kind) ? 1.39f : SwordStrikes.IsStaff(kind) ? StaffRules.Tip : 2.1f) + 0.1f;
 
         [Test]
         public void NamesRoundTripAndGuardsAreKnown()
@@ -45,9 +45,9 @@ namespace CityX.Tests
                 if (SwordStrikes.IsOneHanded(kind)) oneHanded++;
             }
             // Each hold: its lights, its heavy and its running attack (the one-handed has the knife's thrust besides; the two-handed, the hammer's smash);
-            // and the spear's five, posed with both hands on it.
+            // the spear's five and the bo staff's six, posed with both hands on them.
             Assert.AreEqual(6, oneHanded);
-            Assert.AreEqual(17, SwordStrikes.All.Length);
+            Assert.AreEqual(23, SwordStrikes.All.Length);
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.All[0]);
         }
 
@@ -420,7 +420,7 @@ namespace CityX.Tests
             // is moving across itself -- the spikes arrive first, never the flat or the back. (Not the thrust: it leads with its point.)
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (kind == SwordStrikeKind.Thrust1H || (SwordStrikes.IsSpear(kind) && !SwordStrikes.IsHeavy(kind)))   // (nor a spear's thrusts)
+                if (kind == SwordStrikeKind.Thrust1H || (SwordStrikes.IsSpear(kind) && !SwordStrikes.IsHeavy(kind)) || SwordStrikes.IsStaffThrust(kind))   // (nor a spear's or a staff's thrusts)
                 {
                     continue;
                 }
@@ -716,7 +716,7 @@ namespace CityX.Tests
                 }
                 else
                 {
-                    bool finisher = kind == SwordStrikeKind.Cut2H || kind == SwordStrikeKind.Finisher1H || kind == SwordStrikeKind.SpearLunge;
+                    bool finisher = kind == SwordStrikeKind.Cut2H || kind == SwordStrikeKind.Finisher1H || kind == SwordStrikeKind.SpearLunge || kind == SwordStrikeKind.StaffRising;
                     Assert.GreaterOrEqual(t.WindUp + t.Hold, 0.24f, $"{kind} is wound up for {t.WindUp + t.Hold:0.00} s: too short to be seen coming");
                     Assert.LessOrEqual(t.Contact, finisher ? 0.58f : 0.5f, $"{kind} takes {t.Contact:0.00} s to land: sluggish");
                     Assert.LessOrEqual(t.Hold, 0.12f, $"{kind} hangs at the top for {t.Hold:0.00} s");

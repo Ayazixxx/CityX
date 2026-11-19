@@ -56,19 +56,24 @@ namespace CityX.Weapons
 
         private static void Melee(ItemCard card, SwordWeapon sword)
         {
-            bool knife = sword.Knife, oneHanded = sword.IsOneHanded, spear = sword.IsSpear;
+            bool knife = sword.Knife, oneHanded = sword.IsOneHanded, spear = sword.IsSpear, staff = sword.IsStaff;
             card.Kind = knife ? "Knife" : MeleeKind(card.ItemId, oneHanded);
             card.Hands = spear ? "One or two hands" : oneHanded ? OneHand : TwoHands;
             card.Style = oneHanded ? "One-Handed Melee" : "Two-Handed Melee";
             card.ScalesWith = MeleeDamageStat;
             card.Add("Attack", sword.GetMeleeDamage(), sword.GetMeleeDamage().ToString("0.#"));
             card.Add("Speed", knife ? KnifeRules.SwingSpeed : 1.0f, knife ? "Quick (x" + KnifeRules.SwingSpeed.ToString("0.0") + ")" : "Normal");
-            float reach = spear ? SpearRules.ReachShare : knife ? KnifeRules.ReachShare : 1.0f;
+            float reach = spear ? SpearRules.ReachShare : staff ? StaffRules.ReachShare : knife ? KnifeRules.ReachShare : 1.0f;
             card.Add("Reach", reach, reach == 1.0f ? "Full" : Mathf.RoundToInt(reach * 100.0f) + "%");
             if (spear)
             {
                 card.Note("Thrusts; hold the click to sweep");
                 card.Note("Goes beside a shield");
+            }
+            if (staff)
+            {
+                card.Note("A chain of four; hold the click to spin");
+                card.Note("The fourth and the spin knock down");
             }
             if (sword.IsHammer)
             {
@@ -92,6 +97,7 @@ namespace CityX.Weapons
                 case ItemRegistry.BaseballBat: return "Bat";
                 case ItemRegistry.Sledgehammer: return "Hammer";
                 case ItemRegistry.Spear: return "Spear";
+                case ItemRegistry.BoStaff: return "Staff";
                 case ItemRegistry.CombatSword: return "Sword";
                 case ItemRegistry.SpikeSword: return "Greatsword";
                 default: return oneHanded ? "Blade" : "Greatsword";

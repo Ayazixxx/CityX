@@ -135,7 +135,7 @@ namespace CityX.Tests
             _ground.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
             var failures = new System.Collections.Generic.List<string>();
             var report = new System.Text.StringBuilder();
-            foreach (string weapon in new[] { "SpikeSword", "BaseballBat", "CombatSword", "MetalCrowbar", "Sledgehammer", "Spear" })
+            foreach (string weapon in new[] { "SpikeSword", "BaseballBat", "CombatSword", "MetalCrowbar", "Sledgehammer", "Spear", "BoStaff" })
             {
                 _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                     new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);

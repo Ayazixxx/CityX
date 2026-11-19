@@ -23,10 +23,11 @@ namespace CityX.Tests
             SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Finisher1H, SwordStrikeKind.Overhead1H,
             SwordStrikeKind.Sweep2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Cut2H, SwordStrikeKind.Smash2H, SwordStrikeKind.Slam2H,
             SwordStrikeKind.SpearJab, SwordStrikeKind.SpearThrust, SwordStrikeKind.SpearLunge, SwordStrikeKind.SpearSweep,
+            SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffThrust, SwordStrikeKind.StaffRising, SwordStrikeKind.StaffSpin,
         };
 
         /// <summary>The running attacks: thrown only at a sprint, so only their torso and head are ever played (the legs are the run's).</summary>
-        private static readonly SwordStrikeKind[] Running = { SwordStrikeKind.Run1H, SwordStrikeKind.Run2H, SwordStrikeKind.SpearRun };
+        private static readonly SwordStrikeKind[] Running = { SwordStrikeKind.Run1H, SwordStrikeKind.Run2H, SwordStrikeKind.SpearRun, SwordStrikeKind.StaffRun };
 
         private static readonly SwordStrikeKind[] WithClips = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(Standing, Running));
 
@@ -71,7 +72,7 @@ namespace CityX.Tests
 
         /// <summary>The foot that strides into an attack: the right in the cuts from the left (it passes the left foot), the left in every other.</summary>
         private static string StridingFoot(SwordStrikeKind kind) =>
-            kind == SwordStrikeKind.Cut1H || kind == SwordStrikeKind.Reverse2H || kind == SwordStrikeKind.SpearSweep ? "foot_r" : "foot_l";
+            kind == SwordStrikeKind.Cut1H || kind == SwordStrikeKind.Reverse2H || kind == SwordStrikeKind.SpearSweep || kind == SwordStrikeKind.StaffSweep ? "foot_r" : "foot_l";
 
         private static string StandingFoot(SwordStrikeKind kind) => StridingFoot(kind) == "foot_r" ? "foot_l" : "foot_r";
 
@@ -207,7 +208,7 @@ namespace CityX.Tests
                 Joints(motion, kind, followed, out Dictionary<string, Quaternion> through);
                 bool overhead = kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Smash2H || kind == SwordStrikeKind.Slam2H;
                 // A spear's thrust is not a turn of the body: the fighter stays side on and the weight goes along the shaft (docs/SPEAR.md).
-                bool thrust = SwordStrikes.IsSpear(kind) && kind != SwordStrikeKind.SpearSweep;
+                bool thrust = (SwordStrikes.IsSpear(kind) && kind != SwordStrikeKind.SpearSweep) || SwordStrikes.IsStaffThrust(kind);
                 if (thrust)
                 {
                     float opened = Mathf.DeltaAngle(YawOf(through["spine"]), YawOf(coiled["spine"]));

@@ -202,13 +202,13 @@ namespace CityX.Character
         /// <summary>
         /// A bullet turned aside by a held sword's guard (docs/BULLET_DEFLECTION.md): it glances off the blade where the blade is, and knocks
         /// the guard to a new angle (SwordStrikes.PickDeflect), which every other player's copy is told by name. False with no sword guard up
-        /// (a shield, a spear, a fist's block): the bullet glances off in front of the chest as before.
+        /// (a shield, a spear, a staff, a fist's block): the bullet glances off in front of the chest as before.
         /// </summary>
         private bool KnockTheGuard(Vector3 from, Vector3 direction)
         {
             SwordPoseDriver poser = _driver != null ? _driver.SwordPoser : null;
             ISwordBlade held = _locomotion != null ? _locomotion.HeldSword : null;
-            if (poser == null || !poser.IsGuarding || held == null || held.IsSpear)
+            if (poser == null || !poser.IsGuarding || held == null || held.IsSpear || held.IsStaff)
             {
                 return false;
             }
