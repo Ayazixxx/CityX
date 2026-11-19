@@ -449,9 +449,10 @@ namespace CityX.Weapons
             {
                 MagazinePart.localPosition = _magazineRest;
                 MagazinePart.localRotation = _magazineRestRotation;
-                if (!MagazinePart.gameObject.activeSelf)
+                bool shown = !Profile.FiresRocket || MagazineAmmo > 0;   // a launcher's round is there only while it is loaded
+                if (MagazinePart.gameObject.activeSelf != shown)
                 {
-                    MagazinePart.gameObject.SetActive(true);
+                    MagazinePart.gameObject.SetActive(shown);
                 }
             }
         }
@@ -800,6 +801,11 @@ namespace CityX.Weapons
             if (ShotPlayer != null && ShotPlayer.clip != null)
             {
                 AudioSource.PlayClipAtPoint(ShotPlayer.clip, MuzzlePoint, 1.0f);
+            }
+            if (Profile.FiresRocket)
+            {
+                ShowRocketLeaving();   // the rocket itself flies on this copy through the body's RocketLauncher
+                return;
             }
             _remoteShotIndex = Time.time - _lastRemoteShot <= Profile.RecoilResetSeconds ? _remoteShotIndex + 1 : 0;
             _lastRemoteShot = Time.time;
@@ -1271,8 +1277,9 @@ namespace CityX.Weapons
             Vector3 spreadDirection = ApplySpread(direction, spreadDegrees);
 
             // HITSCAN (CS:GO's zero travel time), THE THREE-TRACE SHOT -- see ResolveTrace. A shotgun's shot is several of them, in its fixed
-            // pattern round the first (PelletPattern): what they do to one body is added up and lands as ONE blow.
-            int pellets = Mathf.Max(1, Profile.Pellets);
+            // pattern round the first (PelletPattern): what they do to one body is added up and lands as ONE blow. A rocket launcher's is none:
+            // its round flies (LaunchRocket, below).
+            int pellets = Profile.FiresRocket ? 0 : Mathf.Max(1, Profile.Pellets);
             float cone = Profile.ConeDegrees(aiming);
             Vector3 muzzlePosition = MuzzlePoint;
             Transform muzzleTransform = MuzzleFlashObject != null ? MuzzleFlashObject.transform : null;
@@ -1325,6 +1332,10 @@ namespace CityX.Weapons
                 {
                     BulletTracer.Spawn(muzzlePosition, pelletEnd, muzzleTransform);
                 }
+            }
+            if (Profile.FiresRocket)
+            {
+                shotEnd = LaunchRocket(origin, spreadDirection, wielder);
             }
 
             // Firearm Damage makes a shot hurt more (2% a point; it scaled with Strength, the melee stat, until 2026-10-14), and the shooter's

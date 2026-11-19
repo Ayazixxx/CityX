@@ -179,6 +179,9 @@ PrefabInstance:
       addedObject: {fileID: 3353174932153861613}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 6287820491867235507}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 3210543763614710909}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -194,7 +197,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 5052372459330108884}
+      addedObject: {fileID: 6149126130352478931}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -493,6 +496,8 @@ MonoBehaviour:
     Prefab: {fileID: 3368552267168502446, guid: 39f322b1d45be904aac97d5896056930, type: 3}
   - ItemId: shotgun
     Prefab: {fileID: 1640056026679135191, guid: a42bb02197af4e44d9653fcef57446d8, type: 3}
+  - ItemId: rpg
+    Prefab: {fileID: 474679444980923802, guid: c30fb1acce9905c4bbcade360fffac85, type: 3}
   - ItemId: spray_can
     Prefab: {fileID: 1457213973204992229, guid: c6f1f93176398104d9f27215ee7a94dd, type: 3}
   - ItemId: arcane_staff
@@ -1033,6 +1038,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GrenadeThrower
   ThrownPrefab: {fileID: 1739624149125597005, guid: 20e5fc36ab98e8a4d9b1000dedea1075, type: 3}
   StickyPrefab: {fileID: 8251525289597130958, guid: ec5f3d249bd5d5f46b4a64c1eceacb26, type: 3}
+--- !u!114 &6287820491867235507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49dfea4bb0baff54dbb9160cb9184a04, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.RocketLauncher
 --- !u!114 &3210543763614710909
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1097,7 +1114,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &5052372459330108884
+--- !u!114 &6149126130352478931
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

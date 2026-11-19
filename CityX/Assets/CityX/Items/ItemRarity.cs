@@ -47,6 +47,7 @@ namespace CityX.Items
             [ItemRegistry.ArcaneStaff] = Rarity.Rare,
             [ItemRegistry.Flamethrower] = Rarity.Rare,
             [ItemRegistry.Jetpack] = Rarity.VeryRare,
+            [ItemRegistry.RPG] = Rarity.VeryRare,
             // Not on the list yet: placed beside what they are most like.
             [ItemRegistry.BloodRavenTShirt] = Rarity.Common,
             [ItemRegistry.RedCamoTShirt] = Rarity.Common,

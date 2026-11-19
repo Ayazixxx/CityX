@@ -173,6 +173,14 @@ namespace CityX.Weapons
         [Tooltip("Spans itself after every shot (a crossbow holds one bolt): the reload starts the moment it fires.")]
         public bool ReloadsAfterEveryShot;
 
+        [Header("A rocket launcher (docs/RPG.md)")]
+        [Tooltip("Its shot is its loaded round flying as a rocket and bursting where it meets something (FlyingRocket, RocketRules), not a bullet. " +
+                 "The round (the magazine part) shows only while it is loaded.")]
+        public bool FiresRocket;
+
+        [Tooltip("Where the back-blast leaves, gun frame (the blast cone's mouth).")]
+        public Vector3 BackblastLocal;
+
         [Header("A shotgun (docs/SHOTGUN.md)")]
         [Tooltip("How many pellets a shot throws (1: a bullet). Damage is one pellet's. They fly a fixed pattern (PelletPattern): the first down the crosshair.")]
         public int Pellets = 1;
@@ -419,6 +427,59 @@ namespace CityX.Weapons
                 TriggerPullDegrees = 12.0f,
                 CasingLength = 0.0899f,
                 CasingRadius = 0.0146f,
+            };
+        }
+
+        /// <summary>
+        /// THE RPG (owner, 2026-11-19: "make a basic rpg rocket launcher that is animated"; docs/RPG.md): after the RPG-7, one round at a time,
+        /// shouldered as a rifle is (its "butt" a point under the tube, so the tube lies on the shoulder beside the head: RPG.points.json), the
+        /// round a rocket that flies and bursts (RocketRules), reloaded the moment it fires from the pouch at the hip (SourceArt/RPG/rpg_reload.py:
+        /// 2.3 s). Four rounds spare. The numbers are mine.
+        /// </summary>
+        public static FirearmProfile RPG()
+        {
+            return new FirearmProfile
+            {
+                ItemId = ItemRegistry.RPG,
+                DisplayName = "RPG",
+                Kind = FirearmKind.Rifle,
+                HoldPosition = new Vector3(0.10f, -0.01f, 0.095f),
+                HoldDipDegrees = 15.0f,
+                MagazineSize = 1,
+                StartingReserveAmmo = 4,
+                Damage = RocketRules.DirectHitDamage,
+                Range = RocketRules.Range,
+                FireRatePerSecond = 1.0f,
+                Automatic = false,
+                FiresRocket = true,
+                ReloadsAfterEveryShot = true,
+                RecoilPattern = new[] { new Vector2(0.0f, 3.0f) },
+                RecoilResetSeconds = 0.5f,
+                AdsRecoilMultiplier = 0.8f,
+                ShakeDegrees = 1.4f,
+                KickBackMetres = 0.06f,
+                KickUpDegrees = 4.0f,
+                KickRecoverPerSecond = 8.0f,
+                ShotPitch = 0.55f,   // the shotgun's recording, deep: the booster's thump
+                MotionResource = "RPG/RPGReload",
+                PairMotionResource = "",
+                ReloadSeconds = 140.0f / 60.0f,
+                EmptyReloadSeconds = 140.0f / 60.0f,
+                WorldPickupScale = 1.0f,
+                // The support hand cradles the front guard as a shotgunner's does a forend (rpg_reload.py, on_guard: the same wrist, fingers, palm).
+                SupportHandLocal = new Vector3(0.0016f, 0.0098f, 0.2602f),
+                CradleFingersLocal = new Vector3(0.95f, 0.15f, 0.1f),
+                CradlePalmLocal = new Vector3(0.15f, 1.0f, 0.0f),
+                SupportHandOnlyWhenAiming = false,
+                MuzzleLocal = new Vector3(0.0f, 0.0899f, 0.7105f),
+                BackblastLocal = new Vector3(0.0f, 0.0899f, -0.667f),
+                ButtLocal = new Vector3(0.0f, -0.1798f, -0.0725f),
+                ActionPartName = "Hammer",
+                MagazinePartName = "Rocket",
+                TriggerPartName = "Trigger",
+                ActionTravel = 0.0f,
+                TriggerPullDegrees = 12.0f,
+                CasingLength = 0.0f,
             };
         }
 

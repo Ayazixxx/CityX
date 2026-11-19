@@ -324,3 +324,9 @@ Its own page: [DUAL_PISTOLS.md](DUAL_PISTOLS.md). With the Dual Pistols skill a 
 (`PistolWeapon.Pair.cs`, the right hand's hold seen in a mirror), the pair is reloaded together with its own Blender motion
 (`FirearmProfile.PairMotionResource`, `SourceArt/Glock/glock_pair_reload.py`), and `firearm_pose.py` / `firearm_export.py` can pose and export a
 second gun (the single guns' reloads are unchanged).
+
+## Update 2026-11-19: the RPG
+
+Its own page: [RPG.md](RPG.md). What it added to the shared gun: a profile can fire its loaded round as a rocket (`FirearmProfile.FiresRocket`:
+`PistolWeapon.Rocket.cs`, `FlyingRocket`, `RocketRules`) instead of a bullet, with a back-blast behind (`BackblastLocal`), the round showing
+at the muzzle only while it is loaded. Its rockets reach other players through the body's `RocketLauncher` (an `IReplicatedAbility`).

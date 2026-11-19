@@ -135,6 +135,9 @@ namespace CityX.CharacterEditor
             grenades.ThrownPrefab = Load(ThrownGrenadePrefabPath) ?? grenades.ThrownPrefab;
             grenades.StickyPrefab = Load(ThrownSemtexPrefabPath) ?? grenades.StickyPrefab;
 
+            // --- the RPG's rockets as other players see them (2026-11-19, docs/RPG.md): a copy fires the same rocket, and it bursts where it did.
+            GetOrAdd<RocketLauncher>(player);
+
             // --- the boomerang (2026-11-05, docs/BOOMERANG.md): whether it is out, and a copy of it flying on other players' screens.
             var boomerang = GetOrAdd<BoomerangThrower>(player);
             boomerang.ThrownPrefab = Load(ThrownBoomerangPrefabPath) ?? boomerang.ThrownPrefab;

@@ -45,6 +45,9 @@ namespace CityX.Items
         public const string AK47 = "ak47";
 
         public const string Shotgun = "shotgun";
+
+        /// <summary>A shoulder-fired rocket launcher after the RPG-7 (docs/RPG.md).</summary>
+        public const string RPG = "rpg";
         public const string SprayCan = "spray_can";
         public const string KnightHelmet = "knight_helmet";
         public const string FarmerHat = "farmer_hat";
@@ -136,6 +139,8 @@ namespace CityX.Items
             [AK47] = new ItemDefinition(AK47, "AK-47", "weapon", EquipSlots.Primary, 1),
             // The pump shotgun (2026-11-18, docs/SHOTGUN.md): pellets, a pump after every shot, loaded a shell at a time. Weapons/FirearmProfile.Shotgun.
             [Shotgun] = new ItemDefinition(Shotgun, "Pump Shotgun", "weapon", EquipSlots.Primary, 1),
+            // The RPG (2026-11-19, docs/RPG.md): a rocket that flies and bursts, loaded one at a time at the muzzle. Weapons/FirearmProfile.RPG.
+            [RPG] = new ItemDefinition(RPG, "RPG", "weapon", EquipSlots.Primary, 1),
             // Right-click a wall with it to paint graffiti (GraffitiMenuView).
             [SprayCan] = new ItemDefinition(SprayCan, "Spray Can", "tool", EquipSlots.Primary, 1),
             // One headwear slot for now: Godot's separate hat and mask slots are not ported.

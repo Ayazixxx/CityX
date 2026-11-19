@@ -66,6 +66,18 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>The RPG (docs/RPG.md): carried and shouldered, the rocket leaving and in flight, its burst at the wall, and the reload.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheRPG()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            yield return Render("rpg", "Assets/CityX/Weapons/RPG.prefab");
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>A Glock in each hand (Dual Pistols, docs/DUAL_PISTOLS.md): carried, raised by a shot from each, and the pair's empty reload.</summary>
         [UnityTest]
         public IEnumerator RenderTheDualPistols()
@@ -149,6 +161,11 @@ namespace CityX.Tests
                 Shoot(label + "-2-aim-pov", null);
                 Shoot(label + "-2-aim-side", SideView(new Vector3(3.0f, 0.3f, 0.8f)));
                 Shoot(label + "-2-aim-front", SideView(new Vector3(1.4f, 0.5f, 3.2f)));
+                if (_gun.Profile.FiresRocket)
+                {
+                    yield return RocketShots(label);
+                    yield break;
+                }
                 Debug.Log($"CityX capture {label}: muzzle in the aim view at {_followCamera.WorldToViewportPoint(_gun.MuzzleFlashObject.transform.position).ToString("0.00")}");
 
                 // A pump gun (docs/SHOTGUN.md): one shot, then the forend at the rear with the support hand on it and the shell on its way out.
@@ -226,6 +243,44 @@ namespace CityX.Tests
                 Object.Destroy(sideObject);
                 Object.Destroy(scenery);
                 Time.captureFramerate = SteadyFrameTime.FramesPerSecond;   // back to the steady frames every test runs on
+            }
+        }
+
+        /// <summary>A rocket fired at the wall ahead: leaving, in flight, bursting; then a reload from its start, frame by frame.</summary>
+        private IEnumerator RocketShots(string label)
+        {
+            if (_player.GetComponent<RocketLauncher>() == null)
+            {
+                _player.AddComponent<RocketLauncher>();
+            }
+            Transform view = _follow.transform;
+            Assert.IsTrue(_gun.Fire(view.position, view.forward, true, _player), "the RPG did not fire");
+            yield return Run(true, false, 0.1f);
+            Shoot(label + "-3-launch-pov", null);
+            Shoot(label + "-3-launch-side", SideView(new Vector3(4.5f, 0.8f, 4.0f)));
+            yield return Run(true, false, 0.15f);
+            Shoot(label + "-3-flight-pov", null);
+            Shoot(label + "-3-flight-side", SideView(new Vector3(7.0f, 1.5f, 6.0f)));
+            yield return Run(false, false, 0.35f);
+            Shoot(label + "-3-burst-pov", null);
+            Shoot(label + "-3-burst-side", SideView(new Vector3(9.0f, 2.0f, 9.0f)));
+            GunReloadDriver reloader = _player.GetComponent<PlayerAnimationDriver>().GunReloader;
+            for (int guard = 0; _gun.IsReloading && guard < 600; guard++)
+            {
+                yield return Run(false, false, Dt);
+            }
+            yield return Run(false, false, 0.5f);
+            Shoot(label + "-4-loaded-side", SideView(new Vector3(2.4f, 0.4f, 1.2f)));
+            _gun.SetAmmo(0, 3);
+            _gun.TryReload();
+            Assert.IsTrue(reloader.IsPlaying, "the RPG's reload did not start");
+            float duration = reloader.Duration, elapsed = 0.0f;
+            foreach (float fraction in new[] { 0.1f, 0.25f, 0.4f, 0.5f, 0.6f, 0.75f, 0.85f })
+            {
+                yield return Run(false, false, fraction * duration - elapsed);
+                elapsed = fraction * duration;
+                Shoot($"{label}-5-reload-{fraction * 100:00}-front", SideView(new Vector3(1.4f, 0.4f, 3.2f)));
+                Shoot($"{label}-5-reload-{fraction * 100:00}-left", SideView(new Vector3(-2.6f, 0.4f, 1.6f)));
             }
         }
 

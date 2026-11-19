@@ -29,7 +29,7 @@ namespace CityX.WeaponsEditor
         [MenuItem("CityX/Rebuild Firearms")]
         public static void BuildAll()
         {
-            foreach (GameObject prefab in new[] { PistolBuilder.Build(), AK47Builder.Build(), ShotgunBuilder.Build() })
+            foreach (GameObject prefab in new[] { PistolBuilder.Build(), AK47Builder.Build(), ShotgunBuilder.Build(), RPGBuilder.Build() })
             {
                 if (prefab == null)
                 {

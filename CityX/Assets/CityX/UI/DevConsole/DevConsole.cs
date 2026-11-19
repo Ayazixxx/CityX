@@ -179,7 +179,7 @@ namespace CityX.UI
                 case "grapple": return "/grapple [ragdoll|classic] -- the grapple swing hangs the body limp from the rope (ragdoll, the default) or keeps the upright swing (classic)";
                 case "outlines": return "/outlines <pixels> -- the black lines' width on a screen 1080 tall (2 by default; 0 draws none)";
                 case "equip": return "/equip <bottle|cloak|coat|tshirt|bloodraven|redcamo|grapple|pistol|flamethrower|jetpack|parachute|" +
-                    "knight_helmet|clawskull|jeans|spikesword|combatsword|knife|ak47|crowbar|bat|spraycan|shield|staff|firestaff|icestaff|waterstaff|flamestaff|beamstaff|" +
+                    "knight_helmet|clawskull|jeans|spikesword|combatsword|knife|ak47|shotgun|rpg|crowbar|bat|spraycan|shield|staff|firestaff|icestaff|waterstaff|flamestaff|beamstaff|" +
                     "healstaff|froststaff|wand|magicstaff|wraithstaff|grenade|boomerang|bow|crossbow|slingshot|gascan|flashlight|wings|darkwings>";
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|shield|legs|top|back|helmet>";
                 case "goto": return "/goto <slope|highway|manhole|mouth> -- teleports to the nearest one (onto an expressway's deck for highway; beside the " +
