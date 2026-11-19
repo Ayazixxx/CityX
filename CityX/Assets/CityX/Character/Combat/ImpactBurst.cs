@@ -23,6 +23,12 @@ namespace CityX.Character
 
         public const int Puffs = 16;
 
+        /// <summary>
+        /// The dust cloud's size and how far it is thrown, as a share of what it was: half (owner, 2026-11-19: "make the cloud of dust when the
+        /// boomerang hits a surface smaller"). The bang, the ring and the chips are as they were.
+        /// </summary>
+        public const float DustShare = 0.5f;
+
         /// <summary>How far round from straight out of the surface the chips and dust are thrown, degrees: a cone.</summary>
         public const float SpreadDegrees = 65.0f;
 
@@ -109,8 +115,8 @@ namespace CityX.Character
             for (int i = 0, n = Mathf.RoundToInt(Puffs * size); i < n; i++)
             {
                 emit.position = point;
-                emit.velocity = Scatter(normal, SpreadDegrees, Random.value, Random.value) * Random.Range(0.8f, 2.6f) * size;
-                emit.startSize = Random.Range(0.3f, 0.6f) * size;
+                emit.velocity = Scatter(normal, SpreadDegrees, Random.value, Random.value) * Random.Range(0.8f, 2.6f) * size * DustShare;
+                emit.startSize = Random.Range(0.3f, 0.6f) * size * DustShare;
                 emit.startLifetime = Random.Range(0.7f, 1.4f);
                 emit.rotation = Random.Range(0.0f, 360.0f);
                 dust.Emit(emit, 1);
