@@ -6,8 +6,8 @@ namespace CityX.Weapons
 {
     /// <summary>
     /// A BOOMERANG IN THE AIR (docs/BOOMERANG.md). It flies its <see cref="BoomerangFlight"/> and sweeps its path each frame. Going out, the first thing
-    /// it meets, a person or a wall, turns it back. Coming back, it goes through walls. One throw hits as many people as its <see cref="BoomerangBlows"/>
-    /// allow, one unless more are unlocked, the nearest first; after that it flies home through people, hurting no one. Every hit pushes away from the
+    /// it meets, a person or a wall, turns it back. Coming back, it goes through walls. It goes on through as many people as its <see cref="BoomerangBlows"/>
+    /// allow going out (one unless more are unlocked) and turns back off the last; coming home it hits everyone it passes. Every hit pushes away from the
     /// thrower, whichever way it is flying. Only the thrower's hurts; another player's copy flies the same way and hurts no one.
     ///
     /// THE GIANT ONE (<see cref="Giant"/>, BoomerangProfile.Heavy) flies flat. Going out it goes on through the people it may pass through and turns
@@ -223,7 +223,7 @@ namespace CityX.Weapons
             bool returning = _flight.Returning;
             bool heavy = _profile.Heavy;
             int count = Physics.SphereCastNonAlloc(from, _profile.HitRadius, way, _hits, length, ~0, QueryTriggerInteraction.Ignore);
-            System.Array.Sort(_hits, 0, count, NearestFirst.Instance);   // the blows it has left go to the nearest
+            System.Array.Sort(_hits, 0, count, NearestFirst.Instance);   // going out, the nearest body is the one it meets first
             for (int i = 0; i < count; i++)
             {
                 Collider touched = _hits[i].collider;
@@ -241,14 +241,13 @@ namespace CityX.Weapons
                     StrikeTheWall(_hits[i], from, way);
                     return;
                 }
-                if (!body.IsAlive || _blows.Spent)
+                if (!body.IsAlive)
                 {
                     continue;
                 }
                 bool struck = Hit(body, PointOf(_hits[i], from), out bool stopped);
-                bool last = struck && _blows.Strike();
-                // Going out, the wooden one turns back off anyone; the giant one off a guard, as off a wall, or off the last body it may hit.
-                if (!returning && (!heavy || stopped || last))
+                // Going out it turns back off the last body it may hit, or off a guard as off a wall. Coming home it hits everyone it passes.
+                if (!returning && (stopped || (struck && _blows.Strike())))
                 {
                     _flight.TurnBack();
                     TurnedBack?.Invoke(true);

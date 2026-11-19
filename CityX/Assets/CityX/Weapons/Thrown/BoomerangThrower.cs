@@ -65,7 +65,7 @@ namespace CityX.Weapons
         public ThrownBoomerang Flying => _flying;
 
         /// <summary>
-        /// How many people this body's throws go on through after the first they hit (BoomerangBlows): none until it is unlocked (owner, 2026-11-18: in
+        /// How many people this body's throws go on through going out, after the first they hit (BoomerangBlows): none until it is unlocked (owner, 2026-11-18: in
         /// skills or stats, to be designed), BoomerangBlows.Unlimited for everyone.
         /// </summary>
         public int PassesThrough { get; set; }

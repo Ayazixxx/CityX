@@ -3,7 +3,7 @@ using NUnit.Framework;
 
 namespace CityX.Tests
 {
-    /// <summary>How many people one throw of a boomerang may hit (docs/BOOMERANG.md; owner, 2026-11-18).</summary>
+    /// <summary>How many people one throw of a boomerang may hit going out (docs/BOOMERANG.md; owner, 2026-11-18).</summary>
     public sealed class BoomerangBlowsTests
     {
         [Test]
