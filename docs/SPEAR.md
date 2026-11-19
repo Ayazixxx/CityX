@@ -6,6 +6,9 @@ owner's idea for a spear was "melee you can left click + hold right click to aim
 
 `/equip spear`. Common (my placement). A stand-in model drawn in code.
 
+**Parked (owner, 2026-11-19):** "I kind of dont like the spear it doesnt really even make sense in our games setting, leave it for now but im
+unsure it will make it into the final game". It stays in as it is; nothing more is built for it (the throw included) unless the owner asks.
+
 ## What the research said (sources at the bottom)
 
 - **Elden Ring**: a spear is the long-reach thrusting weapon; its mark is that it can attack from behind a raised shield (the "guard
