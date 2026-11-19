@@ -52,7 +52,7 @@ inside the loading port: the reload carries it); **Trigger**. Its points are in 
 | One blow | Whatever pellets land on one body are added up and land as ONE blow: one damage number, one roll against a block or armour, one wound |
 | Each pellet | Is its own three-trace hitscan and its own tracer; makes its own hole in a window and goes on through it at 90% (docs/FIREARMS.md) |
 | The hold | The left hand cradles the forend, palm up under it, the fingers up its far side, the thumb along the near one (owner, with a photo: "the left hand is clipping through", "rotate the left hand so its holding that reload part from the bottom"): `CradleFingersLocal`, `CradlePalmLocal`, the reload's own hand on the forend (`on_forend`), so a reload starts and ends where the hold is. Then ("not quite it still clipping through a bit") measured joint by joint: the hand nearly flat across the underside, the knuckles in a row along the far lower edge, toward the forend's back end where the arm reaches it carried low too, the thumb swung out along the near side (`FingerAmounts.ForendCradle`); `ShotgunPlayTests` holds every joint a finger's thickness out of the forend and none over the top. The AK-47 keeps its old hand (its fingers also stand up past the top of its handguard: not asked) |
-| The pump | The forend is pulled back 0.2 s after the shot and shoved home over 0.36 s (`ActionDelaySeconds`, `ActionCycleSeconds`, `ActionBackAt`), the support hand riding it; the spent shell (red, not brass) flies as it reaches the rear, with the rack's sound. The next shot 0.85 s after the last: about 70 a minute |
+| The pump | The forend is pulled back 0.2 s after the shot, reaching the rear 0.18 s later, and shoved home over 0.25 s (timed to the owner's pump recording, below) (`ActionDelaySeconds`, `ActionCycleSeconds`, `ActionBackAt`), the support hand riding it; the spent shell (red, not brass) flies as it reaches the rear, with the rack's sound. The next shot 0.85 s after the last: about 70 a minute |
 | The kick | 4.5 degrees up a shot (the AK's first is 0.55), a heavy shove back |
 | Ammunition | 6 in the tube, 24 in reserve |
 | The other spread | The Glock's and AK's running, jumping and spraying cone moves the whole pattern (Accuracy narrows it), as it moves their one bullet |
@@ -68,7 +68,7 @@ Not one motion but four pieces the gun strings together, each ending in the pose
 | `gun_shells_start` / `start` | 0.40 | The support hand leaves the forend for the shells at the belly; the gun drawn in and rolled so the loading port turns toward that hand |
 | `gun_shell` / `shell` | 0.57 | A shell taken, brought up under the receiver across the fingers, laid at the port and thumbed forward into the tube (`seat`: one more round); the hand back for the next. Once for every shell |
 | `gun_shells_end` / `end` | 0.40 | The hand back to the forend, the gun back in the shoulder |
-| `gun_shells_end_empty` / `endempty` | 0.67 | The same for a gun that had been run dry: the forend pulled back and shoved home first (`rack`) |
+| `gun_shells_end_empty` / `endempty` | 0.80 | The same for a gun that had been run dry: the forend pulled back and shoved home first (`rack`) |
 
 - R starts it; it goes on until the tube is full or the reserve is empty. Filling an empty tube takes 4.5 s.
 - **A shot breaks it off** as soon as there is a round in the gun (from the first moment when it was not dry).
@@ -95,8 +95,6 @@ and the shotgun's reloads share is `CityX/SourceArt/Firearms/firearm_rifle_stanc
 
 ## Not done
 
-- **The shot's sound** is the pistol's clip pitched down to 0.6; a shotgun recording should replace it. The pump and the shells are the old
-  synthesised clicks.
 - **No knock-back or stagger** from a close blast (a bullet interrupts nothing in this game). Up close it is only damage.
 - **Balance is untested by play**: guns already beat a lone melee enemy before he arrives (docs/PLAYTEST_BOT.md), and this one hits hardest.
 - The model is plain (boxes and cylinders). The shells in the reserve are not shown on the body (a belt or a side saddle).
@@ -121,3 +119,18 @@ player's copy pumping and loading by name). Pictures: `FirearmCapture.RenderTheS
 - [Warframe forum: shotgun mechanics and falloff](https://forums.warframe.com/topic/327104-opinion-a-quick-spheel-on-shotgun-mechanicsfalloff/) (a blast resolved as one hit; spread against falloff)
 - [How to reload a defensive shotgun -- Lucky Gunner](https://www.luckygunner.com/lounge/reload-defensive-shotgun/) and [How to Reload a Shotgun: Tips From the Pros -- Shooting Illustrated](https://www.shootingillustrated.com/articles/2011/3/24/how-to-reload-a-shotgun-tips-from-the-pros) (the support hand feeds the tube from underneath; an empty gun is chambered first)
 - [Remington Pump-Action Shotgun -- itch.io](https://gintoki1234.itch.io/remington-pump-action-shotgun), [Remington Model 31, rigged -- Sketchfab](https://sketchfab.com/3d-models/shotgun-remington-model-31-in-3-types-rigged-d95413fcdc9844aa9a09c413dfa4b293), [Animated shotgun -- OpenGameArt](https://opengameart.org/content/animated-shotgun), [3DRT Remington 870 -- CGTrader](https://www.cgtrader.com/3d-models/military/gun/3drt-modern-firearms-hd-remington-870) (the free and paid models looked up; none downloaded)
+
+## The owner's recordings (2026-11-19)
+
+Owner: "replace the shotgun blast noise with shotgunblast.mp3 and replace the shotgun cocking sound with the other one attached".
+
+- **The blast** (`Weapons/Audio/shotgun_blast.mp3`, 3.7 s: half a second of bang and a fading tail) is every shot's voice, at its own pitch
+  (`ShotgunBuilder.ShotSoundPath`, `FirearmBuilder.Build`'s `shotAudioPath`; the other guns keep the pistol's). Other players hear it too.
+- **The pump** (`Weapons/Audio/shotgun_pump.mp3`, 0.86 s): its pull back lands 0.17 s in and its push home 0.25 s after. It is played from the
+  pull as the forend reaches the rear (`FirearmProfile.RackSound`, `RackSoundBackAt`, `PistolWeapon.PlayRack`), after a shot and at a dry
+  gun's reload alike, and the forend's movement was retimed to it: home 0.25 s after the rear, in the game's pump and in the reload's last
+  piece (now 0.80 s, the rack event at the rear).
+- **Still synthesised**: a shell going into the tube (the magazine's click). The owner is looking for a recording: it is played once a shell,
+  so it should be ONE shell going in, under half a second (a shell comes every 0.57 s), with the click near its start.
+
+Tests: `ShotgunTests.TheShotAndThePumpAreTheOwnersRecordingsAndThePumpMovesInTimeWithIt`, `ShotgunPlayTests` (the pump plays its recording).

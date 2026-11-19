@@ -240,6 +240,7 @@ namespace CityX.Tests
             Assert.AreEqual(profile.ActionTravel, furthestPump, 0.02f, "the pump was not pulled its whole travel");
             Assert.Greater(furthestHand, profile.ActionTravel * 0.7f, "the support hand did not go back with the forend");
             Assert.AreEqual(profile.EjectDelaySeconds, casingAt, 0.06f, "the shell did not fly as the pump reached the rear");
+            Assert.AreSame(profile.RackSound, gun.ReloadPlayer.clip, "the pump did not play its recording");
             Assert.Less(pumpRest - gun.ActionPart.localPosition.z, 0.001f, "the pump never came home");
             Assert.Less(Mathf.Abs(handRest - gun.transform.InverseTransformPoint(leftHand.position).z), 0.02f, "the hand did not come home with it");
 #else

@@ -177,6 +177,50 @@ namespace CityX.Tests
         }
 
 #if UNITY_EDITOR
+        /// <summary>
+        /// Owner, 2026-11-19: "replace the shotgun blast noise with shotgunblast.mp3 and replace the shotgun cocking sound with the other one".
+        /// The shot is its own recording at its own pitch; the pump's is played from its pull, and the pump is timed to the recording: back as
+        /// the pull is heard, home as the push is heard, after a shot and in a dry gun's reload alike.
+        /// </summary>
+        [Test]
+        public void TheShotAndThePumpAreTheOwnersRecordingsAndThePumpMovesInTimeWithIt()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Shotgun.prefab");
+            Assert.IsNotNull(prefab, "Shotgun.prefab is missing -- CityX > Rebuild Firearms");
+            var gun = prefab.GetComponent<PistolWeapon>();
+            var blast = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/Weapons/Audio/shotgun_blast.mp3");
+            var pump = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/Weapons/Audio/shotgun_pump.mp3");
+            Assert.IsNotNull(blast);
+            Assert.IsNotNull(pump);
+            Assert.AreSame(blast, gun.ShotPlayer.clip, "the shot is not the owner's blast");
+            Assert.IsTrue(gun.ShotPlayerPool.All(voice => voice.clip == blast), "a shot voice plays something else");
+            Assert.AreEqual(1.0f, gun.Profile.ShotPitch, "the blast is pitched away from the recording");
+            Assert.AreSame(pump, gun.Profile.RackSound, "the pump is not the owner's recording");
+
+            // The recording's pull lands 0.17 s in and its push 0.25 s after: measured on the file (docs/SHOTGUN.md).
+            const float pull = 0.17f, push = 0.42f;
+            FirearmProfile profile = gun.Profile;
+            Assert.AreEqual(pull, profile.RackSoundBackAt, 0.005f);
+            float back = profile.ActionCycleSeconds * profile.ActionBackShare;
+            Assert.AreEqual(push - pull, profile.ActionCycleSeconds - back, 0.02f, "after a shot the pump is not home as the push is heard");
+            BakedMotion motion = gun.Motion;
+            float rack = motion.EventsIn(GunReload.ShellsEndEmptySegment).First(e => GunReload.EventKind(e.Key) == GunReload.RackEvent).Value;
+            int forend = motion.Props.ToList().IndexOf("Pump");
+            int start = motion.SegmentStart(GunReload.ShellsEndEmptySegment);
+            float home = -1.0f;
+            for (int f = start + Mathf.RoundToInt(rack * motion.FramesPerSecond); f <= start + motion.SegmentFrames(GunReload.ShellsEndEmptySegment); f++)
+            {
+                if (motion.PropPositionAt(f, forend).z >= motion.PropPositionAt(start, forend).z - 0.002f)
+                {
+                    home = (f - start) / (float)motion.FramesPerSecond;
+                    break;
+                }
+            }
+            float rearmost = motion.PropPositionAt(start + Mathf.RoundToInt(rack * motion.FramesPerSecond), forend).z;
+            Assert.AreEqual(motion.PropPositionAt(start, forend).z - profile.ActionTravel, rearmost, 0.005f, "the rack is not where the forend is at the rear");
+            Assert.AreEqual(push - pull, home - rack, 0.03f, "in a dry gun's reload the pump is not home as the push is heard");
+        }
+
         [Test]
         public void TheBuiltShotgunHasThePartsItsShotAndReloadMove()
         {

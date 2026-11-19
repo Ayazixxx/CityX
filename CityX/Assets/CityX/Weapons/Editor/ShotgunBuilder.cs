@@ -18,6 +18,11 @@ namespace CityX.WeaponsEditor
         private const string ModelPath = "Assets/CityX/Weapons/Shotgun.glb";
         private const string MeshFolder = "Assets/CityX/Weapons/ShotgunMeshes";
 
+        /// <summary>The owner's recordings (2026-11-19: "replace the shotgun blast noise with shotgunblast.mp3 and replace the shotgun cocking sound with the other one").</summary>
+        public const string ShotSoundPath = "Assets/CityX/Weapons/Audio/shotgun_blast.mp3";
+
+        public const string RackSoundPath = "Assets/CityX/Weapons/Audio/shotgun_pump.mp3";
+
         /// <summary>The Blender materials' looks: parkerised steel, darker small parts, black polymer furniture, the shell's red hull and brass head.</summary>
         public static readonly Dictionary<string, FirearmBuilder.Finish> Finishes = new Dictionary<string, FirearmBuilder.Finish>
         {
@@ -31,7 +36,13 @@ namespace CityX.WeaponsEditor
         [MenuItem("CityX/Rebuild Shotgun")]
         public static GameObject Build()
         {
-            return FirearmBuilder.Build(ModelPath, PrefabPath, MeshFolder, "Shotgun", "Shotgun", FirearmProfile.Shotgun(), Finishes);
+            FirearmProfile profile = FirearmProfile.Shotgun();
+            profile.RackSound = AssetDatabase.LoadAssetAtPath<AudioClip>(RackSoundPath);
+            if (profile.RackSound == null)
+            {
+                Debug.LogWarning($"CityX: no pump recording at {RackSoundPath} -- the shotgun falls back to the synthesised rack.");
+            }
+            return FirearmBuilder.Build(ModelPath, PrefabPath, MeshFolder, "Shotgun", "Shotgun", profile, Finishes, ShotSoundPath);
         }
     }
 }

@@ -110,13 +110,14 @@ def end_empty_keys(f):
         (f + 0, AT_BELT, "inout"),
         (f + 13, spec(RACK_GUN, on_forend(), FOREND_GRIP, props(shell()), head_down=6), "in"),                        # the hand on the forend
         (f + 20, spec(RACK_GUN, on_forend(1.0), FOREND_GRIP, props(shell(), 1.0), head_down=6), "out"),               # pulled to the rear
-        (f + 26, spec(RACK_GUN, on_forend(0.0), FOREND_GRIP, props(shell(), 0.0), head_down=4), "inout"),             # shoved home: a round chambered
-        (f + 40, READY, "linear"),
+        (f + 35, spec(RACK_GUN, on_forend(0.0), FOREND_GRIP, props(shell(), 0.0), head_down=4), "inout"),             # shoved home: a round chambered (0.25 s after
+        # the pull, as in the owner's recording of a pump: ShotgunBuilder.RackSoundPath, played from its pull at the rack event)
+        (f + 48, READY, "linear"),
     ]
 
 
 START, SHELL, END, END_EMPTY = 0, 40, 90, 130
 KEYS = start_keys(START) + shell_keys(SHELL) + end_keys(END) + end_empty_keys(END_EMPTY)
-SEGMENTS = {"start": (START, START + 24), "shell": (SHELL, SHELL + 34), "end": (END, END + 24), "endempty": (END_EMPTY, END_EMPTY + 40)}
+SEGMENTS = {"start": (START, START + 24), "shell": (SHELL, SHELL + 34), "end": (END, END + 24), "endempty": (END_EMPTY, END_EMPTY + 48)}
 SEGMENT_NAMES = ("start", "shell", "end", "endempty")
-EVENTS = {"grab": SHELL + 3, "seat": SHELL + 23, "rack": END_EMPTY + 26}
+EVENTS = {"grab": SHELL + 3, "seat": SHELL + 23, "rack": END_EMPTY + 20}   # the rack: the forend at the rear, where the pump recording is played from

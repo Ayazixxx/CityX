@@ -89,6 +89,12 @@ namespace CityX.Weapons
         [Tooltip("The same for the empty reload (the action racked too), as long as the motion's empty segment.")]
         public AudioClip EmptyReloadSound;
 
+        [Tooltip("The gun's own recording of its action worked by hand (a pump), or none: the synthesised rack. Played on the pump after a shot and on the rack of a reload.")]
+        public AudioClip RackSound;
+
+        [Tooltip("Where in RackSound the action reaches the rear, seconds: it is played from there as the action gets there, so the rest of it (the push home) follows in time.")]
+        public float RackSoundBackAt;
+
         /// <summary>The recording for this kind of reload, or null when the gun has none (its reload clicks are synthesised).</summary>
         public AudioClip ReloadSoundFor(bool empty) => empty ? EmptyReloadSound : ReloadSound;
 
@@ -197,7 +203,7 @@ namespace CityX.Weapons
 
         public float ShellEndSeconds = 0.4f;
 
-        public float ShellEndEmptySeconds = 0.667f;
+        public float ShellEndEmptySeconds = 0.8f;
 
         /// <summary>The share of its damage a hit keeps at <paramref name="metres"/> from the muzzle.</summary>
         public float DamageShareAt(float metres) => PelletPattern.DamageShare(metres, FalloffFullMetres, FalloffFloorMetres, FalloffFloorShare);
@@ -368,12 +374,12 @@ namespace CityX.Weapons
                 KickBackMetres = 0.07f,
                 KickUpDegrees = 5.0f,
                 KickRecoverPerSecond = 11.0f,
-                ShotPitch = 0.6f,
+                ShotPitch = 1.0f,   // its own recording (ShotgunBuilder.ShotSoundPath), as it is
                 MotionResource = "Shotgun/ShotgunReload",
                 ShellByShell = true,
                 // A whole tube, for a body with no motion to time it and for the item's card: the start, six shells, the end (with the pump when it was dry).
                 ReloadSeconds = 0.4f + 6.0f * 0.567f + 0.4f,
-                EmptyReloadSeconds = 0.4f + 6.0f * 0.567f + 0.667f,
+                EmptyReloadSeconds = 0.4f + 6.0f * 0.567f + 0.8f,
                 WorldPickupScale = 1.0f,
                 // Cradled as a shotgunner holds a forend (owner, 2026-11-18, with a photo: "the left hand is clipping through, it should be holding it
                 // like the other image"): palm up under it, the fingers up its right side, the thumb along its left. The reload's own hand on the forend
@@ -393,8 +399,11 @@ namespace CityX.Weapons
                 MagazinePartName = "Shell",
                 ActionTravel = 0.12325f,
                 ActionDelaySeconds = 0.2f,
-                ActionCycleSeconds = 0.36f,
-                ActionBackShare = 0.5f,
+                // Timed to the owner's recording of a pump (2026-11-19, ShotgunBuilder.RackSoundPath): its pull back lands 0.17 s in and its push home
+                // 0.25 s after that, so the forend is back 0.18 s after it starts and home 0.25 s later.
+                ActionCycleSeconds = 0.43f,
+                ActionBackShare = 0.42f,
+                RackSoundBackAt = 0.17f,
                 TriggerPullDegrees = 12.0f,
                 CasingLength = 0.0899f,
                 CasingRadius = 0.0146f,

@@ -389,7 +389,7 @@ namespace CityX.Weapons
                 {
                     if (this != null)
                     {
-                        PlayReloadSound(FirearmEffects.Rack);   // the pump, as its case flies
+                        PlayRack();   // the pump, as its case flies
                         EjectCasing(body);
                     }
                 });
@@ -987,7 +987,7 @@ namespace CityX.Weapons
                     }
                     break;
                 case GunReload.RackEvent:
-                    if (!_reloadRecording) PlayReloadSound(FirearmEffects.Rack);
+                    if (!_reloadRecording) PlayRack();
                     if (_equipped && IsReloading)
                     {
                         _reloadReadyToFire = _reloadAmmoIn;
@@ -1058,6 +1058,24 @@ namespace CityX.Weapons
                 ReloadPlayer.Stop();
             }
             _reloadRecording = false;
+        }
+
+        /// <summary>
+        /// The action reaching the rear (a pump after a shot, the rack of a reload): the gun's own recording of it from where its pull lands
+        /// (FirearmProfile.RackSound, RackSoundBackAt), or the synthesised rack.
+        /// </summary>
+        private void PlayRack()
+        {
+            if (Profile.RackSound == null || ReloadPlayer == null || !ReloadPlayer.isActiveAndEnabled)
+            {
+                PlayReloadSound(FirearmEffects.Rack);
+                return;
+            }
+            ReloadPlayer.Stop();
+            ReloadPlayer.clip = Profile.RackSound;
+            ReloadPlayer.pitch = 1.0f;
+            ReloadPlayer.time = Mathf.Clamp(Profile.RackSoundBackAt, 0.0f, Profile.RackSound.length - 0.01f);
+            ReloadPlayer.Play();
         }
 
         private void PlayReloadSound(AudioClip clip)

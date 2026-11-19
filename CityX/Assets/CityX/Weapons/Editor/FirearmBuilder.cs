@@ -69,10 +69,10 @@ namespace CityX.WeaponsEditor
 
         /// <summary>
         /// Builds and saves the prefab. <paramref name="gunNode"/> is the model's root object's name in Blender (its parts are its children);
-        /// <paramref name="finishes"/> maps the Blender material names to looks.
+        /// <paramref name="finishes"/> maps the Blender material names to looks; <paramref name="shotAudioPath"/> is its shot's recording (the pistol's unless it has one).
         /// </summary>
         public static GameObject Build(string glbPath, string prefabPath, string meshFolder, string rootName, string gunNode,
-            FirearmProfile profile, IDictionary<string, Finish> finishes)
+            FirearmProfile profile, IDictionary<string, Finish> finishes, string shotAudioPath = ShotAudioPath)
         {
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(glbPath);
             if (model == null)
@@ -126,12 +126,12 @@ namespace CityX.WeaponsEditor
 
                 GameObject muzzleFlash = BuildMuzzleFlash(root.transform, profile.MuzzleLocal, out ParticleSystem sparks);
 
-                AudioSource shotPlayer = BuildAudioSource(root.transform, "ShotPlayer", ShotAudioPath);
+                AudioSource shotPlayer = BuildAudioSource(root.transform, "ShotPlayer", shotAudioPath);
                 var shotPool = new AudioSource[ShotVoiceCount];
                 shotPool[0] = shotPlayer;
                 for (int i = 1; i < ShotVoiceCount; i++)
                 {
-                    shotPool[i] = BuildAudioSource(root.transform, $"ShotPlayer{i + 1}", ShotAudioPath);
+                    shotPool[i] = BuildAudioSource(root.transform, $"ShotPlayer{i + 1}", shotAudioPath);
                 }
                 AudioSource reloadPlayer = BuildAudioSource(root.transform, "ReloadPlayer", null);
 
