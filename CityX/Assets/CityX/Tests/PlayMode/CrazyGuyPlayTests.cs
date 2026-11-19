@@ -28,6 +28,43 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// His clothes go with him: they were made at the world's middle and left there when he was removed, each with its pickup trigger, and
+        /// the next body there stood on them (found 2026-11-19: GetUpFloorPlayTests stood up 2.5 m in the air after these tests).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WhenHeIsGoneNothingHeWoreIsLeftBehind()
+        {
+#if UNITY_EDITOR
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrazyGuy.prefab");
+            Assert.IsNotNull(prefab, "CrazyGuy.prefab is missing -- rebuild the scene");
+            var before = new System.Collections.Generic.HashSet<GameObject>();
+            foreach (CityX.Wearables.SkinnedGarment garment in Object.FindObjectsByType<CityX.Wearables.SkinnedGarment>(FindObjectsSortMode.None))
+            {
+                before.Add(garment.gameObject);
+            }
+            _crazyGuy = Object.Instantiate(prefab, new Vector3(7.0f, 0.05f, 0.0f), Quaternion.identity);
+            yield return null;
+            var worn = new System.Collections.Generic.List<GameObject>();   // what was made for him, wherever it was put
+            foreach (CityX.Wearables.SkinnedGarment garment in Object.FindObjectsByType<CityX.Wearables.SkinnedGarment>(FindObjectsSortMode.None))
+            {
+                if (!before.Contains(garment.gameObject))
+                {
+                    worn.Add(garment.gameObject);
+                }
+            }
+            Assert.Greater(worn.Count, 0, "setup: he wears nothing");
+            Object.Destroy(_crazyGuy);
+            yield return null;
+            foreach (GameObject piece in worn)
+            {
+                Assert.IsTrue(piece == null, $"{(piece != null ? piece.name : "")} he wore is still in the world");
+            }
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
         /// One head of hair, guycrazy's colour (owner, 2026-11-17: "the crazy guy has two hairstyles clipping over eachother one blonde one blue,
         /// remove the blonde"): a copy built into the prefab used to stay on, undyed, inside the one grown at spawn.
         /// </summary>

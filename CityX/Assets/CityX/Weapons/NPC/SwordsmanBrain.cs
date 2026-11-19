@@ -254,7 +254,11 @@ namespace CityX.Weapons
             _sword = null;
         }
 
-        /// <summary>What he wears, each piece worn as the player wears it; it stays on his body when he falls. On every machine (Awake), so a copy wears it too.</summary>
+        /// <summary>
+        /// What he wears, each piece worn as the player wears it (under his body, as the inventory puts a player's: it goes when he goes, rather
+        /// than being left where it was made, its pickup trigger standing in the street); it stays on his body when he falls. On every machine
+        /// (Awake), so a copy wears it too.
+        /// </summary>
         private void PutOnClothes()
         {
             foreach (GameObject piece in Wearing)
@@ -263,7 +267,7 @@ namespace CityX.Weapons
                 {
                     continue;
                 }
-                GameObject worn = Instantiate(piece);
+                GameObject worn = Instantiate(piece, transform, false);
                 worn.name = piece.name;
                 worn.GetComponent<IEquippableItem>()?.OnEquip(gameObject, ItemInstanceData.None);
             }
