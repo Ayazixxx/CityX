@@ -22,7 +22,7 @@ namespace CityX.Tests
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
             SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.StabDash, SkillCatalog.Bloodrage,
             SkillCatalog.SelfSmite, SkillCatalog.Grow, SkillCatalog.Shrink, SkillCatalog.ArcaneOrb, SkillCatalog.ArcaneBarrier,
-            SkillCatalog.HealingAura, SkillCatalog.FireEnhancement, SkillCatalog.GlacierSpikes,
+            SkillCatalog.HealingAura, SkillCatalog.FireEnhancement, SkillCatalog.GlacierSpikes, SkillCatalog.DualPistols,
         };
 
         [Test]
@@ -253,12 +253,12 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void BeforeTheTreeEveryoneHadEverySkillButTheChargedJumpAndRecovery()
+        public void BeforeTheTreeEveryoneHadEverySkillButTheChargedJumpAndTheSkillsThatCameAfter()
         {
             SkillBook before = SkillBook.AsBeforeTheTree();
             foreach (string id in EverySkillTheGameHas)
             {
-                Assert.AreEqual(id != SkillCatalog.SuperJump && id != SkillCatalog.Recovery, before.Knows(id), id);
+                Assert.AreEqual(id != SkillCatalog.SuperJump && id != SkillCatalog.Recovery && id != SkillCatalog.DualPistols, before.Knows(id), id);
             }
         }
 

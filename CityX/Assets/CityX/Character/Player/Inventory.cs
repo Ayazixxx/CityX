@@ -90,8 +90,14 @@ namespace CityX.Character
             NotifyEquipmentChanged(); return true;
         }
 
+        /// <summary>Puts a weapon slot's weapon away, and the pistol paired with it (that one first: the right hand's gun lends the reload).</summary>
         private void Holster(string slot, GameObject player)
         {
+            string pair = PistolPairs.PairOf(slot);
+            if (pair != null)
+            {
+                Holster(pair, player);
+            }
             if (!_equippedInstances.TryGetValue(slot, out GameObject instance) || instance == null)
             {
                 return;
@@ -103,6 +109,7 @@ namespace CityX.Character
             _holstered[slot] = data;
         }
 
+        /// <summary>Takes a weapon slot's weapon out, and then the pistol paired with it into the left hand.</summary>
         private bool Draw(string slot, GameObject player)
         {
             string itemId = EquippedItemId(slot);
@@ -110,17 +117,22 @@ namespace CityX.Character
             {
                 return false;
             }
-            if (!Spawn(itemId, player, data, out GameObject instance))
+            bool pair = PistolPairs.IsPair(slot);
+            if (!Spawn(itemId, player, data, out GameObject instance, pair))
             {
                 return false;
             }
             _equippedInstances[slot] = instance;
             _holstered.Remove(slot);
-            ActiveWeaponSlot = slot;
+            if (!pair)
+            {
+                ActiveWeaponSlot = slot;
+                Draw(PistolPairs.PairOf(slot), player);
+            }
             return true;
         }
 
-        private bool Spawn(string itemId, GameObject player, ItemInstanceData data, out GameObject instance)
+        private bool Spawn(string itemId, GameObject player, ItemInstanceData data, out GameObject instance, bool leftHand = false)
         {
             instance = null;
             GameObject prefab = PrefabFor(itemId);
@@ -131,14 +143,103 @@ namespace CityX.Character
             GameObject made = UnityEngine.Object.Instantiate(prefab);
             made.transform.SetParent(player.transform, false);
             var equippable = made.GetComponent<IEquippableItem>();
-            if (equippable == null)
+            var second = made.GetComponent<IOffHandItem>();
+            if (equippable == null || (leftHand && second == null))
             {
                 UnityEngine.Object.Destroy(made);
                 return false;
             }
-            equippable.OnEquip(player, data);
+            if (leftHand)
+            {
+                second.OnEquipOffHand(player, data);
+            }
+            else
+            {
+                equippable.OnEquip(player, data);
+            }
             instance = made;
             return true;
+        }
+
+        // ---- a pair of pistols (Dual Pistols: docs/DUAL_PISTOLS.md) ----
+
+        private PlayerSkills _skills;
+
+        /// <summary>The body pairs pistols: Dual Pistols is learnt and no shield is on the left arm.</summary>
+        public bool PairsPistols
+        {
+            get
+            {
+                if (_skills == null)
+                {
+                    _skills = GetComponent<PlayerSkills>();
+                    if (_skills != null)
+                    {
+                        _skills.Changed += OnSkillsChanged;
+                    }
+                }
+                return _skills != null && _skills.Knows(SkillCatalog.DualPistols) && string.IsNullOrEmpty(EquippedItemId(EquipSlots.Shield));
+            }
+        }
+
+        /// <summary>The pistol paired with the one in a weapon slot, in the left hand (empty: none).</summary>
+        public string PairedItemId(string weaponSlot)
+        {
+            string pair = PistolPairs.PairOf(weaponSlot);
+            return pair != null ? EquippedItemId(pair) : string.Empty;
+        }
+
+        /// <summary>A menu's click on a weapon slot: a pair gives back its left-hand pistol first, then the slot its own.</summary>
+        public bool UnequipLast(string slot, GameObject player) =>
+            UnequipToSlot(string.IsNullOrEmpty(PairedItemId(slot)) ? slot : PistolPairs.PairOf(slot), player);
+
+        /// <summary>Dual Pistols forgotten (a respec): the left-hand pistols go back to storage.</summary>
+        private void OnSkillsChanged()
+        {
+            if (_skills != null && !_skills.Knows(SkillCatalog.DualPistols))
+            {
+                UnpairAll();
+            }
+        }
+
+        /// <summary>Every left-hand pistol back to storage (false if storage could not take one).</summary>
+        private bool UnpairAll()
+        {
+            bool all = true;
+            foreach (string pair in new[] { PistolPairs.PrimaryPair, PistolPairs.SecondaryPair })
+            {
+                if (!string.IsNullOrEmpty(EquippedItemId(pair)))
+                {
+                    all &= UnequipToSlot(pair, gameObject);
+                }
+            }
+            return all;
+        }
+
+        /// <summary>
+        /// A weapon slot emptied while a pistol is paired with it: that pistol takes the slot, in the right hand if the slot is the one in hand.
+        /// </summary>
+        private void PromotePair(string slot, GameObject player)
+        {
+            string pair = PistolPairs.PairOf(slot);
+            string itemId = pair != null ? EquippedItemId(pair) : string.Empty;
+            if (string.IsNullOrEmpty(itemId))
+            {
+                return;
+            }
+            bool drawn = EquippedInstance(pair) != null;
+            Holster(pair, player);
+            _holstered.TryGetValue(pair, out ItemInstanceData data);
+            _holstered.Remove(pair);
+            _equipment[pair] = string.Empty;
+            _equippedInstances[pair] = null;
+            _equipment[slot] = itemId;
+            _equippedInstances[slot] = null;
+            _holstered[slot] = data;
+            if (drawn)
+            {
+                Draw(slot, player);
+            }
         }
 
         public bool HasItem(string itemId)
@@ -231,13 +332,23 @@ namespace CityX.Character
             bool drawNow = true;
             if (weapon)
             {
-                // A weapon goes to the primary slot, or the secondary if the primary is taken, or (both taken) replaces the one in hand.
-                // It is drawn at once when nothing is in hand, or when it replaces the weapon in hand; otherwise it is holstered until the player scrolls to it.
+                // A weapon goes to the primary slot, or the secondary if the primary is taken, or (both taken) replaces the one in hand; with Dual
+                // Pistols a pistol goes beside a pistol before that (PistolPairs.SlotFor).
+                // It is drawn at once when nothing is in hand, or when it replaces the weapon in hand, or goes beside it; otherwise it is holstered
+                // until the player scrolls to it.
                 string inHand = EquippedInstance(ActiveWeaponSlot) != null ? ActiveWeaponSlot : null;
-                if (string.IsNullOrEmpty(EquippedItemId(PrimarySlot))) slot = PrimarySlot;
-                else if (string.IsNullOrEmpty(EquippedItemId(SecondarySlot))) slot = SecondarySlot;
-                else slot = ActiveWeaponSlot;
-                drawNow = inHand == null || inHand == slot;
+                slot = PistolPairs.SlotFor(itemId, EquippedItemId, PairsPistols, ActiveWeaponSlot);
+                string main = PistolPairs.SlotOfPair(slot) ?? slot;
+                drawNow = PistolPairs.IsPair(slot) ? inHand == main : inHand == null || inHand == slot;
+                // A weapon that cannot be paired, taking the place of one that was: the left-hand pistol goes back to storage first.
+                if (!PistolPairs.KeepsPair(itemId, PairedItemId(slot)) && !UnequipToSlot(PistolPairs.PairOf(slot), player))
+                {
+                    return false;
+                }
+            }
+            else if (slot == EquipSlots.Shield && !UnpairAll())
+            {
+                return false;   // the left arm takes the shield: no pistol left in that hand
             }
 
             if (PrefabFor(itemId) == null)
@@ -246,7 +357,7 @@ namespace CityX.Character
             }
             if (_equipment.TryGetValue(slot, out string currentItemId) && !string.IsNullOrEmpty(currentItemId))
             {
-                if (!UnequipToSlot(slot, player))
+                if (!Unequip(slot, player, takeOverByPair: false))
                 {
                     return false;
                 }
@@ -260,14 +371,15 @@ namespace CityX.Character
                 NotifyEquipmentChanged(); return true;
             }
 
-            if (!Spawn(itemId, player, instanceData, out GameObject instance))
+            bool pairSlot = PistolPairs.IsPair(slot);
+            if (!Spawn(itemId, player, instanceData, out GameObject instance, pairSlot))
             {
                 return false;
             }
             _equipment[slot] = itemId;
             _equippedInstances[slot] = instance;
             _holstered.Remove(slot);
-            if (weapon)
+            if (weapon && !pairSlot)
             {
                 ActiveWeaponSlot = slot;
             }
@@ -277,13 +389,27 @@ namespace CityX.Character
         /// <summary>
         /// Reads the equipped item's live instance data, returns it to
         /// storage (no-op/false if full -- the item stays equipped,
-        /// unchanged), then tells it to detach/destroy itself.
+        /// unchanged), then tells it to detach/destroy itself. A weapon slot
+        /// emptied with a pistol paired beside it hands its place to that pistol.
         /// </summary>
-        public bool UnequipToSlot(string slotKey, GameObject player)
+        public bool UnequipToSlot(string slotKey, GameObject player) => Unequip(slotKey, player, takeOverByPair: true);
+
+        private bool Unequip(string slotKey, GameObject player, bool takeOverByPair)
         {
-            if (!_equipment.TryGetValue(slotKey, out string itemId) || string.IsNullOrEmpty(itemId))
+            if (slotKey == null || !_equipment.TryGetValue(slotKey, out string itemId) || string.IsNullOrEmpty(itemId))
             {
                 return false;
+            }
+            if (takeOverByPair && !string.IsNullOrEmpty(PairedItemId(slotKey)))
+            {
+                // The slot's own pistol goes back; the left-hand one takes its place.
+                bool removed = Unequip(slotKey, player, false);
+                if (removed)
+                {
+                    PromotePair(slotKey, player);
+                    NotifyEquipmentChanged();
+                }
+                return removed;
             }
             if (_holstered.TryGetValue(slotKey, out ItemInstanceData holsteredData))
             {
@@ -318,11 +444,12 @@ namespace CityX.Character
 
         /// <summary>
         /// Lets go of the weapon in hand (a body that dies drops it): gives its id, its state and where its model was in the world, puts the model
-        /// away (its own OnUnequip) and empties the slot without returning it to storage. False with nothing in hand.
+        /// away (its own OnUnequip) and empties the slot without returning it to storage. False with nothing in hand. With a pair of pistols in
+        /// hand, the left-hand one comes first and the right-hand one on the next call.
         /// </summary>
         public bool TakeWeaponInHand(GameObject player, out string itemId, out ItemInstanceData instanceData, out Pose pose)
         {
-            string slot = ActiveWeaponSlot;
+            string slot = EquippedInstance(PistolPairs.PairOf(ActiveWeaponSlot)) != null ? PistolPairs.PairOf(ActiveWeaponSlot) : ActiveWeaponSlot;
             itemId = EquippedItemId(slot);
             instanceData = ItemInstanceData.None;
             pose = default;
@@ -448,7 +575,21 @@ namespace CityX.Character
             EquipmentChanged?.Invoke();
         }
 
-        /// <summary>The ids of every equipped item that exists as an object right now (a holstered weapon is not one).</summary>
+        /// <summary>What another player's copy is told a left-hand pistol is: its id behind this mark (<see cref="ShownAsPair"/>).</summary>
+        public const string PairMark = "pair:";
+
+        /// <summary>Whether a shown id is a left-hand pistol, and the item it is.</summary>
+        public static bool ShownAsPair(string shownId, out string itemId)
+        {
+            bool pair = shownId != null && shownId.StartsWith(PairMark, StringComparison.Ordinal);
+            itemId = pair ? shownId.Substring(PairMark.Length) : shownId;
+            return pair;
+        }
+
+        /// <summary>
+        /// The ids of every equipped item that exists as an object right now (a holstered weapon is not one); a left-hand pistol is marked
+        /// (<see cref="PairMark"/>), so a copy holds it in that hand and tells it from the right-hand one.
+        /// </summary>
         public System.Collections.Generic.List<string> VisibleItemIds()
         {
             var ids = new System.Collections.Generic.List<string>();
@@ -456,7 +597,7 @@ namespace CityX.Character
             {
                 if (pair.Value != null && _equipment.TryGetValue(pair.Key, out string id) && !string.IsNullOrEmpty(id))
                 {
-                    ids.Add(id);
+                    ids.Add(PistolPairs.IsPair(pair.Key) ? PairMark + id : id);
                 }
             }
             ids.Sort(System.StringComparer.Ordinal);

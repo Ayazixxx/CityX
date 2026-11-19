@@ -195,6 +195,9 @@ namespace CityX.Items
         /// <summary>A blade: its killing blows cut a part off rather than bursting it (docs/DISMEMBERMENT.md).</summary>
         public static bool HasEdge(string itemId) => itemId == CombatSword || itemId == SpikeSword || itemId == KitchenKnife;
 
+        /// <summary>A gun held in one hand, which Dual Pistols pairs with another in the other hand (docs/DUAL_PISTOLS.md).</summary>
+        public static bool IsHandgun(string itemId) => itemId == Pistol;
+
         public static IReadOnlyCollection<string> Ids => Items.Keys;
     }
 }

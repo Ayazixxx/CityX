@@ -14,6 +14,8 @@ namespace CityX.Character
         Ability,
         /// <summary>A star nobody has designed yet: shown, never learnt.</summary>
         Placeholder,
+        /// <summary>At work for as long as it is learnt, with nothing to press (Dual Pistols): never on the bar.</summary>
+        Passive,
     }
 
     /// <summary>One constellation on the skill map.</summary>
@@ -133,6 +135,7 @@ namespace CityX.Character
         public const string ArcaneBarrier = "arcane-barrier";
         public const string HealingAura = "healing-aura";
         public const string FireEnhancement = "fire-enhancement";
+        public const string DualPistols = "dual-pistols";
 
         /// <summary>Skill points a star costs. One each for now; what deeper stars cost is open.</summary>
         public const int LearnCost = 1;
@@ -157,6 +160,8 @@ namespace CityX.Character
         {
             new SkillTree("freerunner", "Freerunner", true, TreeWidth),
             new SkillTree("sword", "Sword", true, TreeWidth),
+            // The guns' tree (owner, 2026-11-19: "Call the guns skill tree "Gunslinger" for now but i think we can come up with a better name").
+            new SkillTree("gunslinger", "Gunslinger", true, TreeWidth),
             new SkillTree("berserker", "Berserker", true, TreeWidth),
             new SkillTree("pyromancer", "Pyromancer", true, TreeWidth),
             new SkillTree("steam", "Steam", false, HybridWidth, "pyromancer", "hydromancer"),
@@ -259,6 +264,15 @@ namespace CityX.Character
                 Empty("sword", 1, At(-0.8f, 2), SwordWave),
                 Empty("sword", 2, At(0.8f, 2), Octaslash),
                 Empty("sword", 3, At(0, 3), "sword-1", "sword-2"),
+
+                // --- Gunslinger (owner, 2026-11-19): Dual Pistols at the root ("it will be a skill you have to unlock on the tree"). The empty
+                // stars round it are my layout.
+                new SkillNode(DualPistols, "Dual Pistols", "gunslinger", SkillKind.Passive, At(0, 0),
+                    "Carry two pistols in your primary slot or your secondary slot, one in each hand. Left-click fires the right-hand gun, " +
+                    "right-click the left-hand one; hold both to fire both. No aiming down the sights. R reloads both."),
+                Empty("gunslinger", 1, At(-0.8f, 1), DualPistols),
+                Empty("gunslinger", 2, At(0.8f, 1), DualPistols),
+                Empty("gunslinger", 3, At(0, 2), "gunslinger-1", "gunslinger-2"),
 
                 // --- Berserker.
                 new SkillNode(Bloodrage, "Bloodrage", "berserker", SkillKind.Spell, At(0, 0),

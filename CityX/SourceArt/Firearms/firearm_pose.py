@@ -166,6 +166,19 @@ for o in [GUN] + list(PART.values()):
 PART_REST = {name: (PART[name].location.copy(), PART[name].rotation_quaternion.copy()) for name in PARTS}
 PART_REST_U = {name: M @ PART[name].location for name in PARTS}        # each part's origin in the gun's frame, Unity
 
+# A SECOND GUN, IN THE LEFT HAND (a pair of pistols: glock_pair_reload.py), when the build made one (the gun's copy, its root and parts named
+# with an "L"). A spec for a pair has gun_l (where it goes, as gun) and props_l; its left hand holds the gun as the right holds its own, in a
+# mirror (HOLD_POS_L, HOLD_ROT_L), instead of following l_hand.
+GUN_L = bpy.data.objects.get(GUN_NAME + "L")
+PARTS_L = tuple(name + "L" for name in PARTS) if GUN_L is not None else ()
+PART_L = {name: bpy.data.objects[name] for name in PARTS_L}
+for o in ([GUN_L] if GUN_L is not None else []) + list(PART_L.values()):
+    o.rotation_mode = 'QUATERNION'
+for name in PARTS_L:
+    PART[name] = PART_L[name]
+    PART_REST[name] = (PART_L[name].location.copy(), PART_L[name].rotation_quaternion.copy())
+    PART_REST_U[name] = M @ PART_L[name].location
+
 
 def child_head(D, pos, child, parent):
     return pos[parent] + D[parent] @ (HEAD[child] - HEAD[parent])
@@ -260,6 +273,13 @@ def solve(A, KB=None, t=0.0):
     Wg = delta(FWD, UP, gun_fwd, gun_up)                      # the gun's own axes (Unity-mapped) turned to point its way
     Wh = Wg @ B(HOLD_ROT).inverted()                          # the strong hand's T-pose-based world rotation
     wrist_wanted = gun_at - Wh @ U(HOLD_POS)
+    pair = "gun_l" in A
+    if pair:
+        gun_l_at = chest + Dc @ U(blend_vec(A["gun_l"]["at"], KB["gun_l"]["at"], t))
+        Wgl = delta(FWD, UP, Dc @ U(unit(blend_vec(A["gun_l"]["fwd"], KB["gun_l"]["fwd"], t))),
+                    Dc @ U(unit(blend_vec(A["gun_l"]["up"], KB["gun_l"]["up"], t))))
+        Whl = Wgl @ B(HOLD_ROT_L).inverted()
+        wrist_l_wanted = gun_l_at - Whl @ U(HOLD_POS_L)
 
     for side in ("r", "l"):
         a, f, h, tip = "arm_" + side, "forearm_" + side, "hand_" + side, "fingertip_" + side
@@ -271,6 +291,10 @@ def solve(A, KB=None, t=0.0):
             target = wrist_wanted
             pole = Dc @ U(unit(blend_vec(A.get("r_pole", (0.6, -1.0, -0.2)), KB.get("r_pole", (0.6, -1.0, -0.2)), t)))
             W = Wh
+        elif pair:
+            target = wrist_l_wanted
+            pole = Dc @ U(unit(blend_vec(A.get("l_pole", (-0.6, -1.0, -0.2)), KB.get("l_pole", (-0.6, -1.0, -0.2)), t)))
+            W = Whl
         else:
             ta = l_hand_world(A["l_hand"], chest, Dc, gun_at, Wg, D, pos)
             tb = l_hand_world(KB["l_hand"], chest, Dc, gun_at, Wg, D, pos)
@@ -289,6 +313,8 @@ def solve(A, KB=None, t=0.0):
         pos[tip] = wrist + Dh @ (HEAD[tip] - HEAD[h])
         if side == "r":
             gun_at = wrist + Wh @ U(HOLD_POS)                 # the gun on the hand even when the hand fell short of the target
+        elif pair:
+            gun_l_at = wrist + Whl @ U(HOLD_POS_L)
 
     # THE FINGERS: each bone's local turn (Unity, the hand's T-pose frame) becomes a world turn through the hang.
     for side in ("r", "l"):
@@ -343,7 +369,15 @@ def solve(A, KB=None, t=0.0):
             local_pos = PART_REST_U[name] + blend_vec(pa.get("pos", (0, 0, 0)), pb.get("pos", (0, 0, 0)), t)
             local_rot = slerp(pa.get("rot", Quaternion()), pb.get("rot", Quaternion()), t)
         props[name] = (Vector(local_pos), local_rot, visible)
-    return {"D": D, "pos": pos, "gun": (gun_at, Wg), "props": props}
+    # The left-hand gun's parts, in its own frame (props_l names them as the right's: "Magazine" is its MagazineL).
+    for name in (PARTS if pair else ()):
+        pa, pb = A["props_l"].get(name), KB["props_l"].get(name)
+        if pa is None or pb is None:
+            continue
+        local_pos = PART_REST_U[name + "L"] + blend_vec(pa.get("pos", (0, 0, 0)), pb.get("pos", (0, 0, 0)), t)
+        local_rot = slerp(pa.get("rot", Quaternion()), pb.get("rot", Quaternion()), t)
+        props[name + "L"] = (Vector(local_pos), local_rot, pa.get("visible", 1))
+    return {"D": D, "pos": pos, "gun": (gun_at, Wg), "gun_l": (gun_l_at, Wgl) if pair else None, "props": props}
 
 
 def l_hand_world(spec, chest, Dc, gun_at, Wg, D, pos):
@@ -394,6 +428,8 @@ def apply(pose):
     gun_at, Wg = pose["gun"]
     GUN.location = gun_at
     GUN.rotation_quaternion = Wg
+    if pose.get("gun_l") is not None:
+        GUN_L.location, GUN_L.rotation_quaternion = pose["gun_l"]
     for name, (local_pos, local_rot, visible) in pose["props"].items():
         part = PART[name]
         rest_pos, rest_rot = PART_REST[name]
@@ -433,15 +469,16 @@ def bake(keys, segments, events, action_name="Reload"):
             pb.keyframe_insert("rotation_quaternion", frame=f, group=n)
             if PARENT[n] is None:
                 pb.keyframe_insert("location", frame=f, group=n)
-        GUN.keyframe_insert("location", frame=f)
-        GUN.keyframe_insert("rotation_quaternion", frame=f)
-        for name in PARTS:
+        for gun in [GUN] + ([GUN_L] if GUN_L is not None else []):
+            gun.keyframe_insert("location", frame=f)
+            gun.keyframe_insert("rotation_quaternion", frame=f)
+        for name in PARTS + PARTS_L:
             part = PART[name]
             part.keyframe_insert("location", frame=f)
             part.keyframe_insert("rotation_quaternion", frame=f)
             part.keyframe_insert("hide_render", frame=f)
             part.keyframe_insert("hide_viewport", frame=f)
-    for ob in [rig, GUN] + list(PART.values()):
+    for ob in [rig, GUN] + ([GUN_L] if GUN_L is not None else []) + list(PART.values()):
         if ob.animation_data and ob.animation_data.action:
             for fc in ob.animation_data.action.fcurves:
                 for kp in fc.keyframe_points:

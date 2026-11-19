@@ -29,6 +29,7 @@ namespace CityX.Tests
         private Camera _followCamera;
         private Camera _side;
         private PistolWeapon _gun;
+        private PistolWeapon _leftGun;
         private GunFeel _feel;
         private string _directory;
 
@@ -65,8 +66,20 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>A Glock in each hand (Dual Pistols, docs/DUAL_PISTOLS.md): carried, raised by a shot from each, and the pair's empty reload.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheDualPistols()
+        {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
-        private IEnumerator Render(string label, string gunPath)
+            yield return Render("dual", "Assets/CityX/Weapons/Pistol.prefab", pair: true);
+#else
+            yield break;
+#endif
+        }
+
+#if UNITY_EDITOR
+        private IEnumerator Render(string label, string gunPath, bool pair = false)
         {
             Time.captureFramerate = 60;
             _directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
@@ -95,6 +108,11 @@ namespace CityX.Tests
             _locomotion = _player.GetComponent<PlayerLocomotion>();
             _gun = Object.Instantiate(gunPrefab, new Vector3(20, 1, 20), Quaternion.identity).GetComponent<PistolWeapon>();
             _gun.OnEquip(_player, CityX.Items.ItemInstanceData.None);
+            if (pair)
+            {
+                _leftGun = Object.Instantiate(gunPrefab, new Vector3(22, 1, 20), Quaternion.identity).GetComponent<PistolWeapon>();
+                _leftGun.OnEquipOffHand(_player, CityX.Items.ItemInstanceData.None);
+            }
             _feel = _player.GetComponent<GunFeel>();
 
             var cameraObject = new GameObject("FollowCamera") { tag = "MainCamera" };   // the game's camera: a tracer sizes itself to it
@@ -121,6 +139,12 @@ namespace CityX.Tests
                 yield return Run(false, false, 0.8f);
                 Shoot(label + "-1-carry-pov", null);
                 Shoot(label + "-1-carry-side", SideView(new Vector3(3.2f, 0.4f, 1.0f)));
+                if (pair)
+                {
+                    Shoot(label + "-1-carry-left", SideView(new Vector3(-3.2f, 0.4f, 1.0f)));
+                    yield return PairShots(label);
+                    yield break;
+                }
                 yield return Run(true, false, 0.9f);
                 Shoot(label + "-2-aim-pov", null);
                 Shoot(label + "-2-aim-side", SideView(new Vector3(3.0f, 0.3f, 0.8f)));
@@ -203,6 +227,37 @@ namespace CityX.Tests
                 Object.Destroy(scenery);
                 Time.captureFramerate = SteadyFrameTime.FramesPerSecond;   // back to the steady frames every test runs on
             }
+        }
+
+        /// <summary>A pair raised by a shot from each gun, then its empty reload frame by frame.</summary>
+        private IEnumerator PairShots(string label)
+        {
+            Transform view = _follow.transform;
+            _leftGun.Fire(view.position, view.forward, false, _player);
+            yield return Run(false, false, 4 * Dt);
+            _gun.Fire(view.position, view.forward, false, _player);
+            yield return Run(false, false, 0.15f);
+            Shoot(label + "-2-raised-pov", null);
+            Shoot(label + "-2-raised-side", SideView(new Vector3(3.0f, 0.3f, 0.8f)));
+            Shoot(label + "-2-raised-left", SideView(new Vector3(-3.0f, 0.3f, 0.8f)));
+            Shoot(label + "-2-raised-front", SideView(new Vector3(1.0f, 0.4f, 3.4f)));
+            yield return Run(false, false, 0.8f);
+            _gun.SetAmmo(0, 30);
+            _leftGun.SetAmmo(0, 30);
+            _gun.TryReload();
+            GunReloadDriver reloader = _player.GetComponent<PlayerAnimationDriver>().GunReloader;
+            Assert.IsTrue(reloader.IsPlaying, "the pair's reload did not start");
+            float duration = reloader.Duration, elapsed = 0.0f;
+            foreach (float fraction in new[] { 0.1f, 0.3f, 0.4f, 0.47f, 0.62f, 0.68f, 0.8f })
+            {
+                yield return Run(false, false, fraction * duration - elapsed);
+                elapsed = fraction * duration;
+                Shoot($"{label}-4-reload-{fraction * 100:00}-front", SideView(new Vector3(1.0f, 0.4f, 3.4f)));
+                Shoot($"{label}-4-reload-{fraction * 100:00}-pov", null);
+            }
+            yield return Run(false, false, duration * 0.2f + 0.3f);
+            Shoot(label + "-5-after-reload-pov", null);
+            Debug.Log($"CityX capture {label}: after the reload {_leftGun.GetAmmoText()} and {_gun.GetAmmoText()}");
         }
 
         /// <summary>Plays <paramref name="seconds"/> of frames as the input reader would: the body ticked with the camera's aim, the camera told.</summary>

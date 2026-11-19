@@ -19,8 +19,8 @@ namespace CityX.Character
     [RequireComponent(typeof(NetworkObject))]
     public sealed class NetworkedEquipmentSync : NetworkBehaviour
     {
-        /// <summary>More ids than this in one announcement is not a real loadout.</summary>
-        public const int MaxItems = 8;
+        /// <summary>More ids than this in one announcement is not a real loadout (every worn slot, the back, a weapon in each hand, a shield).</summary>
+        public const int MaxItems = 12;
 
         private Inventory _inventory;
         private Animator _animator;
@@ -121,7 +121,8 @@ namespace CityX.Character
             var clean = new List<string>();
             foreach (string id in itemIds)
             {
-                if (!string.IsNullOrEmpty(id) && ItemRegistry.Has(id) && !clean.Contains(id))
+                Inventory.ShownAsPair(id, out string itemId);   // a left-hand pistol's id is its item's, marked
+                if (!string.IsNullOrEmpty(itemId) && ItemRegistry.Has(itemId) && !clean.Contains(id))
                 {
                     clean.Add(id);
                 }
@@ -161,8 +162,9 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                GameObject prefab = _inventory.PrefabForItem(id);
-                GameObject model = prefab != null ? Build(prefab) : null;
+                bool leftHand = Inventory.ShownAsPair(id, out string itemId);   // the second of a pair of pistols (docs/DUAL_PISTOLS.md)
+                GameObject prefab = _inventory.PrefabForItem(itemId);
+                GameObject model = prefab != null ? Build(prefab, leftHand) : null;
                 if (model != null)
                 {
                     _shown[id] = model;
@@ -170,7 +172,7 @@ namespace CityX.Character
             }
         }
 
-        private GameObject Build(GameObject prefab)
+        private GameObject Build(GameObject prefab, bool leftHand)
         {
             GameObject model = Instantiate(prefab);
             model.name = prefab.name + " (copy)";
@@ -181,7 +183,14 @@ namespace CityX.Character
                 return null;
             }
             model.transform.SetParent(transform, false);
-            mount.MountCosmetic(gameObject);
+            if (leftHand && model.GetComponent<IOffHandItem>() is IOffHandItem second)
+            {
+                second.MountCosmeticOffHand(gameObject);
+            }
+            else
+            {
+                mount.MountCosmetic(gameObject);
+            }
 
             // Nothing about a copy's item may act: no pickup, no collision, no physics, no scripts -- but clothing's own upkeep of the body.
             InertModel.Strip(model);

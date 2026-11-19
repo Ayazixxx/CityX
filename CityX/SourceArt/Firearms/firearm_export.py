@@ -38,7 +38,11 @@ def export(path, segment_names=("tactical", "empty")):
     events = [{"name": m[3:], "frame": f - first} for m, f in markers.items() if m.startswith("ev_")]
 
     hips, rotations = [], []
-    props = {name: {"name": name, "positions": [], "rotations": [], "visible": []} for name in PARTS}
+    # Each part in ITS gun's frame: a pair's left-hand gun's parts (named with an "L") in the left-hand gun's (firearm_pose.GUN_L).
+    owners = [(name, gun) for name in PARTS]
+    if bpy.data.objects.get(GUN_NAME + "L") is not None:
+        owners += [(name + "L", bpy.data.objects[GUN_NAME + "L"]) for name in PARTS]
+    props = {name: {"name": name, "positions": [], "rotations": [], "visible": []} for name, _ in owners}
     previous = {}
     for f in range(first, last + 1):
         scene.frame_set(f)
@@ -58,10 +62,9 @@ def export(path, segment_names=("tactical", "empty")):
             rotations.extend(round(c, 5) for c in (q.x, q.y, q.z, q.w))
         p = _M @ rig_ob.pose.bones["hips"].head
         hips.extend(round(c, 5) for c in (p.x, p.y, p.z))
-        gun_inv = gun.matrix_world.inverted()
-        for name in PARTS:
+        for name, owner in owners:
             part = bpy.data.objects[name]
-            local = gun_inv @ part.matrix_world
+            local = owner.matrix_world.inverted() @ part.matrix_world
             lp = _M @ local.to_translation()
             lr = (_M @ local.to_quaternion().to_matrix() @ _M.transposed()).to_quaternion()
             lr.normalize()
@@ -82,13 +85,13 @@ def export(path, segment_names=("tactical", "empty")):
         "events": events,
         "hips": hips,
         "rotations": rotations,
-        "props": [props[name] for name in PARTS],
+        "props": [props[name] for name, _ in owners],
     }
     path = os.path.normpath(path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as fh:
         json.dump(data, fh, separators=(",", ":"))
     scene.frame_set(first)
-    print("wrote %s: %d frames, %d bones, %d props, %d bytes" % (path, data["frames"], len(names), len(PARTS), os.path.getsize(path)))
+    print("wrote %s: %d frames, %d bones, %d props, %d bytes" % (path, data["frames"], len(names), len(owners), os.path.getsize(path)))
     print("segments", segments, "events", events)
     return data

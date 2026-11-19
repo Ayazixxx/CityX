@@ -333,6 +333,9 @@ namespace CityX.Character
         /// <summary>A gun shot by the player this body is a copy of (GunReload.FireName, from the network): the mounted gun shows it.</summary>
         public event System.Action RemoteGunFired;
 
+        /// <summary>The same for the left-hand gun of a pair (GunReload.FireLeftName, docs/DUAL_PISTOLS.md).</summary>
+        public event System.Action RemoteLeftGunFired;
+
         /// <summary>A blow the player this body is a copy of stopped outright with a block (BlockDeflectEffect.StateName, from the network).</summary>
         /// <remarks>True when it was a sword guard meeting a blade (BlockDeflectEffect.ClashStateName): the recorded clash plays.</remarks>
         public event System.Action<bool> RemoteDeflected;
@@ -463,6 +466,11 @@ namespace CityX.Character
             if (stateName == GunReload.FireName)
             {
                 RemoteGunFired?.Invoke();   // the copy's mounted gun flashes, cracks, throws brass
+                return;
+            }
+            if (stateName == GunReload.FireLeftName)
+            {
+                RemoteLeftGunFired?.Invoke();
                 return;
             }
             if (stateName == BlockDeflectEffect.StateName || stateName == BlockDeflectEffect.ClashStateName)

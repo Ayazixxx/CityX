@@ -13,12 +13,13 @@ apart of climb"; movement does not go on the bar ("not the ones we included so f
 
 ### The trees (`Character/Abilities/SkillCatalog.cs`)
 
-One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromancer, Steam, Hydromancer, Cryomancer, Plaguebringer, Electromancer, Arcanist, Wizard**.
+One row, left to right, wrapping round: **Freerunner, Sword, Gunslinger, Berserker, Pyromancer, Steam, Hydromancer, Cryomancer, Plaguebringer, Electromancer, Arcanist, Wizard**.
 
 | Tree | Stars | Notes |
 |---|---|---|
 | Freerunner | Vault (root, everyone has it) -> Dash, Climb, Recovery; Wall Stick above Climb; Super Jump above Recovery | the owner's shape (2026-11-08: Recovery took Super Jump's place in the first row, Super Jump after it, docs/RECOVERY.md); Wall Stick's place is mine |
 | Sword | Sword Spin -> Sword Wave, Stab Dash, Octaslash | the four need a sword in hand; Stab Dash (2026-10-18) is the owner's, docs/STAB_DASH.md |
+| Gunslinger | Dual Pistols | the guns' tree, the owner's (2026-11-19: "Call the guns skill tree "Gunslinger" for now but i think we can come up with a better name"); Dual Pistols is the first **passive** star (`SkillKind.Passive`: nothing to press, never on the bar), docs/DUAL_PISTOLS.md |
 | Berserker | Bloodrage | |
 | Pyromancer | Fireball | its top star joins Steam |
 | Steam | one star, high in the gap | a hybrid (fire + water), not in the game yet: drawn faded |
@@ -72,6 +73,7 @@ less (docs/MAGIC_WAND.md).
 | Wall Stick | no sticking to walls |
 | Recovery | Space stands a knocked-down body up only once it has lain still 2 s, with the get-up clip. **With it**, Space flips the body back onto its feet at once, from anywhere, even in mid-air, keeping its momentum (Saints Row IV's Ninja Reflexes, docs/RECOVERY.md) |
 | Super Jump | Space jumps at once at the base height. **With it**, Space held crouches and charges (up to 1.5 s) and the jump goes on release, up to 15 times as high (a full charge rose 15.6 m against 1.07 m in the test). The charged jump had been kept out of the game for this ("keep it in the vault") |
+| Dual Pistols | a second pistol goes to the other weapon slot, as any weapon. **With it**, it goes in the left hand beside the first (up to a pair in each slot), each click fires a gun and nothing aims (docs/DUAL_PISTOLS.md) |
 | Vault | always available |
 
 **A super jump never hurts its own landing**: the fall is counted from no higher than where it took off (`PlayerVitals.ForgiveFallAbove`), so a

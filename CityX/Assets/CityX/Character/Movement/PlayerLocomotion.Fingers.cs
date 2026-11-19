@@ -150,7 +150,10 @@ namespace CityX.Character
             IHandGripStyle style = GripStyle;
             FingerAmounts right = _rightPinches ? FingerAmounts.Lerp(FingerAmounts.Open, SlingshotPinch, _rightGrip)
                 : style != null ? FingerAmounts.Lerp(FingerAmounts.Open, style.StrongHandGrip, _rightGrip) : FingerAmounts.Wrap(_rightGrip);
-            FingerAmounts left = style != null && !LeftHandHolds ? FingerAmounts.Lerp(FingerAmounts.Open, style.SupportHandGrip, _leftGrip) : FingerAmounts.Wrap(_leftGrip);
+            // The left hand's own pistol of a pair is gripped as the right hand grips its own (docs/DUAL_PISTOLS.md).
+            IHandGripStyle leftGun = _leftPistol != null ? _leftPistol.GetComponent<IHandGripStyle>() : null;
+            FingerAmounts left = _leftPistolGrip != null ? FingerAmounts.Lerp(FingerAmounts.Open, _leftPistolGrip.StrongHandGrip, _leftGrip)
+                : style != null && !LeftHandHolds ? FingerAmounts.Lerp(FingerAmounts.Open, style.SupportHandGrip, _leftGrip) : FingerAmounts.Wrap(_leftGrip);
             HandGrip.Apply(_rightDigits, true, right, _bakedFingerWeight);
             HandGrip.Apply(_leftDigits, false, left, _bakedFingerWeight);
         }

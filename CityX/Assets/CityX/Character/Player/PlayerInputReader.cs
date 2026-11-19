@@ -31,6 +31,12 @@ namespace CityX.Character
         /// </summary>
         public IEquippableGun EquippedGun;
 
+        /// <summary>
+        /// The second pistol of a pair, in the left hand (Dual Pistols, docs/DUAL_PISTOLS.md): set by its own OnEquipOffHand/OnUnequip. While
+        /// there is one, right-click fires it instead of aiming, and nothing aims down the sights.
+        /// </summary>
+        public IEquippableGun EquippedLeftGun;
+
         private GunFeel _gunFeel;
 
         /// <summary>

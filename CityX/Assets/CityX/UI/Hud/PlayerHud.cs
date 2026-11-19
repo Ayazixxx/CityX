@@ -118,6 +118,10 @@ namespace CityX.UI
             }
 
             HudArt.Paint(this);
+            if (AmmoLabel != null)
+            {
+                AmmoLabel.horizontalOverflow = HorizontalWrapMode.Overflow;   // a pair's two counts run on to the left, never onto a second line
+            }
             // The portrait's texture is the camera's own: never a white disc where the face should be.
             if (PortraitImage != null && PortraitImage.texture == null && PortraitCamera != null && PortraitCamera.targetTexture != null)
             {
@@ -677,11 +681,12 @@ namespace CityX.UI
 
             if (AmmoLabel != null)
             {
-                IEquippableGun gun = _bound.GetComponent<PlayerInputReader>()?.EquippedGun;
+                PlayerInputReader reader = _bound.GetComponent<PlayerInputReader>();
+                IEquippableGun gun = reader != null ? reader.EquippedGun : null;
                 AmmoLabel.gameObject.SetActive(gun != null);
                 if (gun != null)
                 {
-                    AmmoLabel.text = gun.GetAmmoText();
+                    AmmoLabel.text = AmmoText(gun, reader.EquippedLeftGun);
                 }
             }
 
@@ -694,6 +699,10 @@ namespace CityX.UI
                 LevelLabel.text = _shownLevel.ToString();
             }
         }
+
+        /// <summary>The ammo counter: the gun's, or a pair's side by side as they are held, the left hand's first (docs/DUAL_PISTOLS.md).</summary>
+        public static string AmmoText(IEquippableGun gun, IEquippableGun leftGun) =>
+            leftGun == null ? gun.GetAmmoText() : leftGun.GetAmmoText() + "      " + gun.GetAmmoText();
 
         /// <summary>
         /// A bar's percentage, as WoW's frames show it: 100 only when full and 0 only when empty (a scratch reads 99, a sliver 1). The text is

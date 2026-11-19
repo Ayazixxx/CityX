@@ -28,6 +28,7 @@ namespace CityX.Character
         public float CameraRecoilScale = 1.0f;
 
         private IEquippableGun _gun;
+        private IEquippableGun _leftGun;   // the second of a pair (docs/DUAL_PISTOLS.md): its shots kick and confirm the same
         private ThirdPersonCamera _camera;
         private AudioSource _audio;
         private PlayerInputReader _reader;
@@ -51,7 +52,7 @@ namespace CityX.Character
 
         public bool HasAimPoint { get; private set; }
 
-        public bool IsReloading => _gun != null && _gun.IsReloading;
+        public bool IsReloading => (_gun != null && _gun.IsReloading) || (_leftGun != null && _leftGun.IsReloading);
 
         public void Attach(IEquippableGun gun)
         {
@@ -61,8 +62,23 @@ namespace CityX.Character
             EnsureAudio();
         }
 
+        /// <summary>The left hand's gun of a pair: its shots kick the camera, confirm hits and click dry as the right's do. The aim stays the right's.</summary>
+        public void AttachLeft(IEquippableGun gun)
+        {
+            Detach(_leftGun);
+            _leftGun = gun;
+            _leftGun.ShotResolved += OnShot;
+            EnsureAudio();
+        }
+
         public void Detach(IEquippableGun gun)
         {
+            if (gun != null && ReferenceEquals(gun, _leftGun))
+            {
+                _leftGun.ShotResolved -= OnShot;
+                _leftGun = null;
+                return;
+            }
             if (gun == null || !ReferenceEquals(gun, _gun))
             {
                 return;

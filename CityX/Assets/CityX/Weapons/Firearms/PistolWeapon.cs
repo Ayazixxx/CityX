@@ -27,7 +27,7 @@ namespace CityX.Weapons
     // AFTER PlayerLocomotion (order 0): the kick and the moving parts are put on the gun once the arms have been solved -- see LateUpdate.
     [DefaultExecutionOrder(100)]
     [RequireComponent(typeof(SphereCollider))]
-    public sealed class PistolWeapon : MonoBehaviour, IEquippableItem, IEquippableGun, ICosmeticMountable, IHandGripStyle
+    public sealed partial class PistolWeapon : MonoBehaviour, IEquippableItem, IEquippableGun, ICosmeticMountable, IHandGripStyle, IOffHandItem
     {
         [Tooltip("What this gun is: its numbers, its hold, its points and parts. The builders set the Glock's or the AK-47's.")]
         public FirearmProfile Profile = FirearmProfile.Glock();
@@ -341,8 +341,8 @@ namespace CityX.Weapons
         /// <summary>The held grip pose; while a reload has no motion to play (a bare rig), the old procedural dip stands in for it.</summary>
         private void UpdateHeldPose()
         {
-            transform.localPosition = _liveGripPosition;
-            transform.localEulerAngles = _liveGripRotation;
+            transform.localPosition = HeldPosition;
+            transform.localRotation = HeldRotation;
             transform.localScale = Vector3.one * _liveGripScale;
 
             if (IsReloading && !_reloadByMotion && _reloadDuration > 0.0f)
@@ -419,7 +419,10 @@ namespace CityX.Weapons
         /// <summary>A reload's motion is holding the parts (and the hands): the shot's own cycling keeps off them.</summary>
         private bool PartsHeldByMotion => HeldBy(_reloader) || HeldBy(_cosmeticReloader);
 
-        private bool HeldBy(GunReloadDriver reloader) => reloader != null && reloader.Weight > 0.0f && ReferenceEquals(reloader.Motion, Motion);
+        private bool HeldBy(GunReloadDriver reloader) => reloader != null && reloader.Weight > 0.0f && IsOwnMotion(reloader.Motion);
+
+        /// <summary>This gun's reload, or the reload of a pair of them (docs/DUAL_PISTOLS.md).</summary>
+        private bool IsOwnMotion(BakedMotion motion) => motion != null && (ReferenceEquals(motion, Motion) || ReferenceEquals(motion, PairMotion));
 
         /// <summary>
         /// The slide or bolt cycles on every shot -- back fast, home a little slower -- and the trigger is pulled for a moment. Real
@@ -516,16 +519,20 @@ namespace CityX.Weapons
         /// <summary>This gun's reload motion (loaded once, shared by every body), or null when there is none.</summary>
         public BakedMotion Motion => string.IsNullOrEmpty(Profile.MotionResource) ? null : BakedMotion.Load(Profile.MotionResource);
 
-        public void OnEquip(GameObject player, ItemInstanceData instanceData)
+        public void OnEquip(GameObject player, ItemInstanceData instanceData) => Equip(player, instanceData, false);
+
+        /// <summary>Into the right hand, or (<paramref name="leftHand"/>) the left, as the second of a pair (docs/DUAL_PISTOLS.md).</summary>
+        private void Equip(GameObject player, ItemInstanceData instanceData, bool leftHand)
         {
+            _leftHand = leftHand;
             InitialiseGrip();
             var animator = player.GetComponentInChildren<Animator>();
-            Transform hand = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
+            Transform hand = animator != null ? animator.GetBoneTransform(leftHand ? HumanBodyBones.LeftHand : HumanBodyBones.RightHand) : null;
             if (hand != null)
             {
                 transform.SetParent(hand, false);
-                transform.localPosition = _liveGripPosition;
-                transform.localEulerAngles = _liveGripRotation;
+                transform.localPosition = HeldPosition;
+                transform.localRotation = HeldRotation;
                 transform.localScale = Vector3.one * _liveGripScale;
             }
             RememberPartRests();
@@ -542,7 +549,11 @@ namespace CityX.Weapons
             }
 
             var input = player.GetComponent<PlayerInputReader>();
-            if (input != null)
+            if (input != null && leftHand)
+            {
+                input.EquippedLeftGun = this;
+            }
+            else if (input != null)
             {
                 input.EquippedGun = this;
             }
@@ -553,15 +564,26 @@ namespace CityX.Weapons
             {
                 feel = player.AddComponent<GunFeel>();
             }
-            feel.Attach(this);
+            if (leftHand)
+            {
+                feel.AttachLeft(this);
+            }
+            else
+            {
+                feel.Attach(this);
+            }
 
             _locomotion = player.GetComponent<PlayerLocomotion>();
             _animationDriver = player.GetComponent<PlayerAnimationDriver>();
-            if (_locomotion != null && MuzzleFlashObject != null)
+            if (_locomotion != null && MuzzleFlashObject != null && !leftHand)
             {
                 _locomotion.GunMuzzle = MuzzleFlashObject.transform;   // the arm aims the BARREL, not just the upper arm
             }
-            if (_locomotion != null)
+            if (_locomotion != null && leftHand)
+            {
+                HoldInLeftHand(_locomotion);
+            }
+            else if (_locomotion != null)
             {
                 // The free hand reaches for a marker on the gun (draggable in the editor while the game runs: WeaponGripSettings): a pistol's
                 // only once it is raised to aim, a rifle's always.
@@ -572,6 +594,7 @@ namespace CityX.Weapons
                 ApplyGrip();
                 HoldOn(_locomotion, Profile.SupportHandOnlyWhenAiming);
             }
+            FindPair(player);
             HookReload(player, ref _reloader);
             FirearmEffects.Warm();
             BulletTracer.Warm();
@@ -585,13 +608,13 @@ namespace CityX.Weapons
             reloader = driver != null ? driver.GunReloader : body.GetComponent<GunReloadDriver>();
             if (locomotion != null)
             {
-                locomotion.RegisterBakedProp(Profile.ActionPartName, ActionPart);
-                locomotion.RegisterBakedProp(Profile.MagazinePartName, MagazinePart);
-                locomotion.RegisterBakedProp(Profile.TriggerPartName, TriggerPart);
+                locomotion.RegisterBakedProp(PartName(Profile.ActionPartName), ActionPart);
+                locomotion.RegisterBakedProp(PartName(Profile.MagazinePartName), MagazinePart);
+                locomotion.RegisterBakedProp(PartName(Profile.TriggerPartName), TriggerPart);
             }
             if (reloader != null)
             {
-                reloader.SetMotion(Motion);
+                reloader.SetMotion(_pair != null ? PairMotion : Motion);
                 reloader.Marker -= OnReloadMarker;
                 reloader.Marker += OnReloadMarker;
                 reloader.Finished -= OnReloadFinished;
@@ -608,9 +631,14 @@ namespace CityX.Weapons
             var locomotion = body != null ? body.GetComponent<PlayerLocomotion>() : null;
             if (locomotion != null)
             {
-                if (locomotion.BakedProp(Profile.ActionPartName) == ActionPart) locomotion.UnregisterBakedProp(Profile.ActionPartName);
-                if (locomotion.BakedProp(Profile.MagazinePartName) == MagazinePart) locomotion.UnregisterBakedProp(Profile.MagazinePartName);
-                if (locomotion.BakedProp(Profile.TriggerPartName) == TriggerPart) locomotion.UnregisterBakedProp(Profile.TriggerPartName);
+                foreach (string part in new[] { Profile.ActionPartName, Profile.MagazinePartName, Profile.TriggerPartName })
+                {
+                    Transform mine = part == Profile.ActionPartName ? ActionPart : part == Profile.MagazinePartName ? MagazinePart : TriggerPart;
+                    if (locomotion.BakedProp(PartName(part)) == mine)
+                    {
+                        locomotion.UnregisterBakedProp(PartName(part));
+                    }
+                }
             }
             if (reloader != null)
             {
@@ -618,9 +646,10 @@ namespace CityX.Weapons
                 reloader.Finished -= OnReloadFinished;
                 reloader.Started -= OnReloadStarted;
                 reloader.SpeedChanged -= SetReloadRecordingSpeed;
-                if (ReferenceEquals(reloader.Motion, Motion))
+                if (IsOwnMotion(reloader.Motion))
                 {
-                    reloader.SetMotion(null);
+                    // The gun left behind, if a pair is broken, goes back to its own reload.
+                    reloader.SetMotion(_pair != null && _pair.InAHand ? _pair.Motion : null);
                 }
             }
         }
@@ -633,6 +662,10 @@ namespace CityX.Weapons
             {
                 input.EquippedGun = null;
             }
+            if (input != null && ReferenceEquals(input.EquippedLeftGun, this))
+            {
+                input.EquippedLeftGun = null;
+            }
             var feel = player.GetComponent<GunFeel>();
             if (feel != null)
             {
@@ -644,6 +677,7 @@ namespace CityX.Weapons
                 locomotionOnUnequip.ClearSupportHand(_leftHandGrip);
                 locomotionOnUnequip.ClearRifle(transform);
                 locomotionOnUnequip.ClearPistol(transform);
+                locomotionOnUnequip.ClearLeftPistol(transform);
                 if (locomotionOnUnequip.GunMuzzle == (MuzzleFlashObject != null ? MuzzleFlashObject.transform : null))
                 {
                     locomotionOnUnequip.GunMuzzle = null;
@@ -651,25 +685,41 @@ namespace CityX.Weapons
             }
             UnhookReload(player, _reloader);
             _reloader = null;
+            _equipped = false;
+            Unpair();
             Destroy(gameObject);
         }
 
         // ---- on another player's copy: the model in the right hand, its parts lent to the copy's reload, a rifle held two-handed ----
-        public void MountCosmetic(GameObject body)
+        public void MountCosmetic(GameObject body) => Mount(body, false);
+
+        private void Mount(GameObject body, bool leftHand)
         {
+            _leftHand = leftHand;
             InitialiseGrip();
-            CosmeticMount.ToBone(transform, body, HumanBodyBones.RightHand, _liveGripPosition, _liveGripRotation, _liveGripScale);
+            CosmeticMount.ToBone(transform, body, leftHand ? HumanBodyBones.LeftHand : HumanBodyBones.RightHand, HeldPosition,
+                HeldRotation.eulerAngles, _liveGripScale);
             RememberPartRests();
             _cosmeticBody = body;
+            var locomotion = body.GetComponent<PlayerLocomotion>();
+            if (locomotion != null && leftHand)
+            {
+                HoldInLeftHand(locomotion);
+            }
+            FindPair(body);
             HookReload(body, ref _cosmeticReloader);
             _cosmeticDriver = body.GetComponent<PlayerAnimationDriver>();
-            if (_cosmeticDriver != null)
+            if (_cosmeticDriver != null && leftHand)
+            {
+                _cosmeticDriver.RemoteLeftGunFired -= OnRemoteShot;
+                _cosmeticDriver.RemoteLeftGunFired += OnRemoteShot;
+            }
+            else if (_cosmeticDriver != null)
             {
                 _cosmeticDriver.RemoteGunFired -= OnRemoteShot;
                 _cosmeticDriver.RemoteGunFired += OnRemoteShot;
             }
-            var locomotion = body.GetComponent<PlayerLocomotion>();
-            if (locomotion != null)
+            if (locomotion != null && !leftHand)
             {
                 if (_leftHandGrip == null)
                 {
@@ -800,15 +850,18 @@ namespace CityX.Weapons
                 locomotion.ClearSupportHand(_leftHandGrip);
                 locomotion.ClearRifle(transform);
                 locomotion.ClearPistol(transform);
+                locomotion.ClearLeftPistol(transform);
             }
             UnhookReload(body, _cosmeticReloader);
             if (_cosmeticDriver != null)
             {
                 _cosmeticDriver.RemoteGunFired -= OnRemoteShot;
+                _cosmeticDriver.RemoteLeftGunFired -= OnRemoteShot;
                 _cosmeticDriver = null;
             }
             _cosmeticReloader = null;
             _cosmeticBody = null;
+            Unpair();
         }
 
         public void SetCosmeticActive(bool active)
@@ -826,11 +879,16 @@ namespace CityX.Weapons
         /// </summary>
         public void TryReload()
         {
-            if (IsReloading || MagazineAmmo >= Profile.MagazineSize || ReserveAmmo <= 0)
+            if (_leftHand && _pair != null)
+            {
+                _pair.TryReload();   // a pair is reloaded together, the right hand's gun leading (docs/DUAL_PISTOLS.md)
+                return;
+            }
+            if (IsReloading || (!TakesRounds && !(_pair != null && _pair.TakesRounds)))
             {
                 return;
             }
-            _reloadEmpty = MagazineAmmo <= 0;
+            _reloadEmpty = MagazineAmmo <= 0 || (_pair != null && _pair.MagazineAmmo <= 0);
             _reloadAmmoIn = false;
             _reloadReadyToFire = false;
             IsReloading = true;
@@ -855,6 +913,7 @@ namespace CityX.Weapons
                 {
                     _reloadByMotion = true;
                     _reloadDuration = _reloader.Duration;
+                    _pair?.FollowReload(_reloadEmpty, true, _reloadDuration);
                     return;
                 }
             }
@@ -863,6 +922,7 @@ namespace CityX.Weapons
             _reloadTimeRemaining = _reloadDuration;
             PlayReloadRecording(_reloadEmpty);   // as long as the timer (ReloadSeconds, EmptyReloadSeconds)
             SetReloadRecordingSpeed(speed);
+            _pair?.FollowReload(_reloadEmpty, false, _reloadDuration);
         }
 
         private void TickReload(float deltaTime)
@@ -1299,7 +1359,7 @@ namespace CityX.Weapons
             // Other players' copies of this body see and hear the shot (the damage went its own way: NetworkedDamage).
             if (_animationDriver != null && _equipped)
             {
-                _animationDriver.AnnounceState(GunReload.FireName);
+                _animationDriver.AnnounceState(_leftHand ? GunReload.FireLeftName : GunReload.FireName);
             }
 
             // The spent case out of the port: with the shot, or as a pump is pulled back.

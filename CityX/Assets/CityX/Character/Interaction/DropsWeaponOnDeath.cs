@@ -39,13 +39,17 @@ namespace CityX.Character
         {
             // Looked for now, not on waking: a body may be given its inventory after its input reader added this.
             var inventory = GetComponent<Inventory>();
-            if (inventory == null || !inventory.TakeWeaponInHand(gameObject, out string itemId, out ItemInstanceData data, out Pose pose))
-            {
-                return;
-            }
             Vector3 bodyVelocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
-            DroppedItems.Shared.Drop(DroppedItem.LetGo(itemId, data, pose, transform, bodyVelocity, _vitals.DeathImpulse), shared: true, gameObject,
-                inventory.PrefabForItem(itemId));
+            // Both of a pair of pistols (docs/DUAL_PISTOLS.md): the left hand's, then the right's.
+            for (int hand = 0; hand < 2 && inventory != null; hand++)
+            {
+                if (!inventory.TakeWeaponInHand(gameObject, out string itemId, out ItemInstanceData data, out Pose pose))
+                {
+                    return;
+                }
+                DroppedItems.Shared.Drop(DroppedItem.LetGo(itemId, data, pose, transform, bodyVelocity, _vitals.DeathImpulse), shared: true, gameObject,
+                    inventory.PrefabForItem(itemId));
+            }
         }
     }
 }

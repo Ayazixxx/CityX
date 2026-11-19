@@ -80,7 +80,7 @@ namespace CityX.Character
         }
 
         /// <summary>The support hand is wanted on the weapon now: always for a handle; a spear's front hand only in a two-handed pose with no shield.</summary>
-        private bool SupportHandWanted => _supportAnchor != null
+        private bool SupportHandWanted => _supportAnchor != null && _leftPistol == null   // a hand with its own pistol holds no other gun
             && (!_supportSlides || (Shield == null && _swordFrame.Active && _swordFrame.TwoHanded));
 
         /// <summary>Where the support hand's palm goes on the weapon, world space: its point, or for a spear the point of the shaft nearest where the front hand stays.</summary>

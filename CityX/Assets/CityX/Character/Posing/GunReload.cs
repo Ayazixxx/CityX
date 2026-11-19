@@ -18,6 +18,9 @@ namespace CityX.Character
         /// </summary>
         public const string FireName = "gun_fire";
 
+        /// <summary>A shot from the LEFT hand's gun of a pair (docs/DUAL_PISTOLS.md): the copy's left-hand gun shows it, not the right's.</summary>
+        public const string FireLeftName = "gun_fire_l";
+
         /// <summary>The motion's segment names (firearm_export.py).</summary>
         public const string TacticalSegment = "tactical";
 

@@ -55,7 +55,7 @@ namespace CityX.Character
         /// <summary>
         /// What the game gave everyone before the skill tree (2026-10-14): every skill but Super Jump, whose charged jump had been taken out of
         /// the game until a skill could bring it back ("keep it in the vault"), and Recovery, which came after the tree (2026-11-08) and changes
-        /// what Space does to a body that is down. A body with no character (the editor's play button, the tests) and every character made
+        /// what Space does to a body that is down, and Dual Pistols (2026-11-19), which changes where a second pistol goes. A body with no character (the editor's play button, the tests) and every character made
         /// before the tree know this much, so Space still jumps the instant it is pressed for them and stands a knocked-down body up as before.
         /// </summary>
         public static SkillBook AsBeforeTheTree()
@@ -63,6 +63,7 @@ namespace CityX.Character
             SkillBook book = Everything();
             book._learnt.Remove(SkillCatalog.SuperJump);
             book._learnt.Remove(SkillCatalog.Recovery);
+            book._learnt.Remove(SkillCatalog.DualPistols);
             return book;
         }
 

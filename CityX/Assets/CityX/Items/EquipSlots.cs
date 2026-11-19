@@ -22,5 +22,9 @@ namespace CityX.Items
         public const string Shield = "shield";
         public const string Primary = "hand_r";
         public const string Secondary = "hand_l";
+
+        /// <summary>The left-hand pistol paired with the primary's, and with the secondary's (Dual Pistols: docs/DUAL_PISTOLS.md).</summary>
+        public const string PrimaryOffHand = "hand_r_pair";
+        public const string SecondaryOffHand = "hand_l_pair";
     }
 }

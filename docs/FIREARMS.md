@@ -317,3 +317,10 @@ AK's lower handguard: palm up under it, the knuckles along its lower right edge,
 (`FingerAmounts.ForendCradle`). The reload's hand on the handguard (`ak47_reload.py`, `ON_HANDGUARD`) is the same, rebaked; the reload's timing
 is unchanged. The right hand is untouched. `FirearmPlayTests.TheAK47sLeftHandCradlesTheHandguardPalmUpWithNoFingerThroughIt` holds every joint
 of the hand a finger's thickness out of the handguard, carried and aimed.
+
+## Update 2026-11-19: dual pistols
+
+Its own page: [DUAL_PISTOLS.md](DUAL_PISTOLS.md). With the Dual Pistols skill a Glock can be held in each hand: the gun has a left-hand mode
+(`PistolWeapon.Pair.cs`, the right hand's hold seen in a mirror), the pair is reloaded together with its own Blender motion
+(`FirearmProfile.PairMotionResource`, `SourceArt/Glock/glock_pair_reload.py`), and `firearm_pose.py` / `firearm_export.py` can pose and export a
+second gun (the single guns' reloads are unchanged).

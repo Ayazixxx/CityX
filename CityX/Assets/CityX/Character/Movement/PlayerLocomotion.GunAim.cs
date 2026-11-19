@@ -310,7 +310,11 @@ namespace CityX.Character
             // torso/legs) is what looks wrong, THIS is the value that
             // actually reaches it.
             targetDirection = Quaternion.AngleAxis(ArmAimYawOffsetDegrees, Vector3.up) * targetDirection;
-            if (_pistolGun != null)
+            if (HoldsPistolPair)
+            {
+                ApplyPistolPairPose(targetDirection);
+            }
+            else if (_pistolGun != null)
             {
                 ApplyPistolPose(targetDirection);
             }

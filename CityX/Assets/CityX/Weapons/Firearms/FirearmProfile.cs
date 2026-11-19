@@ -77,6 +77,9 @@ namespace CityX.Weapons
         [Tooltip("The baked reload motion in Resources (BakedMotion), with 'tactical' and 'empty' segments.")]
         public string MotionResource = "Glock/GlockReload";
 
+        [Tooltip("The reload of a PAIR of these guns, one in each hand (Dual Pistols, docs/DUAL_PISTOLS.md): both magazines out and in together.")]
+        public string PairMotionResource = "Glock/GlockPairReload";
+
         [Tooltip("How long a reload takes when there is no motion to time it (a bare test rig).")]
         public float ReloadSeconds = 1.4f;
 

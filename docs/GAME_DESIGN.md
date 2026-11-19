@@ -241,7 +241,7 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 - Skill tree **paths to specialize** in one weapon type (swords or scythes), and **skills that upgrade a whole group** (all two-handed melee, all two-handed ranged).
 - Late game: **so strong you dual wield weapons that were two-handed only** (two greatswords).
 - The owner's list of styles: one-handed guns (pistols, small SMGs), dual wield guns, two-handed guns (ARs, snipers, minigun), explosives, laser guns, bow and arrow, crossbow, slingshot, boomerang, one-handed melee (1H swords, knives, 1H axes, crowbar, metal pipe, baton), two-handed melee (2H swords, scythe, golf club, bo staff, 2H axes, baseball bat), dual wield melee, magic staffs, punching.
-- Unsure: whether dual wield is a skill unlocked on the tree.
+- Decided for pistols (owner, 2026-11-19: "it will be a skill you have to unlock on the tree"): Dual Pistols, the root of the Gunslinger tree (the owner's name for now), docs/DUAL_PISTOLS.md. Still unsure for melee.
 
 **My suggestions, not decided:**
 - **Three layers.** A **style** is a skill tree (what you specialize in; your top one or two make your class). A **moveset** is how a weapon is held and swung (its animations), shared by many items. An **item** is one model with a rarity and stats. Already how the game works: the crowbar uses the combat sword's moves, the bat the greatsword's.

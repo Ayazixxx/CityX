@@ -178,6 +178,29 @@ namespace CityX.Character
             // one-shot press), and reload is its own key rather than sharing
             // one with anything else. Checked ahead of the grapple hook and
             // the generic weapon branch below since a gun is neither.
+            // A PAIR OF PISTOLS (owner, 2026-11-19: "Each click fires a gun"): left-click the right hand's, right-click the left hand's, both
+            // held both; nothing aims down the sights; R reloads the pair (the right-hand gun leads it).
+            if (EquippedGun != null && EquippedLeftGun != null)
+            {
+                Transform pairYawSource = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
+                if (pairYawSource != null)
+                {
+                    if (EquippedGun.IsAutomatic ? Mouse.current.leftButton.isPressed : Mouse.current.leftButton.wasPressedThisFrame)
+                    {
+                        EquippedGun.Fire(pairYawSource.position, pairYawSource.forward, false, gameObject);
+                    }
+                    if (EquippedLeftGun.IsAutomatic ? Mouse.current.rightButton.isPressed : Mouse.current.rightButton.wasPressedThisFrame)
+                    {
+                        EquippedLeftGun.Fire(pairYawSource.position, pairYawSource.forward, false, gameObject);
+                    }
+                }
+                if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+                {
+                    EquippedGun.TryReload();
+                }
+                return;
+            }
+
             if (EquippedGun != null)
             {
                 bool aiming = Mouse.current.rightButton.isPressed && !ShieldUsable;   // beside a riot shield right-click is the shield's: shot from the hip

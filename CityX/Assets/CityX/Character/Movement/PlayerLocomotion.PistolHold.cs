@@ -59,12 +59,22 @@ namespace CityX.Character
             // Swung with the aim about the chest, so it stays before the body looking up or down.
             Vector3 chestCentre = 0.5f * (_rightUpperArm.position + _leftUpperArm.position);
             Vector3 gunPosition = chestCentre + Quaternion.FromToRotation(transform.forward, aimDirection) * (_spine.rotation * PistolInChest);
+            HoldGunAt(_rightUpperArm, _rightLowerArm, _handR, gunPosition, aimDirection, _pistolBoreRise, _pistolHoldPosition, _pistolHoldRotation,
+                -up + transform.right * 0.5f, w);
+        }
 
-            // The barrel at the crosshair's point: the bore, which runs above the grip's web, through it.
+        /// <summary>
+        /// One arm onto a gun placed at <paramref name="gunPosition"/> (its grip's web), its barrel at the crosshair's point: the bore, which runs
+        /// above the web, through it. The gun hangs off the hand at its hold, so the hand goes where the hold puts it.
+        /// </summary>
+        private void HoldGunAt(Transform upperArm, Transform lowerArm, Transform hand, Vector3 gunPosition, Vector3 aimDirection, float boreRise,
+            Vector3 holdPosition, Quaternion holdRotation, Vector3 elbowHint, float w)
+        {
+            Vector3 up = transform.up;
             Vector3 forward = aimDirection;
             if (_hasAimedPoint)
             {
-                forward = Vector3.RotateTowards(transform.forward, (_aimedPoint - (gunPosition + up * _pistolBoreRise)).normalized, GunAimPitchClampDegrees * Mathf.Deg2Rad, 0.0f);
+                forward = Vector3.RotateTowards(transform.forward, (_aimedPoint - (gunPosition + up * boreRise)).normalized, GunAimPitchClampDegrees * Mathf.Deg2Rad, 0.0f);
             }
             Vector3 gunUp = Vector3.ProjectOnPlane(up, forward);
             if (gunUp.sqrMagnitude < 1e-4f)
@@ -72,13 +82,11 @@ namespace CityX.Character
                 gunUp = Vector3.ProjectOnPlane(-transform.forward, forward);
             }
             Quaternion gunRotation = Quaternion.LookRotation(forward, gunUp.normalized);
-
-            // The gun hangs off the hand at its hold, so the hand goes where the hold puts it. The elbow down and a little out.
-            Quaternion handRotation = gunRotation * Quaternion.Inverse(_pistolHoldRotation);
-            Vector3 handPosition = gunPosition - handRotation * _pistolHoldPosition;
-            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, handPosition, -up + transform.right * 0.5f, w);
-            _handR.rotation = Quaternion.Slerp(_handR.rotation, handRotation, w);
-            WristTwist.ShareWithForearm(_rightLowerArm, _handR);
+            Quaternion handRotation = gunRotation * Quaternion.Inverse(holdRotation);
+            Vector3 handPosition = gunPosition - handRotation * holdPosition;
+            TwoBoneIK.Solve(upperArm, lowerArm, hand, handPosition, elbowHint, w);
+            hand.rotation = Quaternion.Slerp(hand.rotation, handRotation, w);
+            WristTwist.ShareWithForearm(lowerArm, hand);
         }
     }
 }
