@@ -130,7 +130,8 @@ Owner: "replace the shotgun blast noise with shotgunblast.mp3 and replace the sh
   pull as the forend reaches the rear (`FirearmProfile.RackSound`, `RackSoundBackAt`, `PistolWeapon.PlayRack`), after a shot and at a dry
   gun's reload alike, and the forend's movement was retimed to it: home 0.25 s after the rear, in the game's pump and in the reload's last
   piece (now 0.80 s, the rack event at the rear).
-- **Still synthesised**: a shell going into the tube (the magazine's click). The owner is looking for a recording: it is played once a shell,
-  so it should be ONE shell going in, under half a second (a shell comes every 0.57 s), with the click near its start.
+- **A shell going in** (`Weapons/Audio/shotgun_shell.mp3`, 0.52 s, owner the same day: "here is the shell insertion noise"): a slide and the
+  click at 0.38 s. Played from its start at the start of every shell's piece (`FirearmProfile.ShellSound`, `PistolWeapon.OnReloadStarted`), its
+  click lands where the motion seats the shell (0.383 s in), on the player and on other players' copies; it ends before the next shell begins.
 
 Tests: `ShotgunTests.TheShotAndThePumpAreTheOwnersRecordingsAndThePumpMovesInTimeWithIt`, `ShotgunPlayTests` (the pump plays its recording).

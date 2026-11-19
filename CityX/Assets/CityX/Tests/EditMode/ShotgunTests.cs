@@ -219,6 +219,16 @@ namespace CityX.Tests
             float rearmost = motion.PropPositionAt(start + Mathf.RoundToInt(rack * motion.FramesPerSecond), forend).z;
             Assert.AreEqual(motion.PropPositionAt(start, forend).z - profile.ActionTravel, rearmost, 0.005f, "the rack is not where the forend is at the rear");
             Assert.AreEqual(push - pull, home - rack, 0.03f, "in a dry gun's reload the pump is not home as the push is heard");
+
+            // One shell going in (owner, the same day): its click 0.38 s in, played from each shell's start, lands where the thumb seats it;
+            // and it is over before the next shell's piece begins.
+            var shell = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/Weapons/Audio/shotgun_shell.mp3");
+            Assert.IsNotNull(shell);
+            Assert.AreSame(shell, profile.ShellSound, "the shell going in is not the owner's recording");
+            const float click = 0.38f;
+            float seat = motion.EventsIn(GunReload.ShellSegment).First(e => GunReload.EventKind(e.Key) == GunReload.SeatEvent).Value;
+            Assert.AreEqual(click, seat, 0.03f, "the shell's click is not heard as the thumb seats it");
+            Assert.Less(shell.length, motion.SegmentSeconds(GunReload.ShellSegment), "one shell's sound runs on into the next");
         }
 
         [Test]

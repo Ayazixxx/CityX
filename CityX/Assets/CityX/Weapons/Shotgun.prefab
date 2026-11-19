@@ -361,6 +361,7 @@ MonoBehaviour:
     EmptyReloadSound: {fileID: 0}
     RackSound: {fileID: 8300000, guid: a26dc0ce087600142977346003743720, type: 3}
     RackSoundBackAt: 0.17
+    ShellSound: {fileID: 8300000, guid: 48cc8c0e9b37fdb4e84d90881ee85a07, type: 3}
     HoldPosition: {x: 0.1, y: -0.01, z: 0.095}
     HoldDipDegrees: 15
     HoldScale: 1

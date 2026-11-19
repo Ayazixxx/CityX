@@ -269,6 +269,7 @@ namespace CityX.Tests
             var counts = new List<int> { gun.MagazineAmmo };
             float elapsed = 0.0f, leastWeightMidway = 1.0f;
             bool shellSeen = false;
+            bool shellHeard = false;
             while (gun.IsReloading && elapsed < 8.0f)
             {
                 locomotion.Tick(new LocomotionInput { GunEquipped = true }, Dt);
@@ -282,11 +283,13 @@ namespace CityX.Tests
                 {
                     leastWeightMidway = Mathf.Min(leastWeightMidway, locomotion.BakedPoseWeight);
                     shellSeen |= gun.MagazinePart.gameObject.activeSelf && gun.MagazinePart.localPosition.y < -0.05f;
+                    shellHeard |= gun.ReloadPlayer.clip == gun.Profile.ShellSound;   // (a test run has no sound device: what it plays, not that it is heard)
                 }
             }
             Assert.IsFalse(gun.IsReloading, "the loading never ended");
             CollectionAssert.AreEqual(new[] { 2, 3, 4, 5, 6 }, counts, "the shells did not go in one at a time");
             Assert.AreEqual(6, gun.ReserveAmmo);
+            Assert.IsTrue(shellHeard, "the shells went in without the shell's recording");
             CollectionAssert.AreEqual(
                 new[] { GunReload.ShellsStartName, GunReload.ShellName, GunReload.ShellName, GunReload.ShellName, GunReload.ShellName, GunReload.ShellsEndName },
                 announced.Where(GunReload.Has).ToArray(), "other players were not told each piece, in order");
@@ -418,6 +421,7 @@ namespace CityX.Tests
                 }
             }
             Assert.IsTrue(shellSeen, "the copy never had a shell in its hand");
+            Assert.AreSame(profile.ShellSound, model.ReloadPlayer.clip, "the copy's shells went in without the shell's recording");
             Assert.Greater(leastWeight, 0.98f, "the copy's arms let go between shells while the next piece's name was on its way");
             yield return Frames(locomotion, 0.5f);
             Assert.AreEqual(0.0f, locomotion.BakedPoseWeight, "the copy never came back out of the loading");

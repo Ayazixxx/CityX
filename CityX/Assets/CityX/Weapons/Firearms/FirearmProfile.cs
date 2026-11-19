@@ -95,6 +95,10 @@ namespace CityX.Weapons
         [Tooltip("Where in RackSound the action reaches the rear, seconds: it is played from there as the action gets there, so the rest of it (the push home) follows in time.")]
         public float RackSoundBackAt;
 
+        [Tooltip("A tube's: the gun's own recording of ONE shell going in, played from the start of each shell's piece of the reload; its click should " +
+                 "land where the motion seats the shell. None: the synthesised click at the seat.")]
+        public AudioClip ShellSound;
+
         /// <summary>The recording for this kind of reload, or null when the gun has none (its reload clicks are synthesised).</summary>
         public AudioClip ReloadSoundFor(bool empty) => empty ? EmptyReloadSound : ReloadSound;
 

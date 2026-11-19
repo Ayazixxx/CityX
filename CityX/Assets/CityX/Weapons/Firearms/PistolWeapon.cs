@@ -974,7 +974,7 @@ namespace CityX.Weapons
                     if (!_reloadRecording) PlayReloadSound(FirearmEffects.MagazineOut);
                     break;
                 case GunReload.SeatEvent:
-                    if (!_reloadRecording) PlayReloadSound(FirearmEffects.MagazineIn);
+                    if (!_reloadRecording && !(Profile.ShellByShell && Profile.ShellSound != null)) PlayReloadSound(FirearmEffects.MagazineIn);
                     if (_equipped && IsReloading && Profile.ShellByShell)
                     {
                         LoadOneShell();
@@ -1019,6 +1019,13 @@ namespace CityX.Weapons
         private void OnReloadStarted(bool empty)
         {
             PlayReloadRecording(empty);
+            // A tube's shell going in (docs/SHOTGUN.md): the gun's recording of one shell from the piece's start, its click landing as the thumb
+            // seats the shell. Here and on another player's copy alike.
+            GunReloadDriver playing = _reloader != null && _reloader.IsPlaying ? _reloader : _cosmeticReloader;
+            if (Profile.ShellSound != null && playing != null && playing.Segment == GunReload.ShellSegment)
+            {
+                PlayOwnRecording(Profile.ShellSound, 0.0f);
+            }
         }
 
         private void PlayReloadRecording(bool empty)
@@ -1066,16 +1073,25 @@ namespace CityX.Weapons
         /// </summary>
         private void PlayRack()
         {
-            if (Profile.RackSound == null || ReloadPlayer == null || !ReloadPlayer.isActiveAndEnabled)
+            if (!PlayOwnRecording(Profile.RackSound, Profile.RackSoundBackAt))
             {
                 PlayReloadSound(FirearmEffects.Rack);
-                return;
+            }
+        }
+
+        /// <summary>One of the gun's own short recordings (the pump, a shell going in) on its reload voice, from <paramref name="from"/> seconds in; false if it has none.</summary>
+        private bool PlayOwnRecording(AudioClip clip, float from)
+        {
+            if (clip == null || ReloadPlayer == null || !ReloadPlayer.isActiveAndEnabled)
+            {
+                return false;
             }
             ReloadPlayer.Stop();
-            ReloadPlayer.clip = Profile.RackSound;
+            ReloadPlayer.clip = clip;
             ReloadPlayer.pitch = 1.0f;
-            ReloadPlayer.time = Mathf.Clamp(Profile.RackSoundBackAt, 0.0f, Profile.RackSound.length - 0.01f);
+            ReloadPlayer.time = Mathf.Clamp(from, 0.0f, clip.length - 0.01f);
             ReloadPlayer.Play();
+            return true;
         }
 
         private void PlayReloadSound(AudioClip clip)

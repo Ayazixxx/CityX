@@ -23,6 +23,9 @@ namespace CityX.WeaponsEditor
 
         public const string RackSoundPath = "Assets/CityX/Weapons/Audio/shotgun_pump.mp3";
 
+        /// <summary>One shell going in (owner, the same day: "here is the shell insertion noise"): its click 0.38 s in, where the reload seats the shell.</summary>
+        public const string ShellSoundPath = "Assets/CityX/Weapons/Audio/shotgun_shell.mp3";
+
         /// <summary>The Blender materials' looks: parkerised steel, darker small parts, black polymer furniture, the shell's red hull and brass head.</summary>
         public static readonly Dictionary<string, FirearmBuilder.Finish> Finishes = new Dictionary<string, FirearmBuilder.Finish>
         {
@@ -41,6 +44,11 @@ namespace CityX.WeaponsEditor
             if (profile.RackSound == null)
             {
                 Debug.LogWarning($"CityX: no pump recording at {RackSoundPath} -- the shotgun falls back to the synthesised rack.");
+            }
+            profile.ShellSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ShellSoundPath);
+            if (profile.ShellSound == null)
+            {
+                Debug.LogWarning($"CityX: no shell recording at {ShellSoundPath} -- the shotgun falls back to the synthesised click.");
             }
             return FirearmBuilder.Build(ModelPath, PrefabPath, MeshFolder, "Shotgun", "Shotgun", profile, Finishes, ShotSoundPath);
         }
