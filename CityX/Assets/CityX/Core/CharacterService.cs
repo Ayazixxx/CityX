@@ -115,6 +115,12 @@ namespace CityX.Core
             stored.Hotbar = reported.Hotbar;
             stored.Wearing = reported.Wearing;
             stored.PrimaryWeapon = reported.PrimaryWeapon;
+            if (reported.BagVersion >= CharacterSave.CurrentBagVersion)
+            {
+                stored.Bag = reported.Bag;
+                stored.BagVersion = reported.BagVersion;
+                stored.WeaponInHand = reported.WeaponInHand;
+            }
             stored.TutorialDone |= reported.TutorialDone;
             stored.LastPlayedUnixSeconds = reported.LastPlayedUnixSeconds;
             CopyLook(reported, stored);

@@ -134,9 +134,25 @@ namespace CityX.Core
 
         /// <summary>
         /// The ids of the clothes the character has on (owner, 2026-10-20: "make it so items you equipped stay equipped when you close the
-        /// game"). The primary weapon is kept in <see cref="PrimaryWeapon"/>; the rest of the inventory is not kept yet.
+        /// game"). The primary weapon is kept in <see cref="PrimaryWeapon"/>. Since the bag is kept (<see cref="Bag"/>) these two are what the
+        /// screens that only show a character read (the select screen, the title's rooftop); playing a character puts the bag back.
         /// </summary>
         public List<string> Wearing = new List<string>();
+
+        /// <summary>
+        /// EVERYTHING CARRIED (docs/SERVER_SAVING.md, step 3): the storage slots and every equipped slot (clothes, back, both weapon slots and a
+        /// pair's left-hand pistols, the shield), each with its state, as the server last took it. Kept from <see cref="BagVersion"/> 1; a save
+        /// from before has only <see cref="Wearing"/> and <see cref="PrimaryWeapon"/>, put back as they always were until its first save.
+        /// </summary>
+        public List<BagEntry> Bag = new List<BagEntry>();
+
+        /// <summary>0: the bag was never saved (a save from before, or a character never played). <see cref="CurrentBagVersion"/>: <see cref="Bag"/> is the bag.</summary>
+        public int BagVersion;
+
+        public const int CurrentBagVersion = 1;
+
+        /// <summary>The weapon slot that was in hand (EquipSlots' primary or secondary key).</summary>
+        public string WeaponInHand = "";
 
         /// <summary>
         /// The id of the weapon in the primary slot, or empty: put back in the hands on the next play, and what the character holds on the title
@@ -293,6 +309,12 @@ namespace CityX.Core
             if (Wearing == null)
             {
                 Wearing = new List<string>();
+                changed = true;
+            }
+
+            if (Bag == null)
+            {
+                Bag = new List<BagEntry>();
                 changed = true;
             }
 

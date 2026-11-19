@@ -95,10 +95,35 @@ console edit passes for an admin only), `CharacterServerPlayTests` (a made-up le
 taken).
 
 Not yet: XP from kills is still the player's copy's word, within the speed limit, until enemies run on the server (GAME_DESIGN,
-Technical foundations 3); the bag is not saved at all, so items are not checked; a refused player keeps playing with their own numbers
+Technical foundations 3); the bag was not saved at all until step 3 (below); a refused player keeps playing with their own numbers
 until they next load the character (the server's copy); a dedicated server has no `CharacterServer` yet.
 
 ## Status
 
 - Step 1 done: storage, rules, admin list, move-in, the local and network paths, the character screen, in-game saving, the console's admin check.
 - Step 2 done as far as it can go before enemies run on the server (above).
+
+## Step 3: the bag (2026-11-19)
+
+Owner, 2026-11-19: "ok do server side saving next". Steps 1 and 2 were done; what was missing was the **bag**: a character kept only the
+clothes it wore and its primary weapon (`Wearing`, `PrimaryWeapon`), so storage, the secondary weapon, a pair of pistols, the shield and every
+gun's rounds were lost when the game closed.
+
+### 3a: the whole bag is saved on the server
+
+- `CharacterSave.Bag` (`BagEntry`, Core): every storage slot that holds something (its index, the item, how many) and every equipped slot
+  (clothes, back, both weapon slots and a pair's left-hand pistols, the shield), each with its state (a gun's magazine and spare rounds, a
+  bottle's cracks, a can's litres). `WeaponInHand` is the weapon slot that was in hand. `BagVersion` 1 marks a save that has a bag.
+- Saving (`CharacterIdentity.Write`, every 30 s, when what is worn changes, and on quit) writes the bag (`Inventory.ToBag`), only once the
+  saved bag is on the body (never an empty body's hands over what the character carries). The server keeps it (`CharacterService.Save`); a
+  save from a copy of the game from before (no bag) leaves the kept one alone.
+- Playing a character puts it all back (`Inventory.FromBag` through `CharacterIdentity.PutOnBag`): the body emptied, the storage slots as
+  they were, the clothes on, each weapon put away in its own slot with its rounds, the one that was in hand drawn with its pair. A thing the
+  game does not know is left out; one that cannot be where the bag says (a shirt in a weapon slot, a rifle beside a pistol, a storage slot
+  named twice) goes into storage.
+- A character from before (no bag yet, and every new character) is dressed as before from `Wearing` and `PrimaryWeapon` until its first
+  save. The title's rooftop still shows only the clothes and the primary weapon (`PutOnClothes`).
+
+Tests: `BagSaveTests` (EditMode: the round trip, a bag replaces what the body had, junk, the server's file and an older copy of the game),
+`BagSavePlayTests` (a real body gets its bag back, the AK-47 in hand with its rounds, the pistols holstered as a pair, and saves what it
+carries after a shot).

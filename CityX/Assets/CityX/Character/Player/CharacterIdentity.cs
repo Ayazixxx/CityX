@@ -118,11 +118,34 @@ namespace CityX.Character
                 return;
             }
             _dressed = true;
-            PutOnClothes(_character);
+            PutOnBag(_character);
             _inventory.EquipmentChanged += SaveWhatIsWorn;
         }
 
-        /// <summary>Puts each piece of <paramref name="character"/>'s saved clothing on this body, and its primary weapon in its hands. Public so a test can drive it.</summary>
+        /// <summary>
+        /// Everything <paramref name="character"/> carried back on this body, as the server last took it (docs/SERVER_SAVING.md, step 3), or, for a
+        /// save from before the bag was kept, its clothes and primary weapon (<see cref="PutOnClothes"/>). Public so a test can drive it.
+        /// </summary>
+        public void PutOnBag(CharacterSave character)
+        {
+            if (_inventory == null)
+            {
+                _inventory = GetComponent<Inventory>();
+            }
+            if (_inventory != null && character != null && character.BagVersion >= CharacterSave.CurrentBagVersion)
+            {
+                _inventory.FromBag(character.Bag, character.WeaponInHand, gameObject);
+            }
+            else
+            {
+                PutOnClothes(character);
+            }
+        }
+
+        /// <summary>
+        /// Puts each piece of <paramref name="character"/>'s saved clothing on this body, and its primary weapon in its hands: all a body that only
+        /// shows a character wears (the title's rooftop). Public so a test can drive it.
+        /// </summary>
         public void PutOnClothes(CharacterSave character)
         {
             if (_inventory == null)
@@ -335,10 +358,14 @@ namespace CityX.Character
                 CharacterStats.Save(_vitals, _character);
                 _character.SkillPoints = _vitals.SkillPoints;
             }
-            if (_inventory != null)
+            // Only once the saved bag is on the body (Dress): before, the body's empty hands would be written over what the character carries.
+            if (_inventory != null && _dressed)
             {
                 _character.Wearing = _inventory.WornClothingIds();
                 _character.PrimaryWeapon = _inventory.EquippedItemId(Inventory.PrimarySlot);
+                _character.Bag = _inventory.ToBag();
+                _character.BagVersion = CharacterSave.CurrentBagVersion;
+                _character.WeaponInHand = _inventory.ActiveWeaponSlot;
             }
             PlayerSkills skills = GetComponent<PlayerSkills>();
             if (skills != null)

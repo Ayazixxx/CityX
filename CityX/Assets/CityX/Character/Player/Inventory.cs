@@ -11,7 +11,7 @@ namespace CityX.Character
     /// console (/equip, /unequip) for this pass; the real panel is a later
     /// pass, same as it was in the Godot original's own history.
     /// </summary>
-    public sealed class Inventory : MonoBehaviour
+    public sealed partial class Inventory : MonoBehaviour
     {
         public const int StorageSlotCount = 20;
 
