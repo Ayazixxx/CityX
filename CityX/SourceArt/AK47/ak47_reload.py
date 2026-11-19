@@ -60,9 +60,10 @@ def hand_on_mag(rock, drop):
     m = mag(rock, drop)
     return dict(hand_holding(LUG + Vector(m["pos"]), m["rot"], MAG_IN_HAND), pole=(-0.8, -1.0, 0.1))
 
-
-# The support hand under the handguard: the palm up, the fingers curled up its right side, the thumb along its left.
-ON_HANDGUARD = {"at": tuple(SUPPORT_LOCAL + Vector((-0.085, -0.055, -0.03))), "fingers": (0.75, 0.55, 0.1), "palm": (0.35, 0.9, 0.0),
+# The support hand under the handguard, as a soldier holds an AK (owner, 2026-11-19, with photos): palm up, the hand nearly flat across the
+# underside, the knuckles in a row along its lower right edge, the fingers curled up its right side and the thumb swung out along its left.
+# The game's FirearmProfile.AK47 hold: the same wrist, fingers and palm, so a reload starts and ends where the hold is.
+ON_HANDGUARD = {"at": tuple(SUPPORT_LOCAL + Vector((-0.0866, -0.0451, 0.0067))), "fingers": (0.95, 0.15, 0.1), "palm": (0.15, 1.0, 0.0),
                 "space": "gun", "pole": (-0.7, -1.0, -0.1)}
 # The thumb on the paddle release behind the well, the fingers round the magazine's front.
 ON_RELEASE = hand_on_mag(0.0, 0.0)
@@ -77,7 +78,7 @@ def at_handle(back):
     return h
 
 
-RIFLE_GRIP_L = fingers(0.75, 0.8, 0.8, 0.75, 1.0)
+RIFLE_GRIP_L = fingers(0.75, 0.8, 0.8, 0.75, 1.0, thumb_forward=-50.0)   # the game's FingerAmounts.ForendCradle
 CUP = fingers(0.55, 0.75, 0.8, 0.8, 0.6, thumb_forward=15.0)
 FLAT = fingers(0.05, 0.05, 0.05, 0.05, 0.1)
 READY = spec(READY_GUN, ON_HANDGUARD, RIFLE_GRIP_L, props(mag()))

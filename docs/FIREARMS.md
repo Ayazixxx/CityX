@@ -307,3 +307,13 @@ Its own page: [SHOTGUN.md](SHOTGUN.md). What it added to the shared gun: a profi
 it), and load a tube a shell at a time (`GunReload`'s shell stages: a reload can now be several named pieces strung together,
 `GunReloadDriver.Begin(GunReload.Stage)`). The rifle stance the reload scripts share moved to `SourceArt/Firearms/firearm_rifle_stance.py`
 (the AK-47's bake is unchanged, byte for byte).
+
+## Update 2026-11-19: the AK-47's left hand cradles the handguard
+
+Owner, with photos of soldiers holding AKs and a Counter-Strike screenshot: "the left hand is clipping through. fix that ... something like this
+(fix the left hand only right looks fine)". The support hand went through the sword's two-handed wrap, which stood it up as if round a vertical
+handle, its fingers through the handguard. It now has the shotgun's cradle (`FirearmProfile.CradleFingersLocal`, docs/SHOTGUN.md) fitted to the
+AK's lower handguard: palm up under it, the knuckles along its lower right edge, the fingers up its right side, the thumb along its left
+(`FingerAmounts.ForendCradle`). The reload's hand on the handguard (`ak47_reload.py`, `ON_HANDGUARD`) is the same, rebaked; the reload's timing
+is unchanged. The right hand is untouched. `FirearmPlayTests.TheAK47sLeftHandCradlesTheHandguardPalmUpWithNoFingerThroughIt` holds every joint
+of the hand a finger's thickness out of the handguard, carried and aimed.

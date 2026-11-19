@@ -327,7 +327,12 @@ namespace CityX.Weapons
                 ReloadSeconds = 2.17f,
                 EmptyReloadSeconds = 2.8f,
                 WorldPickupScale = 1.0f,
-                SupportHandLocal = new Vector3(-0.025f, -0.035f, 0.435f),
+                // Cradled as a soldier holds an AK (owner, 2026-11-19, with photos: "the left hand is clipping through ... something like this"): palm
+                // up under the lower handguard, the fingers up its right side, the thumb along its left; the shotgun's hold, fitted to this handguard
+                // (ak47_reload.py, ON_HANDGUARD, the same). Measured joint by joint: FirearmPlayTests.TheAK47sLeftHandCradlesTheHandguard...
+                SupportHandLocal = new Vector3(-0.008f, -0.024f, 0.45f),
+                CradleFingersLocal = new Vector3(0.95f, 0.15f, 0.1f),
+                CradlePalmLocal = new Vector3(0.15f, 1.0f, 0.0f),
                 SupportHandOnlyWhenAiming = false,
                 MuzzleLocal = new Vector3(0.0f, 0.0522f, 0.896f),
                 EjectionPortLocal = new Vector3(0.0232f, 0.058f, 0.171f),

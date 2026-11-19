@@ -610,12 +610,17 @@ MonoBehaviour:
     EmptyReloadSeconds: 2.8
     ReloadSound: {fileID: 8300000, guid: 11eb4400a27dcec4abc0174d39380986, type: 3}
     EmptyReloadSound: {fileID: 8300000, guid: cf2f22868aad0764894107ed947f1a0a, type: 3}
+    RackSound: {fileID: 0}
+    RackSoundBackAt: 0
+    ShellSound: {fileID: 0}
     HoldPosition: {x: 0.1, y: -0.01, z: 0.095}
     HoldDipDegrees: 15
     HoldScale: 1
     WorldPickupScale: 1
-    SupportHandLocal: {x: -0.025, y: -0.035, z: 0.435}
+    SupportHandLocal: {x: -0.008, y: -0.024, z: 0.45}
     SupportHandOnlyWhenAiming: 0
+    CradleFingersLocal: {x: 0.95, y: 0.15, z: 0.1}
+    CradlePalmLocal: {x: 0.15, y: 1, z: 0}
     MuzzleLocal: {x: 0, y: 0.0522, z: 0.896}
     EjectionPortLocal: {x: 0.0232, y: 0.058, z: 0.171}
     EjectionDirectionLocal: {x: 1, y: 0.55, z: 0.3}
@@ -644,7 +649,7 @@ MonoBehaviour:
     ShellStartSeconds: 0.4
     ShellSeconds: 0.567
     ShellEndSeconds: 0.4
-    ShellEndEmptySeconds: 0.667
+    ShellEndEmptySeconds: 0.8
   VisualRoot: {fileID: 2698384325248316890}
   ActionPart: {fileID: 1131284002967886947}
   MagazinePart: {fileID: 9198180018523448700}

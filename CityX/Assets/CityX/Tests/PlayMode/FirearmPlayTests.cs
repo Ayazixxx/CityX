@@ -204,6 +204,51 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Owner, 2026-11-19, with photos of soldiers holding AKs: "the left hand is clipping through. fix that ... something like this (fix the left
+        /// hand only right looks fine)". The left hand cradles the lower handguard: palm up under it, the wrist below it, every joint of the hand a
+        /// finger's thickness out of it, none over the top of the gun. Carried and aimed.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheAK47sLeftHandCradlesTheHandguardPalmUpWithNoFingerThroughIt([Values(false, true)] bool aiming)
+        {
+#if UNITY_EDITOR
+            yield return World();
+            GameObject player = Player(new Vector3(0, 0.05f, 0));
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            PistolWeapon gun = Gun("Assets/CityX/Weapons/AK47.prefab");
+            gun.OnEquip(player, CityX.Items.ItemInstanceData.None);
+            yield return Frames(locomotion, 0.8f, new LocomotionInput { GunEquipped = true, Aiming = aiming });
+            Animator animator = player.GetComponentInChildren<Animator>();
+            Transform hand = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            Transform gunFrame = gun.transform;
+            Vector3 palmFaces = gunFrame.InverseTransformDirection(-hand.up);
+            TestContext.WriteLine($"aiming {aiming}: palm faces {palmFaces.ToString("0.00")}, wrist at {gunFrame.InverseTransformPoint(hand.position).ToString("0.000")}");
+            Assert.Greater(palmFaces.y, 0.7f, "the palm is not turned up under the handguard");
+
+            // The lower handguard (ak47_model.py: 46 to 52 mm thick round the barrel, times 1.45), and the gun's top over it (the upper handguard).
+            const float halfWidth = 0.0334f, bottom = 0.0073f, top = 0.0827f, front = 0.587f, back = 0.370f, gunTop = 0.109f;
+            const float fingerRadius = 0.012f;
+            Assert.Less(gunFrame.InverseTransformPoint(hand.position).y, bottom, "the wrist is not below the handguard");
+            var handguard = new Bounds(new Vector3(0.0f, (bottom + top) * 0.5f, (front + back) * 0.5f), new Vector3(2.0f * halfWidth, top - bottom, front - back));
+            handguard.Expand(2.0f * fingerRadius);
+            var through = new List<string>();
+            foreach (Transform joint in hand.GetComponentsInChildren<Transform>())
+            {
+                Vector3 local = gunFrame.InverseTransformPoint(joint.position);
+                TestContext.WriteLine($"  {joint.name,-28} {local.ToString("0.000")}");
+                bool overTheTop = local.y > gunTop && Mathf.Abs(local.x) < 0.03f && local.z > back && local.z < front;
+                if (handguard.Contains(local) || overTheTop)
+                {
+                    through.Add($"{joint.name} at {local.ToString("0.000")}");
+                }
+            }
+            Assert.IsEmpty(through, "the left hand goes into the handguard or over the top of the gun");
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator TheAK47IsShoulderedAndItsBarrelIsOnTheCrosshairsPoint()
         {
