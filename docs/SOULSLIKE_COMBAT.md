@@ -308,6 +308,14 @@ have one, scaled to this game's 130-point stamina bar.
   heavy outright and it takes three lights to stop one). Outside hyper-armour every
   blow staggers, and a blow that carries no poise damage (a punch, a bullet, a claw)
   staggers through anything. `PlayerVitals.Poise/HyperArmour/TakePoise`.
+* **No stun-lock (2026-11-18).** Four staggers in a row (each blow landing before
+  the last one's stun has worn off, plus 0.35s) and the body shrugs off staggers
+  until 1.0s past the end of that last stun: the blows still land and hurt, they
+  just do not hold it (`StaggerChain`, every body, the player too). A three-hit
+  chain is untouched. Found by the combat playtest bot (below): the bat, the
+  sledgehammer, the boomerang and the fists staggered on every hit (8 of 8, 20 of
+  20) and the enemy hardly ever swung back; with the rule it swings back about
+  twice as often against the bat and the sledgehammer.
 * **The parry.** The guard's **first 0.2s** (`PerfectGuardSeconds`) is a perfect
   window: a blow caught then does no damage, costs no stamina, snaps the guard
   forward (`sword_parry`, replicated) and leaves the **attacker staggered for 0.9s**

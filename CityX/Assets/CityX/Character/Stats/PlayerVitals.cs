@@ -240,6 +240,9 @@ namespace CityX.Character
         private float _poiseRegenDelay;
         private float _pendingPoise = -1.0f;
 
+        /// <summary>Staggers taken in a row, and whether blows are being shrugged off now (no stun-lock).</summary>
+        public StaggerChain StaggerChain { get; } = new StaggerChain();
+
         /// <summary>The poise damage of the NEXT blow to land (an attack says it just before the hit). A blow that never says has none: it staggers as any blow did.</summary>
         public void TakePoise(float damage)
         {
@@ -816,6 +819,12 @@ namespace CityX.Character
                 staggers = false;
             }
 
+            // NO STUN-LOCK: four staggers in a row and the next blows land without holding the body (StaggerChain).
+            if (!blocked && staggers && hitstunSeconds > 0.0f && !StaggerChain.TryStagger(Time.time, hitstunSeconds))
+            {
+                staggers = false;
+            }
+
             // A BLOCKED HIT DOES NOT STUN THE DEFENDER. Eating the hitstun as
             // well as a quarter of the damage would make blocking a worse dodge
             // rather than a punish -- and the punish is the whole point of
@@ -989,6 +998,7 @@ namespace CityX.Character
             HyperArmour = false;
             PerfectGuardRemaining = 0.0f;
             _pendingPoise = -1.0f;
+            StaggerChain.Reset();
             Revived?.Invoke();
         }
 
