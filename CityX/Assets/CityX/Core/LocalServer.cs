@@ -38,5 +38,27 @@ namespace CityX.Core
         }
 
         public static bool IsAdmin(string playerKey) => Database.LoadAdmins().Includes(playerKey);
+
+        // Which character each connection to this server plays (its id as the network knows it -> the character's id): set when the
+        // connection asks to play one (CharacterServer), dropped when it leaves.
+        private static readonly System.Collections.Generic.Dictionary<int, string> Playing = new System.Collections.Generic.Dictionary<int, string>();
+
+        /// <summary>Connection <paramref name="clientId"/> now plays <paramref name="characterId"/>.</summary>
+        public static void Plays(int clientId, string characterId) => Playing[clientId] = characterId;
+
+        /// <summary>Connection <paramref name="clientId"/> left.</summary>
+        public static void Left(int clientId) => Playing.Remove(clientId);
+
+        /// <summary>
+        /// This server gave the player on connection <paramref name="clientId"/> one <paramref name="itemId"/> (a dropped item, a fallen enemy's
+        /// gear: docs/SERVER_SAVING.md, step 3b). Nothing for a connection playing no character here (this machine's own player's bag is its own).
+        /// </summary>
+        public static void HandTo(int clientId, string itemId)
+        {
+            if (Playing.TryGetValue(clientId, out string characterId))
+            {
+                Characters.Hand(characterId, itemId);
+            }
+        }
     }
 }

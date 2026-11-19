@@ -1,3 +1,4 @@
+using CityX.Core;
 using CityX.Items;
 using UnityEngine;
 
@@ -43,6 +44,12 @@ namespace CityX.Character
                 return false;
             }
             Object.Destroy(model);
+            // A thing lying only on this machine (put there by the console, or the tutorial house's): no server saw it given. An admin's next
+            // save says so, so a server on another machine lets it into the bag (docs/SERVER_SAVING.md, step 3b); anyone else's is theirs alone.
+            if (PlaySession.IsAdmin)
+            {
+                PlaySession.AdminEdited = true;
+            }
             return true;
         }
     }

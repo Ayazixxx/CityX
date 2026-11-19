@@ -21,6 +21,7 @@ namespace CityX.Net
         {
             _manager = GetComponent<NetworkManager>();
             _manager.ServerManager.OnServerConnectionState += OnServerState;
+            _manager.ServerManager.OnRemoteConnectionState += OnRemoteState;
         }
 
         private void OnDestroy()
@@ -28,6 +29,7 @@ namespace CityX.Net
             if (_manager != null)
             {
                 _manager.ServerManager.OnServerConnectionState -= OnServerState;
+                _manager.ServerManager.OnRemoteConnectionState -= OnRemoteState;
                 StopListening();
             }
         }
@@ -42,6 +44,15 @@ namespace CityX.Net
             else if (args.ConnectionState == LocalConnectionState.Stopped)
             {
                 StopListening();
+            }
+        }
+
+        /// <summary>A player gone: nothing this server hands out goes into their character any more.</summary>
+        private void OnRemoteState(NetworkConnection connection, RemoteConnectionStateArgs args)
+        {
+            if (args.ConnectionState == RemoteConnectionState.Stopped)
+            {
+                LocalServer.Left(connection.ClientId);
             }
         }
 
@@ -79,12 +90,17 @@ namespace CityX.Net
                     break;
                 case CharacterRequest.Play:
                     CharacterSave served = characters.Play(request.PlayerKey, request.Payload);
+                    if (served != null)
+                    {
+                        LocalServer.Plays(connection.ClientId, served.Id);   // what this server hands this connection is this character's (step 3b)
+                    }
                     reply.Ok = served != null;
                     reply.Payload = served != null ? JsonUtility.ToJson(served) : null;
                     reply.IsAdmin = LocalServer.IsAdmin(request.PlayerKey);
                     break;
                 case CharacterRequest.Save:
-                    characters.Save(request.PlayerKey, Parse(request.Payload), request.AdminEdited);
+                    // From another machine: its bag holds only what it had and what this server handed it (step 3b).
+                    characters.Save(request.PlayerKey, Parse(request.Payload), request.AdminEdited, fromAfar: !connection.IsLocalClient);
                     return;   // saving needs no answer
                 default:
                     return;

@@ -255,6 +255,7 @@ namespace CityX.Character
             }
             _lying.Remove(request.Id);
             _order.Remove(request.Id);
+            CityX.Core.LocalServer.HandTo(sender.ClientId, drop.ItemId);   // theirs now: their next saves may carry it (docs/SERVER_SAVING.md, step 3b)
             Session.ServerManager.Broadcast(new ItemTakenMessage { Id = request.Id, TakerClientId = sender.ClientId });
         }
 

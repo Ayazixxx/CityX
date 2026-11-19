@@ -28,6 +28,12 @@ namespace CityX.Core
         /// <summary>How a save's progress is judged; installed by the Character assembly as the game loads. Null: progress is taken as sent.</summary>
         public static IProgressRules Rules;
 
+        /// <summary>How a far player's bag is judged (step 3b); installed by the Character assembly as the game loads. Null: the bag is taken as sent.</summary>
+        public static IBagRules BagRules;
+
+        /// <summary>What this server has handed each character since its last save (a dropped item picked up, a fallen enemy's gear): see <see cref="Hand"/>.</summary>
+        private readonly ItemsHanded _handed = new ItemsHanded();
+
         private readonly CharacterDatabase _database;
         private readonly Func<double> _clock;
         private readonly Dictionary<string, double> _lastAccepted = new Dictionary<string, double>();
@@ -97,9 +103,12 @@ namespace CityX.Core
         /// Saves a character being played over its stored copy. Its look (the in-game redraw changes it), clothes, weapon in hand and hotbar are always
         /// taken. Its progress (level, XP, points, stats, skills) is taken when it adds up against the last save accepted (<see cref="Rules"/>),
         /// or when <paramref name="adminEdited"/> and the player is an admin (the console sets levels and points outright). Its id, name and
-        /// when it was made stay the server's. True when everything was taken; false when it is not the player's or its progress was refused.
+        /// when it was made stay the server's. Its bag is taken as sent from this machine's own player; from a player on this server from
+        /// another machine (<paramref name="fromAfar"/>) only what it held before and what this server has handed it since (<see cref="BagRules"/>,
+        /// step 3b), unless it is an admin's console edit. True when everything was taken; false when it is not the player's or its progress was
+        /// refused.
         /// </summary>
-        public bool Save(string playerKey, CharacterSave reported, bool adminEdited = false)
+        public bool Save(string playerKey, CharacterSave reported, bool adminEdited = false, bool fromAfar = false)
         {
             CharacterFile file = _database.For(playerKey);
             CharacterSave stored = file != null && reported != null ? Find(file, reported.Id) : null;
@@ -117,7 +126,7 @@ namespace CityX.Core
             stored.PrimaryWeapon = reported.PrimaryWeapon;
             if (reported.BagVersion >= CharacterSave.CurrentBagVersion)
             {
-                stored.Bag = reported.Bag;
+                stored.Bag = fromAfar && !trusted && BagRules != null ? Judged(stored, reported.Bag, now) : reported.Bag;
                 stored.BagVersion = reported.BagVersion;
                 stored.WeaponInHand = reported.WeaponInHand;
             }
@@ -146,6 +155,59 @@ namespace CityX.Core
             }
             stored.Repair();
             return file.Update(stored) && refusal == null;
+        }
+
+        /// <summary>
+        /// This server gave <paramref name="characterId"/> one <paramref name="itemId"/> (it decided between the players: a dropped item picked
+        /// up, a piece of a fallen enemy's gear taken), so the next saves may show it.
+        /// </summary>
+        public void Hand(string characterId, string itemId, int count = 1) => _handed.Hand(characterId, itemId, count, _clock());
+
+        /// <summary>
+        /// A far player's bag as the rules let it be: no more of anything than the bag held before and what was handed since. What a kept save
+        /// shows more of uses that many handed ones up.
+        /// </summary>
+        private List<BagEntry> Judged(CharacterSave stored, List<BagEntry> reported, double now)
+        {
+            List<BagEntry> before = stored.BagVersion >= CharacterSave.CurrentBagVersion ? stored.Bag : BagFromBefore(stored);
+            var takenOut = new List<string>();
+            List<BagEntry> kept = BagRules.Keep(before ?? new List<BagEntry>(), reported ?? new List<BagEntry>(), id => _handed.Count(stored.Id, id, now), takenOut);
+            if (takenOut.Count > 0)
+            {
+                UnityEngine.Debug.LogWarning($"CityX server: took out of {stored.Name}'s bag what it never got here: {string.Join(", ", takenOut)}.");
+            }
+            var counts = new Dictionary<string, int>();
+            foreach (BagEntry entry in before ?? new List<BagEntry>())
+            {
+                counts[entry.ItemId] = (counts.TryGetValue(entry.ItemId, out int n) ? n : 0) - System.Math.Max(1, entry.Count);
+            }
+            foreach (BagEntry entry in kept)
+            {
+                counts[entry.ItemId] = (counts.TryGetValue(entry.ItemId, out int n) ? n : 0) + System.Math.Max(1, entry.Count);
+            }
+            foreach (KeyValuePair<string, int> more in counts)
+            {
+                if (more.Value > 0)
+                {
+                    _handed.UseUp(stored.Id, more.Key, more.Value, now);
+                }
+            }
+            return kept;
+        }
+
+        /// <summary>What a character from before the bag was kept carried, as far as its save said: its clothes and its primary weapon.</summary>
+        private static List<BagEntry> BagFromBefore(CharacterSave stored)
+        {
+            var bag = new List<BagEntry>();
+            foreach (string itemId in stored.Wearing ?? new List<string>())
+            {
+                bag.Add(new BagEntry { Slot = "worn", ItemId = itemId });
+            }
+            if (!string.IsNullOrEmpty(stored.PrimaryWeapon))
+            {
+                bag.Add(new BagEntry { Slot = "worn", ItemId = stored.PrimaryWeapon });
+            }
+            return bag;
         }
 
         private static void CopyLook(CharacterSave from, CharacterSave to)

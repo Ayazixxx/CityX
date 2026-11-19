@@ -102,6 +102,7 @@ until they next load the character (the server's copy); a dedicated server has n
 
 - Step 1 done: storage, rules, admin list, move-in, the local and network paths, the character screen, in-game saving, the console's admin check.
 - Step 2 done as far as it can go before enemies run on the server (above).
+- Step 3 done (2026-11-19): the whole bag saved with the character (3a), and a far player's bag checked against what the server handed them (3b): below.
 
 ## Step 3: the bag (2026-11-19)
 
@@ -127,3 +128,32 @@ gun's rounds were lost when the game closed.
 Tests: `BagSaveTests` (EditMode: the round trip, a bag replaces what the body had, junk, the server's file and an older copy of the game),
 `BagSavePlayTests` (a real body gets its bag back, the AK-47 in hand with its rounds, the pistols holstered as a pair, and saves what it
 carries after a shot).
+
+### 3b: the server checks a far player's bag
+
+A player on someone else's server could report any bag at all (an AK-47 from nowhere, ninety grenades). Now the server keeps of a bag
+saved from another machine only what can be carried and what that player can have got:
+
+- **What it saw them get.** The server records every item it decides between players and hands one of them (`ItemsHanded`, through
+  `LocalServer.HandTo` and `CharacterService.Hand`): a dropped item picked up (`DroppedItemsNetwork.OnTakeAtServer`) and a piece of a fallen
+  enemy's gear taken (`NetworkedCorpseLoot`). It knows which character a connection plays from its play request (`CharacterServer`:
+  `LocalServer.Plays`, forgotten when the connection leaves).
+- **The rule** (`BagRules`, installed as `CharacterService.BagRules`): of each item, no more than the bag the server kept held plus what it
+  handed since. A thing from nowhere is taken out and a stack grown from nowhere cut back; the server logs what it took out. A save that
+  shows a handed item uses it up; one never shown (picked up and dropped again before a save) is forgotten after 150 s.
+  Fewer things is always fine (thrown, broken, dropped, used up).
+- **What can be carried**: a thing the game has, a stack no bigger than the item stacks, each storage slot and equipped slot used once, a
+  weapon in a weapon slot, a pistol beside a pistol, clothes where they are worn, and no more rounds or litres than any item holds.
+- **Not judged:** this machine's own player's bag (singleplayer, and the host's own character: the player owns that machine and its files
+  anyway), and a save marked as an admin's console edit from a player on the admin list (`/equip`, and an admin picking up something lying only
+  on their own machine, such as a `/spawn`ed item, mark the next save).
+- **While everyone is an admin** (`admins.json` says `EveryoneIsAdmin: true`, as it does until the owner locks it down) a console edit passes
+  for anyone, so the check bites once the admin list is set.
+
+Not yet: rounds are judged only against what any gun can hold (there is no ammo to pick up yet, so a gun's rounds cannot be counted against
+where they came from); the tutorial house's drawers and weapons are this machine's own (it is played alone, on the player's own server); a
+player whose things were taken out keeps playing with them until they next load the character, as with refused progress.
+
+Tests: `BagRulesTests` (the ledger, the rules, the server: a far player's AK-47 from nowhere taken out and a handed one kept once, an admin's
+edit, this machine's own player), `CharacterServerPlayTests` (over real sockets: an AK-47 the server never handed is taken out, one it handed is
+kept).

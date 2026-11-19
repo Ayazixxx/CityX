@@ -129,6 +129,21 @@ namespace CityX.Tests
             yield return WaitUntil(() => LocalServer.Characters.Play(PlayerKey.Local, made.Id).HairStyle == "hyde", "the second save to arrive");
             Assert.AreEqual(1, LocalServer.Characters.Play(PlayerKey.Local, made.Id).Level, "the server took a made-up level");
 
+            // The bag (step 3b): an AK-47 from nowhere is taken out; once the server hands this player one (a dropped item picked up), it is kept.
+            Assert.IsNotNull(CharacterService.BagRules, "the server's bag rules were not installed as the game loaded");
+            served.BagVersion = CharacterSave.CurrentBagVersion;
+            served.Bag = new List<BagEntry> { new BagEntry { Slot = CityX.Items.EquipSlots.Primary, ItemId = CityX.Items.ItemRegistry.AK47 } };
+            served.HairStyle = "none";
+            _remote.Save(served, adminEdited: false);
+            yield return WaitUntil(() => LocalServer.Characters.Play(PlayerKey.Local, made.Id).HairStyle == "none", "the bag's first save to arrive");
+            Assert.IsEmpty(LocalServer.Characters.Play(PlayerKey.Local, made.Id).Bag, "the server kept an AK-47 it never handed out");
+            int joiner = new List<int>(server.ServerManager.Clients.Keys)[0];
+            LocalServer.HandTo(joiner, CityX.Items.ItemRegistry.AK47);
+            served.HairStyle = "hyde";
+            _remote.Save(served, adminEdited: false);
+            yield return WaitUntil(() => LocalServer.Characters.Play(PlayerKey.Local, made.Id).HairStyle == "hyde", "the bag's second save to arrive");
+            Assert.AreEqual(1, LocalServer.Characters.Play(PlayerKey.Local, made.Id).Bag.Count, "the AK-47 the server handed this player was taken out");
+
             bool deleted = false;
             answered = false;
             _remote.Delete(made.Id, ok => { deleted = ok; answered = true; });

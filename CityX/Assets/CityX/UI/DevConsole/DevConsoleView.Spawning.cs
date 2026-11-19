@@ -555,6 +555,7 @@ namespace CityX.UI
                 return;
             }
 
+            PlaySession.AdminEdited = true;   // made by the console: the next save says so, so a server lets it into the bag (docs/SERVER_SAVING.md, step 3b)
             Log("equipped " + which);
         }
 

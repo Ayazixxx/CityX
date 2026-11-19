@@ -56,6 +56,7 @@ namespace CityX.Character
                 return;
             }
             _taken.Add(itemId);
+            CityX.Core.LocalServer.HandTo(sender.ClientId, itemId);   // theirs now: their next saves may carry it (docs/SERVER_SAVING.md, step 3b)
             BroadcastTaken(_taken.ToArray(), itemId, sender.ClientId);
         }
 
