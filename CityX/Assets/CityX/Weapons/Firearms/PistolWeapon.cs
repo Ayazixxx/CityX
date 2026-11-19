@@ -473,7 +473,7 @@ namespace CityX.Weapons
             }
         }
 
-        public FingerAmounts SupportHandGrip => Profile.IsRifle ? FingerAmounts.RifleSupport : FingerAmounts.PistolSupport;
+        public FingerAmounts SupportHandGrip => Profile.CradlesForend ? FingerAmounts.ForendCradle : Profile.IsRifle ? FingerAmounts.RifleSupport : FingerAmounts.PistolSupport;
 
         // ---- pickup ----
 

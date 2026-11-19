@@ -96,6 +96,12 @@ namespace CityX.Character
         /// <summary>The support hand under a rifle's handguard: fingers wrapped under it, the thumb over the top.</summary>
         public static FingerAmounts RifleSupport => new FingerAmounts(0.75f, 0.8f, 0.8f, 0.75f, 1.0f);
 
+        /// <summary>
+        /// The support hand cradling a shotgun's forend (FirearmProfile.CradlesForend): the fingers curled up its far side as under a handguard, the thumb
+        /// swung out along its near side (as a rifle's thumb curls, its tip went into the forend). The reload's too (shotgun_reload.py: FOREND_GRIP).
+        /// </summary>
+        public static FingerAmounts ForendCradle => new FingerAmounts(0.75f, 0.8f, 0.8f, 0.75f, 1.0f, -50.0f);
+
         public static FingerAmounts Lerp(in FingerAmounts a, in FingerAmounts b, float t)
         {
             t = Mathf.Clamp01(t);

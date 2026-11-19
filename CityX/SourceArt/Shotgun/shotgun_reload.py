@@ -62,12 +62,13 @@ def hand_with_shell(offset):
 
 
 def on_forend(back=0.0):
-    """The support hand under the forend, wherever the pump has it: the palm up, the fingers curled up its right side."""
-    at = SUPPORT_LOCAL + Vector((-0.085, -0.055, -0.03 - PUMP_TRAVEL * back))
-    return {"at": tuple(at), "fingers": (0.75, 0.55, 0.1), "palm": (0.35, 0.9, 0.0), "space": "gun", "pole": (-0.7, -1.0, -0.1)}
+    """The support hand under the forend, wherever the pump has it: the palm up, the hand nearly flat across its underside, the knuckles in a row
+    along its lower right edge and the fingers curled up its right side (the game's FirearmProfile.Shotgun hold: the same wrist, fingers and palm)."""
+    at = SUPPORT_LOCAL + Vector((-0.077, -0.0432, -0.0525 - PUMP_TRAVEL * back))
+    return {"at": tuple(at), "fingers": (0.95, 0.15, 0.1), "palm": (0.15, 1.0, 0.0), "space": "gun", "pole": (-0.7, -1.0, -0.1)}
 
 
-FOREND_GRIP = fingers(0.75, 0.8, 0.8, 0.75, 1.0)
+FOREND_GRIP = fingers(0.75, 0.8, 0.8, 0.75, 1.0, thumb_forward=-50.0)   # the game's FingerAmounts.ForendCradle
 PINCH = fingers(0.45, 0.5, 0.55, 0.6, 0.75, thumb_forward=10.0)      # round a shell
 THUMBED = fingers(0.5, 0.55, 0.6, 0.65, 0.2, thumb_forward=35.0)     # the thumb pushed through behind it
 FLAT = fingers(0.05, 0.05, 0.05, 0.05, 0.1)

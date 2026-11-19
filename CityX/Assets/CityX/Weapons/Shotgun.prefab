@@ -363,10 +363,10 @@ MonoBehaviour:
     HoldDipDegrees: 15
     HoldScale: 1
     WorldPickupScale: 1
-    SupportHandLocal: {x: -0.0209, y: -0.0138, z: 0.4861}
+    SupportHandLocal: {x: 0.0016, y: -0.0366, z: 0.4632}
     SupportHandOnlyWhenAiming: 0
-    CradleFingersLocal: {x: 0.75, y: 0.55, z: 0.1}
-    CradlePalmLocal: {x: 0.35, y: 0.9, z: 0}
+    CradleFingersLocal: {x: 0.95, y: 0.15, z: 0.1}
+    CradlePalmLocal: {x: 0.15, y: 1, z: 0}
     MuzzleLocal: {x: 0, y: 0.06815, z: 0.94975}
     EjectionPortLocal: {x: 0.0254, y: 0.0638, z: 0.1523}
     EjectionDirectionLocal: {x: 1, y: 0.5, z: -0.1}

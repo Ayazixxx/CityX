@@ -19,6 +19,9 @@ namespace CityX.Tests
     {
         private const float Dt = 1.0f / 60.0f;
         private const string PrefabPath = "Assets/CityX/Weapons/Shotgun.prefab";
+
+        /// <summary>A finger's half-thickness on this 2.6 m body, metres: a finger bone's line is this far inside its skin.</summary>
+        private const float FingerRadius = 0.012f;
         private readonly List<GameObject> _spawned = new List<GameObject>();
 
         private sealed class Dummy : MonoBehaviour, IDamageable
@@ -155,6 +158,23 @@ namespace CityX.Tests
             Assert.Greater(palmFaces.y, 0.7f, "the palm is not turned up under the forend");
             const float forendBottom = -0.0058f, boreLine = 0.068f;   // Shotgun.points.json: the forend's underside, the barrel's middle
             Assert.Less(gunFrame.InverseTransformPoint(hand.position).y, forendBottom, "the wrist is not below the forend");
+            // Owner (the same evening, a close picture): "not quite it still clipping through a bit". No joint of the hand, a finger's thickness
+            // round it, inside the forend (shotgun_model.py's FOREND with its ribs, times 1.45, where the pump has it) or the barrel above it.
+            Vector3 forendCentre = gun.ActionPart.localPosition + new Vector3(0.0f, -0.0058f, 0.0f);
+            var forend = new Bounds(new Vector3(0.0f, (-0.0058f + 0.052f) * 0.5f, forendCentre.z), new Vector3(2.0f * 0.0428f, 0.0578f, 0.2175f));
+            forend.Expand(2.0f * FingerRadius);
+            var hits = new List<string>();
+            foreach (Transform joint in hand.GetComponentsInChildren<Transform>())
+            {
+                Vector3 local = gunFrame.InverseTransformPoint(joint.position);
+                TestContext.WriteLine($"  {joint.name,-28} {local.ToString("0.000")}");
+                bool overTheTop = local.y > forend.max.y && Mathf.Abs(local.x) < 0.03f && local.z > forend.min.z && local.z < forend.max.z;
+                if (forend.Contains(local) || overTheTop)
+                {
+                    hits.Add($"{joint.name} at {local.ToString("0.000")}");
+                }
+            }
+            Assert.IsEmpty(hits, "the hand goes into the forend or over the top of the gun");
             foreach (HumanBodyBones bone in new[]
             {
                 HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftIndexIntermediate, HumanBodyBones.LeftIndexDistal,

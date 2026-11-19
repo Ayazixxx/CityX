@@ -377,10 +377,12 @@ namespace CityX.Weapons
                 WorldPickupScale = 1.0f,
                 // Cradled as a shotgunner holds a forend (owner, 2026-11-18, with a photo: "the left hand is clipping through, it should be holding it
                 // like the other image"): palm up under it, the fingers up its right side, the thumb along its left. The reload's own hand on the forend
-                // (shotgun_reload.py, on_forend: the wrist, and these fingers and palm), so a reload starts and ends where the hold is.
-                SupportHandLocal = new Vector3(-0.0209f, -0.0138f, 0.4861f),
-                CradleFingersLocal = new Vector3(0.75f, 0.55f, 0.1f),
-                CradlePalmLocal = new Vector3(0.35f, 0.9f, 0.0f),
+                // (shotgun_reload.py, on_forend: the wrist, and these fingers and palm), so a reload starts and ends where the hold is. The hand runs
+                // nearly flat across the underside, its knuckles in a row along the forend's lower far edge, so only the fingers curl up its side, toward its back end where the arm reaches it carried low too (measured:
+                // ShotgunPlayTests.TheLeftHandCradlesTheForend...).
+                SupportHandLocal = new Vector3(0.0016f, -0.0366f, 0.4632f),
+                CradleFingersLocal = new Vector3(0.95f, 0.15f, 0.1f),
+                CradlePalmLocal = new Vector3(0.15f, 1.0f, 0.0f),
                 SupportHandOnlyWhenAiming = false,
                 SupportHandOnAction = true,
                 MuzzleLocal = new Vector3(0.0f, 0.06815f, 0.94975f),
