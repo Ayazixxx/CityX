@@ -76,6 +76,9 @@ as well".
   material's block, and the cut-off head and a burst head's hair chunks came out in the hair material's gold (owner, 2026-11-08: "when my
   player got decapitated the hair color changed on the decapitated head"). Hair a hat or helmet covers (switched off under it) is not
   copied: it poked through the hat on the flying head.
+- A piece that has lain still 0.8 s stops being simulated (`GoreChunk`), and looks under itself every 0.4 s: when what it lay on has gone
+  (another corpse cut up, revived or cleared away, a piece that shrank away) it wakes and falls again (owner, 2026-11-19: "some of the
+  dismemberment parts freeze in mid air ... they should have physics"; `GoreChunkRestPlayTests`).
 - Chunks and cut-off parts lie 60 s, then shrink away over 3 s, taking the meshes made for them (`Debris`). Revived, the body is whole
   (`Restore`).
 
