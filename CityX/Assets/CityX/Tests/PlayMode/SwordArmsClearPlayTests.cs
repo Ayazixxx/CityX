@@ -29,6 +29,9 @@ namespace CityX.Tests
         /// </summary>
         private const float BladeRoom = 0.06f;
 
+        /// <summary>A spear's shaft, tucked under the arm, is kept this far out of the skin: clear of it, no more.</summary>
+        private const float SpearRoom = 0.01f;
+
         private GameObject _player;
         private GameObject _ground;
 
@@ -132,7 +135,7 @@ namespace CityX.Tests
             _ground.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
             var failures = new System.Collections.Generic.List<string>();
             var report = new System.Text.StringBuilder();
-            foreach (string weapon in new[] { "SpikeSword", "BaseballBat", "CombatSword", "MetalCrowbar", "Sledgehammer" })
+            foreach (string weapon in new[] { "SpikeSword", "BaseballBat", "CombatSword", "MetalCrowbar", "Sledgehammer", "Spear" })
             {
                 _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                     new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
@@ -216,7 +219,9 @@ namespace CityX.Tests
                             // (The arms on the handle are where the blade begins: the sword arm's forearm, and with two hands both arms.)
                             body.RemoveAll(s => s.Bone == HumanBodyBones.RightLowerArm || s.Bone == HumanBodyBones.RightHand
                                 || (!oneHanded && (s.Bone == HumanBodyBones.RightUpperArm || s.Bone == HumanBodyBones.LeftUpperArm
-                                    || s.Bone == HumanBodyBones.LeftLowerArm || s.Bone == HumanBodyBones.LeftHand)));
+                                    || s.Bone == HumanBodyBones.LeftLowerArm || s.Bone == HumanBodyBones.LeftHand))
+                                // (A spear's front hand holds the shaft itself, ahead of the rear one: its fingers are round what is measured.)
+                                || (blade.IsSpear && s.Bone >= HumanBodyBones.LeftThumbProximal && s.Bone <= HumanBodyBones.LeftLittleDistal));
                             for (float along = BladeFromShare; along <= 1.0001f; along += 0.1f)
                             {
                                 Vector3 point = Vector3.Lerp(blade.BladeBaseWorld, blade.BladeTipWorld, along);
@@ -274,7 +279,9 @@ namespace CityX.Tests
                     if (worstHand < -RestingHandDepth) failures.Add($"{weapon} {which}: a wrist is {-worstHand * 100.0f:0} cm inside the torso ({handWhen})");
                     if (worstHead < -Touch) failures.Add($"{weapon} {which}: an arm is {-worstHead * 100.0f:0} cm inside the head ({headWhen})");
                     report.AppendLine($"{weapon} {which}: the blade clears the body by {worstBlade * 100.0f:0} cm at the least ({bladeWhen})");
-                    if (worstBlade < BladeRoom) failures.Add($"{weapon} {which}: the blade passes {worstBlade * 100.0f:0} cm from the skin, under the {BladeRoom * 100.0f:0} cm it keeps ({bladeWhen})");
+                    // (A spear is couched: its shaft lies along the ribs under the arm. Out of the body, but with no room asked between.)
+                    float room = ((ISwordBlade)sword).IsSpear ? SpearRoom : BladeRoom;
+                    if (worstBlade < room) failures.Add($"{weapon} {which}: the blade passes {worstBlade * 100.0f:0} cm from the skin, under the {room * 100.0f:0} cm it keeps ({bladeWhen})");
                     for (int i = 0; i < 240; i++)
                     {
                         combat.Tick(Dt);

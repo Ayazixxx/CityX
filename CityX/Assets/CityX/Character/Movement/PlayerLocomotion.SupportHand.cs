@@ -54,7 +54,48 @@ namespace CityX.Character
             if (_supportAnchor == weapon)
             {
                 _supportAnchor = null;
+                _supportSlides = false;
             }
+        }
+
+        private bool _supportSlides;
+
+        private Vector3 _supportSlideAlong;
+
+        private float _supportSlideNearest, _supportSlideFurthest;
+
+        /// <summary>
+        /// A SPEAR'S FRONT HAND (docs/SPEAR.md), set after <see cref="SetSupportHand"/>: the hand is not fixed to its point on the weapon but
+        /// stays before its own shoulder (SpearRules.FrontHandFromShoulder) while the shaft slides through it, between
+        /// <paramref name="nearest"/> and <paramref name="furthest"/> metres from the support point along <paramref name="alongLocal"/> (the
+        /// weapon's own space). It is only on the shaft while a pose has both hands on the weapon (an attack, a guard: not the carry), and never
+        /// with a shield in it.
+        /// </summary>
+        public void SlideSupportHand(Vector3 alongLocal, float nearest, float furthest)
+        {
+            _supportSlides = alongLocal.sqrMagnitude > 1e-6f;
+            _supportSlideAlong = alongLocal.normalized;
+            _supportSlideNearest = nearest;
+            _supportSlideFurthest = Mathf.Max(nearest, furthest);
+        }
+
+        /// <summary>The support hand is wanted on the weapon now: always for a handle; a spear's front hand only in a two-handed pose with no shield.</summary>
+        private bool SupportHandWanted => _supportAnchor != null
+            && (!_supportSlides || (Shield == null && _swordFrame.Active && _swordFrame.TwoHanded));
+
+        /// <summary>Where the support hand's palm goes on the weapon, world space: its point, or for a spear the point of the shaft nearest where the front hand stays.</summary>
+        private Vector3 SupportGripPoint()
+        {
+            Vector3 point = _supportAnchor.TransformPoint(_supportLocalPoint);
+            if (!_supportSlides || _leftUpperArm == null)
+            {
+                return point;
+            }
+            Vector3 along = _supportAnchor.TransformDirection(_supportSlideAlong).normalized;
+            float scale = WorldHeight / BodyRig.StandingHeight;
+            Vector3 stays = _leftUpperArm.position + transform.rotation * SpearRules.FrontHandFromShoulder * scale;
+            float slid = Mathf.Clamp(Vector3.Dot(stays - point, along), _supportSlideNearest * scale, _supportSlideFurthest * scale);
+            return point + along * slid;
         }
 
         /// <summary>The support hand's palm, in world space (for tests and the tuning console); null when nothing is held.</summary>
@@ -74,7 +115,7 @@ namespace CityX.Character
         private void ApplySupportHand()
         {
             float deltaTime = PoseDeltaTime;
-            _supportBlend = Mathf.MoveTowards(_supportBlend, _supportAnchor != null ? 1.0f : 0.0f, SupportHandBlendPerSecond * deltaTime);
+            _supportBlend = Mathf.MoveTowards(_supportBlend, SupportHandWanted ? 1.0f : 0.0f, SupportHandBlendPerSecond * deltaTime);
             // A baked move (the sword spin, Octaslash) lets go of the handle: it places the free arm itself (ApplyBakedPose).
             _supportHandLaid = 0.0f;
             float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f) * (1.0f - BakedArmsWeight);
@@ -83,7 +124,7 @@ namespace CityX.Character
                 return;
             }
 
-            Vector3 point = _supportAnchor.TransformPoint(_supportLocalPoint);
+            Vector3 point = SupportGripPoint();
             // Elbow down and a little out, the way a person braces a heavy weapon.
             Vector3 elbowHint = -transform.up - transform.right * 0.6f;
 

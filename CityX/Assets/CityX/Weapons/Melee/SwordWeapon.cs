@@ -92,6 +92,16 @@ namespace CityX.Weapons
 
         public bool IsHammer => _hammer;
 
+        /// <summary>
+        /// A SPEAR (docs/SPEAR.md): its own attacks (SwordStrikes.IsSpear), carried in the right hand alone; the left hand takes the shaft for an
+        /// attack or a guard when it has no shield, and the shaft slides through it (PlayerLocomotion.SlideSupportHand).
+        /// </summary>
+        [SerializeField] private bool _spear;
+
+        public bool Spear { get => _spear; set => _spear = value; }
+
+        public bool IsSpear => _spear;
+
         /// <summary>A DULL knife (the butter knife): the knife's moves, but its blows land as <see cref="KnifeRules.DullDamage"/>.</summary>
         [SerializeField] private bool _dull;
 
@@ -359,7 +369,7 @@ namespace CityX.Weapons
             transform.localRotation = HoldRotation;
             if (_leftHandGrip != null)
             {
-                _leftHandGrip.localPosition = SupportPoint;
+                _leftHandGrip.localPosition = _spear ? Vector3.zero : SupportPoint;   // a spear's front hand slides up the shaft from the rear one
             }
         }
 
@@ -396,7 +406,7 @@ namespace CityX.Weapons
                 && GroundPickup.Take(player, gameObject, _itemId);
         }
 
-        public float GetMeleeDamage() => _knife ? (_dull ? KnifeRules.DullDamage : KnifeRules.BaseDamage)
+        public float GetMeleeDamage() => _spear ? SpearRules.BaseDamage : _knife ? (_dull ? KnifeRules.DullDamage : KnifeRules.BaseDamage)
             : _oneHanded && IsEdged ? CombatTuning.OneHandedSwordDamage : BaseMeleeDamage;
 
         public float MeleeCooldownSeconds => MeleeCooldownSecondsConst;
@@ -440,7 +450,7 @@ namespace CityX.Weapons
             if (locomotion != null && !_oneHanded)
             {
                 // The left hand holds the handle too, wherever the swing takes the sword.
-                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero);
+                HoldInBothHands(locomotion);
             }
 
             _equipped = true;
@@ -503,7 +513,21 @@ namespace CityX.Weapons
             ApplyGrip();
             if (!_oneHanded)
             {
-                body.GetComponent<PlayerLocomotion>()?.SetSupportHand(_leftHandGrip, Vector3.zero);
+                HoldInBothHands(body.GetComponent<PlayerLocomotion>());
+            }
+        }
+
+        /// <summary>The left hand on the weapon too: a handle's fixed place under the right, or a spear's shaft sliding through it.</summary>
+        private void HoldInBothHands(PlayerLocomotion locomotion)
+        {
+            if (locomotion == null)
+            {
+                return;
+            }
+            locomotion.SetSupportHand(_leftHandGrip, Vector3.zero);
+            if (_spear)
+            {
+                locomotion.SlideSupportHand(Vector3.up, SpearRules.FrontHandNearest, SpearRules.FrontHandFurthest);
             }
         }
 

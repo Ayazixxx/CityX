@@ -44,9 +44,10 @@ namespace CityX.Tests
                 Assert.AreEqual(SwordStrikes.IsOneHanded(kind), !mid.TwoHanded, $"{kind}'s frames disagree with its handedness");
                 if (SwordStrikes.IsOneHanded(kind)) oneHanded++;
             }
-            // Each hold: its lights, its heavy and its running attack (the one-handed has the knife's thrust besides; the two-handed, the hammer's smash).
+            // Each hold: its lights, its heavy and its running attack (the one-handed has the knife's thrust besides; the two-handed, the hammer's smash);
+            // and the spear's five, posed with both hands on it.
             Assert.AreEqual(6, oneHanded);
-            Assert.AreEqual(12, SwordStrikes.All.Length);
+            Assert.AreEqual(17, SwordStrikes.All.Length);
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.All[0]);
         }
 
@@ -55,7 +56,7 @@ namespace CityX.Tests
         {
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                SwordFrame ready = SwordStrikes.Ready(SwordStrikes.IsOneHanded(kind));
+                SwordFrame ready = SwordStrikes.ReadyFor(kind);
                 SwordFrame start = SwordStrikes.Evaluate(kind, 0.0f);
                 SwordFrame end = SwordStrikes.Evaluate(kind, 1.0f);
                 Assert.Less(Vector3.Distance(start.Hand, ready.Hand), 0.001f, $"{kind} does not start in the ready stance");
@@ -359,7 +360,8 @@ namespace CityX.Tests
             var poses = new System.Collections.Generic.List<(string, SwordFrame)>();
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (SwordStrikes.IsOneHanded(kind)) continue;
+                // (A spear's front hand is not at a fixed place on the shaft: it slides. SpearPlayTests measures it on the real body.)
+                if (SwordStrikes.IsOneHanded(kind) || SwordStrikes.IsSpear(kind)) continue;
                 for (int i = 0; i <= 100; i++)
                 {
                     poses.Add(($"{kind} t={i / 100.0f:0.00}", SwordStrikes.Evaluate(kind, i / 100.0f)));
@@ -418,7 +420,7 @@ namespace CityX.Tests
             // is moving across itself -- the spikes arrive first, never the flat or the back. (Not the thrust: it leads with its point.)
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (kind == SwordStrikeKind.Thrust1H)
+                if (kind == SwordStrikeKind.Thrust1H || (SwordStrikes.IsSpear(kind) && !SwordStrikes.IsHeavy(kind)))   // (nor a spear's thrusts)
                 {
                     continue;
                 }
@@ -714,7 +716,7 @@ namespace CityX.Tests
                 }
                 else
                 {
-                    bool finisher = kind == SwordStrikeKind.Cut2H || kind == SwordStrikeKind.Finisher1H;
+                    bool finisher = kind == SwordStrikeKind.Cut2H || kind == SwordStrikeKind.Finisher1H || kind == SwordStrikeKind.SpearLunge;
                     Assert.GreaterOrEqual(t.WindUp + t.Hold, 0.24f, $"{kind} is wound up for {t.WindUp + t.Hold:0.00} s: too short to be seen coming");
                     Assert.LessOrEqual(t.Contact, finisher ? 0.58f : 0.5f, $"{kind} takes {t.Contact:0.00} s to land: sluggish");
                     Assert.LessOrEqual(t.Hold, 0.12f, $"{kind} hangs at the top for {t.Hold:0.00} s");
@@ -730,7 +732,7 @@ namespace CityX.Tests
             // it leaves the hold.
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (kind == SwordStrikeKind.Thrust1H)
+                if (kind == SwordStrikeKind.Thrust1H || (SwordStrikes.IsSpear(kind) && !SwordStrikes.IsHeavy(kind)))   // (nor a spear's thrusts)
                 {
                     continue;   // a thrust hardly turns the blade: it drives it
                 }

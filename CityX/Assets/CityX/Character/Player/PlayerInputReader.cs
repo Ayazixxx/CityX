@@ -1275,7 +1275,7 @@ namespace CityX.Character
                 // The two-handed carry (the 2hsw clips). A one-handed sword is carried by the ordinary walk's own arm, its attacks posed on top.
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&
-                                !(_melee.EquippedWeapon is ISwordBlade oneHandedBlade && oneHandedBlade.IsOneHanded),
+                                !(_melee.EquippedWeapon is ISwordBlade oneHandedBlade && (oneHandedBlade.IsOneHanded || oneHandedBlade.IsSpear)),   // (a spear walks as an empty hand does, its arm posed: SwordStrikes.SpearCarry)
                 // The one-handed sword's own carry clips (Sword1HLocomotion: SwordCarryBaker's walk, run and strafes with a sword arm).
                 Sword1HEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                   _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&

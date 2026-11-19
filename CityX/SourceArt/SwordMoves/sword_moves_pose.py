@@ -208,8 +208,74 @@ ATTACKS.update({
         left=[], right=[],
         ready=READY_2H, two_handed=True),
 })
+# ---- THE SPEAR -------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Owner, 2026-11-18: "research video games with spears and try to make good spear animations/mechanics. i feel like it should be mostly thrusting stabs but some swinging as
+# well maybe the heavy attacks are swings" (docs/SPEAR.md). A spear is fought SIDE ON, the left side to the enemy: the shoulders stay turned to the right even as a thrust
+# lands (SwordStrikes' spear keys: the rear hand runs forward along the right side, the butt passing under that arm). So a thrust is not a turn of the body as a cut is: it is
+# the weight thrown from the rear leg onto the front one along the shaft's own line, the body lengthening over a stride, and the shoulders opening only part of the way.
+# EVERY KEY'S TWIST HERE IS SwordStrikes' OWN, the wind-ups' too (the cuts' wind-ups are turned further than their keys, which draws a blade further back): the game turns the
+# arm with the shoulders by whatever a clip has them turned past its key, and that swings the point of a shaft this long a foot to the side on its way out.
+READY_SPEAR = key(twist=36.0, hips=18.0, lean=4.0, drop=0.10)
+ATTACKS.update({
+    # THE JAB: a short draw back over the rear leg and straight out, a short step.
+    "spear_jab": attack(
+        (0.20, 0.04, 0.09, 0.04, 0.06, 0.20), 0.30,
+        key(twist=52.0, hips=26.0, lean=-2.0, drop=0.11, shift=(0.04, -0.08)),
+        key(twist=52.0, hips=27.0, lean=-3.0, drop=0.12, shift=(0.04, -0.09)),
+        key(twist=24.0, hips=8.0, lean=12.0, drop=0.13, shift=(-0.02, 0.08), chin=3.0, staged=True),
+        key(twist=20.0, hips=6.0, lean=14.0, drop=0.13, shift=(-0.02, 0.09), chin=3.0),
+        key(twist=30.0, hips=14.0, lean=7.0, drop=0.10, shift=(0.0, 0.03)),
+        left=[(0.08, 0.27, (-0.22, 0.45), 0.07)],
+        right=[(0.39, 0.57, (STANCE_X, 0.20), 0.04)],
+        ready=READY_SPEAR, two_handed=True),
+    # THE THRUST: the same on a higher line, drawn back a little further, a longer step.
+    "spear_thrust": attack(
+        (0.20, 0.05, 0.10, 0.04, 0.07, 0.22), 0.40,
+        key(twist=56.0, hips=28.0, lean=-4.0, drop=0.11, shift=(0.05, -0.09)),
+        key(twist=56.0, hips=29.0, lean=-5.0, drop=0.12, shift=(0.05, -0.10)),
+        key(twist=20.0, hips=6.0, lean=14.0, drop=0.14, shift=(-0.02, 0.09), chin=3.0, staged=True),
+        key(twist=16.0, hips=4.0, lean=16.0, drop=0.14, shift=(-0.02, 0.10), chin=3.0),
+        key(twist=30.0, hips=14.0, lean=8.0, drop=0.10, shift=(0.0, 0.03)),
+        left=[(0.08, 0.29, (-0.22, 0.50), 0.08)],
+        right=[(0.42, 0.62, (STANCE_X, 0.30), 0.04)],
+        ready=READY_SPEAR, two_handed=True),
+    # THE LUNGE (the chain's last): coiled right back and sunk over the rear leg, held; then a long stride and the whole body stretched low along the shaft.
+    "spear_lunge": attack(
+        (0.28, 0.12, 0.11, 0.05, 0.14, 0.50), 0.80,
+        key(twist=64.0, hips=32.0, lean=-8.0, tilt=-3.0, drop=0.16, shift=(0.06, -0.14)),
+        key(twist=64.0, hips=34.0, lean=-10.0, tilt=-3.0, drop=0.18, shift=(0.06, -0.16)),
+        key(twist=16.0, hips=0.0, lean=30.0, tilt=2.0, drop=0.28, shift=(-0.03, 0.12), chin=6.0, staged=True),
+        key(twist=12.0, hips=-2.0, lean=32.0, tilt=2.0, drop=0.29, shift=(-0.03, 0.13), chin=6.0),
+        key(twist=28.0, hips=12.0, lean=14.0, drop=0.16, shift=(0.0, 0.05)),
+        left=[(0.20, 0.50, (-0.24, 0.95), 0.16)],
+        right=[(0.72, 1.00, (STANCE_X, 0.70), 0.06)],
+        ready=READY_SPEAR, two_handed=True),
+    # THE SWEEP (the heavy): the one time the body turns right round as for a cut, and it is a backhand (SwordStrikes: the hands are where a spear's are). The shoulders
+    # wound away to the LEFT after the point and held there (the tell); the right foot strides through and the body unwinding to the right brings the whole shaft level
+    # across the front.
+    "spear_sweep": attack(
+        (0.38, 0.32, 0.15, 0.13, 0.14, 0.40), 0.45,
+        key(twist=-16.0, hips=-8.0, lean=-5.0, tilt=-4.0, drop=0.13, shift=(-0.06, -0.09)),
+        key(twist=-16.0, hips=-9.0, lean=-6.0, tilt=-4.0, drop=0.14, shift=(-0.06, -0.10)),
+        key(twist=40.0, hips=30.0, lean=18.0, tilt=-2.0, drop=0.18, shift=(0.05, 0.10), chin=4.0, staged=True),
+        key(twist=66.0, hips=46.0, lean=10.0, drop=0.16, shift=(0.07, 0.09), chin=4.0),
+        key(twist=44.0, hips=24.0, lean=7.0, drop=0.11, shift=(0.02, 0.04)),
+        right=[(0.40, 0.78, (STANCE_X, 0.35), 0.11)],
+        left=[(0.92, 1.16, (-STANCE_X, 0.55), 0.05)],
+        ready=READY_SPEAR, two_handed=True),
+    # THE RUNNING ATTACK: the lunge on the run. The legs are the run's own (only the torso and the head are taken), so the feet here stand.
+    "spear_run": attack(
+        (0.20, 0.06, 0.11, 0.05, 0.14, 0.42), 0.0,
+        key(twist=64.0, hips=30.0, lean=8.0, tilt=-3.0, drop=0.03),
+        key(twist=64.0, hips=31.0, lean=7.0, tilt=-3.0, drop=0.02),
+        key(twist=16.0, hips=0.0, lean=30.0, tilt=2.0, drop=0.16, chin=6.0, staged=True),
+        key(twist=12.0, hips=-2.0, lean=32.0, tilt=2.0, drop=0.16, chin=6.0),
+        key(twist=26.0, hips=10.0, lean=16.0, drop=0.10),
+        left=[], right=[],
+        ready=READY_SPEAR, two_handed=True),
+})
 ORDER_OF_ATTACKS = ("sword1h_slash", "sword1h_cut", "sword1h_finisher", "sword1h_overhead", "sword2h_sweep", "sword2h_reverse", "sword2h_cut", "sword2h_smash", "sword2h_slam",
-                    "sword1h_run", "sword2h_run")
+                    "sword1h_run", "sword2h_run", "spear_jab", "spear_thrust", "spear_lunge", "spear_sweep", "spear_run")
 
 # What the game is given: no arm bone (the game's own poses have the arms).
 EXPORTED_BONES = ("hips", "spine", "neck", "head", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r")

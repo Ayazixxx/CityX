@@ -19,7 +19,7 @@ namespace CityX.Character
             }
             float weight = Mathf.Clamp01(_swordFrame.Weight);
             KeepArmOutOfTorso(_rightUpperArm, _rightLowerArm, _handR, weight);
-            if (_swordFrame.TwoHanded && _supportAnchor != null)
+            if (_swordFrame.TwoHanded && SupportHandWanted)
             {
                 KeepArmOutOfTorso(_leftUpperArm, _leftLowerArm, _handL, weight);
             }

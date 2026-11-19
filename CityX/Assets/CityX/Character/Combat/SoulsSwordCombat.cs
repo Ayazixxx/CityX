@@ -176,6 +176,12 @@ namespace CityX.Character
         bool IsHammer => false;
 
         /// <summary>
+        /// True for a spear (docs/SPEAR.md): its own attacks (thrusts, a sweep for the heavy), carried in the right hand alone, the left on the
+        /// shaft for an attack or a guard when it is free, and usable beside a shield.
+        /// </summary>
+        bool IsSpear => false;
+
+        /// <summary>
         /// Holds the sword in the thrust grip at <paramref name="weight"/> (the handle in the fist, turned so the blade leans out toward the
         /// fingertips), and as it is otherwise held at 0. PlayerLocomotion does it while the stab dash's or the spin's pose holds the body (BakedPose.ThrustGrip).
         /// </summary>
@@ -305,6 +311,19 @@ namespace CityX.Character
 
         [Header("Knife heavy (held left click): the icepick stab")]
         public SoulsAttack KnifeHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.50f, 22.0f, 2.05f, 0.60f, 1.0f, 35.0f, true);
+
+        // THE SPEAR (SpearRules, docs/SPEAR.md): two quick thrusts and a long lunge that ends the chain, each a little lighter than a sword's cut
+        // and staggering for less (a point, not an edge with the body's turn behind it), from further away; the heavy is the sweep, the one
+        // blow of a spear that takes in everyone in front, guard-breaking as every heavy; at a sprint, the lunge. My numbers.
+        [Header("Spear light chain (left click)")]
+        public SoulsAttack SpearLight1 = SoulsAttack.FromStrike(SwordStrikeKind.SpearJab, 0.30f, 13.0f, 0.85f, 0.38f, SwordStrikes.StepMetres(SwordStrikeKind.SpearJab), 15.0f, false);
+        public SoulsAttack SpearLight2 = SoulsAttack.FromStrike(SwordStrikeKind.SpearThrust, 0.30f, 14.0f, 0.95f, 0.42f, SwordStrikes.StepMetres(SwordStrikeKind.SpearThrust), 18.0f, false);
+        public SoulsAttack SpearLight3 = SoulsAttack.AsFinisher(SoulsAttack.FromStrike(SwordStrikeKind.SpearLunge, 1.0f, 24.0f, 2.10f, 0.50f, SwordStrikes.StepMetres(SwordStrikeKind.SpearLunge), 30.0f, false));
+
+        [Header("Spear heavy (held left click): the sweep")]
+        public SoulsAttack SpearHeavy = SoulsAttack.FromStrike(SwordStrikeKind.SpearSweep, 0.55f, 34.0f, 1.70f, 0.90f, SwordStrikes.StepMetres(SwordStrikeKind.SpearSweep), 50.0f, true);
+
+        public SoulsAttack SpearRunAttack = SoulsAttack.FromStrike(SwordStrikeKind.SpearRun, 0.45f, 20.0f, 1.50f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.SpearRun), 28.0f, false);
 
         [Header("Feel")]
         [Tooltip("How long an early attack press is remembered. Long enough that a click during a light swing still chains at its window, " +
@@ -476,6 +495,7 @@ namespace CityX.Character
         private bool _oneHanded;
         private bool _knife;
         private bool _hammer;
+        private bool _spear;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
         private PlayerAnimationDriver _driver;
@@ -520,6 +540,10 @@ namespace CityX.Character
         /// <summary>The light chain for the sword in hand (0-2).</summary>
         public SoulsAttack LightAttack(int index)
         {
+            if (_spear)
+            {
+                return index == 0 ? SpearLight1 : (index == 1 ? SpearLight2 : SpearLight3);
+            }
             if (_knife)
             {
                 return index == 0 ? KnifeLight1 : KnifeLight2;
@@ -537,6 +561,10 @@ namespace CityX.Character
         /// </summary>
         public SoulsAttack OpenerAt(float forwardSpeed)
         {
+            if (_spear)
+            {
+                return forwardSpeed >= SwordStrikes.RunOpenerFromSpeed ? SpearRunAttack : SpearLight1;
+            }
             if (_knife)
             {
                 return KnifeLight1;
@@ -553,13 +581,13 @@ namespace CityX.Character
         public int LightChainLength => _knife ? 2 : 3;
 
         /// <summary>The heavy for the sword in hand.</summary>
-        public SoulsAttack HeavyAttack => _knife ? KnifeHeavy : (_oneHanded ? OneHandHeavy : Heavy);
+        public SoulsAttack HeavyAttack => _spear ? SpearHeavy : _knife ? KnifeHeavy : (_oneHanded ? OneHandHeavy : Heavy);
 
         /// <summary>How much faster than its own timings the blade in hand swings: a knife's <see cref="KnifeRules.SwingSpeed"/>, else 1.</summary>
         public float BladeSwingSpeed => _knife ? KnifeRules.SwingSpeed : 1.0f;
 
         /// <summary>How far ahead of the body a swing catches a target, metres: <see cref="ReachMetres"/>, a knife's a little short of it.</summary>
-        public float Reach => ReachMetres * (_knife ? KnifeRules.ReachShare : 1.0f);
+        public float Reach => ReachMetres * (_spear ? SpearRules.ReachShare : _knife ? KnifeRules.ReachShare : 1.0f);
 
         /// <summary>The stamina a blow on the held guard costs, per point of damage: a knife's guard pays more for each.</summary>
         public float GuardStaminaPerDamage => BlockStaminaPerDamage * (_knife ? KnifeRules.GuardStaminaShare : 1.0f);
@@ -625,6 +653,7 @@ namespace CityX.Character
             _oneHanded = sword != null && (sword.IsOneHanded || sword.IsKnife);
             _knife = sword != null && sword.IsKnife;
             _hammer = sword != null && sword.IsHammer;
+            _spear = sword != null && sword.IsSpear;
             _equipped = true;
             if (_vitals != null)
             {

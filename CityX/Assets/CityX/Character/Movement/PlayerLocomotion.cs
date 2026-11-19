@@ -359,7 +359,7 @@ namespace CityX.Character
                 {
                     return 0.0f;
                 }
-                return Vector3.Distance(palm, _supportAnchor.TransformPoint(_supportLocalPoint));
+                return Vector3.Distance(palm, SupportGripPoint());
             }
         }
 

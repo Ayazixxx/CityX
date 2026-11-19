@@ -56,14 +56,20 @@ namespace CityX.Weapons
 
         private static void Melee(ItemCard card, SwordWeapon sword)
         {
-            bool knife = sword.Knife, oneHanded = sword.IsOneHanded;
+            bool knife = sword.Knife, oneHanded = sword.IsOneHanded, spear = sword.IsSpear;
             card.Kind = knife ? "Knife" : MeleeKind(card.ItemId, oneHanded);
-            card.Hands = oneHanded ? OneHand : TwoHands;
+            card.Hands = spear ? "One or two hands" : oneHanded ? OneHand : TwoHands;
             card.Style = oneHanded ? "One-Handed Melee" : "Two-Handed Melee";
             card.ScalesWith = MeleeDamageStat;
             card.Add("Attack", sword.GetMeleeDamage(), sword.GetMeleeDamage().ToString("0.#"));
             card.Add("Speed", knife ? KnifeRules.SwingSpeed : 1.0f, knife ? "Quick (x" + KnifeRules.SwingSpeed.ToString("0.0") + ")" : "Normal");
-            card.Add("Reach", knife ? KnifeRules.ReachShare : 1.0f, knife ? Mathf.RoundToInt(KnifeRules.ReachShare * 100.0f) + "%" : "Full");
+            float reach = spear ? SpearRules.ReachShare : knife ? KnifeRules.ReachShare : 1.0f;
+            card.Add("Reach", reach, reach == 1.0f ? "Full" : Mathf.RoundToInt(reach * 100.0f) + "%");
+            if (spear)
+            {
+                card.Note("Thrusts; hold the click to sweep");
+                card.Note("Goes beside a shield");
+            }
             if (sword.IsHammer)
             {
                 card.Note("Ignores " + Mathf.RoundToInt(ArmourRules.HammerPierce * 100.0f) + "% of armour");
@@ -85,6 +91,7 @@ namespace CityX.Weapons
                 case ItemRegistry.MetalCrowbar: return "Crowbar";
                 case ItemRegistry.BaseballBat: return "Bat";
                 case ItemRegistry.Sledgehammer: return "Hammer";
+                case ItemRegistry.Spear: return "Spear";
                 case ItemRegistry.CombatSword: return "Sword";
                 case ItemRegistry.SpikeSword: return "Greatsword";
                 default: return oneHanded ? "Blade" : "Greatsword";

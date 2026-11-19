@@ -697,12 +697,12 @@ namespace CityX.Character
             }
             else if (_guarding)
             {
-                frame = SwordStrikes.Guard(_oneHanded);
+                frame = held != null && held.IsSpear ? SwordStrikes.SpearGuard() : SwordStrikes.Guard(_oneHanded);
                 frame.Footwork *= _stanceGate;
             }
             else if (CarryIsPosed)
             {
-                frame = SwordStrikes.Carry(_run01);
+                frame = held.IsSpear ? SwordStrikes.SpearCarry(_run01) : SwordStrikes.Carry(_run01);
             }
             else
             {

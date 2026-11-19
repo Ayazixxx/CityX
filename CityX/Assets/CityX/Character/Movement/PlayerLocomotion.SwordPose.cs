@@ -470,11 +470,11 @@ namespace CityX.Character
             // weapon"): the right hand carries the sword, the left reaches for its grip point (ApplySupportHand). Wherever a cut takes the sword
             // further from the LEFT shoulder than that arm can reach, the whole sword is drawn in toward it (the right arm re-solved, the blade
             // kept pointing the same way) until it can: the hands never come apart.
-            if (_swordFrame.TwoHanded && _supportAnchor != null && _leftUpperArm != null && _leftLowerArm != null && _handL != null)
+            if (_swordFrame.TwoHanded && SupportHandWanted && _leftUpperArm != null && _leftLowerArm != null && _handL != null)
             {
                 float leftReach = (Vector3.Distance(_leftUpperArm.position, _leftLowerArm.position) + Vector3.Distance(_leftLowerArm.position, _handL.position))
                     * SupportReachShare + PalmOffsetMetres;
-                Vector3 grip = _supportAnchor.TransformPoint(_supportLocalPoint);
+                Vector3 grip = SupportGripPoint();
                 Vector3 fromShoulder = grip - _leftUpperArm.position;
                 float over = fromShoulder.magnitude - leftReach;
                 if (over > 0.0f)
@@ -512,7 +512,9 @@ namespace CityX.Character
             }
             Vector3 across = transform.InverseTransformDirection(_rightUpperArm.position - _leftUpperArm.position);
             float turned = Mathf.Atan2(-across.z, across.x) * Mathf.Rad2Deg;   // to the right, as a frame's twist is
-            return Quaternion.AngleAxis(Mathf.DeltaAngle(_swordFrame.TwistDegrees, turned) * clip, transform.up) * transform.rotation;
+            // (A spear's thrust keeps its line: SwordFrame.HoldsItsLine.)
+            float turns = clip * (1.0f - Mathf.Clamp01(_swordFrame.HoldsItsLine));
+            return Quaternion.AngleAxis(Mathf.DeltaAngle(_swordFrame.TwistDegrees, turned) * turns, transform.up) * transform.rotation;
         }
 
         /// <summary>

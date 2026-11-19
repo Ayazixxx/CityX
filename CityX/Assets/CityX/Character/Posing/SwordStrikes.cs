@@ -46,6 +46,21 @@ namespace CityX.Character
 
         /// <summary>Two-handed, at a sprint: the running attack.</summary>
         Run2H,
+
+        /// <summary>The spear's first light (docs/SPEAR.md): a quick jab straight out from the hip, side on.</summary>
+        SpearJab,
+
+        /// <summary>The spear's second light: a thrust on a higher line, at the neck.</summary>
+        SpearThrust,
+
+        /// <summary>The spear's third light, the chain's end: drawn right back and driven out in a long lunge.</summary>
+        SpearLunge,
+
+        /// <summary>The spear's heavy: wound back on the right and swung level round the front, the whole shaft's reach.</summary>
+        SpearSweep,
+
+        /// <summary>The spear at a sprint: the lunge driven in with the run behind it.</summary>
+        SpearRun,
     }
 
     /// <summary>
@@ -126,6 +141,13 @@ namespace CityX.Character
 
         /// <summary>0 to 1: how far a one-handed sword arm's elbow goes where the forearm runs easily into the hand (SwordElbow) rather than where <see cref="ElbowOut"/> bows it. An attack's.</summary>
         public float ElbowFindsTheGrip;
+
+        /// <summary>
+        /// 0 to 1: how far the arm keeps to the body's own axes under an attack's clip instead of turning with the clip's shoulders
+        /// (PlayerLocomotion.ArmAxesUnderTheClip). A spear's thrust: turned with shoulders that lead or trail the keys' own turn, a point
+        /// 1.75 m out swings a foot to the side on its way to the target.
+        /// </summary>
+        public float HoldsItsLine;
     }
 
     /// <summary>
@@ -166,6 +188,11 @@ namespace CityX.Character
         public const string Smash2HName = "sword2h_smash";
         public const string Run1HName = "sword1h_run";
         public const string Run2HName = "sword2h_run";
+        public const string SpearJabName = "spear_jab";
+        public const string SpearThrustName = "spear_thrust";
+        public const string SpearLungeName = "spear_lunge";
+        public const string SpearSweepName = "spear_sweep";
+        public const string SpearRunName = "spear_run";
 
         /// <summary>The held guard poses, played as states so another player's copy raises the same guard.</summary>
         public const string Guard1HName = "sword1h_guard";
@@ -202,6 +229,7 @@ namespace CityX.Character
             SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Thrust1H, SwordStrikeKind.Overhead1H,
             SwordStrikeKind.Cut2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Slam2H, SwordStrikeKind.Finisher1H,
             SwordStrikeKind.Smash2H, SwordStrikeKind.Run1H, SwordStrikeKind.Run2H,
+            SwordStrikeKind.SpearJab, SwordStrikeKind.SpearThrust, SwordStrikeKind.SpearLunge, SwordStrikeKind.SpearSweep, SwordStrikeKind.SpearRun,
         };
 
         public static bool TryGet(string animation, out SwordStrikeKind kind)
@@ -220,6 +248,11 @@ namespace CityX.Character
                 case Smash2HName: kind = SwordStrikeKind.Smash2H; return true;
                 case Run1HName: kind = SwordStrikeKind.Run1H; return true;
                 case Run2HName: kind = SwordStrikeKind.Run2H; return true;
+                case SpearJabName: kind = SwordStrikeKind.SpearJab; return true;
+                case SpearThrustName: kind = SwordStrikeKind.SpearThrust; return true;
+                case SpearLungeName: kind = SwordStrikeKind.SpearLunge; return true;
+                case SpearSweepName: kind = SwordStrikeKind.SpearSweep; return true;
+                case SpearRunName: kind = SwordStrikeKind.SpearRun; return true;
                 default: kind = SwordStrikeKind.Slash1H; return false;
             }
         }
@@ -250,6 +283,11 @@ namespace CityX.Character
                 case SwordStrikeKind.Smash2H: return Smash2HName;
                 case SwordStrikeKind.Run1H: return Run1HName;
                 case SwordStrikeKind.Run2H: return Run2HName;
+                case SwordStrikeKind.SpearJab: return SpearJabName;
+                case SwordStrikeKind.SpearThrust: return SpearThrustName;
+                case SwordStrikeKind.SpearLunge: return SpearLungeName;
+                case SwordStrikeKind.SpearSweep: return SpearSweepName;
+                case SwordStrikeKind.SpearRun: return SpearRunName;
                 default: return Slam2HName;
             }
         }
@@ -263,11 +301,15 @@ namespace CityX.Character
                 || kind == SwordStrikeKind.Run1H;
         }
 
-        public static bool IsHeavy(SwordStrikeKind kind) => kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Slam2H;
+        public static bool IsHeavy(SwordStrikeKind kind) => kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Slam2H || kind == SwordStrikeKind.SpearSweep;
+
+        /// <summary>A spear's attack (docs/SPEAR.md): thrusts, and the heavy's sweep. Held in both hands when the other is free, as the two-handed attacks are.</summary>
+        public static bool IsSpear(SwordStrikeKind kind) => kind >= SwordStrikeKind.SpearJab && kind <= SwordStrikeKind.SpearRun;
 
         /// <summary>The swing is heard as a heavy one: the heavies, and a chain's finisher.</summary>
         public static bool SoundsHeavy(SwordStrikeKind kind) =>
-            IsHeavy(kind) || kind == SwordStrikeKind.Finisher1H || kind == SwordStrikeKind.Run1H || kind == SwordStrikeKind.Run2H;
+            IsHeavy(kind) || kind == SwordStrikeKind.Finisher1H || kind == SwordStrikeKind.Run1H || kind == SwordStrikeKind.Run2H
+            || kind == SwordStrikeKind.SpearLunge || kind == SwordStrikeKind.SpearRun;
 
         /// <summary>
         /// THE PHASES OF AN ATTACK, in seconds (owner, 2026-10-23: "attacks should have clear anticipation -> acceleration -> impact -> recovery.
@@ -323,6 +365,14 @@ namespace CityX.Character
                 case SwordStrikeKind.Run2H: return new StrikeTiming(0.26f, 0.07f, 0.15f, 0.115f, 0.10f, 0.42f);
                 // A light, so no long hold, but with a hammer's weight: a higher wind-up than the diagonal, and a longer recovery once it lands.
                 case SwordStrikeKind.Smash2H: return new StrikeTiming(0.28f, 0.08f, 0.13f, 0.11f, 0.09f, 0.34f);
+                // THE SPEAR (docs/SPEAR.md): thrusts are quicker out and back than cuts (a jab lands a third of a second after the click, a sword's light 0.4)
+                // and stop where they land; the chain's lunge is drawn right back first and leaves the fighter stretched out and open; the
+                // sweep is the heavy, held wound up for a third of a second.
+                case SwordStrikeKind.SpearJab: return new StrikeTiming(0.20f, 0.04f, 0.09f, 0.04f, 0.06f, 0.20f);
+                case SwordStrikeKind.SpearThrust: return new StrikeTiming(0.20f, 0.05f, 0.10f, 0.04f, 0.07f, 0.22f);
+                case SwordStrikeKind.SpearLunge: return new StrikeTiming(0.28f, 0.12f, 0.11f, 0.05f, 0.14f, 0.50f);
+                case SwordStrikeKind.SpearRun: return new StrikeTiming(0.20f, 0.06f, 0.11f, 0.05f, 0.14f, 0.42f);
+                case SwordStrikeKind.SpearSweep: return new StrikeTiming(0.38f, 0.32f, 0.15f, 0.13f, 0.14f, 0.40f);
                 default: return new StrikeTiming(0.42f, 0.38f, 0.16f, 0.13f, 0.18f, 0.38f);
             }
         }
@@ -434,7 +484,12 @@ namespace CityX.Character
             switch (kind)
             {
                 case SwordStrikeKind.Run1H:
-                case SwordStrikeKind.Run2H: return 0.0f;
+                case SwordStrikeKind.Run2H:
+                case SwordStrikeKind.SpearRun: return 0.0f;
+                case SwordStrikeKind.SpearJab: return 0.30f;
+                case SwordStrikeKind.SpearThrust: return 0.40f;
+                case SwordStrikeKind.SpearLunge: return 0.80f;
+                case SwordStrikeKind.SpearSweep: return 0.45f;
                 case SwordStrikeKind.Slash1H: return 0.45f;
                 case SwordStrikeKind.Cut1H: return 0.50f;
                 case SwordStrikeKind.Finisher1H: return 0.55f;
@@ -593,7 +648,7 @@ namespace CityX.Character
         }
 
         /// <summary>The first light of a body that is sprinting: thrown only on the run, so its legs are never its clip's.</summary>
-        public static bool IsRunningAttack(SwordStrikeKind kind) => kind == SwordStrikeKind.Run1H || kind == SwordStrikeKind.Run2H;
+        public static bool IsRunningAttack(SwordStrikeKind kind) => kind == SwordStrikeKind.Run1H || kind == SwordStrikeKind.Run2H || kind == SwordStrikeKind.SpearRun;
 
         /// <summary>How far a body going at <paramref name="ownSpeed"/> m/s by its own movement counts as standing, 0 to 1: what an attack's own step and its clip's legs are scaled by.</summary>
         public static float StandingShare(float ownSpeed) => 1.0f - Mathf.InverseLerp(LegsStandBelowSpeed, LegsWalkFromSpeed, ownSpeed);
@@ -693,6 +748,9 @@ namespace CityX.Character
             return frame;
         }
 
+        /// <summary>The stance <paramref name="kind"/> starts from and returns to: its hold's, or a spear's own.</summary>
+        public static SwordFrame ReadyFor(SwordStrikeKind kind) => IsSpear(kind) ? Frame(SpearReadyKey, 1.0f, true) : Ready(IsOneHanded(kind));
+
         /// <summary>The held guard: one-handed, the blade across the body at chest height and the free arm relaxed (the clips'); two-handed, the blade up across the front, edge out.</summary>
         public static SwordFrame Guard(bool oneHanded)
         {
@@ -767,6 +825,46 @@ namespace CityX.Character
 
         private static readonly Key TrailKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.18f, 1.42f, 0.42f), blade: new Vector3(0.187f, 0.866f, 0.464f),
             edge: new Vector3(-0.63f, -0.26f, 0.73f), elbow: 0.10f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
+
+        // ---- THE SPEAR'S HELD POSES (docs/SPEAR.md) ----
+
+        /// <summary>Where a spear's attacks start from and go back to: side on, the rear hand low at the right hip, the point up at the enemy's chest.</summary>
+        private static readonly Key SpearReadyKey = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.38f, 1.26f, 0.0f), blade: new Vector3(-0.22f, 0.28f, 0.935f),
+            edge: new Vector3(-0.3f, -0.9f, 0.2f), elbow: 0.25f, twist: 36.0f, hips: 18.0f, lean: 4.0f, tilt: 0.0f, drop: 0.10f, lead: -1.0f, depth: 0.45f);
+
+        // Carried in the right hand alone at the hip, a little up from level, the point ahead and the butt behind beside the leg; at a run more
+        // level still.
+        private static readonly Key SpearCarryKey = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.44f, 1.20f, 0.12f), blade: new Vector3(-0.04f, 0.40f, 0.915f),
+            edge: new Vector3(0.0f, -0.9f, 0.4f), elbow: 0.10f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
+
+        private static readonly Key SpearTrailKey = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.46f, 1.28f, 0.04f), blade: new Vector3(-0.03f, 0.22f, 0.975f),
+            edge: new Vector3(0.0f, -0.95f, 0.25f), elbow: 0.10f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
+
+        // The shaft across the front, the point up to the left and the butt low out to the right: a staff's block.
+        private static readonly Key SpearGuardKey = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.38f, 1.30f, 0.32f), blade: new Vector3(-0.55f, 0.80f, 0.25f),
+            edge: new Vector3(0.6f, 0.3f, 0.75f), elbow: 0.30f, twist: 12.0f, hips: 6.0f, lean: 4.0f, tilt: 0.0f, drop: 0.10f, lead: -1.0f, depth: 0.40f);
+
+        /// <summary>
+        /// THE SPEAR'S CARRY: in the right hand alone, low at the side, the left arm the walk's own (a spear is not marched about in both hands);
+        /// with <paramref name="run01"/> rising to 1 at a sprint it lies more level. The legs are the walk's.
+        /// </summary>
+        public static SwordFrame SpearCarry(float run01)
+        {
+            float t = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01(run01));
+            SwordFrame frame = Lerp(Frame(SpearCarryKey, 1.0f, false), Frame(SpearTrailKey, 1.0f, false), t);
+            frame.Footwork = 0.0f;
+            frame.FreeHandWeight = 0.0f;
+            frame.ForearmAlign = 0.0f;
+            return frame;
+        }
+
+        /// <summary>The spear's held guard (with no shield): the shaft across the front in both hands.</summary>
+        public static SwordFrame SpearGuard()
+        {
+            SwordFrame frame = Frame(SpearGuardKey, 1.0f, true);
+            frame.ForearmAlign = 0.0f;
+            return frame;
+        }
 
 
         // ---- the keyframes -------------------------------------------------------------------------------------------------------------
@@ -1146,6 +1244,63 @@ namespace CityX.Character
                         depth: 0.75f, reach: 0.6f)), new Vector3(-0.44f, -0.76f, -0.40f));
                     return Assemble(kind, ready1, windup, contact, follow);
                 }
+                // ---- THE SPEAR (docs/SPEAR.md) ----
+                // Fought SIDE ON, the left side to the enemy, the rear (right) hand low at the right hip with the shaft under that arm (couched):
+                // the hand runs forward along the right side, never across the chest, so the butt passes beside the body and not through it
+                // (drawn back, the hand is half a metre out from the middle: nearer, the shaft ahead of it brushed the ribs);
+                // the shoulders stay turned to the right even as a thrust lands, which is also what lets the left hand reach the shaft. A
+                // thrust's point goes out along one straight line and stops (no arc, no carry-through). The key's edge is the side the forearm
+                // comes from (the two-handed keys' rule): from above with the hand low, from the right as the hand goes out.
+                case SwordStrikeKind.SpearJab:
+                {
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.52f, 1.30f, -0.34f), new Vector3(-0.28f, 0.16f, 0.95f), new Vector3(-0.4f, -0.9f, 0.1f),
+                        elbow: 0.35f, twist: 52.0f, hips: 26.0f, lean: 0.0f, tilt: 0.0f, drop: 0.10f, lead: -1.0f, depth: 0.42f);
+                    Key contact = Pose(0.0f, Ease.Snap, new Vector3(0.28f, 1.48f, 0.40f), new Vector3(-0.16f, 0.08f, 0.98f), new Vector3(-0.9f, -0.4f, 0.0f),
+                        elbow: 0.60f, twist: 24.0f, hips: 8.0f, lean: 10.0f, tilt: 0.0f, drop: 0.12f, lead: -1.0f, depth: 0.60f, reach: 1.0f);
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.28f, 1.48f, 0.44f), new Vector3(-0.16f, 0.08f, 0.98f), new Vector3(-0.9f, -0.4f, 0.0f),
+                        elbow: 0.60f, twist: 20.0f, hips: 6.0f, lean: 12.0f, tilt: 0.0f, drop: 0.12f, lead: -1.0f, depth: 0.60f, reach: 0.6f);
+                    return Assemble(kind, SpearReadyKey, windup, contact, follow);
+                }
+                case SwordStrikeKind.SpearThrust:
+                {
+                    // The second: on a higher line, the hand rising past the ribs and the point going in at the neck.
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.52f, 1.46f, -0.24f), new Vector3(-0.29f, 0.14f, 0.95f), new Vector3(-0.5f, -0.85f, 0.1f),
+                        elbow: 0.50f, twist: 56.0f, hips: 28.0f, lean: -2.0f, tilt: 0.0f, drop: 0.10f, lead: -1.0f, depth: 0.45f);
+                    Key contact = Pose(0.0f, Ease.Snap, new Vector3(0.28f, 1.66f, 0.42f), new Vector3(-0.16f, 0.20f, 0.97f), new Vector3(-0.9f, -0.4f, 0.0f),
+                        elbow: 0.70f, twist: 20.0f, hips: 6.0f, lean: 12.0f, tilt: 0.0f, drop: 0.13f, lead: -1.0f, depth: 0.65f, reach: 1.0f);
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.28f, 1.66f, 0.46f), new Vector3(-0.16f, 0.20f, 0.97f), new Vector3(-0.9f, -0.4f, 0.0f),
+                        elbow: 0.70f, twist: 16.0f, hips: 4.0f, lean: 14.0f, tilt: 0.0f, drop: 0.13f, lead: -1.0f, depth: 0.65f, reach: 0.6f);
+                    return Assemble(kind, SpearReadyKey, windup, contact, follow);
+                }
+                case SwordStrikeKind.SpearLunge:
+                case SwordStrikeKind.SpearRun:
+                {
+                    // THE LUNGE (and, on the run, the running attack): the hand drawn right back behind the hip and the body coiled over the rear
+                    // leg, then everything driven out along the shaft, the body stretched low over a long stride.
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.60f, 1.32f, -0.40f), new Vector3(-0.30f, 0.18f, 0.94f), new Vector3(-0.4f, -0.9f, 0.1f),
+                        elbow: 0.35f, twist: 64.0f, hips: 32.0f, lean: -6.0f, tilt: -3.0f, drop: 0.14f, lead: -1.0f, depth: 0.36f);
+                    Key contact = Pose(0.0f, Ease.Snap, new Vector3(0.26f, 1.42f, 0.48f), new Vector3(-0.15f, 0.10f, 0.98f), new Vector3(-0.9f, -0.4f, 0.0f),
+                        elbow: 0.60f, twist: 16.0f, hips: 0.0f, lean: 24.0f, tilt: 2.0f, drop: 0.24f, lead: -1.0f, depth: 0.95f, reach: 1.0f);
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.26f, 1.40f, 0.52f), new Vector3(-0.15f, 0.10f, 0.98f), new Vector3(-0.9f, -0.4f, 0.0f),
+                        elbow: 0.60f, twist: 12.0f, hips: -2.0f, lean: 26.0f, tilt: 2.0f, drop: 0.25f, lead: -1.0f, depth: 0.95f, reach: 0.6f);
+                    return Assemble(kind, SpearReadyKey, windup, contact, follow);
+                }
+                case SwordStrikeKind.SpearSweep:
+                {
+                    // THE SWEEP (the heavy): a BACKHAND, left to right. The point carried across to the left with the shoulders turned after it,
+                    // the rear hand staying by the right hip as the pivot; then the body unwinds to the right and the front hand drives the whole
+                    // shaft level round the front. Left to right because of where the hands are on a spear: wound up over the right shoulder
+                    // as a bat is, the shaft pointed away behind and the front hand could not hold it (it dragged the spear across the neck).
+                    // The butt swings round behind the right hip, clear of the body.
+                    CutPlane cut = BackhandFlat;
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.34f, 1.52f, 0.52f), cut, -70.0f, elbow: 0.30f, twist: -16.0f, hips: -8.0f,
+                        lean: -3.0f, tilt: -3.0f, drop: 0.10f, lead: -1.0f, depth: 0.40f);
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.40f, 1.40f, 0.30f), cut, -5.0f, elbow: 0.35f, twist: 40.0f, hips: 30.0f,
+                        lean: 16.0f, tilt: -2.0f, drop: 0.16f, lead: -1.0f, depth: 0.60f, reach: 1.0f), new Vector3(0.30f, 1.38f, 0.30f), 5.0f);
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.46f, 1.40f, 0.15f), cut, 60.0f, elbow: 0.45f, twist: 62.0f, hips: 44.0f,
+                        lean: 4.0f, tilt: 0.0f, drop: 0.11f, lead: -1.0f, depth: 0.55f, reach: 0.6f);
+                    return Assemble(kind, SpearReadyKey, windup, contact, follow);
+                }
                 default:
                 {
                     // THE ONE-HANDED HEAVY: INTO THE GROUND (owner, 2026-11-13: "a fourth downward slash that hits the ground and has like a
@@ -1196,6 +1351,7 @@ namespace CityX.Character
         {
             t01 = Mathf.Clamp01(t01);
             SwordFrame frame = Sample(KeysFor(kind), t01, !IsOneHanded(kind));
+            frame.HoldsItsLine = IsSpear(kind) && !IsHeavy(kind) ? 1.0f : 0.0f;
             frame.Steps = StepsAt(kind, t01);
             return frame;
         }
@@ -1458,6 +1614,7 @@ namespace CityX.Character
                 ForearmAlign = Mathf.Lerp(a.ForearmAlign, b.ForearmAlign, t),
                 WristRollDegrees = Mathf.Lerp(a.WristRollDegrees, b.WristRollDegrees, t),
                 ElbowFindsTheGrip = Mathf.Lerp(a.ElbowFindsTheGrip, b.ElbowFindsTheGrip, t),
+                HoldsItsLine = Mathf.Lerp(a.HoldsItsLine, b.HoldsItsLine, t),
             };
         }
 

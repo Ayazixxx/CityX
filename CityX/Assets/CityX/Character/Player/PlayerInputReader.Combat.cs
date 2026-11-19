@@ -82,7 +82,8 @@ namespace CityX.Character
             {
                 return HeldKind.Other;
             }
-            return weapon is ISwordBlade blade && !blade.IsOneHanded && !blade.IsKnife ? HeldKind.TwoHandedMelee : HeldKind.OneHandedMelee;
+            // (A spear goes beside a shield: it is thrust with the right hand alone then, docs/SPEAR.md.)
+            return weapon is ISwordBlade blade && !blade.IsOneHanded && !blade.IsKnife && !blade.IsSpear ? HeldKind.TwoHandedMelee : HeldKind.OneHandedMelee;
         }
 
         /// <summary>

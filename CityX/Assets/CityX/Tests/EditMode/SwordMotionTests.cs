@@ -22,10 +22,11 @@ namespace CityX.Tests
         {
             SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Finisher1H, SwordStrikeKind.Overhead1H,
             SwordStrikeKind.Sweep2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Cut2H, SwordStrikeKind.Smash2H, SwordStrikeKind.Slam2H,
+            SwordStrikeKind.SpearJab, SwordStrikeKind.SpearThrust, SwordStrikeKind.SpearLunge, SwordStrikeKind.SpearSweep,
         };
 
         /// <summary>The running attacks: thrown only at a sprint, so only their torso and head are ever played (the legs are the run's).</summary>
-        private static readonly SwordStrikeKind[] Running = { SwordStrikeKind.Run1H, SwordStrikeKind.Run2H };
+        private static readonly SwordStrikeKind[] Running = { SwordStrikeKind.Run1H, SwordStrikeKind.Run2H, SwordStrikeKind.SpearRun };
 
         private static readonly SwordStrikeKind[] WithClips = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(Standing, Running));
 
@@ -70,7 +71,7 @@ namespace CityX.Tests
 
         /// <summary>The foot that strides into an attack: the right in the cuts from the left (it passes the left foot), the left in every other.</summary>
         private static string StridingFoot(SwordStrikeKind kind) =>
-            kind == SwordStrikeKind.Cut1H || kind == SwordStrikeKind.Reverse2H ? "foot_r" : "foot_l";
+            kind == SwordStrikeKind.Cut1H || kind == SwordStrikeKind.Reverse2H || kind == SwordStrikeKind.SpearSweep ? "foot_r" : "foot_l";
 
         private static string StandingFoot(SwordStrikeKind kind) => StridingFoot(kind) == "foot_r" ? "foot_l" : "foot_r";
 
@@ -133,7 +134,9 @@ namespace CityX.Tests
                     string when = seconds <= 0.0f ? "starts" : "ends";
                     Assert.AreEqual(BodyRig.HipY - 0.08f, joints["hips"].y, 0.03f, $"{kind} {when} with the hips somewhere else than the ready stance has them");
                     Assert.Less(new Vector2(joints["hips"].x, joints["hips"].z).magnitude, 0.04f, $"{kind} {when} with the hips off its feet");
-                    Assert.Less(Mathf.Abs(YawOf(turns["spine"])), 16.0f, $"{kind} {when} with the body still turned");
+                    // (A spear's stance is side on: its own ready stance's turn, not a square one.)
+                    float readyTurn = SwordStrikes.IsSpear(kind) ? SwordStrikes.ReadyFor(kind).TwistDegrees : 0.0f;
+                    Assert.Less(Mathf.Abs(Mathf.DeltaAngle(readyTurn, YawOf(turns["spine"]))), SwordStrikes.IsSpear(kind) ? 6.0f : 16.0f, $"{kind} {when} with the body still turned");
                     foreach (string foot in new[] { "foot_l", "foot_r" })
                     {
                         Assert.Less(Mathf.Abs(joints[foot].z), 0.16f, $"{kind} {when} with a foot out: the next attack starts from the stance");
@@ -203,7 +206,15 @@ namespace CityX.Tests
                 Joints(motion, kind, wound, out Dictionary<string, Quaternion> coiled);
                 Joints(motion, kind, followed, out Dictionary<string, Quaternion> through);
                 bool overhead = kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Smash2H || kind == SwordStrikeKind.Slam2H;
-                if (!overhead)
+                // A spear's thrust is not a turn of the body: the fighter stays side on and the weight goes along the shaft (docs/SPEAR.md).
+                bool thrust = SwordStrikes.IsSpear(kind) && kind != SwordStrikeKind.SpearSweep;
+                if (thrust)
+                {
+                    float opened = Mathf.DeltaAngle(YawOf(through["spine"]), YawOf(coiled["spine"]));
+                    Assert.Greater(opened, 30.0f, $"{kind}: the shoulders do not open into the thrust at all");
+                    Assert.Greater(YawOf(through["spine"]), 0.0f, $"{kind}: the body squares up: a spear is thrust side on");
+                }
+                else if (!overhead)
                 {
                     float turned = Mathf.Abs(Mathf.DeltaAngle(YawOf(coiled["spine"]), YawOf(through["spine"])));
                     Assert.Greater(turned, 80.0f, $"{kind}: the shoulders turn only {turned:0} degrees from the wind-up to the follow-through: an arm's cut, not a body's");

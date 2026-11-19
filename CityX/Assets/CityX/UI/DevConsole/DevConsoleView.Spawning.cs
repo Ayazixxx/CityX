@@ -408,6 +408,7 @@ namespace CityX.UI
                 case "sledge":
                 case "hammer":
                 case "sledgehammer": return ItemRegistry.Sledgehammer;
+                case "spear": return ItemRegistry.Spear;
                 case "flamethrower": return ItemRegistry.Flamethrower;
                 case "staff":
                 case "arcane":

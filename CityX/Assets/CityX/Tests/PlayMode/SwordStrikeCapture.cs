@@ -30,6 +30,27 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheSwordAttacks()
         {
+            yield return RenderTheAttacksOf(new[]
+            {
+                ("spike", "Assets/CityX/Weapons/SpikeSword.prefab"),   // the spikes are its edge: which side leads each cut is plain to see
+                ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
+                ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
+                ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
+                ("hammer", "Assets/CityX/Weapons/Sledgehammer.prefab"),
+                ("knife", "Assets/CityX/Weapons/KitchenKnife.prefab"),
+                ("spear", "Assets/CityX/Weapons/Spear.prefab"),
+            });
+        }
+
+        /// <summary>The spear alone (docs/SPEAR.md): strike-spear-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheSpearAttacks()
+        {
+            yield return RenderTheAttacksOf(new[] { ("spear", "Assets/CityX/Weapons/Spear.prefab"), ("spear-shield", "Assets/CityX/Weapons/Spear.prefab") });
+        }
+
+        private IEnumerator RenderTheAttacksOf((string, string)[] swords)
+        {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Time.captureFramerate = 60;
@@ -49,15 +70,7 @@ namespace CityX.Tests
             camera.nearClipPlane = 0.05f;
 
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
-            foreach ((string swordLabel, string swordPath) in new[]
-            {
-                ("spike", "Assets/CityX/Weapons/SpikeSword.prefab"),   // the spikes are its edge: which side leads each cut is plain to see
-                ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
-                ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
-                ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
-                ("hammer", "Assets/CityX/Weapons/Sledgehammer.prefab"),
-                ("knife", "Assets/CityX/Weapons/KitchenKnife.prefab"),
-            })
+            foreach ((string swordLabel, string swordPath) in swords)
             {
                 var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(swordPath);
                 Assert.IsNotNull(swordPrefab, swordPath + " is missing -- rebuild the scene");
@@ -68,10 +81,17 @@ namespace CityX.Tests
                 vitals.InfiniteStamina = true;
                 var sword = Object.Instantiate(swordPrefab, new Vector3(10, 1, 10), Quaternion.identity).GetComponent<SwordWeapon>();
                 sword.OnEquip(player, CityX.Items.ItemInstanceData.None);
+                if (swordLabel.EndsWith("-shield"))
+                {
+                    // Beside a shield (docs/SPEAR.md): the left arm is the shield's, the spear the right hand's alone.
+                    var shield = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/RoundShield.prefab"));
+                    shield.GetComponent<CityX.Items.IEquippableItem>().OnEquip(player, CityX.Items.ItemInstanceData.None);
+                }
                 var combat = player.GetComponent<SoulsSwordCombat>();
                 combat.HitStopSeconds = 0.0f;
                 var driver = player.GetComponent<PlayerAnimationDriver>();
-                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded, Sword1HEquipped = combat.IsOneHanded };
+                // (A spear walks as an empty hand does, its arm posed.)
+                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded && !sword.IsSpear, Sword1HEquipped = combat.IsOneHanded };
                 for (int i = 0; i < 60; i++)
                 {
                     locomotion.Tick(idle, Dt);
@@ -299,8 +319,15 @@ namespace CityX.Tests
                 var locomotion = player.GetComponent<PlayerLocomotion>();
                 var sword = Object.Instantiate(swordPrefab, new Vector3(10, 1, 10), Quaternion.identity).GetComponent<SwordWeapon>();
                 sword.OnEquip(player, CityX.Items.ItemInstanceData.None);
+                if (swordLabel.EndsWith("-shield"))
+                {
+                    // Beside a shield (docs/SPEAR.md): the left arm is the shield's, the spear the right hand's alone.
+                    var shield = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/RoundShield.prefab"));
+                    shield.GetComponent<CityX.Items.IEquippableItem>().OnEquip(player, CityX.Items.ItemInstanceData.None);
+                }
                 var combat = player.GetComponent<SoulsSwordCombat>();
-                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded, Sword1HEquipped = combat.IsOneHanded };
+                // (A spear walks as an empty hand does, its arm posed.)
+                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded && !sword.IsSpear, Sword1HEquipped = combat.IsOneHanded };
                 for (int i = 0; i < 40; i++)
                 {
                     combat.SetBlockHeld(true);
@@ -386,9 +413,16 @@ namespace CityX.Tests
                 var locomotion = player.GetComponent<PlayerLocomotion>();
                 var sword = Object.Instantiate(swordPrefab, new Vector3(10, 1, 10), Quaternion.identity).GetComponent<SwordWeapon>();
                 sword.OnEquip(player, CityX.Items.ItemInstanceData.None);
+                if (swordLabel.EndsWith("-shield"))
+                {
+                    // Beside a shield (docs/SPEAR.md): the left arm is the shield's, the spear the right hand's alone.
+                    var shield = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/RoundShield.prefab"));
+                    shield.GetComponent<CityX.Items.IEquippableItem>().OnEquip(player, CityX.Items.ItemInstanceData.None);
+                }
                 var combat = player.GetComponent<SoulsSwordCombat>();
                 combat.HitStopSeconds = 0.0f;
-                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded, Sword1HEquipped = combat.IsOneHanded };
+                // (A spear walks as an empty hand does, its arm posed.)
+                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded && !sword.IsSpear, Sword1HEquipped = combat.IsOneHanded };
                 // Standing ready: a guard raised and lowered leaves the stance.
                 for (int i = 0; i < 70; i++)
                 {
