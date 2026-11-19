@@ -123,6 +123,10 @@ stops halfway through"; then "when you spam click, right before the third swing 
   unseen under the clip's (the sword hand 86 cm). Now the new clip's pose starts as the body is (`SwordPoseDriver.BeginClip`), the body is
   told at once who has the arm (`TellWhoHasTheArm`), and the arms start where the clip left them and come into their own pose over
   0.15 s (`PlayerLocomotion.HandTheArmsOverFromTheClip`, after the baked pose).
+- **Not into a rebound off a guard (2026-11-18).** The hand-over is longer than the clash's whole freeze (0.1 s), so a blocked first cut
+  froze with the arm still out where the clip had it, the blades about 80 cm apart instead of crossed (`GuardClashPlayTests` failed from
+  this commit on). A rebound skips it (`SkipTheArmsHandOver`): the blade is slammed onto the guard in a frame or two under the flash, as
+  before. Picture: `SwordStrikeCapture.RenderTheGuardClash`.
 
 Tests: `SwordGifComboPlayTests.TheFirstCutGoesDownAt45DegreesAndTheSecondFollowsThroughAsFar`,
 `SwordChainHandOverPlayTests` (each part's jolt as the third cut takes over: was 29 cm at the hips, 1.4 m at the sword hand; now 1 to

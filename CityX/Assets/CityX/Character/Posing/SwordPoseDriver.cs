@@ -462,6 +462,7 @@ namespace CityX.Character
             _clipPlaying = false;
             _armFromClip = false;
             TellWhoHasTheArm();
+            _locomotion?.SkipTheArmsHandOver();
             _guarding = false;
             _rebounding = true;
             _elapsed = 0.0f;

@@ -305,6 +305,16 @@ namespace CityX.Character
         private Transform[] ArmBones => _armBones ??= new[] { _rightUpperArm, _rightLowerArm, _handR, _leftUpperArm, _leftLowerArm, _handL };
 
         /// <summary>
+        /// The arms go straight to the pose posed here, with no hand-over from the clip's: a blade thrown off a guard (SwordPoseDriver.BeginRebound)
+        /// is slammed onto it under the clash's flash in a frame or two, and the hand-over, longer than the clash's whole freeze, held the cut's arm
+        /// out where the clip had it, 80 cm from the guard it had struck.
+        /// </summary>
+        public void SkipTheArmsHandOver()
+        {
+            _hasClipArms = false;
+        }
+
+        /// <summary>
         /// The chain's third cut, whose clip has no sword arm, after the second, whose clip had it: the arms posed here start where the clip left
         /// them and come into their own pose over <see cref="ArmsFromClipHandOverSeconds"/>. The pose here was carried on unseen under the
         /// clip's arm, and took over from where IT had got to: the sword hand jumped 48 cm in a frame, the free one 70 (owner, 2026-11-17).
