@@ -211,28 +211,11 @@ namespace CityX.Tests
                             // The blade along its length, past the hand that holds it, out of the body (owner, 2026-11-14: "on the third
                             // swing, the sword goes through his body", twice): measured against the body's own shape, the pieces its skin is
                             // made from (FusedBodyShape.Segments) at the size the body is, all but the sword arm, and the head.
-                            var blade = (ISwordBlade)sword;
-                            float bodyScale = Vector3.Distance(hips.position, neck.position)
-                                / Vector3.Distance(BodyRig.ShapePositionOf(HumanBodyBones.Hips), BodyRig.ShapePositionOf(HumanBodyBones.Neck));
-                            List<FusedBodyShape.Segment> body = FusedBodyShape.Segments(b => animator.GetBoneTransform(b).position,
-                                FusedBodyShape.ReferenceHeight * bodyScale);
-                            // (The arms on the handle are where the blade begins: the sword arm's forearm, and with two hands both arms.)
-                            body.RemoveAll(s => s.Bone == HumanBodyBones.RightLowerArm || s.Bone == HumanBodyBones.RightHand
-                                || (!oneHanded && (s.Bone == HumanBodyBones.RightUpperArm || s.Bone == HumanBodyBones.LeftUpperArm
-                                    || s.Bone == HumanBodyBones.LeftLowerArm || s.Bone == HumanBodyBones.LeftHand))
-                                // (A spear's front hand holds the shaft itself, ahead of the rear one: its fingers are round what is measured.)
-                                || (blade.IsSpear && s.Bone >= HumanBodyBones.LeftThumbProximal && s.Bone <= HumanBodyBones.LeftLittleDistal));
-                            for (float along = BladeFromShare; along <= 1.0001f; along += 0.1f)
+                            float bladeClear = SwordBladeClearance.Measure(animator, (ISwordBlade)sword, oneHanded, BladeFromShare, out string bladePart);
+                            if (bladeClear < worstBlade)
                             {
-                                Vector3 point = Vector3.Lerp(blade.BladeBaseWorld, blade.BladeTipWorld, along);
-                                float inBody = FusedBodyShape.Distance(body, point);
-                                float inHead = Vector3.Distance(point, head.position) - FusedBodyShape.HeadRadius * bodyScale;
-                                float out_ = Mathf.Min(inBody, inHead);
-                                if (out_ < worstBlade)
-                                {
-                                    worstBlade = out_;
-                                    bladeWhen = $"{(inBody < inHead ? FusedBodyShape.NearestBone(body, point).ToString() : "head")}, {along:0.0} along the blade, {when}";
-                                }
+                                worstBlade = bladeClear;
+                                bladeWhen = $"{bladePart}, {when}";
                             }
                             foreach ((string side, HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones hand) in new[]
                             {

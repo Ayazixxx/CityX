@@ -136,6 +136,7 @@ namespace CityX.Character
             if (_vitals != null) _vitals.Parried += OnParried;
             if (_vitals != null) _vitals.GuardBroken += OnGuardBroken;
             if (_driver != null) _driver.RemoteDeflected += OnRemoteDeflected;
+            if (_driver != null) _driver.RemoteGuardDeflected += OnRemoteGuardDeflected;
         }
 
         private void OnDisable()
@@ -145,6 +146,7 @@ namespace CityX.Character
             if (_vitals != null) _vitals.Parried -= OnParried;
             if (_vitals != null) _vitals.GuardBroken -= OnGuardBroken;
             if (_driver != null) _driver.RemoteDeflected -= OnRemoteDeflected;
+            if (_driver != null) _driver.RemoteGuardDeflected -= OnRemoteGuardDeflected;
         }
 
         /// <summary>The blow about to clash was caught in the guard's first instant (said just before <see cref="OnGuardStruck"/>).</summary>
@@ -189,8 +191,40 @@ namespace CityX.Character
                 return;
             }
             Vector3 direction = Toward(from);
+            if (kind == DamageKind.Bullet && KnockTheGuard(from, direction))
+            {
+                return;
+            }
             Show(Chest() + direction * GuardReach, direction);
             _driver?.AnnounceState(StateName);
+        }
+
+        /// <summary>
+        /// A bullet turned aside by a held sword's guard (docs/BULLET_DEFLECTION.md): it glances off the blade where the blade is, and knocks
+        /// the guard to a new angle (SwordStrikes.PickDeflect), which every other player's copy is told by name. False with no sword guard up
+        /// (a shield, a spear, a fist's block): the bullet glances off in front of the chest as before.
+        /// </summary>
+        private bool KnockTheGuard(Vector3 from, Vector3 direction)
+        {
+            SwordPoseDriver poser = _driver != null ? _driver.SwordPoser : null;
+            ISwordBlade held = _locomotion != null ? _locomotion.HeldSword : null;
+            if (poser == null || !poser.IsGuarding || held == null || held.IsSpear)
+            {
+                return false;
+            }
+            int pose = SwordStrikes.PickDeflect(poser.OneHanded, poser.DeflectPose, transform.InverseTransformDirection(from - Chest()), Random.value);
+            Show(GuardPoint(direction), direction);
+            poser.Deflect(pose);
+            _driver.AnnounceState(SwordStrikes.DeflectName(pose));
+            return true;
+        }
+
+        /// <summary>The player this body is a copy of had a bullet knock their sword's guard to <paramref name="pose"/>: the same glance off the blade, the same new angle.</summary>
+        private void OnRemoteGuardDeflected(int pose)
+        {
+            Vector3 direction = transform.forward;
+            Show(GuardPoint(direction), direction);
+            _driver?.SwordPoser?.Deflect(pose);
         }
 
         private void OnRemoteDeflected(bool clash)

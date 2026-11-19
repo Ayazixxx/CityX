@@ -174,7 +174,7 @@ namespace CityX.Character
     /// Pure data and maths (no scene): the paths can be tested, and PlayerLocomotion only has to put the hand where a frame says, point the
     /// blade the way it says (two-bone IK on the arm, then the wrist), and turn the hips and spine.
     /// </summary>
-    public static class SwordStrikes
+    public static partial class SwordStrikes
     {
         public const string Slash1HName = "sword1h_slash";
         public const string Cut1HName = "sword1h_cut";

@@ -714,6 +714,47 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// A SWORD GUARD KNOCKED TO A NEW ANGLE (docs/BULLET_DEFLECTION.md): each bullet a player's held sword guard turns aside snaps the
+        /// blade to a new angle; the other player's copy of them is knocked to the same angle, with the same glance off the blade.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ABulletKnockingAPlayersSwordGuardToANewAngleIsSeenOnTheirCopy()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            _aOnA.GetComponent<PlayerInputReader>().enabled = false;   // driven by the test, not the (empty) keyboard
+            Assert.IsTrue(_aOnA.GetComponent<Inventory>().EquipItemId(ItemRegistry.SpikeSword, _aOnA.gameObject), "the sword could not be equipped");
+            var combat = _aOnA.GetComponent<SoulsSwordCombat>();
+            var vitals = _aOnA.GetComponent<PlayerVitals>();
+            var owner = _aOnA.GetComponent<SwordPoseDriver>();
+            var copy = _aOnB.GetComponent<SwordPoseDriver>();
+            var copySparks = _aOnB.GetComponent<BlockDeflectEffect>();
+            yield return WaitUntil(() =>
+            {
+                combat.SetBlockHeld(true);
+                return copy.IsGuarding;
+            }, "the copy to raise the sword's guard with its owner");
+            vitals.Roll = () => 0.0f;
+            for (int shot = 0; shot < 3; shot++)
+            {
+                int was = owner.DeflectPose;
+                int shown = copySparks.Shown;
+                combat.SetBlockHeld(true);
+                DamageContext.Strike(vitals, 10.0f, _aOnA.transform.position + new Vector3(0.0f, 2.2f, 12.0f), 0.0f, DamageKind.Bullet, 0.0f);
+                Assert.AreNotEqual(was, owner.DeflectPose, $"shot {shot}: the owner's guard was not knocked to a new angle");
+                yield return WaitUntil(() =>
+                {
+                    combat.SetBlockHeld(true);
+                    return copy.DeflectPose == owner.DeflectPose && copySparks.Shown > shown;
+                }, $"shot {shot}: the copy's guard to be knocked to the owner's angle ({owner.DeflectPose})");
+            }
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
+        /// <summary>
         /// A SHIELD SHOWS ON THE COPY, AND GOES UP WITH ITS OWNER'S (2026-10-27, docs/SHIELD.md): one player straps on the round shield; the
         /// other player's copy of them wears it on its forearm, and raises it when they do.
         /// </summary>

@@ -202,6 +202,10 @@ namespace CityX.Character
             {
                 return;
             }
+            if (_sword != null && _sword.KnockedThisFrame)
+            {
+                return;   // a bullet that knocked the sword's guard to a new angle: a recoil on top would rock the angle it holds (BlockDeflectEffect.KnockTheGuard)
+            }
             Vector3 local = transform.InverseTransformPoint(fromPosition);
             PlayLocalState(HitReactions.NameFor(HitReactions.DirectionOf(local), _vitals.IsStunned));
         }
@@ -340,6 +344,9 @@ namespace CityX.Character
         /// <remarks>True when it was a sword guard meeting a blade (BlockDeflectEffect.ClashStateName): the recorded clash plays.</remarks>
         public event System.Action<bool> RemoteDeflected;
 
+        /// <summary>A bullet knocked the held sword guard of the player this body is a copy of to a new angle (SwordStrikes.DeflectName, from the network).</summary>
+        public event System.Action<int> RemoteGuardDeflected;
+
         /// <summary>A blow that got through to the player this body is a copy of (HitImpactEffects.NameFor, from the network): the side it came from, and whether it was heavy.</summary>
         public event System.Action<HitDirection, bool> RemoteWounded;
 
@@ -477,6 +484,11 @@ namespace CityX.Character
             {
                 // the copy's guard throws the same sparks and makes the same sound
                 RemoteDeflected?.Invoke(stateName == BlockDeflectEffect.ClashStateName);
+                return;
+            }
+            if (SwordStrikes.TryGetDeflect(stateName, out int deflectPose))
+            {
+                RemoteGuardDeflected?.Invoke(deflectPose);   // the copy's guard is knocked to the same angle, with the same sparks and ting
                 return;
             }
             if (stateName == AttackGlint.StateName)

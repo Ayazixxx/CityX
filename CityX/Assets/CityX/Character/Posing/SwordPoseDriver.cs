@@ -446,7 +446,44 @@ namespace CityX.Character
             _armFromClip = false;
             TellWhoHasTheArm();
             _guarding = true;
+            _deflectPose = 0;
+            _deflectRemaining = 0.0f;
             _speed = 1.0f;
+            enabled = true;
+        }
+
+        private int _deflectPose;
+        private SwordFrame _deflectFrom;
+        private float _deflectRemaining;
+
+        /// <summary>The angle a bullet last knocked the held guard to (SwordStrikes.Guard(bool, int)); 0, the guard's own, or no guard held.</summary>
+        public int DeflectPose => _guarding ? _deflectPose : 0;
+
+        /// <summary>The blade is on its way to the angle a bullet knocked it to.</summary>
+        public bool IsDeflectSnapping => _guarding && _deflectRemaining > 0.0f;
+
+        private int _knockedFrame = -1;
+
+        /// <summary>A bullet knocked the guard to a new angle this frame: the blade's jump is the body's reaction to it.</summary>
+        public bool KnockedThisFrame => _knockedFrame == Time.frameCount;
+
+        /// <summary>
+        /// A bullet the held guard turned aside knocks it to angle <paramref name="pose"/> (SwordStrikes.PickDeflect): the blade snaps there
+        /// from wherever it is and stays until the next one. Nothing without a sword's guard up (a spear's guard does not turn).
+        /// </summary>
+        public void Deflect(int pose)
+        {
+            ISwordBlade held = _locomotion != null ? _locomotion.HeldSword : null;
+            if (!_guarding || held == null || held.IsSpear)
+            {
+                return;
+            }
+            _deflectFrom = _hasLastFrame ? _lastFrame : SwordStrikes.Guard(_oneHanded, _deflectPose);
+            _deflectPose = Mathf.Clamp(pose, 0, SwordStrikes.DeflectPoseCount - 1);
+            _deflectRemaining = SwordStrikes.DeflectSnapSeconds;
+            _knockedFrame = Time.frameCount;
+            _takeoverRemaining = 0.0f;   // the snap starts from the pose the body is in, as the guard's takeover did
+            _parryRemaining = 0.0f;   // a bullet caught in the parry's instant: the knock is its flourish (thrust on top, it rocked the new angle)
             enabled = true;
         }
 
@@ -697,8 +734,13 @@ namespace CityX.Character
             }
             else if (_guarding)
             {
-                frame = held != null && held.IsSpear ? SwordStrikes.SpearGuard() : SwordStrikes.Guard(_oneHanded);
+                frame = held != null && held.IsSpear ? SwordStrikes.SpearGuard() : SwordStrikes.Guard(_oneHanded, _deflectPose);
                 frame.Footwork *= _stanceGate;
+                if (_deflectRemaining > 0.0f)
+                {
+                    _deflectRemaining -= deltaTime;
+                    frame = SwordStrikes.DeflectSnap(_deflectFrom, frame, 1.0f - Mathf.Clamp01(_deflectRemaining / SwordStrikes.DeflectSnapSeconds));
+                }
             }
             else if (CarryIsPosed)
             {
