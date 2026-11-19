@@ -1,29 +1,24 @@
+using UnityEngine;
+
 namespace CityX.Character
 {
     /// <summary>
-    /// What PlayerInputReader needs from an equipped parachute, without
-    /// depending on the Weapons assembly -- same layering reason IFlightGear
-    /// exists: Character depends on nothing, Weapons depends on Character,
-    /// never the other way round. Parachute (in CityX.Weapons) implements
-    /// this.
+    /// What PlayerInputReader needs from a worn parachute (docs/PARACHUTE.md), without depending on the Weapons assembly: the same layering as
+    /// IFlightGear (Parachute, in CityX.Weapons, implements it).
     /// </summary>
     public interface IParachute
     {
         /// <summary>
-        /// Called every frame while equipped, grounded or not -- matches
-        /// IFlightGear.Tick's own "called every frame, not just while active"
-        /// shape, for the same reason: this is also where a parachute
-        /// notices it has landed and needs to auto-close itself, which has
-        /// to keep happening on every grounded frame, not just the one
-        /// frame a toggle press happened to land on.
-        /// <paramref name="toggledThisFrame"/> is true for exactly the one
-        /// frame Space was freshly pressed while airborne with this
-        /// equipped -- a toggle, not a hold, so this flips open to closed
-        /// or back again rather than meaning "thrusting" the way
-        /// IFlightGear.Tick's own thrustHeld does.
-        /// <paramref name="grounded"/> is PlayerLocomotion's own current
-        /// grounded state, for the auto-close-on-landing behaviour.
+        /// True while the parachute moves the body (falling spread out, opening, flying under the canopy): the keys and Space are its, not the
+        /// walk's or the jump's.
         /// </summary>
-        void Tick(bool toggledThisFrame, bool grounded, float deltaTime);
+        bool DrivesBody { get; }
+
+        /// <summary>
+        /// Every frame it is worn and the body is the player's to move, before the body is moved: <paramref name="spacePressed"/> is Space going
+        /// down this frame, <paramref name="move"/> the keys (x A/D, y W/S). A frame it is not called (the body on a wall, on a rope, knocked down)
+        /// ends whatever jump it was in.
+        /// </summary>
+        void Tick(bool spacePressed, Vector2 move, float deltaTime);
     }
 }

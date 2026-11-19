@@ -75,15 +75,15 @@ namespace CityX.Character
 
         /// <summary>
         /// Set by Parachute's own OnEquip/OnUnequip, same pattern as
-        /// EquippedFlightGear. While non-null, a fresh press of Space while
-        /// airborne toggles it open/closed instead of doing nothing -- see
-        /// the Update() dispatch and IParachute's own doc comment. Shares
-        /// Jetpack's own "back" equip slot (see ItemRegistry.Parachute's
-        /// own doc comment), so Inventory's own slot eviction already
-        /// guarantees this and EquippedFlightGear are never both non-null at
-        /// once -- no extra mutual-exclusion needed here.
+        /// EquippedFlightGear (docs/PARACHUTE.md). Ticked every frame the body is
+        /// the player's to move; once a fall has gone on long enough it takes
+        /// the keys and Space (IParachute.DrivesBody). Shares the jetpack's
+        /// "back" equip slot, so the two are never worn at once.
         /// </summary>
         public IParachute EquippedParachute;
+
+        /// <summary>A worn parachute has the body: skydiving, opening or flying under the canopy.</summary>
+        private bool ParachuteDrives => EquippedParachute != null && EquippedParachute.DrivesBody;
 
         /// <summary>
         /// Edge-detects a jetpack wall hit (see the crash-damage block in
@@ -790,11 +790,11 @@ namespace CityX.Character
             // WALL GRABS ARE ASKED FOR, NOT STUMBLED INTO. Holding Space for a moment (a tap is still a jump)
             // is how the player says "grab that wall"; running, jumping through a window or walking through a
             // doorway never asks. Updated every frame, before the attached branch below, so letting go of the
-            // key while hanging on is seen (a grab needs a fresh hold). Not with a jetpack or parachute on the
-            // back: Space means thrust or canopy there.
+            // key while hanging on is seen (a grab needs a fresh hold). Not with a jetpack on the back, nor while a
+            // parachute has the body (skydiving or under the canopy): Space means thrust or canopy there.
             _grabIntent.Update(keyboard.spaceKey.isPressed, deltaTime);
             // Nor while Grow or Shrink has the body at another size: the grab and the ledge are measured for a 2.6 m body.
-            bool wallGrabsAllowed = EquippedFlightGear == null && EquippedParachute == null && !_locomotion.IsResized;
+            bool wallGrabsAllowed = EquippedFlightGear == null && !ParachuteDrives && !_locomotion.IsResized;
 
             // ALREADY ATTACHED TO A WALL OWNS THE WHOLE FRAME TOO, matching
             // player.gd's own _is_climbing early-return into
@@ -1075,29 +1075,13 @@ namespace CityX.Character
             // last frame.)
             bool jetpackThrusting = EquippedFlightGear != null && EquippedFlightGear.IsFlying;
 
-            // A PARACHUTE TAKES A FRESH PRESS OF SPACE WHILE AIRBORNE, not a
-            // hold -- Requested: "press space and open and close it."
-            // wasPressedThisFrame rather than isPressed, since this is a
-            // toggle (open, then a second press later closes it again), not
-            // a held state the way jetpack thrust is. Airborne-only for the
-            // same reason jetpackThrusting is: while grounded this stays
-            // false, so the dispatch below still falls through to an
-            // ordinary jump instead, and there is nothing to "open" while
-            // standing on the ground anyway. EquippedFlightGear and
-            // EquippedParachute share Jetpack's own "back" equip slot (see
-            // ItemRegistry.Parachute's own doc comment), so Inventory's own
-            // slot eviction already guarantees at most one of them is ever
-            // equipped at once -- no extra mutual-exclusion needed here.
-            bool parachuteToggledThisFrame = EquippedParachute != null &&
-                keyboard.spaceKey.wasPressedThisFrame && !_locomotion.IsGrounded;
-
             // Sprint only forwards. Sprinting sideways or backwards has no
             // animation and reads as a glitch rather than as speed.
             //
             // AIMING DOWN SIGHTS ENDS A SPRINT (and holding aim stops you
             // starting one) -- you cannot run flat out and hold a steady
             // sight picture (Fortnite's sprint puts the weapon away outright).
-            bool wantsSprint = !jetpackThrusting && !_isAimingGun
+            bool wantsSprint = !jetpackThrusting && !ParachuteDrives && !_isAimingGun
                 && keyboard.leftShiftKey.isPressed && move.y > 0.0f;
 
             // Stamina decides, not the key. Asking rather than checking a flag
@@ -1231,17 +1215,10 @@ namespace CityX.Character
                 _ragdoll?.TickKinematicLimbClearance();
             }
 
-            // CALLED EVERY FRAME WHILE EQUIPPED, GROUNDED OR NOT -- same
-            // reasoning EquippedFlightGear.Tick just above is, per that block's
-            // own doc comment: Tick is also where a parachute notices it
-            // landed and auto-closes itself (see IParachute.Tick's own doc
-            // comment), which has to keep happening even after the toggle
-            // press itself is long past and even once grounded, not just on
-            // the one frame Space was actually pressed.
-            if (EquippedParachute != null)
-            {
-                EquippedParachute.Tick(parachuteToggledThisFrame, _locomotion.IsGrounded, deltaTime);
-            }
+            // THE PARACHUTE (docs/PARACHUTE.md) times every fall, so it is ticked every frame it is worn, grounded or not. Once it has the body
+            // (fallen long enough, open, landing) it moves and turns it itself: the walk below is given no keys, and the body no aim to turn to.
+            EquippedParachute?.Tick(keyboard.spaceKey.wasPressedThisFrame, heldMove, deltaTime);
+            bool chuteDrives = ParachuteDrives;
 
             // A CAST NO LONGER BORROWS THE GUN'S OWN AIM POSE -- the explicit
             // ask was a dedicated animation (a raised right hand), so
@@ -1260,22 +1237,22 @@ namespace CityX.Character
 
             var input = new LocomotionInput
             {
-                Move = move,
+                Move = chuteDrives ? Vector2.zero : move,
                 YawDegrees = yawDegrees,
-                Sprint = sprinting,
-                Crouch = keyboard.leftCtrlKey.isPressed && !jetpackThrusting,   // flying, Ctrl sinks the body (FlightInput.DescendHeld)
+                Sprint = sprinting && !chuteDrives,
+                Crouch = keyboard.leftCtrlKey.isPressed && !jetpackThrusting && !chuteDrives,   // flying, Ctrl sinks the body (FlightInput.DescendHeld)
                 ShieldRaised = _vitals != null && _vitals.ShieldRaised,
                 // Charging kept in the vault for now -- see the dispatch
                 // above (and TickJumpCharge's own doc comment) for why
                 // Space fires a plain, un-charged jump directly instead.
                 ChargingJump = chargingJumpNow,
                 JumpReleased = jumpReleased,
-                JumpHeld = keyboard.spaceKey.isPressed && !spinHoldsTheBody,
+                JumpHeld = keyboard.spaceKey.isPressed && !spinHoldsTheBody && !chuteDrives,
                 JumpChargeFraction = jumpChargeFraction,
                 // Gun-aiming only now -- see isCastingFireball's own comment
                 // just above for why a cast no longer sets this too.
-                Aiming = _isAimingGun,
-                ThrowAiming = _throwAiming || GlacierSpikesArmed,
+                Aiming = _isAimingGun && !chuteDrives,
+                ThrowAiming = (_throwAiming || GlacierSpikesArmed) && !chuteDrives,
                 AimCameraPosition = _orbitCamera != null ? _orbitCamera.transform.position : Vector3.zero,
                 AimCameraForward = _orbitCamera != null ? _orbitCamera.transform.forward : Vector3.forward,
                 // The two-handed carry (the 2hsw clips). A one-handed sword is carried by the ordinary walk's own arm, its attacks posed on top.
@@ -1292,7 +1269,7 @@ namespace CityX.Character
                 // LocomotionInput.GunAimPoint).
                 GunAimPoint = _gunFeel != null ? _gunFeel.AimPoint : Vector3.zero,
                 HasGunAimPoint = EquippedGun != null && _gunFeel != null && _gunFeel.HasAimPoint,
-                LockedOn = _orbitCamera != null && _orbitCamera.IsLockedOn,
+                LockedOn = _orbitCamera != null && _orbitCamera.IsLockedOn && !chuteDrives,
                 // AIMING WINS, not jetpackThrusting raw -- "aim and shoot
                 // while using the jetpack starts glitching", an explicit
                 // report. Aiming and JetpackThrusting are both bool-gated

@@ -138,6 +138,9 @@ namespace CityX.CharacterEditor
             // --- the RPG's rockets as other players see them (2026-11-19, docs/RPG.md): a copy fires the same rocket, and it bursts where it did.
             GetOrAdd<RocketLauncher>(player);
 
+            // --- a parachute jump as other players see it (2026-11-19, docs/PARACHUTE.md): the poses, the canopy and its sounds.
+            GetOrAdd<ParachuteRider>(player);
+
             // --- the boomerang (2026-11-05, docs/BOOMERANG.md): whether it is out, and a copy of it flying on other players' screens.
             var boomerang = GetOrAdd<BoomerangThrower>(player);
             boomerang.ThrownPrefab = Load(ThrownBoomerangPrefabPath) ?? boomerang.ThrownPrefab;

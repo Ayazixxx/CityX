@@ -5,25 +5,13 @@ using UnityEngine;
 namespace CityX.Weapons
 {
     /// <summary>
-    /// A parachute backpack -- Requested: "add a parachute as an item
-    /// parachute backpack and it functions exactly the same as a fortnite
-    /// glider but its a parachute. press space and open and close it and it
-    /// slows down your fall pretty basic." Press Space while airborne to
-    /// deploy it, press again to pack it away; while deployed, falling is
-    /// clamped to a slow, controlled descent instead of accelerating under
-    /// gravity the way an ordinary fall does.
-    ///
-    /// WASD STEERING IS UNTOUCHED -- PlayerLocomotion's own horizontal
-    /// movement was never coupled to vertical velocity in the first place
-    /// (Jetpack already relies on the exact same fact), so slowing the fall
-    /// alone already gives the "glide around while slowly descending" feel
-    /// without this needing to touch horizontal speed at all.
-    ///
-    /// SHARES JETPACK'S OWN "back" EQUIP SLOT -- see ItemRegistry.Parachute's
-    /// own doc comment. Wearing a parachute and a jetpack at once would not
-    /// mean anything (which one does Space even talk to?), and Inventory's
-    /// own slot eviction already resolves that for free, the same way
-    /// putting on a second coat already replaces the first.
+    /// THE PARACHUTE BACKPACK (owner, 2026-11-19: "make a good parachute backpack that you equip on your back and when equipped you can use it by
+    /// pressing space mid air ... id like to design the backpack myself later but just make a basic one that works for now"; docs/PARACHUTE.md).
+    /// Worn on the back (the jetpack's slot). The jump itself is <see cref="ParachuteFlight"/>: a fall is timed, after two seconds the body spreads
+    /// out face down and Space opens the canopy, which is flown down with WASD and flared to land. This puts the flight on the body: its velocity
+    /// (PlayerLocomotion's forced velocity), the way it faces, no fall damage under an open canopy, a hard landing's knock-down, the camera
+    /// pulled back to show the canopy; the body's <see cref="ParachuteRider"/> shows it (the poses, the canopy, the sounds) here and to other
+    /// players.
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
     public sealed class Parachute : MonoBehaviour, IEquippableItem, IParachute, ICosmeticMountable
@@ -32,45 +20,80 @@ namespace CityX.Weapons
 
         public const float InteractRange = 2.5f;
 
-        /// <summary>
-        /// The slow, controlled descent speed once open. Comfortably below
-        /// anything that could accumulate real fall damage before the next
-        /// ResetFallTracking call catches up -- see Tick's own comment for
-        /// why that combination makes an open parachute effectively
-        /// fall-damage-proof, matching a real glider.
-        /// </summary>
-        public const float OpenFallSpeed = 4.0f;
-
-        /// <summary>Matches Jetpack.BackPosition's own reasoning -- flush against the spine, just far enough out not to sink into the torso.</summary>
+        /// <summary>Flat against the spine, far enough out not to sink into the back.</summary>
         public static readonly Vector3 BackPosition = new Vector3(0.0f, 0.02f, -0.30f);
 
         public static readonly Vector3 BackRotationEuler = Vector3.zero;
 
+        /// <summary>Under the canopy the camera stands this much further back, metres, so the canopy over the head is in view.</summary>
+        public const float CanopyPullBack = 3.0f;
+
+        /// <summary>The camera's pull-back follows over this long, seconds.</summary>
+        public const float PullBackSeconds = 0.6f;
+
         [Tooltip("The folded pack, worn whenever this is equipped.")]
         public GameObject PackVisual;
 
-        [Tooltip("The open canopy -- shown only while deployed.")]
-        public GameObject CanopyVisual;
+        [Tooltip("The canopy (ParachuteCanopy), shown by the body's ParachuteRider while it is out.")]
+        public ParachuteCanopy Canopy;
+
+        [Tooltip("The rush of air in a fall (jetpack_wind_loop.wav), played by the body's ParachuteRider.")]
+        public AudioClip WindClip;
 
         private SphereCollider _pickupTrigger;
         private readonly GroundPickup _pickup = new GroundPickup();
+        private readonly ParachuteFlight _flight = new ParachuteFlight();
         private bool _equipped;
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
+        private ParachuteRider _rider;
+        private ThirdPersonCamera _camera;
+        private JetpackSpeedLines _speedLines;
+        private float _savedMinPitch;
+        private float _savedMaxPitch;
+        private float _pullBack;
+        private float _pullBackVelocity;
+        private float _fov;
+        private float _fovVelocity;
+        private int _lastTickFrame = -10;
+        private bool _forcing;
+        private bool _knockDown;
+        private Vector3 _knockedDownAt;
 
-        public bool IsOpen { get; private set; }
+        /// <summary>The jump as it stands.</summary>
+        public ParachuteFlight Flight => _flight;
+
+        public bool DrivesBody => _flight.DrivesBody;
+
+        /// <summary>The canopy is out (opening or open).</summary>
+        public bool IsOpen => _flight.State == ChuteState.Opening || _flight.State == ChuteState.Open;
+
+        /// <summary>The camera it pulls back. Set on equip; a test can point it at its own.</summary>
+        public ThirdPersonCamera FeelCamera
+        {
+            get => _camera;
+            set => _camera = value;
+        }
 
         private void Awake()
         {
             _pickupTrigger = GetComponent<SphereCollider>();
-            SetCanopyVisible(false);
         }
 
         private void Update()
         {
-            if (!_equipped && _pickup.TappedWithin(transform.position, InteractRange))
+            if (!_equipped)
             {
-                GroundPickup.Take(_pickup.Player, gameObject, ItemRegistry.Parachute);
+                if (_pickup.TappedWithin(transform.position, InteractRange))
+                {
+                    GroundPickup.Take(_pickup.Player, gameObject, ItemRegistry.Parachute);
+                }
+                return;
+            }
+            // Not ticked for a frame (the body knocked down, on a wall, on a rope): whatever was out is gone.
+            if (_flight.DrivesBody && Time.frameCount > _lastTickFrame + 1)
+            {
+                Tick(false, Vector2.zero, Time.deltaTime, continuous: false);
             }
         }
 
@@ -88,23 +111,29 @@ namespace CityX.Weapons
                 transform.localPosition = BackPosition;
                 transform.localEulerAngles = BackRotationEuler;
             }
-
             _equipped = true;
             if (_pickupTrigger != null)
             {
                 _pickupTrigger.enabled = false;
             }
-
             _locomotion = player.GetComponent<PlayerLocomotion>();
             _vitals = player.GetComponent<PlayerVitals>();
-
+            _rider = ParachuteRider.On(player);
             var input = player.GetComponent<PlayerInputReader>();
             if (input != null)
             {
                 input.EquippedParachute = this;
+                _camera = input.OrbitCamera;
             }
-
-            SetOpen(false);
+            // Looking straight down for where to land, as the jetpack and the wings allow for as long as they are worn.
+            if (_camera != null)
+            {
+                _savedMinPitch = _camera.MinPitch;
+                _savedMaxPitch = _camera.MaxPitch;
+                _camera.MinPitch = FlightGear.MinPitchDegrees;
+                _camera.MaxPitch = FlightGear.MaxPitchDegrees;
+                _speedLines = JetpackSpeedLines.Attach(_camera.transform);
+            }
         }
 
         public void OnUnequip(GameObject player)
@@ -113,6 +142,23 @@ namespace CityX.Weapons
             if (input != null && ReferenceEquals(input.EquippedParachute, this))
             {
                 input.EquippedParachute = null;
+            }
+            if (_forcing && _locomotion != null)
+            {
+                _locomotion.ReleaseForcedVelocity();
+            }
+            _rider?.PutAway();
+            if (_camera != null)
+            {
+                _camera.MinPitch = _savedMinPitch;
+                _camera.MaxPitch = _savedMaxPitch;
+                _camera.Pitch = Mathf.Clamp(_camera.Pitch, _savedMinPitch, _savedMaxPitch);
+                _camera.FlightFovBonus = 0.0f;
+                _camera.FlightDistanceBonus = 0.0f;
+            }
+            if (_speedLines != null)
+            {
+                Destroy(_speedLines.gameObject);
             }
             Destroy(gameObject);
         }
@@ -132,58 +178,99 @@ namespace CityX.Weapons
 
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
 
-        /// <summary>
-        /// See IParachute.Tick's own doc comment for what the parameters
-        /// mean. Called every frame while equipped, matching Jetpack.Tick's
-        /// own "grounded or not" shape -- this is also where landing gets
-        /// noticed and the parachute auto-closes.
-        /// </summary>
-        public void Tick(bool toggledThisFrame, bool grounded, float deltaTime)
+        public void Tick(bool spacePressed, Vector2 move, float deltaTime)
         {
-            if (grounded)
+            Tick(spacePressed, move, deltaTime, Time.frameCount <= _lastTickFrame + 1);
+        }
+
+        private void Tick(bool spacePressed, Vector2 move, float deltaTime, bool continuous)
+        {
+            _lastTickFrame = Time.frameCount;
+            if (_locomotion == null)
             {
-                // AUTO-CLOSES ON LANDING -- matches a real glider's own
-                // canopy collapsing the instant your feet are down. Nothing
-                // left to fall through, so there is no reason to stay
-                // deployed, let alone keep clamping vertical velocity while
-                // just standing around.
-                SetOpen(false);
                 return;
             }
-
-            if (toggledThisFrame)
+            _flight.Tick(new ChuteInput
             {
-                SetOpen(!IsOpen);
-            }
+                Airborne = !_locomotion.IsGrounded,
+                SpacePressed = spacePressed,
+                Move = move,
+                BodyVelocity = _locomotion.Velocity,
+                HeadingDegrees = _locomotion.transform.eulerAngles.y,
+                Continuous = continuous,
+                HitWall = _locomotion.HitWallThisFrame,
+            }, deltaTime);
 
-            if (IsOpen)
+            if (_flight.DrivesBody)
             {
-                _locomotion?.SetVerticalVelocity(-OpenFallSpeed);
-                // Same mechanism Jetpack.Tick already uses for exactly the
-                // same reason -- see PlayerVitals.ResetFallTracking's own
-                // doc comment ("it negates fall damage from the last height
-                // it was on"). Called every open frame, so any fall damage
-                // on eventual landing only ever measures the drop since the
-                // parachute was LAST open, never the whole original fall --
-                // an open parachute is effectively fall-damage-proof.
-                if (_vitals != null && _locomotion != null)
+                _locomotion.ForceVelocity(_flight.Velocity);
+                _forcing = true;
+                _locomotion.transform.rotation = Quaternion.Euler(0.0f, _flight.HeadingDegrees, 0.0f);
+                // Under a canopy the height it came from never hurts: how it lands does (below).
+                if (IsOpen && _vitals != null)
                 {
                     _vitals.ResetFallTracking(_locomotion.transform.position.y);
                 }
             }
-        }
-
-        private void SetOpen(bool open)
-        {
-            IsOpen = open;
-            SetCanopyVisible(open);
-        }
-
-        private void SetCanopyVisible(bool visible)
-        {
-            if (CanopyVisual != null)
+            else if (_forcing)
             {
-                CanopyVisual.SetActive(visible);
+                _locomotion.ReleaseForcedVelocity();
+                _forcing = false;
+            }
+            if (_flight.LandedThisFrame)
+            {
+                Landed();
+            }
+            TickCamera(deltaTime);
+            _rider?.ShowOwn(_flight, move, deltaTime);
+        }
+
+        private void Landed()
+        {
+            if (_vitals == null)
+            {
+                return;
+            }
+            _vitals.ResetFallTracking(_locomotion.transform.position.y);
+            if (_flight.Landing == ChuteLanding.Hard)
+            {
+                _vitals.TakeDamage(ParachuteFlight.DamageOf(_flight.Landing, _flight.LandingSink));
+                // Knocked down once the body has moved this frame (LateUpdate): the input reader moves it after this, and a body gone limp cannot be moved.
+                _knockedDownAt = _locomotion.Velocity;
+                _knockedDownAt.y = 0.0f;
+                _knockDown = true;
+            }
+        }
+
+        private void LateUpdate()
+        {
+            if (_knockDown && _vitals != null)
+            {
+                _vitals.TriggerLaunchKnockdown(_knockedDownAt);
+            }
+            _knockDown = false;
+        }
+
+        /// <summary>
+        /// The view widens and pulls back with the speed of a fall, as a jetpack's does (FlightFeel), with the streaks of air past it; under the
+        /// canopy it stands further back still, so the canopy is in view.
+        /// </summary>
+        private void TickCamera(float deltaTime)
+        {
+            if (_camera == null || deltaTime <= 0.0f)
+            {
+                return;
+            }
+            bool falling = _flight.State == ChuteState.Freefall || _flight.State == ChuteState.Opening;
+            float fraction = falling ? FlightFeel.SpeedFraction(_locomotion.Velocity.magnitude) : 0.0f;
+            float back = (IsOpen ? CanopyPullBack : 0.0f) + FlightFeel.DistanceBonus(fraction, 0.0f);
+            _pullBack = Mathf.SmoothDamp(_pullBack, back, ref _pullBackVelocity, PullBackSeconds, Mathf.Infinity, deltaTime);
+            _fov = Mathf.SmoothDamp(_fov, FlightFeel.FovBonus(fraction, 0.0f), ref _fovVelocity, FlightFeel.SmoothSeconds, Mathf.Infinity, deltaTime);
+            _camera.FlightDistanceBonus = _pullBack;
+            _camera.FlightFovBonus = _fov;
+            if (_speedLines != null)
+            {
+                _speedLines.Set(fraction, _locomotion.Velocity);
             }
         }
     }
