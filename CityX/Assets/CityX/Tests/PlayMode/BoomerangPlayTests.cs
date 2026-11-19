@@ -158,8 +158,12 @@ namespace CityX.Tests
             Assert.IsNotNull(item, "the boomerang was spent: it is not a grenade");
         }
 
+        /// <summary>
+        /// Owner, 2026-11-18: "return to the thrower on the first enemy it hits instead of traveling through a bunch of them". The first body hit turns it
+        /// back, and it comes home through the people in its way hurting none of them.
+        /// </summary>
         [UnityTest]
-        public IEnumerator AHitGoingOutTurnsItBackAndItCanHitAgainComingHome()
+        public IEnumerator TheFirstBodyItHitsTurnsItBackAndItHurtsNoOneElseComingHome()
         {
             GameObject player = Body(Vector3.zero);
             BoomerangItem item = Held();
@@ -178,10 +182,37 @@ namespace CityX.Tests
             Assert.IsTrue(flying.Returning, "the hit did not turn it back");
             float turnedAt = flying.transform.position.z;
             Assert.Less(turnedAt, 7.0f, "it flew on past what it hit");
+            Dummy onTheWay = Target(new Vector3(0.0f, 1.6f, 2.6f));
 
             yield return UntilHome(thrower);
             Assert.AreEqual(0, beyond.Hits, "it reached the body behind the first");
+            Assert.AreEqual(0, onTheWay.Hits, "it had hit its one body, and hit another coming home");
+            Assert.AreEqual(1, near.Hits, "it hit its one body twice");
             Assert.Less(Vector3.Distance(player.transform.position, near.From), 0.5f, "the hit is not from the thrower");
+        }
+
+        /// <summary>The upgrade to come (owner, 2026-11-18: "continue after 1 person hit and you can upgrade it further"): each pass is one more body.</summary>
+        [UnityTest]
+        public IEnumerator EachPassUnlockedLetsItHitOneMoreBody([Values(1, BoomerangBlows.Unlimited)] int passes)
+        {
+            GameObject player = Body(Vector3.zero);
+            BoomerangItem item = Held();
+            item.OnEquip(player, ItemInstanceData.None);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            thrower.PassesThrough = passes;
+            Dummy near = Target(new Vector3(0.0f, 1.6f, 7.0f));
+            Time.captureFramerate = 60;
+
+            Throw(player, item);
+            ThrownBoomerang flying = thrower.Flying;
+            yield return new WaitUntil(() => near.Hits > 0 || flying == null);
+            Assert.AreEqual(1, near.Hits, "it did not hit the first body in its way");
+            Dummy second = Target(new Vector3(0.0f, 1.6f, 4.6f));
+            Dummy third = Target(new Vector3(0.0f, 1.6f, 2.6f));
+
+            yield return UntilHome(thrower);
+            Assert.AreEqual(1, second.Hits, "it did not go on to hit a second body");
+            Assert.AreEqual(passes == 1 ? 0 : 1, third.Hits, passes == 1 ? "one pass let it hit a third body" : "with every pass it stopped at two bodies");
         }
 
         [UnityTest]
@@ -203,8 +234,9 @@ namespace CityX.Tests
             yield return UntilHome(thrower);
             Assert.AreEqual(0, behind.Hits, "it hit someone behind the wall");
 
-            // Coming home: past a turned-back body and a wall between it and the thrower, it goes through and hits.
+            // Coming home, having hit no one going out: a wall between it and the thrower, it goes through and hits who it passes.
             yield return new WaitForSeconds(BoomerangRules.ThrowEverySeconds);
+            Object.Destroy(behind.gameObject);
             foreach (GameObject go in _made.ToArray())
             {
                 if (go != null && go.GetComponent<BoxCollider>() != null && go.transform.position.z > 4.0f) Object.Destroy(go);

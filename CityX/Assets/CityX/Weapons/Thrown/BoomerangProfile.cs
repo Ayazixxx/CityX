@@ -13,7 +13,7 @@ namespace CityX.Weapons
 
         public readonly float HitAgainSeconds, SpinDegreesPerSecond;
 
-        /// <summary>Going out it goes on through the people it hits (only a wall turns it back), and every hit throws the body down.</summary>
+        /// <summary>Going out it goes on through the people it may pass through (BoomerangBlows), and every hit throws the body down.</summary>
         public readonly bool Heavy;
 
         public BoomerangProfile(float outSpeed, float outSeconds, float turnAcceleration, float backTopSpeed, float catchMetres, float hitRadius, float wallRadius,

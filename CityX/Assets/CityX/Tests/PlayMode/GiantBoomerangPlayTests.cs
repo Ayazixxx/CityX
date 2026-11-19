@@ -223,11 +223,43 @@ namespace CityX.Tests
             Assert.Less(Time.time - started, GiantBoomerangMoves.QuickReleaseSeconds, "from the aim it was no quicker to leave the hand");
         }
 
+        /// <summary>
+        /// Owner, 2026-11-18: "return to the thrower on the first enemy it hits instead of traveling through a bunch of them"; going on through one more
+        /// is an upgrade to come ("continue after 1 person hit and you can upgrade it further").
+        /// </summary>
         [UnityTest]
-        public IEnumerator GoingOutItCutsThroughPeopleKnockingThemDownAndAWallTurnsItBack()
+        public IEnumerator ItTurnsBackOffTheLastBodyItMayHitAndHurtsNoOneElse([Values(0, 1)] int passes)
         {
             GameObject player = Body(Vector3.zero);
             var thrower = player.GetComponent<BoomerangThrower>();
+            thrower.PassesThrough = passes;
+            Dummy first = Target(new Vector3(0.0f, 1.3f, 6.0f));
+            Dummy second = Target(new Vector3(0.4f, 1.3f, 11.0f));
+            Dummy third = Target(new Vector3(0.0f, 1.3f, 16.0f));
+            yield return null;
+            Assert.IsTrue(thrower.StartGiantThrow(Vector3.forward, 30.0f, 0.0f));
+            yield return Wait(1.0f, () => thrower.IsOut);
+            ThrownBoomerang flying = thrower.Flying;
+            float furthest = 0.0f;
+            for (float t = 0.0f; t < 6.0f && thrower.IsOut; t += Time.deltaTime)
+            {
+                furthest = Mathf.Max(furthest, flying.transform.position.z);
+                yield return null;
+            }
+            Assert.IsFalse(thrower.IsOut, "it never came home");
+            Assert.AreEqual(1, first.Hits, "the first body in its way was not hit once");
+            Assert.Greater(first.Launches, 0, "the hit did not knock the body down");
+            Assert.AreEqual(passes, second.Hits, passes == 0 ? "it went on through the first body it hit" : "one pass did not take it on to a second body");
+            Assert.AreEqual(0, third.Hits, "it went on through the last body it may hit");
+            Assert.Less(furthest, passes == 0 ? 7.5f : 12.5f, "it did not turn back where it hit");
+        }
+
+        [UnityTest]
+        public IEnumerator WithEveryPassItCutsThroughPeopleKnockingThemDownAndAWallTurnsItBack()
+        {
+            GameObject player = Body(Vector3.zero);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            thrower.PassesThrough = BoomerangBlows.Unlimited;
             Dummy near = Target(new Vector3(0.0f, 1.3f, 6.0f));
             Dummy far = Target(new Vector3(0.4f, 1.3f, 11.0f));
             var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);

@@ -64,6 +64,12 @@ namespace CityX.Weapons
 
         public ThrownBoomerang Flying => _flying;
 
+        /// <summary>
+        /// How many people this body's throws go on through after the first they hit (BoomerangBlows): none until it is unlocked (owner, 2026-11-18: in
+        /// skills or stats, to be designed), BoomerangBlows.Unlimited for everyone.
+        /// </summary>
+        public int PassesThrough { get; set; }
+
         /// <summary>It can be thrown now: the last one is home, and its use time is over.</summary>
         public bool CanThrow => !IsOut && Time.time - _thrownAt >= BoomerangRules.ThrowEverySeconds;
 
@@ -209,7 +215,7 @@ namespace CityX.Weapons
         private ThrownBoomerang Launch(Vector3 from, Vector3 way, float speed, float damage, float penetration, bool copy, bool giant)
         {
             GameObject prefab = giant && GiantThrownPrefab != null ? GiantThrownPrefab : ThrownPrefab;
-            ThrownBoomerang boomerang = ThrownBoomerang.Spawn(prefab, from, way, speed, gameObject, damage, penetration, copy);
+            ThrownBoomerang boomerang = ThrownBoomerang.Spawn(prefab, from, way, speed, gameObject, damage, penetration, copy, PassesThrough);
             if (boomerang == null)
             {
                 return null;

@@ -6,12 +6,13 @@ namespace CityX.Weapons
 {
     /// <summary>
     /// A BOOMERANG IN THE AIR (docs/BOOMERANG.md). It flies its <see cref="BoomerangFlight"/> and sweeps its path each frame. Going out, the first thing
-    /// it meets, a person or a wall, turns it back. Coming back, it goes through walls and hits everyone it passes. Every hit pushes away from the
+    /// it meets, a person or a wall, turns it back. Coming back, it goes through walls. One throw hits as many people as its <see cref="BoomerangBlows"/>
+    /// allow, one unless more are unlocked, the nearest first; after that it flies home through people, hurting no one. Every hit pushes away from the
     /// thrower, whichever way it is flying. Only the thrower's hurts; another player's copy flies the same way and hurts no one.
     ///
-    /// THE GIANT ONE (<see cref="Giant"/>, BoomerangProfile.Heavy) flies flat and goes on through the people it meets going out: only a wall turns it
-    /// back, and so does a guard that stops it. Every body it hits is thrown down limp, away from the thrower, unless a guard, a block, a shield or a barrier
-    /// stopped the blow.
+    /// THE GIANT ONE (<see cref="Giant"/>, BoomerangProfile.Heavy) flies flat. Going out it goes on through the people it may pass through and turns
+    /// back off the last it may hit, off a wall, or off a guard that stops it. Every body it hits is thrown down limp, away from the thrower, unless a
+    /// guard, a block, a shield or a barrier stopped the blow.
     /// </summary>
     public sealed class ThrownBoomerang : MonoBehaviour
     {
@@ -43,6 +44,7 @@ namespace CityX.Weapons
         private GameObject _thrower;
         private float _damage;
         private float _penetration;
+        private BoomerangBlows _blows;
         private float _spin;
         private bool _done;
 
@@ -69,7 +71,8 @@ namespace CityX.Weapons
         private Transform _catchingHand;
         private bool _comingIn;
 
-        public static ThrownBoomerang Spawn(GameObject prefab, Vector3 from, Vector3 way, float speed, GameObject thrower, float damage, float penetration, bool copy)
+        public static ThrownBoomerang Spawn(GameObject prefab, Vector3 from, Vector3 way, float speed, GameObject thrower, float damage, float penetration, bool copy,
+            int passesThrough = 0)
         {
             if (prefab == null)
             {
@@ -86,6 +89,7 @@ namespace CityX.Weapons
             boomerang._thrower = thrower;
             boomerang._damage = damage;
             boomerang._penetration = penetration;
+            boomerang._blows = new BoomerangBlows(passesThrough);
             boomerang.IsCopy = copy;
             boomerang.StartWhirr();
             return boomerang;
@@ -219,10 +223,7 @@ namespace CityX.Weapons
             bool returning = _flight.Returning;
             bool heavy = _profile.Heavy;
             int count = Physics.SphereCastNonAlloc(from, _profile.HitRadius, way, _hits, length, ~0, QueryTriggerInteraction.Ignore);
-            float nearest = float.MaxValue;
-            int first = -1;
-            IDamageable firstBody = null;
-            bool guarded = false;
+            System.Array.Sort(_hits, 0, count, NearestFirst.Instance);   // the blows it has left go to the nearest
             for (int i = 0; i < count; i++)
             {
                 Collider touched = _hits[i].collider;
@@ -231,61 +232,59 @@ namespace CityX.Weapons
                     continue;
                 }
                 IDamageable body = touched.GetComponentInParent<IDamageable>();
-                if (body != null && !body.IsAlive)
+                if (body == null)
+                {
+                    if (returning || heavy)
+                    {
+                        continue;   // home through walls; the giant one going out meets a wall by its thin blade's own sweep (below), not by its span
+                    }
+                    StrikeTheWall(_hits[i], from, way);
+                    return;
+                }
+                if (!body.IsAlive || _blows.Spent)
                 {
                     continue;
                 }
-                if (returning || (heavy && body != null))
-                {
-                    if (body != null && Hit(body, PointOf(_hits[i], from)) && !returning)
-                    {
-                        guarded = true;   // going out, a guard turns it back as a wall does
-                    }
-                }
-                else if (body == null && heavy)
-                {
-                    continue;   // a wall is met by the thin blade's own sweep (below), not by its span
-                }
-                else if (_hits[i].distance < nearest)
-                {
-                    nearest = _hits[i].distance;
-                    first = i;
-                    firstBody = body;
-                }
-            }
-            if (heavy && !returning)
-            {
-                if (guarded)
+                bool struck = Hit(body, PointOf(_hits[i], from), out bool stopped);
+                bool last = struck && _blows.Strike();
+                // Going out, the wooden one turns back off anyone; the giant one off a guard, as off a wall, or off the last body it may hit.
+                if (!returning && (!heavy || stopped || last))
                 {
                     _flight.TurnBack();
                     TurnedBack?.Invoke(true);
                     return;
                 }
-                first = FirstWall(from, way, length);
-                firstBody = null;
             }
-            if (first < 0)
+            if (heavy && !returning)
             {
-                return;
+                int wall = FirstWall(from, way, length);
+                if (wall >= 0)
+                {
+                    StrikeTheWall(_hits[wall], from, way);
+                }
             }
+        }
 
-            Vector3 point = PointOf(_hits[first], from);
-            if (firstBody != null)
-            {
-                Hit(firstBody, point);
-            }
-            else
-            {
-                var breakable = _hits[first].collider.GetComponentInParent<CityX.World.IBreakableSurface>();
-                breakable?.TakeBlow(point, way, heavy ? CityX.World.BlowStrength.Heavy : CityX.World.BlowStrength.Light);
-                // (A sweep that began already touching says nothing of the surface's facing: straight back along the way it came.)
-                Vector3 normal = _hits[first].distance > 0.0f ? _hits[first].normal : -way;
-                LastImpactPoint = point;
-                LastImpactNormal = normal;
-                Bang(point, normal);
-            }
+        /// <summary>Going out it met a wall, the floor or a thing: a blow on it if it breaks, the bang and burst, and it turns back.</summary>
+        private void StrikeTheWall(in RaycastHit hit, Vector3 from, Vector3 way)
+        {
+            Vector3 point = PointOf(hit, from);
+            var breakable = hit.collider.GetComponentInParent<CityX.World.IBreakableSurface>();
+            breakable?.TakeBlow(point, way, _profile.Heavy ? CityX.World.BlowStrength.Heavy : CityX.World.BlowStrength.Light);
+            // (A sweep that began already touching says nothing of the surface's facing: straight back along the way it came.)
+            Vector3 normal = hit.distance > 0.0f ? hit.normal : -way;
+            LastImpactPoint = point;
+            LastImpactNormal = normal;
+            Bang(point, normal);
             _flight.TurnBack();
-            TurnedBack?.Invoke(firstBody != null);
+            TurnedBack?.Invoke(false);
+        }
+
+        private sealed class NearestFirst : IComparer<RaycastHit>
+        {
+            public static readonly NearestFirst Instance = new NearestFirst();
+
+            public int Compare(RaycastHit a, RaycastHit b) => a.distance.CompareTo(b.distance);
         }
 
         /// <summary>The nearest wall (not a body) its thin blade meets this frame, as an index into the hits, or -1.</summary>
@@ -315,18 +314,20 @@ namespace CityX.Weapons
         private static Vector3 PointOf(in RaycastHit hit, Vector3 from) => hit.distance > 0.0f ? hit.point : from;
 
         /// <summary>
-        /// Strikes a body once a pass. True if a guard, a block, a shield or a barrier stopped it (owner, 2026-11-12: "make it so the boomerang is blockable and
-        /// when you block it, it doesnt ragdoll you"): only a blow that landed throws the body down, and a giant one going out turns back off it.
+        /// Strikes a body once a pass: false if it struck this one too lately to strike it again. <paramref name="stopped"/> if a guard, a block, a shield or
+        /// a barrier stopped it (owner, 2026-11-12: "make it so the boomerang is blockable and when you block it, it doesnt ragdoll you"): only a blow
+        /// that landed throws the body down, and a giant one going out turns back off it.
         /// </summary>
-        private bool Hit(IDamageable body, Vector3 point)
+        private bool Hit(IDamageable body, Vector3 point, out bool stopped)
         {
+            stopped = false;
             if (_struckAt.TryGetValue(body, out float at) && _flight.Age - at < _profile.HitAgainSeconds)
             {
                 return false;
             }
             _struckAt[body] = _flight.Age;
             HitResponse response = DamageContext.Strike(body, _damage, _thrower.transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration, point, _thrower);
-            bool stopped = response == HitResponse.Blocked || response == HitResponse.Guarded;
+            stopped = response == HitResponse.Blocked || response == HitResponse.Guarded;
             if (_profile.Heavy && response == HitResponse.Landed && body.IsAlive)
             {
                 Vector3 away = point - _thrower.transform.position;
@@ -335,7 +336,7 @@ namespace CityX.Weapons
                 Throws.Limp(body, away * GiantBoomerangRules.KnockAway + Vector3.up * GiantBoomerangRules.KnockUp);
             }
             Clack(point, !stopped);
-            return stopped;
+            return true;
         }
 
         private static void Clack(Vector3 at, bool onSomeone)

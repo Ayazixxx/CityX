@@ -27,7 +27,7 @@ namespace CityX.Weapons
 
         public Vector3 Velocity { get; private set; }
 
-        /// <summary>It has turned for home: from here on it goes through walls and hits everyone it passes.</summary>
+        /// <summary>It has turned for home: from here on it goes through walls.</summary>
         public bool Returning { get; private set; }
 
         public float Age => _age;

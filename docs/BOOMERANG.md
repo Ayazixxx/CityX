@@ -14,7 +14,7 @@ From the [Wooden Boomerang](https://terraria.wiki.gg/wiki/Wooden_Boomerang) and 
 | Range | about 13.6 tiles | 12 m |
 | Speed back | up to 46 mph | up to 29 m/s, steering for wherever the thrower now is |
 | Going out it meets something | turns straight back (not on the wiki: from memory of the game's code) | the same, a person or a wall |
-| Coming back | pierces without limit, passes through blocks | the same; the same body again only after 0.33 s |
+| Coming back | pierces without limit, passes through blocks | passes through walls; hits only as many people as it may (below) |
 | Knockback | always away from the thrower, whichever way it flies | the hit's "from" is the thrower, so the stagger pushes that way |
 | How many | "most boomerangs cannot be fired again before returning" | one out; clicks do nothing till it is caught |
 | Use time | 20 ticks | a throw at most every 1/3 s |
@@ -43,7 +43,7 @@ Terraria's melee speed bonus and its slowing in liquids are not in.
 
 ## Tests
 
-`BoomerangFlightTests` (the path, pure), `BoomerangPlayTests` (on a real body: out and back; a hit going out turns it back and it can hit again coming home; a wall turns it back with nobody behind it hurt; home through a wall, hitting who it passes; pushed away from the thrower; one out at a time; a swap and back while it is out; another player's copy), `ItemCardTests`. Pictures: `BoomerangCapture` (`Logs/CityShots/boomerang-*.png`).
+`BoomerangFlightTests` (the path, pure), `BoomerangPlayTests` (on a real body: out and back; the first body it hits turns it back and it hurts no one else coming home; each pass unlocked is one more body; a wall turns it back with nobody behind it hurt; home through a wall, hitting who it passes; pushed away from the thrower; one out at a time; a swap and back while it is out; another player's copy), `ItemCardTests`. Pictures: `BoomerangCapture` (`Logs/CityShots/boomerang-*.png`).
 
 # The Giant Boomerang
 
@@ -57,7 +57,7 @@ Our own design, not the anime's prop: a wide, thick bone-white blade 2.6 m tip t
 - **Hold right-click**: the right hand goes up over the shoulder, takes it off the back, and the body comes side-on into the aim (the left arm out at what it is thrown at, the boomerang cocked back flat behind the shoulder); the camera aims in as with any thrown weapon, and the body turns to where the camera looks (`LocomotionInput.ThrowAiming`). Let go without clicking and it is put back (the draw played backward).
 - **Click while aiming**: the aimed throw, the hips, shoulders and arm unwinding and the arm sweeping it round flat; it leaves the hand 0.18 s after the click.
 - **Click without aiming**: the quick throw straight off the back, over the shoulder for it and round through the aim in one go; it leaves the hand 0.41 s after the click.
-- **In the air** (`BoomerangProfile.Giant`, `GiantBoomerangRules`, my numbers but those the owner chose): flat and spinning twice a second, 18 m/s out for 1.1 s, about 25 m in all (twice the wooden one's), 30 damage (three times), back at up to 24 m/s. Going out it cuts on through the people it meets (a body within 1.1 m of its path); only a wall turns it back (met by its 0.3 m thick blade, so the ground under it never does). Every body it hits is thrown down limp, away from the thrower. **A guard stops it** (owner, 2026-11-12: "make it so the boomerang is blockable and when you block it, it doesnt ragdoll you"): a blow a held guard, a timed block, a shield or a barrier stops throws nobody down, and going out the guard turns it back as a wall does. Coming back it goes through walls and hits everyone it passes, as the wooden one does. It is caught (below).
+- **In the air** (`BoomerangProfile.Giant`, `GiantBoomerangRules`, my numbers but those the owner chose): flat and spinning twice a second, 18 m/s out for 1.1 s, about 25 m in all (twice the wooden one's), 30 damage (three times), back at up to 24 m/s. Going out it turns back off the first body it hits (a body within 1.1 m of its path; since 2026-11-18, below: it used to cut on through everyone) or off a wall (met by its 0.3 m thick blade, so the ground under it never does). Every body it hits is thrown down limp, away from the thrower. **A guard stops it** (owner, 2026-11-12: "make it so the boomerang is blockable and when you block it, it doesnt ragdoll you"): a blow a held guard, a timed block, a shield or a barrier stops throws nobody down, and going out the guard turns it back as a wall does. Coming back it goes through walls, as the wooden one does. It is caught (below).
 - One boomerang out at a time, of either kind.
 - **While it is out the hands are bare** (owner, 2026-11-12: "after throwing the boomerang, when you are unarmed, make it so you can punch when its mid air", "just make that apart of the base game"; both boomerangs): a click punches with the fists (`IEquippableWeapon.InHand` is false, the melee holds no weapon); right-click still counts toward holding the aim when it is caught. Caught, the hands hold it again. `BoomerangPunchRealInputPlayTests`.
 
@@ -86,7 +86,7 @@ Owner, 2026-11-12: "on the return of the boomerang, instead of it just snapping 
 - The middle of the throw's swing is quick and has not been looked at closely frame by frame; the boomerang tips up for a few frames on its way round.
 - No strap across the chest on the body.
 
-Tests: `BoomerangFlightTests` (its range and numbers), `GiantBoomerangPlayTests` (on the back, drawn into the hand and put back, the quick throw, the hand out for it before it is home, caught in the hand and put back on the back, caught with right-click held and held in the aim, the aimed throw leaving sooner, through two people and knocking them down then turned back by a wall with nobody behind it hurt, another player's copy). Pictures: `GiantBoomerangCapture` (`Logs/CityShots/giantrang-*.png`).
+Tests: `BoomerangFlightTests` (its range and numbers), `GiantBoomerangPlayTests` (on the back, drawn into the hand and put back, the quick throw, the hand out for it before it is home, caught in the hand and put back on the back, caught with right-click held and held in the aim, the aimed throw leaving sooner, turned back off the first body it hits, or the second with one pass; with every pass through two people, knocking them down, then turned back by a wall with nobody behind it hurt, another player's copy). Pictures: `GiantBoomerangCapture` (`Logs/CityShots/giantrang-*.png`).
 
 ## Hair under it on the back
 
@@ -109,5 +109,25 @@ one's 1.8 times the size). A person struck keeps the thud it had. Other players:
 and which way that faced (Direction), and their copy bangs and bursts there too. The giant one still flies through loose physics objects
 (it is only turned back by fixed walls), so those do not bang.
 Tests: `BoomerangPlayTests.AWallOrTheFloorItStrikesBangsAndBurstsWhereItStruckOnEveryScreen`, `...TheBangCracksAtOnceAndIsGoneInAThirdOfASecond`,
-`...TheBurstsChipsFlyOutOfTheSurfaceWithinItsCone`, `GiantBoomerangPlayTests.GoingOutItCutsThroughPeople...` (the burst on the wall, none on the
+`...TheBurstsChipsFlyOutOfTheSurfaceWithinItsCone`, `GiantBoomerangPlayTests.WithEveryPassItCutsThroughPeople...` (the burst on the wall, none on the
 people). Picture: `ImpactBurstCapture` (Explicit, -Graphics).
+
+## One throw, one body (2026-11-18)
+
+Owner: "make it so the boomerangs including the giant one, return to the thrower on the first enemy it hits instead of traveling through a bunch
+of them. the ability to continue after hitting someone will be something you can unlock in skills or possibly stats, and it may be either you
+unlock it and it works as it does now where it travels through people but maybe it starts with just being able to continue after 1 person hit and
+you can upgrade it further".
+
+- **Now** (`BoomerangBlows`, pure): a throw hits one body, the nearest, and then hurts no one else. The giant one turns back off the first body it
+  hits (it used to cut on through everyone until a wall); the wooden one already turned back there, and no longer hits the people it passes coming
+  home. Either one that met nobody going out still hits the first body in its way home. A blow a guard stopped counts as its one.
+  Spent, it flies home through people and walls alike.
+- **The upgrade to come** is one number on the thrower, `BoomerangThrower.PassesThrough`: how many bodies a throw goes on through after its
+  first (0 now; `BoomerangBlows.Unlimited` is how both flew before this day). The giant one goes on through that many and turns back off the
+  last; the wooden one still turns back off the first going out, and hits that many more coming home. Nothing sets it yet: whether it is a
+  skill or a stat, and its steps, are the owner's to decide.
+- Other players: nothing new is sent. The thrower's machine decides hits, and a turn back off a person was already told (`TurnedBack`, A 1).
+
+Tests: `BoomerangBlowsTests`, `BoomerangPlayTests.TheFirstBodyItHitsTurnsItBackAndItHurtsNoOneElseComingHome`, `...EachPassUnlockedLetsItHitOneMoreBody`,
+`GiantBoomerangPlayTests.ItTurnsBackOffTheLastBodyItMayHitAndHurtsNoOneElse`.
