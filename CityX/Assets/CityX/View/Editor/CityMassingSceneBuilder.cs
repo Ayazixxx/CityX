@@ -285,6 +285,7 @@ namespace CityX.ViewEditor
             GameObject clawSkullPrefab = CityX.WearablesEditor.ClawSkullBuilder.Build();
             // The round shield (2026-10-27): drawn in code, a stand-in to test shields with (docs/SHIELD.md).
             GameObject roundShieldPrefab = CityX.WearablesEditor.RoundShieldBuilder.Build();
+            GameObject riotShieldPrefab = CityX.WearablesEditor.RiotShieldBuilder.Build();
             // The magic staffs (2026-10-27): drawn in code, stand-ins until the owner's models (docs/STAFFS.md).
             GameObject arcaneStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildArcane();
             GameObject fireballStaffPrefab = CityX.WeaponsEditor.StaffBuilder.BuildFireball();
@@ -586,6 +587,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.ClawSkull, Prefab = clawSkullPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.RoundShield, Prefab = roundShieldPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.RiotShield, Prefab = riotShieldPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Flamethrower, Prefab = flamethrowerPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

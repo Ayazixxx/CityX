@@ -61,6 +61,7 @@ namespace CityX.Items
             [ItemRegistry.BWSneakers] = Rarity.Common,
             [ItemRegistry.FarmerHat] = Rarity.Common,
             [ItemRegistry.RoundShield] = Rarity.Common,
+            [ItemRegistry.RiotShield] = Rarity.Uncommon,
             [ItemRegistry.SprayCan] = Rarity.Common,
             [ItemRegistry.Flashlight] = Rarity.Common,
             [ItemRegistry.JerryCan] = Rarity.Common,

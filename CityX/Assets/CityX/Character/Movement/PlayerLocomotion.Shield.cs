@@ -14,17 +14,16 @@ namespace CityX.Character
         /// <summary>How long the shield takes to come up (and go down), seconds.</summary>
         public const float ShieldRaiseSeconds = 0.12f;
 
-        /// <summary>The speed a body walks at with its shield up, as a share of its own (a held guard's half).</summary>
+        /// <summary>The speed a body walks at with the round shield up, as a share of its own (a held guard's half).</summary>
         public const float ShieldMoveSpeedShare = 0.5f;
 
-        /// <summary>Raised, where the left hand goes before the chest, from the left shoulder, metres (the body at its built height): forward, across, down.</summary>
-        public static readonly Vector3 RaisedHand = new Vector3(0.38f, -0.32f, 0.62f);
+        /// <summary>What kind of shield it is (set by the shield with <see cref="Shield"/>): how it is held up, and how fast the body walks with it up.</summary>
+        public ShieldTraits ShieldTraits { get; set; } = ShieldTraits.Round;
+
 
         /// <summary>From the wrist to the middle of the closed fist, along the forearm's line, metres (the body at its built height).</summary>
         public const float ShieldGripReach = 0.09f;
 
-        /// <summary>How far the shield's middle stands off the middle of the fist, metres (the body at its built height): its back clear of the knuckles.</summary>
-        public const float ShieldStandOff = 0.11f;
 
         private static readonly int ShieldRaisedParameter = Animator.StringToHash("ShieldRaised");
 
@@ -52,10 +51,16 @@ namespace CityX.Character
             float scale = WorldHeight / BodyRig.StandingHeight;
             Vector3 forward = transform.forward, right = transform.right, up = Vector3.up;
 
-            if (raise > 0.0f)
+            // A tall shield is carried with the arm bent, or it would drag through the ground: the hand goes from there up to the guard.
+            bool carried = ShieldTraits.CarriedBent;
+            if (raise > 0.0f || carried)
             {
-                Vector3 hand = _leftUpperArm.position + (forward * RaisedHand.z + right * RaisedHand.x + up * RaisedHand.y) * scale;
-                TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, hand, -right + Vector3.down * 0.6f, raise);
+                Vector3 raisedHand = carried ? Vector3.Lerp(ShieldTraits.CarriedHand, ShieldTraits.RaisedHand, raise) : ShieldTraits.RaisedHand;
+                Vector3 hand = _leftUpperArm.position + (forward * raisedHand.z + right * raisedHand.x + up * raisedHand.y) * scale;
+                // Carried, the elbow is back behind the hand, the forearm along the shield's back; raised, out to the side.
+                Vector3 elbowOut = -right + Vector3.down * 0.6f;
+                Vector3 elbowWay = carried ? Vector3.Slerp(-forward + Vector3.down * 0.3f, elbowOut, raise) : elbowOut;
+                TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, hand, elbowWay, carried ? 1.0f : raise);
             }
             // A centre grip holds the fist in line with the forearm: one bend in the arm, as an empty hand has (ApplyStraightWrists leaves a holding hand be).
             _handL.localRotation = Quaternion.Slerp(Quaternion.identity, _handL.localRotation, BakedArmsWeight);
@@ -63,10 +68,13 @@ namespace CityX.Character
             Vector3 elbow = _leftLowerArm.position, wrist = _handL.position;
             Vector3 alongArm = (elbow - wrist).sqrMagnitude > 1e-6f ? (elbow - wrist).normalized : up;
             Vector3 fist = wrist - alongArm * (ShieldGripReach * scale);
-            Quaternion lowered = Quaternion.LookRotation(-right, Vector3.ProjectOnPlane(alongArm, right).sqrMagnitude > 1e-6f ? Vector3.ProjectOnPlane(alongArm, right) : up);
+            Vector3 loweredUp = carried ? up : Vector3.ProjectOnPlane(alongArm, right);
+            Quaternion lowered = Quaternion.LookRotation(-right, loweredUp.sqrMagnitude > 1e-6f ? loweredUp : up);
             Quaternion raised = Quaternion.LookRotation(forward, up);
             Quaternion facing = Quaternion.Slerp(lowered, raised, raise);
-            Shield.SetPositionAndRotation(fist + facing * Vector3.forward * (ShieldStandOff * scale), facing);
+            // A tall shield is gripped above its middle: it hangs mostly below the fist.
+            Vector3 middle = fist + facing * (Vector3.forward * ShieldTraits.StandOff + Vector3.down * ShieldTraits.GripAboveMiddle) * scale;
+            Shield.SetPositionAndRotation(middle, facing);
         }
     }
 }

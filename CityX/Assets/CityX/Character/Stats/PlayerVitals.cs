@@ -448,7 +448,16 @@ namespace CityX.Character
         /// <summary>How far either side of straight ahead a raised shield covers, degrees.</summary>
         public const float ShieldCoverDegrees = 75.0f;
 
-        /// <summary>Whether a raised shield is between this body and something coming from <paramref name="fromPosition"/>: from the front, within <see cref="ShieldCoverDegrees"/>.</summary>
+        /// <summary>What kind of shield it is (set by the shield with <see cref="Shield"/>): the round shield's rules unless told.</summary>
+        public ShieldTraits ShieldTraits { get; set; } = ShieldTraits.Round;
+
+        private PlayerLocomotion _shieldBearer;
+
+        /// <summary>
+        /// Whether a raised shield is between this body and something coming from <paramref name="fromPosition"/>: from the front, within
+        /// <see cref="ShieldCoverDegrees"/>, and, where the blow says where it lands (DamageContext.ContactPoint), not under a shield that
+        /// leaves the feet of a standing body showing (ShieldTraits.UncoveredBelow).
+        /// </summary>
         public bool ShieldCovers(Vector3 fromPosition)
         {
             if (Shield == null || !ShieldRaised)
@@ -457,7 +466,21 @@ namespace CityX.Character
             }
             Vector3 toward = fromPosition - transform.position;
             toward.y = 0.0f;
-            return toward.sqrMagnitude > 1e-4f && Vector3.Angle(transform.forward, toward) <= ShieldCoverDegrees;
+            if (toward.sqrMagnitude <= 1e-4f || Vector3.Angle(transform.forward, toward) > ShieldCoverDegrees)
+            {
+                return false;
+            }
+            if (ShieldTraits.UncoveredBelow <= 0.0f || !(DamageContext.ContactPoint is Vector3 lands))
+            {
+                return true;
+            }
+            if (_shieldBearer == null)
+            {
+                _shieldBearer = GetComponent<PlayerLocomotion>();
+            }
+            bool crouching = _shieldBearer != null && _shieldBearer.IsCrouching;
+            float scale = _shieldBearer != null ? _shieldBearer.WorldHeight / BodyRig.StandingHeight : 1.0f;
+            return ShieldTraits.CoversHeight(lands.y - transform.position.y, scale, crouching);
         }
 
         /// <summary>Whether a blow from <paramref name="fromPosition"/> would meet a guard: a held or timed block, a raised shield in front, or an Arcane Barrier.</summary>

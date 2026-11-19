@@ -48,6 +48,43 @@ namespace CityX.Character
         /// <summary>A shield is worn on the off hand (docs/SHIELD.md).</summary>
         private bool ShieldInHand => _vitals != null && _vitals.Shield != null;
 
+        /// <summary>The shield can be raised beside what is in the weapon hand (ShieldTraits.GoesBeside): right-click is the shield's then.</summary>
+        private bool ShieldUsable => ShieldInHand && _vitals.ShieldTraits.GoesBeside(HeldNow());
+
+        /// <summary>A shield that cannot cover and attack at once (ShieldTraits.OpenToAttackSeconds) stays out of its guard until this time.</summary>
+        private float _shieldOpenUntil = float.NegativeInfinity;
+
+        /// <summary>What is in the weapon hand, as a shield sees it.</summary>
+        private HeldKind HeldNow()
+        {
+            if (EquippedSprayCan != null)
+            {
+                return HeldKind.SprayCan;
+            }
+            if (EquippedGun != null)
+            {
+                return _locomotion != null && _locomotion.HoldsPistol ? HeldKind.Pistol : HeldKind.LongGun;
+            }
+            if (EquippedStaff != null)
+            {
+                return _locomotion != null && _locomotion.Wand != null ? HeldKind.Wand : HeldKind.Staff;
+            }
+            if (EquippedFlamethrower != null || (_grappleSwing != null && _grappleSwing.EquippedHook != null))
+            {
+                return HeldKind.Other;
+            }
+            IEquippableWeapon weapon = _melee != null ? _melee.EquippedWeapon : null;
+            if (weapon == null)
+            {
+                return HeldKind.BareHands;
+            }
+            if (weapon is IAimedThrow)
+            {
+                return HeldKind.Other;
+            }
+            return weapon is ISwordBlade blade && !blade.IsOneHanded && !blade.IsKnife ? HeldKind.TwoHandedMelee : HeldKind.OneHandedMelee;
+        }
+
         /// <summary>
         /// Punching, holding for a heavy one, and blocking.
         ///
@@ -95,10 +132,16 @@ namespace CityX.Character
             }
 
             // A SHIELD ON THE OFF HAND (docs/SHIELD.md): right-click held raises it -- bare-handed or with a one-handed weapon, instead of the
-            // fists' timed block or the sword's guard. Not with a gun (right-click aims it) or a spray can in hand.
-            if (ShieldInHand && EquippedGun == null && EquippedSprayCan == null)
+            // fists' timed block or the sword's guard. Not with a gun (right-click aims it) or a spray can in hand; the riot shield only beside a
+            // one-handed weapon, a pistol included (nothing aims then), and out of its guard for a moment after every click that attacks.
+            if (ShieldUsable)
             {
-                _vitals.ShieldRaised = Mouse.current.rightButton.isPressed;
+                float open = _vitals.ShieldTraits.OpenToAttackSeconds;
+                if (open > 0.0f && Mouse.current.leftButton.isPressed)
+                {
+                    _shieldOpenUntil = Time.time + open;
+                }
+                _vitals.ShieldRaised = Mouse.current.rightButton.isPressed && Time.time >= _shieldOpenUntil;
             }
 
             // SCROLL WHEEL: put the weapon in hand away and take out the other (primary <-> secondary). Not while carrying (returned above), and not
@@ -136,7 +179,7 @@ namespace CityX.Character
             // the generic weapon branch below since a gun is neither.
             if (EquippedGun != null)
             {
-                bool aiming = Mouse.current.rightButton.isPressed;
+                bool aiming = Mouse.current.rightButton.isPressed && !ShieldUsable;   // beside a riot shield right-click is the shield's: shot from the hip
                 if (_orbitCamera != null)
                 {
                     _orbitCamera.IsAiming = aiming;
@@ -336,12 +379,12 @@ namespace CityX.Character
             }
 
             // BARE HANDS: right-click HELD is the guard (FistGuard, the sword's way: its first instant parries, the body walks on at half pace).
-            if (weapon == null && !ShieldInHand)
+            if (weapon == null && !ShieldUsable)
             {
                 _melee.SetGuardHeld(Mouse.current.rightButton.isPressed);
             }
             // A club in hand: right-click, timed, NOT holdable. A press throws the block, and the window is exactly as long as the clip.
-            else if (Mouse.current.rightButton.wasPressedThisFrame && _vitals != null && !ShieldInHand)
+            else if (Mouse.current.rightButton.wasPressedThisFrame && _vitals != null && !ShieldUsable)
             {
                 _vitals.StartBlock();
                 _melee.PlayBlock();
@@ -510,7 +553,7 @@ namespace CityX.Character
                 }
             }
 
-            souls.SetBlockHeld(mouse.rightButton.isPressed && !spinning && !ShieldInHand);   // with a shield, right-click is the shield's
+            souls.SetBlockHeld(mouse.rightButton.isPressed && !spinning && !ShieldUsable);   // with a shield, right-click is the shield's
         }
     }
 }

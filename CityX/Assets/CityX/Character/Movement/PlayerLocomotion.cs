@@ -1355,7 +1355,7 @@ namespace CityX.Character
                 speed *= SnowPace();
                 if (input.ShieldRaised && Shield != null)
                 {
-                    speed *= ShieldMoveSpeedShare;
+                    speed *= ShieldTraits.MoveSpeedShare;
                 }
             }
             // GROW AND SHRINK: a giant covers ground 3.2 times as fast, a tiny body a third as fast (SizeSpeedFactor). A CHILL slows it.

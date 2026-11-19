@@ -8,8 +8,8 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: renders the round shield (docs/SHIELD.md) to Logs/CityShots/shield-*.png -- lowered and raised, bare-handed and with the
-    /// combat sword, from the side, the front and three-quarters. Explicit; run by name with -Graphics:
+    /// Not a test: renders the shields (docs/SHIELD.md) to Logs/CityShots/shield-*.png and riotshield-*.png -- lowered and raised, bare-handed and with a
+    /// weapon, from the side, the front and three-quarters. Explicit; run by name with -Graphics:
     /// ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.ShieldCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -17,8 +17,20 @@ namespace CityX.Tests
     {
         private const float Step = 1.0f / 60.0f;
 
+        /// <summary>The riot shield to riotshield-*.png: bare-handed, with the pistol and with the combat sword, lowered and raised.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheRiotShield()
+        {
+            yield return Render(ItemRegistry.RiotShield, "riotshield", new[] { null, ItemRegistry.Pistol, ItemRegistry.CombatSword });
+        }
+
         [UnityTest]
         public IEnumerator RenderTheShield()
+        {
+            yield return Render(ItemRegistry.RoundShield, "shield", new[] { null, ItemRegistry.CombatSword });
+        }
+
+        private static IEnumerator Render(string shieldId, string prefix, string[] weapons)
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
@@ -37,22 +49,23 @@ namespace CityX.Tests
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
 
-            foreach (bool sword in new[] { false, true })
+            foreach (string weapon in weapons)
             {
+                bool sword = weapon == ItemRegistry.CombatSword, pistol = weapon == ItemRegistry.Pistol;
                 GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab"),
                     new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
                 player.GetComponent<PlayerInputReader>().enabled = false;
                 var inventory = player.GetComponent<Inventory>();
-                inventory.EquipItemId(ItemRegistry.RoundShield, player);
-                if (sword)
+                inventory.EquipItemId(shieldId, player);
+                if (weapon != null)
                 {
-                    inventory.EquipItemId(ItemRegistry.CombatSword, player);
+                    inventory.EquipItemId(weapon, player);
                 }
                 var locomotion = player.GetComponent<PlayerLocomotion>();
-                string name = sword ? "shield-sword" : "shield";
-                yield return Hold(locomotion, new LocomotionInput { Sword1HEquipped = sword }, 0.6f);
+                string name = sword ? prefix + "-sword" : pistol ? prefix + "-pistol" : prefix;
+                yield return Hold(locomotion, new LocomotionInput { Sword1HEquipped = sword, GunEquipped = pistol }, 0.6f);
                 CrouchCapture.Views(camera, player, name + "-lowered");
-                yield return Hold(locomotion, new LocomotionInput { ShieldRaised = true, Sword1HEquipped = sword }, 0.6f);
+                yield return Hold(locomotion, new LocomotionInput { ShieldRaised = true, Sword1HEquipped = sword, GunEquipped = pistol }, 0.6f);
                 CrouchCapture.Views(camera, player, name + "-raised");
                 Object.Destroy(player);
                 yield return null;

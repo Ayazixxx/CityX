@@ -46,6 +46,8 @@ namespace CityX.Items
         public const string FarmerHat = "farmer_hat";
         public const string ClawSkull = "claw_skull";
         public const string RoundShield = "round_shield";
+
+        public const string RiotShield = "riot_shield";
         public const string ArcaneStaff = "arcane_staff";
         public const string WaterStaff = "water_staff";
         public const string FlameStaff = "flame_staff";
@@ -136,6 +138,8 @@ namespace CityX.Items
             [ClawSkull] = new ItemDefinition(ClawSkull, "Claw Skull", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // A plain wooden round shield on the left forearm, to test shields with until the owner's model (Wearables/RoundShield, docs/SHIELD.md).
             [RoundShield] = new ItemDefinition(RoundShield, "Round Shield", "shield", EquipSlots.Shield, 1),
+            // The riot shield (owner, 2026-11-18; Wearables/RiotShield, docs/SHIELD.md): beside a pistol, a one-handed melee weapon or a wand.
+            [RiotShield] = new ItemDefinition(RiotShield, "Riot Shield", "shield", EquipSlots.Shield, 1),
             // Magic staffs (docs/STAFFS.md): the spell on the click, every shot paying mana. Drawn in code until the owner's models.
             [ArcaneStaff] = new ItemDefinition(ArcaneStaff, "Arcane Staff", "weapon", EquipSlots.Primary, 1),
             // The water staff (2026-10-28): a fire hose of a staff, held to spray (docs/STAFFS.md).

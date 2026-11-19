@@ -718,14 +718,14 @@ namespace CityX.Tests
         /// other player's copy of them wears it on its forearm, and raises it when they do.
         /// </summary>
         [UnityTest]
-        public IEnumerator AShieldShowsOnAnotherPlayersCopyAndIsRaisedWithItsOwners()
+        public IEnumerator AShieldShowsOnAnotherPlayersCopyAndIsRaisedWithItsOwners([Values(ItemRegistry.RoundShield, ItemRegistry.RiotShield)] string shieldId)
         {
 #if UNITY_EDITOR
             yield return StartTwoPlayers();
             _aOnA.GetComponent<PlayerInputReader>().enabled = false;   // driven by the test, not the (empty) keyboard
             var owner = _aOnA.GetComponent<PlayerLocomotion>();
             var copy = _aOnB.GetComponent<PlayerLocomotion>();
-            Assert.IsTrue(_aOnA.GetComponent<Inventory>().EquipItemId(ItemRegistry.RoundShield, _aOnA.gameObject), "the shield would not go on");
+            Assert.IsTrue(_aOnA.GetComponent<Inventory>().EquipItemId(shieldId, _aOnA.gameObject), "the shield would not go on");
             yield return WaitUntil(() => copy.Shield != null, "the shield to show on the other player's copy");
             yield return WaitUntil(() =>
             {

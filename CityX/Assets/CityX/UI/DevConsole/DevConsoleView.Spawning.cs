@@ -322,6 +322,8 @@ namespace CityX.UI
             {
                 case "shield":
                 case "round_shield": return ItemRegistry.RoundShield;
+                case "riotshield":
+                case "riot_shield": return ItemRegistry.RiotShield;
                 case "bottle": return ItemRegistry.GlassBottle;
                 case "cloak": return ItemRegistry.HoodedCloak;
                 case "jeans":
