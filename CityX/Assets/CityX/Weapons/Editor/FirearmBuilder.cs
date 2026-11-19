@@ -169,7 +169,8 @@ namespace CityX.WeaponsEditor
             return null;
         }
 
-        private static Mesh BakedMesh(Mesh source, Matrix4x4 bake, string path, string name)
+        /// <summary>A model's mesh with <paramref name="bake"/> applied to it, saved at <paramref name="path"/> (over the one there, so what holds it keeps it).</summary>
+        public static Mesh BakedMesh(Mesh source, Matrix4x4 bake, string path, string name)
         {
             Vector3[] vertices = source.vertices;
             Vector3[] normals = source.normals;

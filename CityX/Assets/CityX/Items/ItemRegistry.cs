@@ -53,6 +53,7 @@ namespace CityX.Items
         public const string KnightHelmet = "knight_helmet";
         public const string FarmerHat = "farmer_hat";
         public const string ClawSkull = "claw_skull";
+        public const string ThreeDGlasses = "3d_glasses";
         public const string RoundShield = "round_shield";
 
         public const string RiotShield = "riot_shield";
@@ -146,12 +147,14 @@ namespace CityX.Items
             [RPG] = new ItemDefinition(RPG, "RPG", "weapon", EquipSlots.Primary, 1),
             // Right-click a wall with it to paint graffiti (GraffitiMenuView).
             [SprayCan] = new ItemDefinition(SprayCan, "Spray Can", "tool", EquipSlots.Primary, 1),
-            // One headwear slot for now: Godot's separate hat and mask slots are not ported.
+            // Hats and helmets on the head; the face (the mask slot) is worn beside them.
             [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // A wide straw hat: Meshy's, cut off its figure (Wearables/FarmerHat).
             [FarmerHat] = new ItemDefinition(FarmerHat, "Farmer Hat", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // The Crimson Claw's own head, worn (Wearables/ClawSkull).
             [ClawSkull] = new ItemDefinition(ClawSkull, "Claw Skull", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
+            // White paper cinema glasses, red and blue lenses seen through (Wearables/ThreeDGlasses): on the face, so with any hat.
+            [ThreeDGlasses] = new ItemDefinition(ThreeDGlasses, "3D Glasses", ItemDefinition.WearableCategory, EquipSlots.Mask, 1),
             // A plain wooden round shield on the left forearm, to test shields with until the owner's model (Wearables/RoundShield, docs/SHIELD.md).
             [RoundShield] = new ItemDefinition(RoundShield, "Round Shield", "shield", EquipSlots.Shield, 1),
             // The riot shield (owner, 2026-11-18; Wearables/RiotShield, docs/SHIELD.md): beside a pistol, a one-handed melee weapon or a wand.

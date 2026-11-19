@@ -511,6 +511,9 @@ namespace CityX.UI
                 case "strawhat": return ItemRegistry.FarmerHat;
                 case "claw_skull":
                 case "clawskull": return ItemRegistry.ClawSkull;
+                case "3d_glasses":
+                case "3dglasses":
+                case "glasses": return ItemRegistry.ThreeDGlasses;
                 default: return null;
             }
         }
