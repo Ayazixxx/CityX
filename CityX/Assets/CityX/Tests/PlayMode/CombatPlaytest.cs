@@ -44,6 +44,8 @@ namespace CityX.Tests
             public bool Ranged;
             public bool AimWithRightClick;
             public bool Automatic;
+            public string Extra;         // a second item worn with it: a shield, the other pistol of a pair
+            public bool AllSkills;       // every skill learnt first (Dual Pistols pairs a second pistol)
         }
 
         private static readonly Loadout[] Loadouts =
@@ -57,6 +59,14 @@ namespace CityX.Tests
             new Loadout { Name = "ak47", Item = ItemRegistry.AK47, Reach = 8.0f, Ranged = true, AimWithRightClick = true, Automatic = true },
             new Loadout { Name = "fireball_staff", Item = ItemRegistry.FireballStaff, Reach = 8.0f, Ranged = true },
             new Loadout { Name = "boomerang", Item = ItemRegistry.WoodenBoomerang, Reach = 6.0f, Ranged = true },
+            // The weapons added 2026-11-18/19 (owner, 2026-11-19: "do bug tests for all those new weapons we added").
+            new Loadout { Name = "shotgun", Item = ItemRegistry.Shotgun, Reach = 6.0f, Ranged = true, AimWithRightClick = true },
+            new Loadout { Name = "rpg", Item = ItemRegistry.RPG, Reach = 12.0f, Ranged = true, AimWithRightClick = true },
+            new Loadout { Name = "riot_shield_pistol", Item = ItemRegistry.Pistol, Extra = ItemRegistry.RiotShield, Reach = 7.0f, Ranged = true },
+            new Loadout { Name = "spear", Item = ItemRegistry.Spear, Reach = 2.6f },
+            new Loadout { Name = "bo_staff", Item = ItemRegistry.BoStaff, Reach = 2.5f },
+            // (Last: it learns every skill, and the skills stay learnt for whatever comes after.)
+            new Loadout { Name = "dual_pistols", Item = ItemRegistry.Pistol, Extra = ItemRegistry.Pistol, AllSkills = true, Reach = 7.0f, Ranged = true },
         };
 
         private static readonly string[] Enemies = { "Swordsman", "CrazyGuy" };
@@ -121,6 +131,131 @@ namespace CityX.Tests
         }
 
         private static string Flat(Vector3 p) => $"({p.x:0.0}, {p.y:0.0}, {p.z:0.0})";
+
+        /// <summary>
+        /// GUARDS AGAINST A GUNMAN (owner, 2026-11-19: "test the riot shield with pistol as well as blocking bullets with the combatsword vs shoota and
+        /// check for bugs"): the real player facing a Shoota 10 m off for 12 s, first with the combat sword's guard held (right-click), then with the riot
+        /// shield and a pistol, shooting back. Counts his rounds, his hits, the bullets turned aside and what got through, into report-shoota.txt.
+        /// </summary>
+        [UnityTest]
+        [Timeout(600000)]
+        public IEnumerator GuardAgainstAShootaWithTheSwordAndTheRiotShield()
+        {
+#if UNITY_EDITOR
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+            LogAssert.ignoreFailingMessages = true;
+            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(ScenePath, new LoadSceneParameters(LoadSceneMode.Additive));
+            yield return null;
+            yield return null;
+            _scene = SceneManager.GetSceneByPath(ScenePath);
+            PlayerInputReader input = null;
+            foreach (GameObject root in _scene.GetRootGameObjects())
+            {
+                if (input == null) input = root.GetComponentInChildren<PlayerInputReader>(true);
+            }
+            Assert.IsNotNull(input, "no player in the real scene");
+            GameObject player = input.gameObject;
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            var vitals = player.GetComponent<PlayerVitals>();
+            var inventory = player.GetComponent<Inventory>();
+            var camera = Object.FindFirstObjectByType<ThirdPersonCamera>();
+            for (int i = 0; i < 600 && !locomotion.IsGrounded; i++) yield return null;
+            vitals.InfiniteStamina = true;
+            Vector3 home = player.transform.position;
+            Quaternion homeFacing = player.transform.rotation;
+            var report = new StringBuilder();
+            int deflected = 0;
+            System.Action<Vector3, DamageKind> onDeflect = (p, k) => deflected++;
+            vitals.Deflected += onDeflect;
+            // (guard: right-click held; shoot: a click every shotEvery seconds, 0 never.)
+            foreach (var (label, loadout, guard, shotEvery) in new[]
+            {
+                ("combat sword, guard held", new Loadout { Name = "combat_sword", Item = ItemRegistry.CombatSword }, true, 0.0f),
+                ("riot shield raised, not shooting", new Loadout { Name = "riot_shield_pistol", Item = ItemRegistry.Pistol, Extra = ItemRegistry.RiotShield }, true, 0.0f),
+                ("riot shield raised, a shot each second", new Loadout { Name = "riot_shield_pistol", Item = ItemRegistry.Pistol, Extra = ItemRegistry.RiotShield }, true, 1.0f),
+                ("riot shield + pistol, shooting from the hip", new Loadout { Name = "riot_shield_pistol", Item = ItemRegistry.Pistol, Extra = ItemRegistry.RiotShield }, false, 0.45f),
+                ("pistol alone, shooting from the hip", new Loadout { Name = "pistol", Item = ItemRegistry.Pistol }, false, 0.45f),
+            })
+            {
+                _doing = label;
+                yield return PutBack(player, home, homeFacing, vitals, inventory, loadout);
+                deflected = 0;
+                int errorsBefore = _errors.Count;
+                Vector3 ahead = player.transform.forward;
+                Vector3 at = player.transform.position + ahead * 10.0f;
+                if (Physics.Raycast(at + Vector3.up * 3.0f, Vector3.down, out RaycastHit ground, 10.0f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    at = ground.point + Vector3.up * 0.05f;
+                }
+                GameObject shoota = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Shoota.prefab"),
+                    at, Quaternion.LookRotation(-ahead, Vector3.up));
+                _made.Add(shoota);
+                var brain = shoota.GetComponent<ShootaBrain>();
+                brain.Target = vitals;
+                var shootaVitals = shoota.GetComponent<PlayerVitals>();
+                int shots = 0, landed = 0, onSomething = 0, blockedAtTheBarrel = 0;
+                var shotNotes = new StringBuilder();
+                PistolWeapon gun = player.GetComponentInChildren<PistolWeapon>();
+                System.Action<GunShot> onShot = s =>
+                {
+                    if (!s.Fired) return;
+                    shots++;
+                    if (s.HitDamageable) landed++;
+                    if (s.HitSomething) onSomething++;
+                    if (s.BarrelBlocked) blockedAtTheBarrel++;
+                    if (shots <= 4)
+                    {
+                        shotNotes.Append($" [shot {shots}: at {Flat(s.Point - shoota.transform.position)} from the Shoota, {(s.HitDamageable ? "hurt" : s.HitSomething ? "struck" : "nothing")}{(s.BarrelBlocked ? ", barrel blocked" : "")}, the Shoota {brain.State}{(brain.HasCover ? " at cover" : "")}, body facing {Vector3.SignedAngle(player.transform.forward, shoota.transform.position - player.transform.position, Vector3.up):0} deg off]");
+                    }
+                };
+                if (gun != null) gun.ShotResolved += onShot;
+                float health = vitals.Health, lowest = vitals.Health, shootaStart = shootaVitals.Health;
+                int clicks = 0;
+                float clickCooldown = 0.0f;
+                for (float t = 0.0f; t < 12.0f && shootaVitals.IsAlive; t += Time.deltaTime)
+                {
+                    Vector3 to = shoota.transform.position + Vector3.up * 1.6f - camera.transform.position;   // the crosshair on his chest, from the camera (it stands off to the right)
+                    camera.Yaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
+                    camera.Pitch = -Mathf.Asin(Mathf.Clamp(to.normalized.y, -1.0f, 1.0f)) * Mathf.Rad2Deg;
+                    Want(_mouse.rightButton, guard);
+                    clickCooldown -= Time.deltaTime;
+                    bool click = shotEvery > 0.0f && clickCooldown <= 0.0f;
+                    Want(_mouse.leftButton, click);
+                    if (click)
+                    {
+                        clicks++;
+                        clickCooldown = shotEvery;
+                    }
+                    lowest = Mathf.Min(lowest, vitals.Health);
+                    if (vitals.Health < 25.0f)
+                    {
+                        vitals.Revive();
+                    }
+                    Flush();
+                    yield return null;
+                }
+                yield return ReleaseAll();
+                report.AppendLine($"{label}: Shoota fired {brain.RoundsFired}, hit {brain.Hits}; bullets turned aside {deflected}; " +
+                                  $"health {health:0} -> lowest {lowest:0}; the Shoota {(shootaVitals.IsAlive ? $"alive at {shootaVitals.Health:0}/{shootaStart:0}" : "dead")}, " +
+                                  $"{clicks} shots back; errors {_errors.Count - errorsBefore}");
+                report.AppendLine($"   my shots {shots}: landed on someone {landed}, struck something {onSomething}, blocked at the barrel {blockedAtTheBarrel};{shotNotes}");
+                if (gun != null) gun.ShotResolved -= onShot;
+                for (int e = errorsBefore; e < _errors.Count && e < errorsBefore + 10; e++)
+                {
+                    report.AppendLine("  " + _errors[e]);
+                }
+                Object.Destroy(shoota);
+                for (int i = 0; i < 30; i++) yield return null;
+            }
+            vitals.Deflected -= onDeflect;
+            string folder = Path.Combine(Application.dataPath, "..", "Logs", "Playtest");
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "report-shoota.txt"), report.ToString());
+            Debug.Log("CityX playtest vs Shoota:\n" + report);
+#else
+            yield break;
+#endif
+        }
 
         /// <summary>One of the duelist mind's own timers, read for the trace only.</summary>
         private static float MindField(SwordsmanBrain brain, string name)
@@ -221,7 +356,7 @@ namespace CityX.Tests
             controller.enabled = true;
             Physics.SyncTransforms();
             vitals.Revive();
-            foreach (string slot in new[] { Inventory.PrimarySlot, Inventory.SecondarySlot })
+            foreach (string slot in new[] { EquipSlots.PrimaryOffHand, EquipSlots.SecondaryOffHand, Inventory.PrimarySlot, Inventory.SecondarySlot, EquipSlots.Shield })
             {
                 string held = inventory.EquippedItemId(slot);
                 if (!string.IsNullOrEmpty(held) && inventory.UnequipToSlot(slot, player))
@@ -234,7 +369,18 @@ namespace CityX.Tests
             {
                 inventory.AddItem(loadout.Item, 1);
                 Assert.IsTrue(inventory.RemoveFromStorage(loadout.Item, 1, out ItemInstanceData data));
+            if (loadout.AllSkills)
+            {
+                PlayerSkills.On(player).LearnEverything();
+            }
                 Assert.IsTrue(inventory.EquipItemId(loadout.Item, player, data), $"could not equip {loadout.Item}");
+            }
+            if (loadout.Extra != null)
+            {
+                for (int i = 0; i < 10; i++) yield return null;
+                inventory.AddItem(loadout.Extra, 1);
+                Assert.IsTrue(inventory.RemoveFromStorage(loadout.Extra, 1, out ItemInstanceData extra));
+                Assert.IsTrue(inventory.EquipItemId(loadout.Extra, player, extra), $"could not equip {loadout.Extra} beside {loadout.Item}");
             }
             for (int i = 0; i < 30; i++) yield return null;
         }
