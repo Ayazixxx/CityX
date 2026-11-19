@@ -115,6 +115,14 @@ namespace CityX.Weapons
         [Tooltip("True for a pistol: the free hand comes onto the gun only when it is raised to aim. A rifle is held two-handed always.")]
         public bool SupportHandOnlyWhenAiming = true;
 
+        [Tooltip("A long gun whose free hand CRADLES its forend, palm up under it and the fingers round its far side (a shotgun): which way the " +
+                 "fingers run and the palm faces, gun frame. Zero: the hand is not laid (the AK-47's).")]
+        public Vector3 CradleFingersLocal;
+
+        public Vector3 CradlePalmLocal = Vector3.up;
+
+        public bool CradlesForend => CradleFingersLocal.sqrMagnitude > 1e-6f;
+
         [Header("Points on the gun (gun frame, from the model's .points.json)")]
         public Vector3 MuzzleLocal = new Vector3(0.0f, 0.05625f, 0.4625f);
 
@@ -229,7 +237,21 @@ namespace CityX.Weapons
         /// The free hand's rotation on a pistol, in the gun's frame: the shooting hand's mirrored across the gun, palm on the left panel, fingers the way the
         /// shooting fingers run, thumb up the grip (the left hand bone's +X runs back up the arm, -Y is the palm, +Z the thumb).
         /// </summary>
-        public Quaternion SupportHandRotation => Quaternion.LookRotation(Quaternion.Inverse(HoldRotation) * Vector3.forward, Vector3.left);
+        /// <remarks>A gun that cradles its forend (<see cref="CradlesForend"/>) has the hand its fingers and palm say instead.</remarks>
+        public Quaternion SupportHandRotation => CradlesForend ? CradleRotation
+            : Quaternion.LookRotation(Quaternion.Inverse(HoldRotation) * Vector3.forward, Vector3.left);
+
+        /// <summary>The left hand bone with its fingers (its -X) along <see cref="CradleFingersLocal"/> and its palm (its -Y) toward <see cref="CradlePalmLocal"/>, square to them.</summary>
+        private Quaternion CradleRotation
+        {
+            get
+            {
+                Vector3 fingers = CradleFingersLocal.normalized;
+                Vector3 palm = Vector3.ProjectOnPlane(CradlePalmLocal, fingers).normalized;
+                Vector3 x = -fingers, y = -palm;
+                return Quaternion.LookRotation(Vector3.Cross(x, y), y);
+            }
+        }
 
         /// <summary>The camera kick of the n-th shot of a burst (0-based): the pattern's entry, its last repeating.</summary>
         public Vector2 RecoilFor(int shotInBurst)
@@ -353,7 +375,12 @@ namespace CityX.Weapons
                 ReloadSeconds = 0.4f + 6.0f * 0.567f + 0.4f,
                 EmptyReloadSeconds = 0.4f + 6.0f * 0.567f + 0.667f,
                 WorldPickupScale = 1.0f,
-                SupportHandLocal = new Vector3(-0.025f, -0.045f, 0.5075f),
+                // Cradled as a shotgunner holds a forend (owner, 2026-11-18, with a photo: "the left hand is clipping through, it should be holding it
+                // like the other image"): palm up under it, the fingers up its right side, the thumb along its left. The reload's own hand on the forend
+                // (shotgun_reload.py, on_forend: the wrist, and these fingers and palm), so a reload starts and ends where the hold is.
+                SupportHandLocal = new Vector3(-0.0209f, -0.0138f, 0.4861f),
+                CradleFingersLocal = new Vector3(0.75f, 0.55f, 0.1f),
+                CradlePalmLocal = new Vector3(0.35f, 0.9f, 0.0f),
                 SupportHandOnlyWhenAiming = false,
                 SupportHandOnAction = true,
                 MuzzleLocal = new Vector3(0.0f, 0.06815f, 0.94975f),

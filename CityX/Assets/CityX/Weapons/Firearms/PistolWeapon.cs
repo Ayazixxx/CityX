@@ -685,7 +685,8 @@ namespace CityX.Weapons
         {
             if (Profile.IsRifle)
             {
-                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: supportOnlyWhenAiming);
+                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: supportOnlyWhenAiming,
+                    handRotation: Profile.CradlesForend ? Profile.SupportHandRotation : (Quaternion?)null);
                 locomotion.SetRifle(transform, Profile.ButtLocal, Profile.MuzzleLocal, Profile.HoldPosition, Profile.HoldRotation);
             }
             else

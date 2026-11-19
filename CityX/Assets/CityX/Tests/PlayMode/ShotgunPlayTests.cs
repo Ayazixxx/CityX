@@ -133,6 +133,49 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Owner, 2026-11-18, with a photo of a man holding a shotgun: "fix the shotgun hold, the left hand is clipping through, it should be holding it
+        /// like the other image". The left hand cradles the forend: palm up under it, the wrist below it, no finger up past the barrel. Carried and aimed.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheLeftHandCradlesTheForendPalmUpUnderItWithNoFingerOverTheTop([Values(false, true)] bool aiming)
+        {
+#if UNITY_EDITOR
+            yield return World();
+            GameObject player = Player(new Vector3(0, 0.05f, 0));
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            PistolWeapon gun = Gun();
+            gun.OnEquip(player, CityX.Items.ItemInstanceData.None);
+            yield return Frames(locomotion, 0.8f, new LocomotionInput { Aiming = aiming });
+            Animator animator = player.GetComponentInChildren<Animator>();
+            Transform hand = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            Transform gunFrame = gun.transform;
+            Vector3 palmFaces = gunFrame.InverseTransformDirection(-hand.up);
+            TestContext.WriteLine($"aiming {aiming}: palm faces {palmFaces.ToString("0.00")}, wrist at {gunFrame.InverseTransformPoint(hand.position).ToString("0.000")} in the gun's frame");
+            Assert.Greater(palmFaces.y, 0.7f, "the palm is not turned up under the forend");
+            const float forendBottom = -0.0058f, boreLine = 0.068f;   // Shotgun.points.json: the forend's underside, the barrel's middle
+            Assert.Less(gunFrame.InverseTransformPoint(hand.position).y, forendBottom, "the wrist is not below the forend");
+            foreach (HumanBodyBones bone in new[]
+            {
+                HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftIndexIntermediate, HumanBodyBones.LeftIndexDistal,
+                HumanBodyBones.LeftMiddleProximal, HumanBodyBones.LeftMiddleIntermediate, HumanBodyBones.LeftMiddleDistal,
+                HumanBodyBones.LeftRingProximal, HumanBodyBones.LeftRingIntermediate, HumanBodyBones.LeftRingDistal,
+                HumanBodyBones.LeftLittleProximal, HumanBodyBones.LeftLittleIntermediate, HumanBodyBones.LeftLittleDistal,
+                HumanBodyBones.LeftThumbProximal, HumanBodyBones.LeftThumbIntermediate, HumanBodyBones.LeftThumbDistal,
+            })
+            {
+                Transform joint = animator.GetBoneTransform(bone);
+                if (joint == null)
+                {
+                    continue;
+                }
+                Assert.Less(gunFrame.InverseTransformPoint(joint.position).y, boreLine, $"{bone} is up over the top of the gun");
+            }
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator ThePumpIsWorkedAfterTheShotTheSupportHandOnItAndTheShellFliesAsItComesBack()
         {
