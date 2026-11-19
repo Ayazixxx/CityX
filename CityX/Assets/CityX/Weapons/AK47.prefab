@@ -629,11 +629,28 @@ MonoBehaviour:
     TriggerPullDegrees: 12
     CasingLength: 0.057
     CasingRadius: 0.0082
+    ArrowFallSpeed: 0
+    ReloadsAfterEveryShot: 0
+    Pellets: 1
+    PelletConeDegrees: 0
+    AimedConeShare: 1
+    FalloffFullMetres: 0
+    FalloffFloorMetres: 0
+    FalloffFloorShare: 1
+    ActionDelaySeconds: 0
+    ActionBackShare: 0.35
+    SupportHandOnAction: 0
+    ShellByShell: 0
+    ShellStartSeconds: 0.4
+    ShellSeconds: 0.567
+    ShellEndSeconds: 0.4
+    ShellEndEmptySeconds: 0.667
   VisualRoot: {fileID: 2698384325248316890}
   ActionPart: {fileID: 1131284002967886947}
   MagazinePart: {fileID: 9198180018523448700}
   TriggerPart: {fileID: 210477132853906773}
   MuzzleFlashObject: {fileID: 4860240546476300795}
+  ArrowPrefab: {fileID: 0}
   MuzzleLight: {fileID: 857691759442925274}
   MuzzleSparks: {fileID: 3267964729654158139}
   ShotPlayer: {fileID: 6307042630960380784}

@@ -38,6 +38,7 @@ namespace CityX.Items
             [ItemRegistry.MagicStaff] = Rarity.Uncommon,
             [ItemRegistry.KnightHelmet] = Rarity.Rare,
             [ItemRegistry.AK47] = Rarity.Rare,
+            [ItemRegistry.Shotgun] = Rarity.Rare,
             [ItemRegistry.Crossbow] = Rarity.Rare,
             [ItemRegistry.GrapplingHook] = Rarity.Rare,
             [ItemRegistry.FlameStaff] = Rarity.Rare,

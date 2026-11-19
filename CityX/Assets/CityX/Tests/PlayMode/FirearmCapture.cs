@@ -54,6 +54,17 @@ namespace CityX.Tests
 #endif
         }
 
+        [UnityTest]
+        public IEnumerator RenderTheShotgun()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            yield return Render("shotgun", "Assets/CityX/Weapons/Shotgun.prefab");
+#else
+            yield break;
+#endif
+        }
+
 #if UNITY_EDITOR
         private IEnumerator Render(string label, string gunPath)
         {
@@ -116,6 +127,17 @@ namespace CityX.Tests
                 Shoot(label + "-2-aim-front", SideView(new Vector3(1.4f, 0.5f, 3.2f)));
                 Debug.Log($"CityX capture {label}: muzzle in the aim view at {_followCamera.WorldToViewportPoint(_gun.MuzzleFlashObject.transform.position).ToString("0.00")}");
 
+                // A pump gun (docs/SHOTGUN.md): one shot, then the forend at the rear with the support hand on it and the shell on its way out.
+                if (_gun.Profile.ActionDelaySeconds > 0.0f)
+                {
+                    yield return Run(true, true, Dt);
+                    yield return Run(true, false, _gun.Profile.EjectDelaySeconds);
+                    Shoot(label + "-3-pump-pov", null);
+                    Shoot(label + "-3-pump-side", SideView(new Vector3(2.6f, 0.5f, 0.6f)));
+                    Shoot(label + "-3-pump-left", SideView(new Vector3(-2.4f, 0.4f, 1.4f)));
+                    yield return Run(true, false, 0.7f);
+                }
+
                 // A burst: a pistol's five quick shots, an automatic's trigger held for half a second.
                 float burst = _gun.IsAutomatic ? 0.5f : 1.0f;
                 yield return Run(true, true, burst);
@@ -133,6 +155,32 @@ namespace CityX.Tests
                 _gun.TryReload();
                 GunReloadDriver reloader = _player.GetComponent<PlayerAnimationDriver>().GunReloader;
                 Assert.IsTrue(reloader.IsPlaying, "the reload motion did not start");
+                if (_gun.Profile.ShellByShell)
+                {
+                    // Loaded a shell at a time: the hand at the shells, the shell on its way, at the port, thumbed in; then the pump of a gun run dry.
+                    yield return Run(false, false, reloader.Duration + Dt);
+                    Assert.AreEqual(GunReload.ShellSegment, reloader.Segment, "the first shell did not follow the start");
+                    float into = 0.0f;
+                    foreach (float seconds in new[] { 0.08f, 0.25f, 0.32f, 0.38f })
+                    {
+                        yield return Run(false, false, seconds - into);
+                        into = seconds;
+                        Shoot($"{label}-4-shell-{seconds * 100:00}-side", SideView(new Vector3(2.4f, 0.4f, 1.2f)));
+                        Shoot($"{label}-4-shell-{seconds * 100:00}-left", SideView(new Vector3(-2.2f, 0.2f, 1.6f)));
+                    }
+                    int guardShells = 0;
+                    while (reloader.Segment != GunReload.ShellsEndEmptySegment && guardShells++ < 600)
+                    {
+                        yield return Run(false, false, Dt);
+                    }
+                    yield return Run(false, false, 0.33f);
+                    Shoot(label + "-4-dry-pump-side", SideView(new Vector3(2.4f, 0.4f, 1.2f)));
+                    Shoot(label + "-4-dry-pump-left", SideView(new Vector3(-2.2f, 0.2f, 1.6f)));
+                    yield return Run(false, false, 0.8f);
+                    Shoot(label + "-5-after-reload-side", SideView(new Vector3(2.4f, 0.4f, 1.2f)));
+                    Debug.Log($"CityX capture {label}: after the loading {_gun.GetAmmoText()}");
+                    yield break;
+                }
                 float duration = reloader.Duration;
                 float[] at = { 0.12f, 0.3f, 0.42f, 0.58f, 0.68f, 0.8f, 0.9f };
                 float elapsed = 0.0f;

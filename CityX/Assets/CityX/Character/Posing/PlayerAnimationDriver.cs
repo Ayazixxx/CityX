@@ -121,9 +121,9 @@ namespace CityX.Character
             {
                 return _flinch != null && _flinch.IsPlaying && _flinch.Direction == hitDirection && _flinch.IsStagger == stagger;
             }
-            if (GunReload.TryGet(stateName, out bool reloadEmpty))
+            if (GunReload.TryGetStage(stateName, out GunReload.Stage reloadStage))
             {
-                return _gunReload != null && _gunReload.IsPlaying && _gunReload.IsEmptyReload == reloadEmpty;
+                return _gunReload != null && _gunReload.IsPlaying && _gunReload.Segment == reloadStage.Segment;
             }
             if (_animator == null)
             {
@@ -537,12 +537,12 @@ namespace CityX.Character
                 return;
             }
             // A gun's reload: a baked motion on the upper body (GunReloadDriver), the legs walking on under it.
-            if (GunReload.TryGet(stateName, out bool reloadEmpty))
+            if (GunReload.TryGetStage(stateName, out GunReload.Stage reloadStage))
             {
                 _fist?.Cancel();
                 _guard?.Cancel();
                 _sword?.Cancel();
-                _gunReload?.Begin(reloadEmpty);
+                _gunReload?.Begin(reloadStage);
                 return;
             }
             // An unarmed strike has no clip: the fists and torso are posed by FistPoseDriver (and the legs go on walking).

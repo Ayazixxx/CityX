@@ -767,6 +767,20 @@ MonoBehaviour:
     CasingRadius: 0.0125
     ArrowFallSpeed: 0
     ReloadsAfterEveryShot: 0
+    Pellets: 1
+    PelletConeDegrees: 0
+    AimedConeShare: 1
+    FalloffFullMetres: 0
+    FalloffFloorMetres: 0
+    FalloffFloorShare: 1
+    ActionDelaySeconds: 0
+    ActionBackShare: 0.35
+    SupportHandOnAction: 0
+    ShellByShell: 0
+    ShellStartSeconds: 0.4
+    ShellSeconds: 0.567
+    ShellEndSeconds: 0.4
+    ShellEndEmptySeconds: 0.667
   VisualRoot: {fileID: 1686244990481008631}
   ActionPart: {fileID: 7769487314312886188}
   MagazinePart: {fileID: 3925356104343432284}

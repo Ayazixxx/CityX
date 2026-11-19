@@ -299,3 +299,11 @@ cracked, and somebody in the room behind it hit for 90%).
 in the same frame: two pieces-cuts at once, and `WindowSprayFramePlayTests` caught the window work at 8.7 ms against its 8 ms limit.
 `GlassBreaker` now cuts at most one pane into pieces a frame (`ShatterOne`, a queue the next frames drain); the sound is not held back. The
 spray's worst frame went to 4.9 ms (7.3 ms before bullets went through windows), the windows' own work to 2.8 ms.
+
+## Update 2026-11-18: the pump shotgun
+
+Its own page: [SHOTGUN.md](SHOTGUN.md). What it added to the shared gun: a profile can throw several pellets in a fixed pattern
+(`PelletPattern`), thin its damage with distance, work its action by hand a moment after the shot (`ActionDelaySeconds`, the support hand riding
+it), and load a tube a shell at a time (`GunReload`'s shell stages: a reload can now be several named pieces strung together,
+`GunReloadDriver.Begin(GunReload.Stage)`). The rifle stance the reload scripts share moved to `SourceArt/Firearms/firearm_rifle_stance.py`
+(the AK-47's bake is unchanged, byte for byte).

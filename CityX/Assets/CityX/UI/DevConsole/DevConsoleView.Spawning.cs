@@ -491,6 +491,8 @@ namespace CityX.UI
                 case "ak47":
                 case "ak-47":
                 case "rifle": return ItemRegistry.AK47;
+                case "shotgun":
+                case "pump": return ItemRegistry.Shotgun;
                 case "glock": return ItemRegistry.Pistol;
                 case "knight_helmet":
                 case "knighthelmet":

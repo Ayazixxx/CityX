@@ -19,6 +19,10 @@ namespace CityX.Weapons
     /// THE RELOAD is a motion made in Blender (CityX/SourceArt/Glock, /AK47) and played by name on the body (GunReloadDriver), so other players
     /// see it: the magazine drops (and lies on the floor), a fresh one is fetched and seated -- the ammo is in at the click -- and an empty gun
     /// has its action racked. Firing once the ammo is in cuts the rest of the motion short, as in Call of Duty's reload cancel.
+    ///
+    /// A SHOTGUN (docs/SHOTGUN.md) is the same component with more in its profile: several pellets a shot in a fixed pattern (PelletPattern),
+    /// each thinned by distance, landing on a body as one blow; an action worked by hand after the shot, the support hand riding it; and a tube
+    /// loaded a shell at a time, in pieces the gun strings together (GunReload's shell stages), which a shot breaks off.
     /// </summary>
     // AFTER PlayerLocomotion (order 0): the kick and the moving parts are put on the gun once the arms have been solved -- see LateUpdate.
     [DefaultExecutionOrder(100)]
@@ -218,6 +222,11 @@ namespace CityX.Weapons
         private bool _reloadReadyToFire;
         private bool _reloadByMotion;
         private bool _reloadRecording;   // the reload in progress plays the gun's own recording (FirearmProfile.ReloadSound), not the clicks
+
+        /// <summary>Which piece of a shell-by-shell reload is going (docs/SHOTGUN.md).</summary>
+        private enum ShellStage { None, Start, Shell, End }
+
+        private ShellStage _shellStage;
         private float _muzzleFlashRemaining;
         private bool _equipped;
         private readonly GroundPickup _pickup = new GroundPickup();
@@ -294,6 +303,11 @@ namespace CityX.Weapons
             {
                 _burstIndex = 0;
             }
+            // A pump's forend carries the hand on it: moved here, before the arms are solved, to where LateUpdate will put the forend.
+            if (Profile.SupportHandOnAction && _leftHandGrip != null && !PartsHeldByMotion)
+            {
+                _leftHandGrip.localPosition = SupportGripLocal + Vector3.back * (Profile.ActionTravel * Profile.ActionBackAt(_sinceShot));
+            }
             if (_kick > 0.0f)
             {
                 _kick = Mathf.Max(0.0f, _kick - _kick * (1.0f - Mathf.Exp(-Profile.KickRecoverPerSecond * _settleFaster * deltaTime)) - 0.0005f);
@@ -355,6 +369,37 @@ namespace CityX.Weapons
             }
         }
 
+        /// <summary>The spent case out of the port (a crossbow has none), falling to <paramref name="body"/>'s floor.</summary>
+        private void EjectCasing(GameObject body)
+        {
+            if (Profile.CasingLength > 0.0f)
+            {
+                FirearmEffects.EjectCasing(transform.TransformPoint(Profile.EjectionPortLocal), transform.rotation,
+                    transform.TransformDirection(Profile.EjectionDirectionLocal), Profile.CasingLength, Profile.CasingRadius, body, Profile.Pellets > 1);
+            }
+        }
+
+        /// <summary>The case leaves with the shot, or, from a hand-worked action, when it has been pulled back.</summary>
+        private void EjectAfterShot(GameObject body)
+        {
+            if (Profile.EjectDelaySeconds > 0.0f)
+            {
+                // On FirearmEffects' clock, not this gun's: another player's copy of a gun has its scripts switched off.
+                FirearmEffects.Later(Profile.EjectDelaySeconds, () =>
+                {
+                    if (this != null)
+                    {
+                        PlayReloadSound(FirearmEffects.Rack);   // the pump, as its case flies
+                        EjectCasing(body);
+                    }
+                });
+            }
+            else
+            {
+                EjectCasing(body);
+            }
+        }
+
         private void ApplyKick()
         {
             if (_kick <= 0.0f || MuzzleFlashObject == null || transform.parent == null)
@@ -372,7 +417,9 @@ namespace CityX.Weapons
         }
 
         /// <summary>A reload's motion is holding the parts (and the hands): the shot's own cycling keeps off them.</summary>
-        private bool PartsHeldByMotion => _reloader != null && _reloader.Weight > 0.0f && ReferenceEquals(_reloader.Motion, Motion);
+        private bool PartsHeldByMotion => HeldBy(_reloader) || HeldBy(_cosmeticReloader);
+
+        private bool HeldBy(GunReloadDriver reloader) => reloader != null && reloader.Weight > 0.0f && ReferenceEquals(reloader.Motion, Motion);
 
         /// <summary>
         /// The slide or bolt cycles on every shot -- back fast, home a little slower -- and the trigger is pulled for a moment. Real
@@ -385,8 +432,7 @@ namespace CityX.Weapons
                 return;
             }
             RememberPartRests();
-            float cycle = Profile.ActionCycleSeconds > 0.0f ? _sinceShot / Profile.ActionCycleSeconds : 1.0f;
-            float back = cycle < 0.35f ? cycle / 0.35f : (cycle < 1.0f ? 1.0f - (cycle - 0.35f) / 0.65f : 0.0f);
+            float back = Profile.ActionBackAt(_sinceShot);
             if (ActionPart != null)
             {
                 ActionPart.localPosition = _actionRest + Vector3.back * (Profile.ActionTravel * back);
@@ -704,36 +750,46 @@ namespace CityX.Weapons
             {
                 AudioSource.PlayClipAtPoint(ShotPlayer.clip, MuzzlePoint, 1.0f);
             }
-            Vector3 end = MuzzlePoint + muzzle.forward * Profile.Range;
-            Collider landedOn = null;
-            if (Physics.Raycast(MuzzlePoint, muzzle.forward, out RaycastHit hit, Profile.Range, TargetLayers, QueryTriggerInteraction.Ignore)
-                && !IsWieldersOwnCollider(hit.collider, _cosmeticBody))
-            {
-                // On through the windows the shooter's bullet went through (only looked for: the glass broke on the shooter's machine).
-                Vector3 forward = muzzle.forward;
-                bool onSomething = GlassPenetration.Follow(ref hit, forward, Profile.Range - hit.distance, false,
-                    (Vector3 from, float distance, out RaycastHit next) =>
-                        Physics.Raycast(from, forward, out next, distance, TargetLayers, QueryTriggerInteraction.Ignore),
-                    out _, out end);
-                landedOn = onSomething ? hit.collider : null;
-            }
             _remoteShotIndex = Time.time - _lastRemoteShot <= Profile.RecoilResetSeconds ? _remoteShotIndex + 1 : 0;
             _lastRemoteShot = Time.time;
-            if (ArrowPrefab != null)
+            // Every pellet of a shotgun's fixed pattern (PelletPattern), as the shooter's own screen drew them.
+            int pellets = Mathf.Max(1, Profile.Pellets);
+            float cone = Profile.ConeDegrees(_cosmeticBody.GetComponent<PlayerLocomotion>() is PlayerLocomotion copy && copy.IsAimingGun);
+            for (int pellet = 0; pellet < pellets; pellet++)
             {
-                ShowArrow(MuzzlePoint, end, landedOn, muzzle.forward, _cosmeticBody, true);
+                Vector3 forward = PelletPattern.Direction(muzzle.forward, PelletPattern.Offset(pellet, pellets, cone));
+                Vector3 end = MuzzlePoint + forward * Profile.Range;
+                Collider landedOn = null;
+                if (Physics.Raycast(MuzzlePoint, forward, out RaycastHit hit, Profile.Range, TargetLayers, QueryTriggerInteraction.Ignore)
+                    && !IsWieldersOwnCollider(hit.collider, _cosmeticBody))
+                {
+                    // On through the windows the shooter's bullet went through (only looked for: the glass broke on the shooter's machine).
+                    bool onSomething = GlassPenetration.Follow(ref hit, forward, Profile.Range - hit.distance, false,
+                        (Vector3 from, float distance, out RaycastHit next) =>
+                            Physics.Raycast(from, forward, out next, distance, TargetLayers, QueryTriggerInteraction.Ignore),
+                        out _, out end);
+                    landedOn = onSomething ? hit.collider : null;
+                }
+                if (ArrowPrefab != null)
+                {
+                    ShowArrow(MuzzlePoint, end, landedOn, forward, _cosmeticBody, true);
+                }
+                else if (ShowsTracer(_remoteShotIndex))
+                {
+                    BulletTracer.Spawn(MuzzlePoint, end, muzzle);
+                }
             }
-            else if (ShowsTracer(_remoteShotIndex))
-            {
-                BulletTracer.Spawn(MuzzlePoint, end, muzzle);
-            }
-            if (Profile.CasingLength > 0.0f)
-            {
-                FirearmEffects.EjectCasing(transform.TransformPoint(Profile.EjectionPortLocal), transform.rotation,
-                    transform.TransformDirection(Profile.EjectionDirectionLocal), Profile.CasingLength, Profile.CasingRadius, _cosmeticBody);
-            }
+            EjectAfterShot(_cosmeticBody);
             RememberPartRests();
-            FirearmEffects.Cycle(ActionPart, _actionRest, Profile.ActionTravel, Profile.ActionCycleSeconds);
+            if (Profile.ActionDelaySeconds > 0.0f)
+            {
+                // The pump, worked a moment after the shot, the support hand riding it.
+                FirearmEffects.WorkAction(ActionPart, _actionRest, Profile.SupportHandOnAction ? _leftHandGrip : null, SupportGripLocal, Profile);
+            }
+            else
+            {
+                FirearmEffects.Cycle(ActionPart, _actionRest, Profile.ActionTravel, Profile.ActionCycleSeconds);
+            }
         }
         public void UnmountCosmetic(GameObject body)
         {
@@ -777,6 +833,12 @@ namespace CityX.Weapons
             _reloadAmmoIn = false;
             _reloadReadyToFire = false;
             IsReloading = true;
+            if (Profile.ShellByShell)
+            {
+                _reloadReadyToFire = MagazineAmmo > 0;   // with a round in it, a shot breaks the loading off from the first moment
+                PlayShellStage(ShellStage.Start);
+                return;
+            }
 
             // Reload Speed (2026-10-14): the whole reload -- the motion, its sounds, the timer -- runs this much faster.
             float speed = PlayerVitals.SpeedOf(WielderVitals, StatId.ReloadSpeed);
@@ -817,9 +879,88 @@ namespace CityX.Weapons
             _reloadTimeRemaining -= deltaTime;
             if (_reloadTimeRemaining <= 0.0f)
             {
+                if (Profile.ShellByShell)
+                {
+                    AdvanceShellReload();
+                    return;
+                }
                 Refill();
                 EndReload();
             }
+        }
+
+        // ---- a tube loaded a shell at a time (docs/SHOTGUN.md) ----
+
+        /// <summary>The tube has room and there is a shell to put in it.</summary>
+        private bool NeedsShell => MagazineAmmo < Profile.MagazineSize && ReserveAmmo > 0;
+
+        private bool _shellSeated;
+
+        /// <summary>
+        /// Starts one piece of the loading, by name on the body (so other players see each piece), or on a timer where no motion plays it.
+        /// </summary>
+        private void PlayShellStage(ShellStage stage)
+        {
+            _shellStage = stage;
+            _shellSeated = false;
+            string state = stage == ShellStage.Start ? GunReload.ShellsStartName
+                : stage == ShellStage.Shell ? GunReload.ShellName
+                : _reloadEmpty ? GunReload.ShellsEndEmptyName : GunReload.ShellsEndName;
+            float speed = PlayerVitals.SpeedOf(WielderVitals, StatId.ReloadSpeed);
+            if (_reloader != null && _animationDriver != null && GunReload.TryGetStage(state, out GunReload.Stage piece) && _reloader.CanPlay(piece.Segment))
+            {
+                _animationDriver.PlayLocalState(state);
+                if (!Mathf.Approximately(speed, 1.0f))
+                {
+                    _animationDriver.SetStateSpeed(state, speed);
+                }
+                if (_reloader.IsPlaying)
+                {
+                    _reloadByMotion = true;
+                    _reloadDuration = _reloader.Duration;
+                    return;
+                }
+            }
+            _reloadByMotion = false;
+            float seconds = stage == ShellStage.Start ? Profile.ShellStartSeconds
+                : stage == ShellStage.Shell ? Profile.ShellSeconds
+                : _reloadEmpty ? Profile.ShellEndEmptySeconds : Profile.ShellEndSeconds;
+            _reloadDuration = seconds / speed;
+            _reloadTimeRemaining = _reloadDuration;
+        }
+
+        /// <summary>A piece of the loading ran to its end: another shell while the tube has room and there are shells, then the hand back to the gun.</summary>
+        private void AdvanceShellReload()
+        {
+            switch (_shellStage)
+            {
+                case ShellStage.Start:
+                    PlayShellStage(NeedsShell ? ShellStage.Shell : ShellStage.End);
+                    break;
+                case ShellStage.Shell:
+                    if (!_shellSeated)
+                    {
+                        LoadOneShell();   // a timed piece, or a motion without a seat event, still loads its shell
+                    }
+                    PlayShellStage(NeedsShell ? ShellStage.Shell : ShellStage.End);
+                    break;
+                default:
+                    EndReload();
+                    break;
+            }
+        }
+
+        /// <summary>One shell into the tube: from here a shot breaks the loading off.</summary>
+        private void LoadOneShell()
+        {
+            _shellSeated = true;
+            if (NeedsShell)
+            {
+                MagazineAmmo++;
+                ReserveAmmo--;
+            }
+            _reloadAmmoIn = true;
+            _reloadReadyToFire = MagazineAmmo > 0;
         }
 
         /// <summary>The motion's events, raised by the body's GunReloadDriver as their frames pass (here and on other players' copies).</summary>
@@ -833,7 +974,11 @@ namespace CityX.Weapons
                     break;
                 case GunReload.SeatEvent:
                     if (!_reloadRecording) PlayReloadSound(FirearmEffects.MagazineIn);
-                    if (_equipped && IsReloading)
+                    if (_equipped && IsReloading && Profile.ShellByShell)
+                    {
+                        LoadOneShell();
+                    }
+                    else if (_equipped && IsReloading)
                     {
                         Refill();
                         _reloadAmmoIn = true;
@@ -852,7 +997,11 @@ namespace CityX.Weapons
 
         private void OnReloadFinished()
         {
-            if (_equipped && IsReloading && _reloadByMotion)
+            if (_equipped && IsReloading && _reloadByMotion && Profile.ShellByShell)
+            {
+                AdvanceShellReload();
+            }
+            else if (_equipped && IsReloading && _reloadByMotion)
             {
                 if (!_reloadAmmoIn)
                 {
@@ -939,12 +1088,13 @@ namespace CityX.Weapons
             IsReloading = false;
             _reloadByMotion = false;
             _reloadReadyToFire = false;
+            _shellStage = ShellStage.None;
         }
 
         /// <summary>Read by the HUD's own ammo counter.</summary>
         public string GetAmmoText()
         {
-            return IsReloading && !_reloadAmmoIn ? "RELOADING..." : $"{MagazineAmmo} / {ReserveAmmo}";
+            return IsReloading && !_reloadAmmoIn && !Profile.ShellByShell ? "RELOADING..." : $"{MagazineAmmo} / {ReserveAmmo}";
         }
 
         // ---- the shot ----
@@ -1025,68 +1175,90 @@ namespace CityX.Weapons
             float spreadDegrees = SpreadFor(wielder, aiming, shotInBurst);
             Vector3 spreadDirection = ApplySpread(direction, spreadDegrees);
 
-            // HITSCAN (CS:GO's zero travel time), THE THREE-TRACE SHOT -- see ResolveTrace.
-            ShotTrace trace = ResolveTrace(origin, spreadDirection, wielder);
-            RaycastHit hit = trace.Hit
-                ? trace.HitInfo
-                : default;
-            bool realHit = trace.Hit;
+            // HITSCAN (CS:GO's zero travel time), THE THREE-TRACE SHOT -- see ResolveTrace. A shotgun's shot is several of them, in its fixed
+            // pattern round the first (PelletPattern): what they do to one body is added up and lands as ONE blow.
+            int pellets = Mathf.Max(1, Profile.Pellets);
+            float cone = Profile.ConeDegrees(aiming);
+            Vector3 muzzlePosition = MuzzlePoint;
+            Transform muzzleTransform = MuzzleFlashObject != null ? MuzzleFlashObject.transform : null;
+            bool realHit = false;
+            bool barrelBlocked = false;
             Collider arrowStuckIn = null;
-            bool hitDamageable = false;
-            bool killed = false;
             Vector3 shotEnd = origin + spreadDirection * Profile.Range;
-
-            if (realHit)
+            Blast.Clear();
+            for (int pellet = 0; pellet < pellets; pellet++)
             {
-                // A BULLET, not a punch: it makes its own hole in each window and goes on through it (GlassPenetration), a little weaker for each.
-                bool onSomething = GlassPenetration.Follow(ref hit, spreadDirection, Profile.Range - Vector3.Distance(origin, hit.point), true,
-                    (Vector3 from, float distance, out RaycastHit next) => TraceIgnoringWielder(from, spreadDirection, distance, wielder, out next),
-                    out int panes, out shotEnd);
-                if (onSomething)
+                Vector3 pelletDirection = PelletPattern.Direction(spreadDirection, PelletPattern.Offset(pellet, pellets, cone));
+                ShotTrace trace = ResolveTrace(origin, pelletDirection, wielder);
+                RaycastHit hit = trace.Hit ? trace.HitInfo : default;
+                Vector3 pelletEnd = origin + pelletDirection * Profile.Range;
+                if (trace.Hit)
                 {
-                    arrowStuckIn = hit.collider;
-                    var damageable = hit.collider.GetComponentInParent<IDamageable>();
-                    if (damageable != null)
+                    // A BULLET, not a punch: it makes its own hole in each window and goes on through it (GlassPenetration), a little weaker for each.
+                    bool onSomething = GlassPenetration.Follow(ref hit, pelletDirection, Profile.Range - Vector3.Distance(origin, hit.point), true,
+                        (Vector3 from, float distance, out RaycastHit next) => TraceIgnoringWielder(from, pelletDirection, distance, wielder, out next),
+                        out int panes, out pelletEnd);
+                    if (onSomething)
                     {
-                        // Firearm Damage makes a shot hurt more (2% a point; it scaled with Strength, the melee stat, until 2026-10-14), and the
-                        // shooter's Armor Penetration goes with it: a bullet is a blow armour stops and a block can deflect.
-                        PlayerVitals shooter = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
-                        int firearmDamage = shooter != null ? shooter.Stats[StatId.FirearmDamage] : 0;
-                        float penetration = shooter != null ? shooter.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-                        float actualDamage = CombatTuning.DamageFor(Profile.Damage, firearmDamage) * GlassPenetration.DamageShare(panes);
-                        // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
-                        DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration, hit.point, wielder);
+                        if (pellet == 0)
+                        {
+                            arrowStuckIn = hit.collider;
+                        }
+                        var damageable = hit.collider.GetComponentInParent<IDamageable>();
+                        if (damageable != null)
+                        {
+                            AddToBlast(damageable, hit.point, GlassPenetration.DamageShare(panes) * Profile.DamageShareAt(Vector3.Distance(muzzlePosition, hit.point)));
+                        }
                         if (burning)
                         {
-                            FireEnhancementAbility.Burn(damageable, hit.point, wielder);
-                        }
-                        hitDamageable = true;
-                        killed = !damageable.IsAlive;
-                        if (!(damageable is PlayerVitals) && !(damageable is IBloodless))
-                        {
-                            BloodBurst.Spawn(hit.point, hit.point - origin, 0.6f);   // a body with vitals shows its own wound (HitImpactEffects)
+                            FireScene.BurnAlong(hit.point, hit.point + Vector3.up * BurningFlareMetres, 1.0f, 1.0f, BurningFlareSeconds);   // it flares where it meets
                         }
                     }
-                    if (burning)
-                    {
-                        FireScene.BurnAlong(hit.point, hit.point + Vector3.up * BurningFlareMetres, 1.0f, 1.0f, BurningFlareSeconds);   // it flares where it meets
-                    }
+                    // A shot into gasoline lights it (docs/FIRE.md), wherever it stopped: the city's own streets and walls are not "something" above
+                    // (there is nothing on them to hurt), and gasoline lies on them.
+                    FireScene.Ignite(pelletEnd, CityX.World.FireRules.SparkIgniteRadius, true, wielder);
                 }
-                // A shot into gasoline lights it (docs/FIRE.md), wherever it stopped: the city's own streets and walls are not "something" above
-                // (there is nothing on them to hurt), and gasoline lies on them.
-                FireScene.Ignite(shotEnd, CityX.World.FireRules.SparkIgniteRadius, true, wielder);
+                if (pellet == 0)
+                {
+                    realHit = trace.Hit;
+                    barrelBlocked = trace.BarrelBlocked;
+                    shotEnd = pelletEnd;
+                }
+                // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where it really ended, whatever the mode (the arm points the
+                // gun at the same point: PlayerLocomotion.NotifyGunFired and LocomotionInput.GunAimPoint).
+                if (ArrowPrefab == null && ShowsTracer(shotInBurst))
+                {
+                    BulletTracer.Spawn(muzzlePosition, pelletEnd, muzzleTransform);
+                }
             }
 
-            // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where the shot really ended, whatever the mode (the arm points the
-            // gun at the same point: PlayerLocomotion.NotifyGunFired and LocomotionInput.GunAimPoint).
-            Vector3 muzzlePosition = MuzzlePoint;
+            // Firearm Damage makes a shot hurt more (2% a point; it scaled with Strength, the melee stat, until 2026-10-14), and the shooter's
+            // Armor Penetration goes with it: a bullet is a blow armour stops and a block can deflect.
+            bool hitDamageable = Blast.Count > 0;
+            bool killed = false;
+            PlayerVitals shooter = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
+            int firearmDamage = shooter != null ? shooter.Stats[StatId.FirearmDamage] : 0;
+            float penetration = shooter != null ? shooter.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
+            foreach (BlastHit struck in Blast)
+            {
+                float actualDamage = CombatTuning.DamageFor(Profile.Damage, firearmDamage) * struck.Share;
+                // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
+                DamageContext.Strike(struck.Body, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration, struck.Point, wielder);
+                if (burning)
+                {
+                    FireEnhancementAbility.Burn(struck.Body, struck.Point, wielder);
+                }
+                killed |= !struck.Body.IsAlive;
+                if (!(struck.Body is PlayerVitals) && !(struck.Body is IBloodless))
+                {
+                    BloodBurst.Spawn(struck.Point, struck.Point - origin, 0.6f);   // a body with vitals shows its own wound (HitImpactEffects)
+                }
+            }
+            Blast.Clear();
+
             if (ArrowPrefab != null)
             {
                 ShowArrow(muzzlePosition, shotEnd, arrowStuckIn, shotEnd - muzzlePosition, wielder, false, burning);   // a crossbow's bolt, in place of a tracer
-            }
-            else if (ShowsTracer(shotInBurst))
-            {
-                BulletTracer.Spawn(muzzlePosition, shotEnd, MuzzleFlashObject != null ? MuzzleFlashObject.transform : null);
             }
 
             // Other players' copies of this body see and hear the shot (the damage went its own way: NetworkedDamage).
@@ -1095,12 +1267,10 @@ namespace CityX.Weapons
                 _animationDriver.AnnounceState(GunReload.FireName);
             }
 
-            // The spent case out of the port (a crossbow has none).
-            if (_equipped && Profile.CasingLength > 0.0f)
+            // The spent case out of the port: with the shot, or as a pump is pulled back.
+            if (_equipped)
             {
-                Vector3 port = transform.TransformPoint(Profile.EjectionPortLocal);
-                FirearmEffects.EjectCasing(port, transform.rotation, transform.TransformDirection(Profile.EjectionDirectionLocal),
-                    Profile.CasingLength, Profile.CasingRadius, wielder);
+                EjectAfterShot(wielder);
             }
             if (Profile.ReloadsAfterEveryShot && MagazineAmmo <= 0)
             {
@@ -1121,7 +1291,7 @@ namespace CityX.Weapons
                 HitSomething = realHit,
                 HitDamageable = hitDamageable,
                 Killed = killed,
-                BarrelBlocked = trace.BarrelBlocked,
+                BarrelBlocked = barrelBlocked,
                 Point = shotEnd,
                 Aiming = aiming,
                 RecoilPitchDegrees = recoil.y,
@@ -1134,6 +1304,31 @@ namespace CityX.Weapons
 
         /// <summary>Seconds before the next shot can go (Fire Rate shortens the wait).</summary>
         public float FireCooldownRemaining => _fireCooldownRemaining;
+
+        /// <summary>What one shot does to one body: where its first pellet landed, and how many pellets' worth of damage (each thinned by distance and glass).</summary>
+        private struct BlastHit
+        {
+            public IDamageable Body;
+            public Vector3 Point;
+            public float Share;
+        }
+
+        private static readonly System.Collections.Generic.List<BlastHit> Blast = new System.Collections.Generic.List<BlastHit>();
+
+        private static void AddToBlast(IDamageable body, Vector3 point, float share)
+        {
+            for (int i = 0; i < Blast.Count; i++)
+            {
+                if (ReferenceEquals(Blast[i].Body, body))
+                {
+                    BlastHit known = Blast[i];
+                    known.Share += share;
+                    Blast[i] = known;
+                    return;
+                }
+            }
+            Blast.Add(new BlastHit { Body = body, Point = point, Share = share });
+        }
 
         private struct ShotTrace
         {

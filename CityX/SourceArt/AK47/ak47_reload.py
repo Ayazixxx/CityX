@@ -12,6 +12,7 @@
 
 from mathutils import Vector, Quaternion
 import math
+import os
 
 P = POINTS
 LUG = Vector(P["mag_front_lug"])
@@ -20,26 +21,8 @@ SUPPORT_LOCAL = Vector(P["support"])
 HANDLE = Vector(P["bolt_handle"])
 BOLT_TRAVEL = P["bolt_travel"]
 
-BLADE = 30.0                      # the torso's turn to the right in the rifle stance (PlayerLocomotion.RifleBladeDegrees)
-_s, _c = math.sin(math.radians(BLADE)), math.cos(math.radians(BLADE))
-BODY_FWD = Vector((-_s, 0.0, _c))     # the body's forward, in the bladed chest's frame
-BODY_RIGHT = Vector((_c, 0.0, _s))
-POCKET = Vector((0.25, -0.06, 0.10))  # the right shoulder pocket, in the chest's frame (PlayerLocomotion.RifleShoulderPocket)
-
-
-def gun_from_butt(butt, fwd, up):
-    """The gun spec whose BUTT sits at `butt` (chest frame), pointing `fwd` with its top toward `up`."""
-    fwd, up = Vector(fwd).normalized(), Vector(up).normalized()
-    right = up.cross(fwd).normalized()          # Unity is left-handed: right = up x forward
-    up = fwd.cross(right).normalized()
-    web = Vector(butt) - (right * BUTT_LOCAL.x + up * BUTT_LOCAL.y + fwd * BUTT_LOCAL.z)
-    return {"at": tuple(web), "fwd": tuple(fwd), "up": tuple(up)}
-
-
-def turned(v, pitch_up=0.0, roll_right=0.0, yaw_left=0.0):
-    """A direction in the body's terms turned: the muzzle raised, the top rolled to the right, swung left."""
-    q = (Quaternion(Vector((0, 1, 0)), math.radians(-yaw_left)) @ Quaternion(BODY_RIGHT, math.radians(-pitch_up)))
-    return q @ Vector(v)
+_STANCE = os.path.join(REPO, "CityX", "SourceArt", "Firearms", "firearm_rifle_stance.py")
+exec(compile(open(_STANCE).read(), _STANCE, "exec"), globals())     # BLADE, BODY_FWD, POCKET, gun_from_butt, turned, x_rot, POUCH, TO_POUCH, spec
 
 
 # Shouldered (what the game's aim pose holds): level, along the body's forward, the butt in the pocket.
@@ -52,10 +35,6 @@ WORK_GUN = gun_from_butt(POCKET + Vector((-0.05, -0.08, 0.02)), _work_fwd, _work
 _rack_fwd = turned(BODY_FWD, pitch_up=8.0, yaw_left=4.0)
 _rack_up = Quaternion(_rack_fwd, math.radians(15.0)) @ Vector((0.0, 1.0, 0.0))      # rolled LEFT for the rack: the right side up to the hand
 RACK_GUN = gun_from_butt(POCKET + Vector((-0.03, -0.05, 0.02)), _rack_fwd, _rack_up)
-
-
-def x_rot(deg):
-    return Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(deg))
 
 
 # The magazine in the support hand (the LEFT hand's frame: fingers run -x, palm -y, thumb +z): its front lug toward the fingertips, its body
@@ -87,8 +66,6 @@ ON_HANDGUARD = {"at": tuple(SUPPORT_LOCAL + Vector((-0.085, -0.055, -0.03))), "f
                 "space": "gun", "pole": (-0.7, -1.0, -0.1)}
 # The thumb on the paddle release behind the well, the fingers round the magazine's front.
 ON_RELEASE = hand_on_mag(0.0, 0.0)
-POUCH = {"at": (-0.05, -0.62, 0.30), "fingers": (0.2, 0.95, 0.15), "palm": (0.8, 0.0, 0.5), "space": "chest", "pole": (-0.8, -0.8, -0.2)}
-TO_POUCH = {"at": (-0.02, -0.50, 0.38), "fingers": (0.4, 0.85, 0.25), "palm": (0.85, 0.1, 0.4), "space": "chest", "pole": (-0.8, -0.8, -0.2)}
 # Under the receiver to the charging handle: the open palm facing back, in front of the handle, the fingers to the right.
 AT_HANDLE = {"at": tuple(HANDLE + Vector((-0.105, -0.045, 0.06))), "fingers": (0.9, 0.35, 0.05), "palm": (0.0, 0.1, -1.0), "space": "gun",
              "pole": (-0.6, -1.0, 0.0)}
@@ -103,19 +80,6 @@ def at_handle(back):
 RIFLE_GRIP_L = fingers(0.75, 0.8, 0.8, 0.75, 1.0)
 CUP = fingers(0.55, 0.75, 0.8, 0.8, 0.6, thumb_forward=15.0)
 FLAT = fingers(0.05, 0.05, 0.05, 0.05, 0.1)
-STRONG = RIFLE_STRONG
-
-
-def spec(gun, l_hand, fingers_l, props_, head_down=0.0, extra_twist=0.0):
-    return {
-        "hips": (0.0, 0.9, 0.0), "body": Quaternion(),
-        "spine": rot(y=-(BLADE + extra_twist)), "neck": rot(p=head_down * 0.4, y=(BLADE + extra_twist) * 0.5),
-        "head": rot(p=head_down * 0.6, y=(BLADE + extra_twist) * 0.5),
-        "gun": gun, "r_pole": (0.75, -1.0, -0.35), "l_hand": l_hand,
-        "fingers_r": STRONG, "fingers_l": fingers_l, "props": props_,
-    }
-
-
 READY = spec(READY_GUN, ON_HANDGUARD, RIFLE_GRIP_L, props(mag()))
 
 

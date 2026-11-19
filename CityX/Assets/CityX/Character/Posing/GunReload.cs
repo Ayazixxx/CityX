@@ -34,15 +34,63 @@ namespace CityX.Character
 
         public static string NameFor(bool empty) => empty ? EmptyName : TacticalName;
 
-        public static bool Has(string stateName) => stateName == TacticalName || stateName == EmptyName;
+        public static bool Has(string stateName) => TryGetStage(stateName, out _);
 
-        public static bool TryGet(string stateName, out bool empty)
-        {
-            empty = stateName == EmptyName;
-            return Has(stateName);
-        }
 
         public static string SegmentFor(bool empty) => empty ? EmptySegment : TacticalSegment;
+
+        // ---- a tube magazine, loaded a shell at a time (docs/SHOTGUN.md) ----
+        // Not one motion but pieces strung together by the gun, each announced by name as it starts: the hand to the shells, one shell in (as
+        // many times as there are shells to load), the hand back to the gun, with the action worked first when the gun had been run dry. Each
+        // piece ends where the next begins, so only the first eases in from the aim and only the last eases back out to it.
+
+        public const string ShellsStartName = "gun_shells_start";
+
+        public const string ShellName = "gun_shell";
+
+        public const string ShellsEndName = "gun_shells_end";
+
+        public const string ShellsEndEmptyName = "gun_shells_end_empty";
+
+        public const string ShellsStartSegment = "start";
+
+        public const string ShellSegment = "shell";
+
+        public const string ShellsEndSegment = "end";
+
+        public const string ShellsEndEmptySegment = "endempty";
+
+        /// <summary>One piece of a reload as the body plays it: the motion's segment, and whether it eases in from the aim and back out to it.</summary>
+        public readonly struct Stage
+        {
+            public readonly string Segment;
+            public readonly bool Empty, EaseIn, EaseOut;
+
+            public Stage(string segment, bool empty, bool easeIn, bool easeOut)
+            {
+                Segment = segment;
+                Empty = empty;
+                EaseIn = easeIn;
+                EaseOut = easeOut;
+            }
+        }
+
+        /// <summary>The magazine swap of a gun with one (<see cref="TacticalName"/>, <see cref="EmptyName"/>).</summary>
+        public static Stage StageFor(bool empty) => new Stage(SegmentFor(empty), empty, true, true);
+
+        public static bool TryGetStage(string stateName, out Stage stage)
+        {
+            switch (stateName)
+            {
+                case TacticalName: stage = StageFor(false); return true;
+                case EmptyName: stage = StageFor(true); return true;
+                case ShellsStartName: stage = new Stage(ShellsStartSegment, false, true, false); return true;
+                case ShellName: stage = new Stage(ShellSegment, false, false, false); return true;
+                case ShellsEndName: stage = new Stage(ShellsEndSegment, false, false, true); return true;
+                case ShellsEndEmptyName: stage = new Stage(ShellsEndEmptySegment, true, false, true); return true;
+                default: stage = default; return false;
+            }
+        }
 
         /// <summary>
         /// What an event marker means, without the number Blender's unique marker names add ("seat2" in the empty segment is a "seat").

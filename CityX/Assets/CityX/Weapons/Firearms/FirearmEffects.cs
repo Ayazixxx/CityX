@@ -104,10 +104,12 @@ namespace CityX.Weapons
         }
 
         /// <summary>A spent case out of the port: <paramref name="direction"/> is the gun's ejection direction in the world.</summary>
-        public static void EjectCasing(Vector3 port, Quaternion gunRotation, Vector3 direction, float length, float radius, GameObject wielder)
+        /// <remarks>A shotgun's is a red plastic hull, not brass (<paramref name="hull"/>).</remarks>
+        public static void EjectCasing(Vector3 port, Quaternion gunRotation, Vector3 direction, float length, float radius, GameObject wielder, bool hull = false)
         {
             FirearmEffects fx = Instance;
             Flyer f = fx.NextCasing(length, radius);
+            f.Transform.GetComponent<MeshRenderer>().sharedMaterial = hull ? Hull() : Brass();
             f.Transform.position = port;
             f.Transform.rotation = gunRotation * Quaternion.Euler(0.0f, 90.0f, 0.0f);
             // A little scatter, deterministic per case so a burst does not look like a hose.
@@ -182,6 +184,10 @@ namespace CityX.Weapons
             public float Travel;
             public float Seconds;
             public float Age;
+            public Transform Rider;
+            public Vector3 RiderRest;
+            public FirearmProfile Profile;
+            public System.Action Then;
         }
 
         private readonly List<Timed> _timed = new List<Timed>();
@@ -207,6 +213,29 @@ namespace CityX.Weapons
             Instance._timed.Add(new Timed { Part = part, Rest = rest, Travel = travel, Seconds = seconds });
         }
 
+        /// <summary>
+        /// A hand-worked action after a shot on a copy (a pump, docs/SHOTGUN.md): <paramref name="part"/> goes back and home as
+        /// <paramref name="profile"/> times it (FirearmProfile.ActionBackAt), and <paramref name="rider"/>, the marker the support hand holds, with it.
+        /// </summary>
+        public static void WorkAction(Transform part, Vector3 rest, Transform rider, Vector3 riderRest, FirearmProfile profile)
+        {
+            if (part == null || profile == null || profile.ActionCycleSeconds <= 0.0f)
+            {
+                return;
+            }
+            Instance._timed.Add(new Timed
+            {
+                Part = part, Rest = rest, Rider = rider, RiderRest = riderRest, Travel = profile.ActionTravel, Profile = profile,
+                Seconds = profile.ActionDelaySeconds + profile.ActionCycleSeconds,
+            });
+        }
+
+        /// <summary>Does <paramref name="then"/> in <paramref name="seconds"/> (a pump's case leaving as the forend comes back), on a gun whose own scripts may be off.</summary>
+        public static void Later(float seconds, System.Action then)
+        {
+            Instance._timed.Add(new Timed { Then = then, Seconds = seconds });
+        }
+
         private void TickTimed(float dt)
         {
             for (int i = _timed.Count - 1; i >= 0; i--)
@@ -221,15 +250,25 @@ namespace CityX.Weapons
                 if (t.Part != null)
                 {
                     float x = Mathf.Clamp01(t.Age / t.Seconds);
-                    float back = x < 0.35f ? x / 0.35f : 1.0f - (x - 0.35f) / 0.65f;
-                    t.Part.localPosition = t.Rest + Vector3.back * (t.Travel * (done ? 0.0f : back));
+                    float back = t.Profile != null ? t.Profile.ActionBackAt(t.Age) : (x < 0.35f ? x / 0.35f : 1.0f - (x - 0.35f) / 0.65f);
+                    Vector3 offset = Vector3.back * (t.Travel * (done ? 0.0f : back));
+                    t.Part.localPosition = t.Rest + offset;
+                    if (t.Rider != null)
+                    {
+                        t.Rider.localPosition = t.RiderRest + offset;
+                    }
                 }
-                if (done || (t.Flash == null && t.Part == null))
+                if (done)
+                {
+                    t.Then?.Invoke();
+                }
+                if (done || (t.Flash == null && t.Part == null && t.Then == null))
                 {
                     _timed.RemoveAt(i);
                 }
             }
         }
+
         private Flyer NextCasing(float length, float radius)
         {
             Flyer f;
@@ -378,6 +417,28 @@ namespace CityX.Weapons
             _casingMesh.RecalculateNormals();
             _casingMesh.RecalculateBounds();
             return _casingMesh;
+        }
+
+        private static Material _hull;
+
+        /// <summary>A spent shotgun shell's red plastic.</summary>
+        private static Material Hull()
+        {
+            if (_hull == null)
+            {
+                _hull = new Material(Brass()) { name = "CasingHull" };
+                var red = new Color(0.72f, 0.07f, 0.05f);
+                _hull.color = red;
+                if (_hull.HasProperty("_BaseColor"))
+                {
+                    _hull.SetColor("_BaseColor", red);
+                }
+                if (_hull.HasProperty("_Metallic"))
+                {
+                    _hull.SetFloat("_Metallic", 0.0f);
+                }
+            }
+            return _hull;
         }
 
         private static Material Brass()

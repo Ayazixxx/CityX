@@ -93,14 +93,14 @@ namespace CityX.Weapons
 
         private static void Gun(ItemCard card, FirearmProfile profile)
         {
-            bool bolts = profile.ArrowFallSpeed > 0.0f, rifle = profile.Kind == FirearmKind.Rifle;
-            card.Kind = bolts ? "Crossbow" : rifle ? "Rifle" : "Pistol";
+            bool bolts = profile.ArrowFallSpeed > 0.0f, rifle = profile.Kind == FirearmKind.Rifle, pellets = profile.Pellets > 1;
+            card.Kind = bolts ? "Crossbow" : pellets ? "Shotgun" : rifle ? "Rifle" : "Pistol";
             card.Hands = bolts || rifle ? TwoHands : OneHand;
             card.Style = bolts ? "Archery and Throwing" : rifle ? "Long Guns" : "Handguns";
             card.ScalesWith = FirearmDamageStat;
-            card.Add("Attack", profile.Damage, profile.Damage.ToString("0.#"));
+            card.Add("Attack", profile.Damage * profile.Pellets, profile.Damage.ToString("0.#") + (pellets ? " x " + profile.Pellets + " pellets" : ""));
             card.Add("Fire rate", profile.FireRatePerSecond, profile.FireRatePerSecond.ToString("0.#") + "/s " + (profile.Automatic ? "auto" : "semi"));
-            card.Add("Magazine", profile.MagazineSize, profile.MagazineSize + (bolts ? " bolts" : " rounds"));
+            card.Add("Magazine", profile.MagazineSize, profile.MagazineSize + (bolts ? " bolts" : pellets ? " shells" : " rounds"));
             card.Add("Range", profile.Range, profile.Range.ToString("0") + " m");
         }
 

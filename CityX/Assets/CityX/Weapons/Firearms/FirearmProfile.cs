@@ -152,6 +152,67 @@ namespace CityX.Weapons
         [Tooltip("Spans itself after every shot (a crossbow holds one bolt): the reload starts the moment it fires.")]
         public bool ReloadsAfterEveryShot;
 
+        [Header("A shotgun (docs/SHOTGUN.md)")]
+        [Tooltip("How many pellets a shot throws (1: a bullet). Damage is one pellet's. They fly a fixed pattern (PelletPattern): the first down the crosshair.")]
+        public int Pellets = 1;
+
+        [Tooltip("The pattern's cone, degrees from its middle to its edge.")]
+        public float PelletConeDegrees;
+
+        [Tooltip("The cone while aiming, as a share of it from the hip.")]
+        public float AimedConeShare = 1.0f;
+
+        [Tooltip("A hit keeps all its damage up to this far, metres...")]
+        public float FalloffFullMetres;
+
+        [Tooltip("...and falls in a straight line to FalloffFloorShare of it by this far. Not past FalloffFullMetres: no falloff.")]
+        public float FalloffFloorMetres;
+
+        public float FalloffFloorShare = 1.0f;
+
+        [Tooltip("The action is worked by hand after the shot (a pump): it starts back this long after the shot, and the spent case leaves when it is back. 0: it cycles with the shot.")]
+        public float ActionDelaySeconds;
+
+        [Tooltip("The share of the action's cycle spent going back; the rest comes home.")]
+        public float ActionBackShare = 0.35f;
+
+        [Tooltip("The support hand holds the action (a pump's forend) and rides back and forward with it.")]
+        public bool SupportHandOnAction;
+
+        [Tooltip("Loaded one round at a time into a tube (GunReload's shell stages: the motion's 'start', 'shell', 'end' and 'endempty' segments), and a shot once a round is in breaks the loading off.")]
+        public bool ShellByShell;
+
+        [Tooltip("How long each piece of a shell-by-shell reload takes when there is no motion to time it.")]
+        public float ShellStartSeconds = 0.4f;
+
+        public float ShellSeconds = 0.567f;
+
+        public float ShellEndSeconds = 0.4f;
+
+        public float ShellEndEmptySeconds = 0.667f;
+
+        /// <summary>The share of its damage a hit keeps at <paramref name="metres"/> from the muzzle.</summary>
+        public float DamageShareAt(float metres) => PelletPattern.DamageShare(metres, FalloffFullMetres, FalloffFloorMetres, FalloffFloorShare);
+
+        /// <summary>The pattern's cone, hip or aimed.</summary>
+        public float ConeDegrees(bool aiming) => PelletConeDegrees * (aiming ? AimedConeShare : 1.0f);
+
+        /// <summary>How far back the slide, bolt or pump is <paramref name="sinceShot"/> seconds after a shot, 0 home .. 1 fully back.</summary>
+        public float ActionBackAt(float sinceShot)
+        {
+            float into = sinceShot - ActionDelaySeconds;
+            if (into < 0.0f || ActionCycleSeconds <= 0.0f)
+            {
+                return 0.0f;
+            }
+            float cycle = into / ActionCycleSeconds;
+            float turn = Mathf.Clamp(ActionBackShare, 0.05f, 0.95f);
+            return cycle < turn ? cycle / turn : (cycle < 1.0f ? 1.0f - (cycle - turn) / (1.0f - turn) : 0.0f);
+        }
+
+        /// <summary>When the spent case leaves after a shot, seconds: at once, or as a hand-worked action reaches the rear.</summary>
+        public float EjectDelaySeconds => ActionDelaySeconds > 0.0f ? ActionDelaySeconds + ActionCycleSeconds * Mathf.Clamp(ActionBackShare, 0.05f, 0.95f) : 0.0f;
+
         /// <summary>The gun's rotation in the hand bone's frame: its right to the back of the hand (+y), its top to the thumb's side (+z), the barrel down the fingers dipped by <see cref="HoldDipDegrees"/>.</summary>
         public Quaternion HoldRotation
         {
@@ -247,6 +308,67 @@ namespace CityX.Weapons
                 TriggerPullDegrees = 12.0f,
                 CasingLength = 0.057f,
                 CasingRadius = 0.0082f,
+            };
+        }
+
+        /// <summary>
+        /// THE PUMP SHOTGUN (owner, 2026-11-18: "make a shotgun with reload animations and parts to it that move like our ak47 and pistol ...
+        /// research how games do shotgun mechanics vs other guns and implement what you learn"; docs/SHOTGUN.md). Nine pellets a shot (PUBG's and
+        /// Counter-Strike's Nova's count) in a fixed pattern, each losing damage with distance; the forend worked by hand after every shot, so
+        /// about 70 shots a minute (the Nova's 68); six shells in the tube, loaded one at a time at about half a second each (the Nova's 0.5 s),
+        /// and a shot breaks the loading off. Held and aimed as a rifle. The damage, the cone and the falloff are mine.
+        /// </summary>
+        public static FirearmProfile Shotgun()
+        {
+            return new FirearmProfile
+            {
+                ItemId = ItemRegistry.Shotgun,
+                DisplayName = "Pump Shotgun",
+                Kind = FirearmKind.Rifle,
+                HoldPosition = new Vector3(0.10f, -0.01f, 0.095f),
+                HoldDipDegrees = 15.0f,
+                MagazineSize = 6,
+                StartingReserveAmmo = 24,
+                Damage = 12.0f,
+                Range = 45.0f,
+                Pellets = 9,
+                PelletConeDegrees = 3.2f,
+                AimedConeShare = 0.8f,
+                FalloffFullMetres = 10.0f,
+                FalloffFloorMetres = 30.0f,
+                FalloffFloorShare = 0.35f,
+                FireRatePerSecond = 1.0f / 0.85f,
+                Automatic = false,
+                RecoilPattern = new[] { new Vector2(0.0f, 4.5f) },
+                RecoilResetSeconds = 0.3f,
+                AdsRecoilMultiplier = 0.8f,
+                ShakeDegrees = 0.8f,
+                KickBackMetres = 0.07f,
+                KickUpDegrees = 5.0f,
+                KickRecoverPerSecond = 11.0f,
+                ShotPitch = 0.6f,
+                MotionResource = "Shotgun/ShotgunReload",
+                ShellByShell = true,
+                // A whole tube, for a body with no motion to time it and for the item's card: the start, six shells, the end (with the pump when it was dry).
+                ReloadSeconds = 0.4f + 6.0f * 0.567f + 0.4f,
+                EmptyReloadSeconds = 0.4f + 6.0f * 0.567f + 0.667f,
+                WorldPickupScale = 1.0f,
+                SupportHandLocal = new Vector3(-0.025f, -0.045f, 0.5075f),
+                SupportHandOnlyWhenAiming = false,
+                SupportHandOnAction = true,
+                MuzzleLocal = new Vector3(0.0f, 0.06815f, 0.94975f),
+                EjectionPortLocal = new Vector3(0.0254f, 0.0638f, 0.1523f),
+                EjectionDirectionLocal = new Vector3(1.0f, 0.5f, -0.1f),
+                ButtLocal = new Vector3(0.0f, -0.0435f, -0.435f),
+                ActionPartName = "Pump",
+                MagazinePartName = "Shell",
+                ActionTravel = 0.12325f,
+                ActionDelaySeconds = 0.2f,
+                ActionCycleSeconds = 0.36f,
+                ActionBackShare = 0.5f,
+                TriggerPullDegrees = 12.0f,
+                CasingLength = 0.0899f,
+                CasingRadius = 0.0146f,
             };
         }
 

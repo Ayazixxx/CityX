@@ -98,8 +98,8 @@ namespace CityX.Tests
         public void ReloadNamesAndEventsAreReadBack()
         {
             Assert.IsTrue(GunReload.Has(GunReload.TacticalName));
-            Assert.IsTrue(GunReload.TryGet(GunReload.EmptyName, out bool empty) && empty);
-            Assert.IsTrue(GunReload.TryGet(GunReload.TacticalName, out bool tactical) && !tactical);
+            Assert.IsTrue(GunReload.TryGetStage(GunReload.EmptyName, out GunReload.Stage empty) && empty.Empty);
+            Assert.IsTrue(GunReload.TryGetStage(GunReload.TacticalName, out GunReload.Stage tactical) && !tactical.Empty);
             Assert.IsFalse(GunReload.Has(GunReload.FireName), "a shot is not a reload");
             Assert.AreEqual(GunReload.SeatEvent, GunReload.EventKind("seat2"));
             Assert.AreEqual(GunReload.RackEvent, GunReload.EventKind("rack"));

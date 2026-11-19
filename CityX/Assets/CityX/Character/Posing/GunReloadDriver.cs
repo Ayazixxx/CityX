@@ -35,6 +35,9 @@ namespace CityX.Character
         private int _nextEvent;
         private readonly HashSet<string> _passed = new HashSet<string>();
         private bool _fadingOut;
+        private bool _easeIn = true;
+        private bool _easeOut = true;
+        private float _holdSeconds;
 
         /// <summary>An event's frame was passed: "drop", "grab", "seat", "rack" (GunReload).</summary>
         public event System.Action<string> Marker;
@@ -63,8 +66,20 @@ namespace CityX.Character
         /// <summary>How much of the body the reload pose holds right now, 0 to 1 (still above 0 for a moment after the end).</summary>
         public float Weight => _weight;
 
+        /// <summary>The motion's segment being played (or last played).</summary>
+        public string Segment => _segment;
+
+        /// <summary>
+        /// How long a piece that does not ease out (GunReload.Stage) is held at its last frame for the next piece to take over, seconds: on another
+        /// player's copy the next one's name arrives a moment after this one ends.
+        /// </summary>
+        public const float HoldForNextSeconds = 0.3f;
+
+        /// <summary>A motion is registered and has this segment.</summary>
+        public bool CanPlay(string segment) => _motion != null && _motion.HasSegment(segment);
+
         /// <summary>A motion is registered and has the segment for the reload asked for.</summary>
-        public bool CanPlay(bool empty) => _motion != null && _motion.HasSegment(GunReload.SegmentFor(empty));
+        public bool CanPlay(bool empty) => CanPlay(GunReload.SegmentFor(empty));
 
         /// <summary>The event with this name has gone by in the reload in progress.</summary>
         public bool PassedMarker(string name) => _passed.Contains(name);
@@ -106,14 +121,23 @@ namespace CityX.Character
         /// Starts the reload (the empty-gun one with <paramref name="empty"/>). False, and nothing happens, when no motion for it is registered:
         /// the gun then falls back to its own timer.
         /// </summary>
-        public bool Begin(bool empty)
+        public bool Begin(bool empty) => Begin(GunReload.StageFor(empty));
+
+        /// <summary>
+        /// Starts one piece of a reload (a magazine swap is one piece; a tube's loading several, GunReload.Stage). A piece that does not ease in
+        /// takes over from the one before it where that ended; with none before it (a copy that never saw it), it eases in after all.
+        /// </summary>
+        public bool Begin(GunReload.Stage stage)
         {
-            if (!CanPlay(empty))
+            if (!CanPlay(stage.Segment))
             {
                 return false;
             }
-            _segment = GunReload.SegmentFor(empty);
-            _empty = empty;
+            _segment = stage.Segment;
+            _empty = stage.Empty;
+            _easeIn = stage.EaseIn || _weight < 0.99f;
+            _easeOut = stage.EaseOut;
+            _holdSeconds = 0.0f;
             _playing = true;
             _fadingOut = false;
             _elapsed = 0.0f;
@@ -124,13 +148,14 @@ namespace CityX.Character
             _nextEvent = 0;
             _passed.Clear();
             enabled = true;
-            Started?.Invoke(empty);
+            Started?.Invoke(stage.Empty);
             return true;
         }
 
         /// <summary>Stops the reload where it is (a shot fired once the ammo was in, the gun put away, the body taken over); the pose eases out.</summary>
         public void Cancel()
         {
+            _holdSeconds = 0.0f;
             if (_playing)
             {
                 _playing = false;
@@ -199,16 +224,22 @@ namespace CityX.Character
                     _elapsed = _duration;
                     _playing = false;
                     _fadingOut = true;
-                    Finished?.Invoke();
+                    _holdSeconds = _easeOut ? 0.0f : HoldForNextSeconds;
+                    Finished?.Invoke();   // the gun may start the next piece from here
                 }
             }
 
             if (_playing)
             {
-                // Eased in at the start and out toward the end, so the arms come from and go back to the aim or carry pose rather than snapping.
-                float fadeIn = Mathf.Clamp01(_elapsed / BlendInSeconds);
-                float fadeOut = Mathf.Clamp01((_duration - _elapsed) / BlendOutSeconds);
+                // Eased in at the start and out toward the end, so the arms come from and go back to the aim or carry pose rather than snapping;
+                // a piece between two others does neither.
+                float fadeIn = _easeIn ? Mathf.Clamp01(_elapsed / BlendInSeconds) : 1.0f;
+                float fadeOut = _easeOut ? Mathf.Clamp01((_duration - _elapsed) / BlendOutSeconds) : 1.0f;
                 _weight = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Min(fadeIn, fadeOut));
+            }
+            else if (_fadingOut && _holdSeconds > 0.0f)
+            {
+                _holdSeconds -= deltaTime;   // held at its last frame for the next piece
             }
             else if (_fadingOut)
             {
