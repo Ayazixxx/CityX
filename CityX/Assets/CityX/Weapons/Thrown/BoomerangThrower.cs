@@ -18,7 +18,7 @@ namespace CityX.Weapons
         public const string Id = "boomerang";
 
         /// <summary>
-        /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the hand, Direction its way, A its speed, N 0 for the wooden one, else 1 + the giant
+        /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the hand, Direction its way, A its speed, B its top speed back, N 0 for the wooden one, else 1 + the giant
         /// one's <see cref="GiantBoomerangModel"/>), TurnedBack (by a
         /// wall, the floor or a thing: Origin where it struck, Direction the way that faced, for the bang and burst there too; A 1 if a
         /// person did it), Caught (A 1 if it got home, 0 if lost), GiantAim (A 1 drawn into the aim, 0 put away) and GiantThrowStarted.
@@ -52,6 +52,22 @@ namespace CityX.Weapons
         [Tooltip("The Iron Spiked Giant Boomerang in the air, here and for another player's throw. Set by PlayerAbilityWiring.")]
         public GameObject IronSpikedThrownPrefab;
 
+        /// <summary>The fastest another player's throw is shown flying, out or back, m/s: what their word of it may say.</summary>
+        public const float MostRemoteSpeed = 60.0f;
+
+        [Header("Speeds, m/s: change them in Play mode to try them")]
+        [Tooltip("How fast the wooden boomerang flies out. It flies out for the same time whatever its speed, so faster also goes further.")]
+        public float WoodenOutSpeed = BoomerangRules.OutSpeed;
+
+        [Tooltip("The wooden boomerang's top speed coming back.")]
+        public float WoodenBackSpeed = BoomerangRules.BackTopSpeed;
+
+        [Tooltip("How fast the giant boomerangs (bone and Iron Spiked) fly out. They fly out for the same time whatever their speed, so faster also goes further.")]
+        public float GiantOutSpeed = GiantBoomerangRules.OutSpeed;
+
+        [Tooltip("The giant boomerangs' top speed coming back.")]
+        public float GiantBackSpeed = GiantBoomerangRules.BackTopSpeed;
+
         private ThrownBoomerang _flying;
         private GiantBoomerangModel _pendingModel;
         private float _thrownAt = float.NegativeInfinity;
@@ -63,6 +79,11 @@ namespace CityX.Weapons
         private bool _hasCatchPose;
         private Vector3 _catchPosition;
         private Quaternion _catchRotation;
+
+        /// <summary>How the giant (<paramref name="giant"/>) or the wooden boomerang this body throws flies: its kind's, at the speeds set here.</summary>
+        public BoomerangProfile ProfileOf(bool giant) => giant
+            ? BoomerangProfile.Giant.WithSpeeds(GiantOutSpeed, GiantBackSpeed)
+            : BoomerangProfile.Wooden.WithSpeeds(WoodenOutSpeed, WoodenBackSpeed);
 
         /// <summary>A boomerang of this body's is in the air.</summary>
         public bool IsOut => _flying != null;
@@ -181,8 +202,9 @@ namespace CityX.Weapons
 
         private ThrownBoomerang LaunchAndTell(Vector3 from, Vector3 way, float damage, float penetration, bool giant, GiantBoomerangModel model)
         {
-            float speed = giant ? GiantBoomerangRules.OutSpeed : BoomerangRules.OutSpeed;
-            ThrownBoomerang boomerang = Launch(from, way, speed, damage, penetration, false, giant, model);
+            BoomerangProfile flies = ProfileOf(giant);
+            float speed = flies.OutSpeed;
+            ThrownBoomerang boomerang = Launch(from, way, speed, flies.BackTopSpeed, damage, penetration, false, giant, model);
             if (boomerang == null)
             {
                 return null;
@@ -191,7 +213,7 @@ namespace CityX.Weapons
                 ? new AbilityEvent(TurnedBack, boomerang.transform.position, Vector3.zero, 1.0f)
                 : new AbilityEvent(TurnedBack, boomerang.LastImpactPoint, boomerang.LastImpactNormal, 0.0f));
             boomerang.Gone += () => Fired?.Invoke(new AbilityEvent(Caught, transform.position, Vector3.zero, boomerang.Caught ? 1.0f : 0.0f));
-            Fired?.Invoke(new AbilityEvent(Thrown, from, way.normalized, speed, 0.0f, giant ? 1 + (int)model : 0));
+            Fired?.Invoke(new AbilityEvent(Thrown, from, way.normalized, speed, flies.BackTopSpeed, giant ? 1 + (int)model : 0));
             return boomerang;
         }
 
@@ -207,7 +229,8 @@ namespace CityX.Weapons
                         {
                             _flying.Finish();
                         }
-                        Launch(evt.Origin, evt.Direction, Mathf.Min(evt.A, BoomerangRules.OutSpeed * 2.0f), 0.0f, 0.0f, true, evt.N >= 1,
+                        float back = float.IsNaN(evt.B) || evt.B <= 0.0f ? 0.0f : Mathf.Min(evt.B, MostRemoteSpeed);
+                        Launch(evt.Origin, evt.Direction, Mathf.Min(evt.A, MostRemoteSpeed), back, 0.0f, 0.0f, true, evt.N >= 1,
                             evt.N == 1 + (int)GiantBoomerangModel.IronSpiked ? GiantBoomerangModel.IronSpiked : GiantBoomerangModel.Bone);
                     }
                     break;
@@ -232,12 +255,13 @@ namespace CityX.Weapons
             }
         }
 
-        private ThrownBoomerang Launch(Vector3 from, Vector3 way, float speed, float damage, float penetration, bool copy, bool giant, GiantBoomerangModel model)
+        private ThrownBoomerang Launch(Vector3 from, Vector3 way, float speed, float backTopSpeed, float damage, float penetration, bool copy, bool giant,
+            GiantBoomerangModel model)
         {
             GameObject prefab = !giant ? ThrownPrefab
                 : model == GiantBoomerangModel.IronSpiked && IronSpikedThrownPrefab != null ? IronSpikedThrownPrefab
                 : GiantThrownPrefab != null ? GiantThrownPrefab : ThrownPrefab;
-            ThrownBoomerang boomerang = ThrownBoomerang.Spawn(prefab, from, way, speed, gameObject, damage, penetration, copy, PassesThrough);
+            ThrownBoomerang boomerang = ThrownBoomerang.Spawn(prefab, from, way, speed, gameObject, damage, penetration, copy, PassesThrough, backTopSpeed);
             if (boomerang == null)
             {
                 return null;

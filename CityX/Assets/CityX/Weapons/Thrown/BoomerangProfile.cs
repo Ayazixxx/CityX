@@ -31,6 +31,10 @@ namespace CityX.Weapons
             Heavy = heavy;
         }
 
+        /// <summary>The same with its speed out and its top speed coming back set (BoomerangThrower's, tuned in Play mode).</summary>
+        public BoomerangProfile WithSpeeds(float outSpeed, float backTopSpeed) => new BoomerangProfile(outSpeed, OutSeconds, TurnAcceleration, backTopSpeed,
+            CatchMetres, HitRadius, WallRadius, HitAgainSeconds, SpinDegreesPerSecond, Heavy);
+
         /// <summary>How far a throw goes when nothing stops it, metres.</summary>
         public float Range => OutSpeed * OutSeconds + OutSpeed * OutSpeed / (2.0f * TurnAcceleration);
 

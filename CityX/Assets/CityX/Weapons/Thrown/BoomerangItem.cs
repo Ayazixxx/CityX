@@ -86,7 +86,7 @@ namespace CityX.Weapons
             var vitals = player.GetComponent<PlayerVitals>();
             float damage = CombatTuning.DamageFor(BoomerangRules.Damage, vitals != null ? vitals.Strength : 0);
             float penetration = vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-            thrower.Throw(origin, AimedWay(origin, direction, player, BoomerangRules.Range), damage, penetration);
+            thrower.Throw(origin, AimedWay(origin, direction, player, thrower.ProfileOf(giant: false).Range), damage, penetration);
         }
 
         /// <summary>

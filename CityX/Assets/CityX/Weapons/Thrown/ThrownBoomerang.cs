@@ -74,8 +74,12 @@ namespace CityX.Weapons
         private Transform _catchingHand;
         private bool _comingIn;
 
+        /// <summary>
+        /// A boomerang in the air from <paramref name="prefab"/>, out at <paramref name="speed"/> and back at up to <paramref name="backTopSpeed"/>
+        /// (0: its kind's own, BoomerangProfile).
+        /// </summary>
         public static ThrownBoomerang Spawn(GameObject prefab, Vector3 from, Vector3 way, float speed, GameObject thrower, float damage, float penetration, bool copy,
-            int passesThrough = 0)
+            int passesThrough = 0, float backTopSpeed = 0.0f)
         {
             if (prefab == null)
             {
@@ -87,7 +91,8 @@ namespace CityX.Weapons
                 * (giant ? Quaternion.Euler(GiantTiltDegrees, 0.0f, 0.0f) : Quaternion.Euler(TiltDegrees, 0.0f, RollDegrees));
             GameObject made = Instantiate(prefab, from, facing);
             var boomerang = made.GetComponent<ThrownBoomerang>();
-            boomerang._profile = giant ? BoomerangProfile.Giant : BoomerangProfile.Wooden;
+            BoomerangProfile kind = giant ? BoomerangProfile.Giant : BoomerangProfile.Wooden;
+            boomerang._profile = kind.WithSpeeds(speed, backTopSpeed > 0.0f ? backTopSpeed : kind.BackTopSpeed);
             boomerang._flight = new BoomerangFlight(from, way, speed, boomerang._profile);
             boomerang._thrower = thrower;
             boomerang._damage = damage;

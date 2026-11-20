@@ -326,6 +326,40 @@ namespace CityX.Tests
             Assert.AreEqual(0, behind.Hits, "it went on through the guard");
         }
 
+        /// <summary>
+        /// The speeds are the thrower's to set (owner, 2026-11-20: "let me adjust the boomerang speed and il let you know what the default should be"):
+        /// changed in Play mode on its Boomerang Thrower, the next throw flies out at that speed and comes back at up to the other, here and on
+        /// another player's copy.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheGiantOneFliesAtTheSpeedsSetOnTheThrowerHereAndOnAnotherPlayersCopy()
+        {
+            GameObject owner = Body(Vector3.zero);
+            GameObject copyBody = Body(new Vector3(8.0f, 0.0f, 0.0f));
+            Equip(owner);
+            Equip(copyBody);
+            var mine = owner.GetComponent<BoomerangThrower>();
+            var copy = copyBody.GetComponent<BoomerangThrower>();
+            Assert.AreEqual(GiantBoomerangRules.OutSpeed, mine.GiantOutSpeed, "its speed out does not start at the giant one's own");
+            Assert.AreEqual(GiantBoomerangRules.BackTopSpeed, mine.GiantBackSpeed, "its speed back does not start at the giant one's own");
+            mine.GiantOutSpeed = 30.0f;
+            mine.GiantBackSpeed = 40.0f;
+            mine.Fired += e => copy.PlayRemote(new AbilityEvent(e.Kind, e.Origin + new Vector3(8.0f, 0.0f, 0.0f), e.Direction, e.A, e.B, e.N));
+            yield return null;
+
+            Assert.IsTrue(mine.StartGiantThrow(Vector3.forward, 0.0f, 0.0f), "it was not thrown");
+            yield return Wait(1.0f, () => mine.IsOut);
+            Assert.IsTrue(mine.IsOut && copy.IsOut, "it did not fly, here or on the copy");
+            foreach (BoomerangThrower thrower in new[] { mine, copy })
+            {
+                Assert.AreEqual(30.0f, thrower.Flying.Profile.OutSpeed, 0.01f, "it does not fly out at the speed set");
+                Assert.AreEqual(40.0f, thrower.Flying.Profile.BackTopSpeed, 0.01f, "it does not come back at the speed set");
+            }
+            Vector3 was = mine.Flying.transform.position;
+            yield return null;
+            Assert.AreEqual(30.0f, Vector3.Distance(was, mine.Flying.transform.position) / Time.deltaTime, 1.0f, "it does not really go that fast");
+        }
+
         /// <summary>Another player's copy of this body draws, aims and throws it too, and what flies there is the giant one, hurting no one.</summary>
         [UnityTest]
         public IEnumerator AnotherPlayersCopyDrawsAimsAndThrowsItToo()

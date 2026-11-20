@@ -194,7 +194,7 @@ namespace CityX.Weapons
             var vitals = player.GetComponent<PlayerVitals>();
             float damage = CombatTuning.DamageFor(GiantBoomerangRules.DamageOf(Model), vitals != null ? vitals.Strength : 0);
             float penetration = vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-            thrower.StartGiantThrow(BoomerangItem.AimedWay(origin, direction, player, BoomerangProfile.Giant.Range), damage, penetration, Model);
+            thrower.StartGiantThrow(BoomerangItem.AimedWay(origin, direction, player, thrower.ProfileOf(giant: true).Range), damage, penetration, Model);
         }
 
         private void Carry(GameObject body)
