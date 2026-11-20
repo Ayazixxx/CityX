@@ -9,8 +9,8 @@ namespace CityX.WearablesEditor
     /// <summary>
     /// Which of the body's triangles a garment hides (SkinnedGarment.HiddenBodyTriangles), as games hide the body under clothes: what is not
     /// drawn cannot poke through the cloth when a limb moves further than the cloth follows. Some bones' skin the garment always hides (a coat:
-    /// the torso and upper arms); some only where it covers them from every side: rays out along the triangle's normal and tilted round it all
-    /// hit the garment, in the bind pose both share, so what shows through an opening stays.
+    /// the torso and upper arms); some only where it covers them from every side (and skin shared with an always-hidden bone with them): rays
+    /// out along the triangle's normal and tilted round it all hit the garment, in the bind pose both share, so what shows through an opening stays.
     /// </summary>
     public static class BodyUnderGarment
     {
@@ -49,7 +49,10 @@ namespace CityX.WearablesEditor
             List<HumanBodyBones> order = BodyRigBuilder.SkinBoneOrder();
             HashSet<int> alwaysIndex = Indices(order, always);
             HashSet<int> withinIndex = Indices(order, alwaysWithin);
+            // Skin shared between a bone always hidden and one hidden where covered (the waist, between the spine and the hips) counts both:
+            // neither alone was enough to hide it, and a band of it showed through a shirt as the torso twisted.
             HashSet<int> hideableIndex = Indices(order, hideable);
+            hideableIndex.UnionWith(alwaysIndex);
 
             var cover = new GameObject("GarmentCover");
             bool hitBackfaces = Physics.queriesHitBackfaces;

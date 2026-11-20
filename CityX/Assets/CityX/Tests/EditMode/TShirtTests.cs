@@ -246,12 +246,45 @@ namespace CityX.Tests
         [Test]
         public void NoArmSkinIsDrawnInsideASleeve()
         {
+            var under = DrawnSkinWhere((centre, normal) => Mathf.Abs(centre.x) > ArmFromX &&
+                Physics.Raycast(centre + normal * 0.002f, normal, SleeveOffArm) &&
+                Physics.Raycast(centre + Vector3.down * InsideACuff + normal * 0.002f, normal, SleeveOffArm));
+            Assert.IsEmpty(under, $"{under.Count} drawn triangles of the arms lie under a sleeve, the first at {(under.Count > 0 ? under[0] : Vector3.zero):F3}");
+        }
+
+        /// <summary>The torso's skin between these heights (bind pose) lies under the shirt's body: above the hem, below the armpits and the collar.</summary>
+        private const float TorsoFrom = BodyRig.HipY + 0.15f;
+        private const float TorsoTo = 1.7f;
+        private const float TorsoHalfWidth = 0.22f;
+
+        /// <summary>The shirt's body stands off the torso no further than this anywhere (1.5 cm at the least).</summary>
+        private const float ClothOffTorso = 0.1f;
+
+        /// <summary>
+        /// Owner, 2026-11-19, of the Blood Raven shirt's back in a sword swing: "some sword animations have a small bit of the players back
+        /// clipping through the shirt". No torso skin is drawn under the shirt's body: a band round the waist, where the skin is shared between
+        /// the hips and the spine, was neither the spine's to hide always nor enough the hips' to hide where covered, and a twisting swing pushed
+        /// it through the cloth.
+        /// </summary>
+        [Test]
+        public void NoTorsoSkinIsDrawnUnderTheShirtsBody()
+        {
+            var under = DrawnSkinWhere((centre, normal) => Mathf.Abs(centre.x) < TorsoHalfWidth && centre.y > TorsoFrom && centre.y < TorsoTo &&
+                Physics.Raycast(centre + normal * 0.002f, normal, ClothOffTorso));
+            float lowest = float.MaxValue, highest = float.MinValue;
+            under.ForEach(p => { lowest = Mathf.Min(lowest, p.y); highest = Mathf.Max(highest, p.y); });
+            Assert.IsEmpty(under, $"{under.Count} drawn triangles of the torso lie under the shirt, from {lowest:F3} to {highest:F3} m up");
+        }
+
+        /// <summary>The centres of the body's triangles the shirt leaves drawn that <paramref name="under"/> (centre, normal; bind pose, the shirt's collider in place) accepts.</summary>
+        private System.Collections.Generic.List<Vector3> DrawnSkinWhere(System.Func<Vector3, Vector3, bool> under)
+        {
             SkinnedGarment shirt = Shirt();
             var body = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
             Assert.AreEqual(shirt.HiddenFromBodyTriangles, body.triangles.Length / 3, "the shirt's hidden skin was made for another body");
             var cover = new GameObject("ShirtCover");
             bool hitBackfaces = Physics.queriesHitBackfaces;
-            var under = new System.Collections.Generic.List<Vector3>();
+            var found = new System.Collections.Generic.List<Vector3>();
             try
             {
                 cover.AddComponent<MeshCollider>().sharedMesh = shirt.GarmentMesh;
@@ -266,11 +299,10 @@ namespace CityX.Tests
                         continue;
                     }
                     Vector3 a = vertices[triangles[t * 3]], b = vertices[triangles[t * 3 + 1]], c = vertices[triangles[t * 3 + 2]];
-                    Vector3 centre = (a + b + c) / 3.0f, normal = Vector3.Cross(b - a, c - a).normalized;
-                    if (Mathf.Abs(centre.x) > ArmFromX && Physics.Raycast(centre + normal * 0.002f, normal, SleeveOffArm) &&
-                        Physics.Raycast(centre + Vector3.down * InsideACuff + normal * 0.002f, normal, SleeveOffArm))
+                    Vector3 centre = (a + b + c) / 3.0f;
+                    if (under(centre, Vector3.Cross(b - a, c - a).normalized))
                     {
-                        under.Add(centre);
+                        found.Add(centre);
                     }
                 }
             }
@@ -279,7 +311,7 @@ namespace CityX.Tests
                 Physics.queriesHitBackfaces = hitBackfaces;
                 Object.DestroyImmediate(cover);
             }
-            Assert.IsEmpty(under, $"{under.Count} drawn triangles of the arms lie under a sleeve, the first at {(under.Count > 0 ? under[0] : Vector3.zero):F3}");
+            return found;
         }
 
         /// <summary>

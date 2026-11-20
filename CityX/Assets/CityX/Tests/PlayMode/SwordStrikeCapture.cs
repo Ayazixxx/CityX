@@ -56,6 +56,25 @@ namespace CityX.Tests
             yield return RenderTheAttacksOf(new[] { ("spear", "Assets/CityX/Weapons/Spear.prefab"), ("spear-shield", "Assets/CityX/Weapons/Spear.prefab") });
         }
 
+        /// <summary>
+        /// Swung in the Blood Raven T-Shirt, with a fourth row close behind the back (owner, 2026-11-19: "some sword animations have a small bit
+        /// of the players back clipping through the shirt"): strike-&lt;sword&gt;-shirt-*.png.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RenderTheSwordAttacksInAShirt()
+        {
+            yield return RenderTheAttacksOf(new[]
+            {
+                ("1h" + InAShirt, "Assets/CityX/Weapons/CombatSword.prefab"),
+                ("spike" + InAShirt, "Assets/CityX/Weapons/SpikeSword.prefab"),
+            });
+        }
+
+        private const string InAShirt = "-shirt";
+
+        /// <summary>The row close behind the torso (<see cref="Shoot"/>), shot only in a shirt.</summary>
+        private const int CloseBehind = 3;
+
         private IEnumerator RenderTheAttacksOf((string, string)[] swords)
         {
             CaptureGuard.NeedsGraphics();
@@ -94,6 +113,12 @@ namespace CityX.Tests
                     var shield = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/RoundShield.prefab"));
                     shield.GetComponent<CityX.Items.IEquippableItem>().OnEquip(player, CityX.Items.ItemInstanceData.None);
                 }
+                int rows = swordLabel.EndsWith(InAShirt) ? CloseBehind + 1 : CloseBehind;
+                if (swordLabel.EndsWith(InAShirt))
+                {
+                    var shirt = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/BloodRavenTShirt.prefab"));
+                    shirt.GetComponent<CityX.Items.IEquippableItem>().OnEquip(player, CityX.Items.ItemInstanceData.None);
+                }
                 var combat = player.GetComponent<SoulsSwordCombat>();
                 combat.HitStopSeconds = 0.0f;
                 var driver = player.GetComponent<PlayerAnimationDriver>();
@@ -115,10 +140,8 @@ namespace CityX.Tests
 
                 // The carry: standing with the sword in hand, nothing being done with it.
                 {
-                    var sheet = new Texture2D(Cell, Cell * 3, TextureFormat.RGB24, false);
-                    Shoot(camera, sheet, 0, player, 0);
-                    Shoot(camera, sheet, 0, player, 1);
-                    Shoot(camera, sheet, 0, player, 2);
+                    var sheet = new Texture2D(Cell, Cell * rows, TextureFormat.RGB24, false);
+                    ShootColumn(camera, sheet, 0, player, rows);
                     Save(sheet, Path.Combine(directory, $"strike-{swordLabel}-carry.png"));
                 }
 
@@ -137,10 +160,8 @@ namespace CityX.Tests
                         locomotion.Tick(idle, Dt);
                         yield return null;
                     }
-                    var sheet = new Texture2D(Cell, Cell * 3, TextureFormat.RGB24, false);
-                    Shoot(camera, sheet, 0, player, 0);
-                    Shoot(camera, sheet, 0, player, 1);
-                    Shoot(camera, sheet, 0, player, 2);
+                    var sheet = new Texture2D(Cell, Cell * rows, TextureFormat.RGB24, false);
+                    ShootColumn(camera, sheet, 0, player, rows);
                     Save(sheet, Path.Combine(directory, $"strike-{swordLabel}-{label}.png"));
                     combat.SetBlockHeld(false);
                     for (int i = 0; i < 20; i++)
@@ -221,7 +242,7 @@ namespace CityX.Tests
                     }
                     shots[columns - 1] = SwordStrikes.TryGet(attack.Animation, out SwordStrikeKind kind) ? total * SwordStrikes.ContactFraction(kind) + 2.0f * Dt : total;
                     System.Array.Sort(shots);
-                    var sheet = new Texture2D(Cell * columns, Cell * 3, TextureFormat.RGB24, false);
+                    var sheet = new Texture2D(Cell * columns, Cell * rows, TextureFormat.RGB24, false);
                     int column = 0;
                     float lowestTip = float.MaxValue, worstLeft = 0.0f, fastest = 0.0f;
                     Vector3 previousTip = sword.BladeTipWorld;
@@ -250,9 +271,7 @@ namespace CityX.Tests
                         }
                         if (t >= shots[column] - 0.0001f)
                         {
-                            Shoot(camera, sheet, column, player, 0);
-                            Shoot(camera, sheet, column, player, 1);
-                            Shoot(camera, sheet, column, player, 2);
+                            ShootColumn(camera, sheet, column, player, rows);
                             column++;
                         }
                         combat.Tick(Dt);
@@ -641,7 +660,19 @@ namespace CityX.Tests
             Object.Destroy(image);
         }
 
-        /// <summary>One cell of the sheet: row 0 from the player's right, row 1 from the front, row 2 from behind the shoulder.</summary>
+        /// <summary>A column of <paramref name="rows"/> cells, one per row of <see cref="Shoot"/>.</summary>
+        private static void ShootColumn(Camera camera, Texture2D sheet, int column, GameObject player, int rows)
+        {
+            for (int row = 0; row < rows; row++)
+            {
+                Shoot(camera, sheet, column, player, row);
+            }
+        }
+
+        /// <summary>
+        /// One cell of the sheet: row 0 from the player's right, row 1 from the front, row 2 from behind the shoulder, <see cref="CloseBehind"/>
+        /// close behind the back.
+        /// </summary>
         internal static void Shoot(Camera camera, Texture2D sheet, int column, GameObject player, int row)
         {
             float height = player.GetComponent<PlayerLocomotion>().StandingHeight;
@@ -651,6 +682,11 @@ namespace CityX.Tests
             float fov;
             switch (row)
             {
+                case CloseBehind:
+                    position = chest + new Vector3(0.3f, 0.35f, -2.0f);
+                    lookAt = chest + Vector3.down * 0.1f;
+                    fov = 40.0f;
+                    break;
                 case 0:
                     position = chest + new Vector3(5.2f, 0.4f, 0.5f);
                     lookAt = chest + Vector3.forward * 0.6f;
@@ -683,7 +719,7 @@ namespace CityX.Tests
             camera.targetTexture = null;
             target.Release();
             Object.Destroy(target);
-            sheet.SetPixels(column * Cell, (2 - row) * Cell, Cell, Cell, image.GetPixels());
+            sheet.SetPixels(column * Cell, (sheet.height / Cell - 1 - row) * Cell, Cell, Cell, image.GetPixels());   // row 0 at the top
             Object.Destroy(image);
         }
 
