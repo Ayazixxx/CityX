@@ -35,7 +35,9 @@ namespace CityX.Tests
             older.PrimaryWeapon = ItemRegistry.BaseballBat;
             older.LastPlayedUnixSeconds = 1000;
             _latest = CharacterSave.Create("Latest", new Color(0.55f, 0.4f, 0.32f));
-            _latest.PrimaryWeapon = ItemRegistry.CombatSword;
+            // The Iron Spiked one's test stands the latest with it (the rooftop stands its character once, as the title opens).
+            _latest.PrimaryWeapon = TestContext.CurrentContext.Test.MethodName == nameof(ACharacterWithTheIronSpikedGiantBoomerangStandsWithItShowingOnTheirBack)
+                ? ItemRegistry.IronSpikedGiantBoomerang : ItemRegistry.CombatSword;
             _latest.Wearing = new List<string> { ItemRegistry.RedCamoTShirt };
             _latest.LastPlayedUnixSeconds = 2000;
             LocalServer.Database.For(PlayerKey.Local).Add(older);
@@ -155,6 +157,46 @@ namespace CityX.Tests
                 highest = Mathf.Max(highest, hips.position.y);
             }
             Assert.Less(highest - lowest, 0.01f, "it bobs up and down once seen");
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-20: "make the iron spiked boomerang visible on back in the title screen when it was equipped primary". The title's scene is
+        /// built (TitleRooftopBuilder) with the items known then, and was last built before it existed: its body had no model for it. A character whose
+        /// primary is the Iron Spiked one stands with it on their back, drawn; and the body has a model for every item another player's body has, so
+        /// the next new one shows too.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ACharacterWithTheIronSpikedGiantBoomerangStandsWithItShowingOnTheirBack()
+        {
+            var hero = Object.FindFirstObjectByType<TitleHero>();
+            Assert.IsNotNull(hero, "the title has no rooftop character");
+            var inventory = hero.Body.GetComponent<Inventory>();
+#if UNITY_EDITOR
+            var everyBody = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab").GetComponent<Inventory>();
+            var missing = new List<string>();
+            foreach (Inventory.ItemPrefabEntry entry in everyBody.ItemPrefabs)
+            {
+                if (entry.Prefab != null && inventory.PrefabForItem(entry.ItemId) == null)
+                {
+                    missing.Add(entry.ItemId);
+                }
+            }
+            Assert.IsEmpty(missing, "the title's body cannot show these -- rebuild the title (TitleScreenBuilder.Build)");
+#endif
+            yield return Seconds(1.5f);
+            Assert.AreEqual(ItemRegistry.IronSpikedGiantBoomerang, inventory.EquippedItemId(Inventory.PrimarySlot), "their primary weapon is not equipped");
+            var boomerang = hero.Body.GetComponentInChildren<CityX.Weapons.GiantBoomerangItem>();
+            Assert.IsNotNull(boomerang, "no giant boomerang on the body");
+            Assert.AreEqual(CityX.Weapons.GiantBoomerangModel.IronSpiked, boomerang.Model);
+            Animator animator = hero.Body.GetComponentInChildren<Animator>();
+            Assert.AreEqual(animator.GetBoneTransform(HumanBodyBones.Spine), boomerang.transform.parent, "it is not on their back");
+            Assert.IsTrue(hero.Seen, "the body is still kept unseen");
+            bool drawn = false;
+            foreach (Renderer part in boomerang.GetComponentsInChildren<Renderer>())
+            {
+                drawn |= part.enabled && part.gameObject.activeInHierarchy;
+            }
+            Assert.IsTrue(drawn, "it is on their back but not drawn");
         }
 
         [UnityTest]
