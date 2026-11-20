@@ -34,6 +34,7 @@ namespace CityX.CharacterEditor
         private const string ThrownSemtexPrefabPath = "Assets/CityX/Weapons/ThrownSemtex.prefab";
         private const string ThrownBoomerangPrefabPath = "Assets/CityX/Weapons/ThrownBoomerang.prefab";
         private const string ThrownGiantBoomerangPrefabPath = "Assets/CityX/Weapons/ThrownGiantBoomerang.prefab";
+        private const string ThrownIronSpikedPrefabPath = "Assets/CityX/Weapons/ThrownIronSpikedGiantBoomerang.prefab";
         private const string WraithPrefabPath = "Assets/CityX/Character/Wraith.prefab";
         private const string ThunderStrikeClipPath = "Assets/CityX/UI/Audio/thunder_strike.ogg";
         private const string SelfSmiteLightMaterialPath = "Assets/CityX/Character/SelfSmiteLight.mat";
@@ -145,6 +146,7 @@ namespace CityX.CharacterEditor
             var boomerang = GetOrAdd<BoomerangThrower>(player);
             boomerang.ThrownPrefab = Load(ThrownBoomerangPrefabPath) ?? boomerang.ThrownPrefab;
             boomerang.GiantThrownPrefab = Load(ThrownGiantBoomerangPrefabPath) ?? boomerang.GiantThrownPrefab;
+            boomerang.IronSpikedThrownPrefab = Load(ThrownIronSpikedPrefabPath) ?? boomerang.IronSpikedThrownPrefab;
 
             // --- Grow and Shrink (Wizard; Grow on key 0 of the default bar): drawn and voiced in code, nothing to load.
             GetOrAdd<BodySizeAbility>(player);

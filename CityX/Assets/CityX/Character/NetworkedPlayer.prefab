@@ -200,7 +200,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 191909447060538152}
+      addedObject: {fileID: 3722836953632824715}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -537,6 +537,8 @@ MonoBehaviour:
     Prefab: {fileID: 4401965656732072727, guid: 16e201c3fc0db5b4ea4ef7375a5455c4, type: 3}
   - ItemId: giantboomerang
     Prefab: {fileID: 8119356553989867653, guid: d1980c25dd8a85c499d980bab4750596, type: 3}
+  - ItemId: ironspikedgiantboomerang
+    Prefab: {fileID: 4726946578679254291, guid: 901ad878648b6994b96d5180714377a3, type: 3}
   - ItemId: jerry_can
     Prefab: {fileID: 6009600437600694734, guid: 2b819f8fa5a05e940b5aab6407ad6175, type: 3}
   - ItemId: bow
@@ -1083,6 +1085,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BoomerangThrower
   ThrownPrefab: {fileID: 1519676695660055740, guid: 913da964cad902f4cbec8ebd287893ec, type: 3}
   GiantThrownPrefab: {fileID: 4610540084080672860, guid: d81075709ad23f443b025da51efc549d, type: 3}
+  IronSpikedThrownPrefab: {fileID: 539402811077165007, guid: d4eaf10f49cf5d544bb8ec85d721c7f7, type: 3}
 --- !u!114 &4178808262995625697
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1133,7 +1136,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &191909447060538152
+--- !u!114 &3722836953632824715
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

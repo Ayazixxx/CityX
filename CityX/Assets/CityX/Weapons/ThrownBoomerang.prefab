@@ -47,6 +47,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.ThrownBoomerang
   Spinner: {fileID: 5321284138617670302}
   Giant: 0
+  ImpactSound: {fileID: 0}
 --- !u!1 &2627852335913334649
 GameObject:
   m_ObjectHideFlags: 0

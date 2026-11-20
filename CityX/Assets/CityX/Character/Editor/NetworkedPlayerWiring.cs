@@ -56,6 +56,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.Semtex, "Assets/CityX/Weapons/Semtex.prefab"),
             (ItemRegistry.WoodenBoomerang, "Assets/CityX/Weapons/Boomerang.prefab"),
             (ItemRegistry.GiantBoomerang, "Assets/CityX/Weapons/GiantBoomerang.prefab"),
+            (ItemRegistry.IronSpikedGiantBoomerang, "Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab"),
             (ItemRegistry.JerryCan, "Assets/CityX/Weapons/JerryCan.prefab"),
             (ItemRegistry.Bow, "Assets/CityX/Weapons/Bow.prefab"),
             (ItemRegistry.Crossbow, "Assets/CityX/Weapons/Crossbow.prefab"),

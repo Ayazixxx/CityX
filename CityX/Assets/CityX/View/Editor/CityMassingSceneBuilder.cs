@@ -318,6 +318,8 @@ namespace CityX.ViewEditor
             GameObject boomerangPrefab = CityX.WeaponsEditor.BoomerangBuilder.Build();
             // The Giant Boomerang (2026-11-12): carried on the back, drawn into an aim or thrown straight off it.
             GameObject giantBoomerangPrefab = CityX.WeaponsEditor.BoomerangBuilder.BuildGiant();
+            // The Iron Spiked Giant Boomerang (2026-11-19): the owner's Meshy model, carried and thrown as the Giant Boomerang is.
+            GameObject ironSpikedBoomerangPrefab = CityX.WeaponsEditor.BoomerangBuilder.BuildIronSpiked();
             // The bow, its arrow (which PlayerAbilityWiring gives the body by path) and the crossbow (2026-10-28, docs/ARCHERY.md).
             GameObject arrowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildArrow();
             GameObject bowPrefab = CityX.WeaponsEditor.ArcheryBuilder.BuildBow(arrowPrefab);
@@ -642,6 +644,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.WoodenBoomerang, Prefab = boomerangPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.GiantBoomerang, Prefab = giantBoomerangPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.IronSpikedGiantBoomerang, Prefab = ironSpikedBoomerangPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.JerryCan, Prefab = gasCanPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

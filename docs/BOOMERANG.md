@@ -128,3 +128,42 @@ you can upgrade it further". Then, of a first go that also stopped it hitting on
 
 Tests: `BoomerangBlowsTests`, `BoomerangPlayTests.TheFirstBodyItHitsTurnsItBackAndItHitsWhoItPassesComingHome`,
 `...EachPassUnlockedTakesItOnThroughOneMoreBodyGoingOut`, `GiantBoomerangPlayTests.GoingOutItTurnsBackOffTheLastBodyItMayHit`.
+
+## The Iron Spiked Giant Boomerang (2026-11-19)
+
+Owner, with Meshy's "Twin Fang Crescent" (in Downloads, not kept in the repo): "make this another giant boomerang weapon called "Iron Spiked
+Giant Boomerang" make it the roughly the same size as the other giant boomerang and shrink the y axis to roughly the same size as the giant
+boomerang as well so. make this a very rare item and adjust the damage how you think would be best", then "also lower the face count to a
+reasonable amount". `/equip ironspiked` (also `ironspikedboomerang`, `spikedboomerang`, `ironboomerang`, `ironrang`).
+
+| | |
+|---|---|
+| Item | `ironspikedgiantboomerang`, "Iron Spiked Giant Boomerang", **Very Rare** (the owner's) |
+| Blow | **50** (the bone one 30): its steel and spikes hit harder, and two throws drop a low-level enemy (100 health), as two AK-47 rounds do (`GiantBoomerangRules.IronSpikedDamage`, mine). Everything else is the bone one's: its flight, range, spin, pierce, knock-down, block, catch |
+| Moves | The bone one's, all of them: on the back, the draw, the aim, both throws, the catch (`GiantBoomerangItem.Model`: which one this is) |
+| Other players | Seen as itself in the air too: the throw says which giant boomerang flew (`BoomerangThrower`, the Thrown event's N: 0 wooden, 1 bone, 2 iron spiked) and their copy flies `ThrownIronSpikedGiantBoomerang.prefab` (`BoomerangThrower.IronSpikedThrownPrefab`, wired by `PlayerAbilityWiring`) |
+
+**The model** (`SourceArt/IronSpikedBoomerang/iron_spiked_boomerang_build.py`, Blender, headless): a steel crescent, a spiked blade at each
+end, a leather wrap on each arm; Meshy's was one surface of 484,150 triangles, 2.03 m tip to tip and 31 cm thick (its knotted wraps), with
+four maps of 4096 and 2048.
+
+- **Size:** scaled to the bone one's 2.6 m tip to tip (x 1.28), so 2.20 x 2.44 m lying flat.
+- **Thickness** (the owner's "y axis"): pressed to 13 cm, the bone one's blade with its wraps.
+- **Faces:** cut to 6,000 triangles (a weapon's "fine" line in `tools/model_qa.py`), and Meshy's paint baked onto one 1024 map
+  (`Weapons/IronSpikedBoomerang.jpg`, 215 KB). Its other maps are not used: the game's guns and blades are flat-shaded, a little metallic.
+- **Held** on its upper arm's wrap, between the wrap's two inner spikes, the arm from the hand to the elbow as the bone one's. It is laid so the
+  other arm goes off to the same side as the bone one's, since its back carry, draw and throw were posed for that (the script turns it over if
+  not). Grip, elbow, ends and arm widths go to `IronSpikedBoomerang.points.json`.
+- **The prefabs:** `BoomerangBuilder.BuildIronSpiked` makes both (held and in the air) through the same `SaveGiant` as the bone one. The hair
+  on the back is laid flat under its outline, 15% wider than its arms for the spikes.
+
+`tools/model_qa.py --kind weapon`: everything passes but one point on a wrap's knot that it calls a spike.
+
+Tests: `IronSpikedGiantBoomerangTests` (the item, Very Rare, its blow against the bone one's, the built model's span, thickness, faces and
+map, the grip on the model and the other arm's side); `GiantBoomerangPlayTests.TheIronSpikedOneFliesAsItselfHereAndOnAnotherPlayersCopyAndHitsHarder`.
+Pictures: `GiantBoomerangCapture.RenderTheIronSpikedGiantBoomerang` (`ironrang-*.png`).
+
+**Its sound** (owner, 2026-11-19, with `GiantMetalBoomerangImpact.mp3`: "make this the noise it plays when it lands on an enemy ... or terrain for
+now"): every strike, on a body or on a wall, the floor or a thing, plays the owner's recording
+(`Weapons/Audio/iron_spiked_boomerang_impact.mp3`, `ThrownBoomerang.ImpactSound`) in place of the made thud, knock and bang, heard as far as the
+bang (60 m). Other players hear it too: their copy flies the same prefab. The bone one keeps its own sounds.

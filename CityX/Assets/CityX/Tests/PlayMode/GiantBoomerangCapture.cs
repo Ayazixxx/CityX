@@ -9,14 +9,26 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: renders the Giant Boomerang (docs/BOOMERANG.md) to Logs/CityShots/giantrang-*.png: on the back, drawn into the aim, the aimed throw and the
-    /// quick throw off the back, each from the game's camera behind the shoulder and from the side, and in the air. Explicit; run by name with -Graphics.
+    /// Not a test: renders the Giant Boomerang (docs/BOOMERANG.md) to Logs/CityShots/giantrang-*.png, and the Iron Spiked one to ironrang-*.png: on the back,
+    /// drawn into the aim, the aimed throw and the quick throw off the back, each from the game's camera behind the shoulder and from the side, and in the air.
+    /// Explicit; run by name with -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class GiantBoomerangCapture
     {
         [UnityTest]
         public IEnumerator RenderTheGiantBoomerang()
+        {
+            yield return Render("giantrang", "GiantBoomerang", "ThrownGiantBoomerang", GiantBoomerangModel.Bone);
+        }
+
+        [UnityTest]
+        public IEnumerator RenderTheIronSpikedGiantBoomerang()
+        {
+            yield return Render("ironrang", "IronSpikedGiantBoomerang", "ThrownIronSpikedGiantBoomerang", GiantBoomerangModel.IronSpiked);
+        }
+
+        private static IEnumerator Render(string label, string heldName, string thrownName, GiantBoomerangModel kind)
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
@@ -35,62 +47,62 @@ namespace CityX.Tests
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.55f, 0.66f, 0.8f);
 
-            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/GiantBoomerang.prefab");
-            Assert.IsNotNull(prefab, "no GiantBoomerang.prefab -- rebuild the scene");
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Weapons/{heldName}.prefab");
+            Assert.IsNotNull(prefab, $"no {heldName}.prefab -- rebuild the scene");
             GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                 new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
             player.GetComponent<PlayerInputReader>().enabled = false;
             var thrower = player.AddComponent<BoomerangThrower>();
-            thrower.GiantThrownPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/ThrownGiantBoomerang.prefab");
+            thrower.GiantThrownPrefab = thrower.IronSpikedThrownPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Weapons/{thrownName}.prefab");
             GiantBoomerangItem item = Object.Instantiate(prefab).GetComponent<GiantBoomerangItem>();
             item.OnEquip(player, ItemInstanceData.None);
             Vector3 body = player.transform.position;
             for (int i = 0; i < 20; i++) yield return null;
 
-            yield return Views(camera, "giantrang-back", body);
-            yield return Shoot(camera, "giantrang-back-behind", body + new Vector3(0.3f, 2.2f, -3.2f), body + Vector3.up * 1.6f);
+            yield return Views(camera, label + "-back", body);
+            yield return Shoot(camera, label + "-back-behind", body + new Vector3(0.3f, 2.2f, -3.2f), body + Vector3.up * 1.6f);
 
             // Drawn into the aim: halfway (the grab), then held.
             thrower.SetGiantAiming(true);
             yield return Frames(GiantBoomerangMoves.DrawGrabSeconds);
-            yield return Views(camera, "giantrang-draw-grab", body);
+            yield return Views(camera, label + "-draw-grab", body);
             yield return Frames(0.6f);
-            yield return Views(camera, "giantrang-aim", body);
+            yield return Views(camera, label + "-aim", body);
             // The aimed throw: the wind's end, and the release.
-            thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f);
+            thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f, kind);
             yield return Frames(GiantBoomerangMoves.AimedReleaseSeconds * 0.5f);
-            yield return Views(camera, "giantrang-aimed-mid", body);
+            yield return Views(camera, label + "-aimed-mid", body);
             yield return Frames(GiantBoomerangMoves.AimedReleaseSeconds * 0.5f + 0.05f);
-            yield return Views(camera, "giantrang-aimed-released", body);
+            yield return Views(camera, label + "-aimed-released", body);
             yield return Frames(0.25f);
             Assert.IsNotNull(thrower.Flying, "the aimed throw never let it go");
             Vector3 at = thrower.Flying.transform.position;
-            yield return Shoot(camera, "giantrang-air-behind", body + new Vector3(0.87f, 2.8f, -4.5f), at);
+            yield return Shoot(camera, label + "-air-behind", body + new Vector3(0.87f, 2.8f, -4.5f), at);
             at = thrower.Flying.transform.position;
-            yield return Shoot(camera, "giantrang-air-side", at + new Vector3(6.0f, 1.0f, 0.0f), at);
+            yield return Shoot(camera, label + "-air-side", at + new Vector3(6.0f, 1.0f, 0.0f), at);
             // The catch: the hand out for it as it comes in, the moment it is caught, the arm giving with it, and put back on the back.
             for (float t = 0.0f; t < 8.0f && thrower.IsOut && !thrower.GiantMoves.IsCatching; t += Time.deltaTime) yield return null;
             Assert.IsTrue(thrower.GiantMoves.IsCatching, "the hand never went out for it");
-            yield return Shoot(camera, "giantrang-catch-reach-game", body + new Vector3(0.87f, 2.9f, -5.0f), body + new Vector3(0.0f, 1.9f, 2.0f));
+            yield return Shoot(camera, label + "-catch-reach-game", body + new Vector3(0.87f, 2.9f, -5.0f), body + new Vector3(0.0f, 1.9f, 2.0f));
             for (float t = 0.0f; t < 8.0f && thrower.IsOut; t += Time.deltaTime) yield return null;
             Assert.IsFalse(thrower.IsOut, "it never came back");
-            yield return Views(camera, "giantrang-catch-caught", body);
+            yield return Views(camera, label + "-catch-caught", body);
             yield return Frames(0.2f);
-            yield return Views(camera, "giantrang-catch-give", body);
+            yield return Views(camera, label + "-catch-give", body);
             yield return Frames(0.5f);
-            yield return Views(camera, "giantrang-catch-putting-away", body);
+            yield return Views(camera, label + "-catch-putting-away", body);
             yield return Frames(0.6f);
-            yield return Views(camera, "giantrang-caught", body);
+            yield return Views(camera, label + "-caught", body);
 
             // The quick throw straight off the back.
             yield return Frames(BoomerangRules.ThrowEverySeconds);
-            thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f);
+            thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f, kind);
             yield return Frames(GiantBoomerangMoves.QuickGrabSeconds);
-            yield return Views(camera, "giantrang-quick-grab", body);
+            yield return Views(camera, label + "-quick-grab", body);
             yield return Frames((GiantBoomerangMoves.QuickReleaseSeconds - GiantBoomerangMoves.QuickGrabSeconds) * 0.6f);
-            yield return Views(camera, "giantrang-quick-wind", body);
+            yield return Views(camera, label + "-quick-wind", body);
             yield return Frames((GiantBoomerangMoves.QuickReleaseSeconds - GiantBoomerangMoves.QuickGrabSeconds) * 0.4f + 0.03f);
-            yield return Views(camera, "giantrang-quick-released", body);
+            yield return Views(camera, label + "-quick-released", body);
 
             foreach (GameObject go in new[] { player, item != null ? item.gameObject : null, camera.gameObject, ground, sun.gameObject })
             {

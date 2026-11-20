@@ -36,6 +36,9 @@ namespace CityX.Weapons
         [Tooltip("The Giant Boomerang: its own numbers (BoomerangProfile.Giant). Set by BoomerangBuilder.")]
         public bool Giant;
 
+        [Tooltip("Its own sound on striking anyone or anything, played instead of the made thud, knock and bang (the Iron Spiked one's). Set by BoomerangBuilder.")]
+        public AudioClip ImpactSound;
+
         private readonly RaycastHit[] _hits = new RaycastHit[32];
         private readonly Dictionary<IDamageable, float> _struckAt = new Dictionary<IDamageable, float>();
 
@@ -174,7 +177,14 @@ namespace CityX.Weapons
             ImpactBurst.At(point, normal, giant ? GiantBurstSize : BurstSize);
             if (Application.isPlaying)
             {
-                CityX.View.PositionalSound.Play(BoomerangSounds.Bang, point, BangVolume, giant ? BoomerangSounds.GiantBangPitch : 1.0f, 0.0f, BangReachMetres);
+                if (ImpactSound != null)
+                {
+                    CityX.View.PositionalSound.Play(ImpactSound, point, BangVolume, 1.0f, 0.0f, BangReachMetres);
+                }
+                else
+                {
+                    CityX.View.PositionalSound.Play(BoomerangSounds.Bang, point, BangVolume, giant ? BoomerangSounds.GiantBangPitch : 1.0f, 0.0f, BangReachMetres);
+                }
             }
         }
 
@@ -338,9 +348,18 @@ namespace CityX.Weapons
             return true;
         }
 
-        private static void Clack(Vector3 at, bool onSomeone)
+        /// <summary>A body struck (<paramref name="onSomeone"/>: the blow landed, else a guard stopped it): its own impact sound if it has one (owner, 2026-11-19, of the Iron Spiked one: "make this the noise it plays when it lands on an enemy").</summary>
+        private void Clack(Vector3 at, bool onSomeone)
         {
-            if (Application.isPlaying)
+            if (!Application.isPlaying)
+            {
+                return;
+            }
+            if (ImpactSound != null)
+            {
+                CityX.View.PositionalSound.Play(ImpactSound, at, BangVolume, 1.0f, 0.0f, BangReachMetres);
+            }
+            else
             {
                 AudioSource.PlayClipAtPoint(onSomeone ? ArcherySounds.Thud : ArcherySounds.Knock, at, HitVolume);
             }

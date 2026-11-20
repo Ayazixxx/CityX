@@ -180,7 +180,7 @@ namespace CityX.UI
                 case "outlines": return "/outlines <pixels> -- the black lines' width on a screen 1080 tall (2 by default; 0 draws none)";
                 case "equip": return "/equip <bottle|cloak|coat|tshirt|bloodraven|redcamo|grapple|pistol|flamethrower|jetpack|parachute|" +
                     "knight_helmet|clawskull|3dglasses|jeans|spikesword|combatsword|knife|bostaff|ak47|shotgun|rpg|crowbar|bat|spraycan|shield|staff|firestaff|icestaff|waterstaff|flamestaff|beamstaff|" +
-                    "healstaff|froststaff|wand|magicstaff|wraithstaff|grenade|boomerang|bow|crossbow|slingshot|gascan|flashlight|wings|darkwings>";
+                    "healstaff|froststaff|wand|magicstaff|wraithstaff|grenade|boomerang|giantboomerang|ironspiked|bow|crossbow|slingshot|gascan|flashlight|wings|darkwings>";
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|shield|legs|top|back|helmet|mask>";
                 case "goto": return "/goto <slope|highway|manhole|mouth> -- teleports to the nearest one (onto an expressway's deck for highway; beside the " +
                     "nearest open manhole; into the open cut before the nearest sewer mouth)";

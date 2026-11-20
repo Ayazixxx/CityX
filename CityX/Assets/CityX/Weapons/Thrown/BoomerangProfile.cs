@@ -44,12 +44,31 @@ namespace CityX.Weapons
     }
 
     /// <summary>
+    /// Which giant boomerang: the bone one, or the Iron Spiked one (docs/BOOMERANG.md). They are carried, drawn, thrown and caught alike; each has its
+    /// own model in the air (BoomerangThrower) and its own blow (<see cref="GiantBoomerangRules.DamageOf"/>).
+    /// </summary>
+    public enum GiantBoomerangModel
+    {
+        Bone = 0,
+        IronSpiked = 1,
+    }
+
+    /// <summary>
     /// The numbers of the Giant Boomerang (docs/BOOMERANG.md; owner, 2026-11-12: "make a giant version of the boomerang like the girl from inuyasha", thrown
     /// "heavy and slow": a wind-up, slower, about twice the wooden one's range, about three times its damage, knocks people over). All mine but those.
     /// </summary>
     public static class GiantBoomerangRules
     {
         public const float Damage = 30.0f;
+
+        /// <summary>
+        /// The Iron Spiked Giant Boomerang's blow (owner, 2026-11-19: "make this a very rare item and adjust the damage how you think would be best"): its
+        /// steel and spikes hit harder than the bone one's, enough that two throws drop a low-level enemy (100 health), as two rounds of the AK-47 do.
+        /// It flies as the bone one does. Mine.
+        /// </summary>
+        public const float IronSpikedDamage = 50.0f;
+
+        public static float DamageOf(GiantBoomerangModel model) => model == GiantBoomerangModel.IronSpiked ? IronSpikedDamage : Damage;
 
         public const float OutSpeed = 18.0f;
 

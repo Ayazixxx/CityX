@@ -87,6 +87,7 @@ namespace CityX.Items
             [ItemRegistry.ClawSkull] = Rarity.VeryRare,   // my placement: it is meant as a lucky drop from the Crimson Claw
             [ItemRegistry.WraithStaff] = Rarity.VeryRare,   // one wild Wraith in 33 leaves one (my placement: not on the owner's list)
             [ItemRegistry.DarkAngelWings] = Rarity.VeryRare,
+            [ItemRegistry.IronSpikedGiantBoomerang] = Rarity.VeryRare,   // the owner's: "make this a very rare item"
         };
 
         public static Rarity Of(string itemId) => itemId != null && Of_.TryGetValue(itemId, out Rarity rarity) ? rarity : Rarity.Common;

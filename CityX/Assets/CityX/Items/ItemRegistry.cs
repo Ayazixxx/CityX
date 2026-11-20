@@ -70,6 +70,9 @@ namespace CityX.Items
 
         /// <summary>As tall as the player, carried on the back, drawn into an aim or thrown straight off it (docs/BOOMERANG.md).</summary>
         public const string GiantBoomerang = "giantboomerang";
+
+        /// <summary>A Giant Boomerang of spiked steel, very rare, hitting harder (owner, 2026-11-19; docs/BOOMERANG.md).</summary>
+        public const string IronSpikedGiantBoomerang = "ironspikedgiantboomerang";
         public const string FireballStaff = "fireball_staff";
         public const string IceShardStaff = "ice_shard_staff";
         public const string ArcaneBeamStaff = "arcane_beam_staff";
@@ -175,6 +178,7 @@ namespace CityX.Items
             [Slingshot] = new ItemDefinition(Slingshot, "Slingshot", "weapon", EquipSlots.Primary, 1),
             [WoodenBoomerang] = new ItemDefinition(WoodenBoomerang, "Wooden Boomerang", "weapon", EquipSlots.Primary, 1),
             [GiantBoomerang] = new ItemDefinition(GiantBoomerang, "Giant Boomerang", "weapon", EquipSlots.Primary, 1),
+            [IronSpikedGiantBoomerang] = new ItemDefinition(IronSpikedGiantBoomerang, "Iron Spiked Giant Boomerang", "weapon", EquipSlots.Primary, 1),
             [FireballStaff] = new ItemDefinition(FireballStaff, "Fireball Staff", "weapon", EquipSlots.Primary, 1),
             [IceShardStaff] = new ItemDefinition(IceShardStaff, "Ice Shard Staff", "weapon", EquipSlots.Primary, 1),
             // The arcane beam and the healing beam (2026-10-29, docs/STAFFS.md, docs/HEALING.md): held, a beam; Mercy's staff without its boost.

@@ -35,6 +35,9 @@ namespace CityX.Weapons
         /// <summary>The child that holds the model, set off from the grip (BoomerangBuilder.BuildGiant).</summary>
         public const string ModelName = "Model";
 
+        [Tooltip("Which giant boomerang this is: its item, its blow and its model in the air. Set by BoomerangBuilder.")]
+        public GiantBoomerangModel Model;
+
         [Tooltip("Its outline in its own frame (the grip at the origin, z along it, y out of its face), for the hair it lies over (BackClip): one tip x, z and the elbow x, z. Set by BoomerangBuilder.")]
         public Vector4 OutlineTipAndElbow;
 
@@ -51,7 +54,7 @@ namespace CityX.Weapons
         /// <summary>The wielder's melee, while equipped: it fights bare-handed while the boomerang is out.</summary>
         private MeleeAttacker _melee;
 
-        public string ItemId => ItemRegistry.GiantBoomerang;
+        public string ItemId => Model == GiantBoomerangModel.IronSpiked ? ItemRegistry.IronSpikedGiantBoomerang : ItemRegistry.GiantBoomerang;
 
         public float GetMeleeDamage() => 0.0f;
 
@@ -125,9 +128,9 @@ namespace CityX.Weapons
                 return;
             }
             var vitals = player.GetComponent<PlayerVitals>();
-            float damage = CombatTuning.DamageFor(GiantBoomerangRules.Damage, vitals != null ? vitals.Strength : 0);
+            float damage = CombatTuning.DamageFor(GiantBoomerangRules.DamageOf(Model), vitals != null ? vitals.Strength : 0);
             float penetration = vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
-            thrower.StartGiantThrow(BoomerangItem.AimedWay(origin, direction, player, BoomerangProfile.Giant.Range), damage, penetration);
+            thrower.StartGiantThrow(BoomerangItem.AimedWay(origin, direction, player, BoomerangProfile.Giant.Range), damage, penetration, Model);
         }
 
         private void Carry(GameObject body)

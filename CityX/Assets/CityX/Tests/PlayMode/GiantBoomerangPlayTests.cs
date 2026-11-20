@@ -29,9 +29,13 @@ namespace CityX.Tests
 
             public bool IsAlive => true;
 
+            /// <summary>The hardest blow it took.</summary>
+            public float Hardest;
+
             public HitResponse ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
             {
                 Hits++;
+                Hardest = Mathf.Max(Hardest, amount);
                 if (HitAt < 0.0f) HitAt = Time.time;
                 return Response;
             }
@@ -353,6 +357,48 @@ namespace CityX.Tests
             Assert.IsFalse(copy.IsOut, "the copy's never came home");
             Assert.IsTrue(copy.GiantMoves.IsCatching, "the copy did not catch it");
             Assert.AreEqual(Bone(copyBody, HumanBodyBones.RightHand), copyItem.transform.parent, "the copy's is not caught in its hand");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// The Iron Spiked Giant Boomerang (owner, 2026-11-19): carried and thrown as the bone one, its own blow landing, and what flies, here and on another
+        /// player's copy, is its own spiked model, not the bone one.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheIronSpikedOneFliesAsItselfHereAndOnAnotherPlayersCopyAndHitsHarder()
+        {
+#if UNITY_EDITOR
+            var networked = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab").GetComponent<BoomerangThrower>();
+            Assert.IsTrue(networked != null && networked.IronSpikedThrownPrefab != null, "the networked player cannot show another player's iron spiked boomerang -- rebuild the scene");
+            GameObject owner = Body(Vector3.zero);
+            GameObject copyBody = Body(new Vector3(8.0f, 0.0f, 0.0f));
+            var spiked = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/ThrownIronSpikedGiantBoomerang.prefab");
+            Assert.IsNotNull(spiked, "no ThrownIronSpikedGiantBoomerang.prefab -- rebuild the scene");
+            var mine = owner.GetComponent<BoomerangThrower>();
+            var copy = copyBody.GetComponent<BoomerangThrower>();
+            mine.IronSpikedThrownPrefab = copy.IronSpikedThrownPrefab = spiked;
+            GameObject model = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab"));
+            _made.Add(model);
+            var item = model.GetComponent<GiantBoomerangItem>();
+            item.OnEquip(owner, ItemInstanceData.None);
+            mine.Fired += e => copy.PlayRemote(new AbilityEvent(e.Kind, e.Origin + new Vector3(8.0f, 0.0f, 0.0f), e.Direction, e.A, e.B, e.N));
+            Dummy target = Target(new Vector3(0.0f, 1.3f, 7.0f));
+            yield return null;
+
+            item.Throw(owner, owner.transform.position + Vector3.up * 2.0f, Vector3.forward);
+            yield return Wait(1.0f, () => mine.IsOut && copy.IsOut);
+            Assert.IsTrue(mine.IsOut && copy.IsOut, "it did not fly, here or on the copy");
+            Mesh shown = spiked.GetComponentInChildren<MeshFilter>().sharedMesh;
+            Assert.AreEqual(shown, mine.Flying.GetComponentInChildren<MeshFilter>().sharedMesh, "what flies here is not the iron spiked one");
+            Assert.AreEqual(shown, copy.Flying.GetComponentInChildren<MeshFilter>().sharedMesh, "what flies on the copy is not the iron spiked one");
+            Assert.IsTrue(mine.Flying.Profile.Heavy && copy.Flying.IsCopy, "it does not fly as a giant one, or the copy can hurt");
+            yield return Wait(3.0f, () => target.Hits > 0);
+            Assert.Greater(target.Hits, 0, "it never hit");
+            Assert.AreEqual(GiantBoomerangRules.IronSpikedDamage, target.Hardest, 0.01f, "it did not land its own blow");
+            yield return Wait(6.0f, () => !mine.IsOut);
+            Assert.IsFalse(mine.IsOut, "it never came home");
 #else
             yield break;
 #endif

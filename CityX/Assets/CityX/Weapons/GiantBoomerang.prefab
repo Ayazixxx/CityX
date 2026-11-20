@@ -280,5 +280,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 094b9f67ed4a55f4e955d3151cd0ad03, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GiantBoomerangItem
+  Model: 0
   OutlineTipAndElbow: {x: -0.8771781, y: 2.0308812, z: 0.000000061460604, w: 0.9628102}
   OutlineTipAndWidths: {x: -0.018655486, y: -0.41917008, z: 0.21, w: 0.15}

@@ -489,6 +489,13 @@ namespace CityX.UI
                 case "bigboomerang":
                 case "big_boomerang":
                 case "giantrang": return ItemRegistry.GiantBoomerang;
+                case "ironspikedgiantboomerang":
+                case "iron_spiked_giant_boomerang":
+                case "ironspikedboomerang":
+                case "ironspiked":
+                case "spikedboomerang":
+                case "ironboomerang":
+                case "ironrang": return ItemRegistry.IronSpikedGiantBoomerang;
                 case "spray":
                 case "spraycan":
                 case "spray_can":
