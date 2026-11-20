@@ -26,6 +26,7 @@ OCTASLASH_NO_BAKE = True
 run(os.path.join(OCTASLASH, "octaslash_pose.py"))
 run(os.path.join(SOURCE_ART, "planted_feet.py"))
 run(os.path.join(SOURCE_ART, "FistCombo", "fist_pose.py"))
+run(os.path.join(SOURCE_ART, "head_carry.py"))
 run(os.path.join(HERE, "giant_boomerang_pose.py"))
 SPANS = bake_moves()
 bpy.data.objects[SWORD].hide_render = True

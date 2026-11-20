@@ -1,8 +1,8 @@
 # WHERE THE IRON SPIKED GIANT BOOMERANG IS, ON THE BACK AND IN THE HAND, IN BLENDER (docs/BOOMERANG.md), for its moves' check renders and for the hold
 # itself: the hold is worked out here and printed for BoomerangBuilder (IronSpikedHoldPosition, IronSpikedHoldRotation).
 #
-# Everything is written in the game's terms (Unity: x right, y up, z ahead; a quaternion as x, y, z, w; Euler as Quaternion.Euler has it) and only
-# carried into Blender's axes at the end. Needs the rig (../Octaslash/octaslash_rig.py) loaded first.
+# Everything is written in the game's terms (../game_frames.py) and only carried into Blender's axes at the end. Needs the rig (../Octaslash/octaslash_rig.py)
+# and ../game_frames.py loaded first.
 #
 # THE HOLD (owner, 2026-11-20: "i want it to grab the boomerang by the rope and maybe have the fingers clipped into the rope strategically so it looks
 # like its got a grip on the rope", "an above grip like how sasuke holds the demon wind shuriken"): the palm laid on top of a wrap, sunk a little into
@@ -11,32 +11,6 @@ import math
 
 import bpy
 from mathutils import Matrix, Quaternion, Vector
-
-TO_BLENDER = Matrix(((-1, 0, 0), (0, 0, -1), (0, 1, 0))).to_4x4()      # Unity (x, y, z) is Blender (-x, -z, y)
-
-
-def uq(x, y, z, w):
-    return Quaternion((w, x, y, z))
-
-
-def u_euler(x, y, z):
-    """Quaternion.Euler: about z, then x, then y."""
-    return (Quaternion((0, 1, 0), math.radians(y)) @ Quaternion((1, 0, 0), math.radians(x)) @ Quaternion((0, 0, 1), math.radians(z)))
-
-
-def u_trs(position, rotation):
-    return Matrix.Translation(Vector(position)) @ rotation.to_matrix().to_4x4()
-
-
-def in_blender(unity):
-    return TO_BLENDER @ unity @ TO_BLENDER.inverted()
-
-
-# The bones the boomerang rides, at the rig's arms-down rest (BodyRig).
-SPINE_REST = u_trs((0.0, 1.4, 0.0), Quaternion())
-_ARM_DOWN = math.atan2(1.9 - 0.88, 0.58 - 0.35)
-_WRIST = Vector((0.35, 1.9, 0.0)).lerp(Vector((0.58, 0.88, 0.0)), 0.85)
-HAND_REST = u_trs(_WRIST, Quaternion((0, 0, 1), -_ARM_DOWN))
 
 # IronSpikedGiantBoomerang.prefab: where the owner hung it from the spine, its model in that frame on the back, and its model in the item's own frame
 # (the grip of old at the origin).

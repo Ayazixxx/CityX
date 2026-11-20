@@ -9,9 +9,8 @@ namespace CityX.Weapons
     /// the back; a click throws it, from the aim or straight off the back. Coming home it is caught (<see cref="Catch"/>): the hand goes out for it, the arm
     /// gives with it and comes round into the aim, which is held if right-click is (even if it was pressed while the boomerang was still out), or else the
     /// boomerang is put back on the back. Says when the hand has it (<see cref="InHand"/>: the item shows it there and not on the back) and when it lets go
-    /// (<see cref="Released"/>). The bone one's draw, aim, aimed throw and catch are on the upper body, so the legs walk on under them; a quick throw from
-    /// standing is the whole body, with its step. Each giant boomerang has its own clips (<see cref="Clips"/>): the Iron Spiked one's are the whole body's
-    /// while it stands (its sunk, side-on stance) and give the legs back to the walk as it moves off.
+    /// (<see cref="Released"/>). Each giant boomerang has its own clips (<see cref="Clips"/>). Standing, the moves are the whole body's (the bone one's
+    /// lunge, the Iron Spiked one's sunk, side-on stance); as the body moves off the legs are given back to the walk, and taken again when it stands.
     /// </summary>
     [DefaultExecutionOrder(10)]
     public sealed class GiantBoomerangPoseDriver : MonoBehaviour
@@ -21,7 +20,7 @@ namespace CityX.Weapons
 
         public const float EaseOutSeconds = 0.15f;
 
-        /// <summary>A body going faster than this when it throws, m/s, throws from the waist up and walks on.</summary>
+        /// <summary>A body going faster than this, m/s, is moving: its moves are from the waist up and it walks on.</summary>
         public const float StandingSpeed = 0.6f;
 
         /// <summary>Putting it back on the back (the draw played backward) goes this much quicker than the draw (owner, 2026-11-12, of the catch and the return to
@@ -52,7 +51,7 @@ namespace CityX.Weapons
         private GiantBoomerangClips _clips = GiantBoomerangMoves.Bone;
         private float _legs;
 
-        /// <summary>A body that stands in its moves (GiantBoomerangClips.StandsInThem) gives its legs to the walk, or takes them back, over this long, seconds.</summary>
+        /// <summary>A body moving off gives its legs to the walk, and one coming to a stand takes them back, over this long, seconds.</summary>
         public const float LegsSeconds = 0.2f;
 
         public Move Current => _move;
@@ -189,11 +188,6 @@ namespace CityX.Weapons
             }
             bool fromTheAim = _move == Move.Aiming || (_move == Move.Drawing && _elapsed >= _clips.DrawGrabSeconds);
             Begin(fromTheAim ? Move.ThrowingAimed : Move.ThrowingQuick, 0.0f);
-            if (!_clips.StandsInThem)
-            {
-                // From standing, a quick throw is the whole body with its step; walking, or from the aim (whose legs were the walk's), the waist up.
-                _pose.UpperBodyOnly = !(_move == Move.ThrowingQuick && Standing);
-            }
             return true;
         }
 
@@ -228,7 +222,7 @@ namespace CityX.Weapons
             _released = false;
             if (_pose != null)
             {
-                _pose.UpperBodyOnly = !_clips.StandsInThem;
+                _pose.UpperBodyOnly = false;
                 if (_weight <= 0.0f)
                 {
                     _legs = Standing ? 1.0f : 0.0f;
@@ -336,11 +330,8 @@ namespace CityX.Weapons
                 }
             }
             _motion.Sample(clip, at, false, _pose);
-            if (_clips.StandsInThem)
-            {
-                _legs = Mathf.MoveTowards(_legs, Standing ? 1.0f : 0.0f, deltaTime / LegsSeconds);
-                _pose.LegsWeight = Mathf.SmoothStep(0.0f, 1.0f, _legs);
-            }
+            _legs = Mathf.MoveTowards(_legs, Standing ? 1.0f : 0.0f, deltaTime / LegsSeconds);
+            _pose.LegsWeight = Mathf.SmoothStep(0.0f, 1.0f, _legs);
             _weight = _move == Move.None ? _weight : Mathf.MoveTowards(_weight, 1.0f, deltaTime / EaseInSeconds);
             if (_locomotion != null)
             {

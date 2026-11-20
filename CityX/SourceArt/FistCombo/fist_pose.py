@@ -146,6 +146,20 @@ def sample(keys, t01):
             "shift": a["shift"].lerp(b["shift"], hips_u), "chin": mix("chin", shoulders_u)}
 
 
+def sample_field(keys, t01, field, none, staged_power):
+    """A key's own extra `field` (`none` where a key has none) at a share of the move, eased as `sample` eases the rest; into a staged key by `staged_power` (the shoulders'
+    1.6, the hand's 2)."""
+    i = 0
+    while i < len(keys) - 2 and t01 >= keys[i + 1][0]:
+        i += 1
+    ta, a, _ = keys[i]
+    tb, b, ease_kind = keys[i + 1]
+    through = max(0.0, min(1.0, (t01 - ta) / max(tb - ta, 1e-4)))
+    u = through ** staged_power if b["staged"] else eased(ease_kind, through)
+    was, to = a.get(field, none), b.get(field, none)
+    return was.lerp(to, u) if hasattr(was, "lerp") else was + (to - was) * u
+
+
 def carried(punch, seconds):
     """How far the game has carried the body by then (FistStrikes.Carried: keep the two in step)."""
     metres, start, end = punch["carry"]

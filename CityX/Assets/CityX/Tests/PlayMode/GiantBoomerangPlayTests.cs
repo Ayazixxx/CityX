@@ -362,6 +362,103 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>How near the boomerang's parts come to a head (a sphere of <paramref name="radius"/> round its bone) this frame, metres: under 0, into it.</summary>
+        private static float HeadClearance(Transform head, MeshFilter[] parts, float radius)
+        {
+            float clear = float.MaxValue;
+            foreach (MeshFilter part in parts)
+            {
+                Matrix4x4 toWorld = part.transform.localToWorldMatrix;
+                foreach (Vector3 v in part.sharedMesh.vertices)
+                {
+                    clear = Mathf.Min(clear, Vector3.Distance(toWorld.MultiplyPoint3x4(v), head.position) - radius);
+                }
+            }
+            return clear;
+        }
+
+        /// <summary>Through its moves the bone one may come this much further into the head's sphere than it lies in it standing on the back, metres.</summary>
+        private const float HeadSlack = 0.03f;
+
+        /// <summary>
+        /// Owner, 2026-11-20, of the bone one held by its middle with the hand up through the blade: "make it so he holds it by the side instead of his
+        /// fingers clipping through". In the aim (the lunge, the arm back and low) the palm is under it by one edge, off its middle line, the boomerang
+        /// trails level behind the hand, and no finger comes out of its far face.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheGiantBoomerangIsHeldByItsSideWithNoFingerThroughIt()
+        {
+            GameObject player = Body(Vector3.zero);
+            GiantBoomerangItem item = Equip(player);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            Transform hand = Bone(player, HumanBodyBones.RightHand);
+            yield return null;
+            thrower.SetGiantAiming(true);
+            yield return Wait(0.8f);
+            Assert.AreEqual(GiantBoomerangPoseDriver.Move.Aiming, thrower.GiantMoves.Current, "it was not drawn into the aim");
+            Assert.AreEqual(hand, item.transform.parent, "in the aim it is not in the hand");
+
+            // In the item's own frame: x across it, y out of its face, z along it from the grip.
+            Vector3 palm = item.transform.InverseTransformPoint(hand.TransformPoint(new Vector3(0.10f, -FusedBodyShape.PalmHalfThickness, 0.0f)));
+            Assert.That(Mathf.Abs(palm.x), Is.InRange(0.06f, 0.16f), "the palm is not by one edge of it: on its middle line, or off it");
+            Assert.Less(Mathf.Abs(palm.y), 0.08f, "the palm is not on its face");
+            Assert.Less(Mathf.Abs(palm.z), 0.15f, "the palm is not at its grip");
+            float side = Mathf.Sign(item.transform.InverseTransformPoint(hand.position).y);
+            FingerAmounts grip = item.StrongHandGrip;
+            for (int digit = 0; digit < 4; digit++)
+            {
+                Vector3 tip = item.transform.InverseTransformPoint(hand.TransformPoint(HandGrip.TipInHand(digit, grip)));
+                Assert.Greater(side * tip.y, -0.03f, $"finger {digit} comes through it: its tip is {-side * tip.y * 100.0f:0} cm past its middle, out of its far face");
+            }
+            Assert.Greater(Mathf.Abs(Vector3.Dot(item.transform.up, Vector3.up)), Mathf.Cos(20.0f * Mathf.Deg2Rad), "in the aim it does not lie level");
+            Vector3 along = player.transform.InverseTransformDirection(item.transform.forward);
+            Assert.Less(along.z, -0.8f, "in the aim it does not trail behind the hand");
+            Assert.Less(player.transform.InverseTransformPoint(hand.position).z, -0.3f, "in the aim the hand is not back behind the body");
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-20, of the head leant back into it as the hand went up for it: "watch out for clipping through the head". Drawn into the aim, put
+        /// back, thrown straight off the back, caught and put back again, the bone one comes no further into the head (a sphere of
+        /// FusedBodyShape.HeadRadius round its bone, a little bigger than the head: standing on the back it is a little in it already) than it lies standing.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheGiantBoomerangStaysOutOfTheHeadThroughItsMoves()
+        {
+            GameObject player = Body(Vector3.zero);
+            GiantBoomerangItem item = Equip(player);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            Transform head = Bone(player, HumanBodyBones.Head);
+            MeshFilter[] parts = item.GetComponentsInChildren<MeshFilter>();
+            float radius = FusedBodyShape.HeadRadius * player.transform.lossyScale.y;
+            var worst = new Dictionary<string, float>();
+            IEnumerator Watch(string moment, float seconds, System.Func<bool> until = null)
+            {
+                worst[moment] = float.MaxValue;
+                for (float t = 0.0f; t < seconds && (until == null || !until()); t += Time.deltaTime)
+                {
+                    yield return null;
+                    if (!Showing(item)) continue;   // in the air
+                    worst[moment] = Mathf.Min(worst[moment], HeadClearance(head, parts, radius));
+                }
+            }
+            yield return Watch("standing", 0.5f);
+            float standing = worst["standing"];
+            thrower.SetGiantAiming(true);
+            yield return Watch("drawn into the aim", 1.0f);
+            thrower.SetGiantAiming(false);
+            yield return Watch("put back", 1.0f);
+            Assert.IsTrue(thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f), "it was not thrown");
+            yield return Watch("thrown straight off the back", 1.0f, () => thrower.IsOut);
+            yield return Wait(8.0f, () => !thrower.IsOut);
+            Assert.IsFalse(thrower.IsOut, "it never came back");
+            yield return Watch("caught and put back", 1.5f);
+            foreach (KeyValuePair<string, float> moment in worst)
+            {
+                Assert.GreaterOrEqual(moment.Value, standing - HeadSlack,
+                    $"{moment.Key}, it goes {-moment.Value:0.000} m into the head; standing on the back {-standing:0.000} m ({string.Join(", ", worst)})");
+            }
+        }
+
         /// <summary>
         /// Owner, 2026-11-20, of the Iron Spiked one: "make it so the head doesnt clip through", then hung on the back where they set it by hand. Standing,
         /// crouching and jumping with it on the back, drawing it into the aim and putting it back, it comes no further into the head (a sphere of

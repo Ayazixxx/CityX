@@ -30,6 +30,7 @@ def run(path):
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 run(os.path.join(OCTASLASH, "octaslash_rig.py"))
+run(os.path.join(SOURCE_ART, "game_frames.py"))
 run(os.path.join(HERE, "iron_spiked_hold.py"))
 RIG_OBJECT = bpy.data.objects["CityXRig"]
 IN_HAND = add_boomerang(RIG_OBJECT, MODEL, "IronInHand", "hand_r", HAND_REST, IRON_HOLD)
@@ -38,6 +39,8 @@ OCTASLASH_NO_BAKE = True
 run(os.path.join(OCTASLASH, "octaslash_pose.py"))
 run(os.path.join(SOURCE_ART, "planted_feet.py"))
 run(os.path.join(SOURCE_ART, "FistCombo", "fist_pose.py"))
+run(os.path.join(SOURCE_ART, "wrist_turn.py"))
+run(os.path.join(SOURCE_ART, "head_carry.py"))
 run(os.path.join(HERE, "iron_spiked_moves.py"))
 SPANS = bake_moves()
 bpy.data.objects[SWORD].hide_render = True

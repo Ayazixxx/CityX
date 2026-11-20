@@ -13,7 +13,7 @@ namespace CityX.Weapons
     /// is, else put back on the back. Seen on other players (ICosmeticMountable); their copy draws, aims, throws and catches it through the body's
     /// <see cref="BoomerangThrower"/>.
     /// </summary>
-    public sealed class GiantBoomerangItem : MonoBehaviour, IEquippableItem, IEquippableWeapon, ICosmeticMountable, IAimedThrow
+    public sealed class GiantBoomerangItem : MonoBehaviour, IEquippableItem, IEquippableWeapon, ICosmeticMountable, IAimedThrow, IHandGripStyle
     {
         /// <summary>
         /// On the back at a slant: the grip up behind the right shoulder where the draw's hand closes on it (giant_boomerang_pose.py's GRAB), the length running
@@ -22,12 +22,16 @@ namespace CityX.Weapons
         public static readonly BackCarry OnTheBack = new BackCarry(new Vector3(0.24f, 1.12f, -0.36f), new Vector3(-0.42f, -0.9f, 0.0f), Vector3.back);
 
         /// <summary>
-        /// In the right hand: the grip in the fist, turned so that in the aim (the draw's last frame) it lies flat out behind the shoulder, a little out to the
-        /// right. Measured from the aim's hand on the real body (GiantBoomerangCapture), not guessed.
+        /// In the right hand, by its side (owner, 2026-11-20, of the bone one: "make it so he holds it by the side instead of his fingers clipping through"):
+        /// the palm up under its inner edge at the leather, the edge 6 cm to the thumb's side of the palm's middle, the thumb folded over it
+        /// (<see cref="SideGrip"/>), its length running on from the forearm, its middle plane 3 cm over the palm, the face that is up as it flies turned
+        /// down (the hand that takes it off the back is on that face). Worked out from the aim's hand (the draw's last frame, giant_boomerang_pose.py's
+        /// AIM: the lunge, the arm back and low), where it trails level behind. Held by its middle with the forearm stood up under it, the hand went up
+        /// through the blade and the fingers stood out of its top.
         /// </summary>
-        public static readonly Vector3 GripHandPosition = new Vector3(0.09f, 0.0f, 0.0f);
+        public static readonly Vector3 GripHandPosition = new Vector3(0.1000f, -0.0842f, -0.1038f);
 
-        public static readonly Vector3 GripHandRotationEuler = new Vector3(-55.2f, 220.2f, 46.4f);
+        public static readonly Vector3 GripHandRotationEuler = new Vector3(0.0f, 90.0f, -6.6f);
 
         /// <summary>Taken off the back or put back on it, it glides from where it was into the hand's grip (or the back's) over this long, seconds.</summary>
         public const float HandOverSeconds = 0.12f;
@@ -93,6 +97,26 @@ namespace CityX.Weapons
 
         /// <summary>The wielder's melee, while equipped: it fights bare-handed while the boomerang is out.</summary>
         private MeleeAttacker _melee;
+
+        /// <summary>
+        /// The hand on the bone one's side (<see cref="GripHandPosition"/>): the fingers laid out flat under it (the modelled curl taken out) and the thumb
+        /// folded up over its edge. Closed as round a handle, the fingers came up through the blade.
+        /// </summary>
+        public static FingerAmounts SideGrip => new FingerAmounts(0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+        {
+            Authored = 1.0f,
+            IndexRootDegrees = -20.0f,
+            IndexTipDegrees = -30.0f,
+            FingerRootDegrees = -20.0f,
+            FingerTipDegrees = -30.0f,
+            ThumbRootDegrees = 75.0f,
+            ThumbTipDegrees = 45.0f,
+        };
+
+        /// <summary>The Iron Spiked one is gripped as a handle is (its fingers fold into its leather); the bone one by its side.</summary>
+        public FingerAmounts StrongHandGrip => HasOwnHold ? FingerAmounts.Wrap(1.0f) : SideGrip;
+
+        public FingerAmounts SupportHandGrip => FingerAmounts.Wrap(1.0f);
 
         public string ItemId => Model == GiantBoomerangModel.IronSpiked ? ItemRegistry.IronSpikedGiantBoomerang : ItemRegistry.GiantBoomerang;
 
@@ -206,7 +230,7 @@ namespace CityX.Weapons
             if (_thrower != null)
             {
                 _thrower.GiantMoves.Clips = GiantBoomerangMoves.For(Model);
-                _thrower.GiantHeldModel = HasOwnHold ? _model : null;
+                _thrower.GiantHeldModel = _model;
                 _thrower.OutChanged += Show;
                 _thrower.GiantMoves.HandChanged += Show;
             }

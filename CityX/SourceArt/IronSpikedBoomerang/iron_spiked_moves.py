@@ -14,62 +14,20 @@
 #     from where the game holds the aim or plays the draw backward.
 # The grab, the release and the catch are moments the game keeps in step with these (GiantBoomerangMoves.IronSpiked: its Seconds).
 #
-# Needs the rig (../Octaslash/octaslash_rig.py), octaslash_pose.py's solver (with OCTASLASH_NO_BAKE set), ../planted_feet.py and ../FistCombo/fist_pose.py
-# (its key, sample, eased and body_pose) loaded first; iron_spiked_moves_build.py does all of it.
+# Needs the rig (../Octaslash/octaslash_rig.py), ../game_frames.py, iron_spiked_hold.py, octaslash_pose.py's solver (with OCTASLASH_NO_BAKE set), ../planted_feet.py,
+# ../FistCombo/fist_pose.py (its key, sample, eased and body_pose), ../wrist_turn.py and ../head_carry.py loaded first; iron_spiked_moves_build.py does all of it.
 #
 # Positions in the character's own frame (Unity axes: x right, y up, z forward, metres, the ground at y 0). The shoulders are at (+-0.35, 1.90).
 #
-# THE WRIST. The solver's empty hand carries on its forearm's line, its palm turned with the elbow (the elbow behind an arm held out sideways: the palm
-# down). A key's `wrist` turns the hand on the forearm after the solve, degrees: (back, the hand lifted toward its own back; side, toward the thumb; roll,
-# the back of the hand rolled toward the thumb's side), so the boomerang under the palm can lie flat whatever the arm's slope.
+# THE WRIST (../wrist_turn.py). The solver's empty hand carries on its forearm's line, its palm turned with the elbow (the elbow behind an arm held out sideways: the
+# palm down). A key's `wrist` turns the hand on the forearm after the solve, so the boomerang under the palm can lie flat whatever the arm's slope.
 
 import math
 
 
-def ikey(fist, off, wrist=(0.0, 0.0, 0.0), **more):
-    k = key(fist, off, **more)
-    k["wrist"] = V(*wrist)
-    return k
-
-
-_FINGERS = unit(TAIL["hand_r"] - HEAD["hand_r"])
-_THUMB = unit(U(0.0, 0.0, 1.0))
-_BACK = unit(_THUMB.cross(_FINGERS))
-if (HEAD["hand_r"] + _BACK * 0.1 - HEAD["spine"]).length < (HEAD["hand_r"] - _BACK * 0.1 - HEAD["spine"]).length:
-    _BACK = -_BACK                                         # at rest the palms face the body: the back of the hand faces away from it
-
-
-def _sign(axis, start, toward):
-    return 1.0 if (Quaternion(axis, 0.1) @ start).dot(toward) > 0.0 else -1.0
-
-
-_BEND, _SIDE, _ROLL = _sign(_THUMB, _FINGERS, _BACK), _sign(_BACK, _FINGERS, _THUMB), _sign(_FINGERS, _BACK, _THUMB)
-
-
-def turn_wrist(D, pos, wrist):
-    """The right hand turned on its forearm (see THE WRIST)."""
-    local = (Quaternion(_FINGERS, math.radians(wrist.z) * _ROLL) @ Quaternion(_BACK, math.radians(wrist.y) * _SIDE)
-             @ Quaternion(_THUMB, math.radians(wrist.x) * _BEND))
-    D["hand_r"] = D["forearm_r"] @ local
-    D["fingertip_r"] = D["hand_r"]
-    pos["fingertip_r"] = pos["hand_r"] + D["hand_r"] @ (HEAD["fingertip_r"] - HEAD["hand_r"])
-
-
-def sample_wrist(keys, t01):
-    """A key's wrist at a share of the move, eased as the fist is (fist_pose.sample)."""
-    i = 0
-    while i < len(keys) - 2 and t01 >= keys[i + 1][0]:
-        i += 1
-    ta, a, _ = keys[i]
-    tb, b, ease_kind = keys[i + 1]
-    through = max(0.0, min(1.0, (t01 - ta) / max(tb - ta, 1e-4)))
-    u = through ** 2.0 if b["staged"] else eased(ease_kind, through)
-    return a.get("wrist", V(0, 0, 0)).lerp(b.get("wrist", V(0, 0, 0)), u)
-
-
 # Behind the back for it: the right wrist below the wrap behind the right shoulder blade, the elbow out to the right and back, the palm to the boomerang.
-GRAB = ikey((0.60, 1.36, -0.32), (-0.42, 1.24, 0.30), wrist=(0.0, 0.0, 0.0), twist=16.0, hips=6.0, lean=3.0, tilt=3.0, drop=0.08,
-            fist_pole=(1.0, -0.1, -0.2), off_pole=(-0.6, -1.0, 0.0))
+GRAB = nodding(ikey((0.60, 1.36, -0.32), (-0.42, 1.24, 0.30), wrist=(0.0, 0.0, 0.0), twist=16.0, hips=6.0, lean=3.0, tilt=3.0, drop=0.08,
+                    fist_pole=(1.0, -0.1, -0.2), off_pole=(-0.6, -1.0, 0.0)))
 
 # THE AIM: sunk and leant forward, side-on, the right arm stretched out wide behind with the palm down on the wrap and the boomerang lying flat under it,
 # the left hand out ahead and low.
@@ -96,7 +54,8 @@ REACH = ikey((0.62, 1.92, 0.80), (-0.38, 1.36, 0.28), wrist=(-6.0, 0.0, 0.0), tw
 GIVE = ikey((1.06, 1.70, 0.02), (-0.40, 1.44, 0.52), wrist=(12.0, 0.0, 0.0), twist=22.0, hips=9.0, lean=9.0, tilt=3.0, drop=0.14, shift=(0.02, -0.02),
             fist_pole=(-0.2, 0.3, -1.0), off_pole=(-0.7, -0.8, 0.0))
 
-READY_I = dict(READY, wrist=V(0.0, 0.0, 0.0))
+# Standing with it on the back: the head carried ahead of it, as the idle carries it (../head_carry.py).
+READY_I = nodding(dict(READY, wrist=V(0.0, 0.0, 0.0)))
 
 # The feet (planted_feet.py): the left one ahead and out, the right one back, a wide base side-on to the throw.
 LEAD_AIM, REAR_AIM = (-0.30, 0.34), (STANCE_X + 0.06, -0.20)
@@ -175,6 +134,7 @@ def move_pose(move, t01, stats):
 def solved_at(move, t01, stats):
     D, pos = solve(move_pose(move, t01, stats))
     turn_wrist(D, pos, sample_wrist(move["keys"], t01))
+    carry_head(D, pos, move["keys"], t01)
     return D, pos
 
 
@@ -232,13 +192,6 @@ def bake_moves():
     return spans
 
 
-def unity_frame(D, pos, bone, rest):
-    """A solved bone's place in the character's frame, as the game has it (`rest`: its place at the rig's rest, iron_spiked_hold.py)."""
-    turn = D[bone].to_matrix().to_4x4()
-    at = Matrix.Translation(pos[bone]) @ turn @ Matrix.Translation(-HEAD[bone])        # the rest's world carried to the pose, Blender axes
-    return TO_BLENDER.inverted() @ at @ TO_BLENDER @ rest
-
-
 def grab_report():
     """At each grab, how far the boomerang as the hand holds it is from the boomerang as it hangs on the back: the game glides it across the difference
     (GiantBoomerangItem), so the less the better. Also where the wrist would have to be, and how the hand turned, for none."""
@@ -258,35 +211,6 @@ def grab_report():
               % (name, off, turned, hand.to_translation().x, hand.to_translation().y, hand.to_translation().z, w.x, w.y, w.z, math.degrees(angle), axis.x, axis.y, axis.z))
 
 
-def fit_grab():
-    """THE GRAB PUT EXACTLY ON THE BOOMERANG: the grab key's wrist moved, and its hand turned on the forearm, to where the hand's hold of the boomerang is
-    the boomerang as it hangs on the back, so it is taken off the back, and laid back on it, without a jump (the hand is between the back and the
-    boomerang there: how its wrist is turned does not show)."""
-    probe = {"keys": [(0.0, GRAB, None), (1.0, GRAB, "smooth")], "seconds": 1.0, "lead": [], "rear": []}
-    for _ in range(3):
-        D, pos = solved_at(probe, 0.0, {"reach": 0.0})
-        spine = unity_frame(D, pos, "spine", SPINE_REST)
-        wanted = spine @ BACK_HANG @ BACK_MODEL @ IRON_HOLD.inverted()
-        GRAB["fist"] = V(*wanted.to_translation())
-        D, pos = solve(move_pose(probe, 0.0, {"reach": 0.0}))
-        # The hand's turn on the forearm, in the rig's own terms: wanted = forearm @ local.
-        wanted_turn = (TO_BLENDER @ wanted @ HAND_REST.inverted() @ TO_BLENDER.inverted()).to_quaternion()
-        local = D["forearm_r"].inverted() @ wanted_turn
-        basis = Matrix((_FINGERS, _BACK, _THUMB)).transposed()
-        e = (basis.transposed() @ local.to_matrix() @ basis).to_euler('ZYX')
-        best = None
-        for sr in (1.0, -1.0):
-            for ss in (1.0, -1.0):
-                for sb in (1.0, -1.0):
-                    wrist = V(math.degrees(e.z) * sb, math.degrees(e.y) * ss, math.degrees(e.x) * sr)
-                    made = (Quaternion(_FINGERS, math.radians(wrist.z) * _ROLL) @ Quaternion(_BACK, math.radians(wrist.y) * _SIDE)
-                            @ Quaternion(_THUMB, math.radians(wrist.x) * _BEND))
-                    miss = math.degrees(made.rotation_difference(local).angle)
-                    if best is None or miss < best[0]:
-                        best = (miss, wrist)
-        GRAB["wrist"] = best[1]
-    print("the grab fitted: wrist at (%.2f, %.2f, %.2f), the hand turned on the forearm (%.0f, %.0f, %.0f), %.1f deg off"
-          % (GRAB["fist"].x, GRAB["fist"].y, GRAB["fist"].z, best[1].x, best[1].y, best[1].z, best[0]))
-
-
-fit_grab()
+# THE GRAB PUT EXACTLY ON THE BOOMERANG: where the hand's hold of it is the boomerang as it hangs on the back, so it is taken off the back, and laid back on it, without a
+# jump (the hand is between the back and the boomerang there: how its wrist is turned does not show).
+fit_hand(GRAB, lambda spine: spine @ BACK_HANG @ BACK_MODEL @ IRON_HOLD.inverted())

@@ -79,9 +79,8 @@ namespace CityX.Weapons
         public bool CanThrow => !IsOut && Time.time - _thrownAt >= BoomerangRules.ThrowEverySeconds;
 
         /// <summary>
-        /// A giant boomerang's model in the hand, if it leaves the hand from where it lies there (the Iron Spiked one, held by a wrap near its middle):
-        /// its middle is where it sets off from, and it spins on from how it lay. Null: it sets off <see cref="GiantMiddleFromHand"/> ahead of the hand (the
-        /// bone one, held near its end). Set by GiantBoomerangItem.
+        /// The carried giant boomerang's model: as it leaves the hand its middle is where it sets off from, and it spins on from how it lay there, so it
+        /// does not jump as it is let go. Null (none carried here): it sets off <see cref="GiantMiddleFromHand"/> ahead of the hand. Set by GiantBoomerangItem.
         /// </summary>
         public Transform GiantHeldModel { get; set; }
 

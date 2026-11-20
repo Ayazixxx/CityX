@@ -120,7 +120,8 @@ namespace CityX.WeaponsEditor
             Mesh body = Loft($"{Folder}/GiantBoomerangBody.asset", "GiantBoomerangBody", GiantShape, middle, GiantSlices, new[] { new Vector2(-1.0f, 1.0f) }, 0.0f);
             Mesh wraps = Loft($"{Folder}/GiantBoomerangWraps.asset", "GiantBoomerangWraps", GiantShape, middle, 4, GiantWraps, WrapProud);
             return SaveGiant("ThrownGiantBoomerang", ThrownGiantPrefabPath, "GiantBoomerang", GiantPrefabPath, GiantBoomerangModel.Bone, BoneOutline(),
-                new Vector3(0.0f, 0.0f, 1.0f), new Vector3(0.6f, GiantShape.Thickness * 2.0f, 2.4f), parent => AddGiantModel(parent, body, wraps, bone, leather));
+                new Vector3(0.0f, 0.0f, 1.0f), new Vector3(0.6f, GiantShape.Thickness * 2.0f, 2.4f), parent => AddGiantModel(parent, body, wraps, bone, leather),
+                fliesFaceDown: true);
         }
 
         /// <summary>The bone one's shape in its thrown frame.</summary>
@@ -277,8 +278,9 @@ namespace CityX.WeaponsEditor
         /// A giant boomerang's two prefabs: the one in the air, and the one carried (its item) by its grip. With <paramref name="backTurn"/>, on the back its
         /// model lies turned by it and moved by <paramref name="backShift"/> in the carried frame, rather than where the hand holds it. With
         /// <paramref name="heldTurnedBack"/>, the hand holds it turned back over (as it was before the build turned it over for the back): the Iron Spiked one,
-        /// whose curled near blade, turned over, swung into the head in the aim. With <paramref name="fliesFaceDown"/> it flies with its face down: the Iron
-        /// Spiked one, held with the palm on the face that lay against the back, so that it leaves the hand, and comes back into it, the way up it is held.
+        /// whose curled near blade, turned over, swung into the head in the aim. With <paramref name="fliesFaceDown"/> it flies with its face down: both are
+        /// held with a palm on the face that is up in their thrown frame turned down or away, so that each leaves the hand, and comes back into it, the way
+        /// up it is held.
         /// </summary>
         private static GameObject SaveGiant(string thrownName, string thrownPath, string heldName, string heldPath, GiantBoomerangModel kind, GiantOutline shape,
             Vector3 boxCentre, Vector3 boxSize, System.Action<Transform> addModel, AudioClip impactSound = null, Quaternion? backTurn = null,
