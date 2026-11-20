@@ -142,6 +142,78 @@ namespace CityX.Tests
                 "on the back its spikes face the bone one's way (toward the camera), not the other way");
         }
 
+        /// <summary>The palm's middle, this far along the hand from the wrist (FusedBodyShape.PalmLength is 0.16), and how deep in the leather it may lie, metres.</summary>
+        private const float PalmAlongTheHand = 0.10f;
+        private const float SunkAtMost = 0.04f;
+
+        /// <summary>
+        /// Owner, 2026-11-20: "i want it to grab the boomerang by the rope and maybe have the fingers clipped into the rope strategically so it looks like
+        /// its got a grip on the rope", "an above grip". In the hand bone's frame (HandGrip: +x to the fingertips, -y the palm's side) the palm lies on a
+        /// face of it, square to it, a little into it, and what is under the palm is the leather wrap (brown on its map), not the steel.
+        /// </summary>
+        [Test]
+        public void TheHandHoldsItFromAboveByItsRope()
+        {
+            var held = Load(HeldPath).GetComponent<GiantBoomerangItem>();
+            Assert.IsTrue(held.HasOwnHold, "it is held by the bone one's grip");
+            Assert.IsFalse(Load(BonePath).GetComponent<GiantBoomerangItem>().HasOwnHold, "the bone one's hold changed");
+            Transform model = held.transform.Find(GiantBoomerangItem.ModelName);
+            Matrix4x4 toModel = (Matrix4x4.TRS(held.HoldPosition, Quaternion.Euler(held.HoldEuler), Vector3.one)
+                * Matrix4x4.TRS(model.localPosition, model.localRotation, Vector3.one)).inverse;
+            Vector3 palm = toModel.MultiplyPoint3x4(new Vector3(PalmAlongTheHand, -CityX.Character.FusedBodyShape.PalmHalfThickness, 0.0f));
+            Vector3 facing = toModel.MultiplyVector(Vector3.down).normalized;
+            // The model lies flat in its own x-z: its faces look along its y (the leather itself is ridged).
+            Assert.Greater(Mathf.Abs(facing.y), Mathf.Cos(5.0f * Mathf.Deg2Rad), "the palm is not laid flat on its face");
+
+            Mesh mesh = model.GetComponentInChildren<MeshFilter>().sharedMesh;
+            Vector3[] vertices = mesh.vertices;
+            int[] triangles = mesh.triangles;
+            Vector2[] uv = mesh.uv;
+            var map = new Texture2D(2, 2);
+            Assert.IsTrue(map.LoadImage(System.IO.File.ReadAllBytes("Assets/CityX/Weapons/IronSpikedBoomerang.jpg")), "its map could not be read");
+            try
+            {
+                // Under the palm's middle and a little to each side of it: where the hand's line into it first meets it.
+                Vector3 across = Vector3.Cross(facing, Vector3.right).normalized, along = Vector3.Cross(facing, across);
+                int leather = 0, met = 0;
+                foreach (Vector2 off in new[] { Vector2.zero, new Vector2(0.03f, 0.0f), new Vector2(-0.03f, 0.0f), new Vector2(0.0f, 0.03f), new Vector2(0.0f, -0.03f) })
+                {
+                    Vector3 from = palm + across * off.x + along * off.y - facing * 1.0f;
+                    float nearest = float.MaxValue;
+                    Vector2 at = default;
+                    for (int t = 0; t < triangles.Length; t += 3)
+                    {
+                        Vector3 a = vertices[triangles[t]], b = vertices[triangles[t + 1]], c = vertices[triangles[t + 2]];
+                        Vector3 ab = b - a, ac = c - a, p = Vector3.Cross(facing, ac);
+                        float det = Vector3.Dot(ab, p);
+                        if (Mathf.Abs(det) < 1e-9f) continue;
+                        Vector3 s = from - a;
+                        float u = Vector3.Dot(s, p) / det;
+                        Vector3 q = Vector3.Cross(s, ab);
+                        float v = Vector3.Dot(facing, q) / det, far = Vector3.Dot(ac, q) / det;
+                        if (u < 0.0f || v < 0.0f || u + v > 1.0f || far < 0.0f || far >= nearest) continue;
+                        nearest = far;
+                        at = uv[triangles[t]] * (1.0f - u - v) + uv[triangles[t + 1]] * u + uv[triangles[t + 2]] * v;
+                    }
+                    if (nearest == float.MaxValue) continue;
+                    met++;
+                    if (off == Vector2.zero)
+                    {
+                        float sunk = 1.0f - nearest;
+                        Assert.IsTrue(sunk > 0.0f && sunk < SunkAtMost, $"the palm is {sunk * 100.0f:0.0} cm into it: it should lie a little in the leather, not off it or deep in it");
+                    }
+                    Color paint = map.GetPixelBilinear(at.x, at.y);
+                    if (paint.r > paint.b * 1.2f) leather++;
+                }
+                Assert.AreEqual(5, met, "the palm is not over it: the hand would close on air");
+                Assert.GreaterOrEqual(leather, 4, "what is under the palm is steel, not the leather wrap");
+            }
+            finally
+            {
+                Object.DestroyImmediate(map);
+            }
+        }
+
         /// <summary>
         /// It hangs on the back where the owner set it by hand in the editor (2026-11-20: "this is the new positioning i want for the boomerang"), upside down
         /// across the back; the bone one where it always has.

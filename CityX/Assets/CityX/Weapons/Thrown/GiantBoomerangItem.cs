@@ -59,6 +59,13 @@ namespace CityX.Weapons
 
         public Vector3 HangEuler;
 
+        [Tooltip("The hand holds it at HoldPosition/HoldEuler (from the right hand bone) rather than by the bone one's grip: the Iron Spiked one, the palm on top of its wrap. Set by BoomerangBuilder.")]
+        public bool HasOwnHold;
+
+        public Vector3 HoldPosition;
+
+        public Vector3 HoldEuler;
+
         private BoomerangThrower _thrower;
         private GameObject _body;
         private bool _inHand;
@@ -73,18 +80,13 @@ namespace CityX.Weapons
         private Transform _spine;
 
         /// <summary>
-        /// One that lies elsewhere on the back (<see cref="HasBackPose"/>) flies between where it lies and the hand over this long, seconds (owner,
-        /// 2026-11-20, of the Iron Spiked one: "make it so the head doesnt clip through"): first this far straight back off the body, metres on a body of the
-        /// player's size, over this share of the flight, still turned as it was, then on to where it goes, turning as it goes. Carried along the hand's
-        /// path, or straight there turning all the way, its arms swept through the head.
+        /// One that lies elsewhere on the back (<see cref="HasBackPose"/>) is handed between where it lies and the hand over this long, seconds. Its moves
+        /// put the hand's hold exactly on it as it hangs (iron_spiked_moves.py's fitted grab), so this only smooths a grab made before a move has the whole
+        /// body.
         /// </summary>
-        public const float GlideSeconds = 0.25f;
+        public const float GlideSeconds = 0.08f;
 
-        public const float GlideBackOff = 0.35f;
-
-        public const float GlideOffShare = 0.4f;
-
-        /// <summary>Seconds of that flight still to go, and where its model was when it set off, from the spine bone.</summary>
+        /// <summary>Seconds of that still to go, and where its model was when it set off, from the spine bone.</summary>
         private float _glide;
         private Vector3 _glideFromPosition;
         private Quaternion _glideFromRotation;
@@ -196,12 +198,15 @@ namespace CityX.Weapons
         {
             if (_thrower != null)
             {
+                _thrower.GiantHeldModel = null;
                 _thrower.OutChanged -= Show;
                 if (_thrower.GiantMoves != null) _thrower.GiantMoves.HandChanged -= Show;
             }
             _thrower = thrower;
             if (_thrower != null)
             {
+                _thrower.GiantMoves.Clips = GiantBoomerangMoves.For(Model);
+                _thrower.GiantHeldModel = HasOwnHold ? _model : null;
                 _thrower.OutChanged += Show;
                 _thrower.GiantMoves.HandChanged += Show;
             }
@@ -233,7 +238,7 @@ namespace CityX.Weapons
             {
                 part.enabled = !out_;
             }
-            bool inHand = HeldNow();
+            bool inHand = _thrower != null && _thrower.GiantMoves.InHand;
             if ((!anew && inHand == _inHand) || _body == null)
             {
                 return;
@@ -249,7 +254,8 @@ namespace CityX.Weapons
             }
             if (inHand)
             {
-                CosmeticMount.ToBone(transform, _body, HumanBodyBones.RightHand, GripHandPosition, GripHandRotationEuler, 1.0f);
+                CosmeticMount.ToBone(transform, _body, HumanBodyBones.RightHand, HasOwnHold ? HoldPosition : GripHandPosition,
+                    HasOwnHold ? HoldEuler : GripHandRotationEuler, 1.0f);
             }
             else if (HasOwnHang)
             {
@@ -291,19 +297,6 @@ namespace CityX.Weapons
             PlaceModel();
         }
 
-        /// <summary>
-        /// Whether the hand has it. One hung elsewhere on the back (<see cref="HasOwnHang"/>) flies back there from the moment it is put away: the move
-        /// takes it back up behind the right shoulder, where the bone one rides, and held there it lay through the head.
-        /// </summary>
-        private bool HeldNow()
-        {
-            if (_thrower == null)
-            {
-                return false;
-            }
-            return _thrower.GiantMoves.InHand && !(HasOwnHang && _thrower.GiantMoves.Current == GiantBoomerangPoseDriver.Move.PuttingAway);
-        }
-
         /// <summary>Its model as it lies on the back or in the grip: only for one that lies elsewhere on the back (<see cref="HasBackPose"/>).</summary>
         private void PlaceModel()
         {
@@ -337,10 +330,6 @@ namespace CityX.Weapons
                 transform.localRotation = Quaternion.Slerp(transform.localRotation, _toRotation, share);
             }
             PlaceModel();
-            if (HasOwnHang && _body != null && HeldNow() != _inHand)
-            {
-                Place(false);
-            }
             if (_glide > 0.0f)
             {
                 _glide = Mathf.Max(0.0f, _glide - Time.deltaTime);
@@ -348,7 +337,7 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>Its model on its flight between where it was and its placed pose (<see cref="GlideSeconds"/>).</summary>
+        /// <summary>Its model on its way between where it was and its placed pose (<see cref="GlideSeconds"/>).</summary>
         private void Glide()
         {
             if (_model == null || _spine == null)
@@ -356,14 +345,8 @@ namespace CityX.Weapons
                 return;
             }
             float there = Mathf.SmoothStep(0.0f, 1.0f, 1.0f - _glide / GlideSeconds);
-            Vector3 from = _spine.TransformPoint(_glideFromPosition);
-            Vector3 off = from - _body.transform.forward * GlideBackOff * _body.transform.lossyScale.y;
-            Vector3 at = there < GlideOffShare
-                ? Vector3.Lerp(from, off, Mathf.SmoothStep(0.0f, 1.0f, there / GlideOffShare))
-                : Vector3.Lerp(off, _model.position, Mathf.SmoothStep(0.0f, 1.0f, (there - GlideOffShare) / (1.0f - GlideOffShare)));
-            Quaternion turned = Quaternion.Slerp(_spine.rotation * _glideFromRotation, _model.rotation,
-                Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(GlideOffShare, 1.0f, there)));
-            _model.SetPositionAndRotation(at, turned);
+            _model.SetPositionAndRotation(Vector3.Lerp(_spine.TransformPoint(_glideFromPosition), _model.position, there),
+                Quaternion.Slerp(_spine.rotation * _glideFromRotation, _model.rotation, there));
         }
 
         private void OnDestroy()

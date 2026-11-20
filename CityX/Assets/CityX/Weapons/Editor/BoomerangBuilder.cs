@@ -162,6 +162,18 @@ namespace CityX.WeaponsEditor
 
         private static readonly Vector3 IronSpikedHangEuler = new Vector3(516.5f, -90.0f, 90.0f);
 
+        /// <summary>
+        /// Where the right hand holds it, from the hand bone (GiantBoomerangItem.HoldPosition, HoldEuler; owner, 2026-11-20: "i want it to grab the boomerang
+        /// by the rope and maybe have the fingers clipped into the rope strategically so it looks like its got a grip on the rope", "an above grip like how
+        /// sasuke holds the demon wind shuriken"): the palm on top of the wrap of the arm that hangs behind the right shoulder blade, sunk 1.5 cm into the
+        /// leather so the folded fingers go into it, in the wrap's middle, that arm lying 40 degrees round from the fingers so its bladed end trails outside the forearm, clear
+        /// of the body. Worked out and printed by SourceArt/IronSpikedBoomerang/iron_spiked_hold.py (its IRON_HOLD), which also shows it in the moves' check
+        /// renders: change it there.
+        /// </summary>
+        private static readonly Vector3 IronSpikedHoldPosition = new Vector3(0.9009f, -0.0680f, -0.5062f);
+
+        private static readonly Quaternion IronSpikedHoldRotation = new Quaternion(0.0f, -0.30774f, 0.0f, 0.95147f);
+
         /// <summary>The points SourceArt/IronSpikedBoomerang/iron_spiked_boomerang_build.py writes beside the model, in the thrown frame.</summary>
         [System.Serializable]
         private sealed class IronSpikedPoints
@@ -214,11 +226,14 @@ namespace CityX.WeaponsEditor
             Vector3 layShift = Carried(bone, Vector3.zero) - layTurn * Carried(shape, Vector3.zero);
             GameObject saved = SaveGiant("ThrownIronSpikedGiantBoomerang", ThrownIronSpikedPrefabPath, "IronSpikedGiantBoomerang", IronSpikedPrefabPath,
                 GiantBoomerangModel.IronSpiked, shape, new Vector3(0.0f, 0.0f, 1.0f), new Vector3(0.6f, bounds.size.y * 2.0f, 2.4f),
-                parent => HeldModelBaker.Part(parent, "Blade", mesh, steel), impact, layTurn, layShift, heldTurnedBack: true);
+                parent => HeldModelBaker.Part(parent, "Blade", mesh, steel), impact, layTurn, layShift, heldTurnedBack: true, fliesFaceDown: true);
             var item = saved.GetComponent<GiantBoomerangItem>();
             item.HasOwnHang = true;
             item.HangPosition = IronSpikedHangPosition;
             item.HangEuler = IronSpikedHangEuler;
+            item.HasOwnHold = true;
+            item.HoldPosition = IronSpikedHoldPosition;
+            item.HoldEuler = IronSpikedHoldRotation.eulerAngles;
             PrefabUtility.SavePrefabAsset(saved);
             return saved;
         }
@@ -262,11 +277,12 @@ namespace CityX.WeaponsEditor
         /// A giant boomerang's two prefabs: the one in the air, and the one carried (its item) by its grip. With <paramref name="backTurn"/>, on the back its
         /// model lies turned by it and moved by <paramref name="backShift"/> in the carried frame, rather than where the hand holds it. With
         /// <paramref name="heldTurnedBack"/>, the hand holds it turned back over (as it was before the build turned it over for the back): the Iron Spiked one,
-        /// whose curled near blade, turned over, swung into the head in the aim.
+        /// whose curled near blade, turned over, swung into the head in the aim. With <paramref name="fliesFaceDown"/> it flies with its face down: the Iron
+        /// Spiked one, held with the palm on the face that lay against the back, so that it leaves the hand, and comes back into it, the way up it is held.
         /// </summary>
         private static GameObject SaveGiant(string thrownName, string thrownPath, string heldName, string heldPath, GiantBoomerangModel kind, GiantOutline shape,
             Vector3 boxCentre, Vector3 boxSize, System.Action<Transform> addModel, AudioClip impactSound = null, Quaternion? backTurn = null,
-            Vector3 backShift = default, bool heldTurnedBack = false)
+            Vector3 backShift = default, bool heldTurnedBack = false, bool fliesFaceDown = false)
         {
             var thrown = new GameObject(thrownName);
             var held = new GameObject(heldName);
@@ -275,6 +291,13 @@ namespace CityX.WeaponsEditor
                 var spinner = new GameObject("Spinner");
                 spinner.transform.SetParent(thrown.transform, false);
                 addModel(spinner.transform);
+                if (fliesFaceDown)
+                {
+                    foreach (Transform part in spinner.transform)
+                    {
+                        part.localRotation = TurnedOver;
+                    }
+                }
                 var flying = thrown.AddComponent<ThrownBoomerang>();
                 flying.Spinner = spinner.transform;
                 flying.Giant = true;

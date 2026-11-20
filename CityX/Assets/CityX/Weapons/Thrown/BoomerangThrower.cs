@@ -78,6 +78,13 @@ namespace CityX.Weapons
         /// <summary>It can be thrown now: the last one is home, and its use time is over.</summary>
         public bool CanThrow => !IsOut && Time.time - _thrownAt >= BoomerangRules.ThrowEverySeconds;
 
+        /// <summary>
+        /// A giant boomerang's model in the hand, if it leaves the hand from where it lies there (the Iron Spiked one, held by a wrap near its middle):
+        /// its middle is where it sets off from, and it spins on from how it lay. Null: it sets off <see cref="GiantMiddleFromHand"/> ahead of the hand (the
+        /// bone one, held near its end). Set by GiantBoomerangItem.
+        /// </summary>
+        public Transform GiantHeldModel { get; set; }
+
         /// <summary>The Giant Boomerang's moves on this body (made the first time they are wanted).</summary>
         public GiantBoomerangPoseDriver GiantMoves
         {
@@ -163,6 +170,10 @@ namespace CityX.Weapons
         /// <summary>Where the giant one's middle is as it leaves the hand.</summary>
         private Vector3 GiantLeavesFrom(Vector3 way)
         {
+            if (GiantHeldModel != null)
+            {
+                return GiantHeldModel.position;
+            }
             Animator animator = GetComponentInChildren<Animator>();
             Transform hand = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
             Vector3 at = hand != null ? hand.position : transform.position + Vector3.up * (BodyRig.StandingHeight * 0.7f);
@@ -237,6 +248,10 @@ namespace CityX.Weapons
             boomerang.Gone += () => Landed(boomerang);
             if (giant)
             {
+                if (GiantHeldModel != null)
+                {
+                    boomerang.SpinFrom(GiantHeldModel.rotation);
+                }
                 GiantMoves.Out = true;
                 boomerang.ComingIn += GiantMoves.Catch;   // the hand goes out for it a moment before it is home
             }
@@ -262,7 +277,7 @@ namespace CityX.Weapons
                     // Where it was, spinning, as the hand took it: the item glides from there into the grip.
                     Transform model = boomerang.Spinner != null ? boomerang.Spinner : boomerang.transform;
                     _catchPosition = model.position;
-                    _catchRotation = model.rotation;
+                    _catchRotation = model.childCount > 0 ? model.GetChild(0).rotation : model.rotation;   // its part may lie turned in the spinner
                     _hasCatchPose = true;
                     GiantMoves.Catch();
                 }

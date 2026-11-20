@@ -160,7 +160,7 @@ namespace CityX.Tests
             float started = Time.time;
             yield return Wait(1.0f, () => thrower.IsOut);
             Assert.IsTrue(thrower.IsOut, "it was never thrown");
-            Assert.AreEqual(GiantBoomerangMoves.QuickReleaseSeconds, Time.time - started, 0.1f, "it did not leave the hand when the throw lets it go");
+            Assert.AreEqual(GiantBoomerangMoves.Bone.QuickReleaseSeconds, Time.time - started, 0.1f, "it did not leave the hand when the throw lets it go");
             Assert.IsTrue(thrower.Flying.Profile.Heavy, "what flew is not the giant one");
             Assert.IsFalse(Showing(item), "it is still shown on the body while it flies");
 
@@ -224,7 +224,7 @@ namespace CityX.Tests
             float started = Time.time;
             yield return Wait(1.0f, () => thrower.IsOut);
             Assert.IsTrue(thrower.IsOut);
-            Assert.Less(Time.time - started, GiantBoomerangMoves.QuickReleaseSeconds, "from the aim it was no quicker to leave the hand");
+            Assert.Less(Time.time - started, GiantBoomerangMoves.Bone.QuickReleaseSeconds, "from the aim it was no quicker to leave the hand");
         }
 
         /// <summary>
@@ -425,6 +425,163 @@ namespace CityX.Tests
                 }
             }
             Assert.GreaterOrEqual(iron, bone, $"it goes {-iron:0.000} m into the head, {ironWhere}; the bone one {-bone:0.000} m");
+#else
+            yield break;
+#endif
+        }
+
+        private GiantBoomerangItem EquipIronSpiked(GameObject player)
+        {
+#if UNITY_EDITOR
+            player.GetComponent<BoomerangThrower>().IronSpikedThrownPrefab =
+                UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/ThrownIronSpikedGiantBoomerang.prefab");
+            GameObject model = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab"));
+            Assert.IsNotNull(model, "no IronSpikedGiantBoomerang.prefab -- rebuild the scene");
+            _made.Add(model);
+            var item = model.GetComponent<GiantBoomerangItem>();
+            item.OnEquip(player, ItemInstanceData.None);
+            return item;
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>As the hand takes the Iron Spiked one or lets it go, the hand's hold of it is this near where it hangs on the back, metres and degrees.</summary>
+        private const float HandOverMetres = 0.03f;
+        private const float HandOverDegrees = 4.0f;
+
+        /// <summary>
+        /// The Iron Spiked one's own moves (owner, 2026-11-20: "i want it to grab the boomerang by the rope", "an above grip like how sasuke holds the demon
+        /// wind shuriken", "also rework the catch and return to back animation ... with how the spiked boomerang sits on the back now"): the hand takes
+        /// it where it hangs and lays it back there, so it never jumps between the back and the hand; in the aim it is held out wide to the right and
+        /// behind, the palm on top of it, lying flat under the hand.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheIronSpikedOneIsTakenOffTheBackWhereItHangsAndHeldOutBehindPalmDown()
+        {
+            GameObject player = Body(Vector3.zero);
+            GiantBoomerangItem item = EquipIronSpiked(player);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            Transform spine = Bone(player, HumanBodyBones.Spine), hand = Bone(player, HumanBodyBones.RightHand);
+            Transform model = item.transform.Find(GiantBoomerangItem.ModelName);
+            yield return null;
+            Assert.AreSame(GiantBoomerangMoves.IronSpiked, thrower.GiantMoves.Clips, "it is not drawn and thrown with its own moves");
+#if UNITY_EDITOR
+
+            // Where it hangs on the back, and where the hand's hold has it, whichever it is in: at the grab the two are one place.
+            Transform grip = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab")
+                .transform.Find(GiantBoomerangItem.ModelName);
+            Matrix4x4 Hangs() => spine.localToWorldMatrix * Matrix4x4.TRS(item.HangPosition, Quaternion.Euler(item.HangEuler), Vector3.one)
+                * Matrix4x4.TRS(item.BackModelPosition, item.BackModelRotation, Vector3.one);
+            Matrix4x4 Held() => hand.localToWorldMatrix * Matrix4x4.TRS(item.HoldPosition, Quaternion.Euler(item.HoldEuler), Vector3.one)
+                * Matrix4x4.TRS(grip.localPosition, grip.localRotation, Vector3.one);
+            float jumped = 0.0f, turned = 0.0f;
+            IEnumerator Watch(float seconds)
+            {
+                for (float t = 0.0f; t < seconds; t += Time.deltaTime)
+                {
+                    Transform was = item.transform.parent;
+                    yield return null;
+                    if (item.transform.parent != was)
+                    {
+                        // The body is posed after this (LateUpdate): a frame on, it stands as it did when the hand took it or let it go.
+                        yield return null;
+                        t += Time.deltaTime;
+                        Matrix4x4 hangs = Hangs(), heldNow = Held();
+                        jumped = Mathf.Max(jumped, Vector3.Distance(hangs.GetPosition(), heldNow.GetPosition()));
+                        turned = Mathf.Max(turned, Quaternion.Angle(hangs.rotation, heldNow.rotation));
+                    }
+                }
+            }
+            thrower.SetGiantAiming(true);
+            yield return Watch(0.8f);
+            Assert.AreEqual(hand, item.transform.parent, "drawn into the aim, it is not in the hand");
+            Assert.Less(jumped, HandOverMetres, "taken off the back, it jumped into the hand");
+            Assert.Less(turned, HandOverDegrees, "taken off the back, it turned over into the hand");
+
+            Vector3 held = player.transform.InverseTransformPoint(hand.position);
+            Assert.Greater(held.x, 0.6f, "in the aim the hand is not out wide to the right");
+            Assert.Less(held.z, -0.3f, "in the aim the hand is not behind the body");
+            Assert.Greater(Vector3.Dot(hand.TransformDirection(Vector3.down), Vector3.down), 0.8f, "in the aim the palm is not down on top of it (HandGrip: -y is the palm's side)");
+            Assert.Greater(Mathf.Abs(Vector3.Dot(model.up, Vector3.up)), Mathf.Cos(25.0f * Mathf.Deg2Rad), "in the aim it does not lie flat under the hand");
+            Assert.Less(model.position.y, Bone(player, HumanBodyBones.Head).position.y, "in the aim it is up by the head, in the way of the view");
+
+            jumped = turned = 0.0f;
+            thrower.SetGiantAiming(false);
+            yield return Watch(0.8f);
+            Assert.AreEqual(spine, item.transform.parent, "let go, it was not put back on the back");
+            Assert.Less(jumped, HandOverMetres, "put back, it jumped onto the back");
+            Assert.Less(turned, HandOverDegrees, "put back, it turned over onto the back");
+#endif
+        }
+
+        /// <summary>
+        /// It leaves the hand from where it lay in it and the way up it lay, and is caught the same way up (it flies with the face the palm is on up): thrown
+        /// from a metre ahead of the hand as the bone one is, or the other way up, it jumped as it left and stood up on its edge as it was caught.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheIronSpikedOneLeavesTheHandAsItLayInItAndIsCaughtTheSameWayUp()
+        {
+            GameObject player = Body(Vector3.zero);
+            GiantBoomerangItem item = EquipIronSpiked(player);
+            var thrower = player.GetComponent<BoomerangThrower>();
+            Transform model = item.transform.Find(GiantBoomerangItem.ModelName);
+            yield return null;
+            thrower.SetGiantAiming(true);
+            yield return Wait(0.8f);
+            Assert.IsTrue(thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f, GiantBoomerangModel.IronSpiked), "it was not thrown");
+            Vector3 heldAt = model.position;
+            Quaternion heldAs = model.rotation;
+            for (float t = 0.0f; t < 1.0f && !thrower.IsOut; t += Time.deltaTime)
+            {
+                heldAt = model.position;
+                heldAs = model.rotation;
+                yield return null;
+            }
+            Assert.IsTrue(thrower.IsOut, "it never left the hand");
+            Transform flying = thrower.Flying.Spinner.GetChild(0);
+            // A frame of flight (18 m/s) and of the hand's own sweep.
+            Assert.Less(Vector3.Distance(flying.position, heldAt), 0.7f, "it did not set off from where the hand held it");
+            Assert.Greater(Vector3.Dot(flying.up, heldAs * Vector3.up), 0.8f, "it left the hand the other way up");
+            Assert.Less(Quaternion.Angle(flying.rotation, heldAs), 40.0f, "it left the hand turned from how it lay in it");
+
+            thrower.SetGiantAiming(false);
+            Vector3 flewUp = flying.up;
+            for (float t = 0.0f; t < 8.0f && thrower.IsOut; t += Time.deltaTime)
+            {
+                flewUp = flying.up;
+                yield return null;
+            }
+            Assert.IsFalse(thrower.IsOut, "it never came back");
+            yield return Wait(0.2f);
+            Assert.AreEqual(Bone(player, HumanBodyBones.RightHand), item.transform.parent, "caught, it is not in the hand");
+            Assert.Greater(Vector3.Dot(model.up, flewUp), 0.8f, "caught, it was turned over into the hand");
+        }
+
+        /// <summary>Another player's copy of a body that carries the Iron Spiked one draws it with its own moves too: its hand goes where the owner's does.</summary>
+        [UnityTest]
+        public IEnumerator AnotherPlayersCopyDrawsTheIronSpikedOneWithItsOwnMoves()
+        {
+#if UNITY_EDITOR
+            GameObject owner = Body(Vector3.zero);
+            GameObject copyBody = Body(new Vector3(8.0f, 0.0f, 0.0f));
+            EquipIronSpiked(owner);
+            GameObject shown = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab"));
+            _made.Add(shown);
+            shown.GetComponent<GiantBoomerangItem>().MountCosmetic(copyBody);
+            var mine = owner.GetComponent<BoomerangThrower>();
+            var copy = copyBody.GetComponent<BoomerangThrower>();
+            mine.Fired += e => copy.PlayRemote(new AbilityEvent(e.Kind, e.Origin + new Vector3(8.0f, 0.0f, 0.0f), e.Direction, e.A, e.B, e.N));
+            yield return null;
+            Assert.AreSame(GiantBoomerangMoves.IronSpiked, copy.GiantMoves.Clips, "the copy plays the bone one's moves");
+
+            mine.SetGiantAiming(true);
+            yield return Wait(0.8f);
+            Assert.AreEqual(GiantBoomerangPoseDriver.Move.Aiming, copy.GiantMoves.Current, "the copy did not draw it into the aim");
+            Assert.AreEqual(Bone(copyBody, HumanBodyBones.RightHand), shown.transform.parent, "the copy's is not in its hand");
+            Vector3 mineAt = owner.transform.InverseTransformPoint(Bone(owner, HumanBodyBones.RightHand).position);
+            Vector3 copyAt = copyBody.transform.InverseTransformPoint(Bone(copyBody, HumanBodyBones.RightHand).position);
+            Assert.Less(Vector3.Distance(mineAt, copyAt), 0.1f, "the copy's hand is not where the owner's is in the aim");
 #else
             yield break;
 #endif

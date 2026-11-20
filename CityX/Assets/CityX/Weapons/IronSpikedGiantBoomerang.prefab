@@ -198,3 +198,6 @@ MonoBehaviour:
   HasOwnHang: 1
   HangPosition: {x: -0.92, y: 0.15, z: -0.36}
   HangEuler: {x: 516.5, y: -90, z: 90}
+  HasOwnHold: 1
+  HoldPosition: {x: 0.9009, y: -0.068, z: -0.5062}
+  HoldEuler: {x: 0, y: 324.1538, z: 0}

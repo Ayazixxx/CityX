@@ -10,12 +10,16 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: renders the Giant Boomerang (docs/BOOMERANG.md) to Logs/CityShots/giantrang-*.png, and the Iron Spiked one to ironrang-*.png: on the back,
-    /// drawn into the aim, the aimed throw and the quick throw off the back, each from the game's camera behind the shoulder and from the side, and in the air.
-    /// Explicit; run by name with -Graphics.
+    /// drawn into the aim, the hand on it close up, the aimed throw, the catch, put back, and the quick throw off the back, each from the game's camera
+    /// behind the shoulder and from the side, and in the air. <see cref="RenderTheIronSpikedMovesFrameByFrame"/> shoots the Iron Spiked one's own moves
+    /// every few frames (ironrang-seq-*.png). Explicit; run by name with -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class GiantBoomerangCapture
     {
+        /// <summary>A frame-by-frame strip takes a picture every this many frames (of 60 a second).</summary>
+        private const int StripEvery = 3;
+
         [UnityTest]
         public IEnumerator RenderTheGiantBoomerang()
         {
@@ -28,35 +32,42 @@ namespace CityX.Tests
             yield return Render("ironrang", "IronSpikedGiantBoomerang", "ThrownIronSpikedGiantBoomerang", GiantBoomerangModel.IronSpiked);
         }
 
+        [UnityTest]
+        public IEnumerator RenderTheIronSpikedMovesFrameByFrame()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            const GiantBoomerangModel kind = GiantBoomerangModel.IronSpiked;
+            var stage = new Stage("IronSpikedGiantBoomerang", "ThrownIronSpikedGiantBoomerang");
+            for (int i = 0; i < 20; i++) yield return null;
+
+            stage.Thrower.SetGiantAiming(true);
+            yield return stage.Strip("ironrang-seq-draw", 0.6f);
+            stage.Thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f, kind);
+            stage.Thrower.SetGiantAiming(false);
+            yield return stage.Strip("ironrang-seq-aimed", 0.72f);
+            for (float t = 0.0f; t < 8.0f && stage.Thrower.IsOut && !stage.Thrower.GiantMoves.IsCatching; t += Time.deltaTime) yield return null;
+            Assert.IsTrue(stage.Thrower.GiantMoves.IsCatching, "the hand never went out for it");
+            yield return stage.Strip("ironrang-seq-catch", 1.0f);
+            Assert.IsFalse(stage.Thrower.IsOut, "it never came back");
+            yield return Frames(0.3f);
+            stage.Thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f, kind);
+            yield return stage.Strip("ironrang-seq-quick", 0.87f);
+            stage.Clear();
+#else
+            yield break;
+#endif
+        }
+
         private static IEnumerator Render(string label, string heldName, string thrownName, GiantBoomerangModel kind)
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
-            Time.captureFramerate = 60;
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
-            ground.transform.localScale = new Vector3(160.0f, 1.0f, 160.0f);
-            var sun = new GameObject("Sun").AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.intensity = 1.2f;
-            sun.shadows = LightShadows.Soft;
-            sun.transform.rotation = Quaternion.Euler(45.0f, -35.0f, 0.0f);
-            var camera = new GameObject("Cam").AddComponent<Camera>();
-            camera.fieldOfView = 50.0f;
-            camera.nearClipPlane = 0.02f;
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.55f, 0.66f, 0.8f);
-
-            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Weapons/{heldName}.prefab");
-            Assert.IsNotNull(prefab, $"no {heldName}.prefab -- rebuild the scene");
-            GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
-                new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
-            player.GetComponent<PlayerInputReader>().enabled = false;
-            var thrower = player.AddComponent<BoomerangThrower>();
-            thrower.GiantThrownPrefab = thrower.IronSpikedThrownPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Weapons/{thrownName}.prefab");
-            GiantBoomerangItem item = Object.Instantiate(prefab).GetComponent<GiantBoomerangItem>();
-            item.OnEquip(player, ItemInstanceData.None);
-            Vector3 body = player.transform.position;
+            GiantBoomerangClips clips = GiantBoomerangMoves.For(kind);
+            var stage = new Stage(heldName, thrownName);
+            Camera camera = stage.Camera;
+            BoomerangThrower thrower = stage.Thrower;
+            Vector3 body = stage.Player.transform.position;
             for (int i = 0; i < 20; i++) yield return null;
 
             yield return Views(camera, label + "-back", body);
@@ -64,15 +75,21 @@ namespace CityX.Tests
 
             // Drawn into the aim: halfway (the grab), then held.
             thrower.SetGiantAiming(true);
-            yield return Frames(GiantBoomerangMoves.DrawGrabSeconds);
+            yield return Frames(clips.DrawGrabSeconds);
             yield return Views(camera, label + "-draw-grab", body);
             yield return Frames(0.6f);
             yield return Views(camera, label + "-aim", body);
+            // The hand on it, close: from above and behind, and from in front and below; and the whole of it from above.
+            Vector3 hand = stage.Player.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand).position;
+            yield return Shoot(camera, label + "-grip-above", hand + new Vector3(0.25f, 0.9f, -0.9f), hand);
+            yield return Shoot(camera, label + "-grip-front", hand + new Vector3(0.5f, 0.25f, 1.1f), hand);
+            yield return Shoot(camera, label + "-aim-above", body + new Vector3(0.4f, 7.0f, -0.3f), body + new Vector3(0.4f, 1.5f, 0.0f));
             // The aimed throw: the wind's end, and the release.
             thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f, kind);
-            yield return Frames(GiantBoomerangMoves.AimedReleaseSeconds * 0.5f);
+            thrower.SetGiantAiming(false);
+            yield return Frames(clips.AimedReleaseSeconds * 0.5f);
             yield return Views(camera, label + "-aimed-mid", body);
-            yield return Frames(GiantBoomerangMoves.AimedReleaseSeconds * 0.5f + 0.05f);
+            yield return Frames(clips.AimedReleaseSeconds * 0.5f + 0.05f);
             yield return Views(camera, label + "-aimed-released", body);
             yield return Frames(0.25f);
             Assert.IsNotNull(thrower.Flying, "the aimed throw never let it go");
@@ -89,7 +106,7 @@ namespace CityX.Tests
             yield return Views(camera, label + "-catch-caught", body);
             yield return Frames(0.2f);
             yield return Views(camera, label + "-catch-give", body);
-            yield return Frames(0.5f);
+            yield return Frames(0.3f);
             yield return Views(camera, label + "-catch-putting-away", body);
             yield return Frames(0.6f);
             yield return Views(camera, label + "-caught", body);
@@ -97,22 +114,84 @@ namespace CityX.Tests
             // The quick throw straight off the back.
             yield return Frames(BoomerangRules.ThrowEverySeconds);
             thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f, kind);
-            yield return Frames(GiantBoomerangMoves.QuickGrabSeconds);
+            yield return Frames(clips.QuickGrabSeconds);
             yield return Views(camera, label + "-quick-grab", body);
-            yield return Frames((GiantBoomerangMoves.QuickReleaseSeconds - GiantBoomerangMoves.QuickGrabSeconds) * 0.6f);
+            yield return Frames((clips.QuickReleaseSeconds - clips.QuickGrabSeconds) * 0.6f);
             yield return Views(camera, label + "-quick-wind", body);
-            yield return Frames((GiantBoomerangMoves.QuickReleaseSeconds - GiantBoomerangMoves.QuickGrabSeconds) * 0.4f + 0.03f);
+            yield return Frames((clips.QuickReleaseSeconds - clips.QuickGrabSeconds) * 0.4f + 0.03f);
             yield return Views(camera, label + "-quick-released", body);
-
-            foreach (GameObject go in new[] { player, item != null ? item.gameObject : null, camera.gameObject, ground, sun.gameObject })
-            {
-                if (go != null) Object.Destroy(go);
-            }
-            foreach (ThrownBoomerang b in Object.FindObjectsByType<ThrownBoomerang>(FindObjectsSortMode.None)) Object.Destroy(b.gameObject);
+            stage.Clear();
 #else
             yield break;
 #endif
         }
+
+#if UNITY_EDITOR
+        /// <summary>A floor, a sun, a camera and a player carrying a giant boomerang.</summary>
+        private sealed class Stage
+        {
+            public readonly Camera Camera;
+            public readonly GameObject Player;
+            public readonly BoomerangThrower Thrower;
+            private readonly GameObject _ground;
+            private readonly Light _sun;
+            private readonly GiantBoomerangItem _item;
+
+            public Stage(string heldName, string thrownName)
+            {
+                Time.captureFramerate = 60;
+                _ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                _ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+                _ground.transform.localScale = new Vector3(160.0f, 1.0f, 160.0f);
+                _sun = new GameObject("Sun").AddComponent<Light>();
+                _sun.type = LightType.Directional;
+                _sun.intensity = 1.2f;
+                _sun.shadows = LightShadows.Soft;
+                _sun.transform.rotation = Quaternion.Euler(45.0f, -35.0f, 0.0f);
+                Camera = new GameObject("Cam").AddComponent<Camera>();
+                Camera.fieldOfView = 50.0f;
+                Camera.nearClipPlane = 0.02f;
+                Camera.clearFlags = CameraClearFlags.SolidColor;
+                Camera.backgroundColor = new Color(0.55f, 0.66f, 0.8f);
+
+                GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Weapons/{heldName}.prefab");
+                Assert.IsNotNull(prefab, $"no {heldName}.prefab -- rebuild the scene");
+                Player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
+                    new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+                Player.GetComponent<PlayerInputReader>().enabled = false;
+                Thrower = Player.AddComponent<BoomerangThrower>();
+                Thrower.GiantThrownPrefab = Thrower.IronSpikedThrownPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Weapons/{thrownName}.prefab");
+                _item = Object.Instantiate(prefab).GetComponent<GiantBoomerangItem>();
+                _item.OnEquip(Player, ItemInstanceData.None);
+            }
+
+            /// <summary>A picture every <see cref="StripEvery"/> frames for <paramref name="seconds"/>, from the game's camera and from in front: name-game-NN, name-front-NN.</summary>
+            public IEnumerator Strip(string name, float seconds)
+            {
+                Vector3 body = Player.transform.position;
+                int shot = 0;
+                for (float t = 0.0f; t < seconds; shot++)
+                {
+                    BuildingShapeCapture.Shoot(Camera, BuildingShapeCapture.ShotsFolder, $"{name}-game-{shot:00}", body + new Vector3(0.87f, 2.9f, -5.0f), body + new Vector3(0.3f, 1.7f, 2.0f));
+                    BuildingShapeCapture.Shoot(Camera, BuildingShapeCapture.ShotsFolder, $"{name}-front-{shot:00}", body + new Vector3(2.6f, 2.0f, 5.4f), body + new Vector3(0.3f, 1.4f, 0.0f));
+                    for (int i = 0; i < StripEvery; i++)
+                    {
+                        yield return null;
+                        t += Time.deltaTime;
+                    }
+                }
+            }
+
+            public void Clear()
+            {
+                foreach (GameObject go in new[] { Player, _item != null ? _item.gameObject : null, Camera.gameObject, _ground, _sun.gameObject })
+                {
+                    if (go != null) Object.Destroy(go);
+                }
+                foreach (ThrownBoomerang b in Object.FindObjectsByType<ThrownBoomerang>(FindObjectsSortMode.None)) Object.Destroy(b.gameObject);
+            }
+        }
+#endif
 
         private static IEnumerator Frames(float seconds)
         {

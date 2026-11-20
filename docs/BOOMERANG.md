@@ -140,7 +140,7 @@ reasonable amount". `/equip ironspiked` (also `ironspikedboomerang`, `spikedboom
 |---|---|
 | Item | `ironspikedgiantboomerang`, "Iron Spiked Giant Boomerang", **Very Rare** (the owner's) |
 | Blow | **50** (the bone one 30): its steel and spikes hit harder, and two throws drop a low-level enemy (100 health), as two AK-47 rounds do (`GiantBoomerangRules.IronSpikedDamage`, mine). Everything else is the bone one's: its flight, range, spin, pierce, knock-down, block, catch |
-| Moves | The bone one's, all of them: on the back, the draw, the aim, both throws, the catch (`GiantBoomerangItem.Model`: which one this is) |
+| Moves | Its own since 2026-11-20 (below): taken by its rope from behind the back, held out wide behind under the palm, whipped round flat, caught palm down (`GiantBoomerangItem.Model`: which one this is; `GiantBoomerangMoves.For`) |
 | Other players | Seen as itself in the air too: the throw says which giant boomerang flew (`BoomerangThrower`, the Thrown event's N: 0 wooden, 1 bone, 2 iron spiked) and their copy flies `ThrownIronSpikedGiantBoomerang.prefab` (`BoomerangThrower.IronSpikedThrownPrefab`, wired by `PlayerAbilityWiring`) |
 
 **The model** (`SourceArt/IronSpikedBoomerang/iron_spiked_boomerang_build.py`, Blender, headless): a steel crescent, a spiked blade at each
@@ -153,8 +153,8 @@ four maps of 4096 and 2048.
 - **Thickness** (the owner's "y axis"): pressed to 13 cm, the bone one's blade with its wraps.
 - **Faces:** cut to 6,000 triangles (a weapon's "fine" line in `tools/model_qa.py`), and Meshy's paint baked onto one 1024 map
   (`Weapons/IronSpikedBoomerang.jpg`, 215 KB). Its other maps are not used: the game's guns and blades are flat-shaded, a little metallic.
-- **Held** on its upper arm's wrap, between the wrap's two inner spikes, the arm from the hand to the elbow along the bone one's. Grip,
-  elbow, ends and arm widths go to `IronSpikedBoomerang.points.json`.
+- **Its item's origin** is on its upper arm's wrap, between the wrap's two inner spikes (where it was first held), the arm from there to the
+  elbow along the bone one's. That point, the elbow, ends and arm widths go to `IronSpikedBoomerang.points.json`.
 - **Drawn from outside.** Meshy's axes read as the game's are a mirror, so the build turns every face back out (`bmesh.ops.reverse_faces`):
   inside out, only its far side's inside was drawn, the near side see-through (owner, 2026-11-20: "its like transparent on one side but i
   can see the texture on the other side"). `IronSpikedGiantBoomerangTests.ItsFacesLookOutOfItSoItIsNotSeenThrough`.
@@ -165,24 +165,55 @@ four maps of 4096 and 2048.
   `IronSpikedHangEuler`). In that frame it lies flat, its tip-to-tip line along the bone one's, turned over (`BackModelPosition`,
   `BackModelRotation`). Before that it leant 9 degrees off the back to stay clear of the head ("now its floating on his back"), and a try at
   pressing the poking head into it flattened the head ("do this without making it look like the head has a dent in it"); both are gone.
-- **In the hand it is held the other way over** (its face up as before it was turned over for the back): turned over, its curled near blade
-  swung into the head in the aim. 24 cm clear in the aim.
-- **Drawn and put back, it flies** between the back and the hand over 0.25 s (`GiantBoomerangItem.GlideSeconds`): first 35 cm straight back off the body
-  still turned as it lay, then on into the hand, turning (`GlideBackOff`, `GlideOffShare`). The moves reach for it behind the right shoulder,
-  where the bone one rides: it leaves the back as the hand closes there, and leaves the hand the moment it is put away (`HeldNow`), as held
-  up there it lay through the head. Carried straight from the back to the hand, turning all the way, its arms swept 32 cm into the head.
+- **Its own grip and moves (2026-11-20).** Owner: "I want to rework the grip on the throw for the spiked boomerang i want it to grab the boomerang
+  by the rope and maybe have the fingers clipped into the rope strategically so it looks like its got a grip on the rope. then i want is grip
+  while aiming in to be an above grip like how sasuke holds the demon wind shuriken in naruto ... thats how i want the throw to be" (the anime's
+  throw, and a game's copy of it: "just a reference for the throwing form", "imagine he isnt in mid air or spinning"), "also rework the catch and
+  return to back animation ... with how the spiked boomerang sits on the back now".
+  - **The grip** (`GiantBoomerangItem.HasOwnHold`, `HoldPosition`, `HoldEuler`; `BoomerangBuilder.IronSpikedHoldPosition`, `IronSpikedHoldRotation`):
+    the palm on top of the wrap of the arm that hangs behind the right shoulder blade, on the face that lies against the back, in the wrap's
+    middle, sunk 1.5 cm into the leather so the folded fingers go into it; that arm lies 40 degrees round from the fingers, so its bladed end
+    trails outside the forearm and clear of the body (along the forearm it came back across the chest at the release). Worked out, shown and
+    printed by `SourceArt/IronSpikedBoomerang/iron_spiked_hold.py`: change it there, then the builder's two numbers. The bone one keeps its grip.
+  - **The moves** (`SourceArt/IronSpikedBoomerang/iron_spiked_moves.py`, the bone one's solver and planted feet; `GiantBoomerangMoves.IronSpiked`,
+    `GiantBoomerangClips`; the game's copy is `Character/Resources/GiantBoomerang/IronSpikedBoomerangMotion.json`): `iron_draw` (the hand goes
+    round behind the back to the wrap, takes it and swings it out wide to the right and back, flat; its last frame is the aim: sunk, leant
+    forward, side-on, the arm stretched out behind with the boomerang under the palm, the left hand out ahead; played backward it is laid back
+    on the back), `iron_throw_aimed` (a little further coil, then the hips, shoulders and arm whip round, the arm sweeping wide and flat and
+    thrown straight out as it lets go 0.25 s after the click, the left arm flung back), `iron_throw_quick` (off the back, out through the coil
+    and round in one go, let go 0.51 s after the click) and `iron_catch` (the hand out ahead and to the right, palm down; the arm swings back and
+    round with its weight into the aim). The hand turns on its forearm by each key's `wrist`, so the boomerang lies flat whatever the arm's
+    slope. Rebuild: `blender --background --factory-startup --python CityX/SourceArt/IronSpikedBoomerang/iron_spiked_moves_build.py -- --render
+    <folder> --export CityX/Assets/CityX/Character/Resources/GiantBoomerang/IronSpikedBoomerangMotion.json` (the renders show the boomerang on
+    the back and in the hand as the game has it).
+  - **Standing, the moves are the whole body's** (the sunk stance); moving, the legs are the walk's (`GiantBoomerangClips.StandsInThem`,
+    `BakedPose.LegsWeight`, over 0.2 s), as a sword's swings are.
+  - **Taken where it hangs.** The grab key's wrist and hand are fitted (`fit_grab`) so the hand's hold of the boomerang IS the boomerang as it
+    hangs on the back: it is taken off and laid back without a jump, and the 0.25 s flight between the back and the hand, its 35 cm back-off and
+    its early release are gone (`GlideSeconds` is 0.08 s, for a grab made before a move has the whole body). `GiantBoomerangPoseDriver.Stepped`
+    stops a move's time on its grab on the frame it passes it, so the hand-over is in the grab's own pose however long the frame.
+  - **It leaves the hand as it lay in it** (`BoomerangThrower.GiantHeldModel`, `ThrownBoomerang.SpinFrom`): it sets off from its model's own
+    middle, spinning on from how it lay, not from a metre ahead of the hand as the bone one (held near its end) does; and it flies with the face
+    the palm is on up (`BoomerangBuilder.SaveGiant`'s `fliesFaceDown`), so it neither flips as it leaves nor stands up on its edge as it is
+    caught.
+  - Other players: the cosmetic copy of the item tells the copy's pose driver whose moves to play (`GiantBoomerangItem.Watch`), so their copy of
+    the body draws, aims, throws and catches it the same way.
 - **The head:** measured against a sphere of `FusedBodyShape.HeadRadius` round the head bone (a little bigger than the head, so the bone
   one comes into it too: 1.6 cm standing, 13 crouched), standing, drawing, aiming, putting back, crouching and jumping, it comes no further
-  in than the bone one (5 cm clear standing where the bone one is 1.6 cm in; 7 cm in crouched; 3 to 5 cm in for a moment as the draw and
-  the put-away lean the head back into its elbow). `GiantBoomerangPlayTests.TheIronSpikedOneComesNoFurtherIntoTheHeadThanTheBoneOne`.
+  in than the bone one (5 cm clear standing where the bone one is 1.6 cm in; 7 cm in crouched). `GiantBoomerangPlayTests.TheIronSpikedOneComesNoFurtherIntoTheHeadThanTheBoneOne`.
 - **The prefabs:** `BoomerangBuilder.BuildIronSpiked` makes both (held and in the air) through the same `SaveGiant` as the bone one. The hair
   on the back is laid flat under its outline, 15% wider than its arms for the spikes.
 
 `tools/model_qa.py --kind weapon`: everything passes but one point on a wrap's knot that it calls a spike.
 
 Tests: `IronSpikedGiantBoomerangTests` (the item, Very Rare, its blow against the bone one's, the built model's span, thickness, faces and
-map, the grip on the model and the other arm's side, its hang, its faces); `GiantBoomerangPlayTests.TheIronSpikedOneFliesAsItselfHereAndOnAnotherPlayersCopyAndHitsHarder`, `TheIronSpikedOneComesNoFurtherIntoTheHeadThanTheBoneOne`.
-Pictures: `GiantBoomerangCapture.RenderTheIronSpikedGiantBoomerang` (`ironrang-*.png`).
+map, its origin on the model and the other arm's side, its hang, its faces, the palm laid flat on its leather wrap);
+`GiantBoomerangPlayTests.TheIronSpikedOneFliesAsItselfHereAndOnAnotherPlayersCopyAndHitsHarder`, `TheIronSpikedOneComesNoFurtherIntoTheHeadThanTheBoneOne`,
+`TheIronSpikedOneIsTakenOffTheBackWhereItHangsAndHeldOutBehindPalmDown`, `TheIronSpikedOneLeavesTheHandAsItLayInItAndIsCaughtTheSameWayUp`,
+`AnotherPlayersCopyDrawsTheIronSpikedOneWithItsOwnMoves`.
+Pictures: `GiantBoomerangCapture.RenderTheIronSpikedGiantBoomerang` (`ironrang-*.png`, with the hand on it close up: `ironrang-grip-*.png`) and
+`RenderTheIronSpikedMovesFrameByFrame` (`ironrang-seq-*.png`: the draw, the aimed throw, the catch and the putting back, the quick throw, every
+three frames from the game's camera and from in front).
 
 **Its sound** (owner, 2026-11-19, with `GiantMetalBoomerangImpact.mp3`: "make this the noise it plays when it lands on an enemy ... or terrain for
 now"): every strike, on a body or on a wall, the floor or a thing, plays the owner's recording

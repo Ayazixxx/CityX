@@ -98,6 +98,22 @@ namespace CityX.Weapons
             return boomerang;
         }
 
+        /// <summary>
+        /// Turns its spin to where its model lies nearest <paramref name="model"/>: the one the hand held, as it let go, so that it leaves the hand as it
+        /// lay in it.
+        /// </summary>
+        public void SpinFrom(Quaternion model)
+        {
+            if (Spinner == null)
+            {
+                return;
+            }
+            Quaternion part = Spinner.childCount > 0 ? Spinner.GetChild(0).localRotation : Quaternion.identity;
+            Vector3 ahead = Quaternion.Inverse(transform.rotation) * (model * Quaternion.Inverse(part)) * Vector3.forward;
+            _spin = Mathf.Repeat(Mathf.Atan2(ahead.x, ahead.z) * Mathf.Rad2Deg, 360.0f);
+            Spinner.localRotation = Quaternion.AngleAxis(_spin, Vector3.up);
+        }
+
         private void Update()
         {
             if (_flight == null || _done)
