@@ -24,8 +24,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 212680608641765528}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.99855125, z: -0, w: -0.053809617}
-  m_LocalPosition: {x: -0.37259722, y: -0, z: 0.5438087}
+  m_LocalRotation: {x: -0, y: -0.99855137, z: -0, w: 0.053807065}
+  m_LocalPosition: {x: 0.29373237, y: -0, z: 0.42650568}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -175,7 +175,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.6, y: 0.26080164, z: 2.4}
+  m_Size: {x: 0.6, y: 0.26037225, z: 2.4}
   m_Center: {x: 0, y: 0, z: 1}
 --- !u!114 &2853275823114492993
 MonoBehaviour:
@@ -190,5 +190,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GiantBoomerangItem
   Model: 1
-  OutlineTipAndElbow: {x: -1.7113895, y: 0.92756, z: -0.0000000021206477, w: 1.1538821}
-  OutlineTipAndWidths: {x: -0.3422883, y: -0.65970385, z: 0.33143, w: 0.33143}
+  HasBackPose: 1
+  BackModelPosition: {x: -0.21655567, y: 0, z: 0.8869269}
+  BackModelRotation: {x: 0, y: -0.89133155, z: 0, w: -0.45335218}
+  OutlineTipAndElbow: {x: 0.04527952, y: 1.9451072, z: -0.7773859, w: 0.8707142}
+  OutlineTipAndWidths: {x: 0.5886522, y: 0.3944316, z: 0.259785, w: 0.259785}

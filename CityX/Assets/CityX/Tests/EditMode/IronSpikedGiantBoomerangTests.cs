@@ -23,9 +23,11 @@ namespace CityX.Tests
         private const int TriangleBudget = 6000;
         private const int MapSide = 1024;
 
-        /// <summary>The bone one's span tip to tip (BoomerangBuilder.GiantShape) and its blade with its wraps; "roughly the same": within these.</summary>
-        private const float BoneSpan = 2.6f;
-        private const float SpanSlack = 0.1f;
+        /// <summary>
+        /// "The same size" as the bone one (owner, 2026-11-19, after a first fit tip to tip: "scale it down slightly so its the same size as the other giant
+        /// boomerang i feel like it a bit bigger"): its arms, elbow to each end, as long as the bone one's, within this; as thin as its blade with its wraps.
+        /// </summary>
+        private const float ArmsSlack = 0.15f;
         private const float ThicknessSlack = 0.03f;
 
         /// <summary>The hand closes on the model: some of it lies this near the grip.</summary>
@@ -93,15 +95,8 @@ namespace CityX.Tests
             middle /= area;
             Assert.Less(new Vector2(middle.x, middle.z).magnitude, 0.05f, "it does not spin about its middle");
 
-            float span = 0.0f;
-            foreach (Vector3 a in Outermost(vertices))
-            {
-                foreach (Vector3 b in Outermost(vertices))
-                {
-                    span = Mathf.Max(span, Vector3.Distance(new Vector3(a.x, 0.0f, a.z), new Vector3(b.x, 0.0f, b.z)));
-                }
-            }
-            Assert.AreEqual(BoneSpan, span, SpanSlack, "it is not as big as the Giant Boomerang tip to tip");
+            Assert.AreEqual(Arms(Load(BonePath).GetComponent<GiantBoomerangItem>()), Arms(Load(HeldPath).GetComponent<GiantBoomerangItem>()), ArmsSlack,
+                "its arms are not as long as the Giant Boomerang's");
             float boneThick = Load(BoneThrownPath).GetComponentInChildren<MeshFilter>().sharedMesh.bounds.size.y;
             Assert.AreEqual(boneThick, mesh.bounds.size.y, ThicknessSlack + 0.02f, "it is not about as thin as the Giant Boomerang");
 
@@ -112,11 +107,14 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Carried as the bone one is: the hand's grip on the model itself, the length from the hand toward the elbow, and the other arm off to the same side
-        /// as the bone one's (its back carry, draw and throw were posed for that).
+        /// In the hand, held on its wrap: the hand's grip on the model itself, the length from the hand toward the elbow. On the back, where the bone one
+        /// lies, turned over (owner, 2026-11-19: "flip it so its facing the other way so the spikes dont block your view when playing", "i want it like the
+        /// same position as the giant boomerang on back just flipped so the spikes are facing the other way"): its tip-to-tip line along the bone one's,
+        /// its middle (what it spins about) on the bone one's, its elbow on the other side of that line from the bone one's, so its hollow and its spikes
+        /// face the other way.
         /// </summary>
         [Test]
-        public void ItIsHeldOnItsWrapAndItsOtherArmGoesTheBoneOnesWay()
+        public void ItIsHeldOnItsWrapAndOnTheBackLiesWhereTheBoneOneDoesTurnedOver()
         {
             var held = Load(HeldPath).GetComponent<GiantBoomerangItem>();
             Transform model = held.transform.Find(GiantBoomerangItem.ModelName);
@@ -127,24 +125,38 @@ namespace CityX.Tests
                 nearest = Mathf.Min(nearest, (model.localPosition + model.localRotation * v).magnitude);
             }
             Assert.Less(nearest, GripOnTheModel, "the grip is not on the model: the hand would close on air");
-            Assert.Greater(held.OutlineTipAndElbow.w, 0.5f, "the elbow is not ahead of the hand, along the held arm");
+
             var bone = Load(BonePath).GetComponent<GiantBoomerangItem>();
-            Assert.AreEqual(Mathf.Sign(bone.OutlineTipAndElbow.x), Mathf.Sign(held.OutlineTipAndElbow.x), "its other arm goes off to the other side");
+            Assert.IsFalse(bone.HasBackPose, "the bone one no longer lies on the back where the hand holds it");
+            Assert.IsTrue(held.HasBackPose, "it lies on the back where the hand holds it, not where the bone one lies");
+            Outline(bone, out Vector2 boneNear, out Vector2 boneFar, out Vector2 boneElbow);
+            Outline(held, out Vector2 near, out Vector2 far, out Vector2 elbow);
+            Assert.Less(Vector2.Angle(far - near, boneFar - boneNear), 2.0f, "on the back it does not lie along the bone one's line");
+            // Its model's origin is its middle (what it spins about), so where the model lies is where its middle is.
+            Vector3 boneMiddle = bone.transform.Find(GiantBoomerangItem.ModelName).localPosition;
+            Assert.Less(Vector3.Distance(held.BackModelPosition, boneMiddle), 0.02f, "on the back its middle is not where the bone one's is");
+            Assert.AreEqual(-Mathf.Sign(Side(boneNear, boneFar, boneElbow)), Mathf.Sign(Side(near, far, elbow)),
+                "on the back its spikes face the bone one's way (toward the camera), not the other way");
         }
 
-        private static System.Collections.Generic.IEnumerable<Vector3> Outermost(Vector3[] points)
+        /// <summary>Its outline as it lies on the back (BoomerangBuilder): the near tip, the far tip and the elbow, across and along its carried frame.</summary>
+        private static void Outline(GiantBoomerangItem item, out Vector2 near, out Vector2 far, out Vector2 elbow)
         {
-            for (int k = 0; k < 64; k++)
-            {
-                float a = k * Mathf.PI * 2.0f / 64.0f;
-                var direction = new Vector3(Mathf.Cos(a), 0.0f, Mathf.Sin(a));
-                Vector3 best = points[0];
-                foreach (Vector3 p in points)
-                {
-                    if (Vector3.Dot(p, direction) > Vector3.Dot(best, direction)) best = p;
-                }
-                yield return best;
-            }
+            far = new Vector2(item.OutlineTipAndElbow.x, item.OutlineTipAndElbow.y);
+            elbow = new Vector2(item.OutlineTipAndElbow.z, item.OutlineTipAndElbow.w);
+            near = new Vector2(item.OutlineTipAndWidths.x, item.OutlineTipAndWidths.y);
+        }
+
+        /// <summary>Which side of the line from <paramref name="a"/> to <paramref name="b"/> <paramref name="p"/> is on.</summary>
+        private static float Side(Vector2 a, Vector2 b, Vector2 p) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+
+        /// <summary>A giant boomerang's two arms, elbow to each tip, from its outline in the carried frame (BoomerangBuilder).</summary>
+        private static float Arms(GiantBoomerangItem item)
+        {
+            var farTip = new Vector2(item.OutlineTipAndElbow.x, item.OutlineTipAndElbow.y);
+            var elbow = new Vector2(item.OutlineTipAndElbow.z, item.OutlineTipAndElbow.w);
+            var nearTip = new Vector2(item.OutlineTipAndWidths.x, item.OutlineTipAndWidths.y);
+            return Vector2.Distance(farTip, elbow) + Vector2.Distance(nearTip, elbow);
         }
     }
 }

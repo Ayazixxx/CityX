@@ -38,7 +38,15 @@ namespace CityX.Weapons
         [Tooltip("Which giant boomerang this is: its item, its blow and its model in the air. Set by BoomerangBuilder.")]
         public GiantBoomerangModel Model;
 
-        [Tooltip("Its outline in its own frame (the grip at the origin, z along it, y out of its face), for the hair it lies over (BackClip): one tip x, z and the elbow x, z. Set by BoomerangBuilder.")]
+        [Tooltip("On the back its model lies at BackModelPosition/Rotation (in this frame) rather than where the hand holds it. Set by BoomerangBuilder.")]
+        public bool HasBackPose;
+
+        [Tooltip("Where its model lies on the back: the Iron Spiked one along the bone one's line there, turned over. Set by BoomerangBuilder.")]
+        public Vector3 BackModelPosition;
+
+        public Quaternion BackModelRotation = Quaternion.identity;
+
+        [Tooltip("Its outline in its own frame as it lies on the back (the grip at the origin, z along it, y out of its face), for the hair it lies over (BackClip): one tip x, z and the elbow x, z. Set by BoomerangBuilder.")]
         public Vector4 OutlineTipAndElbow;
 
         [Tooltip("The other tip x, z, each arm's half width at the elbow and at its tip (it narrows from the elbow). Set by BoomerangBuilder.")]
@@ -50,6 +58,13 @@ namespace CityX.Weapons
         private Vector3 _toPosition;
         private Quaternion _toRotation;
         private float _handOver;
+
+        /// <summary>Its model and where the hand holds it (the prefab's own place), for one that lies elsewhere on the back (<see cref="HasBackPose"/>).</summary>
+        private Transform _model;
+        private Vector3 _gripModelPosition;
+        private Quaternion _gripModelRotation;
+        private Vector3 _modelToPosition;
+        private Quaternion _modelToRotation;
 
         /// <summary>The wielder's melee, while equipped: it fights bare-handed while the boomerang is out.</summary>
         private MeleeAttacker _melee;
@@ -135,6 +150,15 @@ namespace CityX.Weapons
 
         private void Carry(GameObject body)
         {
+            if (_model == null)
+            {
+                _model = transform.Find(ModelName);
+                if (_model != null)
+                {
+                    _gripModelPosition = _modelToPosition = _model.localPosition;
+                    _gripModelRotation = _modelToRotation = _model.localRotation;
+                }
+            }
             _body = body;
             foreach (Collider c in GetComponentsInChildren<Collider>())
             {
@@ -202,23 +226,36 @@ namespace CityX.Weapons
             }
             _toPosition = transform.localPosition;
             _toRotation = transform.localRotation;
+            bool lyingElsewhere = HasBackPose && !inHand;
+            _modelToPosition = lyingElsewhere ? BackModelPosition : _gripModelPosition;
+            _modelToRotation = lyingElsewhere ? BackModelRotation : _gripModelRotation;
             if (inHand && !out_ && _thrower != null && _thrower.TakeCatchPose(out Vector3 caughtAt, out Quaternion caughtTurned))
             {
                 // Caught: from where it was flying, its model where the spinning one was, into the grip.
-                Transform model = transform.Find(ModelName);
-                Quaternion turn = model != null ? caughtTurned * Quaternion.Inverse(model.localRotation) : caughtTurned;
-                transform.SetPositionAndRotation(model != null ? caughtAt - turn * model.localPosition : caughtAt, turn);
+                SetModel(_modelToPosition, _modelToRotation);
+                Quaternion turn = _model != null ? caughtTurned * Quaternion.Inverse(_model.localRotation) : caughtTurned;
+                transform.SetPositionAndRotation(_model != null ? caughtAt - turn * _model.localPosition : caughtAt, turn);
                 _handOver = HandOverSeconds;
             }
             else if (!anew && !out_)
             {
-                // From where it was, so the grab and the putting back never jump.
+                // From where it was, so the grab and the putting back never jump: the model too, from where it lay to where it goes.
                 transform.SetPositionAndRotation(wasAt, wasTurned);
                 _handOver = HandOverSeconds;
             }
             else
             {
+                SetModel(_modelToPosition, _modelToRotation);
                 _handOver = 0.0f;
+            }
+        }
+
+        private void SetModel(Vector3 position, Quaternion rotation)
+        {
+            if (_model != null)
+            {
+                _model.localPosition = position;
+                _model.localRotation = rotation;
             }
         }
 
@@ -244,6 +281,10 @@ namespace CityX.Weapons
             _handOver -= Time.deltaTime;
             transform.localPosition = Vector3.Lerp(transform.localPosition, _toPosition, share);
             transform.localRotation = Quaternion.Slerp(transform.localRotation, _toRotation, share);
+            if (_model != null)
+            {
+                SetModel(Vector3.Lerp(_model.localPosition, _modelToPosition, share), Quaternion.Slerp(_model.localRotation, _modelToRotation, share));
+            }
         }
 
         private void OnDestroy()

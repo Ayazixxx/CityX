@@ -387,6 +387,19 @@ namespace CityX.Tests
             Dummy target = Target(new Vector3(0.0f, 1.3f, 7.0f));
             yield return null;
 
+            // On the back it lies where the bone one does; drawn, it slides into the grip.
+            Transform held = item.transform.Find(GiantBoomerangItem.ModelName);
+            Vector3 grip = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab")
+                .transform.Find(GiantBoomerangItem.ModelName).localPosition;
+            Assert.IsTrue(item.HasBackPose);
+            Assert.Less(Vector3.Distance(item.BackModelPosition, held.localPosition), 0.001f, "on the back it does not lie where the bone one does");
+            mine.SetGiantAiming(true);
+            yield return Wait(0.8f);
+            Assert.Less(Vector3.Distance(grip, held.localPosition), 0.001f, "drawn into the aim, it is not held by its grip");
+            mine.SetGiantAiming(false);
+            yield return Wait(1.0f);
+            Assert.Less(Vector3.Distance(item.BackModelPosition, held.localPosition), 0.001f, "put back, it does not lie where the bone one does");
+
             item.Throw(owner, owner.transform.position + Vector3.up * 2.0f, Vector3.forward);
             yield return Wait(1.0f, () => mine.IsOut && copy.IsOut);
             Assert.IsTrue(mine.IsOut && copy.IsOut, "it did not fly, here or on the copy");

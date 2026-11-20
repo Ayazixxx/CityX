@@ -12,7 +12,7 @@ namespace CityX.WeaponsEditor
     ///  * the Giant Boomerang: a wide, thick, bone-white blade as tall as the player (2.6 m tip to tip), leather wrapped at its grip near one end, round its elbow
     ///    and near its other tip. GiantBoomerang.prefab is the one carried (GiantBoomerangItem: its origin is the grip, so the hand and the back hold it there),
     ///    ThrownGiantBoomerang.prefab the one in the air;
-    ///  * the Iron Spiked Giant Boomerang: the owner's Meshy model (<see cref="BuildIronSpiked"/>), as big, carried and thrown as the bone one.
+    ///  * the Iron Spiked Giant Boomerang: the owner's Meshy model (<see cref="BuildIronSpiked"/>), its arms as long as the bone one's, carried and thrown as it is but turned over (its spikes away from the camera on the back).
     /// The thrown ones lie flat with their middle at the origin, which is what they spin about.
     /// </summary>
     public static class BoomerangBuilder
@@ -119,11 +119,22 @@ namespace CityX.WeaponsEditor
             Vector3 middle = MiddleOf(GiantShape);
             Mesh body = Loft($"{Folder}/GiantBoomerangBody.asset", "GiantBoomerangBody", GiantShape, middle, GiantSlices, new[] { new Vector2(-1.0f, 1.0f) }, 0.0f);
             Mesh wraps = Loft($"{Folder}/GiantBoomerangWraps.asset", "GiantBoomerangWraps", GiantShape, middle, 4, GiantWraps, WrapProud);
-            var shape = new GiantOutline(AlongTheV(GiantShape, GiantGripAt) - middle, AlongTheV(GiantShape, 0.0f) - middle, AlongTheV(GiantShape, -1.0f) - middle,
-                AlongTheV(GiantShape, 1.0f) - middle, GiantShape.WidthAtElbow * 0.5f, GiantShape.WidthAtTip * 0.5f);
-            return SaveGiant("ThrownGiantBoomerang", ThrownGiantPrefabPath, "GiantBoomerang", GiantPrefabPath, GiantBoomerangModel.Bone, shape,
+            return SaveGiant("ThrownGiantBoomerang", ThrownGiantPrefabPath, "GiantBoomerang", GiantPrefabPath, GiantBoomerangModel.Bone, BoneOutline(),
                 new Vector3(0.0f, 0.0f, 1.0f), new Vector3(0.6f, GiantShape.Thickness * 2.0f, 2.4f), parent => AddGiantModel(parent, body, wraps, bone, leather));
         }
+
+        /// <summary>The bone one's shape in its thrown frame.</summary>
+        private static GiantOutline BoneOutline()
+        {
+            Vector3 middle = MiddleOf(GiantShape);
+            return new GiantOutline(AlongTheV(GiantShape, GiantGripAt) - middle, AlongTheV(GiantShape, 0.0f) - middle, AlongTheV(GiantShape, -1.0f) - middle,
+                AlongTheV(GiantShape, 1.0f) - middle, GiantShape.WidthAtElbow * 0.5f, GiantShape.WidthAtTip * 0.5f);
+        }
+
+        /// <summary>From a giant boomerang's thrown frame into its carried one: the grip at the origin, its length from there toward the elbow along +z.</summary>
+        private static Quaternion CarriedTurn(in GiantOutline shape) => Quaternion.Inverse(Quaternion.LookRotation((shape.Elbow - shape.Grip).normalized, Vector3.up));
+
+        private static Vector3 Carried(in GiantOutline shape, Vector3 p) => CarriedTurn(shape) * (p - shape.Grip);
 
         public const string IronSpikedPrefabPath = "Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab";
         public const string ThrownIronSpikedPrefabPath = "Assets/CityX/Weapons/ThrownIronSpikedGiantBoomerang.prefab";
@@ -156,7 +167,7 @@ namespace CityX.WeaponsEditor
         /// The Iron Spiked Giant Boomerang (owner, 2026-11-19, with Meshy's "Twin Fang Crescent": "make this another giant boomerang weapon called "Iron
         /// Spiked Giant Boomerang" make it the roughly the same size as the other giant boomerang and shrink the y axis to roughly the same size"): a steel
         /// crescent with spiked blades at both ends and leather wraps, laid, sized and cut by SourceArt/IronSpikedBoomerang/iron_spiked_boomerang_build.py
-        /// (2.6 m tip to tip and 13 cm thick as the bone one, 6,000 triangles, one 1024 map). Held by the wrap on its upper arm; carried, drawn, thrown and
+        /// (its arms as long as the bone one's, 13 cm thick as it is, turned over so its spikes face away from the camera on the back, 6,000 triangles, one 1024 map). Held by the wrap on its upper arm; carried, drawn, thrown and
         /// caught as the bone one is.
         /// </summary>
         [MenuItem("CityX/Rebuild Iron Spiked Giant Boomerang")]
@@ -185,9 +196,19 @@ namespace CityX.WeaponsEditor
             {
                 Debug.LogWarning($"CityX: no {IronSpikedImpactSoundPath} -- the Iron Spiked Giant Boomerang strikes with the bone one's made sounds.");
             }
+            // On the back it lies where the bone one does (owner, 2026-11-19: "i want it like the same position as the giant boomerang on back just flipped so
+            // the spikes are facing the other way"): its tip-to-tip line turned along the bone one's, the near tip toward the bone one's near tip, and its
+            // middle (what it spins about: the middle of its area) on the bone one's. Its tip-to-tip line's middle on the bone one's instead, the curled
+            // crescent bulged out off the body's side, over the shoulder the camera looks past. Turned over as it is (iron_spiked_boomerang_build.py), its
+            // hollow and spikes face the other way from the bone one's elbow.
+            GiantOutline bone = BoneOutline();
+            Vector3 boneNear = Carried(bone, bone.NearTip), boneFar = Carried(bone, bone.FarTip);
+            Vector3 ironNear = Carried(shape, shape.NearTip), ironFar = Carried(shape, shape.FarTip);
+            Quaternion backTurn = Quaternion.FromToRotation(ironFar - ironNear, boneFar - boneNear);
+            Vector3 backShift = Carried(bone, Vector3.zero) - backTurn * Carried(shape, Vector3.zero);
             return SaveGiant("ThrownIronSpikedGiantBoomerang", ThrownIronSpikedPrefabPath, "IronSpikedGiantBoomerang", IronSpikedPrefabPath,
                 GiantBoomerangModel.IronSpiked, shape, new Vector3(0.0f, 0.0f, 1.0f), new Vector3(0.6f, bounds.size.y * 2.0f, 2.4f),
-                parent => HeldModelBaker.Part(parent, "Blade", mesh, steel), impact);
+                parent => HeldModelBaker.Part(parent, "Blade", mesh, steel), impact, backTurn, backShift);
         }
 
         /// <summary>
@@ -216,9 +237,13 @@ namespace CityX.WeaponsEditor
             }
         }
 
-        /// <summary>A giant boomerang's two prefabs: the one in the air, and the one carried (its item) by its grip.</summary>
+        /// <summary>
+        /// A giant boomerang's two prefabs: the one in the air, and the one carried (its item) by its grip. With <paramref name="backTurn"/>, on the back its
+        /// model lies turned by it and moved by <paramref name="backShift"/> in the carried frame, rather than where the hand holds it.
+        /// </summary>
         private static GameObject SaveGiant(string thrownName, string thrownPath, string heldName, string heldPath, GiantBoomerangModel kind, GiantOutline shape,
-            Vector3 boxCentre, Vector3 boxSize, System.Action<Transform> addModel, AudioClip impactSound = null)
+            Vector3 boxCentre, Vector3 boxSize, System.Action<Transform> addModel, AudioClip impactSound = null, Quaternion? backTurn = null,
+            Vector3 backShift = default)
         {
             var thrown = new GameObject(thrownName);
             var held = new GameObject(heldName);
@@ -236,7 +261,7 @@ namespace CityX.WeaponsEditor
                 // Carried by its grip: the model moved so the grip is the origin, its length from there toward the elbow along +z, its flat face +y.
                 var model = new GameObject(GiantBoomerangItem.ModelName);
                 model.transform.SetParent(held.transform, false);
-                Quaternion turn = Quaternion.Inverse(Quaternion.LookRotation((shape.Elbow - shape.Grip).normalized, Vector3.up));
+                Quaternion turn = CarriedTurn(shape);
                 model.transform.localRotation = turn;
                 model.transform.localPosition = -(turn * shape.Grip);
                 addModel(model.transform);
@@ -245,8 +270,16 @@ namespace CityX.WeaponsEditor
                 box.size = boxSize;
                 var item = held.AddComponent<GiantBoomerangItem>();
                 item.Model = kind;
-                // Its outline in the carried frame, for the hair it lies over on the back (Items/BackClip): a V from tip to elbow to tip, as wide as its middle.
-                Vector3 OnIt(Vector3 p) => turn * (p - shape.Grip);
+                Quaternion lies = backTurn ?? Quaternion.identity;
+                Vector3 shift = backTurn.HasValue ? backShift : Vector3.zero;
+                if (backTurn.HasValue)
+                {
+                    item.HasBackPose = true;
+                    item.BackModelRotation = lies * model.transform.localRotation;
+                    item.BackModelPosition = lies * model.transform.localPosition + shift;
+                }
+                // Its outline as it lies on the back, in the carried frame, for the hair under it (Items/BackClip): a V from tip to elbow to tip, as wide as its middle.
+                Vector3 OnIt(Vector3 p) => lies * Carried(shape, p) + shift;
                 Vector3 tipA = OnIt(shape.FarTip), elbow = OnIt(shape.Elbow), tipB = OnIt(shape.NearTip);
                 item.OutlineTipAndElbow = new Vector4(tipA.x, tipA.z, elbow.x, elbow.z);
                 item.OutlineTipAndWidths = new Vector4(tipB.x, tipB.z, shape.HalfWidthAtElbow, shape.HalfWidthAtTip);

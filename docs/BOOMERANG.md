@@ -147,13 +147,20 @@ reasonable amount". `/equip ironspiked` (also `ironspikedboomerang`, `spikedboom
 end, a leather wrap on each arm; Meshy's was one surface of 484,150 triangles, 2.03 m tip to tip and 31 cm thick (its knotted wraps), with
 four maps of 4096 and 2048.
 
-- **Size:** scaled to the bone one's 2.6 m tip to tip (x 1.28), so 2.20 x 2.44 m lying flat.
+- **Size:** its two arms, elbow to each end, as long as the bone one's (2.8 m in all), so 2.04 m tip to tip (Meshy's own size, x 1.004).
+  First it was fitted tip to tip to the bone one's 2.6 m, and its curled arms came out a third longer: on the back it covered the whole back
+  (owner: "make it the same size that the giant boomerang is now", "scale it down slightly ... i feel like it a bit bigger").
 - **Thickness** (the owner's "y axis"): pressed to 13 cm, the bone one's blade with its wraps.
 - **Faces:** cut to 6,000 triangles (a weapon's "fine" line in `tools/model_qa.py`), and Meshy's paint baked onto one 1024 map
   (`Weapons/IronSpikedBoomerang.jpg`, 215 KB). Its other maps are not used: the game's guns and blades are flat-shaded, a little metallic.
-- **Held** on its upper arm's wrap, between the wrap's two inner spikes, the arm from the hand to the elbow as the bone one's. It is laid so the
-  other arm goes off to the same side as the bone one's, since its back carry, draw and throw were posed for that (the script turns it over if
-  not). Grip, elbow, ends and arm widths go to `IronSpikedBoomerang.points.json`.
+- **Held** on its upper arm's wrap, between the wrap's two inner spikes, the arm from the hand to the elbow along the bone one's. Grip,
+  elbow, ends and arm widths go to `IronSpikedBoomerang.points.json`.
+- **On the back** it lies where the bone one does, **turned over** (owner: "flip it so its facing the other way so the spikes dont block
+  your view when playing", then "i want it like the same position as the giant boomerang on back just flipped so the spikes are facing the
+  other way"): its tip-to-tip line along the bone one's, its middle (what it spins about) on the bone one's, its hollow and spikes facing the other way from the
+  bone one's elbow, away from the camera over the right shoulder. Hung by its grip as the bone one is, the curled crescent sat above the
+  shoulders, so on the back its model lies apart from where the hand holds it (`GiantBoomerangItem.HasBackPose`, `BackModelPosition`,
+  `BackModelRotation`, set by the builder) and slides between the two in the hand-over's 0.12 s as it is drawn and put back.
 - **The prefabs:** `BoomerangBuilder.BuildIronSpiked` makes both (held and in the air) through the same `SaveGiant` as the bone one. The hair
   on the back is laid flat under its outline, 15% wider than its arms for the spikes.
 

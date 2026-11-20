@@ -6,10 +6,14 @@
 # Meshy's model: a steel crescent with spiked blades at both ends and a leather wrap on each arm, one surface of 484,150 triangles, 2.03 m tip
 # to tip and 31 cm thick (its knotted wraps), lying in Meshy's x-z plane, four 4096/2048 maps.
 #   1. Laid as the game's thrown giant boomerang lies (BoomerangBuilder): flat, its face up, its middle (what it spins about) at the origin;
-#      as big as the Giant Boomerang (2.6 m tip to tip, GIANT_SPAN), and pressed thin to about its thickness (THICK: the bone one's blade with
-#      its leather wraps).
-#   2. Turned over if need be so that, held by the grip with the arm running from the hand to the elbow, the other arm goes off to the same
-#      side as the bone one's: its carry on the back, its draw and its throw were posed for that.
+#      as big as the Giant Boomerang: its two arms, elbow to end, as long as the bone one's (BONE_ARMS; owner, seeing it on the back: "make it
+#      the same size that the giant boomerang is now", "scale it down slightly so its the same size as the other giant boomerang i feel like it
+#      a bit bigger": with the tips as far apart as the bone one's, its curled arms were a third longer), and pressed thin to about its
+#      thickness (THICK: the bone one's blade with its leather wraps).
+#   2. Turned over if need be so that, held by the grip with the arm running from the hand to the elbow, the other arm goes off to the hand's
+#      right: on the back the crescent's hollow and its spikes then face the body's left, away from the camera over the right shoulder (owner,
+#      2026-11-19: "flip it so its facing the other way so the spikes dont block your view when playing"; the bone one's other arm goes the
+#      other way). The held arm lies along the bone one's, so it hangs across the back at the bone one's slant.
 #   3. Cut to TRIANGLES; unwrapped, and Meshy's colour baked across onto one small map.
 #   4. Written: the model (one mesh "IronSpikedBoomerang"), its map, and its points (the grip on the upper arm's wrap, the elbow, the two ends,
 #      the arms' half widths) in the game's frame, for BoomerangBuilder.BuildIronSpiked.
@@ -24,7 +28,7 @@ import numpy as np
 args = sys.argv[sys.argv.index("--") + 1:]
 FBX, COLOUR, OUT_GLB, OUT_JPG, OUT_POINTS = (os.path.abspath(a) for a in args[:5])
 
-GIANT_SPAN = 2.6                 # the Giant Boomerang tip to tip (BoomerangBuilder.GiantShape)
+BONE_ARMS = 2.8                  # the Giant Boomerang's two arms, elbow to tip (BoomerangBuilder.GiantShape: 1.4 m each)
 THICK = 0.13                     # its blade (0.11) and its leather wraps standing proud of it
 TRIANGLES = 6000                 # tools/model_qa.py's weapon budget: 6k fine, 10k most
 TEXTURE_SIZE = 1024
@@ -93,14 +97,12 @@ picked = {
 }
 print("picked on Meshy's model:", {k: v.round(3).tolist() for k, v in picked.items()}, "half widths", round(upper_half, 3), round(lower_half, 3))
 
-# 1. Its span: the two points of it furthest apart (among the outermost in many directions).
-flat = meshy[:, [0, 2]]
-outermost = list({int(np.argmax(flat @ np.array([np.cos(a), np.sin(a)]))) for a in np.linspace(0.0, 2.0 * np.pi, 180, endpoint=False)})
-span = max(np.linalg.norm(flat[i] - flat[j]) for i in outermost for j in outermost)
-scale = GIANT_SPAN / span
+# 1. Its size: its arms, elbow to each end, as long as the bone one's.
+arms = np.linalg.norm(picked["upper_end"] - picked["elbow"]) + np.linalg.norm(picked["lower_end"] - picked["elbow"])
+scale = BONE_ARMS / arms
 press = THICK / ((meshy[:, 1].max() - meshy[:, 1].min()) * scale)
-print("span %.3f m -> %.2f m (x %.3f); %.3f m thick -> %.3f m (pressed x %.3f)" % (span, GIANT_SPAN, scale, meshy[:, 1].max() - meshy[:, 1].min(),
-                                                                                     THICK, press))
+print("arms %.3f m -> %.2f m (x %.3f); %.3f m thick -> %.3f m (pressed x %.3f)" % (arms, BONE_ARMS, scale, meshy[:, 1].max() - meshy[:, 1].min(),
+                                                                                    THICK, press))
 
 # The game's frame: Meshy's x across, its thin y up (the face), its z ahead; scaled, pressed, its middle (by area) at the origin.
 def to_game(p):
@@ -119,11 +121,11 @@ middle[1] = 0.0
 game -= middle
 points = {k: to_game(v[None, :])[0] - middle for k, v in picked.items()}
 
-# 2. Turned over if the other arm would go off to the wrong side of the hand (see the top).
+# 2. Turned over if the other arm would go off to the hand's left (see the top).
 toward = points["elbow"] - points["grip"]
 toward /= np.linalg.norm(toward)
 right = np.array([toward[2], 0.0, -toward[0]])            # Unity's cross(up, toward)
-if np.dot(right, points["lower_end"] - points["grip"]) > 0.0:
+if np.dot(right, points["lower_end"] - points["grip"]) < 0.0:
     flip = np.array([-1.0, -1.0, 1.0])
     game *= flip
     points = {k: v * flip for k, v in points.items()}
