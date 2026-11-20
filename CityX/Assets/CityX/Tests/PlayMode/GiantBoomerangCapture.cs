@@ -44,11 +44,22 @@ namespace CityX.Tests
             yield return Strips("ironrang", "IronSpikedGiantBoomerang", "ThrownIronSpikedGiantBoomerang", GiantBoomerangModel.IronSpiked);
         }
 
-        private static IEnumerator Strips(string label, string heldName, string thrownName, GiantBoomerangModel kind)
+        /// <summary>
+        /// The bone one's moves in the white T-Shirt, with a third view close behind the right shoulder (owner, 2026-11-20, of the arm held out to
+        /// the side: "there is a bit of the shoulder that clips through and also the sleeve has this weird indent ... try to make it straight like
+        /// the red line like the sleeve would be in real life").
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RenderTheGiantBoomerangsMovesInAShirt()
+        {
+            yield return Strips("giantrang-shirt", "GiantBoomerang", "ThrownGiantBoomerang", GiantBoomerangModel.Bone, "TShirt");
+        }
+
+        private static IEnumerator Strips(string label, string heldName, string thrownName, GiantBoomerangModel kind, string shirt = null)
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
-            var stage = new Stage(heldName, thrownName);
+            var stage = new Stage(heldName, thrownName, shirt);
             for (int i = 0; i < 20; i++) yield return null;
 
             stage.Thrower.SetGiantAiming(true);
@@ -148,8 +159,9 @@ namespace CityX.Tests
             private readonly GameObject _ground;
             private readonly Light _sun;
             private readonly GiantBoomerangItem _item;
+            private readonly GameObject _shirt;
 
-            public Stage(string heldName, string thrownName)
+            public Stage(string heldName, string thrownName, string shirt = null)
             {
                 Time.captureFramerate = 60;
                 _ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -175,6 +187,11 @@ namespace CityX.Tests
                 Thrower.GiantThrownPrefab = Thrower.IronSpikedThrownPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Weapons/{thrownName}.prefab");
                 _item = Object.Instantiate(prefab).GetComponent<GiantBoomerangItem>();
                 _item.OnEquip(Player, ItemInstanceData.None);
+                if (shirt != null)
+                {
+                    _shirt = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{shirt}.prefab"));
+                    _shirt.GetComponent<CityX.Items.IEquippableItem>().OnEquip(Player, ItemInstanceData.None);
+                }
             }
 
             /// <summary>A picture every <see cref="StripEvery"/> frames for <paramref name="seconds"/>, from the game's camera and from the body's left side: name-game-NN, name-side-NN.</summary>
@@ -186,6 +203,10 @@ namespace CityX.Tests
                 {
                     BuildingShapeCapture.Shoot(Camera, BuildingShapeCapture.ShotsFolder, $"{name}-game-{shot:00}", body + new Vector3(0.87f, 2.9f, -5.0f), body + new Vector3(0.3f, 1.7f, 2.0f));
                     BuildingShapeCapture.Shoot(Camera, BuildingShapeCapture.ShotsFolder, $"{name}-side-{shot:00}", body + new Vector3(-7.0f, 1.7f, 0.1f), body + new Vector3(0.0f, 1.4f, 0.1f));
+                    if (_shirt != null)
+                    {
+                        BuildingShapeCapture.Shoot(Camera, BuildingShapeCapture.ShotsFolder, $"{name}-shoulder-{shot:00}", body + new Vector3(0.9f, 2.5f, -2.0f), body + new Vector3(0.35f, 1.85f, 0.0f));
+                    }
                     for (int i = 0; i < StripEvery; i++)
                     {
                         yield return null;
@@ -196,7 +217,7 @@ namespace CityX.Tests
 
             public void Clear()
             {
-                foreach (GameObject go in new[] { Player, _item != null ? _item.gameObject : null, Camera.gameObject, _ground, _sun.gameObject })
+                foreach (GameObject go in new[] { Player, _item != null ? _item.gameObject : null, _shirt, Camera.gameObject, _ground, _sun.gameObject })
                 {
                     if (go != null) Object.Destroy(go);
                 }

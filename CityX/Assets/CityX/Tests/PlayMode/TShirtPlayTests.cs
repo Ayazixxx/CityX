@@ -147,6 +147,120 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// The bits of the body's skin round the tops of the shoulders (bind pose, the torso between the neck and the arms) that may come out of the
+        /// cloth, beyond those out of it standing (inside the neck's opening), in the Giant Boomerang's catch: drawn all over the crew neck's wide
+        /// opening, some 100 came through the back and front of the shoulder as the arm swung out (owner, 2026-11-20: "there is a bit of the shoulder
+        /// that clips through", "just make his body underneath the shirt invisible at that area"); hidden where the shirt covers it (TShirtBuilder's
+        /// NeckKeep), 27, all in the neck's opening, none showing on the cloth.
+        /// </summary>
+        private const int MostSkinOut = 40;
+
+        /// <summary>
+        /// Through the Giant Boomerang's throw and catch, its arm swung out to the side and rolled to hold it palm up, the skin round the tops of the
+        /// shoulders stays under the cloth: a ray out along each drawn bit's face meets the shirt (MostSkinOut).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator NoSkinComesThroughTheShouldersInTheGiantBoomerangsCatch()
+        {
+#if UNITY_EDITOR
+            _shirt.GetComponent<TShirt>().OnEquip(_player, ItemInstanceData.None);
+            var thrower = _player.AddComponent<CityX.Weapons.BoomerangThrower>();
+            thrower.GiantThrownPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/ThrownGiantBoomerang.prefab");
+            GameObject boomerang = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/GiantBoomerang.prefab"));
+            boomerang.GetComponent<CityX.Weapons.GiantBoomerangItem>().OnEquip(_player, ItemInstanceData.None);
+            SkinnedMeshRenderer cloth = TransformSearch.FindDeep(_player.transform, "CombinedGarmentSkin").GetComponent<SkinnedMeshRenderer>();
+            SkinnedMeshRenderer skin = null;
+            foreach (SkinnedMeshRenderer part in _player.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                if (part.sharedMesh != null && part.sharedMesh.name.EndsWith("Covered")) skin = part;
+            }
+            Assert.IsNotNull(skin, "the body under the shirt is not cut");
+            var cover = new GameObject("ShirtCover").AddComponent<MeshCollider>();
+            var bakedCloth = new Mesh();
+            var bakedSkin = new Mesh();
+            Vector3[] bind = skin.sharedMesh.vertices;
+            int[] triangles = skin.sharedMesh.triangles;
+            var outStanding = new System.Collections.Generic.HashSet<int>();
+            int worst = 0;
+            float worstAt = 0.0f;
+            bool hitBackfaces = Physics.queriesHitBackfaces;
+            int SkinOut(bool standing)
+            {
+                cloth.BakeMesh(bakedCloth, true);
+                cover.sharedMesh = null;
+                cover.sharedMesh = bakedCloth;
+                cover.transform.SetPositionAndRotation(cloth.transform.position, cloth.transform.rotation);
+                skin.BakeMesh(bakedSkin, true);
+                Vector3[] now = bakedSkin.vertices;
+                Physics.SyncTransforms();
+                Physics.queriesHitBackfaces = true;
+                int count = 0;
+                for (int t = 0; t < triangles.Length / 3; t++)
+                {
+                    Vector3 middle = (bind[triangles[t * 3]] + bind[triangles[t * 3 + 1]] + bind[triangles[t * 3 + 2]]) / 3.0f;
+                    if (middle.y < ShoulderSkinFrom || middle.y > ShoulderSkinTo || Mathf.Abs(middle.x) < NeckSkin || Mathf.Abs(middle.x) > ArmSkin ||
+                        outStanding.Contains(t))
+                    {
+                        continue;
+                    }
+                    Vector3 a = skin.transform.TransformPoint(now[triangles[t * 3]]), b = skin.transform.TransformPoint(now[triangles[t * 3 + 1]]);
+                    Vector3 c = skin.transform.TransformPoint(now[triangles[t * 3 + 2]]);
+                    Vector3 face = Vector3.Cross(b - a, c - a);
+                    if (face.sqrMagnitude < 1e-12f) continue;
+                    face.Normalize();
+                    if (!Physics.Raycast(new Ray((a + b + c) / 3.0f + face * 0.002f, face), ClothReach))
+                    {
+                        count++;
+                        if (standing) outStanding.Add(t);
+                    }
+                }
+                Physics.queriesHitBackfaces = hitBackfaces;
+                return count;
+            }
+            try
+            {
+                for (int frame = 0; frame < StandFrames; frame++) yield return null;
+                SkinOut(standing: true);
+                Assert.IsTrue(thrower.StartGiantThrow(Vector3.forward, 0.0f, 0.0f), "it was not thrown");
+                for (float t = 0.0f; t < 2.0f && !thrower.IsOut; t += Time.deltaTime) yield return null;
+                for (float t = 0.0f; t < 8.0f && thrower.IsOut && !thrower.GiantMoves.IsCatching; t += Time.deltaTime) yield return null;
+                Assert.IsTrue(thrower.GiantMoves.IsCatching, "it was never caught");
+                for (float t = 0.0f; t < 1.0f; t += Time.deltaTime)
+                {
+                    yield return null;
+                    int count = SkinOut(standing: false);
+                    if (count > worst)
+                    {
+                        worst = count;
+                        worstAt = t;
+                    }
+                }
+            }
+            finally
+            {
+                Physics.queriesHitBackfaces = hitBackfaces;
+                Object.Destroy(cover.gameObject);
+                Object.Destroy(bakedCloth);
+                Object.Destroy(bakedSkin);
+                Object.Destroy(boomerang);
+            }
+            Debug.Log($"{_prefab} catch: {worst} bits of shoulder skin out of the cloth at worst, {worstAt:0.00} s in");
+            Assert.LessOrEqual(worst, MostSkinOut, $"{worst} bits of the shoulders' skin come out through the shirt in the catch, {worstAt:0.00} s in");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>The skin round the tops of the shoulders, by its bind-pose middle: between these heights and these distances to the side.</summary>
+        private const float ShoulderSkinFrom = 1.4f;
+        private const float ShoulderSkinTo = 2.15f;
+        private const float NeckSkin = 0.12f;
+        private const float ArmSkin = 0.31f;
+
+        /// <summary>A bit of skin is under the cloth when a ray out from it meets the shirt within this.</summary>
+        private const float ClothReach = 0.25f;
+
+        /// <summary>
         /// Owner, 2026-10-20: "it still stretches around the armpits". Through a sprint, the shirt's cloth (each edge between two of its points,
         /// a centimetre or longer) is never drawn out past MostStretch, and few edges past Strained.
         /// </summary>

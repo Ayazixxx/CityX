@@ -34,10 +34,13 @@ namespace CityX.WearablesEditor
         /// only where it covers them, so the skin seen through it stays), and those skinned to <paramref name="hideable"/> that it covers; with
         /// the body's triangle count it was made for. Bones in <paramref name="alwaysWithin"/> count as <paramref name="always"/> inside
         /// <paramref name="within"/> (a coat's back: the hips, which its open front shows). Triangles whose bind-pose centre <paramref name="shown"/>
-        /// accepts are never hidden (the skin a garment leaves bare: inside a crew neck, below a short sleeve). Null when there is no body.
+        /// accepts are never hidden (the skin a garment leaves bare: inside a crew neck, below a short sleeve), and those <paramref name="shownWhereBare"/>
+        /// accepts only where the garment does not cover them (the skin round a wide neck opening, out over the shoulders: what of it the cloth lies
+        /// over goes). Null when there is no body.
         /// </summary>
         public static byte[] HiddenTriangles(Mesh garment, HumanBodyBones[] always, HumanBodyBones[] alwaysWithin, Bounds within,
-            HumanBodyBones[] hideable, Bounds opening, out int bodyTriangles, System.Predicate<Vector3> shown = null)
+            HumanBodyBones[] hideable, Bounds opening, out int bodyTriangles, System.Predicate<Vector3> shown = null,
+            System.Predicate<Vector3> shownWhereBare = null)
         {
             bodyTriangles = 0;
             var body = AssetDatabase.LoadAssetAtPath<Mesh>(BodyMeshPath);
@@ -77,7 +80,7 @@ namespace CityX.WearablesEditor
                     bool covered = normal.sqrMagnitude > 1e-12f && Covered(centre, normal.normalized);
                     bool hide = alwaysBone ? covered || !opening.Contains(centre)
                         : TriangleShare(weights, triangles, t, hideableIndex) >= HideableShare && covered;
-                    if (!hide || shown != null && shown(centre))
+                    if (!hide || shown != null && shown(centre) || shownWhereBare != null && !covered && shownWhereBare(centre))
                     {
                         continue;
                     }

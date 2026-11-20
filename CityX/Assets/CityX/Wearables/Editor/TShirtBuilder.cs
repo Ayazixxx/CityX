@@ -87,13 +87,28 @@ namespace CityX.WearablesEditor
         private const float NeckBand = 0.02f;
         private const float NeckFloor = 1.75f;
 
-        /// <summary>The skin the shirt leaves bare, by a body triangle's bind-pose centre: the upper arms past the cuffs, inside the neck.</summary>
+        /// <summary>
+        /// Within the crew neck's opening, the skin this near the body's middle (either side) is drawn all of it, in front and behind, along the clean
+        /// line the band lies along; further out, over the tops of the shoulders, only where the shirt does not cover it (BodyUnderGarment's
+        /// shownWhereBare). Kept only this near the neck's axis all round, the skin's edge under the band behind showed through it in spikes. Drawn all of it, an arm swung
+        /// out (the Giant Boomerang's catch, its aim) moved the cloth over it and it came through the back and front of the shoulder (owner,
+        /// 2026-11-20: "there is a bit of the shoulder that clips through", "just make his body underneath the shirt invisible at that area").
+        /// </summary>
+        private const float NeckKeep = 0.12f;
+
+        /// <summary>The skin the shirt leaves bare, by a body triangle's bind-pose centre: the upper arms past the cuffs, inside the neck near it.</summary>
         private static bool Shown(Vector3 centre, List<SleeveCuff> cuffs)
         {
             if (Mathf.Abs(centre.x) > ArmFromX && cuffs.Exists(cuff => cuff.IsPast(centre, CuffTuck)))
             {
                 return true;
             }
+            return InsideTheNeck(centre) && Mathf.Abs(centre.x) < NeckKeep;
+        }
+
+        /// <summary>The skin within the crew neck's opening (its oval, round the neck's axis, bind pose).</summary>
+        private static bool InsideTheNeck(Vector3 centre)
+        {
             float across = Mathf.Abs(centre.x) / (NeckSide - NeckBand);
             float ahead = centre.z / (centre.z > 0.0f ? NeckFront - NeckBand : NeckBack);
             return centre.y > NeckFloor && Mathf.Pow(across, centre.z > 0.0f ? 2.0f : NeckBackSquare) + ahead * ahead < 1.0f;
@@ -306,7 +321,7 @@ namespace CityX.WearablesEditor
                 Debug.LogError($"CityX: {rootName} has {cuffs.Count} cuffs, not {Cuffs}; its sleeves' arms stay hidden down to the hands.");
             }
             byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, alwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
-                new Bounds(), out int bodyTriangles, centre => Shown(centre, cuffs));
+                new Bounds(), out int bodyTriangles, centre => Shown(centre, cuffs), InsideTheNeck);
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<TShirt>(
                 mesh, material, prefabPath, rootName, 1.0f, 0.0f, 0.0f,
                 shirt =>
