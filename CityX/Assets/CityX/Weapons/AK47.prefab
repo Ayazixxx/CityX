@@ -561,7 +561,7 @@ MonoBehaviour:
     Kind: 1
     MagazineSize: 30
     StartingReserveAmmo: 90
-    Damage: 34
+    Damage: 50
     Range: 120
     FireRatePerSecond: 10
     Automatic: 1
@@ -606,6 +606,7 @@ MonoBehaviour:
     TracerEvery: 1
     ShotPitch: 0.78
     MotionResource: AK47/AK47Reload
+    PairMotionResource: Glock/GlockPairReload
     ReloadSeconds: 2.17
     EmptyReloadSeconds: 2.8
     ReloadSound: {fileID: 8300000, guid: 11eb4400a27dcec4abc0174d39380986, type: 3}
@@ -636,6 +637,8 @@ MonoBehaviour:
     CasingRadius: 0.0082
     ArrowFallSpeed: 0
     ReloadsAfterEveryShot: 0
+    FiresRocket: 0
+    BackblastLocal: {x: 0, y: 0, z: 0}
     Pellets: 1
     PelletConeDegrees: 0
     AimedConeShare: 1

@@ -28,7 +28,7 @@ namespace CityX.Tests
             Assert.Greater(ArcheryRules.BoltDamage, ArcheryRules.FullDamage);
             Assert.Greater(ArcheryRules.BoltFlatRange, ArcheryRules.FullFlatRange);
             Assert.Greater(ArcheryRules.CrossbowReloadSeconds, ArcheryRules.FullDrawSeconds * 2.0f, "the crossbow pays for its damage in reload time");
-            Assert.Greater(ArcheryRules.FullDamage, 1.5f * FirearmProfile.AK47().Damage, "a full arrow is worth more than an AK round for a second's draw");
+            Assert.Greater(ArcheryRules.FullDamage, FirearmProfile.AK47().Damage, "a full arrow is worth more than an AK round for a second's draw");
         }
 
         [Test]

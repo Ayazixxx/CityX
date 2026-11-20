@@ -301,6 +301,14 @@ namespace CityX.Weapons
         /// reload that rocks the magazine out and in, and a charging handle on the right for an empty gun (PUBG's AKM 2.25 s tactical, 2.9 s
         /// empty). It ejects to the right and forward.
         /// </summary>
+        /// <summary>
+        /// The rare guns kill a low-level enemy fast (owner, 2026-11-19: "guns like shotguns and ak47 are going to be hard to find they should kill
+        /// low level enemies very quick", "100 health is a low level enemy"): two AK rounds kill 100 health, and so does half a shotgun pattern
+        /// up close (all of it: 180). The numbers are mine.
+        /// </summary>
+        public const float AK47RoundDamage = 50.0f;
+        public const float ShotgunPelletDamage = 20.0f;
+
         public static FirearmProfile AK47()
         {
             return new FirearmProfile
@@ -312,7 +320,7 @@ namespace CityX.Weapons
                 HoldDipDegrees = 15.0f,
                 MagazineSize = 30,
                 StartingReserveAmmo = 90,
-                Damage = 34.0f,
+                Damage = AK47RoundDamage,
                 Range = 120.0f,
                 FireRatePerSecond = 10.0f,
                 Automatic = true,
@@ -364,7 +372,7 @@ namespace CityX.Weapons
         /// research how games do shotgun mechanics vs other guns and implement what you learn"; docs/SHOTGUN.md). Nine pellets a shot (PUBG's and
         /// Counter-Strike's Nova's count) in a fixed pattern, each losing damage with distance; the forend worked by hand after every shot, so
         /// about 70 shots a minute (the Nova's 68); six shells in the tube, loaded one at a time at about half a second each (the Nova's 0.5 s),
-        /// and a shot breaks the loading off. Held and aimed as a rifle. The damage, the cone and the falloff are mine.
+        /// and a shot breaks the loading off. Held and aimed as a rifle. The damage (raised: see ShotgunPelletDamage), the cone and the falloff are mine.
         /// </summary>
         public static FirearmProfile Shotgun()
         {
@@ -377,7 +385,7 @@ namespace CityX.Weapons
                 HoldDipDegrees = 15.0f,
                 MagazineSize = 6,
                 StartingReserveAmmo = 24,
-                Damage = 12.0f,
+                Damage = ShotgunPelletDamage,
                 Range = 45.0f,
                 Pellets = 9,
                 PelletConeDegrees = 3.2f,

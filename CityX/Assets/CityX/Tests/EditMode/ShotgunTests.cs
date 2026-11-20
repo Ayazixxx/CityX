@@ -71,6 +71,21 @@ namespace CityX.Tests
             Assert.AreEqual(1.0f, FirearmProfile.Glock().DamageShareAt(50.0f));
         }
 
+        /// <summary>
+        /// Owner, 2026-11-19: "the shotgun should do more damage close up the enemies are feeling like bullet sponges, 100 health is a low level
+        /// enemy", "guns like shotguns and ak47 are going to be hard to find they should kill low level enemies very quick". A low-level enemy
+        /// (the body's own 100 health) falls to two AK rounds, or to half a shotgun's pattern up close.
+        /// </summary>
+        [Test]
+        public void TheRareGunsKillALowLevelEnemyFast()
+        {
+            FirearmProfile shotgun = FirearmProfile.Shotgun();
+            int halfThePattern = (shotgun.Pellets + 1) / 2;
+            Assert.GreaterOrEqual(halfThePattern * shotgun.Damage * shotgun.DamageShareAt(shotgun.FalloffFullMetres), PlayerVitals.BaseMaxHealth,
+                "half a shotgun's pattern up close leaves a low-level enemy standing");
+            Assert.GreaterOrEqual(2.0f * FirearmProfile.AK47().Damage, PlayerVitals.BaseMaxHealth, "a low-level enemy takes more than two AK rounds");
+        }
+
         [Test]
         public void TheShotgunIsNinePelletsSixShellsAPumpAfterEveryShotAndATubeLoadedByHand()
         {

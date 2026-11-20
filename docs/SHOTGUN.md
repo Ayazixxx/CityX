@@ -46,7 +46,7 @@ inside the loading port: the reload carries it); **Trigger**. Its points are in 
 
 | | |
 |---|---|
-| Pellets | 9 a shot, 12 damage each (108 for a whole pattern; the AK-47 is 34 a round, the Glock 20) |
+| Pellets | 9 a shot, 20 damage each (180 for a whole pattern; the AK-47 is 50 a round, the Glock 20). Raised from 12 (owner, 2026-11-19: "the shotgun should do more damage close up the enemies are feeling like bullet sponges, 100 health is a low level enemy", "guns like shotguns and ak47 are going to be hard to find they should kill low level enemies very quick"): half the pattern up close kills a 100-health enemy, and two AK rounds do (they were 34) |
 | The pattern | Fixed (`PelletPattern.Offset`): one pellet down the crosshair, 2 on a ring at 0.45 of the cone, 6 on its edge. The cone is 3.2 degrees to its edge from the hip, 0.8 of that aiming: a body-wide pattern at about 8 m |
 | Distance | Each pellet keeps all its damage to 10 m and falls in a straight line to 35% at 30 m (`FirearmProfile.DamageShareAt`, from the muzzle); it reaches 45 m |
 | One blow | Whatever pellets land on one body are added up and land as ONE blow: one damage number, one roll against a block or armour, one wound |

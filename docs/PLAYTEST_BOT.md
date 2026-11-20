@@ -61,3 +61,18 @@ designed, a gamble (Block Chance 10%), the parry's instant being the sure one. T
 second the Shoota died after three shots at the player. With the crosshair on him the pistol kills a Shoota in five hits. (A first version
 of the test aimed from the body, not the camera, and every shot passed 0.9 m to his right: the camera stands 0.87 m off the shoulder. Not
 the game.)
+
+## The rare guns raised (2026-11-19)
+
+Owner: "the shotgun should do more damage close up the enemies are feeling like bullet sponges, 100 health is a low level enemy", "guns like
+shotguns and ak47 are going to be hard to find they should kill low level enemies very quick". The shotgun's pellets 12 -> 20 (180 a whole
+pattern), the AK-47's round 34 -> 50 (`FirearmProfile.ShotgunPelletDamage`, `AK47RoundDamage`). Three rounds each:
+
+| Loadout | Swordsman | Crazy Guy |
+|---|---|---|
+| Shotgun | 0.2 s every time, one blast (120-180 landed) | 0.2 s every time, one blast (100-180) |
+| AK-47 | 0.6-0.8 s, two rounds | 0.6-0.7 s, two rounds |
+
+None of these enemies had his guard up. A swordsman holds it up close in about half his fights (`DuelistMind.GuardStanceChance` 0.45), and a
+bullet through a held guard is a quarter of itself (the owner's rule of 2026-10-27, made for the player's sword): a whole blast into it is 45,
+three blasts; an AK round 12.5, eight rounds.

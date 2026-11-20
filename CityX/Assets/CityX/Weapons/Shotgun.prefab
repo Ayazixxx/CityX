@@ -339,7 +339,7 @@ MonoBehaviour:
     Kind: 1
     MagazineSize: 6
     StartingReserveAmmo: 24
-    Damage: 12
+    Damage: 20
     Range: 45
     FireRatePerSecond: 1.1764705
     Automatic: 0
@@ -355,6 +355,7 @@ MonoBehaviour:
     TracerEvery: 1
     ShotPitch: 1
     MotionResource: Shotgun/ShotgunReload
+    PairMotionResource: Glock/GlockPairReload
     ReloadSeconds: 4.202
     EmptyReloadSeconds: 4.602
     ReloadSound: {fileID: 0}
@@ -385,6 +386,8 @@ MonoBehaviour:
     CasingRadius: 0.0146
     ArrowFallSpeed: 0
     ReloadsAfterEveryShot: 0
+    FiresRocket: 0
+    BackblastLocal: {x: 0, y: 0, z: 0}
     Pellets: 9
     PelletConeDegrees: 3.2
     AimedConeShare: 0.8
