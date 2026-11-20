@@ -136,8 +136,11 @@ namespace CityX.WeaponsEditor
             for (int i = 0; i < vertices.Length; i++)
             {
                 Vector3 p = vertices[i];
-                // x, y across, z along (tip 0, body negative); a cyclic permutation keeps the handedness, and a flip of the direction along is paired with a flip of x.
-                Vector3 q = new Vector3((p[a1] - centre1) * (tipIsHigh ? -1.0f : 1.0f), p[a2] - centre2, (p[axis] - tipCoordinate) * (tipIsHigh ? 1.0f : -1.0f)) * scale;
+                // x, y across, z along (tip 0, body negative); a cyclic permutation keeps the handedness, and a flip of the direction along is paired with a
+                // flip of x. (Paired the other way round, one axis was always flipped: the shard was mirrored, its faces looking in, and drawn from inside,
+                // its near side see-through; owner, 2026-11-20.)
+                float along = tipIsHigh ? 1.0f : -1.0f;
+                Vector3 q = new Vector3((p[a1] - centre1) * along, p[a2] - centre2, (p[axis] - tipCoordinate) * along) * scale;
                 var cell = new Vector3Int(Mathf.RoundToInt(q.x / WeldMetres), Mathf.RoundToInt(q.y / WeldMetres), Mathf.RoundToInt(q.z / WeldMetres));
                 if (!cellOf.TryGetValue(cell, out int index))
                 {
