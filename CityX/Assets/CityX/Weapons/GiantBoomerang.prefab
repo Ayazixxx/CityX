@@ -284,5 +284,6 @@ MonoBehaviour:
   HasBackPose: 0
   BackModelPosition: {x: 0, y: 0, z: 0}
   BackModelRotation: {x: 0, y: 0, z: 0, w: 1}
+  TurnsTheLongWay: 0
   OutlineTipAndElbow: {x: -0.8771781, y: 2.0308812, z: 0.000000061460604, w: 0.9628102}
   OutlineTipAndWidths: {x: -0.018655486, y: -0.41917008, z: 0.21, w: 0.15}

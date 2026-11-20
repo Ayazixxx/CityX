@@ -133,8 +133,11 @@ namespace CityX.Tests
             Outline(held, out Vector2 near, out Vector2 far, out Vector2 elbow);
             Assert.Less(Vector2.Angle(far - near, boneFar - boneNear), 2.0f, "on the back it does not lie along the bone one's line");
             // Its model's origin is its middle (what it spins about), so where the model lies is where its middle is.
+            // Across and along the back, that is: it leans out off the back (its own top further out than its foot) to stay clear of the head.
             Vector3 boneMiddle = bone.transform.Find(GiantBoomerangItem.ModelName).localPosition;
-            Assert.Less(Vector3.Distance(held.BackModelPosition, boneMiddle), 0.02f, "on the back its middle is not where the bone one's is");
+            Assert.Less(Vector2.Distance(new Vector2(held.BackModelPosition.x, held.BackModelPosition.z), new Vector2(boneMiddle.x, boneMiddle.z)), 0.03f,
+                "on the back its middle is not where the bone one's is");
+            Assert.Greater(held.BackModelPosition.y, boneMiddle.y, "on the back it does not stand off the back");
             Assert.AreEqual(-Mathf.Sign(Side(boneNear, boneFar, boneElbow)), Mathf.Sign(Side(near, far, elbow)),
                 "on the back its spikes face the bone one's way (toward the camera), not the other way");
         }

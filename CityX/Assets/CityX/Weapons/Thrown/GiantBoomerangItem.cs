@@ -46,6 +46,9 @@ namespace CityX.Weapons
 
         public Quaternion BackModelRotation = Quaternion.identity;
 
+        [Tooltip("Between lying on the back and the grip it turns the long way round (the short way swept it through the head). Set by BoomerangBuilder.")]
+        public bool TurnsTheLongWay;
+
         [Tooltip("Its outline in its own frame as it lies on the back (the grip at the origin, z along it, y out of its face), for the hair it lies over (BackClip): one tip x, z and the elbow x, z. Set by BoomerangBuilder.")]
         public Vector4 OutlineTipAndElbow;
 
@@ -63,8 +66,16 @@ namespace CityX.Weapons
         private Transform _model;
         private Vector3 _gripModelPosition;
         private Quaternion _gripModelRotation;
-        private Vector3 _modelToPosition;
-        private Quaternion _modelToRotation;
+        private Transform _spine;
+
+        /// <summary>
+        /// One that lies elsewhere on the back (<see cref="HasBackPose"/>) keeps lying so while the hand is this near its place on the back, and is wholly in
+        /// the grip this far from it, metres (owner, 2026-11-20, of the Iron Spiked one: "make it so the head doesnt clip through"): held as in the aim
+        /// right behind the shoulder, its curled near blade swung into the head as the hand took it off the back or brought it back.
+        /// </summary>
+        public const float BackPoseNear = 0.35f;
+
+        public const float BackPoseFar = 0.85f;
 
         /// <summary>The wielder's melee, while equipped: it fights bare-handed while the boomerang is out.</summary>
         private MeleeAttacker _melee;
@@ -155,11 +166,13 @@ namespace CityX.Weapons
                 _model = transform.Find(ModelName);
                 if (_model != null)
                 {
-                    _gripModelPosition = _modelToPosition = _model.localPosition;
-                    _gripModelRotation = _modelToRotation = _model.localRotation;
+                    _gripModelPosition = _model.localPosition;
+                    _gripModelRotation = _model.localRotation;
                 }
             }
             _body = body;
+            Animator animator = body != null ? body.GetComponentInChildren<Animator>() : null;
+            _spine = animator != null ? animator.GetBoneTransform(HumanBodyBones.Spine) : null;
             foreach (Collider c in GetComponentsInChildren<Collider>())
             {
                 c.enabled = false;
@@ -226,37 +239,60 @@ namespace CityX.Weapons
             }
             _toPosition = transform.localPosition;
             _toRotation = transform.localRotation;
-            bool lyingElsewhere = HasBackPose && !inHand;
-            _modelToPosition = lyingElsewhere ? BackModelPosition : _gripModelPosition;
-            _modelToRotation = lyingElsewhere ? BackModelRotation : _gripModelRotation;
             if (inHand && !out_ && _thrower != null && _thrower.TakeCatchPose(out Vector3 caughtAt, out Quaternion caughtTurned))
             {
                 // Caught: from where it was flying, its model where the spinning one was, into the grip.
-                SetModel(_modelToPosition, _modelToRotation);
+                PlaceModel(1.0f);
                 Quaternion turn = _model != null ? caughtTurned * Quaternion.Inverse(_model.localRotation) : caughtTurned;
                 transform.SetPositionAndRotation(_model != null ? caughtAt - turn * _model.localPosition : caughtAt, turn);
                 _handOver = HandOverSeconds;
             }
             else if (!anew && !out_)
             {
-                // From where it was, so the grab and the putting back never jump: the model too, from where it lay to where it goes.
+                // From where it was, so the grab and the putting back never jump.
                 transform.SetPositionAndRotation(wasAt, wasTurned);
                 _handOver = HandOverSeconds;
             }
             else
             {
-                SetModel(_modelToPosition, _modelToRotation);
                 _handOver = 0.0f;
             }
+            PlaceModel(GripShare());
         }
 
-        private void SetModel(Vector3 position, Quaternion rotation)
+        /// <summary>
+        /// How far its model is from lying as on the back toward lying in the grip, 0 to 1: on the back 0; in the hand by how far the hand has it from its place
+        /// on the back (<see cref="BackPoseNear"/>, <see cref="BackPoseFar"/>), so taking it off the back and bringing it back it keeps the shape it lies in there.
+        /// </summary>
+        private float GripShare()
         {
-            if (_model != null)
+            if (!HasBackPose || !_inHand)
             {
-                _model.localPosition = position;
-                _model.localRotation = rotation;
+                return HasBackPose ? 0.0f : 1.0f;
             }
+            if (_spine == null)
+            {
+                return 1.0f;
+            }
+            float away = Vector3.Distance(transform.position, _spine.TransformPoint(OnTheBack.Grip));
+            return Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(BackPoseNear, BackPoseFar, away));
+        }
+
+        /// <summary>Its model between lying as on the back (0) and in the grip (1): only for one that lies elsewhere on the back.</summary>
+        private void PlaceModel(float grip)
+        {
+            if (_model == null || !HasBackPose)
+            {
+                return;
+            }
+            _model.localPosition = Vector3.Lerp(BackModelPosition, _gripModelPosition, grip);
+            (Quaternion.Inverse(BackModelRotation) * _gripModelRotation).ToAngleAxis(out float angle, out Vector3 axis);
+            angle = Mathf.DeltaAngle(0.0f, angle);
+            if (TurnsTheLongWay)
+            {
+                angle -= Mathf.Sign(angle) * 360.0f;
+            }
+            _model.localRotation = BackModelRotation * Quaternion.AngleAxis(angle * grip, axis);
         }
 
         private void LateUpdate()
@@ -273,18 +309,14 @@ namespace CityX.Weapons
             {
                 BackClip.Hide(transform);
             }
-            if (_handOver <= 0.0f)
+            if (_handOver > 0.0f)
             {
-                return;
+                float share = Mathf.Min(1.0f, Time.deltaTime / _handOver);
+                _handOver -= Time.deltaTime;
+                transform.localPosition = Vector3.Lerp(transform.localPosition, _toPosition, share);
+                transform.localRotation = Quaternion.Slerp(transform.localRotation, _toRotation, share);
             }
-            float share = Mathf.Min(1.0f, Time.deltaTime / _handOver);
-            _handOver -= Time.deltaTime;
-            transform.localPosition = Vector3.Lerp(transform.localPosition, _toPosition, share);
-            transform.localRotation = Quaternion.Slerp(transform.localRotation, _toRotation, share);
-            if (_model != null)
-            {
-                SetModel(Vector3.Lerp(_model.localPosition, _modelToPosition, share), Quaternion.Slerp(_model.localRotation, _modelToRotation, share));
-            }
+            PlaceModel(GripShare());
         }
 
         private void OnDestroy()

@@ -362,6 +362,63 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>How far clear of the head (a sphere of FusedBodyShape.HeadRadius round its bone) the Iron Spiked one stays on the back and as it is drawn and put back, metres.</summary>
+        private const float HeadClearance = 0.01f;
+
+        /// <summary>
+        /// Owner, 2026-11-20, of the Iron Spiked one on the back: "make it so the head doesnt clip through". On the back, and through the draw off it and the
+        /// putting back, no part of it comes into the head.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheIronSpikedOneStaysOutOfTheHeadOnTheBackAndAsItIsDrawnAndPutBack()
+        {
+#if UNITY_EDITOR
+            GameObject owner = Body(Vector3.zero);
+            var thrower = owner.GetComponent<BoomerangThrower>();
+            GameObject model = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab"));
+            _made.Add(model);
+            var item = model.GetComponent<GiantBoomerangItem>();
+            item.OnEquip(owner, ItemInstanceData.None);
+            Transform head = Bone(owner, HumanBodyBones.Head);
+            MeshFilter blade = model.GetComponentInChildren<MeshFilter>();
+            Vector3[] vertices = blade.sharedMesh.vertices;
+            float radius = FusedBodyShape.HeadRadius * owner.transform.lossyScale.y;
+            float worst = float.MaxValue;
+            string where = "";
+            void Measure(string moment)
+            {
+                Matrix4x4 toWorld = blade.transform.localToWorldMatrix;
+                foreach (Vector3 v in vertices)
+                {
+                    float clear = Vector3.Distance(toWorld.MultiplyPoint3x4(v), head.position) - radius;
+                    if (clear < worst)
+                    {
+                        worst = clear;
+                        where = moment;
+                    }
+                }
+            }
+            IEnumerator Watch(string moment, float seconds)
+            {
+                for (float t = 0.0f; t < seconds; t += Time.deltaTime)
+                {
+                    Measure(moment);
+                    yield return null;
+                }
+            }
+            for (int i = 0; i < 20; i++) yield return null;
+            Measure("on the back");
+            thrower.SetGiantAiming(true);
+            yield return Watch("drawn into the aim", 1.0f);
+            thrower.SetGiantAiming(false);
+            yield return Watch("put back", 1.2f);
+            Measure("on the back again");
+            Assert.GreaterOrEqual(worst, HeadClearance, $"it goes {-worst:0.000} m into the head, {where}");
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>
         /// The Iron Spiked Giant Boomerang (owner, 2026-11-19): carried and thrown as the bone one, its own blow landing, and what flies, here and on another
         /// player's copy, is its own spiked model, not the bone one.

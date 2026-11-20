@@ -160,7 +160,18 @@ four maps of 4096 and 2048.
   other way"): its tip-to-tip line along the bone one's, its middle (what it spins about) on the bone one's, its hollow and spikes facing the other way from the
   bone one's elbow, away from the camera over the right shoulder. Hung by its grip as the bone one is, the curled crescent sat above the
   shoulders, so on the back its model lies apart from where the hand holds it (`GiantBoomerangItem.HasBackPose`, `BackModelPosition`,
-  `BackModelRotation`, set by the builder) and slides between the two in the hand-over's 0.12 s as it is drawn and put back.
+  `BackModelRotation`, set by the builder).
+- **The head stays out of it** (owner, 2026-11-20: "make it so the head doesnt clip through"). Measured against the head (a sphere of
+  `FusedBodyShape.HeadRadius` round its bone) every frame on the back, through the draw and the put back:
+  - on the back it **leans 9 degrees**, its foot on the lower back and its top out, and stands 2 cm off the back (`IronSpikedLeanDegrees`,
+    `IronSpikedOffTheBack`): flat on the back its upper wrap lay against the back of the head, and the head leans back into it just after a
+    put-away. 18 cm clear now;
+  - **in the hand it is held the other way over** (its face up as before it was turned over for the back): turned over, its curled near blade
+    swung 7 to 33 cm into the head as the hand brought it behind the shoulder and in the aim. 24 cm clear in the aim;
+  - between the two it turns over **by how far the hand has it from its place on the back** (`BackPoseNear` 0.35 m, `BackPoseFar` 0.85 m),
+    keeping its back shape as the hand takes it off and brings it back, and **the long way round** (`TurnsTheLongWay`): the short way swept
+    it through the head. 3 cm clear at the closest.
+  `GiantBoomerangPlayTests.TheIronSpikedOneStaysOutOfTheHeadOnTheBackAndAsItIsDrawnAndPutBack` holds it 1 cm clear throughout.
 - **The prefabs:** `BoomerangBuilder.BuildIronSpiked` makes both (held and in the air) through the same `SaveGiant` as the bone one. The hair
   on the back is laid flat under its outline, 15% wider than its arms for the spikes.
 

@@ -153,6 +153,14 @@ namespace CityX.WeaponsEditor
         /// <summary>How much wider than its arms' middles the hair is laid flat under it on the back: its spikes stand out past them.</summary>
         private const float IronSpikedOutlineSpare = 1.15f;
 
+        /// <summary>
+        /// On the back it leans this far, its top out from the back about its foot, and stands this far off the back, so the head stays clear of it even as
+        /// it leans back after the boomerang is put away (GiantBoomerangPlayTests.TheIronSpikedOneStaysOutOfTheHeadOnTheBackAndAsItIsDrawnAndPutBack).
+        /// </summary>
+        private const float IronSpikedLeanDegrees = 9.0f;
+
+        private const float IronSpikedOffTheBack = 0.02f;
+
         /// <summary>The points SourceArt/IronSpikedBoomerang/iron_spiked_boomerang_build.py writes beside the model, in the thrown frame.</summary>
         [System.Serializable]
         private sealed class IronSpikedPoints
@@ -204,11 +212,27 @@ namespace CityX.WeaponsEditor
             GiantOutline bone = BoneOutline();
             Vector3 boneNear = Carried(bone, bone.NearTip), boneFar = Carried(bone, bone.FarTip);
             Vector3 ironNear = Carried(shape, shape.NearTip), ironFar = Carried(shape, shape.FarTip);
-            Quaternion backTurn = Quaternion.FromToRotation(ironFar - ironNear, boneFar - boneNear);
-            Vector3 backShift = Carried(bone, Vector3.zero) - backTurn * Carried(shape, Vector3.zero);
+            Quaternion layTurn = Quaternion.FromToRotation(ironFar - ironNear, boneFar - boneNear);
+            Vector3 layShift = Carried(bone, Vector3.zero) - layTurn * Carried(shape, Vector3.zero);
+            // Leant back off the head (owner, 2026-11-20: "make it so the head doesnt clip through"): its foot stays on the lower back and its top leans out
+            // (the carried frame's +y is out of the back), as a board carried on the back leans, and it stands a little off the back.
+            float foot = Mathf.Max((layTurn * ironNear + layShift).z, (layTurn * ironFar + layShift).z);
+            var pivot = new Vector3(0.0f, 0.0f, foot);
+            Quaternion lean = Quaternion.AngleAxis(IronSpikedLeanDegrees, Vector3.right);
+            Quaternion backTurn = lean * layTurn;
+            Vector3 backShift = lean * (layShift - pivot) + pivot + Vector3.up * IronSpikedOffTheBack;
             return SaveGiant("ThrownIronSpikedGiantBoomerang", ThrownIronSpikedPrefabPath, "IronSpikedGiantBoomerang", IronSpikedPrefabPath,
                 GiantBoomerangModel.IronSpiked, shape, new Vector3(0.0f, 0.0f, 1.0f), new Vector3(0.6f, bounds.size.y * 2.0f, 2.4f),
-                parent => HeldModelBaker.Part(parent, "Blade", mesh, steel), impact, backTurn, backShift);
+                parent => HeldModelBaker.Part(parent, "Blade", mesh, steel), impact, backTurn, backShift, heldTurnedBack: true);
+        }
+
+        /// <summary>A giant boomerang turned over in its thrown frame (its face down, its x the other way): about its z, which the build turns it over about.</summary>
+        private static readonly Quaternion TurnedOver = Quaternion.AngleAxis(180.0f, Vector3.forward);
+
+        private static GiantOutline TurnedBackOver(in GiantOutline shape)
+        {
+            Vector3 Over(Vector3 p) => TurnedOver * p;
+            return new GiantOutline(Over(shape.Grip), Over(shape.Elbow), Over(shape.FarTip), Over(shape.NearTip), shape.HalfWidthAtElbow, shape.HalfWidthAtTip);
         }
 
         /// <summary>
@@ -239,11 +263,13 @@ namespace CityX.WeaponsEditor
 
         /// <summary>
         /// A giant boomerang's two prefabs: the one in the air, and the one carried (its item) by its grip. With <paramref name="backTurn"/>, on the back its
-        /// model lies turned by it and moved by <paramref name="backShift"/> in the carried frame, rather than where the hand holds it.
+        /// model lies turned by it and moved by <paramref name="backShift"/> in the carried frame, rather than where the hand holds it. With
+        /// <paramref name="heldTurnedBack"/>, the hand holds it turned back over (as it was before the build turned it over for the back): the Iron Spiked one,
+        /// whose curled near blade, turned over, swung into the head in the aim.
         /// </summary>
         private static GameObject SaveGiant(string thrownName, string thrownPath, string heldName, string heldPath, GiantBoomerangModel kind, GiantOutline shape,
             Vector3 boxCentre, Vector3 boxSize, System.Action<Transform> addModel, AudioClip impactSound = null, Quaternion? backTurn = null,
-            Vector3 backShift = default)
+            Vector3 backShift = default, bool heldTurnedBack = false)
         {
             var thrown = new GameObject(thrownName);
             var held = new GameObject(heldName);
@@ -262,8 +288,9 @@ namespace CityX.WeaponsEditor
                 var model = new GameObject(GiantBoomerangItem.ModelName);
                 model.transform.SetParent(held.transform, false);
                 Quaternion turn = CarriedTurn(shape);
-                model.transform.localRotation = turn;
-                model.transform.localPosition = -(turn * shape.Grip);
+                Quaternion inTheHand = heldTurnedBack ? CarriedTurn(TurnedBackOver(shape)) * TurnedOver : turn;
+                model.transform.localRotation = inTheHand;
+                model.transform.localPosition = -(inTheHand * shape.Grip);
                 addModel(model.transform);
                 var box = held.AddComponent<BoxCollider>();
                 box.center = boxCentre;
@@ -275,8 +302,9 @@ namespace CityX.WeaponsEditor
                 if (backTurn.HasValue)
                 {
                     item.HasBackPose = true;
-                    item.BackModelRotation = lies * model.transform.localRotation;
-                    item.BackModelPosition = lies * model.transform.localPosition + shift;
+                    item.BackModelRotation = lies * turn;
+                    item.TurnsTheLongWay = heldTurnedBack;
+                    item.BackModelPosition = lies * -(turn * shape.Grip) + shift;
                 }
                 // Its outline as it lies on the back, in the carried frame, for the hair under it (Items/BackClip): a V from tip to elbow to tip, as wide as its middle.
                 Vector3 OnIt(Vector3 p) => lies * Carried(shape, p) + shift;
