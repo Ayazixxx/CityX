@@ -10,8 +10,8 @@ namespace CityX.Weapons
         /// <summary>Terraria's 10, of a player's 100 there as here.</summary>
         public const float Damage = 10.0f;
 
-        /// <summary>Velocity 6.5 pixels a tick.</summary>
-        public const float OutSpeed = 20.0f;
+        /// <summary>Velocity 6.5 pixels a tick was 20 m/s; 2 more (owner, 2026-11-20, after trying them faster: "increase them all by +2").</summary>
+        public const float OutSpeed = 22.0f;
 
         /// <summary>It flies straight this long, then turns for home whatever it has or has not met.</summary>
         public const float OutSeconds = 0.5f;
@@ -19,10 +19,10 @@ namespace CityX.Weapons
         /// <summary>How hard it steers for home once it has turned, m/s per second: enough to end a throw at about <see cref="Range"/>.</summary>
         public const float TurnAcceleration = 100.0f;
 
-        /// <summary>Its top speed coming back (46 mph).</summary>
-        public const float BackTopSpeed = 29.0f;
+        /// <summary>Its top speed coming back: 46 mph (29 m/s), and 2 more (owner, 2026-11-20, after trying them faster: "increase them all by +2").</summary>
+        public const float BackTopSpeed = 31.0f;
 
-        /// <summary>How far a throw goes when nothing stops it: about 13.6 tiles.</summary>
+        /// <summary>How far a throw goes when nothing stops it: 13.4 m (Terraria's 13.6 tiles, 12 m, until it was made faster).</summary>
         public const float Range = OutSpeed * OutSeconds + OutSpeed * OutSpeed / (2.0f * TurnAcceleration);
 
         /// <summary>It is caught this near the thrower's chest.</summary>

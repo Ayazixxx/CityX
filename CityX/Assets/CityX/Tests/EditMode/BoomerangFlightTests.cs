@@ -16,14 +16,15 @@ namespace CityX.Tests
         public void ItFliesStraightWithNoGravityForHalfASecondThenTurnsForHome()
         {
             BoomerangFlight flight = Thrown();
-            for (float t = 0.0f; t < BoomerangRules.OutSeconds - 2.0f * Step; t += Step)
+            float flown = 0.0f;
+            for (; flown < BoomerangRules.OutSeconds - 2.0f * Step; flown += Step)
             {
                 flight.Step(Step, Home);
             }
             Assert.IsFalse(flight.Returning, "it turned early");
             Assert.AreEqual(Home.y, flight.Position.y, 1e-4f, "it fell");
             Assert.AreEqual(0.0f, flight.Position.x, 1e-4f, "it curved");
-            Assert.AreEqual(BoomerangRules.OutSeconds * BoomerangRules.OutSpeed, flight.Position.z, 0.7f);
+            Assert.AreEqual(flown * BoomerangRules.OutSpeed, flight.Position.z, 0.01f, "it did not fly straight out at its speed");
 
             flight.Step(3.0f * Step, Home);
             Assert.IsTrue(flight.Returning, "half a second on and it has not turned");
@@ -42,7 +43,7 @@ namespace CityX.Tests
             }
             Assert.IsTrue(flight.Arrived(Home), "it never came home");
             Assert.AreEqual(BoomerangRules.Range, furthest, 0.6f, "not Terraria's 13.6 tiles");
-            Assert.AreEqual(12.0f, BoomerangRules.Range, 0.5f);
+            Assert.AreEqual(13.4f, BoomerangRules.Range, 0.5f, "not Terraria's 12 m made faster by the owner (13.4 m)");
             Assert.Less(seconds, 2.0f, "it took too long");
             Assert.Greater(seconds, 1.0f, "it was too quick");
         }
@@ -119,7 +120,7 @@ namespace CityX.Tests
             }
             Assert.IsTrue(flight.Arrived(Home), "it never came home");
             Assert.AreEqual(giant.Range, furthest, 0.8f);
-            Assert.AreEqual(25.0f, giant.Range, 1.5f, "not about twice the wooden one's 12 m");
+            Assert.AreEqual(28.0f, giant.Range, 1.5f, "not about twice the wooden one's 13.4 m");
             Assert.Less(giant.OutSpeed, BoomerangRules.OutSpeed, "it is not slower than the wooden one");
             Assert.Greater(GiantBoomerangRules.Damage, BoomerangRules.Damage * 2.5f, "it does not hit about three times as hard");
             Assert.IsTrue(giant.Heavy && !BoomerangProfile.Wooden.Heavy);

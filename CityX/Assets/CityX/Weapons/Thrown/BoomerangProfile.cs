@@ -74,13 +74,15 @@ namespace CityX.Weapons
 
         public static float DamageOf(GiantBoomerangModel model) => model == GiantBoomerangModel.IronSpiked ? IronSpikedDamage : Damage;
 
-        public const float OutSpeed = 18.0f;
+        /// <summary>18 m/s, then 2 more (owner, 2026-11-20, after trying them faster: "increase them all by +2"). It flies out for OutSeconds whatever its speed, so it goes further: 28 m.</summary>
+        public const float OutSpeed = 20.0f;
 
         public const float OutSeconds = 1.1f;
 
         public const float TurnAcceleration = 32.0f;
 
-        public const float BackTopSpeed = 24.0f;
+        /// <summary>24 m/s, then 2 more (owner, 2026-11-20, after trying them faster: "increase them all by +2").</summary>
+        public const float BackTopSpeed = 26.0f;
 
         /// <summary>It is caught with its middle this near the catching hand: held near one end, its middle is a metre out from the fist (BoomerangThrower.GiantMiddleFromHand).</summary>
         public const float CatchMetres = 1.0f;
