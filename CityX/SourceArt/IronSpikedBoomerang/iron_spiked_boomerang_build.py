@@ -22,6 +22,7 @@ import json
 import os
 import sys
 
+import bmesh
 import bpy
 import numpy as np
 
@@ -131,6 +132,14 @@ if np.dot(right, points["lower_end"] - points["grip"]) < 0.0:
     points = {k: v * flip for k, v in points.items()}
     print("turned over")
 me.vertices.foreach_set("co", to_blender(game).ravel())
+# Meshy's own axes read as the game's and written back through to_blender() are a mirror, so every face would look into the board and it
+# would be drawn from inside, the near side see-through (owner, 2026-11-20: "its like transparent on one side but i can see the texture on
+# the other side"): turned back out.
+bm = bmesh.new()
+bm.from_mesh(me)
+bmesh.ops.reverse_faces(bm, faces=bm.faces)
+bm.to_mesh(me)
+bm.free()
 me.update()
 
 # 3. Cut, unwrapped, Meshy's colour baked across.

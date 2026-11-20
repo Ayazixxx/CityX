@@ -41,19 +41,23 @@ namespace CityX.Weapons
         [Tooltip("On the back its model lies at BackModelPosition/Rotation (in this frame) rather than where the hand holds it. Set by BoomerangBuilder.")]
         public bool HasBackPose;
 
-        [Tooltip("Where its model lies on the back: the Iron Spiked one along the bone one's line there, turned over. Set by BoomerangBuilder.")]
+        [Tooltip("Where its model lies on the back: the Iron Spiked one along the bone one's line, turned over. Set by BoomerangBuilder.")]
         public Vector3 BackModelPosition;
 
         public Quaternion BackModelRotation = Quaternion.identity;
-
-        [Tooltip("Between lying on the back and the grip it turns the long way round (the short way swept it through the head). Set by BoomerangBuilder.")]
-        public bool TurnsTheLongWay;
 
         [Tooltip("Its outline in its own frame as it lies on the back (the grip at the origin, z along it, y out of its face), for the hair it lies over (BackClip): one tip x, z and the elbow x, z. Set by BoomerangBuilder.")]
         public Vector4 OutlineTipAndElbow;
 
         [Tooltip("The other tip x, z, each arm's half width at the elbow and at its tip (it narrows from the elbow). Set by BoomerangBuilder.")]
         public Vector4 OutlineTipAndWidths;
+
+        [Tooltip("It hangs on the back at HangPosition/HangEuler (from the spine bone) rather than OnTheBack: the Iron Spiked one, where the owner set it by hand. Set by BoomerangBuilder.")]
+        public bool HasOwnHang;
+
+        public Vector3 HangPosition;
+
+        public Vector3 HangEuler;
 
         private BoomerangThrower _thrower;
         private GameObject _body;
@@ -69,13 +73,21 @@ namespace CityX.Weapons
         private Transform _spine;
 
         /// <summary>
-        /// One that lies elsewhere on the back (<see cref="HasBackPose"/>) keeps lying so while the hand is this near its place on the back, and is wholly in
-        /// the grip this far from it, metres (owner, 2026-11-20, of the Iron Spiked one: "make it so the head doesnt clip through"): held as in the aim
-        /// right behind the shoulder, its curled near blade swung into the head as the hand took it off the back or brought it back.
+        /// One that lies elsewhere on the back (<see cref="HasBackPose"/>) flies between where it lies and the hand over this long, seconds (owner,
+        /// 2026-11-20, of the Iron Spiked one: "make it so the head doesnt clip through"): first this far straight back off the body, metres on a body of the
+        /// player's size, over this share of the flight, still turned as it was, then on to where it goes, turning as it goes. Carried along the hand's
+        /// path, or straight there turning all the way, its arms swept through the head.
         /// </summary>
-        public const float BackPoseNear = 0.35f;
+        public const float GlideSeconds = 0.25f;
 
-        public const float BackPoseFar = 0.85f;
+        public const float GlideBackOff = 0.35f;
+
+        public const float GlideOffShare = 0.4f;
+
+        /// <summary>Seconds of that flight still to go, and where its model was when it set off, from the spine bone.</summary>
+        private float _glide;
+        private Vector3 _glideFromPosition;
+        private Quaternion _glideFromRotation;
 
         /// <summary>The wielder's melee, while equipped: it fights bare-handed while the boomerang is out.</summary>
         private MeleeAttacker _melee;
@@ -221,7 +233,7 @@ namespace CityX.Weapons
             {
                 part.enabled = !out_;
             }
-            bool inHand = _thrower != null && _thrower.GiantMoves.InHand;
+            bool inHand = HeldNow();
             if ((!anew && inHand == _inHand) || _body == null)
             {
                 return;
@@ -229,9 +241,19 @@ namespace CityX.Weapons
             _inHand = inHand;
             Vector3 wasAt = transform.position;
             Quaternion wasTurned = transform.rotation;
+            bool flies = HasBackPose && !anew && !out_ && _model != null && _spine != null;
+            if (flies)
+            {
+                _glideFromPosition = _spine.InverseTransformPoint(_model.position);
+                _glideFromRotation = Quaternion.Inverse(_spine.rotation) * _model.rotation;
+            }
             if (inHand)
             {
                 CosmeticMount.ToBone(transform, _body, HumanBodyBones.RightHand, GripHandPosition, GripHandRotationEuler, 1.0f);
+            }
+            else if (HasOwnHang)
+            {
+                CosmeticMount.ToBone(transform, _body, HumanBodyBones.Spine, HangPosition, HangEuler, 1.0f);
             }
             else
             {
@@ -242,10 +264,19 @@ namespace CityX.Weapons
             if (inHand && !out_ && _thrower != null && _thrower.TakeCatchPose(out Vector3 caughtAt, out Quaternion caughtTurned))
             {
                 // Caught: from where it was flying, its model where the spinning one was, into the grip.
-                PlaceModel(1.0f);
+                PlaceModel();
                 Quaternion turn = _model != null ? caughtTurned * Quaternion.Inverse(_model.localRotation) : caughtTurned;
                 transform.SetPositionAndRotation(_model != null ? caughtAt - turn * _model.localPosition : caughtAt, turn);
                 _handOver = HandOverSeconds;
+            }
+            else if (flies)
+            {
+                // Where it goes at once; its model flies there from where it was (LateUpdate).
+                _handOver = 0.0f;
+                _glide = GlideSeconds;
+                PlaceModel();
+                Glide();
+                return;
             }
             else if (!anew && !out_)
             {
@@ -257,42 +288,31 @@ namespace CityX.Weapons
             {
                 _handOver = 0.0f;
             }
-            PlaceModel(GripShare());
+            PlaceModel();
         }
 
         /// <summary>
-        /// How far its model is from lying as on the back toward lying in the grip, 0 to 1: on the back 0; in the hand by how far the hand has it from its place
-        /// on the back (<see cref="BackPoseNear"/>, <see cref="BackPoseFar"/>), so taking it off the back and bringing it back it keeps the shape it lies in there.
+        /// Whether the hand has it. One hung elsewhere on the back (<see cref="HasOwnHang"/>) flies back there from the moment it is put away: the move
+        /// takes it back up behind the right shoulder, where the bone one rides, and held there it lay through the head.
         /// </summary>
-        private float GripShare()
+        private bool HeldNow()
         {
-            if (!HasBackPose || !_inHand)
+            if (_thrower == null)
             {
-                return HasBackPose ? 0.0f : 1.0f;
+                return false;
             }
-            if (_spine == null)
-            {
-                return 1.0f;
-            }
-            float away = Vector3.Distance(transform.position, _spine.TransformPoint(OnTheBack.Grip));
-            return Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(BackPoseNear, BackPoseFar, away));
+            return _thrower.GiantMoves.InHand && !(HasOwnHang && _thrower.GiantMoves.Current == GiantBoomerangPoseDriver.Move.PuttingAway);
         }
 
-        /// <summary>Its model between lying as on the back (0) and in the grip (1): only for one that lies elsewhere on the back.</summary>
-        private void PlaceModel(float grip)
+        /// <summary>Its model as it lies on the back or in the grip: only for one that lies elsewhere on the back (<see cref="HasBackPose"/>).</summary>
+        private void PlaceModel()
         {
             if (_model == null || !HasBackPose)
             {
                 return;
             }
-            _model.localPosition = Vector3.Lerp(BackModelPosition, _gripModelPosition, grip);
-            (Quaternion.Inverse(BackModelRotation) * _gripModelRotation).ToAngleAxis(out float angle, out Vector3 axis);
-            angle = Mathf.DeltaAngle(0.0f, angle);
-            if (TurnsTheLongWay)
-            {
-                angle -= Mathf.Sign(angle) * 360.0f;
-            }
-            _model.localRotation = BackModelRotation * Quaternion.AngleAxis(angle * grip, axis);
+            _model.localPosition = _inHand ? _gripModelPosition : BackModelPosition;
+            _model.localRotation = _inHand ? _gripModelRotation : BackModelRotation;
         }
 
         private void LateUpdate()
@@ -300,7 +320,7 @@ namespace CityX.Weapons
             // The hair under it is tucked beneath it only while it lies settled on the back: the moment the hand takes it, or as it glides back on, the hair
             // is whole again (owner, 2026-11-12: "when you throw it, the hair returns to normal and isnt cropped as you pull the boomerang away"). Asked
             // every frame, so no move can leave the hair cut.
-            bool onTheBack = _body != null && !_inHand && _handOver <= 0.0f && (_thrower == null || (!_thrower.IsOut && !_thrower.GiantMoves.InHand));
+            bool onTheBack = _body != null && !_inHand && _handOver <= 0.0f && _glide <= 0.0f && (_thrower == null || (!_thrower.IsOut && !_thrower.GiantMoves.InHand));
             if (onTheBack)
             {
                 BackClip.Show(transform, OutlineTipAndElbow, OutlineTipAndWidths);
@@ -316,7 +336,34 @@ namespace CityX.Weapons
                 transform.localPosition = Vector3.Lerp(transform.localPosition, _toPosition, share);
                 transform.localRotation = Quaternion.Slerp(transform.localRotation, _toRotation, share);
             }
-            PlaceModel(GripShare());
+            PlaceModel();
+            if (HasOwnHang && _body != null && HeldNow() != _inHand)
+            {
+                Place(false);
+            }
+            if (_glide > 0.0f)
+            {
+                _glide = Mathf.Max(0.0f, _glide - Time.deltaTime);
+                Glide();
+            }
+        }
+
+        /// <summary>Its model on its flight between where it was and its placed pose (<see cref="GlideSeconds"/>).</summary>
+        private void Glide()
+        {
+            if (_model == null || _spine == null)
+            {
+                return;
+            }
+            float there = Mathf.SmoothStep(0.0f, 1.0f, 1.0f - _glide / GlideSeconds);
+            Vector3 from = _spine.TransformPoint(_glideFromPosition);
+            Vector3 off = from - _body.transform.forward * GlideBackOff * _body.transform.lossyScale.y;
+            Vector3 at = there < GlideOffShare
+                ? Vector3.Lerp(from, off, Mathf.SmoothStep(0.0f, 1.0f, there / GlideOffShare))
+                : Vector3.Lerp(off, _model.position, Mathf.SmoothStep(0.0f, 1.0f, (there - GlideOffShare) / (1.0f - GlideOffShare)));
+            Quaternion turned = Quaternion.Slerp(_spine.rotation * _glideFromRotation, _model.rotation,
+                Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(GlideOffShare, 1.0f, there)));
+            _model.SetPositionAndRotation(at, turned);
         }
 
         private void OnDestroy()

@@ -191,8 +191,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GiantBoomerangItem
   Model: 1
   HasBackPose: 1
-  BackModelPosition: {x: -0.21655566, y: 0.18553586, z: 0.8999549}
-  BackModelRotation: {x: -0.035569604, y: -0.8885839, z: -0.06993307, w: -0.45195463}
-  TurnsTheLongWay: 1
-  OutlineTipAndElbow: {x: 0.045279574, y: 1.9451073, z: -0.77738583, w: 0.8839418}
-  OutlineTipAndWidths: {x: 0.58865213, y: 0.41352305, z: 0.259785, w: 0.259785}
+  BackModelPosition: {x: -0.21655567, y: 0, z: 0.8869269}
+  BackModelRotation: {x: 0, y: -0.89133155, z: 0, w: -0.45335218}
+  OutlineTipAndElbow: {x: 0.04527952, y: 1.9451072, z: -0.7773859, w: 0.8707142}
+  OutlineTipAndWidths: {x: 0.5886522, y: 0.3944316, z: 0.259785, w: 0.259785}
+  HasOwnHang: 1
+  HangPosition: {x: -0.92, y: 0.15, z: -0.36}
+  HangEuler: {x: 516.5, y: -90, z: 90}

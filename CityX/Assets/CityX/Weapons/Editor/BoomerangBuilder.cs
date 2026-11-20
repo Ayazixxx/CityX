@@ -154,12 +154,13 @@ namespace CityX.WeaponsEditor
         private const float IronSpikedOutlineSpare = 1.15f;
 
         /// <summary>
-        /// On the back it leans this far, its top out from the back about its foot, and stands this far off the back, so the head stays clear of it even as
-        /// it leans back after the boomerang is put away (GiantBoomerangPlayTests.TheIronSpikedOneStaysOutOfTheHeadOnTheBackAndAsItIsDrawnAndPutBack).
+        /// Where it hangs on the back, from the spine bone (GiantBoomerangItem.HangPosition, HangEuler): set by the owner by hand on the live boomerang in the
+        /// editor (2026-11-20, of it leant off the back: "honestly just let me set the position myself", then "this is the new positioning i want for the
+        /// boomerang"): upside down across the back, its elbow up between the shoulders.
         /// </summary>
-        private const float IronSpikedLeanDegrees = 9.0f;
+        private static readonly Vector3 IronSpikedHangPosition = new Vector3(-0.92f, 0.15f, -0.36f);
 
-        private const float IronSpikedOffTheBack = 0.02f;
+        private static readonly Vector3 IronSpikedHangEuler = new Vector3(516.5f, -90.0f, 90.0f);
 
         /// <summary>The points SourceArt/IronSpikedBoomerang/iron_spiked_boomerang_build.py writes beside the model, in the thrown frame.</summary>
         [System.Serializable]
@@ -204,26 +205,22 @@ namespace CityX.WeaponsEditor
             {
                 Debug.LogWarning($"CityX: no {IronSpikedImpactSoundPath} -- the Iron Spiked Giant Boomerang strikes with the bone one's made sounds.");
             }
-            // On the back it lies where the bone one does (owner, 2026-11-19: "i want it like the same position as the giant boomerang on back just flipped so
-            // the spikes are facing the other way"): its tip-to-tip line turned along the bone one's, the near tip toward the bone one's near tip, and its
-            // middle (what it spins about: the middle of its area) on the bone one's. Its tip-to-tip line's middle on the bone one's instead, the curled
-            // crescent bulged out off the body's side, over the shoulder the camera looks past. Turned over as it is (iron_spiked_boomerang_build.py), its
-            // hollow and spikes face the other way from the bone one's elbow.
+            // On the back it lies flat as the bone one does, its tip-to-tip line along the bone one's line through its grip, turned over (its hollow and
+            // spikes the other way from the bone one's); hung where the owner set it by hand in the editor (IronSpikedHangPosition).
             GiantOutline bone = BoneOutline();
             Vector3 boneNear = Carried(bone, bone.NearTip), boneFar = Carried(bone, bone.FarTip);
             Vector3 ironNear = Carried(shape, shape.NearTip), ironFar = Carried(shape, shape.FarTip);
             Quaternion layTurn = Quaternion.FromToRotation(ironFar - ironNear, boneFar - boneNear);
             Vector3 layShift = Carried(bone, Vector3.zero) - layTurn * Carried(shape, Vector3.zero);
-            // Leant back off the head (owner, 2026-11-20: "make it so the head doesnt clip through"): its foot stays on the lower back and its top leans out
-            // (the carried frame's +y is out of the back), as a board carried on the back leans, and it stands a little off the back.
-            float foot = Mathf.Max((layTurn * ironNear + layShift).z, (layTurn * ironFar + layShift).z);
-            var pivot = new Vector3(0.0f, 0.0f, foot);
-            Quaternion lean = Quaternion.AngleAxis(IronSpikedLeanDegrees, Vector3.right);
-            Quaternion backTurn = lean * layTurn;
-            Vector3 backShift = lean * (layShift - pivot) + pivot + Vector3.up * IronSpikedOffTheBack;
-            return SaveGiant("ThrownIronSpikedGiantBoomerang", ThrownIronSpikedPrefabPath, "IronSpikedGiantBoomerang", IronSpikedPrefabPath,
+            GameObject saved = SaveGiant("ThrownIronSpikedGiantBoomerang", ThrownIronSpikedPrefabPath, "IronSpikedGiantBoomerang", IronSpikedPrefabPath,
                 GiantBoomerangModel.IronSpiked, shape, new Vector3(0.0f, 0.0f, 1.0f), new Vector3(0.6f, bounds.size.y * 2.0f, 2.4f),
-                parent => HeldModelBaker.Part(parent, "Blade", mesh, steel), impact, backTurn, backShift, heldTurnedBack: true);
+                parent => HeldModelBaker.Part(parent, "Blade", mesh, steel), impact, layTurn, layShift, heldTurnedBack: true);
+            var item = saved.GetComponent<GiantBoomerangItem>();
+            item.HasOwnHang = true;
+            item.HangPosition = IronSpikedHangPosition;
+            item.HangEuler = IronSpikedHangEuler;
+            PrefabUtility.SavePrefabAsset(saved);
+            return saved;
         }
 
         /// <summary>A giant boomerang turned over in its thrown frame (its face down, its x the other way): about its z, which the build turns it over about.</summary>
@@ -303,7 +300,6 @@ namespace CityX.WeaponsEditor
                 {
                     item.HasBackPose = true;
                     item.BackModelRotation = lies * turn;
-                    item.TurnsTheLongWay = heldTurnedBack;
                     item.BackModelPosition = lies * -(turn * shape.Grip) + shift;
                 }
                 // Its outline as it lies on the back, in the carried frame, for the hair under it (Items/BackClip): a V from tip to elbow to tip, as wide as its middle.

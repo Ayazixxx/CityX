@@ -155,30 +155,33 @@ four maps of 4096 and 2048.
   (`Weapons/IronSpikedBoomerang.jpg`, 215 KB). Its other maps are not used: the game's guns and blades are flat-shaded, a little metallic.
 - **Held** on its upper arm's wrap, between the wrap's two inner spikes, the arm from the hand to the elbow along the bone one's. Grip,
   elbow, ends and arm widths go to `IronSpikedBoomerang.points.json`.
-- **On the back** it lies where the bone one does, **turned over** (owner: "flip it so its facing the other way so the spikes dont block
-  your view when playing", then "i want it like the same position as the giant boomerang on back just flipped so the spikes are facing the
-  other way"): its tip-to-tip line along the bone one's, its middle (what it spins about) on the bone one's, its hollow and spikes facing the other way from the
-  bone one's elbow, away from the camera over the right shoulder. Hung by its grip as the bone one is, the curled crescent sat above the
-  shoulders, so on the back its model lies apart from where the hand holds it (`GiantBoomerangItem.HasBackPose`, `BackModelPosition`,
-  `BackModelRotation`, set by the builder).
-- **The head stays out of it** (owner, 2026-11-20: "make it so the head doesnt clip through"). Measured against the head (a sphere of
-  `FusedBodyShape.HeadRadius` round its bone) every frame on the back, through the draw and the put back:
-  - on the back it **leans 9 degrees**, its foot on the lower back and its top out, and stands 2 cm off the back (`IronSpikedLeanDegrees`,
-    `IronSpikedOffTheBack`): flat on the back its upper wrap lay against the back of the head, and the head leans back into it just after a
-    put-away. 18 cm clear now;
-  - **in the hand it is held the other way over** (its face up as before it was turned over for the back): turned over, its curled near blade
-    swung 7 to 33 cm into the head as the hand brought it behind the shoulder and in the aim. 24 cm clear in the aim;
-  - between the two it turns over **by how far the hand has it from its place on the back** (`BackPoseNear` 0.35 m, `BackPoseFar` 0.85 m),
-    keeping its back shape as the hand takes it off and brings it back, and **the long way round** (`TurnsTheLongWay`): the short way swept
-    it through the head. 3 cm clear at the closest.
-  `GiantBoomerangPlayTests.TheIronSpikedOneStaysOutOfTheHeadOnTheBackAndAsItIsDrawnAndPutBack` holds it 1 cm clear throughout.
+- **Drawn from outside.** Meshy's axes read as the game's are a mirror, so the build turns every face back out (`bmesh.ops.reverse_faces`):
+  inside out, only its far side's inside was drawn, the near side see-through (owner, 2026-11-20: "its like transparent on one side but i
+  can see the texture on the other side"). `IronSpikedGiantBoomerangTests.ItsFacesLookOutOfItSoItIsNotSeenThrough`.
+- **On the back it hangs where the owner set it by hand** in the editor (2026-11-20: "honestly just let me set the position myself", then
+  "this is the new positioning i want for the boomerang"): upside down across the back, its elbow up between the shoulders and its arms down
+  to either side, flat against the back. The owner moved the whole boomerang on the spine: `GiantBoomerangItem.HasOwnHang`, `HangPosition`
+  (-0.92, 0.15, -0.36) and `HangEuler` (516.5, -90, 90) from the spine bone, in place of `OnTheBack` (`BoomerangBuilder.IronSpikedHangPosition`,
+  `IronSpikedHangEuler`). In that frame it lies flat, its tip-to-tip line along the bone one's, turned over (`BackModelPosition`,
+  `BackModelRotation`). Before that it leant 9 degrees off the back to stay clear of the head ("now its floating on his back"), and a try at
+  pressing the poking head into it flattened the head ("do this without making it look like the head has a dent in it"); both are gone.
+- **In the hand it is held the other way over** (its face up as before it was turned over for the back): turned over, its curled near blade
+  swung into the head in the aim. 24 cm clear in the aim.
+- **Drawn and put back, it flies** between the back and the hand over 0.25 s (`GiantBoomerangItem.GlideSeconds`): first 35 cm straight back off the body
+  still turned as it lay, then on into the hand, turning (`GlideBackOff`, `GlideOffShare`). The moves reach for it behind the right shoulder,
+  where the bone one rides: it leaves the back as the hand closes there, and leaves the hand the moment it is put away (`HeldNow`), as held
+  up there it lay through the head. Carried straight from the back to the hand, turning all the way, its arms swept 32 cm into the head.
+- **The head:** measured against a sphere of `FusedBodyShape.HeadRadius` round the head bone (a little bigger than the head, so the bone
+  one comes into it too: 1.6 cm standing, 13 crouched), standing, drawing, aiming, putting back, crouching and jumping, it comes no further
+  in than the bone one (5 cm clear standing where the bone one is 1.6 cm in; 7 cm in crouched; 3 to 5 cm in for a moment as the draw and
+  the put-away lean the head back into its elbow). `GiantBoomerangPlayTests.TheIronSpikedOneComesNoFurtherIntoTheHeadThanTheBoneOne`.
 - **The prefabs:** `BoomerangBuilder.BuildIronSpiked` makes both (held and in the air) through the same `SaveGiant` as the bone one. The hair
   on the back is laid flat under its outline, 15% wider than its arms for the spikes.
 
 `tools/model_qa.py --kind weapon`: everything passes but one point on a wrap's knot that it calls a spike.
 
 Tests: `IronSpikedGiantBoomerangTests` (the item, Very Rare, its blow against the bone one's, the built model's span, thickness, faces and
-map, the grip on the model and the other arm's side); `GiantBoomerangPlayTests.TheIronSpikedOneFliesAsItselfHereAndOnAnotherPlayersCopyAndHitsHarder`.
+map, the grip on the model and the other arm's side, its hang, its faces); `GiantBoomerangPlayTests.TheIronSpikedOneFliesAsItselfHereAndOnAnotherPlayersCopyAndHitsHarder`, `TheIronSpikedOneComesNoFurtherIntoTheHeadThanTheBoneOne`.
 Pictures: `GiantBoomerangCapture.RenderTheIronSpikedGiantBoomerang` (`ironrang-*.png`).
 
 **Its sound** (owner, 2026-11-19, with `GiantMetalBoomerangImpact.mp3`: "make this the noise it plays when it lands on an enemy ... or terrain for

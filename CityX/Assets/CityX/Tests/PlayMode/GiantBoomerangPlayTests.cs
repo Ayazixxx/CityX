@@ -362,58 +362,69 @@ namespace CityX.Tests
 #endif
         }
 
-        /// <summary>How far clear of the head (a sphere of FusedBodyShape.HeadRadius round its bone) the Iron Spiked one stays on the back and as it is drawn and put back, metres.</summary>
-        private const float HeadClearance = 0.01f;
-
         /// <summary>
-        /// Owner, 2026-11-20, of the Iron Spiked one on the back: "make it so the head doesnt clip through". On the back, and through the draw off it and the
-        /// putting back, no part of it comes into the head.
+        /// Owner, 2026-11-20, of the Iron Spiked one: "make it so the head doesnt clip through", then hung on the back where they set it by hand. Standing,
+        /// crouching and jumping with it on the back, drawing it into the aim and putting it back, it comes no further into the head (a sphere of
+        /// FusedBodyShape.HeadRadius round its bone, a little bigger than the head, so both come near it) than the bone one, which sits where the owner
+        /// is happy with it, does through the same.
         /// </summary>
         [UnityTest]
-        public IEnumerator TheIronSpikedOneStaysOutOfTheHeadOnTheBackAndAsItIsDrawnAndPutBack()
+        public IEnumerator TheIronSpikedOneComesNoFurtherIntoTheHeadThanTheBoneOne()
         {
 #if UNITY_EDITOR
-            GameObject owner = Body(Vector3.zero);
-            var thrower = owner.GetComponent<BoomerangThrower>();
-            GameObject model = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/IronSpikedGiantBoomerang.prefab"));
-            _made.Add(model);
-            var item = model.GetComponent<GiantBoomerangItem>();
-            item.OnEquip(owner, ItemInstanceData.None);
-            Transform head = Bone(owner, HumanBodyBones.Head);
-            MeshFilter blade = model.GetComponentInChildren<MeshFilter>();
-            Vector3[] vertices = blade.sharedMesh.vertices;
-            float radius = FusedBodyShape.HeadRadius * owner.transform.lossyScale.y;
-            float worst = float.MaxValue;
-            string where = "";
-            void Measure(string moment)
+            float bone = 0.0f, iron = 0.0f;
+            string ironWhere = "";
+            foreach (string which in new[] { "GiantBoomerang", "IronSpikedGiantBoomerang" })
             {
-                Matrix4x4 toWorld = blade.transform.localToWorldMatrix;
-                foreach (Vector3 v in vertices)
+                GameObject owner = Body(new Vector3(which.Length, 0.0f, 0.0f));
+                var thrower = owner.GetComponent<BoomerangThrower>();
+                var locomotion = owner.GetComponent<PlayerLocomotion>();
+                GameObject model = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Weapons/{which}.prefab"));
+                _made.Add(model);
+                model.GetComponent<GiantBoomerangItem>().OnEquip(owner, ItemInstanceData.None);
+                Transform head = Bone(owner, HumanBodyBones.Head);
+                MeshFilter[] parts = model.GetComponentsInChildren<MeshFilter>();
+                float radius = FusedBodyShape.HeadRadius * owner.transform.lossyScale.y;
+                float worst = float.MaxValue;
+                string where = "";
+                IEnumerator Watch(string moment, float seconds, LocomotionInput input)
                 {
-                    float clear = Vector3.Distance(toWorld.MultiplyPoint3x4(v), head.position) - radius;
-                    if (clear < worst)
+                    for (float t = 0.0f; t < seconds; t += Time.deltaTime)
                     {
-                        worst = clear;
-                        where = moment;
+                        LocomotionInput step = input;
+                        step.Jump = input.Jump && t < Time.deltaTime;
+                        locomotion.Tick(step, Time.deltaTime);
+                        yield return null;
+                        foreach (MeshFilter part in parts)
+                        {
+                            Matrix4x4 toWorld = part.transform.localToWorldMatrix;
+                            foreach (Vector3 v in part.sharedMesh.vertices)
+                            {
+                                float clear = Vector3.Distance(toWorld.MultiplyPoint3x4(v), head.position) - radius;
+                                if (clear < worst)
+                                {
+                                    worst = clear;
+                                    where = moment;
+                                }
+                            }
+                        }
                     }
                 }
-            }
-            IEnumerator Watch(string moment, float seconds)
-            {
-                for (float t = 0.0f; t < seconds; t += Time.deltaTime)
+                yield return Watch("standing", 0.5f, new LocomotionInput());
+                thrower.SetGiantAiming(true);
+                yield return Watch("drawn into the aim", 1.0f, new LocomotionInput());
+                thrower.SetGiantAiming(false);
+                yield return Watch("put back", 1.2f, new LocomotionInput());
+                yield return Watch("crouched", 1.0f, new LocomotionInput { Crouch = true });
+                yield return Watch("jumping", 1.5f, new LocomotionInput { Jump = true });
+                if (which == "GiantBoomerang") bone = worst;
+                else
                 {
-                    Measure(moment);
-                    yield return null;
+                    iron = worst;
+                    ironWhere = where;
                 }
             }
-            for (int i = 0; i < 20; i++) yield return null;
-            Measure("on the back");
-            thrower.SetGiantAiming(true);
-            yield return Watch("drawn into the aim", 1.0f);
-            thrower.SetGiantAiming(false);
-            yield return Watch("put back", 1.2f);
-            Measure("on the back again");
-            Assert.GreaterOrEqual(worst, HeadClearance, $"it goes {-worst:0.000} m into the head, {where}");
+            Assert.GreaterOrEqual(iron, bone, $"it goes {-iron:0.000} m into the head, {ironWhere}; the bone one {-bone:0.000} m");
 #else
             yield break;
 #endif
