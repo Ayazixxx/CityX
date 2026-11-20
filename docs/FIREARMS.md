@@ -61,6 +61,7 @@ dominant hand driving the gun and the off hand IK'd to a point on it, the off-ha
   and handguards, gas tube, barrel, sights, trigger guard, magazine paddle, selector), a curved Magazine whose origin is its front lug
   (it rocks about it), the Bolt's charging handle on the right, the Trigger. The reference file the owner sent was only looked at
   (probe renders of its shape and the order of its reload, `CityX/SourceArt/AK47/ak47_reference_probe.py`); nothing of it is used.
+  Remodelled 2026-11-19 ("The AK-47 remodelled", below).
 - Both are authored in the gun's own frame (x right, y up, z the muzzle) with the **origin at the web of the pistol grip**, so one
   hold fits every gun with a pistol grip (`FirearmProfile.HoldPosition`/`HoldDipDegrees`). Each writes a `.glb` and a `.points.json`
   (muzzle, ejection port, magazine, butt, handguard...) that the profiles' numbers come from.
@@ -330,3 +331,52 @@ second gun (the single guns' reloads are unchanged).
 Its own page: [RPG.md](RPG.md). What it added to the shared gun: a profile can fire its loaded round as a rocket (`FirearmProfile.FiresRocket`:
 `PistolWeapon.Rocket.cs`, `FlyingRocket`, `RocketRules`) instead of a bullet, with a back-blast behind (`BackblastLocal`), the round showing
 at the muzzle only while it is loaded. Its rockets reach other players through the body's `RocketLauncher` (an `IReplicatedAbility`).
+
+## Update 2026-11-19: the AK-47 remodelled
+
+Owner: "make the ak47 model look better keep it sort of cartoony to match the art direction of the rest of the game but improve upon the
+model we have now. maybe look at other free ak47 models for inspiration but keep the moving parts and reload animations etc", then "when i
+say sort of cartoony i mean i dont need it like gta 6 levels of realism id still like it to look good", and, of a stylised low-poly AK on
+Sketchfab ("Stylized Low Poly Ak 74", 4.3k triangles, hand-painted; looked at in the browser, not downloaded): "that one looks pretty good".
+
+The first model was 800 triangles of boxes and cylinders, flat-shaded, in steels so dark and so metallic that under the cel light the whole
+rifle was one black shape. The new one (`ak47_model.py`, still from scratch, still built by script) is 4,512 triangles (a two-handed
+weapon: fine up to 5,000):
+
+| Part | What |
+|---|---|
+| Wood | The stock rounded all the way round, its comb dropping to a steel butt plate, in a steel collar at the receiver, a sling loop under it; the grip raked and fuller toward its foot, a darker chequered panel on each side; the lower handguard with its palm swell and a finger groove along each side; the upper one arched over the gas tube, clipped by two steel bands |
+| Receiver | A stamped box with rolled edges, the magazine well's dimple, the trunnions' rivets and the trigger group's pins, and on the right the slot with the bolt carrier's bright steel in it and the long selector lever (down: fire) |
+| Top | An arched dust cover dropping to the rear with three pressed ribs, the recoil spring's button behind it; the rear sight's ramp, leaf, slider and notch |
+| Front | The barrel turned in one piece with its muzzle nut and a real bore, the cleaning rod under it, the gas block raked forward, the front sight's band, tower, two ears and post |
+| Magazine | Rounded, two long ribs along each side, a floor plate, and a brass round at its lips (seen when it is out of the rifle) |
+| Bolt, trigger | The carrier's bright flank and a flared charging handle; a trigger blade curving back |
+
+**How it is built** (`Firearms/firearm_parts.py`, new pieces beside the first ones, which the shotgun and the RPG still use unchanged):
+`rings` (a tube through any cross-sections: `rounded_rect`, `marked_rect`), `rbox` (a box with rounded edges), `lathe` (a turned part),
+`slab` (a side profile with chamfered outlines), `strap` (a band along a path), and `finish(smooth=degrees)`: rounded forms shaded smooth,
+edges sharper than 50 degrees crisp, flat faces kept flat (weighted normals, exported with the model).
+
+**The small things are drawn, not raised.** The game draws a black line wherever a surface folds or steps (`docs/CEL_SHADING.md`). A rib
+or a rivet standing a millimetre off the steel is smaller than a pixel on the screen, and its line came out as rows of black specks along
+the receiver and the magazine. So a pressed rib, a groove, a chequered panel is a band of another colour in the surface itself (`rings`'
+`inlays`), and a rivet, a pin, the dimple, the slot and the selector lever lie 0.4 mm off the steel (`FLUSH`), in the dark steel.
+
+**The colours** (`AK47Builder.Finishes`): the steel a blue-grey, painted more than polished (metallic 0.35: a very metallic surface shows
+almost none of its own colour under the cel light), the magazine a little lighter, the barrel and small parts dark, the carrier bare
+steel, the wood red-brown with a darker cut. All mine.
+
+**What the hands hold is where it was**, so the reload and the holds are untouched: the grip's back strap, the lower handguard inside the
+box the left hand's cradle was made on, the magazine's arc and size, the butt, the muzzle, the charging handle, the trigger's pivot. The
+build writes the same `AK47.points.json` and the same `AK47Reload.json`, byte for byte.
+
+`blender --background --python CityX/SourceArt/AK47/ak47_model.py -- --look <folder>` renders the rifle alone from five sides and prints
+its triangle count, writing nothing to the game: for shaping it. `tools/model_qa.py --kind weapon` passes its triangles, holes, broken
+edges, turned and zero-size faces; it warns of "floating bits" and "spikes" (the rifle is separate solid pieces pushed into each other, as
+every gun here is) and fails it for having no texture coordinates (guns are flat-coloured: `FirearmTests` forbids them a texture).
+
+Tests: `FirearmTests.TheAK47IsRoundedInsideItsBudgetAndWhatTheHandsHoldIsWhereItWas` (the budget, its own normals, a look for every part,
+the handguards inside the cradle's box, the muzzle, butt and charging handle in place); `FirearmPlayTests` (the cradle joint by joint, the
+shouldered aim, the reload) pass unchanged. Pictures: `FirearmCapture.RenderTheAK47`.
+
+Not done: no wood grain or wear (no textures on guns); the magazine shows a round at its lips empty or full.

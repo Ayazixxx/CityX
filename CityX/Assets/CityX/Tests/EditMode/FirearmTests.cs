@@ -218,6 +218,64 @@ namespace CityX.Tests
 #endif
 
 #if UNITY_EDITOR
+        /// <summary>A two-handed weapon's triangles at most (the equippable budgets of 2026-10-18: 1-5k, 8k at the very most).</summary>
+        private const int RifleTriangleBudget = 5000;
+
+        /// <summary>
+        /// Owner, 2026-11-19: "make the ak47 model look better keep it sort of cartoony ... but improve upon the model we have now ... keep the
+        /// moving parts and reload animations". The remodelled rifle: rounded (smooth-shaded, more than the first one's 800 triangles of boxes)
+        /// and inside a rifle's budget, wood and steel each a look of its own with none left on the fallback gunmetal, and what the hands hold
+        /// where it was: the handguards inside the box the left hand's cradle was made on (FirearmPlayTests measures the hand against the same
+        /// numbers), the muzzle, the butt and the charging handle where the reload and the profile have them.
+        /// </summary>
+        [Test]
+        public void TheAK47IsRoundedInsideItsBudgetAndWhatTheHandsHoldIsWhereItWas()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/AK47.prefab");
+            Assert.IsNotNull(prefab, "the AK-47 is missing -- CityX > Rebuild Firearms");
+            var gun = prefab.GetComponent<PistolWeapon>();
+            int triangles = 0;
+            var looks = new HashSet<string>();
+            foreach (MeshFilter filter in prefab.GetComponentsInChildren<MeshFilter>(true))
+            {
+                triangles += filter.sharedMesh.triangles.Length / 3;
+                foreach (Material material in filter.GetComponent<MeshRenderer>().sharedMaterials)
+                {
+                    looks.Add(material.name);
+                }
+            }
+            Assert.Greater(triangles, 2500, "the AK-47 is the first model's boxes again");
+            Assert.LessOrEqual(triangles, RifleTriangleBudget);
+            CollectionAssert.IsSubsetOf(looks, CityX.WeaponsEditor.AK47Builder.Finishes.Keys, "a part of the AK-47 has no look of its own");
+            CollectionAssert.Contains(looks, "AKWood");
+            CollectionAssert.Contains(looks, "AKSteel");
+
+            Mesh body = CityX.Core.TransformSearch.FindDeep(prefab.transform, "Body").GetComponent<MeshFilter>().sharedMesh;
+            Vector3[] vertices = body.vertices;
+            Vector3[] normals = body.normals;
+            Assert.AreEqual(vertices.Length, normals.Length, "the body has no normals of its own: it would be shaded as flat facets");
+
+            // The lower handguard's box and the gun's top over it (ak47_model.py's HANDGUARD, times its scale of 1.45): the cradle's numbers.
+            const float halfWidth = 0.0334f, back = 0.370f, front = 0.587f, gunTop = 0.109f, slack = 0.0006f;
+            float widest = 0.0f, highest = float.MinValue;
+            foreach (Vector3 v in vertices)
+            {
+                if (v.z > back && v.z < front)
+                {
+                    widest = Mathf.Max(widest, Mathf.Abs(v.x));
+                    highest = Mathf.Max(highest, v.y);
+                }
+            }
+            Assert.LessOrEqual(widest, halfWidth + slack, "the handguard is wider than the box the left hand's hold was made on");
+            Assert.LessOrEqual(highest, gunTop + slack, "the gun stands higher over the handguard than the left hand's fingers clear");
+
+            Bounds bounds = body.bounds;
+            Assert.AreEqual(gun.Profile.MuzzleLocal.z, bounds.max.z, 0.002f, "the barrel does not end at the muzzle");
+            Assert.AreEqual(gun.Profile.ButtLocal.z, bounds.min.z, 0.002f, "the stock does not end at the butt");
+            Assert.Less(Vector3.Distance(gun.ActionPart.localPosition, new Vector3(0.0225f, 0.0595f, 0.2349f)), 0.001f,
+                "the charging handle is not where the reload's hand goes to it");
+        }
+
         [Test]
         public void TheAK47ReloadsToItsOwnRecordingCutToEachReloadsLengthAndTheGlockKeepsItsClicks()
         {

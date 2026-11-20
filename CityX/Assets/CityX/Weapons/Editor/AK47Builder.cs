@@ -28,13 +28,21 @@ namespace CityX.WeaponsEditor
 
         public const string EmptyReloadSoundPath = "Assets/CityX/Weapons/Audio/ak47_reload_empty.ogg";
 
-        /// <summary>The Blender materials' looks: blued steel, darker small parts, the red-brown laminated wood, the steel magazine.</summary>
+        /// <summary>
+        /// The Blender materials' looks: blued steel, painted more than polished (a very metallic surface shows almost none of its own colour
+        /// under the cel light: nearly black, the whole rifle was one dark shape and its parts did not read against each other), darker small
+        /// parts and the barrel, the bolt carrier's bare steel, the red-brown wood with a darker cut for the grip's chequering and the
+        /// handguard's groove, the steel magazine, a round's brass.
+        /// </summary>
         public static readonly Dictionary<string, FirearmBuilder.Finish> Finishes = new Dictionary<string, FirearmBuilder.Finish>
         {
-            ["AKSteel"] = new FirearmBuilder.Finish(new Color(0.10f, 0.10f, 0.11f), 0.8f, 0.5f),
-            ["AKDarkSteel"] = new FirearmBuilder.Finish(new Color(0.06f, 0.06f, 0.065f), 0.7f, 0.4f),
-            ["AKWood"] = new FirearmBuilder.Finish(new Color(0.42f, 0.2f, 0.08f), 0.0f, 0.45f),
-            ["AKMagazine"] = new FirearmBuilder.Finish(new Color(0.12f, 0.12f, 0.13f), 0.75f, 0.45f),
+            ["AKSteel"] = new FirearmBuilder.Finish(new Color(0.24f, 0.255f, 0.29f), 0.35f, 0.45f),
+            ["AKDarkSteel"] = new FirearmBuilder.Finish(new Color(0.07f, 0.07f, 0.08f), 0.5f, 0.4f),
+            ["AKBrightSteel"] = new FirearmBuilder.Finish(new Color(0.60f, 0.61f, 0.63f), 0.6f, 0.6f),
+            ["AKDarkWood"] = new FirearmBuilder.Finish(new Color(0.27f, 0.12f, 0.05f), 0.0f, 0.35f),
+            ["AKWood"] = new FirearmBuilder.Finish(new Color(0.47f, 0.22f, 0.08f), 0.0f, 0.45f),
+            ["AKMagazine"] = new FirearmBuilder.Finish(new Color(0.31f, 0.32f, 0.35f), 0.35f, 0.45f),
+            ["AKBrass"] = new FirearmBuilder.Finish(new Color(0.78f, 0.6f, 0.22f), 0.7f, 0.6f),
         };
 
         [MenuItem("CityX/Rebuild AK-47")]
