@@ -43,10 +43,11 @@ namespace CityX.WearablesEditor
         }
 
         /// <summary>Prints <paramref name="print"/> on <paramref name="shirt"/>'s texture in <paramref name="cloth"/>, and imports it.</summary>
-        public static Texture2D Bake(ShirtPrint print, Mesh shirt, Color cloth)
+        public static Texture2D Bake(ShirtPrint print, Mesh shirt, Color cloth) => Write(Print(print, shirt, cloth), TexturePathFor(print));
+
+        /// <summary>Writes a shirt texture's texels (TextureSize square) to <paramref name="texturePath"/> as a PNG, and imports it.</summary>
+        public static Texture2D Write(Color32[] texels, string texturePath)
         {
-            string texturePath = TexturePathFor(print);
-            Color32[] texels = Print(print, shirt, cloth);
             var texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false);
             try
             {
@@ -183,7 +184,21 @@ namespace CityX.WearablesEditor
         /// <summary>The bottom of the neck opening at the middle of the front: the neck's rim (the highest opening), its lowest point there.</summary>
         private static float NecklineAtMiddle(Mesh shirt, float fallback)
         {
-            List<Vector3> neck = null;
+            float lowest = float.MaxValue;
+            foreach (Vector3 p in NeckRim(shirt))
+            {
+                if (p.z > 0.0f && Mathf.Abs(p.x) < MiddleBand)
+                {
+                    lowest = Mathf.Min(lowest, p.y);
+                }
+            }
+            return lowest < float.MaxValue ? lowest : fallback;
+        }
+
+        /// <summary>The rim of the shirt's neck opening (its highest opening), bind pose; empty if it has no opening.</summary>
+        public static List<Vector3> NeckRim(Mesh shirt)
+        {
+            List<Vector3> neck = new List<Vector3>();
             float highest = float.MinValue;
             foreach ((List<Vector3> rim, Vector3 _) in MeshOpenings.Of(shirt).Rims)
             {
@@ -195,15 +210,7 @@ namespace CityX.WearablesEditor
                     neck = rim;
                 }
             }
-            float lowest = float.MaxValue;
-            foreach (Vector3 p in neck ?? new List<Vector3>())
-            {
-                if (p.z > 0.0f && Mathf.Abs(p.x) < MiddleBand)
-                {
-                    lowest = Mathf.Min(lowest, p.y);
-                }
-            }
-            return lowest < float.MaxValue ? lowest : fallback;
+            return neck;
         }
 
         private static void SetImport(string texturePath)

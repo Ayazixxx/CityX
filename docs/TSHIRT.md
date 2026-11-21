@@ -127,6 +127,19 @@ Owner: "make a black version of the T-Shirt". The T-Shirt's own mesh, fit and fo
 `blackshirt`, `blacktshirt`). In every item list (scene player, networked player, select screen). Tests: `BlackTShirtTests`; `TShirtCapture`
 shoots `tshirt-black-*.png`.
 
+## The Red Striped T-Shirt (2026-11-20)
+
+Owner, with a photo of a red and white striped tee: "make a red/white striped t shirt like this. use our tshirt model and just make the texture.
+very basic." The T-Shirt's own mesh and fit with a texture of its own (`TShirtBuilder.BuildRedStriped`, menu **CityX > Rebuild Red Striped
+T-Shirt**, `RedStripedTShirt.prefab` / `.png`), item `red_striped_t_shirt`, `/equip stripes` (also `striped`, `redstriped`).
+
+**How it is painted** (`ShirtStripes`): every texel of every piece takes its colour from how high its cloth sits on the body standing (bind
+pose), as a striped tee is knitted: 9 cm bands, red from the hem (the shirt's lowest point) up, then white, and so on (about the photo's count
+on this 2.6 m body). So the stripes run level across the front and the back, meet at the side seams, and go round the sleeves (with the arms
+down). Cloth within 3 cm of the neck opening's rim is the crew neck's band, white. Past the pieces' edges the colours are carried out 16 texels,
+so no seam shows a line. Colours and widths are `TShirtBuilder.RedStripes`. Tests: `RedStripedTShirtTests` (every point of the cloth the colour
+of its band, both colours on each sleeve, a white crew neck, the T-Shirt's mesh and hiding); `TShirtCapture` shoots `tshirt-redstriped-*.png`.
+
 ## The Long Sleeve T-Shirts (2026-10-22)
 
 Owner: "make a longsleeve version of the tshirt both black and white". The same build (`tshirt_build.py --long-sleeves`, writing

@@ -261,6 +261,7 @@ namespace CityX.ViewEditor
             GameObject redCamoTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildRedCamo();
             GameObject blackTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildBlack();
             GameObject cityXShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildCityX();
+            GameObject redStripedTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildRedStriped();
             GameObject longSleeveTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildLongSleeve();
             GameObject blackLongSleeveTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildBlackLongSleeve();
             GameObject grapplingHookPrefab = CityX.WeaponsEditor.GrapplingHookBuilder.Build();
@@ -556,6 +557,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.BlackTShirt, Prefab = blackTShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.CityXShirt, Prefab = cityXShirtPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.RedStripedTShirt, Prefab = redStripedTShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.LongSleeveTShirt, Prefab = longSleeveTShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

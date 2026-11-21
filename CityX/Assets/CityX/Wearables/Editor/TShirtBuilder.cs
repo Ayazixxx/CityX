@@ -28,6 +28,8 @@ namespace CityX.WearablesEditor
         public const string BlackPrefabPath = WearablesFolder + "/BlackTShirt.prefab";
         public const string CityXPrefabPath = WearablesFolder + "/CityXTShirt.prefab";
         public const string CityXPrintPath = PrintsFolder + "/CityXPrint.asset";
+        public const string RedStripedPrefabPath = WearablesFolder + "/RedStripedTShirt.prefab";
+        public const string RedStripedTexturePath = WearablesFolder + "/RedStripedTShirt.png";
 
         /// <summary>The long-sleeved shirt: its own mesh (tshirt_build.py --long-sleeves), in white and in black.</summary>
         public const string LongSleevePrefabPath = WearablesFolder + "/LongSleeveTShirt.prefab";
@@ -239,6 +241,47 @@ namespace CityX.WearablesEditor
         /// <summary>The cityXshirt (owner, 2026-11-07): the game's own logo on the T-Shirt in black cotton.</summary>
         [MenuItem("CityX/Rebuild cityXshirt")]
         public static GameObject BuildCityX() => BuildPrinted("CityX", ItemRegistry.CityXShirt, coverTheWholeShirt: false, ShirtPrint.BlackCotton);
+
+        /// <summary>
+        /// The Red Striped T-Shirt (owner, 2026-11-20: "make a red/white striped t shirt like this. use our tshirt model and just make the
+        /// texture. very basic."): the T-Shirt (built first) knitted in level red and white bands from a red hem up, its crew neck white.
+        /// </summary>
+        [MenuItem("CityX/Rebuild Red Striped T-Shirt")]
+        public static GameObject BuildRedStriped()
+        {
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
+            if (mesh == null)
+            {
+                Debug.LogError($"CityX: no T-Shirt mesh at {MeshPath} -- build the T-Shirt first.");
+                return null;
+            }
+            Color32[] texels = RedStripes(mesh).Paint(mesh, ShirtPrintBaker.NeckRim(mesh), ShirtPrintBaker.TextureSize);
+            ShirtPrintBaker.Write(texels, RedStripedTexturePath);
+            Material material = BlenderGarmentMesh.TexturedMaterial($"{WearablesFolder}/RedStripedTShirt.mat", RedStripedTexturePath, FabricSmoothness);
+            return Save(mesh, material, RedStripedPrefabPath, "RedStripedTShirt", ItemRegistry.RedStripedTShirt, AlwaysHidden);
+        }
+
+        /// <summary>
+        /// The Red Striped T-Shirt's stripes on <paramref name="shirt"/>, as in the owner's picture: red and white of one width (9 cm on this 2.6 m
+        /// body), from a red band at the hem (its lowest point) up; the crew neck's band (2.6 cm and its roll) white.
+        /// </summary>
+        public static ShirtStripes RedStripes(Mesh shirt)
+        {
+            float hem = float.MaxValue;
+            foreach (Vector3 p in shirt.vertices)
+            {
+                hem = Mathf.Min(hem, p.y);
+            }
+            return new ShirtStripes
+            {
+                BandHeight = 0.09f,
+                Hem = hem,
+                First = new Color32(196, 24, 30, 255),
+                Second = new Color32(240, 237, 230, 255),
+                Collar = new Color32(240, 237, 230, 255),
+                CollarReach = 0.03f,
+            };
+        }
 
         /// <summary>
         /// A printed shirt named <paramref name="name"/>: its picture Prints/&lt;name&gt;.png, placed by its print Prints/&lt;name&gt;Print.asset

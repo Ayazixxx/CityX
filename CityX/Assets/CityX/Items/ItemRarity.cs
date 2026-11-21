@@ -54,6 +54,7 @@ namespace CityX.Items
             [ItemRegistry.RedCamoTShirt] = Rarity.Common,
             [ItemRegistry.BlackTShirt] = Rarity.Common,
             [ItemRegistry.CityXShirt] = Rarity.Common,
+            [ItemRegistry.RedStripedTShirt] = Rarity.Common,
             [ItemRegistry.BlackLongSleeveTShirt] = Rarity.Common,
             [ItemRegistry.BlackJeans] = Rarity.Common,
             [ItemRegistry.BlueJeans] = Rarity.Common,

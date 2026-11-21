@@ -16,6 +16,7 @@ namespace CityX.Items
         public const string RedCamoTShirt = "red_camo_t_shirt";
         public const string BlackTShirt = "black_t_shirt";
         public const string CityXShirt = "cityx_shirt";
+        public const string RedStripedTShirt = "red_striped_t_shirt";
         public const string LongSleeveTShirt = "long_sleeve_t_shirt";
         public const string BlackLongSleeveTShirt = "black_long_sleeve_t_shirt";
         public const string BlackJeans = "black_jeans";
@@ -102,6 +103,8 @@ namespace CityX.Items
             [BlackTShirt] = new ItemDefinition(BlackTShirt, "Black T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             // The black T-Shirt with the game's own logo printed on it (Wearables/Prints/CityXPrint); the owner's name for it.
             [CityXShirt] = new ItemDefinition(CityXShirt, "cityXshirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
+            // The T-Shirt in red and white stripes (TShirtBuilder.BuildRedStriped).
+            [RedStripedTShirt] = new ItemDefinition(RedStripedTShirt, "Red Striped T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             // The T-Shirt with its sleeves down to the wrists, in white cotton and in black.
             [LongSleeveTShirt] = new ItemDefinition(LongSleeveTShirt, "Long Sleeve T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [BlackLongSleeveTShirt] = new ItemDefinition(BlackLongSleeveTShirt, "Black Long Sleeve T-Shirt", ItemDefinition.WearableCategory,
