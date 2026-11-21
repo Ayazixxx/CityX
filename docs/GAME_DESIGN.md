@@ -381,6 +381,16 @@ The owner's design for the surface city's homeless people:
 
 My suggestions for building them, not decided: looks copied from the owner's Hobo characters in the creator (as Old Guy's is); a weighted weapon table with what a hobo holds being exactly what drops (a visibly rare weapon is a temptation); the brick and wrench as items on existing movesets (thrown like the bottle; the crowbar's moves); the swordsman's brain tuned weaker; outdoors on the surface only, with their own small budget beside the monsters'; killing one who did not strike first is a murder for karma (the first thing to feed it).
 
+### Aimless Wanderer (owner, 2026-11-20; not built yet)
+Another surface NPC you can find **roaming the streets**.
+- **Carries green and blue weapons usually, sometimes purple** (Uncommon and Rare, sometimes Very Rare).
+- **Walk up to him** and you can:
+  - ask what he is doing: "Im just wandering aimlessly";
+  - try to **trade** with him;
+  - ask "Do you have any quests for me?": "If I had any quests id just do them myself that's why i'm just out here wandering aimlessly." and he **walks away**.
+- **Fight him** if you choose: a **tougher fight than a hobo**.
+- Not decided (owner is still thinking about the logistics): if you have a quest, **invite him to join you for it**; after completing it you have **earned his trust** and can **invite him back to your home**.
+
 ## Loot, refills and repairs (owner, 2026-10-22)
 
 The owner's plan, like Rust:
