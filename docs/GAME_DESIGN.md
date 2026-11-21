@@ -320,6 +320,14 @@ Owner, same day, on death: when a character dies you make another one and must r
 - **Shades:** light red: NPCs charge more and are less friendly; red: guards attack, **no entry to the hub**; dark red: shown on the map, bounties, bigger death penalty (Ashes of Creation: triple).
 - **Red is also a way to play:** outlaw hideout, black market, outlaw-only quests, outlaw factions.
 
+Owner, 2026-11-20, on the levels ("i havent fully thought this out"):
+- **You start at white: no notoriety.**
+- **Up to halfway to the most evil:** NPCs just **like you less** and are **less gracious with their trades**.
+- **From halfway to the most evil:** NPCs and hobos **attack you on sight**.
+- **Fully evil:** you can still meet **evil NPCs who give you evil quests**.
+- **Some evil NPCs are not hostile towards evil players.**
+- Not decided: how these fit the shades above (which were written earlier: guards at red, the hub, the map), and how much worse trades get on the way to halfway.
+
 ## Factions
 
 Minecraft Factions, in the city.
@@ -369,7 +377,7 @@ The owner's design for the surface city's homeless people:
 - **Random weapons, low level for the most part:** glass bottles, bricks, knives, wrenches and the like, but **sometimes better stuff**, so they are a way to farm items and XP "if you dont mind the negative karma from killing innocents".
 - **Not hostile until struck.** Other hobos **join in, until a gun or offensive magic is used: then they get scared and run.**
 - **If you don't want to kill them:** still being thought about; maybe trading with them.
-- **They remember** (owner, same day): once your karma is negative enough, or you have killed a lot of hobos, **they turn hostile and attack you on sight**. Decided (owner, same day): **only towards that player** (others online still find them neutral); it does not wear off by itself: **positive karma has to be earned** to turn them back; **hostile hobos still run from guns** (and offensive magic). **About 15% of hobos are not scared of guns or magic** (owner, same day): they stand and fight.
+- **They remember** (owner, same day): once your karma is **halfway to the most evil** (owner, same day: the karma levels above), or you have killed a lot of hobos, **they turn hostile and attack you on sight**. Decided (owner, same day): **only towards that player** (others online still find them neutral); it does not wear off by itself: **positive karma has to be earned** to turn them back; **hostile hobos still run from guns** (and offensive magic). **About 15% of hobos are not scared of guns or magic** (owner, same day): they stand and fight.
 
 My suggestions for building them, not decided: looks copied from the owner's Hobo characters in the creator (as Old Guy's is); a weighted weapon table with what a hobo holds being exactly what drops (a visibly rare weapon is a temptation); the brick and wrench as items on existing movesets (thrown like the bottle; the crowbar's moves); the swordsman's brain tuned weaker; outdoors on the surface only, with their own small budget beside the monsters'; killing one who did not strike first is a murder for karma (the first thing to feed it).
 
