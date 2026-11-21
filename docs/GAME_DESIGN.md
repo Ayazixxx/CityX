@@ -399,7 +399,7 @@ Another surface NPC you can find **roaming the streets**.
 - **Also** (owner, same day): followers taken into fights would "just get killed and die all of the time".
 - **Earning one** (owner, same day): complete **their quest, or maybe several of their quests**, to earn their trust so they join your team.
 - Not decided (owner, same day): NPC quests where **they follow you for that one quest** would be cool, but players might then use them for PvP.
-- **Player fights** (owner, same day, a "maybe"): a follower **steps away and respects the player duel until provoked**; if the other player **hits the NPC**, it joins in.
+- **Player fights** (owner, same day, a "maybe"): a follower **steps away and respects the player duel until provoked**; if the other player **hits the NPC**, it joins in. **Area damage counts too** (owner, same day).
 - Not decided: whether the Aimless Wanderer's quest (above) still has him come along, and what he does there.
 
 ## Loot, refills and repairs (owner, 2026-10-22)
