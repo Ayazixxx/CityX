@@ -200,7 +200,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 3793262933706715291}
+      addedObject: {fileID: 6926816732029836037}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -563,6 +563,10 @@ MonoBehaviour:
     Prefab: {fileID: 4861952590144521463, guid: 5751df4e3d53cf64dbabc5b9d9ae42ca, type: 3}
   - ItemId: midnight_coat
     Prefab: {fileID: 2959689151926336571, guid: b48a9cdfc0fe2f74399c7a73d5fe26a4, type: 3}
+  - ItemId: green_fur_hooded_parka
+    Prefab: {fileID: 421418391853620305, guid: d04d3922e6fe52e479173ef36096c59f, type: 3}
+  - ItemId: maroon_fur_hooded_parka
+    Prefab: {fileID: 8457966476011097981, guid: e7199bcec43dbb64bb1439993ee538eb, type: 3}
   - ItemId: t_shirt
     Prefab: {fileID: 3717271276691646498, guid: f0b4700e8a9d5314bbe35feb52b50c30, type: 3}
   - ItemId: blood_raven_t_shirt
@@ -1142,7 +1146,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &3793262933706715291
+--- !u!114 &6926816732029836037
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

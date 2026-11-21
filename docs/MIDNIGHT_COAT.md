@@ -20,7 +20,7 @@ named "Midnight Coat". Spawn it with `/spawn midnight_coat`, put it on with `/eq
 |---|---|---|
 | Skinning | `SourceArt/MidnightCoat/coat_build.py` (Blender, headless), its shared steps in `SourceArt/garment_rig.py` (the T-Shirt uses them too) | the coat is not moved; every point takes the weights of the nearest skin, then the skirt, armpits and collar are reworked (below) |
 | Mesh | `Wearables/Editor/BlenderGarmentMesh.cs` | the JSON into a skinned mesh bound to the arms-down skeleton plus the helper bones |
-| Body under it | `Wearables/Editor/BodyUnderGarment.cs` | which of the body's triangles the coat hides |
+| Body under it | `Wearables/Editor/BodyUnderGarment.cs`, `LongCoatBody.cs` (shared with the Fur Hooded Parka) | which of the body's triangles the coat hides |
 | Item | `MidnightCoatBuilder`, `MidnightCoat`, `ItemRegistry.MidnightCoat` | the prefab, built with the scene |
 
 To refit it: move it in Blender, export over `MidnightCoat.glb`, then run the script and rebuild:
@@ -85,14 +85,14 @@ read off its own mesh when it goes on (`GarmentCollar`). The how and the why: `d
 
 ## Tests
 
-- `MidnightCoatTests` (EditMode): a top named "Midnight Coat"; within 15k triangles and one 512 map; never on the head, hands or shins, every
+- `LongCoatTests` (EditMode, shared with the Fur Hooded Parka): a top named "Midnight Coat"; within 15k triangles and one 512 map; never on the head, hands or shins, every
   weight adding up; the skirt on the skirt bones; hides part of the body; hangs from the shoulders to below the hips.
 - `GarmentHelperPoseTests` (EditMode): helper bones at rest, their share of a swing, the skirt panels' direction rule.
-- `MidnightCoatPlayTests` (PlayMode), on the real player through a sprint:
+- `LongCoatPlayTests` (PlayMode, shared with the parka), on the real player through a sprint:
   - the body is hidden while worn and given back when taken off;
   - the head goes at most 2 cm deeper into the collar than standing (measured: 0.6 cm);
   - no part of the coat comes inside a knee that comes forward (measured: 12.4 cm from the joint, the knee's skin is 12 cm out).
-- `MidnightCoatCapture` (PlayMode, Explicit, `-Graphics`): standing, the cuff, walking, and four moments of a sprint (side, front, armpit,
+- `LongCoatCapture` (PlayMode, Explicit, `-Graphics`): standing, the cuff, walking, and four moments of a sprint (side, front, armpit,
   collar), to `Logs/CityShots/midnightcoat-*.png`.
 
 ## Known limits

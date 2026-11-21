@@ -69,6 +69,8 @@ namespace CityX.CharacterEditor
             (ItemRegistry.RiotShield, "Assets/CityX/Wearables/RiotShield.prefab"),
             (ItemRegistry.HoodedCloak, "Assets/CityX/Wearables/HoodedCloak.prefab"),
             (ItemRegistry.MidnightCoat, "Assets/CityX/Wearables/MidnightCoat.prefab"),
+            (ItemRegistry.GreenFurHoodedParka, "Assets/CityX/Wearables/GreenFurHoodedParka.prefab"),
+            (ItemRegistry.MaroonFurHoodedParka, "Assets/CityX/Wearables/MaroonFurHoodedParka.prefab"),
             (ItemRegistry.TShirt, "Assets/CityX/Wearables/TShirt.prefab"),
             (ItemRegistry.BloodRavenTShirt, "Assets/CityX/Wearables/BloodRavenTShirt.prefab"),
             (ItemRegistry.RedCamoTShirt, "Assets/CityX/Wearables/RedCamoTShirt.prefab"),

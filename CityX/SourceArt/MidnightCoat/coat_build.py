@@ -32,7 +32,6 @@ ARMPIT_SMOOTHING = 6     # passes of neighbour averaging there
 COLLAR_FROM, COLLAR_RISE, COLLAR_REACH = 1.95, 0.11, 0.42   # the collar: from the shoulders' top up, within this of the neck's axis,
 SKIRT_FROM, SKIRT_FULL = 0.95, 0.72   # the skirt bones take over from the hips from the hip joints' height down to here
 COLLAR_FRONT = 0.12     # starting this much lower under the chin (the head dips forward into the front in a sprint)
-LEGS = ("thigh_l", "thigh_r")
 
 
 def run(path):
@@ -59,20 +58,7 @@ print("coat: %d vertices, %d triangles, from %s to %s" % (len(co), len(mesh.poly
 weights = body_weights(coat, body, rig)
 
 # ---- 3. the skirt onto the skirt bones ----
-legs = sum(weights[:, BONE[b]] for b in LEGS)
-for b in LEGS:
-    weights[:, BONE[b]] = 0.0
-# Below the hips the skirt hangs from the skirt bones however the body under it was weighted (its front took the hips' weights there).
-below = np.clip((SKIRT_FROM - co[:, 2]) / (SKIRT_FROM - SKIRT_FULL), 0.0, 1.0)
-below = below * below * (3.0 - 2.0 * below)
-legs += weights[:, BONE["hips"]] * below
-weights[:, BONE["hips"]] *= 1.0 - below
-left = np.clip((co[:, 0] + 0.12) / 0.24, 0.0, 1.0)   # Blender +x is the body's left, -y its front
-front = 0.5 - 0.5 * co[:, 1] / np.maximum(np.hypot(co[:, 0], co[:, 1]), 1e-6)
-for side, share in (("l", left), ("r", 1.0 - left)):
-    weights[:, BONE["skirt_front_" + side]] += legs * share * front
-    weights[:, BONE["skirt_back_" + side]] += legs * share * (1.0 - front)
-print("skirt: %d points on the skirt bones" % (legs > 0.01).sum())
+weights = hang_skirt(weights, co, SKIRT_FROM, SKIRT_FULL)
 
 # ---- 4. the armpits; 5. the collar ----
 weights = share_armpits(weights, co, mesh, ARMPIT_REACH, ARMPIT_ABOVE, ARMPIT_SMOOTHING)

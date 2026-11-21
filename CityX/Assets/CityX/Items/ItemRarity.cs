@@ -79,6 +79,8 @@ namespace CityX.Items
             [ItemRegistry.WoodenBoomerang] = Rarity.Uncommon,
             [ItemRegistry.GiantBoomerang] = Rarity.Rare,
             [ItemRegistry.MidnightCoat] = Rarity.Rare,
+            [ItemRegistry.GreenFurHoodedParka] = Rarity.Rare,   // the owner's: "make it blue rarity"
+            [ItemRegistry.MaroonFurHoodedParka] = Rarity.Rare,   // the owner's: "same blue rarity level"
             [ItemRegistry.FireballStaff] = Rarity.Rare,
             [ItemRegistry.IceShardStaff] = Rarity.Rare,
             [ItemRegistry.ArcaneBeamStaff] = Rarity.Rare,

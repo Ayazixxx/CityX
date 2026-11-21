@@ -11,11 +11,14 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The Midnight Coat worn on the real player through a sprint (owner, 2026-10-19: "make it so the knee doesnt clip through the coat",
+    /// A long coat (the Midnight Coat, the Green Fur Hooded Parka) worn on the real player through a sprint (owner, 2026-10-19: "make it so the knee doesnt clip through the coat",
     /// "make it so the face and all parts of the body arent pocking through"): the body under it is hidden and given back, the head never
     /// sinks into the collar, and a knee coming forward stays behind the coat's front panel (the skirt bones, GarmentHelperBones).
     /// </summary>
-    public sealed class MidnightCoatPlayTests
+    [TestFixture("MidnightCoat")]
+    [TestFixture("GreenFurHoodedParka")]
+    [TestFixture("MaroonFurHoodedParka")]
+    public sealed class LongCoatPlayTests
     {
         private const int StandFrames = 20;
         private const int SprintFrames = 170;
@@ -32,9 +35,15 @@ namespace CityX.Tests
         /// <summary>How far round toward the body's front a knee must be for the panel in front of it to be checked.</summary>
         private const float KneeForward = 0.25f;
 
+        private readonly string _prefab;
         private GameObject _player;
         private GameObject _coat;
         private PlayerLocomotion _locomotion;
+
+        public LongCoatPlayTests(string prefab)
+        {
+            _prefab = prefab;
+        }
 
         [UnitySetUp]
         public IEnumerator SetUp()
@@ -49,7 +58,7 @@ namespace CityX.Tests
             ground.name = "TestGround";
             ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
             ground.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
-            _coat = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/MidnightCoat.prefab"),
+            _coat = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{_prefab}.prefab"),
                 new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
 #endif
             yield return null;
@@ -72,7 +81,7 @@ namespace CityX.Tests
         {
             var skin = TransformSearch.FindDeep(_player.transform, "Skin").GetComponent<SkinnedMeshRenderer>();
             Mesh whole = skin.sharedMesh;
-            var coat = _coat.GetComponent<MidnightCoat>();
+            var coat = _coat.GetComponent<SkinnedGarment>();
             coat.OnEquip(_player, ItemInstanceData.None);
             yield return null;
             Assert.AreNotSame(whole, skin.sharedMesh, "the body under the coat is still drawn whole");
@@ -87,7 +96,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator TheHeadNeverSinksIntoTheCollarAndAKneeNeverComesThroughTheCoatInASprint()
         {
-            _coat.GetComponent<MidnightCoat>().OnEquip(_player, ItemInstanceData.None);
+            _coat.GetComponent<SkinnedGarment>().OnEquip(_player, ItemInstanceData.None);
             Animator animator = _player.GetComponentInChildren<Animator>();
             Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
             var knees = new[] { (animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg), animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg)),
@@ -167,7 +176,7 @@ namespace CityX.Tests
             {
                 Object.Destroy(baked);
             }
-            Debug.Log($"MidnightCoat sprint: the head went {sank * 100.0f:0.0} cm deeper into the collar than standing; a knee forward " +
+            Debug.Log($"{_prefab} sprint: the head went {sank * 100.0f:0.0} cm deeper into the collar than standing; a knee forward " +
                 $"{kneesForward} times, the coat {closestToKnee * 100.0f:0.0} cm from its joint at the nearest");
             Assert.Less(sank, CollarSink, $"the head sank {sank * 100.0f:0.0} cm deeper into the coat than standing, at {where:F3} (bind pose)");
             Assert.Greater(kneesForward, 10, "the sprint never brought a knee forward: nothing was checked");

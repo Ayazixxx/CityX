@@ -1,11 +1,13 @@
-# SKINNING A GARMENT ONTO THIS GAME'S BODY, shared by the garments' Blender scripts (MidnightCoat/coat_build.py, TShirt/tshirt_build.py,
-# BlackJeans/black_jeans_build.py).
+# SKINNING A GARMENT ONTO THIS GAME'S BODY, shared by the garments' Blender scripts (MidnightCoat/coat_build.py, Parka/parka_build.py,
+# TShirt/tshirt_build.py, BlackJeans/black_jeans_build.py).
 # Load it into a script's globals with exec(), after Octaslash/octaslash_rig.py has built the body ("Body") and skeleton ("CityXRig").
 #   body_weights:   each point takes the weights of the nearest skin; hands go to the forearms, the head to the neck, shins and feet to the thighs
 #                   (trousers: the feet to the shins);
 #   smooth_weights: every point's weights averaged with its neighbours' (trousers: no jump across the buttocks' crease);
 #   share_armpits:  round each armpit the weights are smoothed and what torso and arm share goes to the half-turning shoulder bone (the
 #                   coat; the T-Shirt cuts its sleeves loose instead);
+#   hang_skirt:     a long coat's skirt goes to the skirt bones, front panels and back panels apart;
+#   sleeves_only:   a coat with sleeves cut loose from its body: only the sleeves follow the arms (the parka);
 #   lift_collar:    up a collar the collar bone (the neck's turn, the head's place) takes over;
 #   write_garment:  the BlenderGarmentMesh JSON, in the game's frame, four bones per point.
 import json
@@ -122,6 +124,50 @@ def share_armpits(weights, co, mesh, reach, above, passes):
         gw[:, BONE["shoulder_" + side]] += 2.0 * shared
         print("armpit %s: %d points smoothed, %d share the half-turning bone" % (side, near.sum(), (shared > 0.01).sum()))
     return gw[group]
+
+
+def hang_skirt(weights, co, start, full, legs=("thigh_l", "thigh_r")):
+    """A long coat's skirt onto the game's skirt bones (GarmentHelperBones): what the nearest skin gave to the legs, and from start down
+    to full the hips' share too (the body's own weights give a coat's front panels mostly to the hips, and a knee went through them). The
+    front panels go to the bone in front of their thigh, which follows a knee coming forward, the back ones to the bone behind, the sides
+    to both: a knee never comes through the coat, and the skirt does not split between the legs."""
+    swing = sum(weights[:, BONE[b]] for b in legs)
+    for b in legs:
+        weights[:, BONE[b]] = 0.0
+    below = np.clip((start - co[:, 2]) / (start - full), 0.0, 1.0)
+    below = below * below * (3.0 - 2.0 * below)
+    swing += weights[:, BONE["hips"]] * below
+    weights[:, BONE["hips"]] *= 1.0 - below
+    left = np.clip((co[:, 0] + 0.12) / 0.24, 0.0, 1.0)   # Blender +x is the body's left, -y its front
+    front = 0.5 - 0.5 * co[:, 1] / np.maximum(np.hypot(co[:, 0], co[:, 1]), 1e-6)
+    for side, share in (("l", left), ("r", 1.0 - left)):
+        weights[:, BONE["skirt_front_" + side]] += swing * share * front
+        weights[:, BONE["skirt_back_" + side]] += swing * share * (1.0 - front)
+    print("skirt: %d points on the skirt bones" % (swing > 0.01).sum())
+    return weights
+
+
+def sleeves_only(weights, co, mesh, arms_from):
+    """A coat whose sleeves are cut loose from its body says which points are a sleeve's in its second set of texture coordinates (u = 1).
+    The rest is the coat's own cloth and does not follow an arm: its sides hang as near the forearms as the hips, and the nearest skin alone
+    would give them to the arms. Below arms_from[0] it gives its arms' share to the spine; from arms_from[1] up it keeps it, round the
+    shoulder, where sleeve and coat are one skin."""
+    flag = np.zeros(len(mesh.loops) * 2, dtype=np.float32)
+    mesh.uv_layers[1].data.foreach_get("uv", flag)
+    corner = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get("vertex_index", corner)
+    sleeve = np.zeros(len(co))
+    sleeve[corner] = flag.reshape(-1, 2)[:, 0]
+    keep = np.clip((co[:, 2] - arms_from[0]) / (arms_from[1] - arms_from[0]), 0.0, 1.0)
+    keep = np.where(sleeve > 0.5, 1.0, keep * keep * (3.0 - 2.0 * keep))
+    handed_over = 0.0
+    for bone in ("arm_l", "forearm_l", "arm_r", "forearm_r"):
+        given = weights[:, BONE[bone]] * (1.0 - keep)
+        weights[:, BONE[bone]] -= given
+        weights[:, BONE["spine"]] += given
+        handed_over += given.sum()
+    print("sleeves: %d points are a sleeve's; the coat's own cloth gave %.0f points' worth of arm to the body" % ((sleeve > 0.5).sum(), handed_over))
+    return weights
 
 
 def lift_collar(weights, co, start, rise, reach, front):

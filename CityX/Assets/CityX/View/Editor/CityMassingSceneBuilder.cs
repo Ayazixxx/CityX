@@ -248,6 +248,8 @@ namespace CityX.ViewEditor
             GameObject bottlePrefab = CityX.WeaponsEditor.BottleBuilder.Build();
             GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
             GameObject midnightCoatPrefab = CityX.WearablesEditor.MidnightCoatBuilder.Build();
+            GameObject greenParkaPrefab = CityX.WearablesEditor.FurHoodedParkaBuilder.Build();
+            GameObject maroonParkaPrefab = CityX.WearablesEditor.FurHoodedParkaBuilder.BuildMaroon();
             GameObject tShirtPrefab = CityX.WearablesEditor.TShirtBuilder.Build();
             GameObject blackJeansPrefab = CityX.WearablesEditor.JeansBuilder.Build();
             GameObject blueJeansPrefab = CityX.WearablesEditor.JeansBuilder.BuildBlue();
@@ -531,6 +533,10 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.HoodedCloak, Prefab = hoodedCloakPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.MidnightCoat, Prefab = midnightCoatPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.GreenFurHoodedParka, Prefab = greenParkaPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.MaroonFurHoodedParka, Prefab = maroonParkaPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.TShirt, Prefab = tShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

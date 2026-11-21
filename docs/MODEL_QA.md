@@ -56,6 +56,7 @@ Run it after changing the script.
 | Black Jeans (2026-10-24) | 11,335 triangles (over the 8k "fine" line for trousers, under 12k; the owner's count, lower wiped the stitching); a 2048 map in the Blender file (1024 in the game); 2 z-fights from the fit, fixed in black_jeans_fit.py |
 | White Sneaker (2026-10-25) | 10,674 triangles for the pair (budget `--kind shoes`: 8k fine, 12k most); 28 small holes, mostly on or inside the flat sole; 6 spikes along the sole's bottom edge; 32 floating bits, mostly inside; z-fights near the tongues' tips; for the owner to judge |
 | Farmer Hat (2026-10-26) | 5,000 triangles (over the 4k "fine" line for a hat, under 6k: the frayed straw); 2 z-fights; one piece, no holes, no spikes |
+| Fur Hooded Parka (2026-11-20) | 14,598 triangles (under 15k), one 1024 map; no broken edges; 30 small holes in the fur's shell and Meshy's own in the hood under it; 3 spikes at the shoulders, 4 floating bits (the cuffs' bands), 1 z-fight; `docs/FUR_HOODED_PARKA.md` |
 | Combat sword | within budget; 14 spike points along the blade's thin edge |
 | Meshy White Sword zip | 50,698 triangles and 8 maps of 2048 (about 45 MB of video memory): why it was baked down |
 | Wraith Staff, owner's Meshy "Crimson Oracle Staff" (2026-11-08) | 101,932 triangles and four maps (two 4096) in; `SourceArt/WraithStaff/wraith_staff_build.py` cuts it to 6,000 (the staff 5,300, the orb 700) on one 512 map. After: 17 small holes where the orb was cut from its cage (they sit where the two meet, hidden), for the owner to judge |

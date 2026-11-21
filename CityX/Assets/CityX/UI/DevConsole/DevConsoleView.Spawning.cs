@@ -349,6 +349,13 @@ namespace CityX.UI
                 case "coat":
                 case "midnight_coat":
                 case "midnightcoat": return ItemRegistry.MidnightCoat;
+                case "parka":
+                case "greenparka":
+                case "green_parka":
+                case "green_fur_hooded_parka": return ItemRegistry.GreenFurHoodedParka;
+                case "maroonparka":
+                case "maroon_parka":
+                case "maroon_fur_hooded_parka": return ItemRegistry.MaroonFurHoodedParka;
                 case "tshirt":
                 case "t_shirt":
                 case "shirt": return ItemRegistry.TShirt;

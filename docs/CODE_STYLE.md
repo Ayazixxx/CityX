@@ -33,6 +33,8 @@ conventions down and apply them every time.
      pickup is in reach, and which body entering or leaving its trigger is this machine's player.
    - `Wearables/GroundWearable`: a rigid wearable lying on the ground, picked up with E (headwear and shoes derive from it).
    - `Wearables/WornBodyCover.Hide`/`Show`: hide the body under whatever is worn (garments, shoes), several at once.
+   - `Wearables/Editor/LongCoatBody`: what a long open-fronted coat hides of the body and how it lies on the ground (the Midnight Coat, the
+     Fur Hooded Parka). In Blender, `SourceArt/garment_rig.py` holds the skinning steps every garment's build script shares.
    - `Tests/PlayMode/BuildingShapeCapture.Shoot` and `ShotsFolder`: render a camera to `Logs/CityShots/<name>.png` (20 captures use it).
    - `Tests/PlayMode/OpenRun.Face`: turn the player to look along an open, level run of street (the tests of moves that travel).
    - `Character/Editor/ClipAsset.Store`: save a generated animation clip into the one already at its path. Never delete and re-create an
