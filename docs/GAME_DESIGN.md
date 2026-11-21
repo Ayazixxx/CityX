@@ -391,6 +391,11 @@ Another surface NPC you can find **roaming the streets**.
 - **Fight him** if you choose: a **tougher fight than a hobo**.
 - Not decided (owner is still thinking about the logistics): if you have a quest, **invite him to join you for it**; after completing it you have **earned his trust** and can **invite him back to your home**.
 
+### NPC followers at your base (owner, 2026-11-20; not built yet)
+- The owner likes **NPC followers you invite to your base so you can use them**: they might **sell stuff**, and **different NPCs give different benefits**, for example one sells or trades **healing items**, another **ammunition**.
+- **Not fighters.** The owner does not want every online player bringing one or more NPCs into every fight ("a strange game mechanic that may not feel good in fights"); **the summons already fill that role**.
+- Not decided: whether the Aimless Wanderer's quest (above) still has him come along, and what he does there.
+
 ## Loot, refills and repairs (owner, 2026-10-22)
 
 The owner's plan, like Rust:
