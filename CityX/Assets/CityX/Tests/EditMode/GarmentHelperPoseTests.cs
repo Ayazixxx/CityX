@@ -39,6 +39,11 @@ namespace CityX.Tests
             Assert.AreEqual(GarmentHelperPose.TrailingShare, GarmentHelperPose.SkirtShare(-0.6f, front: true), 0.001f);
             Assert.AreEqual(GarmentHelperPose.LeadingShare, GarmentHelperPose.SkirtShare(-0.6f, front: false), 0.001f);
             Assert.Less(GarmentHelperPose.SkirtShare(0.0f, front: true), GarmentHelperPose.SkirtShare(0.2f, front: true));
+
+            // A thigh stepping out to the side carries both panels: the coat's side seam lies on both (owner, 2026-11-21: "the knee clips through the jacket").
+            Assert.AreEqual(GarmentHelperPose.LeadingShare, GarmentHelperPose.SkirtShare(0.0f, 0.7f, front: false), 0.001f);
+            Assert.AreEqual(GarmentHelperPose.LeadingShare, GarmentHelperPose.SkirtShare(0.0f, 0.7f, front: true), 0.001f);
+            Assert.AreEqual(GarmentHelperPose.SkirtShare(-0.6f, front: true), GarmentHelperPose.SkirtShare(-0.6f, 0.0f, front: true), 0.001f, "standing straight under the hip, the side changes nothing");
         }
     }
 }

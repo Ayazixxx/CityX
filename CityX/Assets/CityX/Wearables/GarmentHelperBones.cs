@@ -34,11 +34,17 @@ namespace CityX.Wearables
         private Quaternion[] _parentBind;
         private Quaternion[] _childBind;
 
+        // The skirt kept out of the legs and swinging behind them (SkirtCloth), when the worn mesh has one.
+        private SkirtCloth _skirt;
+        private Quaternion[] _rotations;
+        private Vector3[] _places;
+
         /// <summary>
         /// The helper transforms, in <see cref="Helpers"/> order, made under the body's own bones on first call. The bind rotations come from the
-        /// garment's bindposes (indexed as SkinnedGarment.Bones), so the helpers sit where the garment was bound.
+        /// garment's bindposes (indexed as SkinnedGarment.Bones), so the helpers sit where the garment was bound. The worn mesh, if given, says which
+        /// of its points each skirt bone carries, to keep out of the legs.
         /// </summary>
-        public Transform[] Bind(Animator animator, Matrix4x4[] bindposes)
+        public Transform[] Bind(Animator animator, Matrix4x4[] bindposes, Mesh worn = null)
         {
             _body = animator.transform;
             if (_helpers == null)
@@ -63,6 +69,13 @@ namespace CityX.Wearables
             {
                 _parentBind[i] = BindRotation(bindposes, Helpers[i].parent);
                 _childBind[i] = BindRotation(bindposes, Helpers[i].child);
+            }
+            _rotations = new Quaternion[Helpers.Length];
+            _places = new Vector3[Helpers.Length];
+            _skirt = worn != null && worn.isReadable ? new SkirtCloth(animator, bindposes, worn, Helpers.Length) : null;
+            if (_skirt != null && !_skirt.HasSkirt)
+            {
+                _skirt = null;
             }
             LateUpdate();
             return _helpers;
@@ -96,11 +109,24 @@ namespace CityX.Wearables
                         break;
                     default:
                         float kneeLean = Vector3.Dot((_knees[i].position - child.position).normalized, _body.forward);
-                        share = GarmentHelperPose.SkirtShare(kneeLean, Helpers[i].kind == Kind.SkirtFront);
+                        Vector3 ownSide = Helpers[i].child == HumanBodyBones.LeftUpperLeg ? -_body.right : _body.right;
+                        float kneeOut = Vector3.Dot((_knees[i].position - child.position).normalized, ownSide);
+                        share = GarmentHelperPose.SkirtShare(kneeLean, kneeOut, Helpers[i].kind == Kind.SkirtFront);
                         break;
                 }
-                _helpers[i].SetPositionAndRotation(child.position,
-                    GarmentHelperPose.Follow(parent.rotation, _parentBind[i], child.rotation, _childBind[i], share));
+                _rotations[i] = GarmentHelperPose.Follow(parent.rotation, _parentBind[i], child.rotation, _childBind[i], share);
+                _places[i] = child.position;
+            }
+            if (_skirt != null && _parents[0] != null)
+            {
+                _skirt.Settle(_rotations, _places, _helpers, _parents[0], _body != null ? _body.lossyScale.x : 1.0f, Time.deltaTime);
+            }
+            for (int i = 0; i < _helpers.Length; i++)
+            {
+                if (_parents[i] != null && _children[i] != null)
+                {
+                    _helpers[i].SetPositionAndRotation(_places[i], _rotations[i]);
+                }
             }
         }
     }

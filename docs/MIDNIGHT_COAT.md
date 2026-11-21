@@ -46,20 +46,50 @@ is final.
 
 | Bone | Follows | Fixes |
 |---|---|---|
-| `skirt_front_l/r` | 95% of its thigh's swing when the knee comes forward, 15% when the leg goes back | the knee coming through the front panel |
-| `skirt_back_l/r` | the other way round | the back panel; the skirt does not split between the legs |
+| `skirt_front_l/r` | 95% of its thigh's swing when the knee comes forward or steps out to the side, 15% when the leg goes back | the knee coming through the front panel |
+| `skirt_back_l/r` | the other way round (and 95% of a step out to the side) | the back panel; the skirt does not split between the legs |
 | `shoulder_l/r` | half the upper arm's swing | the armpit pinching and stretching |
 | `collar` | turns with the neck, goes where the head goes | the sprint clip lowers the head 3.4 cm along the neck; a collar on the neck alone let the head sink into it |
 
 In `coat_build.py`:
 
-- **Skirt:** below the hips (from 0.95 m down to 0.72 m) the skirt moves from the hips onto the skirt bones. The front faces go to the front
+- **Skirt:** below the hips (from 1.15 m down to 0.9 m, since 2026-11-21; it was 0.95 and 0.72) the skirt moves from the hips onto the skirt bones. The front faces go to the front
   bones, the back faces to the back ones, the sides to both. The body's own weights had given the front panels mostly to the hips: the knee
   went through them.
 - **Armpits:** within 0.24 m of each shoulder joint, and no higher than 4 cm above it, the weights are smoothed. What torso and arm share there
   goes to the shoulder bone. Above that line is the collar's: the smoothing first reached the collar's back corners, and an arm swing lifted
   them 12.6 cm into the head.
 - **Collar:** from the shoulders' top up (0.12 m lower under the chin, where the head dips forward), the collar bone takes over.
+
+## Kept out of the legs in melee swings (2026-11-21)
+
+Owner: "ive noticed that when swinging with pretty much any melee weapon the knee clips through the jacket ... ive seen gamedevs give the
+jacket faces physics ... would that be a good solution or doing too much?", then "do what you can with minimal or preferably no alteration to
+the animations", "make it look good ingame". Full cloth simulation was judged too much (every coat on every machine, and fast swings are where
+cloth tunnels through legs). Instead, what action games do with long coats: the skirt bones are pushed out of the legs each frame.
+
+- **What went wrong**, measured (`CoatLegsPlayTests`): in the swings of all 11 melee weapons the legs step out wide, the knee comes up to the
+  waist and the shin bends back below the hem; the thigh went 12 cm into the coat. The skirt bones only followed a thigh's swing forward and
+  back, and the coat's side seam, half on the front bone and half on the back, was left where it hung.
+- **A step out to the side** now carries both of that leg's skirt bones (`GarmentHelperPose.SkirtShare` with the knee's lean outward).
+- **`SkirtCloth`** (run by `GarmentHelperBones` after the body's pose): each side's two skirt bones, as posed, are turned about the hip joint,
+  or shifted out where turning cannot reach (near the joint, at most 20 cm), until the coat's points, skinned as they are drawn, lie 1.5 cm
+  outside both legs' skin (the thighs below their top fifth, the shins). The maths is `SkirtClearance` (pure, `SkirtClearanceTests`); the points
+  tested are the coat's on a 5 cm grid over each side, about 500. The two sides go in turn, up to four rounds a frame, because the back's middle
+  hangs from both legs' back bones; a frame with nothing inside a leg costs one look a side.
+- **The coat swings a moment behind the legs** (0.06 s to come most of the way, in the hips' frame so the body turning does not drag it), and a
+  push off a knee eases back rather than snapping. A side more than 60 degrees off where the leg puts it (a teleport, a get-up) goes there at once.
+- **The waist** now hangs from the skirt bones from 1.15 m down (it was 0.95), so a knee raised to the waist lifts it.
+- No animation was changed.
+
+Measured over the 11 melee weapons (light swings standing and walking, a held heavy one; 355 frames each), the outer cloth only:
+
+| | Before | After |
+|---|---|---|
+| Fur Hooded Parka | a thigh 12 cm into the coat in every weapon's swings | through on 3 frames in all, never 2 running |
+| Midnight Coat | (not measured before) | through on about 10 frames in all, at most 5 running, in one bo staff lunge (the back shin through the hem) |
+
+The cost, in the editor while swinging without a break: 0.9 ms a frame on average, up to 8 ms on the busiest frame.
 
 ## Hiding the body under the coat
 

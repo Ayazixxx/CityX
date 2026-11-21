@@ -179,14 +179,14 @@ namespace CityX.Wearables
             _renderer.sharedMesh = BuildCombinedMesh(visible);
             _renderer.sharedMaterials = materials;
             _renderer.enabled = true;
-            BindHelperBones(_renderer.sharedMesh.bindposes);
+            BindHelperBones(_renderer.sharedMesh.bindposes, _renderer.sharedMesh);
         }
 
         /// <summary>
         /// A garment skinned to GarmentHelperBones (its bindposes run past the body's 14) gets them on this body; one that is not leaves the
         /// renderer on the 14 alone.
         /// </summary>
-        private void BindHelperBones(Matrix4x4[] bindposes)
+        private void BindHelperBones(Matrix4x4[] bindposes, Mesh worn = null)
         {
             var helpers = GetComponent<GarmentHelperBones>();
             bool wanted = bindposes.Length > SkinnedGarment.Bones.Length && _humanBones != null;
@@ -207,7 +207,7 @@ namespace CityX.Wearables
                 _renderer.bones = _humanBones;
                 return;
             }
-            Transform[] helperBones = helpers.Bind(GetComponentInChildren<Animator>(), bindposes);
+            Transform[] helperBones = helpers.Bind(GetComponentInChildren<Animator>(), bindposes, worn);
             var bones = new Transform[_humanBones.Length + helperBones.Length];
             _humanBones.CopyTo(bones, 0);
             helperBones.CopyTo(bones, _humanBones.Length);

@@ -4,7 +4,8 @@ ARMS_FROM = (1.50, 1.62)   # the coat's own cloth follows an arm not at all belo
 ARMPIT_REACH = 0.50        # wider and smoother than the Midnight Coat's 0.24 and 6: the parka's armpit hangs 38 cm under the shoulder
 ARMPIT_ABOVE = 0.04        # joint, and a puffy sleeve's underarm is a wide web, which wants a long even blend
 ARMPIT_SMOOTHING = 24
-SKIRT_FROM, SKIRT_FULL = 0.95, 0.72   # the skirt bones take over from the hips from the hip joints' height down to here
+SKIRT_FROM, SKIRT_FULL = 1.15, 0.9    # the skirt bones take over from the hips from a little above the hip joints down to here: higher than
+#                                       the Midnight Coat's 0.95 and 0.72, so a knee raised to hip height in a swing lifts the waist (SkirtCloth)
 COLLAR_FROM, COLLAR_RISE, COLLAR_FRONT = 1.95, 0.11, 0.12   # the fur ring and the hood behind it: the Midnight Coat's collar,
 COLLAR_REACH = 0.50        # but wider: the fur ring reaches 0.48 m out from the neck, and nothing else of the coat is out there that high
 HEAD_CENTRE = (0.0, 0.0, 2.251)   # the game's head, a ball (BodyRig.HeadCentreY, FusedBodyShape.HeadRadius)

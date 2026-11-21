@@ -43,5 +43,21 @@ namespace CityX.Wearables
             float lead = Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(LeadStart, LeadFull, front ? kneeLean : -kneeLean));
             return Mathf.Lerp(TrailingShare, LeadingShare, lead);
         }
+
+        /// <summary>How far out to the side (the knee's lean along the body's right, toward its own side) a step goes from not carrying the coat's side to fully.</summary>
+        private const float OutStart = 0.15f;
+        private const float OutFull = 0.5f;
+
+        /// <summary>
+        /// The share as <see cref="SkirtShare(float, bool)"/>, but a thigh stepping out to the side (<paramref name="kneeOut"/>: the unit hip-to-knee
+        /// direction dotted with the body's right, toward the leg's own side) carries both panels with it, front and back: the coat's side seam lies on
+        /// both, and in the wide stances of the melee swings (owner, 2026-11-21: "the knee clips through the jacket") it was left where it hung while the
+        /// thigh went out through it. A panel carried fully by its thigh is as clear of it as at rest.
+        /// </summary>
+        public static float SkirtShare(float kneeLean, float kneeOut, bool front)
+        {
+            float outward = Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(OutStart, OutFull, kneeOut));
+            return Mathf.Max(SkirtShare(kneeLean, front), Mathf.Lerp(TrailingShare, LeadingShare, outward));
+        }
     }
 }

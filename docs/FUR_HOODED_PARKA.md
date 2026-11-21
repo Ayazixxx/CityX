@@ -137,6 +137,20 @@ and the scalp showed. The parka reads its rim straight behind the head (`FurHood
 the hair stays on the head down to the fur's top there and goes into the fur below it. The fur is 13 to 16 cm thick behind the head, so the
 hair going into it stays inside it.
 
+## Melee swings (2026-11-21)
+
+Owner: "when swinging with pretty much any melee weapon the knee clips through the jacket". The skirt is kept out of the legs as the Midnight
+Coat's is (docs/MIDNIGHT_COAT.md, "Kept out of the legs in melee swings"): `SkirtCloth` pushes the skirt bones off the legs each frame, a step out to
+the side carries both of a leg's skirt bones, and the waist hangs from them from 1.15 m down. One thing of the parka's own rig changed with it:
+
+- **Its lower sides follow the hips, not the chest** (`garment_rig.sleeves_only`): the coat's own cloth beside the hands, given the arms' share
+  by the nearest skin, handed it to the spine, so in a swing it twisted with the upper body and the thigh went through it. Below the waist it
+  goes to the hips now (and so to the skirt bones).
+
+Through all 11 melee weapons a leg now comes through the parka's outer cloth on 3 single frames in all (`CoatLegsPlayTests`);
+`CoatLegsCapture` renders `Logs/CityShots/coat-legs-sheet.png` (the fists, the combat sword, the bo staff and the sledgehammer, from the game's
+camera and from the side).
+
 ## Tests
 
 - `LongCoatTests` (EditMode, every long coat): a top with its own name and a blue card; within 15k triangles and one small map; never on
@@ -146,6 +160,8 @@ hair going into it stays inside it.
 - `TopLayersTests` (EditMode): a shirt and a coat stack in either order; a second of either kind takes its own kind's place; the coat
   comes off first; both saved, told to other players and put back on.
 - `UnderCoatTests` (EditMode): a shirt under a coat shows its chest and nothing round the shoulders or on the arms.
+- `CoatLegsPlayTests` (PlayMode): the real scene and player in the parka, every melee weapon swung by the mouse; no leg through the outer cloth
+  for more than three frames running. `SkirtClearanceTests` (EditMode): the push itself.
 - `GarmentCollarTests.TheParkasRimIsTheFursTopStraightBehindTheHead`; `HairPushCapture.RenderThePushOverTheParka` renders
   `Logs/CityShots/hair-push-parka-sheet.png`.
 - `LongCoatCapture` (PlayMode, Explicit, `-Graphics`): standing, the cuff, walking and four moments of a sprint, to

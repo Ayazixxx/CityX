@@ -30,7 +30,9 @@ ARMPIT_REACH = 0.24      # how far round each shoulder joint, and at most ARMPIT
 ARMPIT_ABOVE = 0.04      # with the half-turning bone: above the shoulders is the collar's
 ARMPIT_SMOOTHING = 6     # passes of neighbour averaging there
 COLLAR_FROM, COLLAR_RISE, COLLAR_REACH = 1.95, 0.11, 0.42   # the collar: from the shoulders' top up, within this of the neck's axis,
-SKIRT_FROM, SKIRT_FULL = 0.95, 0.72   # the skirt bones take over from the hips from the hip joints' height down to here
+SKIRT_FROM, SKIRT_FULL = 1.15, 0.9    # the skirt bones take over from the hips from a little above the hip joints down to here: so a knee
+#                                       raised to hip height in a melee swing lifts the waist (SkirtCloth; owner, 2026-11-21: "the knee clips
+#                                       through the jacket"). It was 0.95 and 0.72.
 COLLAR_FRONT = 0.12     # starting this much lower under the chin (the head dips forward into the front in a sprint)
 
 

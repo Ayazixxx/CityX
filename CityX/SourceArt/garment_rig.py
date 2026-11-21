@@ -16,6 +16,7 @@ import bpy
 import numpy as np
 
 SHOULDER_JOINTS = {"l": np.array([0.35, 0.0, 1.9]), "r": np.array([-0.35, 0.0, 1.9])}   # BodyRig's (Blender +x is the body's left)
+HIPS_UP_TO = (1.0, 1.2)   # the body's share a coat's own cloth takes from an arm goes to the hips below the first height, the spine above the second
 
 # The game's bone order (SkinnedGarment.Bones, then GarmentHelperBones.Helpers / BlenderGarmentMesh.TargetBoneNames).
 TARGET_BONES = ["hips", "spine", "neck", "head", "arm_l", "forearm_l", "hand_l", "arm_r", "forearm_r", "hand_r",
@@ -150,8 +151,9 @@ def hang_skirt(weights, co, start, full, legs=("thigh_l", "thigh_r")):
 def sleeves_only(weights, co, mesh, arms_from):
     """A coat whose sleeves are cut loose from its body says which points are a sleeve's in its second set of texture coordinates (u = 1).
     The rest is the coat's own cloth and does not follow an arm: its sides hang as near the forearms as the hips, and the nearest skin alone
-    would give them to the arms. Below arms_from[0] it gives its arms' share to the spine; from arms_from[1] up it keeps it, round the
-    shoulder, where sleeve and coat are one skin."""
+    would give them to the arms. Below arms_from[0] it gives its arms' share to the body: the spine at the chest, the hips from the waist
+    down (so a long coat's sides then hang with the skirt, hang_skirt, and not with the chest: given to the spine, they twisted with a
+    melee swing and the thigh went through them); from arms_from[1] up it keeps it, round the shoulder, where sleeve and coat are one skin."""
     flag = np.zeros(len(mesh.loops) * 2, dtype=np.float32)
     mesh.uv_layers[1].data.foreach_get("uv", flag)
     corner = np.empty(len(mesh.loops), dtype=np.int64)
@@ -160,11 +162,14 @@ def sleeves_only(weights, co, mesh, arms_from):
     sleeve[corner] = flag.reshape(-1, 2)[:, 0]
     keep = np.clip((co[:, 2] - arms_from[0]) / (arms_from[1] - arms_from[0]), 0.0, 1.0)
     keep = np.where(sleeve > 0.5, 1.0, keep * keep * (3.0 - 2.0 * keep))
+    hips = np.clip((HIPS_UP_TO[1] - co[:, 2]) / (HIPS_UP_TO[1] - HIPS_UP_TO[0]), 0.0, 1.0)
+    hips = hips * hips * (3.0 - 2.0 * hips)
     handed_over = 0.0
     for bone in ("arm_l", "forearm_l", "arm_r", "forearm_r"):
         given = weights[:, BONE[bone]] * (1.0 - keep)
         weights[:, BONE[bone]] -= given
-        weights[:, BONE["spine"]] += given
+        weights[:, BONE["hips"]] += given * hips
+        weights[:, BONE["spine"]] += given * (1.0 - hips)
         handed_over += given.sum()
     print("sleeves: %d points are a sleeve's; the coat's own cloth gave %.0f points' worth of arm to the body" % ((sleeve > 0.5).sum(), handed_over))
     return weights
