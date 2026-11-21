@@ -362,6 +362,16 @@ My suggestions, not agreed: 2-3 swings, extended only by skills that cancel a sw
 - Enemy syncing across players: built 2026-10-27 for the swordsman, the Shoota and the Wraith (the machine that spawns one runs it, everyone sees and fights it; docs/MULTIPLAYER_STATE.md "Enemies"). Needs: animation LOD for crowds.
 - **Spawning in the world (owner, 2026-11-14):** "monster and ghost type enemies spawn outside and humanoid enemies spawn indoors for starters"; "it's not that the mobs have set spawn locations right? it should be more akin to minecraft where they spawn at random"; then "monsters should appear in the same location between players when online. Cleared buildings should stop spawning enemies. make sure that the mobs have patrol behaviors or in other words they wander around in a natural way rather than awkwardly stand still". Built that day (docs/MOB_SPAWNING.md): enemies appear at random spots round a player (ghosts and monsters on open ground, humanoids on the floors of ordinary buildings), up to a budget near the player that players standing together share; they are taken away when left behind; a building whose last enemy is killed stays empty for a day; with nobody to fight they wander; the Crimson Claw is shared between players; none near Old Guy's house; `/mobs on|off`. Uses the enemies there are (Wraith, Crimson Claw, swordsman, Shoota). The numbers are mine and to tune; levels are not in it (asked 2026-11-13 and 14 whether level should come from the place, my recommendation, or scale to the player: not answered).
 
+### Hobos (owner, 2026-11-20; not built yet)
+
+The owner's design for the surface city's homeless people:
+- **Many looks:** the owner designs a bunch in the character creator (started with Hobo1) for a wide variety; each wears a **random outfit** from a selection of clothing items the owner will pick later.
+- **Random weapons, low level for the most part:** glass bottles, bricks, knives, wrenches and the like, but **sometimes better stuff**, so they are a way to farm items and XP "if you dont mind the negative karma from killing innocents".
+- **Not hostile until struck.** Other hobos **join in, until a gun or offensive magic is used: then they get scared and run.**
+- **If you don't want to kill them:** still being thought about; maybe trading with them.
+
+My suggestions for building them, not decided: looks copied from the owner's Hobo characters in the creator (as Old Guy's is); a weighted weapon table with what a hobo holds being exactly what drops (a visibly rare weapon is a temptation); the brick and wrench as items on existing movesets (thrown like the bottle; the crowbar's moves); the swordsman's brain tuned weaker; outdoors on the surface only, with their own small budget beside the monsters'; killing one who did not strike first is a murder for karma (the first thing to feed it).
+
 ## Loot, refills and repairs (owner, 2026-10-22)
 
 The owner's plan, like Rust:
