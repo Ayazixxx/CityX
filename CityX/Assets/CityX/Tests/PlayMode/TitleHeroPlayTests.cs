@@ -36,9 +36,13 @@ namespace CityX.Tests
             older.LastPlayedUnixSeconds = 1000;
             _latest = CharacterSave.Create("Latest", new Color(0.55f, 0.4f, 0.32f));
             // The Iron Spiked one's test stands the latest with it (the rooftop stands its character once, as the title opens).
-            _latest.PrimaryWeapon = TestContext.CurrentContext.Test.MethodName == nameof(ACharacterWithTheIronSpikedGiantBoomerangStandsWithItShowingOnTheirBack)
-                ? ItemRegistry.IronSpikedGiantBoomerang : ItemRegistry.CombatSword;
-            _latest.Wearing = new List<string> { ItemRegistry.RedCamoTShirt };
+            string test = TestContext.CurrentContext.Test.MethodName;
+            bool knife = test == nameof(AKnifeInTheIdleIsTurnedOutOffTheThigh);
+            _latest.PrimaryWeapon = test == nameof(ACharacterWithTheIronSpikedGiantBoomerangStandsWithItShowingOnTheirBack)
+                ? ItemRegistry.IronSpikedGiantBoomerang : knife ? ItemRegistry.KitchenKnife : ItemRegistry.CombatSword;
+            _latest.Wearing = knife
+                ? new List<string> { ItemRegistry.RedStripedTShirt, ItemRegistry.GreenFurHoodedParka }
+                : new List<string> { ItemRegistry.RedCamoTShirt };
             _latest.LastPlayedUnixSeconds = 2000;
             LocalServer.Database.For(PlayerKey.Local).Add(older);
             LocalServer.Database.For(PlayerKey.Local).Add(_latest);
@@ -197,6 +201,28 @@ namespace CityX.Tests
                 drawn |= part.enabled && part.gameObject.activeInHierarchy;
             }
             Assert.IsTrue(drawn, "it is on their back but not drawn");
+        }
+
+        /// <summary>
+        /// The knife held out to the side through the idle, not down and in across the thigh (owner, 2026-11-21: "the knife clips through the coat
+        /// a bit during the idle animation on the title screen just turn his hand so the knife is going the other way").
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AKnifeInTheIdleIsTurnedOutOffTheThigh()
+        {
+            var hero = Object.FindFirstObjectByType<TitleHero>();
+            yield return Seconds(1.5f);
+            Assert.AreEqual(ItemRegistry.KitchenKnife, hero.Body.GetComponent<Inventory>().EquippedItemId(Inventory.PrimarySlot), "setup: no knife in hand");
+            var knife = hero.Body.GetComponentInChildren<CityX.Weapons.SwordWeapon>();
+            Transform body = hero.Body.GetComponentInChildren<Animator>().transform;
+            float least = float.PositiveInfinity;
+            for (float waited = 0.0f; waited < 4.0f; waited += Time.deltaTime)
+            {
+                yield return null;   // before this frame's Animator: the bones still stand as last frame's LateUpdate left them
+                least = Mathf.Min(least, Vector3.Dot(knife.transform.up, body.right));
+            }
+            Debug.Log($"[KnifeCarry] the blade's least lean out to the side through the idle: {least:0.00}");
+            Assert.Greater(least, 0.4f, "the knife's blade is not turned out to the side in the idle");
         }
 
         [UnityTest]

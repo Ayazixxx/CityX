@@ -915,6 +915,8 @@ namespace CityX.Character
             KeepArmsOutOfTorso();
             ApplyBakedPose();
             HandTheArmsOverFromTheClip();
+            // A knife carried at the side, its blade turned out off the thigh (PlayerLocomotion.KnifeCarry.cs).
+            ApplyKnifeCarry();
             // A raised shield has the left arm (PlayerLocomotion.Shield.cs); lowered, the shield rides the forearm wherever it is.
             ApplyShieldPose();
             // A staff in the right hand: carried upright, thrust out to cast (PlayerLocomotion.Staff.cs).

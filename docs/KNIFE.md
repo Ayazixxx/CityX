@@ -120,3 +120,6 @@ slashes stagger no one, its guard thin and its backstab the biggest (3x). So he
 - now and then the icepick stab (the knife's heavy), never from behind.
 Against a player standing still (`CrazyGuyPlayTests`): face to face, his cuts land mostly from the front; started past its side, he takes the backstab. `KnifeDuelistTests`, `SwordsmanLookTests`;
 `CrazyGuyCapture` (Explicit, -Graphics). Not in the world's spawns yet (only `/spawn`).
+
+## Carried at the side: blade turned out (2026-11-21)
+Owner: "the knife clips through the coat a bit during the idle animation on the title screen just turn his hand so the knife is going the other way". The one-handed carry clips hang the arm for a sword pointing forward and down; in the knife's own hold that arm pointed the blade down and in across the thigh, through a long coat. `KnifeCarry` (pure) and `PlayerLocomotion.KnifeCarry.cs` roll the forearm about its length (at most 110 degrees, a real forearm's turn) so the blade points out to the side, a little ahead and up, whenever a knife is carried (idle, walk, run, the title's rooftop). It gives way as an attack, guard or baked pose takes the arm. Tests: `KnifeCarryTests`, `TitleHeroPlayTests.AKnifeInTheIdleIsTurnedOutOffTheThigh` (blade at least 0.4 out to the side through 4 s of idle; measured 0.70); pictures: `TitleRooftopCapture.RenderTheKnifeInTheIdle`.

@@ -47,23 +47,8 @@ namespace CityX.Tests
         public IEnumerator RenderTheTitle()
         {
             CaptureGuard.NeedsGraphics();
-            // The city the game plays, not the tests' classic one: the title once found no roof in it and showed a wall.
-            _scaleWas = World.Plan.CityScale.Active;
-            World.Plan.CityScale.Active = World.Plan.CityScale.Default;
-            Time.captureFramerate = 60;
-            _directory = Path.Combine(Path.GetTempPath(), "CityXShot", Path.GetRandomFileName());
-            Directory.CreateDirectory(_directory);
-            CharacterStore.DirectoryOverride = _directory;
-            CharacterSave character = CharacterSave.Create("Ayaz", new Color(0.55f, 0.40f, 0.32f));
-            character.HairStyle = Character.CharacterHair.KickHair;
-            character.HairColour = new Color(0.12f, 0.09f, 0.08f);
-            character.Wearing = new List<string> { ItemRegistry.RedCamoTShirt, ItemRegistry.BlackJeans, ItemRegistry.WhiteSneaker };
-            character.PrimaryWeapon = ItemRegistry.CombatSword;
-            character.LastPlayedUnixSeconds = 3000;
-            LocalServer.Database.For(PlayerKey.Local).Add(character);
-
-            yield return CharacterCreatorPlayTests.LoadTitle();
-            _title = SceneManager.GetSceneByPath(CharacterCreatorPlayTests.ScenePath);
+            yield return OpenTheTitleWith(ItemRegistry.CombatSword,
+                new List<string> { ItemRegistry.RedCamoTShirt, ItemRegistry.BlackJeans, ItemRegistry.WhiteSneaker });
             var title = Object.FindFirstObjectByType<TitleScreen>();
             title.Show(TitleScreen.Panel.Menu);
             var logo = Object.FindFirstObjectByType<TitleLogo>();
@@ -96,6 +81,56 @@ namespace CityX.Tests
                 eye.transform.SetPositionAndRotation(place, turn);
                 yield return Frames(45);
             }
+        }
+
+        /// <summary>
+        /// A knife in the idle, in a parka over a striped shirt, close: its blade turned out to the side, off the coat (owner, 2026-11-21: "the
+        /// knife clips through the coat a bit during the idle animation on the title screen"). From the title's camera and from in front.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RenderTheKnifeInTheIdle()
+        {
+            CaptureGuard.NeedsGraphics();
+            yield return OpenTheTitleWith(ItemRegistry.KitchenKnife,
+                new List<string> { ItemRegistry.RedStripedTShirt, ItemRegistry.GreenFurHoodedParka, ItemRegistry.BlackJeans, ItemRegistry.WhiteSneaker });
+            Object.FindFirstObjectByType<TitleScreen>().Show(TitleScreen.Panel.Menu);
+            yield return Frames(120);
+            Transform body = Object.FindFirstObjectByType<TitleHero>().Body.transform;
+            Camera eye = Camera.main;
+            Vector3 place = eye.transform.position;
+            Quaternion turn = eye.transform.rotation;
+            Vector3 toEye = Vector3.ProjectOnPlane(place - body.position, Vector3.up).normalized;
+            Vector3 front = Vector3.ProjectOnPlane(body.forward, Vector3.up).normalized;
+            Vector3 middle = body.position + Vector3.up * 1.2f;
+            for (int i = 0; i < 3; i++)
+            {
+                BuildingShapeCapture.Shoot(eye, BuildingShapeCapture.ShotsFolder, $"title-knife-{i}", middle + toEye * 3.2f + Vector3.up * 0.3f, middle);
+                BuildingShapeCapture.Shoot(eye, BuildingShapeCapture.ShotsFolder, $"title-knife-front-{i}", middle + front * 3.2f + Vector3.up * 0.3f, middle);
+                eye.transform.SetPositionAndRotation(place, turn);
+                yield return Frames(70);
+            }
+        }
+
+        /// <summary>The title open, the last played character standing on its roof in these clothes with this weapon.</summary>
+        private IEnumerator OpenTheTitleWith(string weapon, List<string> wearing)
+        {
+            // The city the game plays, not the tests' classic one: the title once found no roof in it and showed a wall.
+            _scaleWas = World.Plan.CityScale.Active;
+            World.Plan.CityScale.Active = World.Plan.CityScale.Default;
+            Time.captureFramerate = 60;
+            _directory = Path.Combine(Path.GetTempPath(), "CityXShot", Path.GetRandomFileName());
+            Directory.CreateDirectory(_directory);
+            CharacterStore.DirectoryOverride = _directory;
+            CharacterSave character = CharacterSave.Create("Ayaz", new Color(0.55f, 0.40f, 0.32f));
+            character.HairStyle = Character.CharacterHair.KickHair;
+            character.HairColour = new Color(0.12f, 0.09f, 0.08f);
+            character.Wearing = wearing;
+            character.PrimaryWeapon = weapon;
+            character.LastPlayedUnixSeconds = 3000;
+            LocalServer.Database.For(PlayerKey.Local).Add(character);
+
+            yield return CharacterCreatorPlayTests.LoadTitle();
+            _title = SceneManager.GetSceneByPath(CharacterCreatorPlayTests.ScenePath);
         }
 
         private static IEnumerator Frames(int count)
