@@ -120,8 +120,11 @@ we will do it for testing purposes I will come up with a way for it to look good
 - Coats are `ItemRegistry.IsCoat`: the Midnight Coat and the parkas. Everything else worn as a top is a shirt.
 - The menus show both in the top slot, "Green Fur Hooded Parka + T-Shirt". A click on it takes the coat off; the shirt stays on.
 - Both are saved, told to other players (their copies wear both) and put back on from a save in either order.
-- Under a coat a shirt is drawn without its sleeves (`UnderCoat`, in `SkinnedGarmentCombiner`): the coat's sleeves cover them, and a
-  long-sleeved shirt's, fuller than the parka's fitted upper sleeve, came out through it. Its body shows in the coat's open front.
+- Under a coat a shirt is drawn only in the coat's open front (`UnderCoat.FrontOnly`, in `SkinnedGarmentCombiner`; the same opening
+  `LongCoatBody` shows the body in). The rest the coat covers, and that is where it came out through: a long-sleeved shirt's sleeves through
+  the parka's fitted upper sleeves, and (owner: "im seeing the shirt clipping through around the shoulders. make the shirt sleeves
+  invisible underneath the parka") both shirts' shoulders by the collar. Measured on the parka at rest, every point of either shirt out
+  through it lies outside the opening. `maroonparka-shirt-*.png` shows the red striped T-shirt under the maroon parka.
   `LongCoatCapture.RenderThePlayerInTheGreenParkaOverALongSleevedShirt` renders `greenparka-shirt-*.png`.
 
 ## The hair behind the head (2026-11-21)
@@ -142,7 +145,7 @@ hair going into it stays inside it.
   collar and no knee comes through the front.
 - `TopLayersTests` (EditMode): a shirt and a coat stack in either order; a second of either kind takes its own kind's place; the coat
   comes off first; both saved, told to other players and put back on.
-- `UnderCoatTests` (EditMode): a shirt under a coat loses its sleeves and keeps its body.
+- `UnderCoatTests` (EditMode): a shirt under a coat shows its chest and nothing round the shoulders or on the arms.
 - `GarmentCollarTests.TheParkasRimIsTheFursTopStraightBehindTheHead`; `HairPushCapture.RenderThePushOverTheParka` renders
   `Logs/CityShots/hair-push-parka-sheet.png`.
 - `LongCoatCapture` (PlayMode, Explicit, `-Graphics`): standing, the cuff, walking and four moments of a sprint, to

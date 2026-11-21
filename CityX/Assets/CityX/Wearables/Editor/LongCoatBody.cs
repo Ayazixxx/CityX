@@ -1,3 +1,4 @@
+using CityX.Wearables;
 using UnityEngine;
 
 namespace CityX.WearablesEditor
@@ -33,10 +34,10 @@ namespace CityX.WearablesEditor
         private static readonly Bounds Behind = new Bounds(new Vector3(0.0f, 1.05f, -0.3f), new Vector3(0.8f, 0.6f, 0.6f));
 
         /// <summary>
-        /// The coat's open front, bind pose (+z ahead), from the waist to the collar: the torso there is drawn wherever it shows through it
+        /// The coat's open front (UnderCoat.FrontOpening, shared with a shirt under it): the torso there is drawn wherever it shows through it
         /// (owner: "make a little bit of the top of the torso visible, any amount that is in view regularly", "and ... toward the bottom").
         /// </summary>
-        private static readonly Bounds FrontOpening = new Bounds(new Vector3(0.0f, 1.5f, 0.25f), new Vector3(0.4f, 1.2f, 0.5f));
+        private static readonly Bounds FrontOpening = UnderCoat.FrontOpening;
 
         /// <summary>
         /// The body hidden only where the coat covers it (BodyUnderGarment): the neck and forearms. Never the hips and legs: the skirt swings

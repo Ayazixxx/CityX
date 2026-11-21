@@ -28,6 +28,10 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderThePlayerInTheGreenParkaOverALongSleevedShirt() => Render("GreenFurHoodedParka", "greenparka-shirt", "LongSleeveTShirt");
 
+        /// <summary>The maroon parka over the red striped T-shirt (owner, 2026-11-21: "im seeing the shirt clipping through around the shoulders"): maroonparka-shirt-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderThePlayerInTheMaroonParkaOverTheStripedShirt() => Render("MaroonFurHoodedParka", "maroonparka-shirt", "RedStripedTShirt");
+
         private static IEnumerator Render(string prefab, string shots, string shirtUnder = null)
         {
             CaptureGuard.NeedsGraphics();

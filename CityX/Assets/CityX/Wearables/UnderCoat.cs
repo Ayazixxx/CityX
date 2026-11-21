@@ -5,69 +5,34 @@ using UnityEngine;
 namespace CityX.Wearables
 {
     /// <summary>
-    /// A SHIRT WORN UNDER A COAT drawn without its sleeves (owner, 2026-11-21: "make it so i can wear a shirt underneath the parka"): the coat's
-    /// sleeves always cover the shirt's, and a long-sleeved shirt's, fuller than the parka's fitted upper sleeve, came out through it. As the body
-    /// under a garment is not drawn where it is covered (BodyUnderGarment), the shirt's sleeves are not drawn under a coat's; its front still shows
-    /// in the coat's open front.
+    /// A SHIRT WORN UNDER A COAT drawn only in the coat's open front (owner, 2026-11-21: "make it so i can wear a shirt underneath the parka", then
+    /// "im seeing the shirt clipping through around the shoulders. make the shirt sleeves invisible underneath the parka"). Everywhere else the coat
+    /// covers it, and that is where it came out through the coat: the long-sleeved shirt's sleeves through the parka's fitted upper sleeves, both
+    /// shirts' shoulders by the collar, their backs. Measured against the parka at rest, every point of either shirt out through it lies outside the
+    /// open front. The body under a long coat is hidden by the same opening (LongCoatBody).
     /// </summary>
     public static class UnderCoat
     {
-        /// <summary>A point at least this much on an arm's bones (upper arm, forearm, hand, the half-turning shoulder) is the sleeve's.</summary>
-        public const float SleeveWeight = 0.5f;
+        /// <summary>
+        /// A long coat's open front in the body's rest frame (+Z ahead), from the waist to the collar: what shows of whatever is under the coat
+        /// (owner, 2026-10-19, of the Midnight Coat's: "make a little bit of the top of the torso visible, any amount that is in view regularly").
+        /// </summary>
+        public static readonly Bounds FrontOpening = new Bounds(new Vector3(0.0f, 1.5f, 0.25f), new Vector3(0.4f, 1.2f, 0.5f));
 
-        private static readonly Dictionary<Mesh, Mesh> Sleeveless = new Dictionary<Mesh, Mesh>();
+        private static readonly Dictionary<Mesh, Mesh> Fronts = new Dictionary<Mesh, Mesh>();
 
         /// <summary>Whether a worn item is a shirt that goes under a coat: worn as a top, and not a coat itself (Character.TopLayers).</summary>
         public static bool IsShirt(string itemId) =>
             !ItemRegistry.IsCoat(itemId) && ItemRegistry.TryGet(itemId, out ItemDefinition definition) && definition.EquipSlot == EquipSlots.Torso;
 
-        /// <summary>The garment's bone indices that are an arm's: the body's arm bones and the shoulder helpers after them.</summary>
-        public static HashSet<int> ArmBones()
-        {
-            var arms = new HashSet<int>();
-            for (int i = 0; i < SkinnedGarment.Bones.Length; i++)
-            {
-                HumanBodyBones bone = SkinnedGarment.Bones[i];
-                if (bone == HumanBodyBones.LeftUpperArm || bone == HumanBodyBones.LeftLowerArm || bone == HumanBodyBones.LeftHand ||
-                    bone == HumanBodyBones.RightUpperArm || bone == HumanBodyBones.RightLowerArm || bone == HumanBodyBones.RightHand)
-                {
-                    arms.Add(i);
-                }
-            }
-            for (int i = 0; i < GarmentHelperBones.Helpers.Length; i++)
-            {
-                if (GarmentHelperBones.Helpers[i].kind == GarmentHelperBones.Kind.Shoulder)
-                {
-                    arms.Add(SkinnedGarment.Bones.Length + i);
-                }
-            }
-            return arms;
-        }
-
-        /// <summary>How much of a point follows an arm.</summary>
-        public static float OnArm(BoneWeight weight, HashSet<int> arms)
-        {
-            float on = 0.0f;
-            if (arms.Contains(weight.boneIndex0)) on += weight.weight0;
-            if (arms.Contains(weight.boneIndex1)) on += weight.weight1;
-            if (arms.Contains(weight.boneIndex2)) on += weight.weight2;
-            if (arms.Contains(weight.boneIndex3)) on += weight.weight3;
-            return on;
-        }
-
-        /// <summary>The triangles that are not a sleeve's: a triangle goes when every corner is on an arm.</summary>
-        public static List<int> WithoutSleeves(IReadOnlyList<int> triangles, IReadOnlyList<BoneWeight> weights, HashSet<int> arms)
+        /// <summary>The triangles whose middle is in the coat's open front.</summary>
+        public static List<int> InTheOpening(IReadOnlyList<int> triangles, IReadOnlyList<Vector3> vertices)
         {
             var kept = new List<int>(triangles.Count);
             for (int t = 0; t + 2 < triangles.Count; t += 3)
             {
-                bool sleeve = true;
-                for (int c = 0; c < 3 && sleeve; c++)
-                {
-                    int v = triangles[t + c];
-                    sleeve = v < weights.Count && OnArm(weights[v], arms) >= SleeveWeight;
-                }
-                if (!sleeve)
+                Vector3 middle = (vertices[triangles[t]] + vertices[triangles[t + 1]] + vertices[triangles[t + 2]]) / 3.0f;
+                if (FrontOpening.Contains(middle))
                 {
                     kept.Add(triangles[t]);
                     kept.Add(triangles[t + 1]);
@@ -77,21 +42,21 @@ namespace CityX.Wearables
             return kept;
         }
 
-        /// <summary>The shirt's mesh without its sleeves, made once a mesh (the same points, fewer triangles).</summary>
-        public static Mesh SleevesOff(Mesh shirt)
+        /// <summary>The shirt's mesh as it shows under a coat, made once a mesh (the same points, only the open front's triangles).</summary>
+        public static Mesh FrontOnly(Mesh shirt)
         {
             if (shirt == null || !shirt.isReadable)
             {
                 return shirt;
             }
-            if (!Sleeveless.TryGetValue(shirt, out Mesh sleeveless))
+            if (!Fronts.TryGetValue(shirt, out Mesh front))
             {
-                sleeveless = Object.Instantiate(shirt);
-                sleeveless.name = shirt.name + " (under a coat)";
-                sleeveless.SetTriangles(WithoutSleeves(shirt.triangles, shirt.boneWeights, ArmBones()), 0);
-                Sleeveless[shirt] = sleeveless;
+                front = Object.Instantiate(shirt);
+                front.name = shirt.name + " (under a coat)";
+                front.SetTriangles(InTheOpening(shirt.triangles, shirt.vertices), 0);
+                Fronts[shirt] = front;
             }
-            return sleeveless;
+            return front;
         }
     }
 }

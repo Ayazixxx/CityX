@@ -150,7 +150,7 @@ namespace CityX.Wearables
             EnsureRenderer();
             ResolveBonesOnce();
 
-            // Under a coat a shirt is drawn without its sleeves: the coat's cover them (UnderCoat).
+            // Under a coat a shirt is drawn only in the coat's open front: the coat covers the rest (UnderCoat).
             bool coatOn = _order.Exists(id => _entries[id].Visible && ItemRegistry.IsCoat(id));
             var visible = new List<Entry>(_order.Count);
             foreach (string id in _order)
@@ -158,7 +158,7 @@ namespace CityX.Wearables
                 Entry entry = _entries[id];
                 if (entry.Visible)
                 {
-                    visible.Add(coatOn && UnderCoat.IsShirt(id) ? new Entry { Mesh = UnderCoat.SleevesOff(entry.Mesh), Material = entry.Material } : entry);
+                    visible.Add(coatOn && UnderCoat.IsShirt(id) ? new Entry { Mesh = UnderCoat.FrontOnly(entry.Mesh), Material = entry.Material } : entry);
                 }
             }
 

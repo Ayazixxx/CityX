@@ -8,54 +8,48 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// A shirt under a coat is drawn without its sleeves (UnderCoat; owner, 2026-11-21: "make it so i can wear a shirt underneath the parka"): the
-    /// long-sleeved shirt's came out through the parka's upper sleeves. Its body stays, for the coat's open front.
+    /// A shirt under a coat is drawn only in the coat's open front (UnderCoat; owner, 2026-11-21: "im seeing the shirt clipping through around the
+    /// shoulders. make the shirt sleeves invisible underneath the parka").
     /// </summary>
     public sealed class UnderCoatTests
     {
-        private static BoneWeight On(int bone) => new BoneWeight { boneIndex0 = bone, weight0 = 1.0f };
-
         [Test]
-        public void ATriangleWholeOnAnArmGoesAndOneTouchingTheBodyStays()
+        public void OnlyTheTrianglesInTheOpenFrontStay()
         {
-            HashSet<int> arms = UnderCoat.ArmBones();
-            int spine = System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.Spine);
-            int forearm = System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.LeftLowerArm);
-            Assert.IsTrue(arms.Contains(forearm) && !arms.Contains(spine));
-            var weights = new List<BoneWeight> { On(forearm), On(forearm), On(forearm), On(spine) };
-            List<int> kept = UnderCoat.WithoutSleeves(new[] { 0, 1, 2, 0, 1, 3 }, weights, arms);
-            CollectionAssert.AreEqual(new[] { 0, 1, 3 }, kept, "the sleeve's triangle stayed, or the one joining the body went");
+            var vertices = new List<Vector3>
+            {
+                new Vector3(-0.05f, 1.5f, 0.2f), new Vector3(0.05f, 1.5f, 0.2f), new Vector3(0.0f, 1.6f, 0.2f),     // the chest, in the opening
+                new Vector3(0.30f, 1.9f, 0.05f), new Vector3(0.40f, 1.9f, 0.05f), new Vector3(0.35f, 1.95f, 0.0f),  // the top of a shoulder
+                new Vector3(-0.05f, 1.5f, -0.2f), new Vector3(0.05f, 1.5f, -0.2f), new Vector3(0.0f, 1.6f, -0.2f),  // the back
+            };
+            List<int> kept = UnderCoat.InTheOpening(new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8 }, vertices);
+            CollectionAssert.AreEqual(new[] { 0, 1, 2 }, kept, "a shoulder or the back is still drawn under the coat, or the front is not");
         }
 
         [Test]
         public void ShirtsAreTheTopsThatAreNotCoats()
         {
             Assert.IsTrue(UnderCoat.IsShirt(ItemRegistry.LongSleeveTShirt));
-            Assert.IsTrue(UnderCoat.IsShirt(ItemRegistry.TShirt));
+            Assert.IsTrue(UnderCoat.IsShirt(ItemRegistry.RedStripedTShirt));
             Assert.IsFalse(UnderCoat.IsShirt(ItemRegistry.GreenFurHoodedParka));
             Assert.IsFalse(UnderCoat.IsShirt(ItemRegistry.BlackJeans));
         }
 
+        /// <summary>Under a coat, nothing of a shirt is drawn round the shoulders or on the arms, and its chest still is.</summary>
         [TestCase("LongSleeveTShirt")]
         [TestCase("TShirt")]
-        public void AShirtUnderACoatKeepsItsBodyAndLosesItsSleeves(string prefab)
+        public void AShirtUnderACoatShowsItsChestAndNothingRoundTheShoulders(string prefab)
         {
             Mesh shirt = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefab}.prefab").GetComponent<SkinnedGarment>().GarmentMesh;
-            Mesh under = UnderCoat.SleevesOff(shirt);
-            int all = shirt.triangles.Length / 3, kept = under.triangles.Length / 3;
-            Assert.Less(kept, all, "nothing of the shirt's sleeves went");
-            Assert.Greater(kept, all / 4, "the shirt's body went with its sleeves");
-            HashSet<int> arms = UnderCoat.ArmBones();
-            BoneWeight[] weights = shirt.boneWeights;
-            int[] triangles = under.triangles;
-            for (int t = 0; t < triangles.Length; t += 3)
+            Mesh under = UnderCoat.FrontOnly(shirt);
+            Assert.Greater(under.triangles.Length, 0, "nothing of the shirt shows in the coat's open front");
+            Assert.Less(under.triangles.Length, shirt.triangles.Length / 2, "most of the shirt is still drawn under the coat");
+            Vector3[] vertices = shirt.vertices;
+            foreach (int v in under.triangles)
             {
-                bool sleeve = UnderCoat.OnArm(weights[triangles[t]], arms) >= UnderCoat.SleeveWeight &&
-                              UnderCoat.OnArm(weights[triangles[t + 1]], arms) >= UnderCoat.SleeveWeight &&
-                              UnderCoat.OnArm(weights[triangles[t + 2]], arms) >= UnderCoat.SleeveWeight;
-                Assert.IsFalse(sleeve, "a sleeve's triangle is still drawn under the coat");
+                Assert.Less(Mathf.Abs(vertices[v].x), Character.BodyRig.ShoulderX, "a point by the shoulders or on an arm is still drawn under the coat");
             }
-            Assert.AreSame(under, UnderCoat.SleevesOff(shirt), "the sleeveless shirt is made again every time");
+            Assert.AreSame(under, UnderCoat.FrontOnly(shirt), "the shirt as it shows under a coat is made again every time");
         }
     }
 }
