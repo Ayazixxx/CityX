@@ -348,5 +348,81 @@ namespace CityX.Tests
             Assert.IsFalse(Find(Vector3.zero, Vector3.forward, out _, out why));
             Assert.AreEqual(VaultProbe.Refusal.NoRoomToLand, why, "a fence with a wall right behind it");
         }
+
+        /// <summary>
+        /// A flight of <paramref name="steps"/> steps up +Z from z = 0 (each 0.22 m up and 0.36 m deep, 2 m wide), a landing 1.2 m deep at its top,
+        /// open beyond (the ground 2 m on, under its edge, a drop of the flight's height), and a 1.3 m rail standing on the landing's far edge when
+        /// <paramref name="rail"/>. Returns the landing's height.
+        /// </summary>
+        private float Stair(int steps, bool rail)
+        {
+            for (int i = 0; i < steps; i++)
+            {
+                float top = (i + 1) * 0.22f;
+                Box(new Vector3(0.0f, top * 0.5f, i * 0.36f + 0.18f), new Vector3(2.0f, top, 0.36f));
+            }
+            float landing = steps * 0.22f;
+            float start = steps * 0.36f;
+            Box(new Vector3(0.0f, landing * 0.5f, start + 0.6f), new Vector3(2.0f, landing, 1.2f));
+            if (rail)
+            {
+                Box(new Vector3(0.0f, landing + 0.65f, start + 1.15f), new Vector3(2.0f, 1.3f, 0.1f));
+            }
+            return landing;
+        }
+
+        /// <summary>
+        /// Owner, 2026-11-19: "i accidentally vault when running up stairs sometimes". Running up a stair, from every tread, the upper steps and
+        /// the landing are not a vault, nor is the landing's rail from the flight below it: they do not stand up from the ground the player is on.
+        /// (From the landing, or the tread a step under it, the rail stands on the ground the player is on, as any fence: a run carried on up the
+        /// stair into it is held back by PlayerVaulting, VaultOffStairsPlayTests.)
+        /// </summary>
+        [Test]
+        public void RunningUpAStairToALandingWithARailIsNeverAVault()
+        {
+            float landing = Stair(5, rail: true);
+            for (float z = -0.6f; z < 3 * 0.36f; z += 0.09f)   // the treads two risers or more under the landing
+            {
+                Vector3 feet = new Vector3(0.0f, 0.0f, z);
+                if (Physics.Raycast(feet + Vector3.up * 3.0f, Vector3.down, out RaycastHit ground, 4.0f))
+                {
+                    feet.y = ground.point.y;
+                }
+                Assert.IsFalse(Find(feet, Vector3.forward, out VaultProbe.Vault vault, out VaultProbe.Refusal why),
+                    $"a vault from {feet} up the stair (a top {vault.Height - feet.y:F2} m up, landing at {vault.Land})");
+            }
+            Assert.Greater(landing, 1.0f);
+        }
+
+        /// <summary>The same stair with no rail: from the tread under the top step, the top step and the landing are not a wall to jump.</summary>
+        [Test]
+        public void TheTopStepAndAShortLandingAreNotAWall()
+        {
+            Stair(5, rail: false);
+            var feet = new Vector3(0.0f, 4 * 0.22f, 4 * 0.36f - 0.05f);
+            Assert.IsFalse(Find(feet, Vector3.forward, out _, out VaultProbe.Refusal why));
+            Assert.AreNotEqual(VaultProbe.Refusal.None, why);
+        }
+
+        /// <summary>A fence standing on a plinth higher than a step is not vaulted from the foot of the plinth: it stands on another level.</summary>
+        [Test]
+        public void AFenceOnARaisedPlinthIsNotVaultedFromBelowIt()
+        {
+            Box(new Vector3(0.0f, 0.3f, 2.5f), new Vector3(10.0f, 0.6f, 4.0f));   // the plinth, its front at z = 0.5, 0.6 m up
+            Box(new Vector3(0.0f, 0.6f + 0.55f, 0.75f), new Vector3(10.0f, 1.1f, 0.1f));
+            Assert.IsFalse(Find(Vector3.zero, Vector3.forward, out VaultProbe.Vault vault, out VaultProbe.Refusal why),
+                $"a fence a plinth up was vaulted (a top {vault.Height:F2} m up)");
+        }
+
+        /// <summary>One kerb in the run-up is not a stair: the fence after it is vaulted.</summary>
+        [Test]
+        public void AFenceJustPastAKerbIsStillVaulted()
+        {
+            Box(new Vector3(0.0f, 0.075f, 5.0f), new Vector3(10.0f, 0.15f, 10.0f));   // the pavement, 0.15 m up, from z = 0 on
+            Box(new Vector3(0.0f, 0.15f + 0.55f, 1.1f), new Vector3(10.0f, 1.1f, 0.1f));   // a fence on it
+            var feet = new Vector3(0.0f, 0.15f, 0.2f);
+            Assert.IsTrue(Find(feet, Vector3.forward, out VaultProbe.Vault vault, out VaultProbe.Refusal why), $"refused: {why}");
+            Assert.AreEqual(1.25f, vault.Height, 0.05f);
+        }
     }
 }

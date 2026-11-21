@@ -377,7 +377,7 @@ namespace CityX.Character
                 // from the street (VaultProbe: a sill in reach, a clear opening, a room to land in); a whole pane refuses it and the climb goes on. Only
                 // THROUGH an opening (something over the top: a lintel): a wall top under open sky, a roof parapet, is still mantled (LedgeProbe).
                 if (!ledgeAhead && _vaulting != null
-                    && VaultProbe.TryFind(transform.position + Vector3.up * (standingHeight * WindowReachLiftFraction), -_wallNormal, standingHeight, radius, transform,
+                    && VaultProbe.TryFindFromAClimb(transform.position + Vector3.up * (standingHeight * WindowReachLiftFraction), -_wallNormal, standingHeight, radius, transform,
                         out VaultProbe.Vault window) && VaultProbe.IsThroughAnOpening(window, standingHeight))
                 {
                     EndClimb(false, deltaTime);

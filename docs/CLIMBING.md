@@ -375,3 +375,25 @@ onto, `LedgeProbe`).
 `LedgeProbe.MaxSlopeDegrees`) rising away from the wall, its edge up to `MaxOverhangMetres` out past the face. Rows of probes up the slope must each be level across and rise steadily;
 the stand spot is on the slope, and the ledge's height is the stand spot's, so the mantle rises above the edge before it steps in and the feet pass over the slope.
 A 35-degree slab on a wall top is still refused (`ASlopedTopIsNotALedge`). Tests: `LedgeProbeTests.APitchedRoofsEavesAreALedge...`, `RoofClimbPlayTests`.
+
+## Fix: no accidental vault running up stairs (2026-11-21)
+
+Owner, 2026-11-19: "i accidentally vault when running up stairs sometimes" (and on 2026-11-21, of everything else about vaulting: "i will have
+fable to better vaulting animations and mechanics", so only this was changed). Reproduced in `VaultOffStairsPlayTests`: the real body sprinting
+up a stair of the city's size vaulted the rail along its landing, and, on a flight with a short landing and a drop past it, the stair's own
+upper steps from its second step. Two causes, two fixes:
+
+- **The obstacle must stand up from the ground you are on** (`VaultProbe`, stage 2, `Refusal.NotAnObstacle`): the ground just in front of the
+  face found within a step (0.4 m) of the feet, and the top at least 0.4 m over it. A stair's upper steps rise a step at a time from the tread
+  before them; a rail on a landing stands on ground well above the flight. A vault from a climb (`TryFindFromAClimb`, into a broken window too
+  high to vault from the street) is not asked this: its feet are where the body would stand, not ground.
+- **A run carried on up a stair vaults nothing at first** (`PlayerVaulting.AfterStairsMetres`, 3 m): while Shift and W are held since the body
+  was last on a stair, no vault starts until it has gone 3 m on the level. Held into a landing's rail it goes nowhere, so it never vaults it;
+  let go and press again, and the rail vaults as any fence. The same rule the automatic climb has (`PlayerClimbing.MarkStairs`). "On a stair"
+  is `StairRun`: the feet rising faster than 1.6 m/s over a short stretch (a sprint up the city's stairs rises 4.7, a walk 2.5; a kerb is
+  over in a frame, a 20% street at a sprint is 1.5), or the walk's own stair sense (`GroundGlide.IsStairs`), which a sprint up a short flight
+  outruns.
+
+An earlier attempt (2026-11-19, never committed) also refused any vault with two risers in the ground round the run-up, a metre either side: it
+refused 156 street windows beside entrance steps and did not catch the landings, and was dropped. The real-facade survey after the fix:
+363 shattered sill-high windows vaulted straight on, 22 of 22 high ones dived into from a climb, none refused as `NotAnObstacle`.

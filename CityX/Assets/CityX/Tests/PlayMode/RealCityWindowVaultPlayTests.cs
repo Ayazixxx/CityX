@@ -415,7 +415,7 @@ namespace CityX.Tests
             }
             Vector3 feet = c.Outside + c.Inward * 0.35f;
             feet.y = sillY - BodyRig.StandingHeight * PlayerClimbing.MantleReachFraction + 0.1f;
-            return VaultProbe.TryFind(feet + Vector3.up * (BodyRig.StandingHeight * PlayerClimbing.WindowReachLiftFraction), c.Inward,
+            return VaultProbe.TryFindFromAClimb(feet + Vector3.up * (BodyRig.StandingHeight * PlayerClimbing.WindowReachLiftFraction), c.Inward,
                 BodyRig.StandingHeight, 0.3f, null, out VaultProbe.Vault vault, out why) && VaultProbe.IsThroughAnOpening(vault, BodyRig.StandingHeight);
         }
 #endif

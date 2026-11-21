@@ -8,12 +8,15 @@ namespace CityX.Character
     /// The same staged-validation idea as <see cref="LedgeProbe"/> (a wall face, a flat top, room to be), but the body ends up on the FAR side:
     ///  1. sweeps forward (at several heights, in a fan) find the near-vertical faces the player is facing (a person fails, a glancing graze fails);
     ///     each is tried in turn, nearest first, so a plinth or a kerb in front of a window does not hide the wall under the sill;
-    ///  2. the top, probed straight down just behind the face, must be flat and inside the vaultable band (below it is a step, above it a climb);
+    ///  2. the top, probed straight down just behind the face, must be flat and inside the vaultable band (below it is a step, above it a climb),
+    ///     and, from the ground, the obstacle must stand up from the ground the player is on (a stair's upper steps with a short landing and a
+    ///     drop past it, a rail on the landing above, are not obstacles; owner, 2026-11-19: "i accidentally vault when running up stairs sometimes");
     ///  3. walking the top away from the player, it must end within <see cref="MaxThicknessMetres"/> (a building is not vaulted); anything lower
     ///     than the top past it (a street, a room's floor) is beyond the far edge;
     ///  4. an OPENING (a window: a sill between two jambs) is gone through its middle, wherever along the sill the player met it;
     ///  5. just past the far edge there must be ground within a short drop, with a standing capsule's worth of room, and the opening over the top
     ///     must be clear (no glass) and tall enough to pass, if only diving.
+    /// A run carried on up a stair vaults nothing at first either (PlayerVaulting.AfterStairsMetres): that is the body's run, not a query's.
     /// Pure queries, no state.
     /// </summary>
     public static class VaultProbe
@@ -54,6 +57,11 @@ namespace CityX.Character
             NoFace,
             /// <summary>No flat top inside the band that ends within the thickness limit.</summary>
             NoTop,
+            /// <summary>
+            /// What was found does not stand up from the ground the player is on: a stair's top step (it rises a step from the tread before it), or
+            /// a rail on a landing above the flight the player is on.
+            /// </summary>
+            NotAnObstacle,
             /// <summary>No ground within a short drop past the far edge.</summary>
             NoLanding,
             /// <summary>No room to stand where the feet would land.</summary>
@@ -65,6 +73,18 @@ namespace CityX.Character
             /// <summary>Something just past the far edge, in the height the body passes through.</summary>
             NoRoomPastTop,
         }
+
+        /// <summary>
+        /// The ground an obstacle stands on may be this far above or below the feet, metres: a step. Further, it stands on another level (a rail on
+        /// the landing over the flight the player is on).
+        /// </summary>
+        public const float MaxGroundStepMetres = 0.4f;
+
+        /// <summary>An obstacle rises at least this far over the ground in front of it, metres: lower is a step (a stair's top step is one).</summary>
+        public const float MinRiseMetres = 0.4f;
+
+        /// <summary>How far in front of the face the ground it stands on is looked for, metres: past a window sill's stone ledge.</summary>
+        private const float GroundInFrontMetres = 0.2f;
 
         /// <summary>The least free height over the top that can be gone through, metres: a body diving flat is about this thick with room to spare.</summary>
         public const float MinHeadroomMetres = 0.9f;
@@ -296,7 +316,23 @@ namespace CityX.Character
         }
 
         /// <summary>As <see cref="TryFind(Vector3, Vector3, float, float, Transform, out Vault)"/>, also saying which stage refused (<see cref="Refusal.None"/> when found).</summary>
-        public static bool TryFind(Vector3 feet, Vector3 forward, float standingHeight, float radius, Transform self, out Vault vault, out Refusal refusal)
+        public static bool TryFind(Vector3 feet, Vector3 forward, float standingHeight, float radius, Transform self, out Vault vault, out Refusal refusal) =>
+            Find(feet, forward, standingHeight, radius, self, true, out vault, out refusal);
+
+        /// <summary>
+        /// A vault from a CLIMB (PlayerClimbing: into a broken window too high to vault from the street): <paramref name="feet"/> is where the body
+        /// would stand, not ground it stands on, so the obstacle is not asked to stand up from it.
+        /// </summary>
+        public static bool TryFindFromAClimb(Vector3 feet, Vector3 forward, float standingHeight, float radius, Transform self, out Vault vault) =>
+            Find(feet, forward, standingHeight, radius, self, false, out vault, out _);
+
+        /// <summary>As <see cref="TryFindFromAClimb(Vector3, Vector3, float, float, Transform, out Vault)"/>, also saying which stage refused.</summary>
+        public static bool TryFindFromAClimb(Vector3 feet, Vector3 forward, float standingHeight, float radius, Transform self, out Vault vault,
+            out Refusal refusal) =>
+            Find(feet, forward, standingHeight, radius, self, false, out vault, out refusal);
+
+        private static bool Find(Vector3 feet, Vector3 forward, float standingHeight, float radius, Transform self, bool fromTheGround, out Vault vault,
+            out Refusal refusal)
         {
             vault = default;
             refusal = Refusal.None;
@@ -343,7 +379,7 @@ namespace CityX.Character
             refusal = Refusal.NoTop;
             for (int i = 0; i < count; i++)
             {
-                Refusal why = TryOver(Faces[i], standingHeight, radius, bandLow, bandHigh, self, out vault);
+                Refusal why = TryOver(Faces[i], fromTheGround ? feet.y : float.NaN, standingHeight, radius, bandLow, bandHigh, self, out vault);
                 if (why == Refusal.None)
                 {
                     refusal = Refusal.None;
@@ -358,8 +394,25 @@ namespace CityX.Character
             return false;
         }
 
-        /// <summary>Stages 2 to 5 for one face: the top, the way through an opening, the landing and the air over the top.</summary>
-        private static Refusal TryOver(in Face face, float standingHeight, float radius, float bandLow, float bandHigh, Transform self, out Vault vault)
+        /// <summary>
+        /// Whether the obstacle with its top at <paramref name="height"/> over <paramref name="nearEdge"/> STANDS UP FROM THE GROUND THE PLAYER IS ON: the
+        /// ground just in front of its face within a step of the feet, and the top at least <see cref="MinRiseMetres"/> over it. A stair's top step
+        /// rises one step from the tread before it; a rail on the landing over the flight stands on ground a storey's share above the feet.
+        /// </summary>
+        private static bool StandsUpFromYourGround(Vector3 nearEdge, Vector3 faceNormal, float height, float feetY, Transform self)
+        {
+            Vector3 from = nearEdge + faceNormal * GroundInFrontMetres;
+            from.y = height - 0.12f;   // under the top: a sill's stone ledge, if the ray starts in it, is passed through
+            if (!LedgeProbe.SolidHit(from, Vector3.down, from.y - feetY + MaxGroundStepMetres + 0.5f, self, out RaycastHit ground))
+            {
+                return false;
+            }
+            return Mathf.Abs(ground.point.y - feetY) <= MaxGroundStepMetres && height - ground.point.y >= MinRiseMetres;
+        }
+
+        /// <summary>Stages 2 to 5 for one face: the top, the way through an opening, the landing and the air over the top. <paramref name="feetY"/> NaN: not
+        /// from the ground (a climb).</summary>
+        private static Refusal TryOver(in Face face, float feetY, float standingHeight, float radius, float bandLow, float bandHigh, Transform self, out Vault vault)
         {
             vault = default;
             Vector3 faceNormal = face.Normal;
@@ -387,6 +440,10 @@ namespace CityX.Character
             }
             var nearEdge = new Vector3(origin.x, height, origin.z);
             Vector3 farEdge = nearEdge + into * lastTopDepth;
+            if (!float.IsNaN(feetY) && !StandsUpFromYourGround(nearEdge, faceNormal, height, feetY, self))
+            {
+                return Refusal.NotAnObstacle;
+            }
 
             // 4. THROUGH THE MIDDLE OF AN OPENING (owner, 2026-10-14: "the vaulting through window function isnt working on most windows"): the player
             // meets a window's wall wherever they run at it, and the way through was checked there, a hand's width from a jamb as often as not.

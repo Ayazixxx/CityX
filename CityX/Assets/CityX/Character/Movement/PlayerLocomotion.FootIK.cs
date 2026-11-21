@@ -98,6 +98,7 @@ namespace CityX.Character
             _feet.Reset();
             _footwork.Reset();
             _glide.Reset();
+            _stairRun.Reset();
             _stairSteps.Reset();
         }
 
@@ -138,6 +139,7 @@ namespace CityX.Character
                 _feet.Reset();
                 _footwork.Reset();
                 _glide.Reset();
+                _stairRun.Reset();
                 _stairSteps.Reset();
                 moved = Vector3.zero;
             }

@@ -37,6 +37,14 @@ namespace CityX.Character
         /// <summary>The ground's rise per metre along the travel, read past its steps: 0 on the flat, about 0.63 up a stair, negative down one.</summary>
         public float GroundSlope => _glide.Slope;
 
+        private readonly StairRun _stairRun = new StairRun();
+
+        /// <summary>The body is running a stair (StairRun): a run carried on from one vaults nothing at first (PlayerVaulting).</summary>
+        public bool OnStair => _stairRun.OnStair;
+
+        /// <summary>How far the body has gone along the ground since it was last on a stair, metres.</summary>
+        public float MetresOffStairs => _stairRun.MetresOff;
+
         /// <summary>
         /// WALKING DOWN, THE BODY STAYS ON THE GROUND. The controller knows only how to step up: off each tread it was falling, 73 of 88 frames in the air down a flight at a
         /// walk and all of them at a sprint, hanging over the stairs, unable to jump, its lean flicking between the ground's and the air's. Having been on the ground and
@@ -88,6 +96,7 @@ namespace CityX.Character
                 _glideRead = true;
             }
             _glide.Step(position.y, _glideGround, _controller != null ? _controller.skinWidth : 0.0f, lead, onGround, deltaTime);
+            _stairRun.Step(position.y, distance, IsGrounded, _glide.IsStairs, deltaTime);
         }
 
         private const float GlideRayAbove = 0.9f;

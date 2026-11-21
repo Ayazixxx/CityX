@@ -38,12 +38,22 @@ namespace CityX.Character
 
         public const float FullHeadroomExtraMetres = 0.3f;
 
+        /// <summary>
+        /// NOT RIGHT OFF A STAIR (owner, 2026-11-19: "i accidentally vault when running up stairs sometimes"): a run carried on from a stair (Shift
+        /// and W held since the body was last on one, PlayerLocomotion.OnStair) vaults nothing until it has gone this far on the level. Running up, a
+        /// stair's top step with a short landing and a drop past it, or the rail along a landing with the roof or the next flight beyond, looked like
+        /// a wall to jump, and held into the rail the run went on asking. Let go and run again, the rail is vaulted as anywhere: as the automatic
+        /// climb asks (PlayerClimbing.MarkStairs).
+        /// </summary>
+        public const float AfterStairsMetres = 3.0f;
+
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
         private VaultProbe.Vault _vault;
         private Vector3 _start;
         private float _elapsed;
         private float _cooldown;
+        private bool _runFromStair;
         private Quaternion _yaw;
         private float _leanDegrees = LeanDegrees;
         private float _apexAboveTop = ClearanceMetres;
@@ -89,6 +99,14 @@ namespace CityX.Character
         public bool TryStart(bool forwardHeld, bool runHeld, bool grounded, float speed, float deltaTime, Vector3 direction = default)
         {
             _cooldown = Mathf.Max(0.0f, _cooldown - deltaTime);
+            if (!forwardHeld || !runHeld)
+            {
+                _runFromStair = false;   // let go of the run: the next is a new one
+            }
+            else if (_locomotion != null && _locomotion.OnStair)
+            {
+                _runFromStair = true;
+            }
             if (IsVaulting || _cooldown > 0.0f || !forwardHeld || !runHeld || !grounded)
             {
                 return false;
@@ -96,6 +114,10 @@ namespace CityX.Character
             if (speed < MinRunSpeed)   // no gate by default: holding run and forward at an obstacle IS the request, even when pressed against it
             {
                 return false;
+            }
+            if (_runFromStair && _locomotion != null && _locomotion.MetresOffStairs < AfterStairsMetres)
+            {
+                return false;   // a run up a stair: its top step and its landing's rail are not obstacles to jump
             }
             float height = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
             float radius = _controller != null ? _controller.radius : 0.3f;
