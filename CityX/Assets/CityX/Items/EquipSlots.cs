@@ -13,6 +13,10 @@ namespace CityX.Items
         public const string Helmet = "helmet";
         public const string Mask = "mask";
         public const string Torso = "top";
+
+        /// <summary>A shirt worn under a coat, shown in the top slot beside it (Character.TopLayers).</summary>
+        public const string TorsoUnder = "top_under";
+
         public const string Gloves = "gloves";
         public const string Legs = "legs";
         public const string Shoes = "shoes";

@@ -31,13 +31,15 @@ namespace CityX.Wearables
             }
         }
 
-        private static readonly Dictionary<Mesh, (bool found, Vector3 rim)> Measured = new Dictionary<Mesh, (bool, Vector3)>();
+        private static readonly Dictionary<(Mesh, float), (bool found, Vector3 rim)> Measured = new Dictionary<(Mesh, float), (bool, Vector3)>();
 
         /// <summary>
         /// The rim in the garment's own space (the body's at rest: up +Y, forward +Z): on the line up the middle of the collar, at the height of its
-        /// highest point behind the neck. False when nothing of the garment is on the collar bone.
+        /// highest point behind the neck, or, given <paramref name="halfWidth"/>, its highest straight behind the head, within that of the middle line.
+        /// False when nothing of the garment is on the collar bone.
         /// </summary>
-        public static bool TryMeasure(IReadOnlyList<Vector3> vertices, IReadOnlyList<BoneWeight> weights, int bone, out Vector3 rim)
+        public static bool TryMeasure(IReadOnlyList<Vector3> vertices, IReadOnlyList<BoneWeight> weights, int bone, out Vector3 rim,
+            float halfWidth = float.PositiveInfinity)
         {
             rim = Vector3.zero;
             float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
@@ -63,7 +65,7 @@ namespace CityX.Wearables
             float top = float.MinValue;
             for (int i = 0; i < vertices.Count && i < weights.Count; i++)
             {
-                if (vertices[i].z < middleZ && WeightOn(weights[i], bone) >= CollarWeight)
+                if (vertices[i].z < middleZ && Mathf.Abs(vertices[i].x - middleX) <= halfWidth && WeightOn(weights[i], bone) >= CollarWeight)
                 {
                     top = Mathf.Max(top, vertices[i].y);
                 }
@@ -77,18 +79,18 @@ namespace CityX.Wearables
         }
 
         /// <summary>The garment's collar rim, measured once a mesh.</summary>
-        public static bool TryMeasure(Mesh mesh, out Vector3 rim)
+        public static bool TryMeasure(Mesh mesh, out Vector3 rim, float halfWidth = float.PositiveInfinity)
         {
             if (mesh == null || !mesh.isReadable)
             {
                 rim = Vector3.zero;
                 return false;
             }
-            if (!Measured.TryGetValue(mesh, out (bool found, Vector3 rim) measured))
+            if (!Measured.TryGetValue((mesh, halfWidth), out (bool found, Vector3 rim) measured))
             {
-                bool found = TryMeasure(mesh.vertices, mesh.boneWeights, CollarBone, out Vector3 at);
+                bool found = TryMeasure(mesh.vertices, mesh.boneWeights, CollarBone, out Vector3 at, halfWidth);
                 measured = (found, at);
-                Measured[mesh] = measured;
+                Measured[(mesh, halfWidth)] = measured;
             }
             rim = measured.rim;
             return measured.found;
@@ -98,12 +100,12 @@ namespace CityX.Wearables
         /// Tucks the hair of the body under the garment's collar (HairPush.TuckUnder), the rim put in the collar bone's frame by the garment's own bindpose.
         /// False when the garment has no collar or the body no collar bone.
         /// </summary>
-        public static bool TuckHairUnder(Animator body, Mesh garment)
+        public static bool TuckHairUnder(Animator body, Mesh garment, float halfWidth = float.PositiveInfinity)
         {
             int bone = CollarBone;
             Transform neck = body != null && body.isHuman ? body.GetBoneTransform(HumanBodyBones.Neck) : null;
             Transform collar = neck != null ? neck.Find(GarmentHelperBones.Helpers[bone - SkinnedGarment.Bones.Length].name) : null;
-            if (collar == null || garment == null || garment.bindposes.Length <= bone || !TryMeasure(garment, out Vector3 rim))
+            if (collar == null || garment == null || garment.bindposes.Length <= bone || !TryMeasure(garment, out Vector3 rim, halfWidth))
             {
                 return false;
             }

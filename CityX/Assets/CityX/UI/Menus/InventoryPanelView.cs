@@ -225,7 +225,7 @@ namespace CityX.UI
             {
                 return;
             }
-            Inventory.UnequipLast(slotKey, Player);   // a pair of pistols gives back its left-hand one first
+            Inventory.UnequipLast(slotKey, Player);   // a pair of pistols gives back its left-hand one first, a coat over a shirt the coat
             Refresh();
         }
 
@@ -255,7 +255,7 @@ namespace CityX.UI
                     continue;
                 }
                 string itemId = Inventory.EquippedItemId(EquipSlotKeys[i]);
-                string name = string.IsNullOrEmpty(itemId) ? "--" : LoadoutPanelView.WeaponText(itemId, Inventory.PairedItemId(EquipSlotKeys[i]));
+                string name = string.IsNullOrEmpty(itemId) ? "--" : LoadoutPanelView.SlotText(itemId, Inventory.SecondItemId(EquipSlotKeys[i]));
                 bool inHand = !string.IsNullOrEmpty(itemId) && Inventory.IsWeaponSlot(EquipSlotKeys[i]) && Inventory.ActiveWeaponSlot == EquipSlotKeys[i] && !Inventory.IsHolstered(EquipSlotKeys[i]);
                 EquipLabels[i].text = inHand ? "> " + name : name;
             }

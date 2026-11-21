@@ -189,7 +189,7 @@ namespace CityX.Character
             return pair != null ? EquippedItemId(pair) : string.Empty;
         }
 
-        /// <summary>A menu's click on a weapon slot: a pair gives back its left-hand pistol first, then the slot its own.</summary>
+        /// <summary>A menu's click on a slot: a pair gives back its left-hand pistol first, then the slot its own; a coat over a shirt comes off, the shirt staying on.</summary>
         public bool UnequipLast(string slot, GameObject player) =>
             UnequipToSlot(string.IsNullOrEmpty(PairedItemId(slot)) ? slot : PistolPairs.PairOf(slot), player);
 
@@ -355,6 +355,10 @@ namespace CityX.Character
             {
                 return false;
             }
+            if (slot == TopLayers.Top)
+            {
+                slot = WearOnTop(itemId);   // a shirt under a coat, a coat over a shirt
+            }
             if (_equipment.TryGetValue(slot, out string currentItemId) && !string.IsNullOrEmpty(currentItemId))
             {
                 if (!Unequip(slot, player, takeOverByPair: false))
@@ -374,6 +378,7 @@ namespace CityX.Character
             bool pairSlot = PistolPairs.IsPair(slot);
             if (!Spawn(itemId, player, instanceData, out GameObject instance, pairSlot))
             {
+                RaiseShirt();
                 return false;
             }
             _equipment[slot] = itemId;
@@ -439,6 +444,10 @@ namespace CityX.Character
             equippable?.OnUnequip(player);
             _equipment[slotKey] = string.Empty;
             _equippedInstances[slotKey] = null;
+            if (slotKey == TopLayers.Top && takeOverByPair)
+            {
+                RaiseShirt();   // the coat taken off (not replaced by another): the shirt under it is the top again
+            }
             NotifyEquipmentChanged(); return true;
         }
 
@@ -508,7 +517,9 @@ namespace CityX.Character
         {
             if (EquipsOnPickUp(itemId) && PrefabFor(itemId) != null && ItemRegistry.TryGet(itemId, out ItemDefinition definition))
             {
-                string worn = IsWeaponSlot(definition.EquipSlot) ? string.Empty : EquippedItemId(definition.EquipSlot);
+                string worn = IsWeaponSlot(definition.EquipSlot) ? string.Empty
+                    : definition.EquipSlot == TopLayers.Top ? TopLayers.Replaces(itemId, EquippedItemId)
+                    : EquippedItemId(definition.EquipSlot);
                 if (string.IsNullOrEmpty(worn) || HasRoomFor(worn))
                 {
                     return true;

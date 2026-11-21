@@ -38,6 +38,12 @@ namespace CityX.Tests
             Assert.AreEqual(2.1f, rim.y, 1e-4f, "the rim is not at the collar's top behind the neck");
 
             Assert.IsFalse(GarmentCollar.TryMeasure(vertices, weights, collar + 1, out _), "a garment with nothing on the bone has a collar");
+
+            // Read straight behind the head only: a spike beside it, higher, is left out.
+            vertices.Add(new Vector3(0.35f, 2.3f, -0.3f));
+            weights.Add(On(collar));
+            Assert.IsTrue(GarmentCollar.TryMeasure(vertices, weights, collar, out Vector3 behind, 0.08f));
+            Assert.AreEqual(2.1f, behind.y, 1e-4f, "the rim read behind the head took the spike beside it");
         }
 
         [Test]
@@ -51,5 +57,25 @@ namespace CityX.Tests
             Assert.Greater(rim.y, neck.y, "the coat's collar does not come up past the neck");
             Assert.Less(rim.y, head.y, "the coat's collar rises past the middle of the head");
         }
+
+        /// <summary>
+        /// The parka's rim is the fur's top straight behind the head, under the fur's tips beside it (owner, 2026-11-21: "there are small bits of the scalp
+        /// visible on the back of the head when wearing parka"): its hair is drawn in only where the fur covers it.
+        /// </summary>
+        [TestCase("GreenFurHoodedParka")]
+        [TestCase("MaroonFurHoodedParka")]
+        public void TheParkasRimIsTheFursTopStraightBehindTheHead(string prefab)
+        {
+            var parka = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefab}.prefab").GetComponent<SkinnedGarment>();
+            Assert.IsTrue(GarmentCollar.TryMeasure(parka.GarmentMesh, out Vector3 tips), "the parka has no collar");
+            Assert.IsTrue(GarmentCollar.TryMeasure(parka.GarmentMesh, out Vector3 behind, BehindTheHead));
+            Assert.Less(behind.y, tips.y - 0.02f, "the rim behind the head is not under the fur's tips");
+            Vector3 head = BodyRig.ShapePositionOf(HumanBodyBones.Head), neck = BodyRig.ShapePositionOf(HumanBodyBones.Neck);
+            Assert.Greater(behind.y, neck.y + 0.15f, "the rim behind the head is down at the neck: the hair would be drawn in no more");
+            Assert.Less(behind.y, head.y, "the rim behind the head rises past the middle of the head");
+        }
+
+        /// <summary>FurHoodedParka's own, private: the same width.</summary>
+        private const float BehindTheHead = 0.08f;
     }
 }

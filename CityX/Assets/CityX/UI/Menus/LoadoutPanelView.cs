@@ -138,7 +138,7 @@ namespace CityX.UI
             {
                 return;
             }
-            Inventory.UnequipLast(slotKey, Player);   // a pair of pistols gives back its left-hand one first
+            Inventory.UnequipLast(slotKey, Player);   // a pair of pistols gives back its left-hand one first, a coat over a shirt the coat
             Refresh();
         }
 
@@ -155,13 +155,13 @@ namespace CityX.UI
                     continue;
                 }
                 string itemId = Inventory.EquippedItemId(SlotKeys[i]);
-                SlotLabels[i].text = string.IsNullOrEmpty(itemId) ? "--" : WeaponText(itemId, Inventory.PairedItemId(SlotKeys[i]));
+                SlotLabels[i].text = string.IsNullOrEmpty(itemId) ? "--" : SlotText(itemId, Inventory.SecondItemId(SlotKeys[i]));
             }
         }
 
-        /// <summary>A slot's item, and the pistol paired beside it (docs/DUAL_PISTOLS.md): "Pistol + Pistol".</summary>
-        public static string WeaponText(string itemId, string pairedItemId) =>
-            string.IsNullOrEmpty(pairedItemId) ? DisplayNameFor(itemId) : DisplayNameFor(itemId) + " + " + DisplayNameFor(pairedItemId);
+        /// <summary>A slot's item, and the second it holds beside it: a pistol paired (docs/DUAL_PISTOLS.md), "Pistol + Pistol", or a shirt under a coat.</summary>
+        public static string SlotText(string itemId, string secondItemId) =>
+            string.IsNullOrEmpty(secondItemId) ? DisplayNameFor(itemId) : DisplayNameFor(itemId) + " + " + DisplayNameFor(secondItemId);
 
         private static string DisplayNameFor(string itemId) =>
             ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? definition.DisplayName : itemId;

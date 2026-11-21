@@ -215,6 +215,10 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderThePushOverTheCoat() => RenderOver("Assets/CityX/Wearables/MidnightCoat.prefab", "hair-push-coat-sheet.png");
 
+        /// <summary>The same over the parka (owner, 2026-11-21: "small bits of the scalp visible on the back of the head"): hair-push-parka-sheet.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderThePushOverTheParka() => RenderOver("Assets/CityX/Wearables/GreenFurHoodedParka.prefab", "hair-push-parka-sheet.png");
+
         private static IEnumerator RenderOver(string topPath, string sheetName)
         {
             CaptureGuard.NeedsGraphics();

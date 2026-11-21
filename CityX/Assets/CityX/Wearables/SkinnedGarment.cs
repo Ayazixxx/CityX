@@ -154,7 +154,7 @@ namespace CityX.Wearables
             }
             Combiner.Register(ItemId, GarmentMesh, GarmentMaterial);
             CoverBody(player);
-            if (TucksHairUnderCollar && GarmentCollar.TuckHairUnder(animator, GarmentMesh))
+            if (TucksHairUnderCollar && GarmentCollar.TuckHairUnder(animator, GarmentMesh, CollarRimHalfWidth))
             {
                 _tuckedUnder = animator;
             }
@@ -166,6 +166,13 @@ namespace CityX.Wearables
         /// garment as it is over a shirt.
         /// </summary>
         protected virtual bool TucksHairUnderCollar => false;
+
+        /// <summary>
+        /// How far either side of the collar's middle line its rim is read (GarmentCollar.TryMeasure): by default the whole collar's highest point
+        /// behind the neck; a collar that rises higher at the sides than straight behind the head reads it there, or the hair is drawn in above the
+        /// collar behind the head and the scalp shows.
+        /// </summary>
+        protected virtual float CollarRimHalfWidth => float.PositiveInfinity;
 
         private Animator _tuckedUnder;
 

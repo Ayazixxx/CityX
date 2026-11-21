@@ -221,6 +221,10 @@ namespace CityX.Items
         /// <summary>A gun held in one hand, which Dual Pistols pairs with another in the other hand (docs/DUAL_PISTOLS.md).</summary>
         public static bool IsHandgun(string itemId) => itemId == Pistol;
 
+        /// <summary>A coat: worn over a shirt, which goes under it in the top slot (Character.TopLayers).</summary>
+        public static bool IsCoat(string itemId) =>
+            itemId == MidnightCoat || itemId == GreenFurHoodedParka || itemId == MaroonFurHoodedParka;
+
         public static IReadOnlyCollection<string> Ids => Items.Keys;
     }
 }

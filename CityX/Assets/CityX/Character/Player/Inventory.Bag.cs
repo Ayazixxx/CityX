@@ -76,7 +76,7 @@ namespace CityX.Character
             bool weapon = IsWeaponSlot(definition.EquipSlot);
             bool fits = IsWeaponSlot(entry.Slot) ? weapon
                 : PistolPairs.IsPair(entry.Slot) ? ItemRegistry.IsHandgun(entry.ItemId) && ItemRegistry.IsHandgun(EquippedItemId(PistolPairs.SlotOfPair(entry.Slot)))
-                : entry.Slot == definition.EquipSlot;
+                : entry.Slot == definition.EquipSlot || (entry.Slot == TopLayers.Under && definition.EquipSlot == TopLayers.Top);
             if (!fits)
             {
                 AddItem(entry.ItemId, 1, data);

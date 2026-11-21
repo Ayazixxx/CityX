@@ -24,7 +24,11 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderThePlayerInTheMaroonFurHoodedParka() => Render("MaroonFurHoodedParka", "maroonparka");
 
-        private static IEnumerator Render(string prefab, string shots)
+        /// <summary>The parka over a long-sleeved shirt (owner, 2026-11-21: "make it so i can wear a shirt underneath the parka"): greenparka-shirt-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderThePlayerInTheGreenParkaOverALongSleevedShirt() => Render("GreenFurHoodedParka", "greenparka-shirt", "LongSleeveTShirt");
+
+        private static IEnumerator Render(string prefab, string shots, string shirtUnder = null)
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
@@ -47,6 +51,11 @@ namespace CityX.Tests
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
 
+            if (shirtUnder != null)
+            {
+                Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{shirtUnder}.prefab"),
+                    new Vector3(32.0f, 0.5f, 30.0f), Quaternion.identity).GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);
+            }
             GameObject coat = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefab}.prefab"),
                 new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
             coat.GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);

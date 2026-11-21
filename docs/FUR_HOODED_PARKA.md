@@ -109,12 +109,42 @@ To rebuild after a change in Blender (`export()` writes `Parka.glb`):
 
 then rebuild the scene (`CityMassingSceneBuilder.Build`).
 
+## A shirt under it (2026-11-21)
+
+Owner: "make it so i can wear a shirt underneath the parka. make it so they both go into the top slot in inventory and can stack. that is how
+we will do it for testing purposes I will come up with a way for it to look good with ui later."
+
+- The top slot has a second place, under the coat (`EquipSlots.TorsoUnder`), as a weapon slot has one for a second pistol. The rule is
+  `TopLayers` (pure): a coat goes in the top place, over the shirt worn, which moves under it; a shirt goes under the coat worn, or in the top
+  place with no coat on. One shirt and one coat at most: a second of either kind takes the place of the first, which goes to storage.
+- Coats are `ItemRegistry.IsCoat`: the Midnight Coat and the parkas. Everything else worn as a top is a shirt.
+- The menus show both in the top slot, "Green Fur Hooded Parka + T-Shirt". A click on it takes the coat off; the shirt stays on.
+- Both are saved, told to other players (their copies wear both) and put back on from a save in either order.
+- Under a coat a shirt is drawn without its sleeves (`UnderCoat`, in `SkinnedGarmentCombiner`): the coat's sleeves cover them, and a
+  long-sleeved shirt's, fuller than the parka's fitted upper sleeve, came out through it. Its body shows in the coat's open front.
+  `LongCoatCapture.RenderThePlayerInTheGreenParkaOverALongSleevedShirt` renders `greenparka-shirt-*.png`.
+
+## The hair behind the head (2026-11-21)
+
+Owner: "there are small bits of the scalp visible on the back of the head when wearing parka. you can have the hair clip into the hood
+slightly to hide this", then "just dont have hair poking through the other side of the fur". The hair is drawn in under a coat's collar from
+its rim down (docs/HAIR.md, "Tucked into a high collar"). The rim was the collar's highest point behind the neck: on the parka the fur's tips
+beside the head, 2.165 m up, while straight behind the head the fur only reaches 2.13 m. So behind the head the hair was drawn in above the fur
+and the scalp showed. The parka reads its rim straight behind the head (`FurHoodedParka.CollarRimHalfWidth`, 8 cm either side of the middle):
+the hair stays on the head down to the fur's top there and goes into the fur below it. The fur is 13 to 16 cm thick behind the head, so the
+hair going into it stays inside it.
+
 ## Tests
 
 - `LongCoatTests` (EditMode, every long coat): a top with its own name and a blue card; within 15k triangles and one small map; never on
   the head, hands or shins; below the hips, nine in ten points on the skirt bones; hides part of the body; hangs from the shoulders to below the hips.
 - `LongCoatPlayTests` (PlayMode, every long coat): the body under it is hidden and given back; through a sprint the head does not sink into the
   collar and no knee comes through the front.
+- `TopLayersTests` (EditMode): a shirt and a coat stack in either order; a second of either kind takes its own kind's place; the coat
+  comes off first; both saved, told to other players and put back on.
+- `UnderCoatTests` (EditMode): a shirt under a coat loses its sleeves and keeps its body.
+- `GarmentCollarTests.TheParkasRimIsTheFursTopStraightBehindTheHead`; `HairPushCapture.RenderThePushOverTheParka` renders
+  `Logs/CityShots/hair-push-parka-sheet.png`.
 - `LongCoatCapture` (PlayMode, Explicit, `-Graphics`): standing, the cuff, walking and four moments of a sprint, to
   `Logs/CityShots/greenparka-*.png` and `maroonparka-*.png`.
 

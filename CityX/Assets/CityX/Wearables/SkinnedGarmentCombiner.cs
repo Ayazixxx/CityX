@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Items;
 using UnityEngine;
 
 namespace CityX.Wearables
@@ -149,13 +150,15 @@ namespace CityX.Wearables
             EnsureRenderer();
             ResolveBonesOnce();
 
+            // Under a coat a shirt is drawn without its sleeves: the coat's cover them (UnderCoat).
+            bool coatOn = _order.Exists(id => _entries[id].Visible && ItemRegistry.IsCoat(id));
             var visible = new List<Entry>(_order.Count);
             foreach (string id in _order)
             {
                 Entry entry = _entries[id];
                 if (entry.Visible)
                 {
-                    visible.Add(entry);
+                    visible.Add(coatOn && UnderCoat.IsShirt(id) ? new Entry { Mesh = UnderCoat.SleevesOff(entry.Mesh), Material = entry.Material } : entry);
                 }
             }
 
