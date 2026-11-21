@@ -74,14 +74,18 @@ namespace CityX.Wearables
             public int[] OtherBones;
             public float[] OtherWeights;
             public Vector3[] OtherLocals;
+
+            /// <summary>How far each point already lies inside a leg as the coat was fitted (metres at the body's own size): that much is how the coat is cut, not a leg come through it.</summary>
+            public float[] Fitted;
             private Vector3[] _fixed;
 
             /// <summary>
             /// The garment's points at least <paramref name="onPanel"/> on the two bones and at least <paramref name="fromJoint"/> from their joint
-            /// (bind pose), one a cell of an even grid (<see cref="Cell"/>), at most <paramref name="most"/>.
+            /// (bind pose), one a cell of an even grid (<see cref="Cell"/>), at most <paramref name="most"/>. <paramref name="fittedLegs"/>, the legs as
+            /// the coat was fitted round them (bind pose), give each point the depth it is cut to lie at (<see cref="Fitted"/>).
             /// </summary>
             public static Panel Of(IReadOnlyList<Vector3> vertices, IReadOnlyList<BoneWeight> weights, IReadOnlyList<Matrix4x4> bindposes, int front,
-                int back, float onPanel, float fromJoint, int most)
+                int back, float onPanel, float fromJoint, int most, IReadOnlyList<Limb> fittedLegs = null, float clearance = 0.0f)
             {
                 var chosen = new List<int>();
                 var cells = new HashSet<Vector3Int>();
@@ -100,7 +104,7 @@ namespace CityX.Wearables
                     Front = front, Back = back, Count = count,
                     OnFront = new float[count], OnBack = new float[count], FrontLocal = new Vector3[count], BackLocal = new Vector3[count],
                     OtherBones = new int[count * 4], OtherWeights = new float[count * 4], OtherLocals = new Vector3[count * 4],
-                    _fixed = new Vector3[count],
+                    _fixed = new Vector3[count], Fitted = new float[count],
                 };
                 for (int p = 0; p < count; p++)
                 {
@@ -112,6 +116,10 @@ namespace CityX.Wearables
                     panel.OnBack[p] = On(w, back);
                     panel.FrontLocal[p] = bindposes[front].MultiplyPoint3x4(vertices[v]);
                     panel.BackLocal[p] = bindposes[back].MultiplyPoint3x4(vertices[v]);
+                    for (int l = 0; fittedLegs != null && l < fittedLegs.Count; l++)
+                    {
+                        panel.Fitted[p] = Mathf.Max(panel.Fitted[p], fittedLegs[l].Inside(vertices[v], clearance, out _));
+                    }
                     for (int k = 0; k < 4; k++)
                     {
                         bool other = bones[k] != front && bones[k] != back && bones[k] < bindposes.Count;
@@ -158,13 +166,13 @@ namespace CityX.Wearables
 
         /// <summary>The panel's deepest point inside a leg now (below <see cref="Tolerance"/>: none), the way out of it, and the point's index.</summary>
         public static float Deepest(Panel panel, Matrix4x4[] bones, IReadOnlyList<Limb> limbs, float clearance, out Vector3 at, out Vector3 outward,
-            out int point)
+            out int point, float scale = 1.0f)
         {
             panel.Prepare(bones);
-            return Deepest(panel, bones[panel.Front], bones[panel.Back], limbs, clearance, out at, out outward, out point);
+            return Deepest(panel, bones[panel.Front], bones[panel.Back], limbs, clearance, scale, out at, out outward, out point);
         }
 
-        private static float Deepest(Panel panel, Matrix4x4 front, Matrix4x4 back, IReadOnlyList<Limb> limbs, float clearance, out Vector3 at,
+        private static float Deepest(Panel panel, Matrix4x4 front, Matrix4x4 back, IReadOnlyList<Limb> limbs, float clearance, float scale, out Vector3 at,
             out Vector3 outward, out int point)
         {
             float deepest = Tolerance;
@@ -179,7 +187,7 @@ namespace CityX.Wearables
                     {
                         continue;
                     }
-                    float inside = limbs[l].Inside(world, clearance, out Vector3 way);
+                    float inside = limbs[l].Inside(world, clearance, out Vector3 way) - panel.Fitted[p] * scale;
                     if (inside > deepest)
                     {
                         deepest = inside;
@@ -207,7 +215,7 @@ namespace CityX.Wearables
             for (int pass = 0; pass < passes; pass++)
             {
                 Vector3 pivot = joint + pose.Shift;
-                float depth = Deepest(panel, Matrix4x4.TRS(pivot, pose.Front, size), Matrix4x4.TRS(pivot, pose.Back, size), limbs, clearance,
+                float depth = Deepest(panel, Matrix4x4.TRS(pivot, pose.Front, size), Matrix4x4.TRS(pivot, pose.Back, size), limbs, clearance, scale,
                     out Vector3 at, out Vector3 outward, out int point);
                 if (point < 0)
                 {

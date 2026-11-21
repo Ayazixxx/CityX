@@ -53,7 +53,7 @@ is final.
 
 In `coat_build.py`:
 
-- **Skirt:** below the hips (from 1.15 m down to 0.9 m, since 2026-11-21; it was 0.95 and 0.72) the skirt moves from the hips onto the skirt bones. The front faces go to the front
+- **Skirt:** below the hips (from 0.95 m down to 0.72 m; hung from 1.15 m for a day on 2026-11-21, the front opened at the waist: the owner, "there is skin visible around the crotch") the skirt moves from the hips onto the skirt bones. The front faces go to the front
   bones, the back faces to the back ones, the sides to both. The body's own weights had given the front panels mostly to the hips: the knee
   went through them.
 - **Armpits:** within 0.24 m of each shoulder joint, and no higher than 4 cm above it, the weights are smoothed. What torso and arm share there
@@ -79,7 +79,16 @@ cloth tunnels through legs). Instead, what action games do with long coats: the 
   hangs from both legs' back bones; a frame with nothing inside a leg costs one look a side.
 - **The coat swings a moment behind the legs** (0.06 s to come most of the way, in the hips' frame so the body turning does not drag it), and a
   push off a knee eases back rather than snapping. A side more than 60 degrees off where the leg puts it (a teleport, a get-up) goes there at once.
-- **The waist** now hangs from the skirt bones from 1.15 m down (it was 0.95), so a knee raised to the waist lifts it.
+- **The waist** of the parka hangs from the skirt bones from 1.15 m down, so a knee raised to the waist lifts it. The Midnight Coat tried it and
+  went back to 0.95 m the same day: it closes lower, and hung from higher its front opened at the waist ("there is skin visible around the crotch").
+- **Only a leg come further in than the coat was cut to lie is pushed against.** Each tested point is measured against the legs as the coat was
+  fitted (the bindposes); that depth is its own. The Midnight Coat is cut close round the thighs: pushed off them standing still, each side
+  moved 4.5 cm and the front opened. Now 1.8 cm.
+- **Not in a crouch** (`PlayerLocomotion.CrouchShown` past 0.3): the folded legs sit inside the coat by its cut, and pushed off them a panel
+  flipped up to 170 degrees from one frame to the next (owner: "the bottom of the coat starts spazzing out when holding control and control
+  walking"). Crouched, the skirt hangs as the legs put it, swinging a moment behind them: at most 9 degrees a frame crouch walking
+  (`CoatCrouchPlayTests`). Limits on how fast and far a push may turn were tried first and dropped: they let the parka's waist lag a
+  knee snapped up in a bo staff swing for 7 frames.
 - No animation was changed.
 
 Measured over the 11 melee weapons (light swings standing and walking, a held heavy one; 355 frames each), the outer cloth only:
@@ -95,12 +104,14 @@ The cost, in the editor while swinging without a break: 0.9 ms a frame on averag
 
 `BodyUnderGarment` hides two kinds of body triangle.
 
-- **Always hidden:** every triangle skinned at least half to the torso (spine) or an upper arm, so the upper arms up to the elbow. The owner
+- **Always hidden:** every triangle skinned at least half to the torso (spine), the neck or an upper arm, so the upper arms up to the elbow.
+  The neck since 2026-11-21 ("when you crouch the neck pokes through ... its a clean chunk of neck that pokes through and can be easily made
+  invisible"): hidden only where the coat was found to cover it in the standing pose, a chunk of it showed through in a crouch. The throat in the open front still shows. The owner
   asked on 2026-10-19: "make the torso and top half of arms up until the elbow invisible while wearing the midnight coat. there are little
   bits that poke through". The exception is the coat's open front, from the waist to the collar: there the torso is hidden only where the
   coat covers it. The owner asked for "any amount that is in view regularly" at the top and toward the bottom, so the throat under the
   collar and the belly at the waist show.
-- **Hidden where the coat covers them:** the neck and the forearms, when rays out along the triangle's normal and 35 degrees round it all hit
+- **Hidden where the coat covers them:** the forearms, when rays out along the triangle's normal and 35 degrees round it all hit
   the coat within 0.3 m.
 
 Behind the body the hips and the top of the thighs, down to 0.75 m, are always hidden too: the back was clipping through in sword swings. Elsewhere the hips and legs are never hidden: the skirt swings off them and the legs come out of the slit. The coat hides 23,205 of the body's 85,838

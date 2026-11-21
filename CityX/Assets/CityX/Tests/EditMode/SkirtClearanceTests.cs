@@ -55,6 +55,28 @@ namespace CityX.Tests
             Assert.LessOrEqual(pose.Shift.magnitude, 0.15f + 1e-5f, "the side was shifted further than the most allowed");
         }
 
+        /// <summary>
+        /// A coat cut close round the legs lies as deep in them as it was fitted without being pushed (owner, 2026-11-21, of the Midnight Coat pushed
+        /// open standing still: "there is skin visible around the crotch"); a leg come further in than that is pushed against.
+        /// </summary>
+        [Test]
+        public void OnlyALegComeFurtherInThanTheCoatWasFittedIsPushedAgainst()
+        {
+            var weight = new BoneWeight { boneIndex0 = Front, weight0 = 0.5f, boneIndex1 = Back, weight1 = 0.5f };
+            Vector3 point = new Vector3(0.2f, -0.15f, 0.0f);
+            Matrix4x4 bind = Matrix4x4.identity;
+            SkirtClearance.Panel fitted = SkirtClearance.Panel.Of(new[] { point }, new[] { weight }, new[] { bind, bind, bind }, Front, Back, 0.3f, 0.0f,
+                10, SideThigh, Clearance);
+            Assert.Greater(fitted.Fitted[0], 0.02f, "setup: the point is not cut into the leg");
+            SkirtClearance.Pose pose = SkirtClearance.Clear(Vector3.zero, Rest, 1.0f, fitted, Bones(), SideThigh, Clearance, 0.2f, 0.15f, 10, out bool moved);
+            Assert.IsFalse(moved, "the coat was pushed off a leg standing where it was fitted");
+            Assert.AreEqual(0.0f, Quaternion.Angle(pose.Front, Quaternion.identity), 1e-4f);
+
+            var further = new List<SkirtClearance.Limb> { new SkirtClearance.Limb(SideThigh[0].From, SideThigh[0].To + Vector3.down * 0.05f, 0.13f, 0.12f) };
+            SkirtClearance.Clear(Vector3.zero, Rest, 1.0f, fitted, Bones(), further, Clearance, 0.2f, 0.15f, 10, out moved);
+            Assert.IsTrue(moved, "a leg raised further into the coat was not pushed against");
+        }
+
         [Test]
         public void ACoatClearOfTheLegsIsLeftAsItHangs()
         {

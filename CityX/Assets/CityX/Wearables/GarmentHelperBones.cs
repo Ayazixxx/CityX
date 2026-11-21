@@ -1,3 +1,4 @@
+using CityX.Character;
 using UnityEngine;
 
 namespace CityX.Wearables
@@ -12,6 +13,9 @@ namespace CityX.Wearables
     [DefaultExecutionOrder(31000)]
     public sealed class GarmentHelperBones : MonoBehaviour
     {
+        /// <summary>A body this far down into a crouch (PlayerLocomotion.CrouchShown) has its skirt left hanging as the legs put it (SkirtCloth).</summary>
+        private const float CrouchedPast = 0.3f;
+
         public enum Kind { SkirtFront, SkirtBack, Shoulder, Collar }
 
         /// <summary>In skinning order, after SkinnedGarment.Bones: a garment's bone index 14 is the first of these.</summary>
@@ -36,6 +40,7 @@ namespace CityX.Wearables
 
         // The skirt kept out of the legs and swinging behind them (SkirtCloth), when the worn mesh has one.
         private SkirtCloth _skirt;
+        private PlayerLocomotion _locomotion;
         private Quaternion[] _rotations;
         private Vector3[] _places;
 
@@ -73,6 +78,7 @@ namespace CityX.Wearables
             _rotations = new Quaternion[Helpers.Length];
             _places = new Vector3[Helpers.Length];
             _skirt = worn != null && worn.isReadable ? new SkirtCloth(animator, bindposes, worn, Helpers.Length) : null;
+            _locomotion = animator.GetComponentInParent<PlayerLocomotion>();
             if (_skirt != null && !_skirt.HasSkirt)
             {
                 _skirt = null;
@@ -119,7 +125,9 @@ namespace CityX.Wearables
             }
             if (_skirt != null && _parents[0] != null)
             {
-                _skirt.Settle(_rotations, _places, _helpers, _parents[0], _body != null ? _body.lossyScale.x : 1.0f, Time.deltaTime);
+                // Crouched, the folded legs sit inside the coat as it is cut: the skirt hangs as the legs put it (SkirtCloth).
+                bool standing = _locomotion == null || _locomotion.CrouchShown < CrouchedPast;
+                _skirt.Settle(_rotations, _places, _helpers, _parents[0], _body != null ? _body.lossyScale.x : 1.0f, Time.deltaTime, standing);
             }
             for (int i = 0; i < _helpers.Length; i++)
             {

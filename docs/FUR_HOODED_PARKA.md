@@ -151,6 +151,10 @@ Through all 11 melee weapons a leg now comes through the parka's outer cloth on 
 `CoatLegsCapture` renders `Logs/CityShots/coat-legs-sheet.png` (the fists, the combat sword, the bo staff and the sledgehammer, from the game's
 camera and from the side).
 
+On 2026-11-21 the Midnight Coat showed what this had broken there (skin at the waist standing, the neck in a crouch, the hem shaking crouch walking;
+docs/MIDNIGHT_COAT.md). For the parka the same fixes hold: a leg as the coat was fitted round it is not pushed against, a crouch is left
+hanging as the legs put it (`CoatCrouchPlayTests`), and the neck under it is always hidden but for the throat in the open front.
+
 ## Tests
 
 - `LongCoatTests` (EditMode, every long coat): a top with its own name and a blue card; within 15k triangles and one small map; never on

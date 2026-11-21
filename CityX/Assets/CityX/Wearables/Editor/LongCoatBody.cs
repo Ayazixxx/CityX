@@ -16,11 +16,12 @@ namespace CityX.WearablesEditor
 
         /// <summary>
         /// The body never drawn under the coat (owner, 2026-10-19: "make the torso and top half of arms up until the elbow invisible while
-        /// wearing the midnight coat"): the torso and the upper arms, to the elbow.
+        /// wearing the midnight coat"): the torso and the upper arms, to the elbow; and the neck, but for what shows in the open front (owner,
+        /// 2026-11-21: "when you crouch the neck pokes through ... its a clean chunk of neck that pokes through and can be easily made invisible").
         /// </summary>
         private static readonly HumanBodyBones[] AlwaysHidden =
         {
-            HumanBodyBones.Spine, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm,
+            HumanBodyBones.Spine, HumanBodyBones.Neck, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm,
         };
 
         /// <summary>
@@ -40,12 +41,12 @@ namespace CityX.WearablesEditor
         private static readonly Bounds FrontOpening = UnderCoat.FrontOpening;
 
         /// <summary>
-        /// The body hidden only where the coat covers it (BodyUnderGarment): the neck and forearms. Never the hips and legs: the skirt swings
+        /// The body hidden only where the coat covers it (BodyUnderGarment): the forearms. Never the hips and legs: the skirt swings
         /// off them and the legs come out of its slit.
         /// </summary>
         private static readonly HumanBodyBones[] HiddenWhereCovered =
         {
-            HumanBodyBones.Neck, HumanBodyBones.LeftLowerArm, HumanBodyBones.RightLowerArm,
+            HumanBodyBones.LeftLowerArm, HumanBodyBones.RightLowerArm,
         };
 
         /// <summary>The body's triangles the coat hides, one bit each, and the body's triangle count they were made for.</summary>

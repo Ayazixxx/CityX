@@ -8,6 +8,11 @@ namespace CityX.Wearables
     /// A coat's skirt as cloth, on its four skirt bones (GarmentHelperBones): kept out of the legs (SkirtClearance; owner, 2026-11-21: "when
     /// swinging with pretty much any melee weapon the knee clips through the jacket"), and swinging a moment behind them. Nothing of the body's
     /// own pose changes ("do what you can with minimal or preferably no alteration to the animations"): only where the coat hangs.
+    ///
+    /// Only a leg come further into the coat than it was cut to lie is pushed against: the Midnight Coat is fitted close round the thighs, and
+    /// pushed off them standing still it opened at the front (owner, 2026-11-21: "there is skin visible around the crotch"). Nor is it pushed in a
+    /// crouch: the folded legs sit inside the coat by its cut, and pushed off them a panel flipped half round from one frame to the next ("the
+    /// bottom of the coat starts spazzing out when holding control and control walking"); there it hangs as the legs put it.
     /// </summary>
     public sealed class SkirtCloth
     {
@@ -75,12 +80,14 @@ namespace CityX.Wearables
                 body.GetBoneTransform(HumanBodyBones.LeftFoot), body.GetBoneTransform(HumanBodyBones.RightUpperLeg),
                 body.GetBoneTransform(HumanBodyBones.RightLowerLeg), body.GetBoneTransform(HumanBodyBones.RightFoot),
             };
+            List<SkirtClearance.Limb> fitted = FittedLegs(bindposes, body.transform.lossyScale.x);
             Vector3[] vertices = worn.vertices;
             BoneWeight[] weights = worn.boneWeights;
             for (int side = 0; side < 2; side++)
             {
                 int front = SkinnedGarment.Bones.Length + side * 2;
-                _panels[side] = SkirtClearance.Panel.Of(vertices, weights, bindposes, front, front + 1, PanelWeight, FromJoint, PanelPoints);
+                _panels[side] = SkirtClearance.Panel.Of(vertices, weights, bindposes, front, front + 1, PanelWeight, FromJoint, PanelPoints, fitted,
+                    LegClearance);
             }
         }
 
@@ -90,9 +97,10 @@ namespace CityX.Wearables
         /// <summary>
         /// The skirt bones' rotations and places this frame (helper indices 0 to 3: left front, left back, right front, right back), from where
         /// the legs put them: eased behind them in the hips' frame (so the body turning does not drag the coat), then pushed off the legs; the push
-        /// stays in what they ease from, so the cloth comes back off a knee rather than snapping.
+        /// stays in what they ease from, so the cloth comes back off a knee rather than snapping. Not pushed when <paramref name="offLegs"/> is false
+        /// (a crouch): the push left eases away.
         /// </summary>
-        public void Settle(Quaternion[] rotations, Vector3[] places, Transform[] helpers, Transform hips, float scale, float dt)
+        public void Settle(Quaternion[] rotations, Vector3[] places, Transform[] helpers, Transform hips, float scale, float dt, bool offLegs = true)
         {
             PoseLegs(scale);
             for (int b = 0; b < _bodyBones.Length; b++)
@@ -119,7 +127,7 @@ namespace CityX.Wearables
             }
             // The two sides in turn, a few rounds: the back's middle hangs from both legs' back bones, and one side's push must not shove it into
             // the other leg unseen.
-            for (int round = 0; round < Rounds; round++)
+            for (int round = 0; round < Rounds && offLegs; round++)
             {
                 bool pushed = false;
                 for (int side = 0; side < 2; side++)
@@ -167,18 +175,44 @@ namespace CityX.Wearables
         private void PoseLegs(float scale)
         {
             _limbs.Clear();
-            float knee = (FusedBodyShape.LegRadius + FusedBodyShape.AnkleRadius) * 0.5f * scale;
             for (int leg = 0; leg + 2 < _legs.Length; leg += 3)
             {
                 Transform hip = _legs[leg], shin = _legs[leg + 1], foot = _legs[leg + 2];
-                if (hip == null || shin == null || foot == null)
+                if (hip != null && shin != null && foot != null)
+                {
+                    AddLeg(_limbs, hip.position, shin.position, foot.position, scale);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The legs as the coat was fitted round them, in the garment's own space (the bindposes' hip and knee; the ankle down the shin by its
+        /// length on this body).
+        /// </summary>
+        private List<SkirtClearance.Limb> FittedLegs(Matrix4x4[] bindposes, float bodyScale)
+        {
+            var limbs = new List<SkirtClearance.Limb>(4);
+            for (int leg = 0; leg + 2 < _legs.Length; leg += 3)
+            {
+                int thigh = System.Array.IndexOf(SkinnedGarment.Bones, leg == 0 ? HumanBodyBones.LeftUpperLeg : HumanBodyBones.RightUpperLeg);
+                if (thigh < 0 || thigh + 1 >= bindposes.Length || _legs[leg + 1] == null || _legs[leg + 2] == null)
                 {
                     continue;
                 }
-                _limbs.Add(new SkirtClearance.Limb(Vector3.Lerp(hip.position, shin.position, ThighFrom), shin.position,
-                    Mathf.Lerp(FusedBodyShape.LegRadius * scale, knee, ThighFrom), knee));
-                _limbs.Add(new SkirtClearance.Limb(shin.position, foot.position, knee, FusedBodyShape.AnkleRadius * scale));
+                Vector3 hip = bindposes[thigh].inverse.MultiplyPoint3x4(Vector3.zero);
+                Vector3 knee = bindposes[thigh + 1].inverse.MultiplyPoint3x4(Vector3.zero);
+                float shin = Vector3.Distance(_legs[leg + 1].position, _legs[leg + 2].position) / Mathf.Max(bodyScale, 1e-4f);
+                AddLeg(limbs, hip, knee, knee + (knee - hip).normalized * shin, 1.0f);
             }
+            return limbs;
+        }
+
+        private static void AddLeg(List<SkirtClearance.Limb> limbs, Vector3 hip, Vector3 knee, Vector3 ankle, float scale)
+        {
+            float kneeRadius = (FusedBodyShape.LegRadius + FusedBodyShape.AnkleRadius) * 0.5f * scale;
+            limbs.Add(new SkirtClearance.Limb(Vector3.Lerp(hip, knee, ThighFrom), knee, Mathf.Lerp(FusedBodyShape.LegRadius * scale, kneeRadius, ThighFrom),
+                kneeRadius));
+            limbs.Add(new SkirtClearance.Limb(knee, ankle, kneeRadius, FusedBodyShape.AnkleRadius * scale));
         }
     }
 }
