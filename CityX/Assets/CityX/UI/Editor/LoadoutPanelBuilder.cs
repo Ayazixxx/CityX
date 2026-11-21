@@ -130,8 +130,8 @@ namespace CityX.UIEditor
 
         /// <summary>
         /// LoadoutPanelView.SlotKeys.Length slots in a fixed-column grid --
-        /// helmet/torso/legs/shoes on the first row, gloves/back/primary/
-        /// secondary weapon on the second, each labelled with its own
+        /// helmet/mask/torso/legs on the first row, shoes/gloves/back/
+        /// primary weapon on the second, secondary weapon and shield on the third, each labelled with its own
         /// friendly name (LoadoutPanelView.SlotLabelText) rather than the
         /// raw Inventory slot key.
         /// </summary>

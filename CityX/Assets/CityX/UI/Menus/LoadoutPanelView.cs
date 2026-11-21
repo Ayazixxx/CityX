@@ -22,7 +22,7 @@ namespace CityX.UI
     /// InventoryPanelView.OnEquipSlotClicked already implements, just
     /// against a different, longer slot list.
     ///
-    /// SlotKeys[1] IS "top" AND SlotKeys[6]/[7] ARE "hand_r"/"hand_l" --
+    /// SlotKeys[2] IS "top" AND SlotKeys[7]/[8] ARE "hand_r"/"hand_l" --
     /// the same underlying Inventory slot keys InventoryPanelView's own
     /// EquipSlotKeys already use, so items already registered against them
     /// (HoodedCloak -> top, GlassBottle/GrapplingHook
@@ -40,13 +40,13 @@ namespace CityX.UI
     {
         public static readonly string[] SlotKeys =
         {
-            EquipSlots.Helmet, EquipSlots.Torso, EquipSlots.Legs, EquipSlots.Shoes, EquipSlots.Gloves, EquipSlots.Back,
+            EquipSlots.Helmet, EquipSlots.Mask, EquipSlots.Torso, EquipSlots.Legs, EquipSlots.Shoes, EquipSlots.Gloves, EquipSlots.Back,
             EquipSlots.Primary, EquipSlots.Secondary, EquipSlots.Shield,
         };
 
         public static readonly string[] SlotLabelText =
         {
-            "HELMET", "TORSO", "LEGS", "SHOES", "GLOVES", "BACK", "PRIMARY WEAPON", "SECONDARY WEAPON", "SHIELD",
+            "HELMET", "MASK", "TORSO", "LEGS", "SHOES", "GLOVES", "BACK", "PRIMARY WEAPON", "SECONDARY WEAPON", "SHIELD",
         };
 
         [Tooltip("The whole overlay, hidden until Open() is called.")]
