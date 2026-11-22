@@ -267,15 +267,21 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 
 **Melee damage types (owner, 2026-11-21).** Decided:
 - **Not one skill tree per weapon type** ("definitely not one tree per weapon type").
-- **Melee hits have damage types: Blade, Blunt and Pierce**, and a weapon can be two at once: knives are Blade and Pierce, the nail bat (planned) Blunt and Pierce.
-- **The type goes by the move**: the knife's normal clicks (the slash and backhand) are Blade slashes, its heavy (the icepick stab) is Pierce.
+- **Melee hits have damage types: Blade, Blunt and Pierce.** The owner thinks **Slash** may be a better name for Blade (not settled).
+- **One type per attack, set by the move**: the knife's normal clicks (the slash and backhand) are Blade, its heavy (the icepick stab) is Pierce. An axe or a sword the same way: which move is which type is chosen per weapon.
+- **A few hybrid weapons split every hit 50/50 between two types**: the nail bat (planned), Blunt and Pierce, "but we'd have to plan it some way so it isnt just super op like it gets a reasonable amount". So half of each hit counts as each type: a boost to one type raises only its half, and each type's effect comes at half strength. It does no more damage than a pure weapon; a player who builds both types gets full value from both halves.
+- **Boosts never leak between trees**: every boost names its style, and optionally a damage type within it (a One-Handed Melee Pierce skill strengthens the knife's stab, never a gun).
 - **The chain** (planned, like Delsin's in inFamous Second Son) is a **branch of One-Handed Melee**.
+- **A crossbow may share handling boosts with guns** (owner: "the crossbow seems more likely"), through a bridge skill; not damage.
 - Bleed was raised as a possible Blade skill ("maybe you can get a skill where blades inflict bleed damage"), with the worry that it would then beat Blunt weapons unless they get something of their own. Not decided.
+- Ranged naming, being talked through: **Thrown** for thrown weapons ("+ damage to thrown weaponry", the owner's word); a word in the same style for bows, crossbows and the slingshot is still to find ("Archery" and "Drawn" were turned down; Strung, Loosed offered).
 
 My suggestions, not decided:
 - Each type wins a different fight, so none is simply better: **Blade bleeds** (damage over time after the hit, as poison already ticks), **Blunt staggers and breaks guards** (stagger and guard stamina exist), **Pierce goes through armour** (armour penetration exists for spells).
-- Each move has a main type (a slash Blade, a stab Pierce, a smash Blunt); some weapons add a smaller share of a second type to every hit (the nail bat's nails: Pierce on every swing, less than a knife's stab). Boosts follow the hit: a Pierce boost strengthens the knife's stab, not its slash. Other moves by this rule: the sword's swings Blade and its stab dash Pierce; the spear's thrust Pierce and a sweep with the shaft Blunt; the chain Blunt.
+- Moves by the one-type rule: the sword's swings Blade and its stab dash Pierce; the spear's thrust Pierce and a sweep with the shaft Blunt; an axe's chops Blade and a hit with the back of its head Blunt; the chain Blunt.
 - The style trees' branches go by damage type (Blade, Blunt, Pierce), plus a Chains branch in One-Handed Melee for what only a chain does (reach, sweeping several enemies, wrapping and pulling).
+- **Archery and Throwing split into two styles** (aiming a bow and lobbing a boomerang share no skills); bows and crossbows share damage boosts, with a branch each for handling (bows: draw speed, charged shots; crossbows: reload speed, bolts through several enemies).
+- Ranged effects could come from the ammo: armour-piercing, hollow-point (bleed), rubber (stagger), incendiary (fire) rounds; broadhead, blunt, fire and explosive arrows.
 - **How many combinations** (counted 2026-10-25): 8 weapon styles and 11 element trees make 190 classes (19 pure, 171 hybrids; 561 if each branch counts as its own); 36 style loadouts; the 45 weapons on the rarity list make 990 two-weapon loadouts, before dual wield and skill choices. All from about 12 movesets.
 - **Titan's Grip** (World of Warcraft's Fury warriors dual wielded two-handed weapons): deep in the Two-Handed tree, needing many points there and the Dual Wield node; two greatswords at once. Its own moveset, so it is built late; balanced by more stamina per swing or no block.
 - **One moveset at a time**, finished properly: about 12 movesets cover every item on the rarity list, and a finished one makes each new item mostly a model and numbers. Order for the December goal (fists, sword, fire): one-handed melee (the combat sword), fists, fire magic, then the pistol, then two-handed. Skill tree branches come after a moveset feels good.
