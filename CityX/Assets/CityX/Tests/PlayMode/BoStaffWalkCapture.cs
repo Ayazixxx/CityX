@@ -111,8 +111,13 @@ namespace CityX.Tests
                     other.transform.position = chest + player.transform.right * 4.5f + Vector3.up * 0.2f;
                     other.transform.LookAt(chest);
                     Shoot(other, sheet, shot * CellWidth, y + CellHeight);
-                    other.transform.position = chest + player.transform.forward * 4.5f + player.transform.right * -1.2f + Vector3.up * 0.2f;
-                    other.transform.LookAt(chest);
+                    // Standing still, the front view comes in close on the fists and the coat's front (owner, 2026-11-22: "the left wrist clips
+                    // into the jacket in idle position"), from straight ahead and from a little to the left.
+                    Vector3 fists = player.transform.position + Vector3.up * 1.25f;
+                    other.transform.position = idle
+                        ? fists + player.transform.forward * 1.9f + player.transform.right * (shot % 2 == 0 ? 0.0f : -0.9f) + Vector3.up * 0.1f
+                        : chest + player.transform.forward * 4.5f + player.transform.right * -1.2f + Vector3.up * 0.2f;
+                    other.transform.LookAt(idle ? fists : chest);
                     Shoot(other, sheet, shot * CellWidth, y);
                 }
                 if (crouch)
