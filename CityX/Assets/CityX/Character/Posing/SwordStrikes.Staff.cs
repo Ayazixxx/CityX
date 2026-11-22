@@ -6,16 +6,16 @@ namespace CityX.Character
     /// THE BO STAFF'S ATTACKS AND HELD POSES (docs/BO_STAFF.md; owner, 2026-11-19, with a clip of a staff fighter: "make copy these movements as
     /// best you can", its opening spin "maybe that will be the heavy hold click attack but the rest looks pretty good"). The clip's fighter grips the
     /// pole near one end so the long end reaches, and swings it from the hips with the whole body turning: so does this one, both fists on its last
-    /// half metre as on a bat (StaffRules), the two-handed blades' hold. The chain: a chop from over the right shoulder, a crouching sweep at the
-    /// knees, the lunging thrust, and a rising blow from low on the left up past the right shoulder; the heavy is the clip's opening spin, wound right
-    /// round to the right, held, and let go flat round the front. Every contact's twist is the clip's own (SourceArt/SwordMoves), and the thrust's
-    /// keys all are (it keeps its line, as a spear's does). The pole is 1.85 m past the fist: the low blows' keys keep its far end off the ground.
+    /// half metre as on a bat (StaffRules), the two-handed blades' hold. The chain of three: a chop from over the right shoulder, a crouching sweep at
+    /// the knees, and a rising blow from low on the right up past the left shoulder (owner, 2026-11-22: the lunging thrust that was third "just looks
+    /// bad", cut); the heavy is the clip's opening spin, wound right round to the right, held, and let go flat round the front. Every contact's twist
+    /// is the clip's own (SourceArt/SwordMoves), and the running thrust's keys all are (it keeps its line, as a spear's does). The pole is 1.85 m past
+    /// the fist: the low blows' keys keep its far end off the ground.
     /// </summary>
     public static partial class SwordStrikes
     {
         public const string StaffChopName = "staff_chop";
         public const string StaffSweepName = "staff_sweep";
-        public const string StaffThrustName = "staff_thrust";
         public const string StaffRisingName = "staff_rising";
         public const string StaffSpinName = "staff_spin";
         public const string StaffRunName = "staff_run";
@@ -23,8 +23,8 @@ namespace CityX.Character
         /// <summary>A bo staff's attack.</summary>
         public static bool IsStaff(SwordStrikeKind kind) => kind >= SwordStrikeKind.StaffChop && kind <= SwordStrikeKind.StaffRun;
 
-        /// <summary>The staff's thrusts: straight out along the pole and stopped, keeping their line under the clip.</summary>
-        public static bool IsStaffThrust(SwordStrikeKind kind) => kind == SwordStrikeKind.StaffThrust || kind == SwordStrikeKind.StaffRun;
+        /// <summary>The staff's thrust, the running attack: straight out along the pole and stopped, keeping its line under the clip.</summary>
+        public static bool IsStaffThrust(SwordStrikeKind kind) => kind == SwordStrikeKind.StaffRun;
 
         /// <summary>The staff's first light for a body going forward at <paramref name="forwardSpeed"/> m/s: the chop, or at a sprint the running thrust.</summary>
         public static SwordStrikeKind StaffOpenerFor(float forwardSpeed) =>
@@ -98,7 +98,7 @@ namespace CityX.Character
                 {
                     // THE LOW SWEEP: a backhand, from where the chop left the fists: sunk deep, the fists at the left hip and the pole round behind on the
                     // left; then the whole body turns round to the right and the pole goes flat across the front at the shins, carrying on round to the
-                    // right, where the thrust starts. (Each blow starts where the last ended, as the two-handed blades' chain does: swept the other
+                    // right, where the rising blow starts. (Each blow starts where the last ended, as the two-handed blades' chain does: swept the other
                     // way, the fists crossed the front between the blows and the left arm went through the chest.)
                     CutPlane cut = LowSweep;
                     Key windup = Pose(0.0f, Ease.Smooth, new Vector3(-0.24f, 1.68f, 0.32f), cut, -110.0f, elbow: 0.50f, twist: -45.0f, hips: -24.0f,
@@ -109,13 +109,11 @@ namespace CityX.Character
                         lean: 8.0f, tilt: 0.0f, drop: 0.30f, lead: -1.0f, depth: 0.60f, reach: 0.6f);
                     return Assemble(kind, StaffReadyKey, windup, contact, follow);
                 }
-                case SwordStrikeKind.StaffThrust:
                 case SwordStrikeKind.StaffRun:
                 {
-                    // THE LUNGING THRUST (and, on the run, the running attack): the fists drawn in to the right hip (in front of it: the left arm cannot reach
-                    // behind it without crossing the chest) with the pole level at the enemy,
-                    // then everything driven out along it, the body stretched low over a long stride; it stops where it lands. The key's edge is the
-                    // side the forearm comes from (the two-handed keys' rule).
+                    // THE RUNNING THRUST: the fists drawn in to the right hip (in front of it: the left arm cannot reach behind it without crossing the
+                    // chest) with the pole level at the enemy, then everything driven out along it, the body stretched low over the run; it stops where it
+                    // lands. The key's edge is the side the forearm comes from (the two-handed keys' rule).
                     Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.34f, 1.38f, 0.40f), new Vector3(-0.10f, 0.10f, 0.99f), new Vector3(-0.5f, -0.85f, 0.1f),
                         elbow: 0.35f, twist: 40.0f, hips: 20.0f, lean: -4.0f, tilt: 0.0f, drop: 0.14f, lead: -1.0f, depth: 0.42f);
                     Key contact = Pose(0.0f, Ease.Snap, new Vector3(0.22f, 1.47f, 0.68f), new Vector3(-0.08f, 0.06f, 0.995f), new Vector3(-0.9f, -0.4f, 0.0f),
@@ -126,10 +124,10 @@ namespace CityX.Character
                 }
                 case SwordStrikeKind.StaffRising:
                 {
-                    // THE RISING BLOW (the chain's last), from where the thrust left the fists: coiled low on the right, the pole's long end down by the
+                    // THE RISING BLOW (the chain's last), from where the sweep left the fists: coiled low on the right, the pole's long end down by the
                     // ground ahead on that side (a low guard), held a beat; then it scoops up through the front and on up past the left shoulder,
-                    // the body rising and leaning back behind it. (Wound on the left, the fists crossed the front from the thrust and the left arm
-                    // went through the chest.)
+                    // the body rising and leaning back behind it. (Wound on the left, the fists would cross the front between the blows and the left
+                    // arm go through the chest.)
                     CutPlane cut = Rising;
                     Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.40f, 1.24f, 0.36f), cut, -55.0f, elbow: 0.35f, twist: 30.0f, hips: 18.0f,
                         lean: 8.0f, tilt: 6.0f, drop: 0.26f, lead: -1.0f, depth: 0.50f);

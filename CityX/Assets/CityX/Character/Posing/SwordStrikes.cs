@@ -68,10 +68,7 @@ namespace CityX.Character
         /// <summary>The staff's second light: sunk low and swept flat round the front at the knees.</summary>
         StaffSweep,
 
-        /// <summary>The staff's third light: the lunging thrust, the staff driven straight out at the chest.</summary>
-        StaffThrust,
-
-        /// <summary>The staff's fourth light, the chain's end: a rising blow from low on the left up past the right shoulder.</summary>
+        /// <summary>The staff's third light, the chain's end: a rising blow from low on the right up past the left shoulder.</summary>
         StaffRising,
 
         /// <summary>The staff's heavy: wound right round to the right, held, and let go flat round the front with the whole body.</summary>
@@ -248,7 +245,7 @@ namespace CityX.Character
             SwordStrikeKind.Cut2H, SwordStrikeKind.Reverse2H, SwordStrikeKind.Sweep2H, SwordStrikeKind.Slam2H, SwordStrikeKind.Finisher1H,
             SwordStrikeKind.Smash2H, SwordStrikeKind.Run1H, SwordStrikeKind.Run2H,
             SwordStrikeKind.SpearJab, SwordStrikeKind.SpearThrust, SwordStrikeKind.SpearLunge, SwordStrikeKind.SpearSweep, SwordStrikeKind.SpearRun,
-            SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffThrust, SwordStrikeKind.StaffRising, SwordStrikeKind.StaffSpin,
+            SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffRising, SwordStrikeKind.StaffSpin,
             SwordStrikeKind.StaffRun,
         };
 
@@ -275,7 +272,6 @@ namespace CityX.Character
                 case SpearRunName: kind = SwordStrikeKind.SpearRun; return true;
                 case StaffChopName: kind = SwordStrikeKind.StaffChop; return true;
                 case StaffSweepName: kind = SwordStrikeKind.StaffSweep; return true;
-                case StaffThrustName: kind = SwordStrikeKind.StaffThrust; return true;
                 case StaffRisingName: kind = SwordStrikeKind.StaffRising; return true;
                 case StaffSpinName: kind = SwordStrikeKind.StaffSpin; return true;
                 case StaffRunName: kind = SwordStrikeKind.StaffRun; return true;
@@ -316,7 +312,6 @@ namespace CityX.Character
                 case SwordStrikeKind.SpearRun: return SpearRunName;
                 case SwordStrikeKind.StaffChop: return StaffChopName;
                 case SwordStrikeKind.StaffSweep: return StaffSweepName;
-                case SwordStrikeKind.StaffThrust: return StaffThrustName;
                 case SwordStrikeKind.StaffRising: return StaffRisingName;
                 case SwordStrikeKind.StaffSpin: return StaffSpinName;
                 case SwordStrikeKind.StaffRun: return StaffRunName;
@@ -407,11 +402,10 @@ namespace CityX.Character
                 case SwordStrikeKind.SpearLunge: return new StrikeTiming(0.28f, 0.12f, 0.11f, 0.05f, 0.14f, 0.50f);
                 case SwordStrikeKind.SpearRun: return new StrikeTiming(0.20f, 0.06f, 0.11f, 0.05f, 0.14f, 0.42f);
                 case SwordStrikeKind.SpearSweep: return new StrikeTiming(0.38f, 0.32f, 0.15f, 0.13f, 0.14f, 0.40f);
-                // THE BO STAFF (docs/BO_STAFF.md): swung from the hips like the two-handed blades, a little quicker than a greatsword (a pole is lighter); the thrust is
-                // out and back as a spear's; the chain's rising blow is wound low and held a beat; the heavy is held wound up a third of a second, the tell.
+                // THE BO STAFF (docs/BO_STAFF.md): swung from the hips like the two-handed blades, a little quicker than a greatsword (a pole is lighter); the running
+                // thrust is out and back as a spear's; the chain's rising blow is wound low and held a beat; the heavy is held wound up a third of a second, the tell.
                 case SwordStrikeKind.StaffChop: return new StrikeTiming(0.24f, 0.06f, 0.13f, 0.10f, 0.07f, 0.26f);
                 case SwordStrikeKind.StaffSweep: return new StrikeTiming(0.24f, 0.06f, 0.14f, 0.13f, 0.07f, 0.28f);
-                case SwordStrikeKind.StaffThrust: return new StrikeTiming(0.25f, 0.06f, 0.07f, 0.05f, 0.08f, 0.24f);
                 case SwordStrikeKind.StaffRising: return new StrikeTiming(0.28f, 0.08f, 0.14f, 0.12f, 0.10f, 0.50f);
                 case SwordStrikeKind.StaffSpin: return new StrikeTiming(0.40f, 0.30f, 0.16f, 0.15f, 0.14f, 0.40f);
                 case SwordStrikeKind.StaffRun: return new StrikeTiming(0.25f, 0.06f, 0.06f, 0.05f, 0.14f, 0.42f);
@@ -535,7 +529,6 @@ namespace CityX.Character
                 case SwordStrikeKind.SpearSweep: return 0.45f;
                 case SwordStrikeKind.StaffChop: return 0.40f;
                 case SwordStrikeKind.StaffSweep: return 0.40f;
-                case SwordStrikeKind.StaffThrust: return 0.60f;
                 case SwordStrikeKind.StaffRising: return 0.50f;
                 case SwordStrikeKind.StaffSpin: return 0.55f;
                 case SwordStrikeKind.Slash1H: return 0.45f;
@@ -1157,7 +1150,6 @@ namespace CityX.Character
             {
                 case SwordStrikeKind.StaffChop:
                 case SwordStrikeKind.StaffSweep:
-                case SwordStrikeKind.StaffThrust:
                 case SwordStrikeKind.StaffRising:
                 case SwordStrikeKind.StaffSpin:
                 case SwordStrikeKind.StaffRun:

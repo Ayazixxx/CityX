@@ -89,7 +89,7 @@ namespace CityX.Weapons
             }
             if (staff)
             {
-                card.Note("A chain of four; hold the click to spin");
+                card.Note("A chain of three; hold the click to spin");
                 card.Note("The fourth and the spin knock down");
             }
             if (sword.IsHammer)

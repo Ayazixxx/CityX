@@ -277,8 +277,8 @@ ATTACKS.update({
 # ---- THE BO STAFF -----------------------------------------------------------------------------------------------------------------------------------------------------------
 # Owner, 2026-11-19, with a clip of a staff fighter: "make copy these movements as best you can", its first spinning swing "maybe that will be the heavy hold click attack but
 # the rest looks pretty good" (docs/BO_STAFF.md). A staff is swung from the hips with both hands, low and wide, the body turning right round through each blow: a chop
-# from over the right shoulder, a crouching sweep at the knees, a lunging thrust, and a rising blow from low on the left up past the right shoulder that ends the chain; the
-# heavy is wound right round to the right, held, and let go flat round the front. As for every cut, the contacts' twists are SwordStrikes' own; the thrust's keys all are.
+# from over the right shoulder, a crouching sweep at the knees, and a rising blow from low on the right up past the left shoulder that ends the chain (owner, 2026-11-22: the lunging thrust cut); the
+# heavy is wound right round to the right, held, and let go flat round the front. As for every cut, the contacts' twists are SwordStrikes' own; the running thrust's keys all are.
 READY_STAFF = key(twist=14.0, hips=8.0, lean=5.0, drop=0.10)
 ATTACKS.update({
     # THE CHOP: up over the right shoulder, the body coiled and leaning back, then down across the front to the lower left with a stride.
@@ -304,18 +304,7 @@ ATTACKS.update({
         right=[(0.04, 0.40, (0.26, 0.35), 0.10)],
         left=[(0.58, 0.85, (-STANCE_X - 0.05, 0.30), 0.05)],
         ready=READY_STAFF, two_handed=True),
-    # THE THRUST: drawn back over the rear leg, then driven straight out along the staff with a long lunge.
-    "staff_thrust": attack(
-        (0.25, 0.06, 0.07, 0.05, 0.08, 0.24), 0.60,
-        key(twist=40.0, hips=20.0, lean=-4.0, drop=0.14, shift=(0.05, -0.10)),
-        key(twist=42.0, hips=21.0, lean=-5.0, drop=0.15, shift=(0.05, -0.11)),
-        key(twist=6.0, hips=-6.0, lean=22.0, tilt=2.0, drop=0.24, shift=(-0.02, 0.12), chin=4.0, staged=True),
-        key(twist=2.0, hips=-8.0, lean=24.0, tilt=2.0, drop=0.25, shift=(-0.02, 0.13), chin=4.0),
-        key(twist=18.0, hips=8.0, lean=10.0, drop=0.13, shift=(0.0, 0.04)),
-        left=[(0.06, 0.32, (-0.24, 0.75), 0.10)],
-        right=[(0.50, 0.70, (STANCE_X, 0.55), 0.05)],
-        ready=READY_STAFF, two_handed=True),
-    # THE RISING BLOW (the chain's last), from where the thrust ended: coiled low on the right, held, then up from the lower right past the left shoulder,
+    # THE RISING BLOW (the chain's last), from where the sweep ended: coiled low on the right, held, then up from the lower right past the left shoulder,
     # the left foot striding through and the body rising and leaning back behind the blow.
     "staff_rising": attack(
         (0.28, 0.08, 0.14, 0.12, 0.10, 0.50), 0.50,
@@ -353,7 +342,7 @@ ATTACKS.update({
 })
 ORDER_OF_ATTACKS = ("sword1h_slash", "sword1h_cut", "sword1h_finisher", "sword1h_overhead", "sword2h_sweep", "sword2h_reverse", "sword2h_cut", "sword2h_smash", "sword2h_slam",
                     "sword1h_run", "sword2h_run", "spear_jab", "spear_thrust", "spear_lunge", "spear_sweep", "spear_run",
-                    "staff_chop", "staff_sweep", "staff_thrust", "staff_rising", "staff_spin", "staff_run")
+                    "staff_chop", "staff_sweep", "staff_rising", "staff_spin", "staff_run")
 
 # What the game is given: no arm bone (the game's own poses have the arms).
 EXPORTED_BONES = ("hips", "spine", "neck", "head", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r")

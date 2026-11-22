@@ -45,9 +45,9 @@ namespace CityX.Tests
                 if (SwordStrikes.IsOneHanded(kind)) oneHanded++;
             }
             // Each hold: its lights, its heavy and its running attack (the one-handed has the knife's thrust besides; the two-handed, the hammer's smash);
-            // the spear's five and the bo staff's six, posed with both hands on them.
+            // the spear's five and the bo staff's five, posed with both hands on them.
             Assert.AreEqual(6, oneHanded);
-            Assert.AreEqual(23, SwordStrikes.All.Length);
+            Assert.AreEqual(22, SwordStrikes.All.Length);
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.All[0]);
         }
 

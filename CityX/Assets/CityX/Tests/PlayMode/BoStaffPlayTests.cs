@@ -10,8 +10,8 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// THE BO STAFF ON THE REAL BODY (owner, 2026-11-19; docs/BO_STAFF.md): carried upright in both hands; swung with both hands near the end, reaching further than a sword; the chain is the chop, the low sweep, the lunging thrust and the rising blow, the held click
-    /// the spin; the rising blow and the spin throw a player down; and another player's copy swings it when told the attack's name.
+    /// THE BO STAFF ON THE REAL BODY (owner, 2026-11-19; docs/BO_STAFF.md): carried upright in both hands; swung with both hands near the end, reaching further than a sword; the chain is the chop, the low sweep and the rising blow (owner, 2026-11-22: the thrust cut), the held click
+    /// the spin; the rising blow and the spin throw a player down; and another player's copy swings it (the running thrust) when told the attack's name.
     /// </summary>
     public sealed class BoStaffPlayTests
     {
@@ -183,7 +183,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheChainIsTheChopTheSweepTheThrustAndTheRisingBlowAndTheHeavyIsTheSpin()
+        public IEnumerator TheChainIsTheChopTheSweepAndTheRisingBlowAndTheHeavyIsTheSpin()
         {
 #if UNITY_EDITOR
             MakeBody(false);
@@ -193,7 +193,7 @@ namespace CityX.Tests
             var thrown = new List<SwordStrikeKind>();
             float lowestSweep = float.MaxValue;
             combat.RequestLight(0.0f);
-            for (int i = 0; i < 600 && (thrown.Count < 4 || poser.IsStriking); i++)
+            for (int i = 0; i < 600 && (thrown.Count < 3 || poser.IsStriking); i++)
             {
                 yield return Frame();
                 if (poser.IsStriking && (thrown.Count == 0 || thrown[thrown.Count - 1] != poser.Kind))
@@ -204,12 +204,12 @@ namespace CityX.Tests
                 {
                     lowestSweep = Mathf.Min(lowestSweep, _staff.BladeTipWorld.y);
                 }
-                if (thrown.Count < 4)
+                if (thrown.Count < 3)
                 {
                     combat.RequestLight(0.0f);
                 }
             }
-            CollectionAssert.AreEqual(new[] { SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffThrust, SwordStrikeKind.StaffRising }, thrown);
+            CollectionAssert.AreEqual(new[] { SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffRising }, thrown);
             TestContext.WriteLine($"the sweep's far end went as low as {lowestSweep:0.00} m");
             Assert.That(lowestSweep, Is.InRange(0.0f, 0.8f), "the low sweep does not pass at the shins");
             yield return Frames(30);
@@ -260,7 +260,7 @@ namespace CityX.Tests
             Animator animator = _body.GetComponentInChildren<Animator>();
             yield return Frames(50, true);
             Assert.AreEqual(animator.GetBoneTransform(HumanBodyBones.RightHand), _staff.transform.parent, "the copy does not hold the staff");
-            _body.GetComponent<PlayerAnimationDriver>().PlayRemoteState(SwordStrikes.StaffThrustName);
+            _body.GetComponent<PlayerAnimationDriver>().PlayRemoteState(SwordStrikes.StaffRunName);
             float furthest = float.MinValue, nearestHand = float.MaxValue;
             bool struck = false;
             for (int i = 0; i < 150 && (poser.IsStriking || i < 3); i++)
@@ -269,7 +269,7 @@ namespace CityX.Tests
                 if (poser.IsStriking)
                 {
                     struck = true;
-                    Assert.AreEqual(SwordStrikeKind.StaffThrust, poser.Kind);
+                    Assert.AreEqual(SwordStrikeKind.StaffRun, poser.Kind);
                     furthest = Mathf.Max(furthest, TipInBody.z);
                     if (poser.Progress > 0.3f && poser.Progress < 0.55f)
                     {

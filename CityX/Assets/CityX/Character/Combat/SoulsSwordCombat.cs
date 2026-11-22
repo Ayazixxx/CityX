@@ -191,7 +191,7 @@ namespace CityX.Character
         /// </summary>
         bool IsSpear => false;
 
-        /// <summary>True for a bo staff (docs/BO_STAFF.md): its own attacks (a chain of four and a spinning heavy), held in both hands like a two-handed blade, carried over the shoulder.</summary>
+        /// <summary>True for a bo staff (docs/BO_STAFF.md): its own attacks (a chain of three and a spinning heavy), held in both hands like a two-handed blade, carried upright.</summary>
         bool IsStaff => false;
 
         /// <summary>
@@ -338,13 +338,12 @@ namespace CityX.Character
 
         public SoulsAttack SpearRunAttack = SoulsAttack.FromStrike(SwordStrikeKind.SpearRun, 0.45f, 20.0f, 1.50f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.SpearRun), 28.0f, false);
 
-        // THE BO STAFF (StaffRules, docs/BO_STAFF.md): a chain of four from the owner's clip, each a little lighter than a greatsword's (a pole, blunt) and
-        // reaching further; the fourth, the rising blow, and the heavy, the spin, throw whoever they land on down; at a sprint, the thrust. My numbers.
+        // THE BO STAFF (StaffRules, docs/BO_STAFF.md): a chain of three from the owner's clip, each a little lighter than a greatsword's (a pole, blunt) and
+        // reaching further; the third, the rising blow, and the heavy, the spin, throw whoever they land on down; at a sprint, the thrust. My numbers.
         [Header("Bo staff light chain (left click)")]
         public SoulsAttack StaffLight1 = SoulsAttack.FromStrike(SwordStrikeKind.StaffChop, 0.35f, 18.0f, 1.10f, 0.55f, SwordStrikes.StepMetres(SwordStrikeKind.StaffChop), 22.0f, false);
         public SoulsAttack StaffLight2 = SoulsAttack.FromStrike(SwordStrikeKind.StaffSweep, 0.35f, 18.0f, 1.05f, 0.55f, SwordStrikes.StepMetres(SwordStrikeKind.StaffSweep), 22.0f, false);
-        public SoulsAttack StaffLight3 = SoulsAttack.FromStrike(SwordStrikeKind.StaffThrust, 0.35f, 18.0f, 1.15f, 0.50f, SwordStrikes.StepMetres(SwordStrikeKind.StaffThrust), 20.0f, false);
-        public SoulsAttack StaffLight4 = SoulsAttack.AsKnockdown(SoulsAttack.AsFinisher(SoulsAttack.FromStrike(SwordStrikeKind.StaffRising, 1.0f, 26.0f, 1.90f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.StaffRising), 40.0f, false)));
+        public SoulsAttack StaffLight3 = SoulsAttack.AsKnockdown(SoulsAttack.AsFinisher(SoulsAttack.FromStrike(SwordStrikeKind.StaffRising, 1.0f, 26.0f, 1.90f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.StaffRising), 40.0f, false)));
 
         [Header("Bo staff heavy (held left click): the spin")]
         public SoulsAttack StaffHeavy = SoulsAttack.AsKnockdown(SoulsAttack.FromStrike(SwordStrikeKind.StaffSpin, 0.55f, 36.0f, 2.00f, 0.95f, SwordStrikes.StepMetres(SwordStrikeKind.StaffSpin), 55.0f, true));
@@ -569,7 +568,7 @@ namespace CityX.Character
         {
             if (_staff)
             {
-                return index == 0 ? StaffLight1 : index == 1 ? StaffLight2 : index == 2 ? StaffLight3 : StaffLight4;
+                return index == 0 ? StaffLight1 : index == 1 ? StaffLight2 : StaffLight3;
             }
             if (_spear)
             {
@@ -612,8 +611,8 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>How many lights the chain runs through before it starts again: three, ending in the finisher; a knife's two, back and forth; a staff's four.</summary>
-        public int LightChainLength => _knife ? 2 : _staff ? 4 : 3;
+        /// <summary>How many lights the chain runs through before it starts again: three, ending in the finisher; a knife's two, back and forth.</summary>
+        public int LightChainLength => _knife ? 2 : 3;
 
         /// <summary>The heavy for the sword in hand.</summary>
         public SoulsAttack HeavyAttack => _spear ? SpearHeavy : _staff ? StaffHeavy : _knife ? KnifeHeavy : (_oneHanded ? OneHandHeavy : Heavy);
