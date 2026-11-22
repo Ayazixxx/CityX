@@ -41,6 +41,7 @@ namespace CityX.UI
         private Text _name;
         private Text _type;
         private Text _rarity;
+        private Text _hits;
         private Text _initial;
         private Text _left;
         private Text _right;
@@ -96,6 +97,8 @@ namespace CityX.UI
             _name.resizeTextMaxSize = 54;
             _type = Write("Type", "", 36, Ink, 240.0f, 212.0f, width - 270.0f, 46.0f, TextAnchor.MiddleLeft);
             _rarity = Write("Rarity", "", 30, Faint, 240.0f, 258.0f, width - 270.0f, 40.0f, TextAnchor.MiddleLeft);
+            // What its hits are, the whole width under the header: a long one ("Slash (heavy stab: Pierce)") broke across a column of numbers.
+            _hits = Write("Hits", "", 34, Ink, 60.0f, 298.0f, width - 120.0f, 42.0f, TextAnchor.MiddleLeft);
 
             _left = Write("Left", "", 38, Ink, 60.0f, RowsTop, 400.0f, 300.0f, TextAnchor.UpperLeft);
             _left.lineSpacing = RowHeight / 44.0f;
@@ -171,6 +174,7 @@ namespace CityX.UI
             _initial.text = _card.Name.Length > 0 ? _card.Name.Substring(0, 1).ToUpperInvariant() : "?";
             _type.text = _card.TypeLine;
             _rarity.text = ItemRarity.Word(_card.Rarity);
+            _hits.text = string.IsNullOrEmpty(_card.Hits) ? "" : HitTypes.Label + ": " + _card.Hits;
 
             var left = new StringBuilder();
             var right = new StringBuilder();

@@ -154,6 +154,30 @@ namespace CityX.Tests
             Assert.AreEqual(1, wand.Compare(Index(wand, "Mana"), flame), "free is the better mana");
         }
 
+
+        /// <summary>
+        /// Owner, 2026-11-21: "give every weapons we have so far its type viewable in the inspect menu". Every item in the weapon category that does
+        /// damage says what its hits are on its card; the knife's slash and stab both; a garment shows none.
+        /// </summary>
+        [Test]
+        public void EveryWeaponsCardSaysWhatItsHitsAre()
+        {
+            var body = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab").GetComponent<Inventory>();
+            foreach (string itemId in ItemRegistry.Ids)
+            {
+                if (!ItemRegistry.TryGet(itemId, out ItemDefinition item) || item.Category != "weapon" || itemId == ItemRegistry.GrapplingHook)
+                {
+                    continue;
+                }
+                ItemCard card = ItemCards.Describe(itemId, body.PrefabForItem(itemId));
+                Assert.IsNotEmpty(card.Hits, $"{item.DisplayName}'s card does not say what its hits are");
+            }
+            ItemCard knife = ItemCards.Describe(ItemRegistry.KitchenKnife, body.PrefabForItem(ItemRegistry.KitchenKnife));
+            StringAssert.Contains("Slash", knife.Hits);
+            StringAssert.Contains("Pierce", knife.Hits);
+            Assert.IsEmpty(ItemCards.Describe(ItemRegistry.TShirt, null).Hits, "a shirt has hits");
+        }
+
         [Test]
         public void RarityFollowsTheOwnersList()
         {

@@ -52,6 +52,10 @@ namespace CityX.Weapons
             {
                 card.Kind = definition.Category == "tool" ? "Tool" : "Weapon";
             }
+            if (HitTypes.TryGet(itemId, out string hits))
+            {
+                card.Hits = hits;
+            }
             return card;
         }
 

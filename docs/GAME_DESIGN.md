@@ -281,6 +281,7 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
   - Explosives: Frag Grenade, Semtex, RPG Explosive.
   - Magic, the element is the type: Flame Staff, Fireball Staff, Flamethrower Fire; Ice Shard and Frost Staff Ice; Water Staff Water; Arcane and Arcane Beam Staff Arcane; Magic Wand and Magic Staff plain Magic; Staff of Healing none (it heals); Wraith Staff none, its summoned Wraith's claws Slash. The Grappling Hook does no damage.
   - Least sure: the butter knife as Blunt, the Spike Sword as 50/50, the spear's sweep as Slash, the Wraith's claws.
+  - **Shown in game** (owner, 2026-11-21: "give every weapons we have so far its type viewable in the inspect menu"): a "Hits:" line on each weapon's inspect card, from `Weapons/HitTypes.cs`, which holds this list (the Spike Sword as Slash for now). Only shown: no hit does anything by its type yet. Change the list there and here together.
 - **The chain** (planned, like Delsin's in inFamous Second Son) is a **branch of One-Handed Melee**.
 - **A crossbow may share handling boosts with guns** (owner: "the crossbow seems more likely"), through a bridge skill; not damage.
 - Bleed was raised as a possible Blade skill ("maybe you can get a skill where blades inflict bleed damage"), with the worry that it would then beat Blunt weapons unless they get something of their own. Not decided.

@@ -46,6 +46,9 @@ namespace CityX.Items
 
         public string ScalesWith = "";
 
+        /// <summary>What its hits are (Weapons.HitTypes: "Slash (heavy stab: Pierce)"), shown on a line of its own under the rarity; empty for what does no damage.</summary>
+        public string Hits = "";
+
         public readonly List<CardRow> Rows = new List<CardRow>();
 
         public readonly List<string> Notes = new List<string>();
