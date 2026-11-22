@@ -6,11 +6,11 @@ namespace CityX.Character
     /// THE BO STAFF'S ATTACKS AND HELD POSES (docs/BO_STAFF.md; owner, 2026-11-19, with a clip of a staff fighter: "make copy these movements as
     /// best you can", its opening spin "maybe that will be the heavy hold click attack but the rest looks pretty good"). The clip's fighter grips the
     /// pole near one end so the long end reaches, and swings it from the hips with the whole body turning: so does this one, both fists on its last
-    /// half metre as on a bat (StaffRules), the two-handed blades' hold. The chain of three: a chop from over the right shoulder, a crouching sweep at
-    /// the knees, and a rising blow from low on the right up past the left shoulder (owner, 2026-11-22: the lunging thrust that was third "just looks
-    /// bad", cut); the heavy is the clip's opening spin, wound right round to the right, held, and let go flat round the front. Every contact's twist
-    /// is the clip's own (SourceArt/SwordMoves), and the running thrust's keys all are (it keeps its line, as a spear's does). The pole is 1.85 m past
-    /// the fist: the low blows' keys keep its far end off the ground.
+    /// half metre as on a bat (StaffRules), the two-handed blades' hold. The chain of three: a chop from over the right shoulder, a level backhand
+    /// sweep at the middle (both aimed straight ahead: owner, 2026-11-22), and a rising blow from low on the right up past the left shoulder
+    /// (owner, 2026-11-22: the lunging thrust that was third "just looks bad", cut); the heavy is the clip's opening spin, wound right round to the
+    /// right, held, and let go flat round the front. Every contact's twist is the clip's own (SourceArt/SwordMoves), and the running thrust's
+    /// keys all are (it keeps its line, as a spear's does). The pole is 1.85 m past the fist: the low blows' keys keep its far end off the ground.
     /// </summary>
     public static partial class SwordStrikes
     {
@@ -30,8 +30,12 @@ namespace CityX.Character
         public static SwordStrikeKind StaffOpenerFor(float forwardSpeed) =>
             forwardSpeed >= RunOpenerFromSpeed ? SwordStrikeKind.StaffRun : SwordStrikeKind.StaffChop;
 
-        /// <summary>The low sweep's plane: a backhand, left to right round the front, the pole sloping down so its far end passes at the shins.</summary>
-        public static readonly CutPlane LowSweep = new CutPlane(new Vector3(0.0f, -0.36f, 1.0f), new Vector3(1.0f, -0.15f, 0.0f));
+        /// <summary>
+        /// The chop's plane: from over the right shoulder down across the front to the lower left, holding the straight-ahead, so the blow lands on
+        /// whoever is in front (owner, 2026-11-22: it "starts too far to the left its like its aimed at someone to the side"); 32 degrees off the
+        /// level, shallow enough that the long pole carried on through does not go into the ground.
+        /// </summary>
+        public static readonly CutPlane Chop = new CutPlane(Vector3.forward, new Vector3(-0.85f, -0.53f, 0.0f));
 
         /// <summary>The rising blow's plane: from low ahead on the right, up through the front and on up past the left shoulder.</summary>
         public static readonly CutPlane Rising = new CutPlane(new Vector3(0.1f, 0.05f, 1.0f), new Vector3(-0.85f, 0.53f, 0.0f));
@@ -46,7 +50,8 @@ namespace CityX.Character
         // Carried upright in both hands before the right shoulder, the fists where a two-handed blade's carry has them (clear of the belly), the long end
         // standing up past the head; at a run, steeper still. (Over the shoulder in one hand, the left arm crossed the chest to take the pole for each
         // attack and the pole swung through the head on its way back up after the high blows.)
-        private static Key StaffCarryKey => Pose(0.0f, Ease.Smooth, hand: new Vector3(0.14f, 1.32f, 0.46f), blade: new Vector3(0.20f, 0.90f, 0.38f),
+        // (The fists stand off the belly by a puffy coat's thickness: owner, 2026-11-22, "the left wrist clips into the jacket in idle position".)
+        private static Key StaffCarryKey => Pose(0.0f, Ease.Smooth, hand: new Vector3(0.14f, 1.32f, 0.56f), blade: new Vector3(0.20f, 0.90f, 0.38f),
             edge: new Vector3(-0.62f, -0.40f, 0.68f), elbow: 0.10f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
 
         private static Key StaffTrailKey => Pose(0.0f, Ease.Smooth, hand: new Vector3(0.18f, 1.42f, 0.42f), blade: new Vector3(0.15f, 0.95f, 0.27f),
@@ -83,30 +88,32 @@ namespace CityX.Character
             {
                 case SwordStrikeKind.StaffChop:
                 {
-                    // THE CHOP: both fists up over the right shoulder, the pole back behind it, the body coiled and leaning back; then down across
-                    // the front to the lower left with a stride, the long end landing level at the chest a pole's length out.
-                    CutPlane cut = DiagonalDown;
+                    // THE CHOP: both fists up over the right shoulder, the pole back behind it, the body coiled and leaning back; then down through
+                    // the front with a stride, the body square to the enemy and the pole pointing straight at them at the contact, carried on down to
+                    // the lower left only a little way.
+                    CutPlane cut = Chop;
                     Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.40f, 1.82f, -0.02f), cut, -127.5f, elbow: 0.60f, twist: 48.0f, hips: 22.0f,
                         lean: -8.0f, tilt: -5.0f, drop: 0.12f, lead: -1.0f, depth: 0.35f);
-                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.02f, 1.42f, 0.62f), cut, -12.0f, elbow: 0.30f, twist: -18.0f, hips: -30.0f,
-                        lean: 14.0f, tilt: 5.0f, drop: 0.16f, lead: -1.0f, depth: 0.70f, reach: 1.0f), new Vector3(0.55f, 1.62f, 0.50f), 10.0f);
-                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(-0.40f, 1.38f, 0.36f), cut, 85.0f, elbow: 0.40f, twist: -46.0f, hips: -40.0f,
-                        lean: 12.0f, tilt: 5.0f, drop: 0.16f, lead: -1.0f, depth: 0.65f, reach: 0.6f);
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.10f, 1.42f, 0.62f), cut, 0.0f, elbow: 0.30f, twist: 0.0f, hips: -10.0f,
+                        lean: 14.0f, tilt: 3.0f, drop: 0.16f, lead: -1.0f, depth: 0.70f, reach: 1.0f), new Vector3(0.50f, 1.66f, 0.46f), 20.0f);
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(-0.34f, 1.36f, 0.38f), cut, 60.0f, elbow: 0.40f, twist: -30.0f, hips: -26.0f,
+                        lean: 12.0f, tilt: 3.0f, drop: 0.16f, lead: -1.0f, depth: 0.65f, reach: 0.6f);
                     return Assemble(kind, StaffReadyKey, windup, contact, follow);
                 }
                 case SwordStrikeKind.StaffSweep:
                 {
-                    // THE LOW SWEEP: a backhand, from where the chop left the fists: sunk deep, the fists at the left hip and the pole round behind on the
-                    // left; then the whole body turns round to the right and the pole goes flat across the front at the shins, carrying on round to the
-                    // right, where the rising blow starts. (Each blow starts where the last ended, as the two-handed blades' chain does: swept the other
-                    // way, the fists crossed the front between the blows and the left arm went through the chest.)
-                    CutPlane cut = LowSweep;
-                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(-0.24f, 1.68f, 0.32f), cut, -110.0f, elbow: 0.50f, twist: -45.0f, hips: -24.0f,
+                    // THE SWEEP: a level backhand, from where the chop left the fists: the fists at the left hip and the pole round behind on the left;
+                    // then the whole body turns round to the right and the pole goes flat across the front at the enemy's middle, pointing straight at
+                    // them as it passes, carrying on round to the right, where the rising blow starts. (Owner, 2026-11-22: it was swept low at the shins,
+                    // "it shouldnt be angled downward just make it horizontal". Each blow starts where the last ended, as the two-handed blades' chain
+                    // does: swept the other way, the fists crossed the front between the blows and the left arm went through the chest.)
+                    CutPlane cut = BackhandFlat;
+                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(-0.34f, 1.68f, 0.32f), cut, -110.0f, elbow: 0.50f, twist: -45.0f, hips: -24.0f,
                         lean: 10.0f, tilt: -4.0f, drop: 0.26f, lead: -1.0f, depth: 0.45f);
-                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.10f, 1.36f, 0.60f), cut, -5.0f, elbow: 0.25f, twist: 12.0f, hips: 26.0f,
-                        lean: 12.0f, tilt: -2.0f, drop: 0.32f, lead: -1.0f, depth: 0.65f, reach: 1.0f), new Vector3(-0.40f, 1.34f, 0.50f), -20.0f);
-                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.55f, 1.36f, 0.30f), cut, 100.0f, elbow: 0.40f, twist: 56.0f, hips: 42.0f,
-                        lean: 8.0f, tilt: 0.0f, drop: 0.30f, lead: -1.0f, depth: 0.60f, reach: 0.6f);
+                    Key contact = Arc(Pose(0.0f, Ease.Snap, new Vector3(0.10f, 1.46f, 0.60f), cut, 0.0f, elbow: 0.25f, twist: 0.0f, hips: 14.0f,
+                        lean: 10.0f, tilt: -2.0f, drop: 0.16f, lead: -1.0f, depth: 0.65f, reach: 1.0f), new Vector3(-0.40f, 1.46f, 0.50f), -20.0f);
+                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.55f, 1.44f, 0.30f), cut, 100.0f, elbow: 0.40f, twist: 56.0f, hips: 42.0f,
+                        lean: 8.0f, tilt: 0.0f, drop: 0.15f, lead: -1.0f, depth: 0.60f, reach: 0.6f);
                     return Assemble(kind, StaffReadyKey, windup, contact, follow);
                 }
                 case SwordStrikeKind.StaffRun:

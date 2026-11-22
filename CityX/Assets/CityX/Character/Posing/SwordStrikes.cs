@@ -65,7 +65,7 @@ namespace CityX.Character
         /// <summary>The bo staff's first light (docs/BO_STAFF.md): a chop from over the right shoulder down across the front.</summary>
         StaffChop,
 
-        /// <summary>The staff's second light: sunk low and swept flat round the front at the knees.</summary>
+        /// <summary>The staff's second light: a level backhand swept flat round the front at the middle.</summary>
         StaffSweep,
 
         /// <summary>The staff's third light, the chain's end: a rising blow from low on the right up past the left shoulder.</summary>

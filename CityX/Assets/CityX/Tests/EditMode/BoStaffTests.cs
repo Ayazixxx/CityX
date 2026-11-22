@@ -9,7 +9,7 @@ namespace CityX.Tests
     /// <summary>
     /// THE BO STAFF (owner, 2026-11-19, with a clip of a staff fighter: "make copy these movements as best you can", its opening spin "maybe that will
     /// be the heavy hold click attack"; "make the model just a basic metal pole"; docs/BO_STAFF.md): its five attacks and their clips, the chain of three, the running
-    /// thrust keeping its line, the pole's far end off the ground through every attack, the low sweep at the shins, and the built pole.
+    /// thrust keeping its line, the pole's far end off the ground through every attack, the chop and the level sweep landing straight ahead, and the built pole.
     /// </summary>
     public sealed class BoStaffTests
     {
@@ -87,7 +87,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ThePolesFarEndStaysOffTheGroundAndTheSweepPassesAtTheShins()
+        public void ThePolesFarEndStaysOffTheGroundAndTheSweepIsLevelAtTheMiddle()
         {
             foreach (SwordStrikeKind kind in Staff)
             {
@@ -97,11 +97,31 @@ namespace CityX.Tests
                     Assert.Greater(height, -0.1f, $"{kind} at {t:0.00}: the pole's far end is {-height:0.00} m into the ground");
                 }
             }
+            // Owner, 2026-11-22: the sweep "shouldnt be angled downward just make it horizontal".
             SwordStrikes.StrikeTiming sweep = SwordStrikes.TimingOf(SwordStrikeKind.StaffSweep);
-            float low = FarEnd(SwordStrikes.Evaluate(SwordStrikeKind.StaffSweep, sweep.Contact / sweep.Total)).y;
-            Assert.That(low, Is.InRange(0.0f, 0.8f), $"the low sweep lands at {low:0.00} m: not at the shins");
+            SwordFrame swept = SwordStrikes.Evaluate(SwordStrikeKind.StaffSweep, sweep.Contact / sweep.Total);
+            float sweptAt = FarEnd(swept).y;
+            TestContext.WriteLine($"the sweep passes at {sweptAt:0.00} m, the pole {Mathf.Asin(swept.Blade.y) * Mathf.Rad2Deg:0} degrees off the level");
+            Assert.That(sweptAt, Is.InRange(1.0f, 1.9f), "the sweep does not pass at the enemy's middle");
+            Assert.Less(Mathf.Abs(swept.Blade.y), 0.15f, "the sweep is not level");
             SwordStrikes.StrikeTiming chop = SwordStrikes.TimingOf(SwordStrikeKind.StaffChop);
             Assert.Greater(FarEnd(SwordStrikes.Evaluate(SwordStrikeKind.StaffChop, chop.Contact / chop.Total)).y, 0.9f, "the chop lands low, not at the body");
+        }
+
+        [Test]
+        public void TheChopAndTheSweepLandStraightAhead()
+        {
+            // Owner, 2026-11-22: the chop was "aimed at someone to the side", "he should be swinging forward each swing like the opponents in front".
+            foreach (SwordStrikeKind kind in new[] { SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep })
+            {
+                SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(kind);
+                SwordFrame at = SwordStrikes.Evaluate(kind, timing.Contact / timing.Total);
+                Vector3 flat = new Vector3(at.Blade.x, 0.0f, at.Blade.z);
+                float aside = Vector3.SignedAngle(Vector3.forward, flat, Vector3.up);
+                TestContext.WriteLine($"{kind}: the pole {aside:0} degrees off straight ahead at the hit, the shoulders turned {at.TwistDegrees:0}");
+                Assert.Less(Mathf.Abs(aside), 12.0f, $"{kind} lands to the side, not on whoever is in front");
+                Assert.Less(Mathf.Abs(at.TwistDegrees), 12.0f, $"{kind}'s shoulders are turned away from the front at the hit");
+            }
         }
 
         [Test]

@@ -15,7 +15,7 @@ The clip (7.3 s, split into frames and read frame by frame) is a fighter with a 
 - they grip it **near one end** for the big blows, so the long end reaches (the thrust at 6 s and the chops);
 - **a chop**: the pole raised up on the right and brought down across the front (1 s);
 - **a low sweep**: sunk into a deep stance, the pole flat round the front at the shins (1.3 s); here a backhand, left to right, so it starts
-  where the chop ends (crossing the front between blows put the left arm through the chest);
+  where the chop ends (crossing the front between blows put the left arm through the chest); swept level at the middle here since 2026-11-22 (owner: "just make it horizontal");
 - **the lunging thrust, a stab**: a long stride, both arms forward, the pole straight out at the chest (6 s; lower versions at 1.6 and 5.5 s); in the chain until 2026-11-22, now only the running attack thrusts;
 - **a rising blow**: wound low on the left, the pole swept up past the right shoulder, the body rising behind it (1.8 s, 5.7 s);
 - **the opening spin** (the owner's heavy): the fighter turning right round with the pole out flat, knocking the enemy back.
@@ -24,7 +24,7 @@ The clip (7.3 s, split into frames and read frame by frame) is a fighter with a 
 
 | | |
 |---|---|
-| Left-click | The chain of three: the **chop**, the **low sweep** (at the shins), the **rising blow** (the finisher: it knocks down). The lunging thrust that was third is cut (owner, 2026-11-22: "its like a stabbing motion with the pole that just looks bad make it a 3 hit combo") |
+| Left-click | The chain of three: the **chop**, the **sweep** (level, at the middle), the **rising blow** (the finisher: it knocks down). The lunging thrust that was third is cut (owner, 2026-11-22: "its like a stabbing motion with the pole that just looks bad make it a 3 hit combo"). The chop and the sweep land straight ahead, the body square to the enemy at the hit (owner, 2026-11-22: the chop "starts too far to the left its like its aimed at someone to the side", the sweep "shouldnt be angled downward just make it horizontal") |
 | Left-click held | The **spin**: wound right round to the right and held a third of a second (the tell), then flat round the front with the whole body; it breaks guards and knocks down |
 | Left-click at a sprint | The thrust on the run |
 | Right-click | The block: the pole held across the front in both hands (a staff's guard does not turn bullets, as a sword's does) |
@@ -39,7 +39,7 @@ All the numbers are mine (`SoulsSwordCombat.StaffLight1`..., `StaffRules`).
   fighter is tall, and the spike sword is about as long.
 - **Swung near one end, both fists on it like a bat** (the two-handed blades' hold): 1.85 m of pole past the right fist, 0.15 m past the
   left. Held in the middle, as a bo is in a kata, the short end went through the body on every swing.
-- **Carried upright in both hands** before the right shoulder, the long end standing up past the head (`SwordStrikes.StaffCarry`). Carried over
+- **Carried upright in both hands** before the right shoulder, the long end standing up past the head (`SwordStrikes.StaffCarry`), the fists 56 cm out so a puffy coat's front stays behind them (owner, 2026-11-22: "the left wrist clips into the jacket in idle position"). Carried over
   the shoulder in one hand, the left arm crossed the chest to take the pole for every attack, and the pole swung through the head going back up
   after the high blows (`SwordArmsClearPlayTests` measured both).
 
@@ -70,4 +70,4 @@ name as a sword's are; a knock-down is sent to the player it lands on, as every 
 rising blow going up and the spin going round, the built pole), `BoStaffPlayTests` (on the real body: carried upright,
 swung with both hands near the end past a sword's reach; the chain's order (chop, sweep, rising blow) and the spin; the spin throwing a player down; another player's copy),
 `SwordArmsClearPlayTests` (every frame of every staff attack: the arms and the pole out of the body), and the swords' `SwordStrikesTests` and
-`SwordMotionTests`, which cover the staff's keys and clips. Pictures: `SwordStrikeCapture.RenderTheBoStaffAttacks`, and `BoStaffWalkCapture` (walking, crouch-walking and walking backwards with it in the parka), both Explicit, -Graphics.
+`SwordMotionTests`, which cover the staff's keys and clips. Pictures: `SwordStrikeCapture.RenderTheBoStaffAttacks`, and `BoStaffWalkCapture` ((walking, crouch-walking and standing with it in the parka)), both Explicit, -Graphics.

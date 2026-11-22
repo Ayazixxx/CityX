@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: the player in the parka walking and crouch-walking with the bo staff, and walking backwards with it, in the real scene, seen through the game's own
+    /// Not a test: the player in the parka walking and crouch-walking with the bo staff, and standing with it, in the real scene, seen through the game's own
     /// camera, from the side and from the front, eight moments of each (owner, 2026-11-22: "the walking animation has the arms clipping through the
     /// body"). Written to Logs/CityShots/bo-staff-walk-sheet.png. Explicit; needs -Graphics.
     /// </summary>
@@ -79,14 +79,17 @@ namespace CityX.Tests
             other.fieldOfView = 30.0f;
             other.enabled = false;
 
-            // Rows, all in the parka: walking with the staff, crouch-walking with it, and walking backwards with it.
+            // Rows, all in the parka: walking with the staff, crouch-walking with it, and standing still with it.
             const int rows = 3;
             inventory.EquipItemId(ItemRegistry.GreenFurHoodedParka, player);
             var sheet = new Texture2D(CellWidth * Moments, CellHeight * Views * rows, TextureFormat.RGB24, false);
             for (int row = 0; row < rows; row++)
             {
-                bool crouch = row == 1, backwards = row == 2;
-                Press(_keyboard.wKey);
+                bool crouch = row == 1, idle = row == 2;
+                if (!idle)
+                {
+                    Press(_keyboard.wKey);
+                }
                 yield return null;
                 if (crouch)
                 {
@@ -96,15 +99,9 @@ namespace CityX.Tests
                 {
                     yield return null;
                 }
-                if (backwards)
-                {
-                    Release(_keyboard.wKey);
-                    yield return null;
-                    Press(_keyboard.sKey);
-                }
                 for (int shot = 0; shot < Moments; shot++)
                 {
-                    for (int f = 0; f < (backwards ? 3 : 5); f++)
+                    for (int f = 0; f < 5; f++)
                     {
                         yield return null;
                     }
@@ -123,7 +120,10 @@ namespace CityX.Tests
                     Release(_keyboard.leftCtrlKey);
                     yield return null;
                 }
-                Release(backwards ? _keyboard.sKey : _keyboard.wKey);
+                if (!idle)
+                {
+                    Release(_keyboard.wKey);
+                }
                 for (int i = 0; i < 40; i++)
                 {
                     yield return null;

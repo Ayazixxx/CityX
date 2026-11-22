@@ -191,7 +191,7 @@ namespace CityX.Tests
             var poser = _body.GetComponent<SwordPoseDriver>();
             yield return Frames(50);
             var thrown = new List<SwordStrikeKind>();
-            float lowestSweep = float.MaxValue;
+            float sweepLow = float.MaxValue, sweepHigh = float.MinValue;
             combat.RequestLight(0.0f);
             for (int i = 0; i < 600 && (thrown.Count < 3 || poser.IsStriking); i++)
             {
@@ -200,9 +200,10 @@ namespace CityX.Tests
                 {
                     thrown.Add(poser.Kind);
                 }
-                if (poser.IsStriking && poser.Kind == SwordStrikeKind.StaffSweep)
+                if (poser.IsStriking && poser.Kind == SwordStrikeKind.StaffSweep && poser.BladeIsLive)
                 {
-                    lowestSweep = Mathf.Min(lowestSweep, _staff.BladeTipWorld.y);
+                    sweepLow = Mathf.Min(sweepLow, _staff.BladeTipWorld.y);
+                    sweepHigh = Mathf.Max(sweepHigh, _staff.BladeTipWorld.y);
                 }
                 if (thrown.Count < 3)
                 {
@@ -210,8 +211,8 @@ namespace CityX.Tests
                 }
             }
             CollectionAssert.AreEqual(new[] { SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffRising }, thrown);
-            TestContext.WriteLine($"the sweep's far end went as low as {lowestSweep:0.00} m");
-            Assert.That(lowestSweep, Is.InRange(0.0f, 0.8f), "the low sweep does not pass at the shins");
+            TestContext.WriteLine($"while it could hit, the sweep's far end went from {sweepLow:0.00} m to {sweepHigh:0.00} m");
+            Assert.Greater(sweepLow, 0.9f, "the sweep dips low (owner, 2026-11-22: \"just make it horizontal\")");
             yield return Frames(30);
             combat.RequestHeavy(0.0f);
             bool spun = false;

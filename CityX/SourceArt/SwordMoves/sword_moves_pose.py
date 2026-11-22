@@ -277,30 +277,31 @@ ATTACKS.update({
 # ---- THE BO STAFF -----------------------------------------------------------------------------------------------------------------------------------------------------------
 # Owner, 2026-11-19, with a clip of a staff fighter: "make copy these movements as best you can", its first spinning swing "maybe that will be the heavy hold click attack but
 # the rest looks pretty good" (docs/BO_STAFF.md). A staff is swung from the hips with both hands, low and wide, the body turning right round through each blow: a chop
-# from over the right shoulder, a crouching sweep at the knees, and a rising blow from low on the right up past the left shoulder that ends the chain (owner, 2026-11-22: the lunging thrust cut); the
+# from over the right shoulder, a level backhand sweep at the middle, and a rising blow from low on the right up past the left shoulder that ends the chain (owner, 2026-11-22: the lunging thrust cut); the
 # heavy is wound right round to the right, held, and let go flat round the front. As for every cut, the contacts' twists are SwordStrikes' own; the running thrust's keys all are.
 READY_STAFF = key(twist=14.0, hips=8.0, lean=5.0, drop=0.10)
 ATTACKS.update({
-    # THE CHOP: up over the right shoulder, the body coiled and leaning back, then down across the front to the lower left with a stride.
+    # THE CHOP: up over the right shoulder, the body coiled and leaning back, then down through the front with a stride, square to the enemy at the
+    # contact and carried on only a little to the left (owner, 2026-11-22: it was "aimed at someone to the side").
     "staff_chop": attack(
         (0.24, 0.06, 0.13, 0.10, 0.07, 0.26), 0.40,
         key(twist=48.0, hips=22.0, lean=-8.0, tilt=-5.0, drop=0.12, shift=(0.06, -0.10)),
         key(twist=52.0, hips=24.0, lean=-10.0, tilt=-5.0, drop=0.13, shift=(0.06, -0.11)),
-        key(twist=-18.0, hips=-30.0, lean=26.0, tilt=8.0, drop=0.22, shift=(-0.06, 0.06), chin=8.0, staged=True),
-        key(twist=-46.0, hips=-40.0, lean=24.0, tilt=6.0, drop=0.22, shift=(-0.08, 0.05), chin=8.0),
+        key(twist=0.0, hips=-10.0, lean=24.0, tilt=4.0, drop=0.20, shift=(-0.02, 0.07), chin=8.0, staged=True),
+        key(twist=-30.0, hips=-26.0, lean=22.0, tilt=4.0, drop=0.20, shift=(-0.05, 0.06), chin=8.0),
         key(twist=-10.0, hips=-8.0, lean=12.0, drop=0.15, shift=(-0.02, 0.03)),
         left=[(0.12, 0.40, (-0.24, 0.50), 0.15)],
         right=[(0.55, 0.78, (STANCE_X, 0.35), 0.06)],
         ready=READY_STAFF, two_handed=True),
-    # THE LOW SWEEP: a backhand from where the chop ended: sunk deep and wound to the left, then the whole body turning round to the right, the staff flat
-    # across the front at the shins, the right foot passing through.
+    # THE SWEEP: a level backhand from where the chop ended: sunk and wound to the left, then the body rising and turning round to the right, the staff flat across
+    # the front at the middle, the right foot passing through (owner, 2026-11-22: it was sunk low at the shins, "just make it horizontal").
     "staff_sweep": attack(
         (0.24, 0.06, 0.14, 0.13, 0.07, 0.28), 0.40,
         key(twist=-58.0, hips=-14.0, lean=12.0, tilt=4.0, drop=0.30, shift=(-0.07, -0.06)),
         key(twist=-62.0, hips=-15.0, lean=13.0, tilt=4.0, drop=0.32, shift=(-0.07, -0.07)),
-        key(twist=12.0, hips=12.0, lean=24.0, tilt=-6.0, drop=0.35, shift=(0.04, 0.06), chin=-4.0, staged=True),
-        key(twist=72.0, hips=40.0, lean=20.0, tilt=-4.0, drop=0.34, shift=(0.08, 0.04)),
-        key(twist=20.0, hips=14.0, lean=10.0, drop=0.18, shift=(0.02, 0.02)),
+        key(twist=0.0, hips=14.0, lean=14.0, tilt=-3.0, drop=0.16, shift=(0.04, 0.06), staged=True),
+        key(twist=72.0, hips=40.0, lean=12.0, tilt=-2.0, drop=0.16, shift=(0.08, 0.04)),
+        key(twist=20.0, hips=14.0, lean=8.0, drop=0.12, shift=(0.02, 0.02)),
         right=[(0.04, 0.40, (0.26, 0.35), 0.10)],
         left=[(0.58, 0.85, (-STANCE_X - 0.05, 0.30), 0.05)],
         ready=READY_STAFF, two_handed=True),
