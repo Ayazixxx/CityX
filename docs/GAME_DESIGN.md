@@ -347,6 +347,10 @@ Owner, 2026-11-20, on the levels ("i havent fully thought this out"):
 - **Some evil NPCs are not hostile towards evil players.**
 - Not decided: how these fit the shades above (which were written earlier: guards at red, the hub, the map), and how much worse trades get on the way to halfway.
 
+**Veterans and newcomers (owner, 2026-11-21).** "if you have spent 300+ hours grinding to buff your character you shouldnt lose to a level 20 player just because they found a gun and have good aim you should be pretty op at that point and be able to toy with them." Time put in should show (as in RuneScape or World of Warcraft, not a shooter where aim decides). My suggestions, not decided: a weapon's damage scales with its wielder's stats and skills, so a found gun never bridges hundreds of hours; between players of similar power, aim and timing decide.
+
+**The spawn guards (owner, 2026-11-21).** The guards come after you if you fight in the vicinity of the spawn; anger them enough and they raid your base to kill you there. **No offline raids**, and a raid is "going for the kill not to destroy your base". Open: how strong the guards are (they must threaten a veteran, or a raid is free loot), how their anger builds and fades, whether other players can join either side.
+
 ## Factions
 
 Minecraft Factions, in the city.
