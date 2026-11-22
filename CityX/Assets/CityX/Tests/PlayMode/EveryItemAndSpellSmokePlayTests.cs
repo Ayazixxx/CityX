@@ -120,9 +120,9 @@ namespace CityX.Tests
             int tried = 0;
             foreach (string id in ids)
             {
-                if (inventory.PrefabForItem(id) == null || !ItemRegistry.TryGet(id, out ItemDefinition definition))
+                if (inventory.PrefabForItem(id) == null || !ItemRegistry.TryGet(id, out ItemDefinition definition) || string.IsNullOrEmpty(definition.EquipSlot))
                 {
-                    continue;   // nothing to hold or wear (a material, a key)
+                    continue;   // nothing to hold or wear (a material, a key, a box of ammunition: its prefab is only what lies on the ground)
                 }
                 _doing = $"item '{id}'";
                 if (!inventory.EquipItemId(id, player))
