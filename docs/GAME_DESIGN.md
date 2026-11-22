@@ -361,6 +361,7 @@ Minecraft Factions, in the city.
 - **War:** declare, 24 h warm-up, a goal (take a district, raid a base, tribute), ends in surrender, truce or exhaustion.
 - **No offline raiding: sieges only happen in windows the defenders chose** (EVE, Albion). Scheduled sieges are also what guarantees big battles.
 - **Battle size capped per side** to start (New World uses 50 vs 50); raise it once measured.
+- **The faction emblem is drawn by the players** (owner, 2026-11-21). My suggestions, not decided: a square canvas with the creator's own tools (brush, bucket, eyedropper, mirror, undo); shown on banners and flags at the base and claimed buildings, printed on members' clothes (as shirt prints already are), on the map over the faction's land, and small by members' names; a few kilobytes, sent once like paint; reportable like names and chat. Open: who may edit it, where it shows, whether changing it costs something.
 
 ## Social
 
