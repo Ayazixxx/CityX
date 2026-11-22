@@ -99,6 +99,105 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>How far under the hair a raised cap stops, as a share of the head's radius: hidden under it, never through it.</summary>
+        public const float UnderTheHair = 0.02f;
+
+        /// <summary>The cone round each point of the cap the hair over it is looked for in, degrees: wider than the space between two locks.</summary>
+        public const float ConeDegrees = 8.0f;
+
+        /// <summary>The most a point of the cap is raised, as a share of the head's radius: hair further off than this is a lock hanging away, not a crown.</summary>
+        public const float MostRaise = 0.35f;
+
+        /// <summary>The cap's edge, raised, goes this far into the head (a share of its radius): its rim tucked into the scalp, so nothing is seen under it.</summary>
+        public const float EdgeInTheHead = 0.98f;
+
+        /// <summary>Rings up from the edge over which the cap rises from in the head to its full height under the hair.</summary>
+        public const int RiseOverRings = 2;
+
+        /// <summary>
+        /// THE CAP RAISED UP UNDER THE HAIR (owner, 2026-11-21, of the dreads: "make the hairstyle curl inward underneath and clip into the head
+        /// slightly ... to hide the visible white bit that is a result of being able to see underneath the hairstyle"). On the crown the locks
+        /// stand 5 to 6 cm off the head, over the cap; looking up at the parting from in front, the eye went in through it, over the cap, under
+        /// the locks and out the back to the sky. Each point of the cap is raised to just under the nearest hair over it (the lowest found in a
+        /// cone round it, so it never stands up between two locks), and the space under them is closed: what shows through a parting is hair. Its
+        /// edge goes into the head and it rises from there over <see cref="RiseOverRings"/> rings: raised whole, its own rim stood off the forehead.
+        /// The cap's points as <see cref="Build(float, List{Vector3}, List{Vector3}, List{int})"/> lays them out: the crown, then ring after ring of
+        /// <see cref="Around"/>.
+        /// <paramref name="hairVertices"/> are in the head's space, as the cap is.
+        /// </summary>
+        public static void RaiseUnderTheHair(List<Vector3> capVertices, IReadOnlyList<Vector3> hairVertices, IReadOnlyList<int> hairTriangles,
+            float headRadius)
+        {
+            var cone = new Vector3[7];
+            int rings = (capVertices.Count - 1) / Around;
+            for (int i = 0; i < capVertices.Count; i++)
+            {
+                Vector3 direction = capVertices[i].normalized;
+                Vector3 side = Vector3.Cross(direction, Mathf.Abs(direction.y) < 0.9f ? Vector3.up : Vector3.forward).normalized;
+                cone[0] = direction;
+                for (int k = 0; k < 6; k++)
+                {
+                    cone[k + 1] = Quaternion.AngleAxis(ConeDegrees, Quaternion.AngleAxis(60.0f * k, direction) * side) * direction;
+                }
+                float from = capVertices[i].magnitude;
+                float nearest = headRadius * (1.0f + MostRaise);
+                bool found = false;
+                foreach (Vector3 ray in cone)
+                {
+                    if (NearestHit(ray, from, hairVertices, hairTriangles, out float distance) && distance < nearest)
+                    {
+                        nearest = distance;
+                        found = true;
+                    }
+                }
+                if (!found)
+                {
+                    continue;
+                }
+                int ring = i == 0 ? 0 : (i - 1) / Around + 1;
+                float rise = Mathf.Clamp01((rings - ring) / (float)RiseOverRings);
+                rise = rise * rise * (3.0f - 2.0f * rise);
+                float raised = Mathf.Lerp(headRadius * EdgeInTheHead, Mathf.Max(from, nearest - headRadius * UnderTheHair), rise);
+                capVertices[i] = direction * raised;
+            }
+        }
+
+        /// <summary>How far from the head's centre along <paramref name="ray"/> the first triangle past <paramref name="from"/> is met.</summary>
+        private static bool NearestHit(Vector3 ray, float from, IReadOnlyList<Vector3> vertices, IReadOnlyList<int> triangles, out float distance)
+        {
+            distance = float.MaxValue;
+            for (int t = 0; t + 2 < triangles.Count; t += 3)
+            {
+                Vector3 a = vertices[triangles[t]], b = vertices[triangles[t + 1]], c = vertices[triangles[t + 2]];
+                Vector3 ab = b - a, ac = c - a;
+                Vector3 p = Vector3.Cross(ray, ac);
+                float det = Vector3.Dot(ab, p);
+                if (Mathf.Abs(det) < 1e-9f)
+                {
+                    continue;
+                }
+                float inverse = 1.0f / det;
+                Vector3 s = -a;
+                float u = Vector3.Dot(s, p) * inverse;
+                if (u < 0.0f || u > 1.0f)
+                {
+                    continue;
+                }
+                Vector3 q = Vector3.Cross(s, ab);
+                float v = Vector3.Dot(ray, q) * inverse;
+                if (v < 0.0f || u + v > 1.0f)
+                {
+                    continue;
+                }
+                float along = Vector3.Dot(ac, q) * inverse;
+                if (along > from && along < distance)
+                {
+                    distance = along;
+                }
+            }
+            return distance < float.MaxValue;
+        }
+
         private static void Add(Vector3 direction, float headRadius, List<Vector3> vertices, List<Vector3> normals)
         {
             vertices.Add(direction * headRadius * Lift);

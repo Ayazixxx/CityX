@@ -300,6 +300,13 @@ namespace CityX.UIEditor
             var capNormals = new System.Collections.Generic.List<Vector3>();
             var capTriangles = new System.Collections.Generic.List<int>();
             HairScalp.Build(FusedBodyShape.HeadRadius, capVertices, capNormals, capTriangles);
+            Matrix4x4 intoHead = intoMesh.inverse;
+            Vector3[] hairInHead = mesh.vertices;
+            for (int i = 0; i < hairInHead.Length; i++)
+            {
+                hairInHead[i] = intoHead.MultiplyPoint3x4(hairInHead[i]);
+            }
+            HairScalp.RaiseUnderTheHair(capVertices, hairInHead, mesh.triangles, FusedBodyShape.HeadRadius);
 
             var vertices = new System.Collections.Generic.List<Vector3>(mesh.vertices);
             var normals = new System.Collections.Generic.List<Vector3>(mesh.normals);

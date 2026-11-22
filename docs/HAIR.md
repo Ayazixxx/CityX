@@ -253,3 +253,13 @@ uses). Exported as `Dreads.glb` (109 KB, no textures), style `dreads`, button DR
   fits under the cap (0.214 m in the model) holds the 0.35 m head with 4% to spare (scale 1.7025). Retune by hand as usual.
 - `TitleScreenCapture.RebuildAndCaptureDreads` shoots `Logs/CityShots/hair-dreads-*.png`. Test:
   `CharacterHairFitTests.TheDreadsHoldTheWholeHeadAndCoverTheCrown`. Both scenes and `NetworkedPlayer.prefab` were rebuilt.
+- **The cap raised up under the locks (2026-11-21).** Owner, circling a thin white line on the top of the forehead under the parting: "make the
+  hairstyle curl inward underneath and clip into the head slightly ... to hide the visible white bit that is a result of being able to see
+  underneath the hairstyle". On the crown the locks stand 5 to 6 cm off the head and the cap lay just off the skin, so a look up from in front
+  and below went over the forehead, under the locks and out the back to the sky. `HairScalp.RaiseUnderTheHair` (at the bake, `HairAssets.AddScalp`)
+  raises each point of the cap to 2% of the head's radius under the nearest hair over it (the lowest in an 8 degree cone, so it never stands up
+  between two locks, and at most 35% of the radius off the head), its edge tucked 2% into the head where hair is over it and rising over two
+  rings: raised whole, its own rim stood off the forehead and the line came back under it. Looked at with `DreadsPartingCapture`
+  (`Logs/CityShots/dreads-parting-*.png`, white behind, from in front and below, close as the creator shows it). Test:
+  `HairScalpTests.UnderHairStandingOffTheCrownTheCapIsRaisedToItWithItsEdgeInTheHead`; the dreads' fit test now looks for the cap as far
+  out as it may be raised.

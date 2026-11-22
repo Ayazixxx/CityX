@@ -318,7 +318,7 @@ namespace CityX.Tests
                     {
                         float h = height * Mathf.Deg2Rad, t = turn * Mathf.Deg2Rad;
                         var direction = new Vector3(Mathf.Cos(h) * Mathf.Sin(t), Mathf.Sin(h), Mathf.Cos(h) * Mathf.Cos(t));
-                        Assert.IsTrue(Physics.Raycast(Vector3.zero, direction, FusedBodyShape.HeadRadius * 1.05f),
+                        Assert.IsTrue(Physics.Raycast(Vector3.zero, direction, FusedBodyShape.HeadRadius * (1.0f + HairScalp.MostRaise)),
                             $"the head shows through the dreads {turn:0} degrees round, {height:0} up");
                     }
                 }
