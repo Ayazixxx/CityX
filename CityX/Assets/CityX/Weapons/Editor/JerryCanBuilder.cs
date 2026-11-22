@@ -42,32 +42,32 @@ namespace CityX.WeaponsEditor
             {
                 float top = -HandleRise;
                 Vector3 bodyCentre = new Vector3(0.0f, top - Height * 0.5f, 0.0f);
-                Box(root.transform, "Body", bodyCentre, Quaternion.identity, new Vector3(Width, Height, Depth), red);
+                PrimitiveParts.Box(root.transform, "Body", bodyCentre, Quaternion.identity, new Vector3(Width, Height, Depth), red);
                 // The X pressed into each broad side: two raised ridges across it, corner to corner.
                 float diagonal = Mathf.Sqrt(Width * Width * 0.8f + Height * Height * 0.8f);
                 float angle = Mathf.Atan2(Height, Width) * Mathf.Rad2Deg;
                 for (int side = -1; side <= 1; side += 2)
                 {
                     Vector3 face = bodyCentre + Vector3.forward * (side * (Depth * 0.5f + RidgeThickness * 0.4f));
-                    Box(root.transform, "Ridge", face, Quaternion.Euler(0.0f, 0.0f, angle), new Vector3(diagonal, 0.03f, RidgeThickness), red);
-                    Box(root.transform, "Ridge", face, Quaternion.Euler(0.0f, 0.0f, -angle), new Vector3(diagonal, 0.03f, RidgeThickness), red);
+                    PrimitiveParts.Box(root.transform, "Ridge", face, Quaternion.Euler(0.0f, 0.0f, angle), new Vector3(diagonal, 0.03f, RidgeThickness), red);
+                    PrimitiveParts.Box(root.transform, "Ridge", face, Quaternion.Euler(0.0f, 0.0f, -angle), new Vector3(diagonal, 0.03f, RidgeThickness), red);
                 }
                 // Three handle bars along the top, the middle one at the origin, on two end posts.
                 for (int bar = -1; bar <= 1; bar++)
                 {
-                    Cylinder(root.transform, "Handle", new Vector3(0.0f, 0.0f, bar * 0.05f), Quaternion.Euler(0.0f, 0.0f, 90.0f), BarRadius, BarLength, red);
+                    PrimitiveParts.Cylinder(root.transform, "Handle", new Vector3(0.0f, 0.0f, bar * 0.05f), Quaternion.Euler(0.0f, 0.0f, 90.0f), BarRadius, BarLength, red);
                 }
                 for (int end = -1; end <= 1; end += 2)
                 {
-                    Box(root.transform, "HandlePost", new Vector3(end * BarLength * 0.5f, top * 0.5f, 0.0f), Quaternion.identity, new Vector3(0.03f, HandleRise + 0.01f, 0.13f), red);
+                    PrimitiveParts.Box(root.transform, "HandlePost", new Vector3(end * BarLength * 0.5f, top * 0.5f, 0.0f), Quaternion.identity, new Vector3(0.03f, HandleRise + 0.01f, 0.13f), red);
                 }
                 // The spout: a short tube at the top right corner, leaning out, its mouth where the gasoline comes from.
                 var spoutRoot = new GameObject("SpoutRoot");
                 spoutRoot.transform.SetParent(root.transform, false);
                 spoutRoot.transform.localPosition = new Vector3(Width * 0.5f - 0.05f, top, 0.0f);
                 spoutRoot.transform.localRotation = Quaternion.Euler(0.0f, 0.0f, -35.0f);
-                Cylinder(spoutRoot.transform, "SpoutTube", new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity, 0.026f, 0.1f, metal);
-                Cylinder(spoutRoot.transform, "SpoutCap", new Vector3(0.0f, 0.105f, 0.0f), Quaternion.identity, 0.03f, 0.014f, metal);
+                PrimitiveParts.Cylinder(spoutRoot.transform, "SpoutTube", new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity, 0.026f, 0.1f, metal);
+                PrimitiveParts.Cylinder(spoutRoot.transform, "SpoutCap", new Vector3(0.0f, 0.105f, 0.0f), Quaternion.identity, 0.03f, 0.014f, metal);
                 var spout = new GameObject("Spout").transform;
                 spout.SetParent(spoutRoot.transform, false);
                 spout.localPosition = new Vector3(0.0f, 0.115f, 0.0f);
@@ -87,30 +87,6 @@ namespace CityX.WeaponsEditor
             {
                 Object.DestroyImmediate(root);
             }
-        }
-
-        private static void Box(Transform parent, string name, Vector3 centre, Quaternion rotation, Vector3 size, Material material)
-        {
-            GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Place(box, parent, name, centre, rotation, size, material);
-        }
-
-        /// <summary>Unity's primitive cylinder is 2 units tall with radius 1, along Y.</summary>
-        private static void Cylinder(Transform parent, string name, Vector3 centre, Quaternion rotation, float radius, float length, Material material)
-        {
-            GameObject tube = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Place(tube, parent, name, centre, rotation, new Vector3(radius * 2.0f, length * 0.5f, radius * 2.0f), material);
-        }
-
-        private static void Place(GameObject primitive, Transform parent, string name, Vector3 centre, Quaternion rotation, Vector3 scale, Material material)
-        {
-            primitive.name = name;
-            Object.DestroyImmediate(primitive.GetComponent<Collider>());
-            primitive.transform.SetParent(parent, false);
-            primitive.transform.localPosition = centre;
-            primitive.transform.localRotation = rotation;
-            primitive.transform.localScale = scale;
-            primitive.GetComponent<MeshRenderer>().sharedMaterial = material;
         }
     }
 }

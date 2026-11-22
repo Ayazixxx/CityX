@@ -49,6 +49,11 @@ namespace CityX.Items
             [ItemRegistry.Flamethrower] = Rarity.Rare,
             [ItemRegistry.Jetpack] = Rarity.VeryRare,
             [ItemRegistry.RPG] = Rarity.VeryRare,
+            // Ammunition (2026-11-21), everywhere guns are.
+            [ItemRegistry.PistolAmmo] = Rarity.Common,
+            [ItemRegistry.RifleAmmo] = Rarity.Common,
+            [ItemRegistry.ShotgunShells] = Rarity.Common,
+            [ItemRegistry.RpgRockets] = Rarity.Uncommon,
             // Not on the list yet: placed beside what they are most like.
             [ItemRegistry.BloodRavenTShirt] = Rarity.Common,
             [ItemRegistry.RedCamoTShirt] = Rarity.Common,

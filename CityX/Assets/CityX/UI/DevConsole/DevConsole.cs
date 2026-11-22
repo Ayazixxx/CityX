@@ -172,7 +172,7 @@ namespace CityX.UI
                     "/skills reset forgets everything but vaulting and gives the points back; /skills all learns everything; " +
                     "/skills new is a brand new character's (vaulting and one point)";
                 case "mobs": return "/mobs [on|off] -- the world's own enemies, which appear at random round you (ghosts and monsters out of doors, humanoids in the buildings): off takes them away and stops them appearing; alone, says how many are alive";
-                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|shoota|swordsman|crazyguy|wraith|giant|radio|mustang|book|" +
+                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|shoota|swordsman|crazyguy|wraith|giant|radio|mustang|book|ammo|rifleammo|shells|rockets|" +
                     "any item /equip takes> [how many, up to 30]";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade [on|off] -- the cel look (cel-shaded light and thick black lines) on or off";

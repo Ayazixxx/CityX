@@ -560,6 +560,7 @@ MonoBehaviour:
     Kind: 1
     MagazineSize: 30
     StartingReserveAmmo: 90
+    AmmoItemId: rifle_ammo
     Damage: 50
     Range: 120
     FireRatePerSecond: 10

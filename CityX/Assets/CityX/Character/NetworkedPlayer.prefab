@@ -200,7 +200,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 7268503289099790176}
+      addedObject: {fileID: 4443177515282141721}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -503,6 +503,14 @@ MonoBehaviour:
     Prefab: {fileID: 1640056026679135191, guid: a42bb02197af4e44d9653fcef57446d8, type: 3}
   - ItemId: rpg
     Prefab: {fileID: 474679444980923802, guid: c30fb1acce9905c4bbcade360fffac85, type: 3}
+  - ItemId: pistol_ammo
+    Prefab: {fileID: 6783276759128077706, guid: 32f577cdd541ba34aa6db2b46b1a3bde, type: 3}
+  - ItemId: rifle_ammo
+    Prefab: {fileID: 2255677500487342982, guid: 505aaa5f85ccbc94380423b45d6e2102, type: 3}
+  - ItemId: shotgun_shells
+    Prefab: {fileID: 3054266941374747718, guid: 0cf6b55c9a2dc7d4eab00f2b708987d0, type: 3}
+  - ItemId: rpg_rockets
+    Prefab: {fileID: 4932145747573006328, guid: 96955707e0cb6af44b3e3a7e8ce70ff6, type: 3}
   - ItemId: spray_can
     Prefab: {fileID: 1457213973204992229, guid: c6f1f93176398104d9f27215ee7a94dd, type: 3}
   - ItemId: arcane_staff
@@ -1146,7 +1154,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &7268503289099790176
+--- !u!114 &4443177515282141721
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -726,6 +726,7 @@ MonoBehaviour:
     Kind: 0
     MagazineSize: 15
     StartingReserveAmmo: 45
+    AmmoItemId: pistol_ammo
     Damage: 20
     Range: 60
     FireRatePerSecond: 5.5
@@ -742,16 +743,22 @@ MonoBehaviour:
     TracerEvery: 1
     ShotPitch: 1
     MotionResource: Glock/GlockReload
+    PairMotionResource: Glock/GlockPairReload
     ReloadSeconds: 1.4
     EmptyReloadSeconds: 1.73
     ReloadSound: {fileID: 0}
     EmptyReloadSound: {fileID: 0}
+    RackSound: {fileID: 0}
+    RackSoundBackAt: 0
+    ShellSound: {fileID: 0}
     HoldPosition: {x: -0.056, y: -0.0795, z: 0.037}
     HoldDipDegrees: -22
     HoldScale: 1
     WorldPickupScale: 1
     SupportHandLocal: {x: -0.0795, y: -0.165, z: 0.127}
     SupportHandOnlyWhenAiming: 1
+    CradleFingersLocal: {x: 0, y: 0, z: 0}
+    CradlePalmLocal: {x: 0, y: 1, z: 0}
     MuzzleLocal: {x: 0, y: 0.05625, z: 0.4625}
     EjectionPortLocal: {x: 0.031875, y: 0.06625, z: 0.225}
     EjectionDirectionLocal: {x: 1, y: 0.75, z: -0.3}
@@ -767,6 +774,8 @@ MonoBehaviour:
     CasingRadius: 0.0125
     ArrowFallSpeed: 0
     ReloadsAfterEveryShot: 0
+    FiresRocket: 0
+    BackblastLocal: {x: 0, y: 0, z: 0}
     Pellets: 1
     PelletConeDegrees: 0
     AimedConeShare: 1
@@ -780,7 +789,7 @@ MonoBehaviour:
     ShellStartSeconds: 0.4
     ShellSeconds: 0.567
     ShellEndSeconds: 0.4
-    ShellEndEmptySeconds: 0.667
+    ShellEndEmptySeconds: 0.8
   VisualRoot: {fileID: 1686244990481008631}
   ActionPart: {fileID: 7769487314312886188}
   MagazinePart: {fileID: 3925356104343432284}

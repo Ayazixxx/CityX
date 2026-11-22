@@ -286,6 +286,11 @@ namespace CityX.ViewEditor
             GameObject ak47Prefab = CityX.WeaponsEditor.AK47Builder.Build();
             GameObject shotgunPrefab = CityX.WeaponsEditor.ShotgunBuilder.Build();
             GameObject rpgPrefab = CityX.WeaponsEditor.RPGBuilder.Build();
+            // Ammunition for each gun (2026-11-21): boxes on the ground, rounds in the bag, loaded by R (AmmoBuilder; the rockets copy the RPG's).
+            GameObject pistolAmmoPrefab = CityX.WeaponsEditor.AmmoBuilder.BuildPistol();
+            GameObject rifleAmmoPrefab = CityX.WeaponsEditor.AmmoBuilder.BuildRifle();
+            GameObject shotgunShellsPrefab = CityX.WeaponsEditor.AmmoBuilder.BuildShotgun();
+            GameObject rpgRocketsPrefab = CityX.WeaponsEditor.AmmoBuilder.BuildRockets();
             GameObject sprayCanPrefab = CityX.WeaponsEditor.SprayCanBuilder.Build();
             GameObject knightHelmetPrefab = CityX.WearablesEditor.KnightHelmetBuilder.Build();
             GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
@@ -619,6 +624,14 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Shotgun, Prefab = shotgunPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.RPG, Prefab = rpgPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.PistolAmmo, Prefab = pistolAmmoPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.RifleAmmo, Prefab = rifleAmmoPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.ShotgunShells, Prefab = shotgunShellsPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.RpgRockets, Prefab = rpgRocketsPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.SprayCan, Prefab = sprayCanPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

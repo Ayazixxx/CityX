@@ -44,13 +44,39 @@ namespace CityX.Character
                 return false;
             }
             Object.Destroy(model);
-            // A thing lying only on this machine (put there by the console, or the tutorial house's): no server saw it given. An admin's next
-            // save says so, so a server on another machine lets it into the bag (docs/SERVER_SAVING.md, step 3b); anyone else's is theirs alone.
+            MarkGiven();
+            return true;
+        }
+
+        /// <summary>
+        /// Up to <paramref name="count"/> of a stackable <paramref name="itemId"/> (a box of rounds) into <paramref name="player"/>'s bag, as many as fit;
+        /// the <paramref name="model"/> goes once all are taken. Returns how many are left in it.
+        /// </summary>
+        public static int TakeStack(Transform player, GameObject model, string itemId, int count)
+        {
+            var inventory = player.GetComponentInParent<Inventory>();
+            int taken = inventory != null ? inventory.AddStacked(itemId, count) : 0;
+            if (taken > 0)
+            {
+                MarkGiven();
+            }
+            if (taken >= count)
+            {
+                Object.Destroy(model);
+            }
+            return count - taken;
+        }
+
+        /// <summary>
+        /// A thing lying only on this machine (put there by the console, or the tutorial house's): no server saw it given. An admin's next save
+        /// says so, so a server on another machine lets it into the bag (docs/SERVER_SAVING.md, step 3b); anyone else's is theirs alone.
+        /// </summary>
+        private static void MarkGiven()
+        {
             if (PlaySession.IsAdmin)
             {
                 PlaySession.AdminEdited = true;
             }
-            return true;
         }
     }
 }

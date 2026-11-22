@@ -483,6 +483,21 @@ namespace CityX.UI
                 case "frost_staff":
                 case "frost":
                 case "freeze": return ItemRegistry.FrostStaff;
+                case "ammo":
+                case "pistolammo":
+                case "pistol_ammo":
+                case "9mm": return ItemRegistry.PistolAmmo;
+                case "rifleammo":
+                case "rifle_ammo":
+                case "akammo":
+                case "ak_ammo": return ItemRegistry.RifleAmmo;
+                case "shells":
+                case "shotgunshells":
+                case "shotgun_shells":
+                case "shotgunammo": return ItemRegistry.ShotgunShells;
+                case "rockets":
+                case "rpgammo":
+                case "rpg_rockets": return ItemRegistry.RpgRockets;
                 case "grenade":
                 case "grenades":
                 case "frag":

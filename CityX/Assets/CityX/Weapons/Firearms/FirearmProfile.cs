@@ -33,6 +33,9 @@ namespace CityX.Weapons
         [Header("Ammunition and damage")]
         public int MagazineSize = 15;
         public int StartingReserveAmmo = 45;
+
+        [Tooltip("The bag's rounds this gun reloads from once its own spare rounds are spent (ItemRegistry's ammunition); empty: none.")]
+        public string AmmoItemId = string.Empty;
         public float Damage = 20.0f;
         public float Range = 60.0f;
 
@@ -291,7 +294,7 @@ namespace CityX.Weapons
         /// <summary>THE GLOCK (2026-10-14): a 15-round 9 mm pistol, made in Blender (CityX/SourceArt/Glock) to replace the placeholder Beretta.</summary>
         public static FirearmProfile Glock()
         {
-            return new FirearmProfile();
+            return new FirearmProfile { AmmoItemId = ItemRegistry.PistolAmmo };
         }
 
         /// <summary>
@@ -313,6 +316,7 @@ namespace CityX.Weapons
         {
             return new FirearmProfile
             {
+                AmmoItemId = ItemRegistry.RifleAmmo,
                 ItemId = ItemRegistry.AK47,
                 DisplayName = "AK-47",
                 Kind = FirearmKind.Rifle,
@@ -378,6 +382,7 @@ namespace CityX.Weapons
         {
             return new FirearmProfile
             {
+                AmmoItemId = ItemRegistry.ShotgunShells,
                 ItemId = ItemRegistry.Shotgun,
                 DisplayName = "Pump Shotgun",
                 Kind = FirearmKind.Rifle,
@@ -448,6 +453,7 @@ namespace CityX.Weapons
         {
             return new FirearmProfile
             {
+                AmmoItemId = ItemRegistry.RpgRockets,
                 ItemId = ItemRegistry.RPG,
                 DisplayName = "RPG",
                 Kind = FirearmKind.Rifle,

@@ -91,6 +91,24 @@ namespace CityX.Items
         /// <summary>How many grenades make a stack: they are spent as they are thrown, the next one coming into the hand.</summary>
         public const int GrenadeStack = 10;
 
+        /// <summary>
+        /// AMMUNITION (owner, 2026-11-21: "make a basic ammunition model for each type of gun that is an in game right now as an item spawn you can
+        /// spawn and pick up into your inventory and press r to reload into your guns"). Kept in the bag as rounds, a stack each; a gun reloads
+        /// from it once its own spare rounds are spent (PistolWeapon, FirearmProfile.AmmoItemId). Never equipped.
+        /// </summary>
+        public const string AmmoCategory = "ammo";
+
+        public const string PistolAmmo = "pistol_ammo";
+        public const string RifleAmmo = "rifle_ammo";
+        public const string ShotgunShells = "shotgun_shells";
+        public const string RpgRockets = "rpg_rockets";
+
+        /// <summary>The most rounds of each kind one bag slot holds.</summary>
+        public const int PistolAmmoStack = 240;
+        public const int RifleAmmoStack = 300;
+        public const int ShotgunShellStack = 60;
+        public const int RpgRocketStack = 6;
+
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
             [GlassBottle] = new ItemDefinition(GlassBottle, "Glass Bottle", "weapon", EquipSlots.Primary, 1),
@@ -206,6 +224,11 @@ namespace CityX.Items
             [Grenade] = new ItemDefinition(Grenade, "Frag Grenade", "weapon", EquipSlots.Primary, GrenadeStack),
             // Semtex (2026-11-11, docs/GRENADE.md): the grenade that sticks to whatever it first touches, a body included.
             [Semtex] = new ItemDefinition(Semtex, "Semtex", "weapon", EquipSlots.Primary, GrenadeStack),
+            // Ammunition (2026-11-21): rounds in the bag, loaded by R (AmmoBox on the ground, AmmoBuilder).
+            [PistolAmmo] = new ItemDefinition(PistolAmmo, "Pistol Ammo", AmmoCategory, string.Empty, PistolAmmoStack),
+            [RifleAmmo] = new ItemDefinition(RifleAmmo, "Rifle Ammo", AmmoCategory, string.Empty, RifleAmmoStack),
+            [ShotgunShells] = new ItemDefinition(ShotgunShells, "Shotgun Shells", AmmoCategory, string.Empty, ShotgunShellStack),
+            [RpgRockets] = new ItemDefinition(RpgRockets, "RPG Rockets", AmmoCategory, string.Empty, RpgRocketStack),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

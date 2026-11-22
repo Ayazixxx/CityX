@@ -339,6 +339,7 @@ MonoBehaviour:
     Kind: 1
     MagazineSize: 6
     StartingReserveAmmo: 24
+    AmmoItemId: shotgun_shells
     Damage: 20
     Range: 45
     FireRatePerSecond: 1.1764705

@@ -38,6 +38,7 @@ namespace CityX.Weapons
                 else if (prefab.GetComponent<StaffItem>() is StaffItem staff) Staff(card, staff);
                 else if (prefab.GetComponent<Flamethrower>() != null) FlamethrowerOf(card);
                 else if (prefab.GetComponent<GrenadeItem>() != null) Grenade(card);
+                else if (prefab.GetComponent<AmmoBox>() is AmmoBox ammo) Ammo(card, ammo);
                 else if (prefab.GetComponent<BoomerangItem>() != null) Boomerang(card);
                 else if (prefab.GetComponent<BottleWeapon>() != null) Bottle(card);
                 else if (prefab.GetComponent<FlightGear>() != null) Gear(card, "Flight gear", "On the back", "Space takes off and climbs; let go to hover; Ctrl sinks");
@@ -52,6 +53,18 @@ namespace CityX.Weapons
                 card.Kind = definition.Category == "tool" ? "Tool" : "Weapon";
             }
             return card;
+        }
+
+        /// <summary>A box of rounds: what loads it, how many a box holds and a bag slot takes.</summary>
+        private static void Ammo(ItemCard card, AmmoBox ammo)
+        {
+            card.Kind = "Ammunition";
+            card.Hands = "In the bag";
+            card.Style = "For the " + ammo.ForGuns;
+            card.Add("Per box", ammo.Rounds, ammo.Rounds.ToString());
+            int stack = ItemRegistry.TryGet(ammo.ItemId, out ItemDefinition definition) ? definition.StackSize : 0;
+            card.Add("Per bag slot", stack, stack.ToString());
+            card.Note("Kept in the bag; R reloads from it");
         }
 
         private static void Melee(ItemCard card, SwordWeapon sword)

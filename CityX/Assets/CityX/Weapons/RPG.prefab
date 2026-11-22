@@ -83,6 +83,7 @@ MonoBehaviour:
     Kind: 1
     MagazineSize: 1
     StartingReserveAmmo: 4
+    AmmoItemId: rpg_rockets
     Damage: 70
     Range: 260
     FireRatePerSecond: 1

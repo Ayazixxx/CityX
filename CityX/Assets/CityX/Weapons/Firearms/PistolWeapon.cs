@@ -959,7 +959,7 @@ namespace CityX.Weapons
         // ---- a tube loaded a shell at a time (docs/SHOTGUN.md) ----
 
         /// <summary>The tube has room and there is a shell to put in it.</summary>
-        private bool NeedsShell => MagazineAmmo < Profile.MagazineSize && ReserveAmmo > 0;
+        private bool NeedsShell => MagazineAmmo < Profile.MagazineSize && SpareRounds > 0;
 
         private bool _shellSeated;
 
@@ -1023,8 +1023,7 @@ namespace CityX.Weapons
             _shellSeated = true;
             if (NeedsShell)
             {
-                MagazineAmmo++;
-                ReserveAmmo--;
+                MagazineAmmo += DrawSpare(1);
             }
             _reloadAmmoIn = true;
             _reloadReadyToFire = MagazineAmmo > 0;
@@ -1172,9 +1171,32 @@ namespace CityX.Weapons
         private void Refill()
         {
             int needed = Profile.MagazineSize - MagazineAmmo;
-            int drawn = Mathf.Min(needed, ReserveAmmo);
-            MagazineAmmo += drawn;
-            ReserveAmmo -= drawn;
+            MagazineAmmo += DrawSpare(needed);
+        }
+
+        /// <summary>The wielder's bag, whose rounds of this gun's ammunition it reloads from; null on another player's copy, a bare rig, or a gun with none.</summary>
+        private Inventory WielderBag => _equipped && _wielder != null && !string.IsNullOrEmpty(Profile.AmmoItemId) ? _wielder.GetComponent<Inventory>() : null;
+
+        /// <summary>
+        /// Every round this gun can still load: its own spare ones (it came with), then the bag's of its ammunition (owner, 2026-11-21: "pick up into
+        /// your inventory and press r to reload into your guns"). What the HUD shows after the slash.
+        /// </summary>
+        public int SpareRounds
+        {
+            get
+            {
+                Inventory bag = WielderBag;
+                return ReserveAmmo + (bag != null ? bag.CountInStorage(Profile.AmmoItemId) : 0);
+            }
+        }
+
+        /// <summary>Takes up to <paramref name="most"/> rounds to load: the gun's own spare ones first, then the bag's. Returns how many.</summary>
+        private int DrawSpare(int most)
+        {
+            int own = Mathf.Min(most, ReserveAmmo);
+            ReserveAmmo -= own;
+            Inventory bag = own < most ? WielderBag : null;
+            return own + (bag != null ? bag.TakeFromStorage(Profile.AmmoItemId, most - own) : 0);
         }
 
         /// <summary>Sets the rounds in the magazine and in reserve (clamped to what fits): ammo found, a test rig's setup.</summary>
@@ -1195,7 +1217,7 @@ namespace CityX.Weapons
         /// <summary>Read by the HUD's own ammo counter.</summary>
         public string GetAmmoText()
         {
-            return IsReloading && !_reloadAmmoIn && !Profile.ShellByShell ? "RELOADING..." : $"{MagazineAmmo} / {ReserveAmmo}";
+            return IsReloading && !_reloadAmmoIn && !Profile.ShellByShell ? "RELOADING..." : $"{MagazineAmmo} / {SpareRounds}";
         }
 
         // ---- the shot ----
@@ -1229,7 +1251,7 @@ namespace CityX.Weapons
             if (MagazineAmmo <= 0)
             {
                 bool reloading = false;
-                if (ReserveAmmo > 0)
+                if (SpareRounds > 0)
                 {
                     TryReload();
                     reloading = IsReloading;

@@ -33,7 +33,7 @@ namespace CityX.Weapons
         private bool InAHand => _equipped || _cosmeticBody != null;
 
         /// <summary>The magazine has room and there are rounds to fill it with.</summary>
-        private bool TakesRounds => MagazineAmmo < Profile.MagazineSize && ReserveAmmo > 0;
+        private bool TakesRounds => MagazineAmmo < Profile.MagazineSize && SpareRounds > 0;
 
         /// <summary>Where the gun sits on its hand: the hold (tunable live: /pistol), mirrored in the left hand.</summary>
         private Vector3 HeldPosition => _leftHand ? DualPistolHold.Mirror(_liveGripPosition) : _liveGripPosition;
