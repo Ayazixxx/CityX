@@ -297,6 +297,14 @@ My suggestions, not decided:
 - **Titan's Grip** (World of Warcraft's Fury warriors dual wielded two-handed weapons): deep in the Two-Handed tree, needing many points there and the Dual Wield node; two greatswords at once. Its own moveset, so it is built late; balanced by more stamina per swing or no block.
 - **One moveset at a time**, finished properly: about 12 movesets cover every item on the rarity list, and a finished one makes each new item mostly a model and numbers. Order for the December goal (fists, sword, fire): one-handed melee (the combat sword), fists, fire magic, then the pistol, then two-handed. Skill tree branches come after a moveset feels good.
 
+### Guns against melee, and where ammunition comes from (2026-11-22)
+- **Guns are powerful** (owner): they are hard to come by, and "wouldnt feel right if your opponent is just eating bullets up close". Between two low-level players, one with a gun and one with a melee weapon, the gun user should win most of the time.
+- **Melee fighters should still have a fighting chance**, hopefully through abilities to move around fast and block bullets. A player who puts everything into melee alone should be strong enough to hang with the other powerful weapons.
+- The owner expects **most players to be hybrids** (a sword, magic, maybe a gun); only those who choose melee alone are melee alone.
+- **Ammunition is not found at random** (owner): every enemy with a gun drops ammunition when killed, and a lot of NPCs have it for sale or trade.
+
+My suggestions, not decided: the shotgun takes about two blasts up close to kill an unarmoured player and three an armoured one (its one-shot kills are on the test enemies' 160-180 health); every shot's cost (rare shells, the pump, the reload) is the melee player's opening; the bullet answers (a guard that deflects, a dash bullets pass through, a gap-closer, bullets sent back) grow with points in the melee trees, so a hybrid's split points keep them weaker; a bot fight of gun against sword, many times over, to measure win rates.
+
 ### Staffs, magic weapons and enchants (2026-10-27)
 
 **The owner's ideas (still being worked out, "just thinking out loud"):**

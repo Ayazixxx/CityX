@@ -26,3 +26,6 @@ Evil's handgun box shows its rounds). Stand-ins from simple shapes at the game's
 Tests: `AmmoTests` (stacks, a full bag, every gun's ammunition an item with a box every body can show, its card), `AmmoPlayTests` (a box
 picked up, the pistol reloaded from the bag after its own rounds, the shotgun's tube shell by shell, no rounds no reload and no other gun's
 taken). Pictures: `AmmoCapture` (`Logs/CityShots/ammo-*.png`).
+
+## Where it comes from (owner, 2026-11-22)
+Not found at random: every enemy with a gun drops ammunition when killed, and a lot of NPCs sell or trade it (`docs/GAME_DESIGN.md`, guns against melee). Neither is built yet: there are no drops or shops; the boxes are only spawned.
