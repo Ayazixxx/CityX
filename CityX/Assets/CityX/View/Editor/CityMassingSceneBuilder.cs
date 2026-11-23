@@ -680,6 +680,10 @@ namespace CityX.ViewEditor
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Slingshot, Prefab = slingshotPrefab },
                 };
+                // Every colourway of the fingerless gloves (FingerlessGloveColourways).
+                var withGloves = new List<CityX.Character.Inventory.ItemPrefabEntry>(inventory.ItemPrefabs);
+                withGloves.AddRange(CityX.WearablesEditor.FingerlessGlovesBuilder.BuildAll());
+                inventory.ItemPrefabs = withGloves.ToArray();
 
                 // --- the grapple swing. Aim (left-click while a grappling
                 // --- hook is equipped), fire, and it owns the whole

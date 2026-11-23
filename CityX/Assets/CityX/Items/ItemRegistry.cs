@@ -110,7 +110,7 @@ namespace CityX.Items
         public const int ShotgunShellStack = 60;
         public const int RpgRocketStack = 6;
 
-        private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
+        private static readonly Dictionary<string, ItemDefinition> Items = WithGloves(new Dictionary<string, ItemDefinition>
         {
             [GlassBottle] = new ItemDefinition(GlassBottle, "Glass Bottle", "weapon", EquipSlots.Primary, 1),
             [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
@@ -232,7 +232,18 @@ namespace CityX.Items
             [RifleAmmo] = new ItemDefinition(RifleAmmo, "Rifle Ammo", AmmoCategory, string.Empty, RifleAmmoStack),
             [ShotgunShells] = new ItemDefinition(ShotgunShells, "Shotgun Shells", AmmoCategory, string.Empty, ShotgunShellStack),
             [RpgRockets] = new ItemDefinition(RpgRockets, "RPG Rockets", AmmoCategory, string.Empty, RpgRocketStack),
-        };
+        });
+
+        /// <summary>The fingerless gloves, one item a colour (FingerlessGloveColourways): on the hands, in the gloves slot.</summary>
+        private static Dictionary<string, ItemDefinition> WithGloves(Dictionary<string, ItemDefinition> items)
+        {
+            foreach (FingerlessGloveColourways.Colourway colourway in FingerlessGloveColourways.All)
+            {
+                items[colourway.ItemId] = new ItemDefinition(colourway.ItemId, colourway.DisplayName, ItemDefinition.WearableCategory,
+                    EquipSlots.Gloves, 1);
+            }
+            return items;
+        }
 
         public static bool TryGet(string itemId, out ItemDefinition definition)
         {

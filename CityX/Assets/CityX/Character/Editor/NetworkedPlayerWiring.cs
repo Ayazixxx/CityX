@@ -17,7 +17,7 @@ namespace CityX.CharacterEditor
     /// </summary>
     public static class NetworkedPlayerWiring
     {
-        private static readonly (string id, string path)[] ItemPrefabPaths =
+        private static readonly (string id, string path)[] ItemPrefabPaths = WithGloves(new[]
         {
             (ItemRegistry.GlassBottle, "Assets/CityX/Weapons/GlassBottle.prefab"),
             (ItemRegistry.GrapplingHook, "Assets/CityX/Weapons/GrapplingHook.prefab"),
@@ -92,7 +92,18 @@ namespace CityX.CharacterEditor
             (ItemRegistry.GreyJeans, "Assets/CityX/Wearables/GreyJeans.prefab"),
             (ItemRegistry.WhiteSneaker, "Assets/CityX/Wearables/WhiteSneaker.prefab"),
             (ItemRegistry.BWSneakers, "Assets/CityX/Wearables/BWSneakers.prefab"),
-        };
+        });
+
+        /// <summary>Every colourway of the fingerless gloves after the rest (FingerlessGloveColourways).</summary>
+        private static (string id, string path)[] WithGloves((string id, string path)[] paths)
+        {
+            var all = new System.Collections.Generic.List<(string id, string path)>(paths);
+            foreach (FingerlessGloveColourways.Colourway colourway in FingerlessGloveColourways.All)
+            {
+                all.Add((colourway.ItemId, FingerlessGloveColourways.PrefabPath(colourway.ItemId)));
+            }
+            return all.ToArray();
+        }
 
         /// <summary>
         /// The item prefabs, as an Inventory lists them: every item, or those <paramref name="include"/> keeps (the select screen shows the

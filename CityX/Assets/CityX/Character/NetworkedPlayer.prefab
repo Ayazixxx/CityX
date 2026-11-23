@@ -200,7 +200,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1752970730198198689}
+      addedObject: {fileID: 3790777452179493783}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -609,6 +609,10 @@ MonoBehaviour:
     Prefab: {fileID: 1134740773219589210, guid: 720df01482731bf4f83bc1be31a9f863, type: 3}
   - ItemId: bw_sneakers
     Prefab: {fileID: 5600285032884238694, guid: a090140601ba787478135495df78d2d6, type: 3}
+  - ItemId: black_fingerless_gloves
+    Prefab: {fileID: 5931533627893786738, guid: fdb0894c2a877f243b6090be9d0fefd6, type: 3}
+  - ItemId: brown_fingerless_gloves
+    Prefab: {fileID: 1222058670356874189, guid: b9602d14c15185c4297aae2faacaee27, type: 3}
 --- !u!114 &1608586426967413403
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1156,7 +1160,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &1752970730198198689
+--- !u!114 &3790777452179493783
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1168,6 +1172,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1104293235b3f6148ace8f0839fc964d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.CharacterHair
+  _beard: none
   Head: {fileID: 8871751881973151726}
   StyleMeshes:
   - {fileID: 4300000, guid: cab69372b4a80e449bc5cb695735d3b4, type: 2}

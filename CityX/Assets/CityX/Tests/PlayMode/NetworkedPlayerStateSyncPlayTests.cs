@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using CityX.Character;
 using CityX.Core;
 using CityX.Items;
+using CityX.Wearables;
 using FishNet.Connection;
 using FishNet.Managing;
 using FishNet.Object;
@@ -425,8 +426,13 @@ namespace CityX.Tests
 
             Assert.IsTrue(inventory.EquipItemId(ItemRegistry.LongSleeveTShirt, _aOnA.gameObject), "the shirt could not be worn by player A");
             Assert.IsTrue(inventory.EquipItemId(ItemRegistry.KnightHelmet, _aOnA.gameObject), "the knight helmet could not be worn by player A");
-            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.LongSleeveTShirt) != null && copySync.ShownItem(ItemRegistry.KnightHelmet) != null,
-                "the shirt and the helmet to appear on player A's copy");
+            const string gloves = FingerlessGloveColourways.BrownItemId;
+            Assert.IsTrue(inventory.EquipItemId(gloves, _aOnA.gameObject), "the gloves could not be worn by player A");
+            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.LongSleeveTShirt) != null && copySync.ShownItem(ItemRegistry.KnightHelmet) != null
+                && copySync.ShownItem(gloves) != null, "the shirt, the helmet and the gloves to appear on player A's copy");
+            Transform copyGloves = TransformSearch.FindDeep(_aOnB.transform, FingerlessGloves.WornName);
+            Assert.IsNotNull(copyGloves, "the copy wears no gloves");
+            Assert.Greater(copyGloves.GetComponent<SkinnedMeshRenderer>().sharedMesh.vertexCount, 0, "the copy's gloves are empty");
 
             Transform worn = TransformSearch.FindDeep(_aOnB.transform, "CombinedGarmentSkin");
             Assert.IsNotNull(worn, "the copy draws no clothes");
@@ -441,8 +447,11 @@ namespace CityX.Tests
 
             Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Torso, _aOnA.gameObject));
             Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Helmet, _aOnA.gameObject));
-            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.LongSleeveTShirt) == null && copySync.ShownItem(ItemRegistry.KnightHelmet) == null,
-                "the shirt and the helmet to leave player A's copy");
+            Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Gloves, _aOnA.gameObject));
+            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.LongSleeveTShirt) == null && copySync.ShownItem(ItemRegistry.KnightHelmet) == null
+                && copySync.ShownItem(gloves) == null, "the shirt, the helmet and the gloves to leave player A's copy");
+            yield return null;   // the copy's gloves go at the end of the frame
+            Assert.IsNull(TransformSearch.FindDeep(_aOnB.transform, FingerlessGloves.WornName), "the gloves stayed on the copy");
             Assert.AreSame(wholeBody, copySkin.sharedMesh, "the copy's body stayed cut after the shirt came off");
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");

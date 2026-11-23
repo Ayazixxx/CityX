@@ -53,6 +53,13 @@ namespace CityX.Wearables
             cover.Draw();
         }
 
+        /// <summary>The body's whole mesh under <paramref name="skin"/>: what it draws while nothing hides any of it (what is drawn may be a cut copy).</summary>
+        public static Mesh Whole(SkinnedMeshRenderer skin)
+        {
+            WornBodyCover cover = skin.GetComponent<WornBodyCover>();
+            return cover != null && cover._worn.Count > 0 && cover._whole != null ? cover._whole : skin.sharedMesh;
+        }
+
         /// <summary><paramref name="garment"/> taken off <paramref name="skin"/>: what it alone hid drawn again.</summary>
         public static void Show(SkinnedMeshRenderer skin, Object garment)
         {

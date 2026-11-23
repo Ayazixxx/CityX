@@ -549,7 +549,7 @@ namespace CityX.UI
                 case "3d_glasses":
                 case "3dglasses":
                 case "glasses": return ItemRegistry.ThreeDGlasses;
-                default: return null;
+                default: return FingerlessGloveColourways.ItemIdForAlias(which);
             }
         }
 
