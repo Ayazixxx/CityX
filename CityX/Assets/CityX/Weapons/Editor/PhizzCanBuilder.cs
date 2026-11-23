@@ -14,7 +14,7 @@ namespace CityX.WeaponsEditor
         public const string Folder = "Assets/CityX/Weapons/Cans";
         public const string PrefabPath = Folder + "/phizz_can.prefab";
 
-        /// <summary>The can's own PHIZZ label: the bottle's with BANANA SODA drawn smaller inside it, so printed 1.1 times bigger the splash grows and the wording stays its size (owner: "leave the banana soda the same size and make the phizz logo 1.1x bigger"): SourceArt/Phizz/phizz_label.ps1 -WordingScale 0.909.</summary>
+        /// <summary>The can's own PHIZZ label: the owner's splash with no margin and their BANANA SODA drawn smaller inside it, so that printed half way round the splash is about 1.2 times the bottle's and the wording the size it is on the bottle (owner: "make the phizz logo 1.1x bigger", "leave the banana soda the same size", "make the logo 1.1x bigger"): SourceArt/Phizz/phizz_label.ps1 -WordingScale 0.834 -Margin 0.</summary>
         public const string LabelPath = Folder + "/PhizzCanLabel.png";
 
         private const int Sides = 24;
@@ -23,15 +23,17 @@ namespace CityX.WeaponsEditor
         private const float RingEvery = 0.004f;
         private const float StraightRingEvery = 0.2f;
 
-        /// <summary>The label, printed once ahead and once behind: its heights on the body and how far round it goes (owner: "make the phizz part a bit bigger", then the PHIZZ splash 1.1 times again; its clear margins run onto the neck and foot, printed nothing there).</summary>
-        private const float PrintFrom = 0.0085f;
-        private const float PrintTo = 0.1086f;
-        private const float PrintArcDegrees = 175.0f;
+        /// <summary>The label, printed once ahead and once behind, each half way round (the splash's drips meet at the sides), as tall as it is wide round the can: its heights and its arc (owner: "make the phizz part a bit bigger", then the splash 1.1 times, twice; its clear top and bottom run onto the neck and foot, printed nothing there).</summary>
+        private const float PrintFrom = 0.00665f;
+        private const float PrintTo = 0.11035f;
+        private const float PrintArcDegrees = 180.0f;
         private const float PrintProud = 0.0003f;
         private const int PrintColumns = 18;
         private const int PrintRows = 12;
 
-        private static readonly Color Gold = new Color(0.86f, 0.66f, 0.16f);
+        /// <summary>A yellow gold, lighter and less metal than the bottle caps' (owner: "make the can a tad yellow its a bit too dark").</summary>
+        private static readonly Color Gold = new Color(0.95f, 0.79f, 0.22f);
+        private const float GoldMetallic = 0.3f;
         private static readonly Color Silver = new Color(0.78f, 0.79f, 0.81f);
         private const float Metallic = 0.5f;
         private const float GoldSmoothness = 0.7f;
@@ -50,7 +52,7 @@ namespace CityX.WeaponsEditor
             {
                 AssetDatabase.CreateFolder("Assets/CityX/Weapons", "Cans");
             }
-            Material gold = HeldModelBaker.LitMaterial($"{Folder}/phizz_can_body.mat", Gold, Metallic, GoldSmoothness);
+            Material gold = HeldModelBaker.LitMaterial($"{Folder}/phizz_can_body.mat", Gold, GoldMetallic, GoldSmoothness);
             Material silver = HeldModelBaker.LitMaterial($"{Folder}/phizz_can_ends.mat", Silver, Metallic, SilverSmoothness);
             Material tab = HeldModelBaker.LitMaterial($"{Folder}/phizz_can_tab.mat", TabSilver, Metallic, TabSmoothness);
             Material print = BottleBuilder.PrintMaterial($"{Folder}/phizz_can_print.mat", LabelPath);

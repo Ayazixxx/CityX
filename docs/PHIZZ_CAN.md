@@ -12,14 +12,15 @@ docs/GLASS_BOTTLE.md for where full ones come from).
 
 - A real 12 oz can (66 mm across, 122 mm tall), at the bottles' size (2.4 times life, `BottleShape.LifeScale`), standing on its base at
   the prefab's origin: `Weapons/Cans/phizz_can.prefab`, with a capsule round it and no body.
-- A **golden** body, the foot, neck, rim and lid bare **silver**; a pull tab of a duller metal (the same silver flat on the lid could not be
+- A **golden** body (a yellow gold, lighter and less metal than the bottle caps: owner, "make the can a tad yellow its a bit too dark"), the foot, neck, rim and lid bare **silver**; a pull tab of a duller metal (the same silver flat on the lid could not be
   told from it) riveted to the lid's middle, its finger end toward the rim; on the other side of the rivet the opening's outline stands a
   hair off the lid, as a can's mouth is pressed into its lid.
 - The PHIZZ label printed front and back, its own copy (`Weapons/Cans/PhizzCanLabel.png`): the owner's two pictures
-  (`SourceArt/Phizz`) laid out by `phizz_label.ps1` as for the bottle, the splash 1.1 times the bottle's and BANANA SODA the size it was
-  (owner: "make the phizz part a bit bigger", "leave the banana soda the same size and make the phizz logo 1.1x bigger"). The label is
-  printed 1.1 times bigger with the wording drawn 1/1.1 inside it (`-WordingScale 0.909`); its clear margins run onto the neck and foot and
-  print nothing there.
+  (`SourceArt/Phizz`) laid out by `phizz_label.ps1` as for the bottle, the splash about 1.2 times the bottle's and BANANA SODA the size it is there
+  (owner: "make the phizz part a bit bigger", "leave the banana soda the same size and make the phizz logo 1.1x bigger", "make the logo
+  1.1x bigger"). Each copy goes exactly half way round, the splash's drips meeting at the sides (any further and the two would overlap), so
+  the can's label has no margin (`-Margin 0`) and its wording is drawn smaller inside it (`-WordingScale 0.834`); its clear top and bottom
+  run onto the neck and foot and print nothing there.
 - About 3,200 triangles: turned outlines (24 sides), the tab and the opening as flat rings, the print as two curved grids.
 
 ## How it is made
@@ -32,7 +33,7 @@ docs/GLASS_BOTTLE.md for where full ones come from).
 
   The label first, if the owner's pictures or the sizes change:
 
-      powershell -ExecutionPolicy Bypass -File CityX/SourceArt/Phizz/phizz_label.ps1 -WordingScale 0.909 -Out ../../Assets/CityX/Weapons/Cans/PhizzCanLabel.png
+      powershell -ExecutionPolicy Bypass -File CityX/SourceArt/Phizz/phizz_label.ps1 -WordingScale 0.834 -Margin 0 -Out ../../Assets/CityX/Weapons/Cans/PhizzCanLabel.png
 
 ## Tests
 

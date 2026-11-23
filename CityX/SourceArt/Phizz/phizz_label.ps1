@@ -1,10 +1,10 @@
 # THE PHIZZ LABEL (owner, 2026-11-23): the owner's PHIZZ splash logo on top and their hand-drawn BANANA SODA smaller below it, as on their can
 # design, stacked into one transparent picture for the soda bottle (BottleShape: the soda bottle's decal).
 #   powershell -ExecutionPolicy Bypass -File phizz_label.ps1
-#   the can (owner: the PHIZZ splash 1.1x, "leave the banana soda the same size"; printed 1.1x bigger): -WordingScale 0.909 -Out ../../Assets/CityX/Weapons/Cans/PhizzCanLabel.png
+#   the can (owner: the PHIZZ splash 1.1x, twice, "leave the banana soda the same size"; printed half way round): -WordingScale 0.834 -Margin 0 -Out ../../Assets/CityX/Weapons/Cans/PhizzCanLabel.png
 # Reads PhizzLogo.png and PhizzBananaSoda.png beside it (the owner's, transparent backgrounds), writes
 # CityX/Assets/CityX/Weapons/Bottles/PhizzLabel.png. Each is cropped to what is drawn on it first.
-param([string]$Out = "", [double]$WordingScale = 1.0)
+param([string]$Out = "", [double]$WordingScale = 1.0, [double]$Margin = 0.03)
 Add-Type -AssemblyName System.Drawing
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($Out -eq "") { $Out = Join-Path $here "..\..\Assets\CityX\Weapons\Bottles\PhizzLabel.png" }
@@ -12,7 +12,6 @@ if ($Out -eq "") { $Out = Join-Path $here "..\..\Assets\CityX\Weapons\Bottles\Ph
 # How wide the wording is against the logo (narrower than the word PHIZZ, about half the splash: owner, "it shouldnt be wider than the phizz text"), the gap between them (less than none: the wording sits up among the splash's drips, as on the can), and the margin round it all, as shares of the logo's width.
 $WordingWidth = 0.44
 $Gap = -0.12
-$Margin = 0.03
 $Size = 1024
 # The wording nudged right of the middle, pixels of the picture (owner: "it looks off the left a little bit. move it ... like 3 pixels", then "3 more", then "2 more").
 $WordingShift = 8
