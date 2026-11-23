@@ -231,6 +231,7 @@ namespace CityX.Character
             {
                 hair.SetStyle(character.HairStyle);
                 hair.SetColour(character.HairColour);
+                hair.SetBeard(string.IsNullOrEmpty(character.Beard) ? CharacterHair.None : character.Beard);
             }
 
             // PAINT WINS OVER THE FLAT COLOUR when there is any, because paint

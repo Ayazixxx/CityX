@@ -134,6 +134,7 @@ namespace CityX.UI
             Title.Select.PendingPaint = Creator.Paint.Encode();
             Title.Select.PendingHair = Creator.HairStyle;
             Title.Select.PendingHairColour = Creator.HairColour;
+            Title.Select.PendingBeard = Creator.Beard;
             if (Title.Select.NameField != null)
             {
                 Title.Select.NameField.text = typed;

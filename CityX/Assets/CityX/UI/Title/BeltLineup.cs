@@ -345,6 +345,7 @@ namespace CityX.UI
                 hair.HairMaterial = HairMaterialAsset;
                 hair.SetStyle(string.IsNullOrEmpty(character.HairStyle) ? "none" : character.HairStyle);
                 hair.SetColour(character.HairColour);
+                hair.SetBeard(string.IsNullOrEmpty(character.Beard) ? CharacterHair.None : character.Beard);
             }
         }
 

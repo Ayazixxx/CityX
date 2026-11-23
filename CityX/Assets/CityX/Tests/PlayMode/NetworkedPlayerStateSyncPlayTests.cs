@@ -453,10 +453,13 @@ namespace CityX.Tests
         // --- hair ---
 
         [UnityTest]
-        public IEnumerator HairstyleAndColourShowOnAnotherPlayersCopy()
+        public IEnumerator HairstyleBeardAndColourShowOnAnotherPlayersCopy()
         {
 #if UNITY_EDITOR
-            var character = new CharacterSave { Name = "Tester", HairStyle = CharacterHair.SpikeX, HairColour = new Color(0.9f, 0.1f, 0.1f) };
+            var character = new CharacterSave
+            {
+                Name = "Tester", HairStyle = CharacterHair.SpikeX, HairColour = new Color(0.9f, 0.1f, 0.1f), Beard = CharacterHair.SpikyBeard,
+            };
             PlaySession.Begin(character, false);
             yield return StartTwoPlayers();
 
@@ -465,6 +468,8 @@ namespace CityX.Tests
             yield return WaitUntil(() => copyHair.Style == CharacterHair.SpikeX, "the hairstyle to arrive on player A's copy");
             Assert.Less(Mathf.Abs(copyHair.Colour.r - 0.9f), 0.02f, "the hair colour did not arrive");
             Assert.Less(Mathf.Abs(copyHair.Colour.g - 0.1f), 0.02f);
+            Assert.AreEqual(CharacterHair.SpikyBeard, copyHair.Beard, "the beard did not arrive");
+            Assert.IsNotNull(copyHair.BeardWorn, "the copy wears no beard");
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");
             yield break;

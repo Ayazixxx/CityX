@@ -42,6 +42,7 @@ namespace CityX.UI
                 character.SetPaint(creator.Paint.Encode());
                 character.HairStyle = creator.HairStyle;
                 character.HairColour = creator.HairColour;
+                character.Beard = creator.Beard;
                 // Saved as the character stands in the list: nothing but its look is different, so the server takes the look and keeps the rest.
                 CharacterSources.Current.Save(character, adminEdited: false);
                 if (Lineup != null)

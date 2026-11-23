@@ -84,6 +84,7 @@ namespace CityX.UI
                 character.SetPaint(creator.Paint.Encode());
                 character.HairStyle = creator.HairStyle;
                 character.HairColour = creator.HairColour;
+                character.Beard = creator.Beard;
                 // The look alone, and saved at once. Apply would also put the save's level, points and skills back on the body (as old as
                 // the last autosave) and refill its bars: a redraw in a fight was a full heal, and undid what had been earned since.
                 _identity.ApplyLook(character);

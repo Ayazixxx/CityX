@@ -26,7 +26,7 @@ namespace CityX.Character
     /// the creator, the character list and the player in the world -- so one
     /// adjustment is seen everywhere.
     /// </summary>
-    public sealed class CharacterHair : MonoBehaviour
+    public sealed partial class CharacterHair : MonoBehaviour
     {
         /// <summary>The worn hair's object, under the head bone (a burst head breaks it with the skull).</summary>
         public const string WornName = "Hair";
@@ -155,6 +155,7 @@ namespace CityX.Character
 
         private void ApplyColour()
         {
+            DyeBeard();
             if (_worn == null)
             {
                 return;
@@ -306,6 +307,7 @@ namespace CityX.Character
         private void Awake()
         {
             Rebuild();
+            RebuildBeard();
         }
 
         private void OnEnable()

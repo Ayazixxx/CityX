@@ -88,6 +88,12 @@ namespace CityX.Core
         /// </summary>
         public Color HairColour = DefaultHairColour;
 
+        /// <summary>
+        /// One of CharacterHair.ValidBeards, worn in the hair colour. "none" is clean-shaven, which is what every save written before beards
+        /// existed loads as (owner, 2026-11-22: "try making a few basic beard styles and put them into the editor").
+        /// </summary>
+        public string Beard = "none";
+
         public int Level = 1;
 
         public int Experience;
@@ -343,6 +349,11 @@ namespace CityX.Core
             if (string.IsNullOrEmpty(HairStyle))
             {
                 HairStyle = "none";
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(Beard))
+            {
+                Beard = "none";
                 changed = true;
             }
 

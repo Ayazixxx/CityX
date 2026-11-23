@@ -126,6 +126,12 @@ namespace CityX.Tests
             tabs.Show(CreatorTabs.Face);
             yield return null;
             Shoot("face-page");
+            // The beards: the FACE tab's last chip, and the spiky one put on.
+            FacePartChips chips = _belt.Tools.GetComponentInChildren<FacePartChips>(true);
+            chips.Show(chips.Panels.Length - 1);
+            _belt.Tools.GetComponentInChildren<BeardTiles>(true).Creator.SetBeard(CharacterHair.SpikyBeard);
+            yield return null;
+            Shoot("face-beards");
             tabs.Show(CreatorTabs.Paint);
             yield return null;
 

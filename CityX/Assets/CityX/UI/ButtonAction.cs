@@ -114,6 +114,9 @@ namespace CityX.UI
 
             /// <summary>The pencil on the chosen character's card: redraws its look (CharacterSelect.BeginRedrawSelected). Needs Select. Appended.</summary>
             SelectBeginRedrawSelected,
+
+            /// <summary>One of the creator's beards: puts CharacterHair.ValidBeards[Value] on the body (FacePage). Needs Creator. Appended.</summary>
+            CreatorBeard,
         }
 
         public Kind Action;
@@ -285,6 +288,13 @@ namespace CityX.UI
                         && Value < CharacterHair.ValidStyles.Length)
                     {
                         Creator.SetHairStyle(CharacterHair.ValidStyles[Value]);
+                    }
+                    break;
+
+                case Kind.CreatorBeard:
+                    if (Creator != null && Value >= 0 && Value < CharacterHair.ValidBeards.Length)
+                    {
+                        Creator.SetBeard(CharacterHair.ValidBeards[Value]);
                     }
                     break;
 

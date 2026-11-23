@@ -876,5 +876,16 @@ namespace CityX.Character
         }
 
         public Color HairColour => Hair != null ? Hair.Colour : CharacterHair.HairColour;
+
+        /// <summary>Puts one of CharacterHair.ValidBeards on the body being made ("none" takes it off). It is worn in the hair colour.</summary>
+        public void SetBeard(string beard)
+        {
+            if (Hair != null)
+            {
+                Hair.SetBeard(beard);
+            }
+        }
+
+        public string Beard => Hair != null ? Hair.Beard : CharacterHair.None;
     }
 }

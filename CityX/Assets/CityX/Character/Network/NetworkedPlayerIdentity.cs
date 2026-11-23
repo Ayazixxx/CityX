@@ -187,7 +187,7 @@ namespace CityX.Character
             }
 
             byte[] paint = character.GetPaint() ?? System.Array.Empty<byte>();
-            SendAppearanceToServer(character.Name, character.Skin, character.HairStyle, character.HairColour, paint);
+            SendAppearanceToServer(character.Name, character.Skin, character.HairStyle, character.HairColour, character.Beard, paint);
         }
 
         public override void OnOwnershipClient(FishNet.Connection.NetworkConnection prevOwner)
@@ -223,11 +223,12 @@ namespace CityX.Character
         /// </summary>
         public const int MaxPaintBytes = 1 << 20;
 
-        /// <summary>A look as the server passes it on: a name no longer than a character's may be, a hairstyle the game has, real colours, paint of a sane size.</summary>
-        public static bool AppearanceIsSane(string characterName, Color skin, string hairStyle, Color hairColour, byte[] paint)
+        /// <summary>A look as the server passes it on: a name no longer than a character's may be, a hairstyle and a beard the game has, real colours, paint of a sane size.</summary>
+        public static bool AppearanceIsSane(string characterName, Color skin, string hairStyle, Color hairColour, string beard, byte[] paint)
         {
             return (characterName == null || characterName.Length <= CharacterSave.MaximumNameLength)
                 && (string.IsNullOrEmpty(hairStyle) || System.Array.IndexOf(CharacterHair.ValidStyles, hairStyle) >= 0)
+                && (string.IsNullOrEmpty(beard) || System.Array.IndexOf(CharacterHair.ValidBeards, beard) >= 0)
                 && IsColour(skin) && IsColour(hairColour)
                 && (paint == null || paint.Length <= MaxPaintBytes);
         }
@@ -235,23 +236,24 @@ namespace CityX.Character
         private static bool IsColour(Color c) => WireChecks.Finite(new Vector3(c.r, c.g, c.b)) && !float.IsNaN(c.a) && !float.IsInfinity(c.a);
 
         [ServerRpc(RequireOwnership = true)]
-        private void SendAppearanceToServer(string characterName, Color skin, string hairStyle, Color hairColour, byte[] paint)
+        private void SendAppearanceToServer(string characterName, Color skin, string hairStyle, Color hairColour, string beard, byte[] paint)
         {
-            if (!AppearanceIsSane(characterName, skin, hairStyle, hairColour, paint))
+            if (!AppearanceIsSane(characterName, skin, hairStyle, hairColour, beard, paint))
             {
                 return;
             }
-            BroadcastAppearance(characterName, skin, hairStyle, hairColour, paint);
+            BroadcastAppearance(characterName, skin, hairStyle, hairColour, beard, paint);
         }
 
         [ObserversRpc(BufferLast = true)]
-        private void BroadcastAppearance(string characterName, Color skin, string hairStyle, Color hairColour, byte[] paint)
+        private void BroadcastAppearance(string characterName, Color skin, string hairStyle, Color hairColour, string beard, byte[] paint)
         {
             var hair = GetComponentInChildren<CharacterHair>(includeInactive: true);
             if (hair != null)
             {
                 hair.SetStyle(hairStyle);
                 hair.SetColour(hairColour);
+                hair.SetBeard(string.IsNullOrEmpty(beard) ? CharacterHair.None : beard);
             }
 
             if (_identity == null)

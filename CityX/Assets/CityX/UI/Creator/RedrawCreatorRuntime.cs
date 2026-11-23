@@ -126,6 +126,7 @@ namespace CityX.UI
             }
             creator.SetHairStyle(character.HairStyle);
             creator.SetHairColour(character.HairColour);
+            creator.SetBeard(string.IsNullOrEmpty(character.Beard) ? CharacterHair.None : character.Beard);
 
             // The colour picker beside the creator has to show the character's own hair colour, not the colour it was built with.
             HairColourControls hairControls = overlay.GetComponentInChildren<HairColourControls>(true);

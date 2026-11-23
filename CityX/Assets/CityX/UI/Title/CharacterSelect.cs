@@ -98,6 +98,9 @@ namespace CityX.UI
         /// <summary>The hair colour chosen in the creator, held for the same reason.</summary>
         public Color PendingHairColour = CharacterSave.DefaultHairColour;
 
+        /// <summary>The beard chosen in the creator, held for the same reason.</summary>
+        public string PendingBeard = "none";
+
         /// <summary>
         /// Set by whoever shows a NEW character off before the world loads (the conveyor belt it was made on carries it away, BeltIntro):
         /// handed the loading of the world, to call when it is done. Null: the world loads at once.
@@ -273,8 +276,10 @@ namespace CityX.UI
             requested.SetPaint(PendingPaint);
             requested.HairStyle = string.IsNullOrEmpty(PendingHair) ? "none" : PendingHair;
             requested.HairColour = PendingHairColour;
+            requested.Beard = string.IsNullOrEmpty(PendingBeard) ? "none" : PendingBeard;
             PendingPaint = null;
             PendingHair = "none";
+            PendingBeard = "none";
             PendingHairColour = CharacterSave.DefaultHairColour;
             CharacterSave answered = null;
             CharacterSources.Current.Create(requested, made =>

@@ -216,6 +216,7 @@ namespace CityX.Core
             to.Paint = from.Paint;
             to.HairStyle = from.HairStyle;
             to.HairColour = from.HairColour;
+            to.Beard = from.Beard;
         }
 
         private static CharacterSave Find(CharacterFile file, string characterId)
