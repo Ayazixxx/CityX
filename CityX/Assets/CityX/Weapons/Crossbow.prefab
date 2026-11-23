@@ -616,6 +616,7 @@ MonoBehaviour:
     Kind: 1
     MagazineSize: 1
     StartingReserveAmmo: 40
+    AmmoItemId: 
     Damage: 90
     Range: 80
     FireRatePerSecond: 1
@@ -632,31 +633,53 @@ MonoBehaviour:
     TracerEvery: 1
     ShotPitch: 1
     MotionResource: 
+    PairMotionResource: Glock/GlockPairReload
     ReloadSeconds: 2.5
     EmptyReloadSeconds: 2.5
     ReloadSound: {fileID: 0}
     EmptyReloadSound: {fileID: 0}
+    RackSound: {fileID: 0}
+    RackSoundBackAt: 0
+    ShellSound: {fileID: 0}
     HoldPosition: {x: 0.1, y: -0.01, z: 0.095}
     HoldDipDegrees: 15
     HoldScale: 1
     WorldPickupScale: 1
     SupportHandLocal: {x: -0.02, y: -0.035, z: 0.15}
     SupportHandOnlyWhenAiming: 0
+    CradleFingersLocal: {x: 0, y: 0, z: 0}
+    CradlePalmLocal: {x: 0, y: 1, z: 0}
     MuzzleLocal: {x: 0, y: 0.065, z: 0.35}
-    EjectionPortLocal: {x: 0.024, y: 0.066, z: 0.258}
+    EjectionPortLocal: {x: 0.031875, y: 0.06625, z: 0.225}
     EjectionDirectionLocal: {x: 1, y: 0.75, z: -0.3}
     ButtLocal: {x: 0, y: -0.01, z: -0.45}
-    MagazineOutLocal: {x: 0, y: -0.951, z: -0.309}
+    MagazineOutLocal: {x: 0, y: -0.924, z: -0.383}
     ActionPartName: 
     MagazinePartName: 
     TriggerPartName: 
-    ActionTravel: 0.0855
+    ActionTravel: 0.1125
     ActionCycleSeconds: 0.075
     TriggerPullDegrees: 14
     CasingLength: 0
-    CasingRadius: 0.0095
+    CasingRadius: 0.0125
     ArrowFallSpeed: 65
     ReloadsAfterEveryShot: 1
+    FiresRocket: 0
+    BackblastLocal: {x: 0, y: 0, z: 0}
+    Pellets: 1
+    PelletConeDegrees: 0
+    AimedConeShare: 1
+    FalloffFullMetres: 0
+    FalloffFloorMetres: 0
+    FalloffFloorShare: 1
+    ActionDelaySeconds: 0
+    ActionBackShare: 0.35
+    SupportHandOnAction: 0
+    ShellByShell: 0
+    ShellStartSeconds: 0.4
+    ShellSeconds: 0.567
+    ShellEndSeconds: 0.4
+    ShellEndEmptySeconds: 0.8
   VisualRoot: {fileID: 2380601679795327230}
   ActionPart: {fileID: 0}
   MagazinePart: {fileID: 0}

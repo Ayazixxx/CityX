@@ -70,7 +70,15 @@ MonoBehaviour:
   _itemId: metal_crowbar
   _oneHanded: 1
   _bladeLength: 0.77
+  _knife: 0
+  _hammer: 0
+  _spear: 0
+  _staff: 0
+  _dull: 0
   _edgeOnPlusX: 0
+  _ownHold: 0
+  _ownHoldPosition: {x: 0, y: 0, z: 0}
+  _ownHoldEuler: {x: 0, y: 0, z: 0}
 --- !u!1 &7175222802630437933
 GameObject:
   m_ObjectHideFlags: 0

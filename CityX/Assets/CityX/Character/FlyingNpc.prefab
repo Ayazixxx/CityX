@@ -1558,10 +1558,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 172758791265732837}
     m_Modifications:
-    - target: {fileID: 988883777394761115, guid: 1a6940b80ae2d7b44b2ee294839c1047, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 0}
     - target: {fileID: 1497176507958876276, guid: 1a6940b80ae2d7b44b2ee294839c1047, type: 3}
       propertyPath: m_Name
       value: Jetpack
@@ -1605,10 +1601,6 @@ PrefabInstance:
     - target: {fileID: 2195227834877327381, guid: 1a6940b80ae2d7b44b2ee294839c1047, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3404469662001741273, guid: 1a6940b80ae2d7b44b2ee294839c1047, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -158,6 +158,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d596b647f1a8be548884779d496e32fb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.ArrowProjectile
+  Length: 0.78
+  VisibleSpeed: 180
+  Blunt: 0
 --- !u!1 &4010310985930744999
 GameObject:
   m_ObjectHideFlags: 0

@@ -51,11 +51,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 59a76415e8a061d469c95d09f57e5306, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BowWeapon
+  _kind: 0
   ArrowPrefab: {fileID: 51535972593554971, guid: ddee658532cd227428efac010681840a, type: 3}
   NockedArrow: {fileID: 2200390224179736625}
   String: {fileID: 5095949628277879065}
   TopTip: {fileID: 3524476449513081249}
   BottomTip: {fileID: 5366221482099775214}
+  RestPoint: {x: 0, y: 0, z: -0.08}
 --- !u!1 &4944048794612030259
 GameObject:
   m_ObjectHideFlags: 0

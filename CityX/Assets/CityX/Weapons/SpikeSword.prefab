@@ -160,4 +160,12 @@ MonoBehaviour:
   _itemId: spike_sword
   _oneHanded: 0
   _bladeLength: 2.1
+  _knife: 0
+  _hammer: 0
+  _spear: 0
+  _staff: 0
+  _dull: 0
   _edgeOnPlusX: 0
+  _ownHold: 0
+  _ownHoldPosition: {x: 0, y: 0, z: 0}
+  _ownHoldEuler: {x: 0, y: 0, z: 0}

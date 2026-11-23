@@ -2431,7 +2431,7 @@ GameObject:
   - component: {fileID: 5551744373013461777}
   - component: {fileID: 1004256688954987413}
   - component: {fileID: 6588972926316144315}
-  - component: {fileID: 8327099271651589546}
+  - component: {fileID: 7516782177251488600}
   m_Layer: 0
   m_Name: CrazyGuy
   m_TagString: Untagged
@@ -2756,7 +2756,7 @@ MonoBehaviour:
   Style: 1
   XpReward: 80
   Seed: 0
---- !u!114 &8327099271651589546
+--- !u!114 &7516782177251488600
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2768,6 +2768,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1104293235b3f6148ace8f0839fc964d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.CharacterHair
+  _beard: none
   Head: {fileID: 6475252494333702564}
   StyleMeshes:
   - {fileID: 4300000, guid: cab69372b4a80e449bc5cb695735d3b4, type: 2}

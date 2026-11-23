@@ -73,6 +73,8 @@ MonoBehaviour:
   _bladeLength: 1.19
   _knife: 0
   _hammer: 0
+  _spear: 0
+  _staff: 0
   _dull: 0
   _edgeOnPlusX: 0
   _ownHold: 0
