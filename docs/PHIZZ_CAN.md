@@ -54,6 +54,7 @@ seconds", "thumb wrapped around for grip no not clipping into the can, maybe a v
 | The grip | the palm on the can, the fingers bent at the knuckles and hardly at the tips (curled evenly, their tips hit a can this wide a third of the way to a fist), the thumb turned 30 degrees away and closed onto the can's near side: thumb 3 mm off it, fingertips 8 mm in (`CanGripPlayTests`) |
 | Left-click | drinks. 0 to 0.6 s: the can comes in before the chest, the left fingertip gets under the tab and flicks it up (0.32 to 0.44 s), the hole shows black. Then the owner's Mixamo "Drinking", mirrored to the right hand, 1.65 times as fast: a sip with the head bowed (1.36 s: **the heal begins**, 80 health over 10 s), the can tipped up with the head back (about 2.1 to 2.4 s), down again. 3.22 s: the hand lets the empty can drop. 3.5 s: done, the hand empty |
 | The heal | `PlayerVitals.AddHealOverTime`: even over the 10 s, a blow does not pause it (the body's own regeneration waits after a blow; a drink does not), two drinks heal side by side, lost on death (`HealOverTime`) |
+| The sound | your soda-can-open sound (`Weapons/Audio/soda_can_open.mp3`) plays from the can the moment the tab cracks the lid and the hole shows, about 0.38 s in, on every machine |
 | The empty can | falls from the hand, rolls, lies for 30 s and shrinks away (`DroppedCan`); litter, on each machine its own |
 | Moving | the drink is from the waist up and the legs walk on, as the bottle's moves |
 

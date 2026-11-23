@@ -488,6 +488,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.PhizzCan
   TabHinge: {fileID: 6102821134480829291}
   Hole: {fileID: 8403043067193857081}
+  OpenSound: {fileID: 8300000, guid: 8579f9d218b22c547bd10ca1b0993b81, type: 3}
   EmptyPrefab: {fileID: 1890203667351238754, guid: 1e0c89b243500e949b1d1c83e4b02b28, type: 3}
 --- !u!1 &8403043067193857081
 GameObject:

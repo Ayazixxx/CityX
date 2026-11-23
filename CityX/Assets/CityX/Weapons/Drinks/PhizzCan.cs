@@ -41,6 +41,9 @@ namespace CityX.Weapons
         [Tooltip("The black of the opened hole, hidden until the tab is lifted.")]
         public GameObject Hole;
 
+        [Tooltip("Played as the tab cracks the lid (the owner's sound).")]
+        public AudioClip OpenSound;
+
         [Tooltip("The can emptied, as it is dropped: falls, lies about and goes (DroppedCan).")]
         public GameObject EmptyPrefab;
 
@@ -84,9 +87,14 @@ namespace CityX.Weapons
             {
                 TabHinge.localRotation = Quaternion.AngleAxis(TabOpenDegrees * Opened, Vector3.forward);
             }
+            bool cracked = Opened > 0.5f;
             if (Hole != null)
             {
-                Hole.SetActive(Opened > 0.5f);
+                if (cracked && !Hole.activeSelf && OpenSound != null)
+                {
+                    AudioSource.PlayClipAtPoint(OpenSound, transform.position);
+                }
+                Hole.SetActive(cracked);
             }
         }
 

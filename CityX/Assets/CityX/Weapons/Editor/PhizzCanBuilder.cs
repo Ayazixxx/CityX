@@ -15,6 +15,9 @@ namespace CityX.WeaponsEditor
         public const string PrefabPath = Folder + "/phizz_can.prefab";
         public const string EmptyPrefabPath = Folder + "/phizz_can_empty.prefab";
 
+        /// <summary>The tab cracking the lid (the owner's sound).</summary>
+        public const string OpenSoundPath = "Assets/CityX/Weapons/Audio/soda_can_open.mp3";
+
         /// <summary>The can's own PHIZZ label: the owner's splash with no margin and their BANANA SODA drawn smaller inside it, so that printed half way round the splash is about 1.2 times the bottle's and the wording the size it is on the bottle (owner: "make the phizz logo 1.1x bigger", "leave the banana soda the same size", "make the logo 1.1x bigger"): SourceArt/Phizz/phizz_label.ps1 -WordingScale 0.834 -Margin 0.</summary>
         public const string LabelPath = Folder + "/PhizzCanLabel.png";
 
@@ -78,6 +81,7 @@ namespace CityX.WeaponsEditor
                 can.TabHinge = root.transform.Find("TabHinge");
                 can.Hole = root.transform.Find("Hole").gameObject;
                 can.EmptyPrefab = empty;
+                can.OpenSound = AssetDatabase.LoadAssetAtPath<AudioClip>(OpenSoundPath);
             });
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: PHIZZ can written to {PrefabPath}");

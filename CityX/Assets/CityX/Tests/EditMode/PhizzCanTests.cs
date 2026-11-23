@@ -44,6 +44,7 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, bounds.min.y, 0.002f);
             Assert.AreEqual(CanMesh.Radius * BottleShape.LifeScale, bounds.max.x, 0.004f, "a real can's width");
             Assert.IsNotNull(prefab.transform.Find("Print").GetComponent<MeshRenderer>().sharedMaterial.GetTexture("_BaseMap"), "the label is not printed");
+            Assert.IsNotNull(prefab.GetComponent<PhizzCan>().OpenSound, "the tab opens without its sound");
         }
 
         [Test]
