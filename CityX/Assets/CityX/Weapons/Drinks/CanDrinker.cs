@@ -33,6 +33,29 @@ namespace CityX.Weapons
         public const float HealFromSeconds = 0.75f + 30.0f / 30.0f / 1.65f;
         public const float DropSeconds = 3.22f;
 
+        /// <summary>
+        /// The left hand at the tab (the owner's photo of a can being opened): the index finger hooked under the tab's ring from above, bent a little at the
+        /// knuckle and curled hard at its tip; the other three loosely curled beside it; the thumb open and turned down to brace on the rim.
+        /// </summary>
+        public static FingerAmounts TabHand => new FingerAmounts(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, TabThumbDownDegrees)
+        {
+            Authored = 1.0f,
+            IndexRootDegrees = 20.0f,
+            IndexTipDegrees = 65.0f,
+            FingerRootDegrees = 45.0f,
+            FingerTipDegrees = 35.0f,
+            ThumbRootDegrees = -10.0f,
+            ThumbTipDegrees = 0.0f,
+        };
+
+        public const float TabThumbDownDegrees = 25.0f;
+
+        /// <summary>When the left hand takes that shape and lets it go, seconds in: on its way to the tab, and on its way back down.</summary>
+        public const float TabHandFromSeconds = 0.12f;
+        public const float TabHandShapedSeconds = 0.26f;
+        public const float TabHandLetGoSeconds = 0.56f;
+        public const float TabHandDoneSeconds = 0.75f;
+
         /// <summary>How fast the empty can leaves the hand, m/s: it is let go, not thrown.</summary>
         public const float DropSpeed = 0.6f;
 
@@ -164,6 +187,11 @@ namespace CityX.Weapons
             }
             _elapsed += deltaTime;
             _can.SetOpened(Mathf.InverseLerp(TabFromSeconds, TabToSeconds, _elapsed));
+            float shaped = Mathf.Min(Mathf.InverseLerp(TabHandFromSeconds, TabHandShapedSeconds, _elapsed), 1.0f - Mathf.InverseLerp(TabHandLetGoSeconds, TabHandDoneSeconds, _elapsed));
+            if (shaped > 0.0f && _locomotion != null)
+            {
+                _locomotion.SetLeftFingers(TabHand, Mathf.SmoothStep(0.0f, 1.0f, shaped));
+            }
             if (!_healed && _elapsed >= HealFromSeconds)
             {
                 _healed = true;

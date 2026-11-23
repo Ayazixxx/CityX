@@ -20,6 +20,21 @@ namespace CityX.Character
         private Transform[] _rightDigits;
         private Transform[] _leftDigits;
         private bool _digitsLooked;
+
+        /// <summary>A move's own shape for the left hand's fingers this frame, and how much of it (<see cref="SetLeftFingers"/>).</summary>
+        private FingerAmounts _leftFingersByMove;
+
+        private float _leftFingersByMoveWeight;
+
+        /// <summary>
+        /// The left hand's fingers shaped by a move for this frame (the drink's finger hooked under a can's tab: CanDrinker), <paramref name="weight"/> 0 to 1 of
+        /// the way from what they would be. Asked for every frame it is wanted (in Update): it lasts the one frame.
+        /// </summary>
+        public void SetLeftFingers(in FingerAmounts amounts, float weight)
+        {
+            _leftFingersByMove = amounts;
+            _leftFingersByMoveWeight = Mathf.Clamp01(weight);
+        }
         private float _rightGrip;
         private float _leftGrip;
         private int _rightHandChildren = -1;
@@ -154,6 +169,11 @@ namespace CityX.Character
             IHandGripStyle leftGun = _leftPistol != null ? _leftPistol.GetComponent<IHandGripStyle>() : null;
             FingerAmounts left = _leftPistolGrip != null ? FingerAmounts.Lerp(FingerAmounts.Open, _leftPistolGrip.StrongHandGrip, _leftGrip)
                 : style != null && !LeftHandHolds ? FingerAmounts.Lerp(FingerAmounts.Open, style.SupportHandGrip, _leftGrip) : FingerAmounts.Wrap(_leftGrip);
+            if (_leftFingersByMoveWeight > 0.0f)
+            {
+                left = FingerAmounts.Lerp(left, _leftFingersByMove, _leftFingersByMoveWeight);
+                _leftFingersByMoveWeight = 0.0f;
+            }
             HandGrip.Apply(_rightDigits, true, right, _bakedFingerWeight);
             HandGrip.Apply(_leftDigits, false, left, _bakedFingerWeight);
         }

@@ -125,6 +125,9 @@ namespace CityX.Tests
             var face = new Vector3(0.0f, 2.0f, 0.0f);
             BuildingShapeCapture.Shoot(camera, folder, $"can-drink-front-{moment}", face + new Vector3(1.3f, 0.3f, 2.6f), face + new Vector3(0.1f, 0.0f, 0.2f));
             BuildingShapeCapture.Shoot(camera, folder, $"can-drink-game-{moment}", new Vector3(0.87f, 2.9f, -5.0f), new Vector3(0.3f, 1.6f, 1.0f));
+            // Close on the can before the chest, where the left hand opens it (as the owner's photo of a can being opened is taken).
+            var lid = new Vector3(0.25f, 1.6f, 0.5f);
+            BuildingShapeCapture.Shoot(camera, folder, $"can-drink-tab-{moment}", lid + new Vector3(-0.35f, 0.75f, 0.85f), lid);
         }
     }
 }
