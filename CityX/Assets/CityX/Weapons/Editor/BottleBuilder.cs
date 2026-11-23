@@ -30,12 +30,18 @@ namespace CityX.WeaponsEditor
         private const int PieceCount = 14;
         private const float PieceMass = 0.03f;
 
-        /// <summary>The label stands this far off the glass, metres of a real bottle.</summary>
+        /// <summary>The label stands this far off the glass, metres of a real bottle, and a printed picture this far (under the label's edge).</summary>
         private const float LabelProud = 0.0007f;
+        private const float PrintProud = 0.0004f;
+
+        /// <summary>How finely a printed picture follows the glass: across it and up it.</summary>
+        private const int PrintColumns = 18;
+        private const int PrintRows = 12;
 
         /// <summary>Glass shines; paper does not; a cap is painted tin.</summary>
         private const float GlassSmoothness = 0.88f;
         private const float PaperSmoothness = 0.1f;
+        private const float PrintSmoothness = 0.6f;
         private const float CapSmoothness = 0.6f;
         private const float CapMetallic = 0.5f;
 
@@ -77,7 +83,7 @@ namespace CityX.WeaponsEditor
         /// <summary>What a bottle is drawn in.</summary>
         private sealed class Look
         {
-            public Material Glass, OpenGlass, Label, Cap;
+            public Material Glass, OpenGlass, Label, Print, Cap;
         }
 
         private static GameObject BuildOne(BottleShape shape)
@@ -96,6 +102,10 @@ namespace CityX.WeaponsEditor
             {
                 look.Label.SetFloat("_Cull", 0.0f);
             }
+            if (shape.DecalPath != null)
+            {
+                look.Print = PrintMaterial($"{Folder}/{id}_print.mat", shape.DecalPath);
+            }
 
             BottleMesh.Model whole = shape.Profile != null ? BottleMesh.Turned(shape.Profile, Sides, RingEvery) : Smoothed(shape.ModelPath);
             BottleMesh.Model forCuts = shape.Profile != null ? BottleMesh.Turned(shape.Profile, CutSides, CutRingEvery) : whole;
@@ -105,10 +115,16 @@ namespace CityX.WeaponsEditor
                     new Vector2(shape.BodyRadius + LabelProud, shape.LabelFrom), new Vector2(shape.BodyRadius + LabelProud, shape.LabelTo),
                 }, CutSides, CutRingEvery)
                 : null;
+            // The printed picture, once on each side of the bottle: the sides that face ahead and back as it is carried (the fist's thumb and little-finger sides face across the body).
+            BottleMesh.Model print = shape.DecalPath != null && shape.Profile != null
+                ? BottleMesh.Joined(
+                    BottleMesh.Printed(shape.Profile, shape.DecalFrom, shape.DecalTo, 90.0f, shape.DecalArcDegrees, PrintProud, PrintColumns, PrintRows, CutRingEvery),
+                    BottleMesh.Printed(shape.Profile, shape.DecalFrom, shape.DecalTo, 270.0f, shape.DecalArcDegrees, PrintProud, PrintColumns, PrintRows, CutRingEvery))
+                : null;
             BottleMesh.Model cap = shape.Cap != null ? BottleMesh.Turned(shape.Cap, Sides, RingEvery) : null;
 
             GameObject shatter = BuildShatter(shape, forCuts, look);
-            GameObject thrown = BuildThrown(shape, whole, label, cap, look, shatter);
+            GameObject thrown = BuildThrown(shape, whole, label, print, cap, look, shatter);
 
             var root = new GameObject(id);
             try
@@ -116,10 +132,10 @@ namespace CityX.WeaponsEditor
                 var intact = new GameObject("Intact");
                 intact.transform.SetParent(root.transform, false);
                 Part(intact.transform, "Glass", Saved(shape, "whole", whole), look.Glass);
-                AddDressing(intact.transform, shape, "whole", label, cap, look);
+                AddDressing(intact.transform, shape, "whole", label, print, cap, look);
 
-                GameObject broken = Broken(root.transform, "Broken", shape, forCuts, label, cap, look, shape.BrokenAt, BottleShape.LongestPoint, "broken");
-                GameObject neck = Broken(root.transform, "Shattered", shape, forCuts, null, cap, look, shape.ShatteredAt, BottleShape.LongestPoint * 0.6f, "neck");
+                GameObject broken = Broken(root.transform, "Broken", shape, forCuts, label, print, cap, look, shape.BrokenAt, BottleShape.LongestPoint, "broken");
+                GameObject neck = Broken(root.transform, "Shattered", shape, forCuts, null, null, cap, look, shape.ShatteredAt, BottleShape.LongestPoint * 0.6f, "neck");
                 broken.SetActive(false);
                 neck.SetActive(false);
 
@@ -193,7 +209,7 @@ namespace CityX.WeaponsEditor
         {
             BottleMesh.Model held = BottleMesh.InHand(standing, shape.GripHeight, BottleShape.Scale);
             return HeldModelBaker.Save($"{Folder}/{shape.ItemId}_{part}.asset", $"{shape.ItemId}_{part}", held.Vertices.ToArray(), held.Normals.ToArray(),
-                held.Triangles.ToArray());
+                held.Triangles.ToArray(), held.HasUvs ? held.Uvs.ToArray() : null);
         }
 
         private static void Part(Transform parent, string name, Mesh mesh, Material material)
@@ -201,8 +217,13 @@ namespace CityX.WeaponsEditor
             HeldModelBaker.Part(parent, name, mesh, material);
         }
 
-        private static void AddDressing(Transform parent, BottleShape shape, string part, BottleMesh.Model label, BottleMesh.Model cap, Look look)
+        private static void AddDressing(Transform parent, BottleShape shape, string part, BottleMesh.Model label, BottleMesh.Model print,
+            BottleMesh.Model cap, Look look)
         {
+            if (print != null && print.TriangleCount > 0)
+            {
+                Part(parent, "Print", Saved(shape, part + "_print", print), look.Print);
+            }
             if (label != null && label.TriangleCount > 0)
             {
                 Part(parent, "Label", Saved(shape, part + "_label", label), look.Label);
@@ -215,13 +236,39 @@ namespace CityX.WeaponsEditor
 
         /// <summary>The bottle from its mouth down to a break at <paramref name="level"/>, with what is left of its label, and its cap.</summary>
         private static GameObject Broken(Transform parent, string name, BottleShape shape, BottleMesh.Model forCuts, BottleMesh.Model label,
-            BottleMesh.Model cap, Look look, float level, float longestPoint, string part)
+            BottleMesh.Model print, BottleMesh.Model cap, Look look, float level, float longestPoint, string part)
         {
             var broken = new GameObject(name);
             broken.transform.SetParent(parent, false);
             Part(broken.transform, "Glass", Saved(shape, part, BottleMesh.BrokenOff(forCuts, level, longestPoint)), look.OpenGlass);
-            AddDressing(broken.transform, shape, part, label != null ? BottleMesh.BrokenOff(label, level, longestPoint) : null, cap, look);
+            // The label and the print torn along the same break as the glass under them.
+            AddDressing(broken.transform, shape, part, label != null ? BottleMesh.BrokenOff(label, level, longestPoint) : null,
+                print != null ? BottleMesh.BrokenOff(print, level, longestPoint) : null, cap, look);
             return broken;
+        }
+
+        /// <summary>
+        /// A picture printed on the glass: the picture as it is where it is printed and nothing where it is clear (cut out, not blended: blended
+        /// it is drawn after the glass and in no order with it), seen from inside too through a broken bottle, its sheen a little under the glass's.
+        /// </summary>
+        private static Material PrintMaterial(string path, string picturePath)
+        {
+            var importer = (TextureImporter)AssetImporter.GetAtPath(picturePath);
+            if (importer != null && (importer.wrapMode != TextureWrapMode.Clamp || !importer.alphaIsTransparency))
+            {
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.alphaIsTransparency = true;
+                importer.SaveAndReimport();
+            }
+            Material material = HeldModelBaker.LitMaterial(path, Color.white, 0.0f, PrintSmoothness);
+            material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(picturePath));
+            material.SetFloat("_AlphaClip", 1.0f);
+            material.SetFloat("_Cutoff", 0.5f);
+            material.EnableKeyword("_ALPHATEST_ON");
+            material.SetFloat("_Cull", 0.0f);
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         /// <summary>A body and a capsule about the whole bottle.</summary>
@@ -236,14 +283,14 @@ namespace CityX.WeaponsEditor
             body.mass = BottleWeapon.BottleMass;
         }
 
-        private static GameObject BuildThrown(BottleShape shape, BottleMesh.Model whole, BottleMesh.Model label, BottleMesh.Model cap, Look look,
+        private static GameObject BuildThrown(BottleShape shape, BottleMesh.Model whole, BottleMesh.Model label, BottleMesh.Model print, BottleMesh.Model cap, Look look,
             GameObject shatter)
         {
             var root = new GameObject(shape.ItemId + "_thrown");
             try
             {
                 Part(root.transform, "Glass", Saved(shape, "whole", whole), look.Glass);
-                AddDressing(root.transform, shape, "whole", label, cap, look);
+                AddDressing(root.transform, shape, "whole", label, print, cap, look);
                 AddBody(root, shape);
                 var thrown = root.AddComponent<ThrownBottle>();
                 thrown.ShatterPrefab = shatter;

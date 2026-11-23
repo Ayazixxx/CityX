@@ -18,7 +18,7 @@ squares.
 | `glass_bottle` "Glass Bottle" | `bottle` | the owner's Meshy model (a broad-shouldered spirit bottle), amber; welded and smoothed |
 | `beer_bottle` "Beer Bottle" | `beer` | a longneck: brown glass, a cream label, a gold crown cap |
 | `wine_bottle` "Wine Bottle" | `wine` | a claret bottle: dark green, high shoulders, a pale label, a red foil |
-| `soda_bottle` "Soda Bottle" | `soda` | a returnable soda bottle: pale sea-green, a waist, a red crown cap |
+| `soda_bottle` "Soda Bottle" | `soda` | a returnable soda bottle: pale sea-green, a waist, a gold crown cap, the owner's PHIZZ BANANA SODA printed on the glass front and back (below) |
 
 `/equip` or `/spawn` any of them. All Common, one to a slot (a bottle carries its own state). Every one is 2.4 times a real bottle's size (the
 owner's size for the first), as the hands are. Opaque glossy glass with the game's black line: see-through glass gets no line and reads as a
@@ -26,6 +26,15 @@ smudge in the cel look.
 
 **A new bottle**: a line in `GlassBottleKinds.All` and a `BottleShape` (its profile as (radius, height) points of a real bottle standing on
 its base, its glass, label and cap, where its body and neck end), then the scene rebuild and the title rebuild. Everything else follows.
+
+## PHIZZ (2026-11-23)
+
+The owner's fictional soda brand (a banana soda; "Phizz" reads as fizz, and as something else). Their PHIZZ splash logo and their hand-drawn
+BANANA SODA are in `CityX/SourceArt/Phizz`; `phizz_label.ps1` stacks them into `Weapons/Bottles/PhizzLabel.png` (the wording under the splash,
+among its drips, no wider than the word PHIZZ, nudged 8 pixels right: the owner's placing). `BottleShape.DecalPath` puts a picture on a
+bottle: printed on the glass (`BottleMesh.Printed`, cut-out where the picture is clear), once ahead and once behind as it is carried, and
+torn along the same break as the glass when it breaks in the hand. Upright as the bottle stands, so it is upside down in the carry (the
+bottle is held by its neck). Not yet: a full bottle to drink (the owner: for Fable), cans, vending machines, billboards.
 
 ## How it plays (`BottleWeapon`)
 

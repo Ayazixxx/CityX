@@ -11,11 +11,14 @@ namespace CityX.Weapons
     /// </summary>
     public static class BottleMesh
     {
-        /// <summary>A model as plain lists: points, which way each faces, and triangles.</summary>
+        /// <summary>A model as plain lists: points, which way each faces, where each is on a picture (for a printed one only), and triangles.</summary>
         public sealed class Model
         {
             public readonly List<Vector3> Vertices = new List<Vector3>();
             public readonly List<Vector3> Normals = new List<Vector3>();
+            public readonly List<Vector2> Uvs = new List<Vector2>();
+
+            public bool HasUvs => Uvs.Count == Vertices.Count && Uvs.Count > 0;
             public readonly List<int> Triangles = new List<int>();
 
             public int TriangleCount => Triangles.Count / 3;
@@ -86,6 +89,76 @@ namespace CityX.Weapons
             model.Triangles.Add(outward ? c : b);
         }
 
+        /// <summary>The bottle's radius at <paramref name="height"/> above its base, up its outside wall (the profile smoothed as <see cref="Turned"/> smooths it).</summary>
+        public static float RadiusAt(Vector2[] profile, float height, float ringEvery)
+        {
+            List<Vector2> curve = Smoothed(profile, ringEvery);
+            for (int i = 0; i + 1 < curve.Count; i++)
+            {
+                Vector2 a = curve[i], b = curve[i + 1];
+                if (b.y > a.y && height >= a.y && height <= b.y)
+                {
+                    return Mathf.Lerp(a.x, b.x, (height - a.y) / (b.y - a.y));
+                }
+            }
+            return 0.0f;
+        }
+
+        /// <summary>
+        /// A picture printed on the glass: a patch of the bottle's own outside, <paramref name="proud"/> off it, between <paramref name="from"/> and
+        /// <paramref name="to"/> heights and <paramref name="arcDegrees"/> round about <paramref name="centreDegrees"/>, the picture laid on it
+        /// upright as the bottle stands, reading left to right from outside. A grid of <paramref name="columns"/> by <paramref name="rows"/>.
+        /// </summary>
+        public static Model Printed(Vector2[] profile, float from, float to, float centreDegrees, float arcDegrees, float proud, int columns, int rows,
+            float ringEvery)
+        {
+            var model = new Model();
+            for (int r = 0; r <= rows; r++)
+            {
+                float v = r / (float)rows;
+                float height = Mathf.Lerp(from, to, v);
+                float radius = RadiusAt(profile, height, ringEvery) + proud;
+                float slope = (RadiusAt(profile, height + 0.002f, ringEvery) - RadiusAt(profile, height - 0.002f, ringEvery)) / 0.004f;
+                for (int c = 0; c <= columns; c++)
+                {
+                    float u = c / (float)columns;
+                    float angle = (centreDegrees + (u - 0.5f) * arcDegrees) * Mathf.Deg2Rad;
+                    float cos = Mathf.Cos(angle), sin = Mathf.Sin(angle);
+                    model.Vertices.Add(new Vector3(radius * cos, height, radius * sin));
+                    model.Normals.Add(new Vector3(cos, -slope, sin).normalized);
+                    model.Uvs.Add(new Vector2(u, v));
+                }
+            }
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < columns; c++)
+                {
+                    int a = r * (columns + 1) + c, b = a + 1, d = a + columns + 1, e = d + 1;
+                    AddFacing(model, a, d, e);
+                    AddFacing(model, a, e, b);
+                }
+            }
+            return model;
+        }
+
+        /// <summary>Two models as one.</summary>
+        public static Model Joined(Model first, Model second)
+        {
+            var joined = new Model();
+            foreach (Model part in new[] { first, second })
+            {
+                int offset = joined.Vertices.Count;
+                joined.Vertices.AddRange(part.Vertices);
+                joined.Normals.AddRange(part.Normals);
+                joined.Uvs.AddRange(part.Uvs);
+                foreach (int t in part.Triangles)
+                {
+                    joined.Triangles.Add(t + offset);
+                }
+            }
+            return joined;
+        }
+
         // ---- the break ----
 
         /// <summary>
@@ -148,6 +221,10 @@ namespace CityX.Weapons
                             made = kept.Vertices.Count;
                             kept.Vertices.Add(whole.Vertices[from]);
                             kept.Normals.Add(whole.Normals[from]);
+                            if (whole.HasUvs)
+                            {
+                                kept.Uvs.Add(whole.Uvs[from]);
+                            }
                             original[from] = made;
                         }
                         polygon.Add(made);
@@ -161,6 +238,10 @@ namespace CityX.Weapons
                             made = kept.Vertices.Count;
                             kept.Vertices.Add(Vector3.Lerp(whole.Vertices[from], whole.Vertices[to], share));
                             kept.Normals.Add(Vector3.Lerp(whole.Normals[from], whole.Normals[to], share).normalized);
+                            if (whole.HasUvs)
+                            {
+                                kept.Uvs.Add(Vector2.Lerp(whole.Uvs[from], whole.Uvs[to], share));
+                            }
                             onEdge[key] = made;
                         }
                         polygon.Add(made);
@@ -305,6 +386,7 @@ namespace CityX.Weapons
             {
                 held.Normals.Add(HeldDirection(n));
             }
+            held.Uvs.AddRange(standing.Uvs);
             held.Triangles.AddRange(standing.Triangles);   // a half turn about X: no mirror, the triangles keep their winding
             return held;
         }

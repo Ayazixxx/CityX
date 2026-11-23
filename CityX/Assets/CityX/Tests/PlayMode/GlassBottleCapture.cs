@@ -61,6 +61,10 @@ namespace CityX.Tests
             var middle = new Vector3((40.0f + x) * 0.5f - 0.2f, 0.36f, 40.0f);
             BuildingShapeCapture.Shoot(camera, folder, "bottle-row", middle + new Vector3(0.0f, 0.5f, 7.5f), middle);
             BuildingShapeCapture.Shoot(camera, folder, "bottle-row-above", middle + new Vector3(1.5f, 2.4f, 6.5f), middle);
+            // The last kind close (the soda bottle and its printed label): whole, broken and its neck, from the front and the back.
+            var lastKind = new Vector3(x - 0.2f - 0.34f * 2.0f, 0.36f, 40.0f);
+            BuildingShapeCapture.Shoot(camera, folder, "bottle-last-front", lastKind + new Vector3(0.0f, 0.15f, 2.0f), lastKind);
+            BuildingShapeCapture.Shoot(camera, folder, "bottle-last-back", lastKind + new Vector3(0.0f, 0.15f, -2.0f), lastKind);
 
             // ---- in the hand ----
             GameObject player = Object.Instantiate(Load("Assets/CityX/Character/Player.prefab"), new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);

@@ -30,6 +30,13 @@ namespace CityX.Weapons
         public float LabelFrom, LabelTo;
         public Color Label;
 
+        /// <summary>
+        /// A printed picture on the glass (its path in the project, transparent where nothing is printed), or none: wrapped round the body between
+        /// <see cref="DecalFrom"/> and <see cref="DecalTo"/> heights, once on each side, each <see cref="DecalArcDegrees"/> round the bottle.
+        /// </summary>
+        public string DecalPath;
+        public float DecalFrom, DecalTo, DecalArcDegrees;
+
         /// <summary>A crown cap or a foil over the mouth, as its own profile, or none.</summary>
         public Vector2[] Cap;
         public Color CapColour;
@@ -110,7 +117,8 @@ namespace CityX.Weapons
                 BodyTop = 0.178f, NeckBase = 0.226f, Height = 0.300f, BodyRadius = 0.0372f, NeckRadius = 0.0145f,
             },
             // A returnable soda bottle: a thick foot, a slight waist, a long shoulder running straight up into the neck. Pale sea-green glass,
-            // no paper, a red crown cap.
+            // a gold crown cap, and the owner's PHIZZ BANANA SODA printed on the glass, front and back (owner, 2026-11-23: "put this logo on the
+            // soda bottle but make it a golden cap instead of red", "the phizz logo up top and the banana soda handrawn wording below it").
             new BottleShape
             {
                 ItemId = GlassBottleKinds.Soda,
@@ -122,12 +130,13 @@ namespace CityX.Weapons
                     new Vector2(0.0150f, 0.234f), new Vector2(0.0128f, 0.238f), new Vector2(0.0105f, 0.238f),
                 },
                 Glass = new Color(0.50f, 0.74f, 0.66f),
+                DecalPath = "Assets/CityX/Weapons/Bottles/PhizzLabel.png", DecalFrom = 0.026f, DecalTo = 0.116f, DecalArcDegrees = 178.0f,
                 Cap = new[]
                 {
                     new Vector2(0.0165f, 0.227f), new Vector2(0.0172f, 0.231f), new Vector2(0.0165f, 0.240f), new Vector2(0.0120f, 0.2425f),
                     new Vector2(0.000f, 0.2425f),
                 },
-                CapColour = new Color(0.70f, 0.10f, 0.10f),
+                CapColour = new Color(0.86f, 0.66f, 0.16f),
                 BodyTop = 0.106f, NeckBase = 0.176f, Height = 0.238f, BodyRadius = 0.0300f, NeckRadius = 0.0138f,
             },
         };
