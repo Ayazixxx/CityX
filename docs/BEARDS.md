@@ -41,10 +41,12 @@ under the head's surface.
 
 **The line.** `CityXOutline` inks where neighbouring pixels' normals are more than about 45 degrees apart. So:
 - the skin's thickness changes slowly and it is shaded smooth: no line on it;
-- the skirt is GIVEN normals lying flat along the head, a quarter turn from the beard on one side and the face on the other: a line all the
-  way round, at any slope;
-- the skin comes down to a LOW rim (`RIM_HEIGHT` 3 mm, over `RIM_BEVEL`), so the skirt is about 3 mm wide and tall: a pixel or two from
-  any side. A tall skirt was inked along its top and its foot (two lines, worst from the side); a sliver of one was not found at all.
+- the line is wanted on the SKIN'S side only ("i only want the black line against the skin"). A skirt simply said to face sideways is
+  inked on both its sides once it is a few pixels wide (zoomed in in the creator). So the turn is slow on the beard's side and sudden on
+  the face's: the skin comes down to a low rim (`RIM_HEIGHT`, over `RIM_BEVEL`) and is said to lean out a little toward it (`RIM_LEAN`,
+  22 degrees: more and the rim falls into the cel shading's dark side where it leans from the sun, a dark band), the skirt carries on from
+  that to flat out at its foot, and the face beside the foot faces straight out. One step, at the skin, at any zoom (`BeardCapture`'s
+  `zoomed` shot).
 
 Spikes: `CHEEK_SPIKES`, `HEM_SPIKES` (from, to, depth, where the point is, in degrees), `CHEEK_POINTS_ROUNDED`.
 

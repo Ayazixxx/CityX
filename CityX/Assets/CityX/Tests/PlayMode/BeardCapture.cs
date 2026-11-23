@@ -65,6 +65,7 @@ namespace CityX.Tests
                 yield return null;
                 Vector3 chin = head + new Vector3(0.0f, -0.1f, 0.0f);
                 BuildingShapeCapture.Shoot(camera, folder, $"beard-{beard}-front", chin + new Vector3(0.0f, 0.1f, 2.6f), chin);
+                BuildingShapeCapture.Shoot(camera, folder, $"beard-{beard}-zoomed", chin + new Vector3(0.15f, -0.05f, 0.95f), chin);
                 BuildingShapeCapture.Shoot(camera, folder, $"beard-{beard}-threequarter", chin + new Vector3(1.8f, 0.2f, 1.9f), chin);
                 BuildingShapeCapture.Shoot(camera, folder, $"beard-{beard}-side", chin + new Vector3(2.6f, 0.0f, 0.2f), chin);
                 BuildingShapeCapture.Shoot(camera, folder, $"beard-{beard}-below", chin + new Vector3(1.0f, -1.3f, 2.1f), chin);

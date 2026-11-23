@@ -287,14 +287,15 @@ LIP_SHARE = 0.6
 SPIKE_POINT_SHARE = 0.4
 CHEEK_THINS_OVER = 5.0
 HEM_THINS_OVER = 9.0
-# The rim's skirt goes down to the head, and on under the skin, at this slope from the head's surface. With RIM_HEIGHT it makes the skirt
-# about 3 mm wide and 3 mm tall: a pixel or two from any side, enough for the line pass to find and too little for it to ink twice (a tall
-# skirt was inked along its top and its foot: owner, "now there is two beard lines"; a sliver of one was not found at all).
-EDGE_SLOPE = math.radians(45.0)
+# The rim's skirt goes down to the head, and on under the skin, at this slope from the head's surface: wide enough on the screen (about
+# 6 mm) for the line pass to find it at the game camera's distance.
+EDGE_SLOPE = math.radians(35.0)
 SHELL_SUNK = 0.002
 # The skin comes down to this height at its rim, over this many degrees in from it; and the rim's skirt reaches this far out, degrees.
-RIM_HEIGHT = 0.003
+RIM_HEIGHT = 0.004
 RIM_BEVEL = 3.5
+# No further than this: leaning more, the rim falls into the cel shading's dark side wherever it leans away from the sun, a dark band.
+RIM_LEAN = math.radians(22.0)
 RIM_REACH = (RIM_HEIGHT + SHELL_SUNK) / math.tan(EDGE_SLOPE) / (HEAD_RADIUS * math.radians(1.0))
 # The map the edge is traced on, the furthest a traced corner may be cut, the longest stretch of edge without a vertex, and how far apart the
 # skin's vertices are inside it; degrees.
@@ -432,7 +433,7 @@ def build_shell(style):
         if shape(cx, cy) < 0.0:
             faces.append(tuple(face))
     # The skirt: each edge point's twin, out from the beard and under the skin, as far out as the slope takes to get there.
-    skin_faces, wall = len(faces), {}
+    skin_faces, wall, rim_out = len(faces), {}, {}
     first = 0
     for loop in loops:
         twins = []
@@ -455,7 +456,8 @@ def build_shell(style):
             # Which way the skirt is SAID to face: flat out along the head from the rim, whatever its slope.
             rim, foot = Vector(verts[now[first + k]]), Vector(verts[-1])
             along = ((foot - rim) - rim.normalized() * (foot - rim).dot(rim.normalized())).normalized()
-            wall[now[first + k]] = wall[twins[-1]] = along
+            wall[twins[-1]] = (along - rim.normalized() * 0.18).normalized()
+            rim_out[now[first + k]] = along
         for k in range(len(loop)):
             a, b = now[first + k], now[first + (k + 1) % len(loop)]
             faces.append((a, b, twins[(k + 1) % len(loop)], twins[k]))
@@ -478,16 +480,35 @@ def build_shell(style):
         mesh.flip_normals()
     # THE BLACK LINE round the beard (owner, 2026-11-22: "how can we get the black line on the edge of the beard like the hair above it. it only
     # has it in certain places"). The line pass inks where neighbouring pixels face more than about 45 degrees apart, and a gentle skirt shaded
-    # smoothly never does. So the skin keeps its own smooth normals right to the rim, and the skirt is given normals lying flat along the head,
-    # a quarter turn from the beard on one side of it and from the face on the other: a hard edge all the way round, and nowhere else.
+    # smoothly never does. A skirt said to face flat out along the head is inked, but on BOTH its sides once it is a few pixels wide (zoomed
+    # in in the creator: owner, "im still seeing two lines. i only want the black line against the skin"). So the turn is put on the beard's
+    # side as a slow one and on the face's side as a sudden one: over RIM_BEVEL the skin is SAID to lean further and further out toward its
+    # rim (RIM_LEAN there), too slowly to be inked at any zoom, the skirt carries on from that to flat out, and the face beside it faces
+    # straight out: one step, against the skin, however many pixels the skirt is.
     smooth_normal = [Vector((0.0, 0.0, 0.0)) for _ in mesh.vertices]
     for p in mesh.polygons[:skin_faces]:
         for v in p.vertices:
             smooth_normal[v] += p.normal * p.area
+    leaned = []
+    for v, point in enumerate(out_points):
+        normal = smooth_normal[v].normalized() if smooth_normal[v].length > 0.0 else Vector(verts[v]).normalized()
+        lean = RIM_LEAN * (1.0 - smooth(-shape(point.x, point.y) / RIM_BEVEL))
+        if lean > 0.0:
+            if v in rim_out:
+                out = rim_out[v]
+            else:
+                gx = shape(point.x + 0.2, point.y) - shape(point.x - 0.2, point.y)
+                gy = shape(point.x, point.y + 0.2) - shape(point.x, point.y - 0.2)
+                length = math.hypot(gx, gy) or 1e-9
+                here = Vector(on_ball(point.x, point.y, 0.0))
+                out = Vector(on_ball(point.x + gx / length * 0.3, point.y + gy / length * 0.3, 0.0)) - here
+                out = (out - here.normalized() * out.dot(here.normalized())).normalized()
+            normal = (normal * math.cos(lean) + out * math.sin(lean)).normalized()
+        leaned.append(normal)
     said = []
     for p in mesh.polygons:
         for v in p.vertices:
-            said.append(wall[v] if p.index >= skin_faces and v in wall else smooth_normal[v].normalized())
+            said.append(wall[v] if v in wall else leaned[v])
     mesh.normals_split_custom_set(said)
     return ob
 

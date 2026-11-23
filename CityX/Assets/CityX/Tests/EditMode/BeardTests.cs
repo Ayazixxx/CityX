@@ -60,8 +60,8 @@ namespace CityX.Tests
         public void AFullBeardIsOneSmoothSkin(string beard)
         {
             // The lines are drawn where the surface turns sharply. The skin faces out from the head everywhere, so nothing is drawn on it (owner:
-            // "have no visible creases or lines"); only its rim's skirt lies flat along the head, a quarter turn from the skin, so ONE line is
-            // drawn round the beard as round the hair ("how can we get the black line on the edge of the beard like the hair above it").
+            // "have no visible creases or lines"); only the foot of its rim's skirt lies flat along the head, a quarter turn from the face beside
+            // it, so ONE line is drawn, against the skin ("i only want the black line against the skin").
             Mesh mesh = CharacterHair.BeardMesh(beard);
             Assert.IsNotNull(mesh);
             Vector3[] vertices = mesh.vertices, normals = mesh.normals;
@@ -70,14 +70,14 @@ namespace CityX.Tests
             for (int i = 0; i < vertices.Length; i++)
             {
                 float outward = Vector3.Dot(normals[i], vertices[i].normalized);
-                // The skin slopes down to its low rim, gently: well under the 45 degrees a line is drawn at.
-                if (outward > 0.75f)
+                // The skin slopes down to its low rim and is said to lean out toward it, slowly: never a line's turn between neighbours.
+                if (outward > 0.6f)
                 {
                     skin++;
                 }
                 else
                 {
-                    Assert.Less(Mathf.Abs(outward), 0.05f, $"{beard} has a crease at {vertices[i]}: neither the skin nor its rim");
+                    Assert.That(outward, Is.InRange(-0.3f, 0.05f), $"{beard} has a crease at {vertices[i]}: neither the skin nor its rim");
                     rim.Add(Vector3Int.RoundToInt(vertices[i] * 20000.0f));
                 }
             }
