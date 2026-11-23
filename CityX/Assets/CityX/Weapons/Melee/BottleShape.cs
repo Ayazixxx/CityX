@@ -46,8 +46,15 @@ namespace CityX.Weapons
 
         public float BodyRadius, NeckRadius;
 
-        /// <summary>The middle of the fist on the neck, above the base (a real bottle's metres): between where the neck begins and the lip.</summary>
-        public float GripHeight => Mathf.Lerp(NeckBase, Height, 0.42f);
+        /// <summary>
+        /// The middle of the fist on the neck, above the base (a real bottle's metres): its index finger's side just above where the neck begins, so the
+        /// fist is all on the neck and none of it on the shoulder, the little finger's side up over the mouth (owner, 2026-11-23: "the thumb is
+        /// clipping into the soda bottle instead of gripping around it"; the fist is wider than any bottle's neck is long).
+        /// </summary>
+        public float GripHeight => Mathf.Min(NeckBase + FistIndexSide, Height);
+
+        /// <summary>From the fist's middle to the outside of its index finger, along a held bottle, a real bottle's metres (the hand's 11 cm in the game).</summary>
+        public const float FistIndexSide = 0.048f;
 
         /// <summary>From the fist to the base, in the game's metres: how far the bottle reaches as a club.</summary>
         public float Reach => GripHeight * Scale;

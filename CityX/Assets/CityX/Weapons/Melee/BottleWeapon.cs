@@ -19,7 +19,8 @@ namespace CityX.Weapons
     /// broken (the body's <see cref="BottleThrower"/>).
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class BottleWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon, ISwordBlade, IRaisedCarry, IAimedThrow, ICosmeticMountable
+    public sealed class BottleWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon, ISwordBlade, IRaisedCarry, IAimedThrow, ICosmeticMountable,
+        IHandGripStyle
     {
         public enum DurabilityState
         {
@@ -258,6 +259,22 @@ namespace CityX.Weapons
                 AudioSource.PlayClipAtPoint(BreakSound, transform.position);
             }
         }
+
+        // ---- the fingers (IHandGripStyle) ----
+
+        /// <summary>
+        /// The fist round the neck with the thumb curled round it too, turned away from the bottle's body: left to point along the bottle as a
+        /// sword's grip has it, the thumb went into the shoulder.
+        /// </summary>
+        public const float ThumbRoundTheNeckDegrees = 50.0f;
+
+        public FingerAmounts StrongHandGrip => new FingerAmounts(NeckFingers, NeckFingers, NeckFingers, NeckFingers, NeckThumb, ThumbRoundTheNeckDegrees);
+
+        /// <summary>How far the fingers and the thumb close on the neck (a neck is narrower than a sword's handle: closed all the way they went into the glass).</summary>
+        public const float NeckFingers = 0.85f;
+        public const float NeckThumb = 0.15f;
+
+        public FingerAmounts SupportHandGrip => FingerAmounts.Wrap(1.0f);
 
         // ---- the throw ----
 
