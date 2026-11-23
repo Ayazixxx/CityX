@@ -30,6 +30,11 @@ CAN_HEIGHT = 0.1222 * LIFE
 RIM_RADIUS = 0.0262 * LIFE
 TAB_END = V(0.0160 * LIFE, 0.1205 * LIFE, 0.0)
 
+# The tab lifted (PhizzCan.TabOpenDegrees about its rivet, along the can's Z, at the lid: CanMesh.LidHeight): where its free end has swung to.
+TAB_OPEN_DEGREES = 75.0
+TAB_HINGE = V(0.0, 0.1185 * LIFE, 0.0)
+TAB_END_OPEN = TAB_HINGE + Matrix.Rotation(math.radians(TAB_OPEN_DEGREES), 3, "Z") @ (TAB_END - TAB_HINGE)
+
 # The mouth on the head (a sphere of 0.35 m about the head bone; faces are painted by the player, so the mouth is where a drawn one sits): low on its front,
 # a little inside the surface, the lips.
 MOUTH = V(0.0, -0.35 * math.sin(math.radians(22.0)), 0.33 * math.cos(math.radians(22.0)))
@@ -65,21 +70,64 @@ def at_mouth(k, tilt, name):
     return k
 
 
-def tab_end_in_character(k):
-    """Where the tab's free end is, in the character's frame, with the right hand as key `k` holds the can."""
+def tab_end_in_character(k, end=None):
+    """Where the tab's free end is (`end`, the can's frame: shut if none), in the character's frame, with the right hand as key `k` holds the can."""
     D, pos = _solved_key(k, True)
-    return (unity_frame(D, pos, "hand_r", HAND_REST) @ CAN_HOLD) @ TAB_END
+    return (unity_frame(D, pos, "hand_r", HAND_REST) @ CAN_HOLD) @ (TAB_END if end is None else end)
 
 
-def left_fingertip_to(k, target, name):
-    """Moves key `k`'s left wrist until the left fingertip is at `target` (the solver's hand runs straight on from its forearm)."""
-    for _ in range(8):
-        D, pos = _solved_key(k, True)
-        tip = to_unity(pos["fingertip_l"])
-        k["off"] = k["off"] + (target - tip)
-    D, pos = _solved_key(k, True)
-    print("%s: left fingertip %.3f m from the tab" % (name, (to_unity(pos["fingertip_l"]) - target).length))
+# THE LEFT HAND AT THE TAB (owner, with a photo of a can being opened: "make it so the hand his turned knuckles upward and the finger is pinching the 'tab'. no
+# clipping into the can"): over the lid, knuckles up, the fingers angled down at it, the index and the thumb pinching the tab's free end (the game shapes
+# the fingers as the slingshot's pinch: CanDrinker.TabHand). The solver's hand runs straight on from its forearm, so the hand is turned here, after it.
+# Where the index fingertip's last joint is in the hand (HandGrip.TipInHand, the slingshot pinch), the game's hand frame: along the fingers, toward the back
+# of the hand, toward the thumb. It is put a fingertip's thickness above the tab, so its pad is on it (aimed between the index and the thumb, the index
+# went 4.5 cm through the lid: CanDrinkPlayTests).
+PINCH_IN_HAND = (0.185, -0.072, 0.087)
+FINGERTIP_OVER = 0.03
+
+# Which way the left hand's fingers point at the tab (the character's frame): in from the left, ahead, and steeply down at the lid.
+PINCH_FINGERS = V(0.50, -0.62, 0.60).normalized()
+
+_T3 = TO_BLENDER.to_3x3()
+
+
+def _hand_frame(fingers, back):
+    """The left hand's frame from its fingers' way and its back's (the character's frame): fingers, back, thumb (the left thumb is the back crossed with
+    the fingers)."""
+    back = (back - fingers * back.dot(fingers)).normalized()
+    return fingers, back, back.cross(fingers)
+
+
+# The left hand at the rig's rest: hanging, the fingers down, the palm to the body, its back out to the left.
+_REST_L = _hand_frame(to_unity(TAIL["hand_l"] - HEAD["hand_l"]).normalized(), V(-1.0, 0.0, 0.0))
+_PINCH_L = _hand_frame(PINCH_FINGERS, V(0.0, 1.0, 0.0))
+
+
+def _turn_between(frame_from, frame_to):
+    """The turn (Blender's axes, as the solver's are) carrying one hand frame onto another."""
+    a = Matrix((frame_from[0], frame_from[1], frame_from[2])).transposed()
+    b = Matrix((frame_to[0], frame_to[1], frame_to[2])).transposed()
+    return (_T3 @ (b @ a.transposed()) @ _T3.inverted()).to_quaternion()
+
+
+LEFT_PINCH_TURN = _turn_between(_REST_L, _PINCH_L)
+
+
+def pinching(k, at, name):
+    """Key `k` with the left hand turned knuckles up and its pinch at `at` (the character's frame)."""
+    f, b, t = _PINCH_L
+    a, up, side = PINCH_IN_HAND
+    k = dict(k, off=at - (f * a + b * up + t * side), lhand=1.0)
+    print("%s: the left wrist at (%.2f, %.2f, %.2f)" % (name, k["off"].x, k["off"].y, k["off"].z))
     return k
+
+
+def turn_left_hand(D, keys, t01):
+    """The left hand turned to the pinch, as much as the keys say (their `lhand`, eased as the shoulders are)."""
+    w = sample_field(keys, t01, "lhand", 0.0, 1.6)
+    if w > 0.0:
+        D["hand_l"] = D["hand_l"].slerp(LEFT_PINCH_TURN, min(1.0, w))
+        D["fingertip_l"] = D["hand_l"]
 
 
 def build_keys():
@@ -88,9 +136,10 @@ def build_keys():
                    off_pole=(-0.6, -0.6, -0.3), twist=8.0, lean=4.0, chin=10.0)
     tab = tab_end_in_character(opening)
     # The fingertip comes over the top to just past the tab's free end, under it, then flicks up.
-    under = left_fingertip_to(dict(opening), tab + V(0.0, -0.005, 0.0) + V(0.012, 0.0, 0.0), "under the tab")
-    flicked = left_fingertip_to(dict(opening, chin=12.0), tab + V(-0.02, 0.09, 0.0), "the tab flicked up")
-    above = left_fingertip_to(dict(opening), tab + V(-0.06, 0.12, 0.0), "over the can")
+    # The pinch comes down onto the tab's free end, a little above the lid, and lifts it as it is pulled up and back.
+    under = pinching(dict(opening), tab + V(0.0, FINGERTIP_OVER, 0.0), "pinching the tab")
+    flicked = pinching(dict(opening, chin=12.0), tab_end_in_character(opening, TAB_END_OPEN) + V(0.0, FINGERTIP_OVER, 0.0), "the tab pulled up")
+    above = pinching(dict(opening), tab + V(-0.04, FINGERTIP_OVER + 0.16, 0.0), "over the can")
     opened = dict(opening, off=V(-0.50, 1.04, 0.06), off_pole=V(-0.4, -0.2, -1.0), chin=6.0)
 
     # The recording's moments, mirrored (its head and chest turns, as lean and chin; the can's tip at the lips).
@@ -115,7 +164,7 @@ def build_keys():
         (0.0, CARRY, None),
         (at(0.22), dict(above), "smooth"),
         (at(0.32), under, "smooth"),
-        (at(0.44), flicked, "slow_in"),
+        (at(0.44), flicked, "linear"),
         (at(0.56), dict(above), "smooth"),
         (frame(55), opened, "smooth"),
         (frame(85), sip, "smooth"),
@@ -161,6 +210,7 @@ def bake_drink():
         t01 = i / float(frames - 1)
         D, pos = solve(drink_pose(keys, t01, stats))
         turn_wrist(D, pos, sample_wrist(keys, t01))
+        turn_left_hand(D, keys, t01)
         carry_head(D, pos, keys, t01)
         apply_pose(locals_of(D), pos["hips"])
         for n in ORDER:

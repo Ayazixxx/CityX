@@ -103,5 +103,95 @@ namespace CityX.Tests
                 Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             }
         }
+
+        /// <summary>
+        /// Opening the tab (owner: "the hand his turned knuckles upward and the finger is pinching the tab. no clipping into the can maybe a very slightly
+        /// amount at the fingertips"): through the pinch the left hand is no more than a centimetre into the can, and its index fingertip is at the tab.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator OpeningTheTabTheLeftHandPinchesItWithoutGoingIntoTheCan()
+        {
+            Time.captureFramerate = 60;
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            ground.transform.localScale = new Vector3(50.0f, 1.0f, 50.0f);
+            (GameObject body, PhizzCan can, CanDrinker drinker) = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            try
+            {
+                can.OnEquip(body, ItemInstanceData.None);
+                var locomotion = body.GetComponent<PlayerLocomotion>();
+                for (int i = 0; i < 40; i++)
+                {
+                    locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+                    yield return null;
+                }
+                Assert.IsTrue(can.Drink());
+                var skin = CityX.Core.TransformSearch.FindDeep(body.transform, BodySurface.SkinName).GetComponent<SkinnedMeshRenderer>();
+                float seconds = 0.0f, deepest = 0.0f, farthestTip = 0.0f, deepestAt = 0.0f;
+                string deepestPart = string.Empty;
+                string report = string.Empty;
+                while (seconds < CanDrinker.TabToSeconds)
+                {
+                    locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+                    yield return null;
+                    seconds += 1.0f / 60.0f;
+                    if (seconds < CanDrinker.TabFromSeconds)
+                    {
+                        continue;
+                    }
+                    var posed = new Mesh();
+                    skin.BakeMesh(posed, true);
+                    Vector3[] points = posed.vertices;
+                    BoneWeight[] weights = skin.sharedMesh.boneWeights;
+                    Transform[] bones = skin.bones;
+                    float lid = CanMesh.Height * BottleShape.LifeScale;
+                    Vector3 tab = can.TabHinge.TransformPoint(CanMesh.TabEndFromHinge * BottleShape.LifeScale);
+                    float deep = 0.0f, nearestTip = float.MaxValue;
+                    string deepPart = string.Empty;
+                    for (int i = 0; i < points.Length; i++)
+                    {
+                        Transform bone = bones[weights[i].boneIndex0];
+                        string name = bone != null ? bone.name : string.Empty;
+                        if (!name.EndsWith("_l") || !(name.StartsWith("hand") || name.StartsWith("index") || name.StartsWith("middle")
+                            || name.StartsWith("ring") || name.StartsWith("little") || name.StartsWith("thumb")))
+                        {
+                            continue;
+                        }
+                        Vector3 world = skin.transform.TransformPoint(points[i]);
+                        Vector3 inCan = can.transform.InverseTransformPoint(world);
+                        float height = inCan.y / BottleShape.LifeScale;
+                        float radius = height < 0.0f || height > CanMesh.Height ? 0.0f : BottleMesh.RadiusAt(CanMesh.Outline, height, 0.004f) * BottleShape.LifeScale;
+                        float inside = Mathf.Min(radius - new Vector2(inCan.x, inCan.z).magnitude, lid - inCan.y);
+                        if (inside > deep)
+                        {
+                            deep = inside;
+                            deepPart = $"{name} at ({inCan.x:F2}, {inCan.y:F2}, {inCan.z:F2}) in the can's frame";
+                        }
+                        if (name.StartsWith("index2"))
+                        {
+                            nearestTip = Mathf.Min(nearestTip, Vector3.Distance(world, tab));
+                        }
+                    }
+                    Object.Destroy(posed);
+                    if (deep > deepest)
+                    {
+                        deepest = deep;
+                        deepestAt = seconds;
+                        deepestPart = deepPart;
+                    }
+                    farthestTip = Mathf.Max(farthestTip, nearestTip);
+                }
+                report = $"the left hand {deepest * 100.0f:F1} cm into the can at {deepestAt:F2} s ({deepestPart}); the index fingertip at most {farthestTip * 100.0f:F1} cm from the tab";
+                Debug.Log("TAB PINCH: " + report);
+                Assert.Less(deepest, 0.012f, "the left hand goes into the can. " + report);
+                Assert.Less(farthestTip, 0.05f, "the index finger is not at the tab. " + report);
+            }
+            finally
+            {
+                Object.Destroy(body);
+                Object.Destroy(ground);
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+            }
+        }
     }
 }

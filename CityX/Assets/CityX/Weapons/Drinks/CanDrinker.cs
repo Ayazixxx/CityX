@@ -34,21 +34,10 @@ namespace CityX.Weapons
         public const float DropSeconds = 3.22f;
 
         /// <summary>
-        /// The left hand at the tab (the owner's photo of a can being opened): the index finger hooked under the tab's ring from above, bent a little at the
-        /// knuckle and curled hard at its tip; the other three loosely curled beside it; the thumb open and turned down to brace on the rim.
+        /// The left hand at the tab (owner: "the hand his turned knuckles upward and the finger is pinching the tab"): the index finger and the thumb pinch it,
+        /// the other fingers tucked, as the slingshot's pouch is pinched. The clip turns the hand knuckles up and puts the pinch on the tab (can_drink.py).
         /// </summary>
-        public static FingerAmounts TabHand => new FingerAmounts(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, TabThumbDownDegrees)
-        {
-            Authored = 1.0f,
-            IndexRootDegrees = 20.0f,
-            IndexTipDegrees = 65.0f,
-            FingerRootDegrees = 45.0f,
-            FingerTipDegrees = 35.0f,
-            ThumbRootDegrees = -10.0f,
-            ThumbTipDegrees = 0.0f,
-        };
-
-        public const float TabThumbDownDegrees = 25.0f;
+        public static FingerAmounts TabHand => PlayerLocomotion.SlingshotPinch;
 
         /// <summary>When the left hand takes that shape and lets it go, seconds in: on its way to the tab, and on its way back down.</summary>
         public const float TabHandFromSeconds = 0.12f;

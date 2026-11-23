@@ -75,6 +75,9 @@ namespace CityX.Weapons
         public const float HoleHalfLength = 0.0045f;
         public const float HoleHalfWidth = 0.0038f;
 
+        /// <summary>The tab's free end from its hinge at the rivet (on top of it): where a finger pinches it.</summary>
+        public static Vector3 TabEndFromHinge => new Vector3(TabLength - TabBehindRivet, TabLift + TabThickness, 0.0f);
+
         /// <summary>Points round the tab's outline and its hole.</summary>
         public const int TabSteps = 32;
 
