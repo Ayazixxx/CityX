@@ -1,9 +1,10 @@
 # THE PHIZZ LABEL (owner, 2026-11-23): the owner's PHIZZ splash logo on top and their hand-drawn BANANA SODA smaller below it, as on their can
 # design, stacked into one transparent picture for the soda bottle (BottleShape: the soda bottle's decal).
 #   powershell -ExecutionPolicy Bypass -File phizz_label.ps1
+#   the can (owner: the PHIZZ splash 1.1x, "leave the banana soda the same size"; printed 1.1x bigger): -WordingScale 0.909 -Out ../../Assets/CityX/Weapons/Cans/PhizzCanLabel.png
 # Reads PhizzLogo.png and PhizzBananaSoda.png beside it (the owner's, transparent backgrounds), writes
 # CityX/Assets/CityX/Weapons/Bottles/PhizzLabel.png. Each is cropped to what is drawn on it first.
-param([string]$Out = "")
+param([string]$Out = "", [double]$WordingScale = 1.0)
 Add-Type -AssemblyName System.Drawing
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($Out -eq "") { $Out = Join-Path $here "..\..\Assets\CityX\Weapons\Bottles\PhizzLabel.png" }
@@ -43,7 +44,7 @@ $wording = Read-Drawn (Join-Path $here "PhizzBananaSoda.png")
 
 # Laid out in the logo's own pixels, then scaled to fit the square picture.
 $logoW = $logo.Rect.Width; $logoH = $logo.Rect.Height
-$wordW = $logoW * $WordingWidth
+$wordW = $logoW * $WordingWidth * $WordingScale
 $wordH = $wordW * $wording.Rect.Height / $wording.Rect.Width
 $margin = $logoW * $Margin
 $totalW = $logoW + 2 * $margin

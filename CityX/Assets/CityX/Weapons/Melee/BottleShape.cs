@@ -15,6 +15,9 @@ namespace CityX.Weapons
         /// <summary>A bottle in the game against a real one.</summary>
         public const float LifeScale = 2.4f;
 
+        /// <summary>The owner's PHIZZ BANANA SODA label (SourceArt/Phizz/phizz_label.ps1), on the soda bottle and the PHIZZ can.</summary>
+        public const string PhizzLabelPath = "Assets/CityX/Weapons/Bottles/PhizzLabel.png";
+
         /// <summary>This bottle against the others, on top of <see cref="LifeScale"/> (owner, 2026-11-23, of the soda bottle: "scale the whole soda bottle up 1.1x").</summary>
         public float Size = 1.0f;
 
@@ -143,7 +146,7 @@ namespace CityX.Weapons
                     new Vector2(0.0150f, 0.234f), new Vector2(0.0128f, 0.238f), new Vector2(0.0105f, 0.238f),
                 },
                 Glass = new Color(0.50f, 0.74f, 0.66f),
-                DecalPath = "Assets/CityX/Weapons/Bottles/PhizzLabel.png", DecalFrom = 0.026f, DecalTo = 0.116f, DecalArcDegrees = 178.0f,
+                DecalPath = PhizzLabelPath, DecalFrom = 0.026f, DecalTo = 0.116f, DecalArcDegrees = 178.0f,
                 Cap = new[]
                 {
                     new Vector2(0.0165f, 0.227f), new Vector2(0.0172f, 0.231f), new Vector2(0.0165f, 0.240f), new Vector2(0.0120f, 0.2425f),

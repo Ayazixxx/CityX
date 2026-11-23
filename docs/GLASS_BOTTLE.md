@@ -34,7 +34,7 @@ BANANA SODA are in `CityX/SourceArt/Phizz`; `phizz_label.ps1` stacks them into `
 among its drips, no wider than the word PHIZZ, nudged 8 pixels right: the owner's placing). `BottleShape.DecalPath` puts a picture on a
 bottle: printed on the glass (`BottleMesh.Printed`, cut-out where the picture is clear), once ahead and once behind as it is carried, and
 torn along the same break as the glass when it breaks in the hand. Upright as the bottle stands, so it is upside down in the carry (the
-bottle is held by its neck). Not yet: a full bottle to drink (the owner: for Fable), cans, vending machines, billboards.
+bottle is held by its neck). The PHIZZ can: docs/PHIZZ_CAN.md. Not yet: a full bottle or can to drink (the owner: for Fable), vending machines, billboards.
 
 ## How it plays (`BottleWeapon`)
 

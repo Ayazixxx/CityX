@@ -251,7 +251,7 @@ namespace CityX.WeaponsEditor
         /// A picture printed on the glass: the picture as it is where it is printed and nothing where it is clear (cut out, not blended: blended
         /// it is drawn after the glass and in no order with it), seen from inside too through a broken bottle, its sheen a little under the glass's.
         /// </summary>
-        private static Material PrintMaterial(string path, string picturePath)
+        public static Material PrintMaterial(string path, string picturePath)
         {
             var importer = (TextureImporter)AssetImporter.GetAtPath(picturePath);
             if (importer != null && (importer.wrapMode != TextureWrapMode.Clamp || !importer.alphaIsTransparency))
