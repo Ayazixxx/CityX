@@ -683,6 +683,15 @@ namespace CityX.ViewEditor
                 // Every colourway of the fingerless gloves (FingerlessGloveColourways).
                 var withGloves = new List<CityX.Character.Inventory.ItemPrefabEntry>(inventory.ItemPrefabs);
                 withGloves.AddRange(CityX.WearablesEditor.FingerlessGlovesBuilder.BuildAll());
+                // The other glass bottles (GlassBottleKinds; the first is listed above).
+                foreach (CityX.Items.GlassBottleKinds.Kind kind in CityX.Items.GlassBottleKinds.All)
+                {
+                    GameObject otherBottle = AssetDatabase.LoadAssetAtPath<GameObject>(CityX.Items.GlassBottleKinds.PrefabPath(kind.ItemId));
+                    if (kind.ItemId != CityX.Items.GlassBottleKinds.Classic && otherBottle != null)
+                    {
+                        withGloves.Add(new CityX.Character.Inventory.ItemPrefabEntry { ItemId = kind.ItemId, Prefab = otherBottle });
+                    }
+                }
                 inventory.ItemPrefabs = withGloves.ToArray();
 
                 // --- the grapple swing. Aim (left-click while a grappling

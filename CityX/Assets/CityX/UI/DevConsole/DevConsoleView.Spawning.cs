@@ -324,7 +324,6 @@ namespace CityX.UI
                 case "round_shield": return ItemRegistry.RoundShield;
                 case "riotshield":
                 case "riot_shield": return ItemRegistry.RiotShield;
-                case "bottle": return ItemRegistry.GlassBottle;
                 case "cloak": return ItemRegistry.HoodedCloak;
                 case "jeans":
                 case "black_jeans":
@@ -549,7 +548,7 @@ namespace CityX.UI
                 case "3d_glasses":
                 case "3dglasses":
                 case "glasses": return ItemRegistry.ThreeDGlasses;
-                default: return FingerlessGloveColourways.ItemIdForAlias(which);
+                default: return GlassBottleKinds.ItemIdForAlias(which) ?? FingerlessGloveColourways.ItemIdForAlias(which);
             }
         }
 

@@ -350,6 +350,16 @@ namespace CityX.Character
             SoulsSwordCombat souls = SoulsSword;
             if (weapon != null && souls != null && souls.IsEquipped && weapon.MovesetId == ComboChain.Sword)
             {
+                // A SWUNG THING THAT IS ALSO THROWN (a whole bottle, docs/GLASS_BOTTLE.md): right-click held is its aim, not a guard, and a
+                // click from the aim throws it; with right-click up it is swung as any one-handed weapon is. Once it cannot be thrown (the
+                // bottle broken), right-click is the guard again.
+                if (weapon is IAimedThrow thrown && (weapon.CanThrow() || thrown.IsThrowing))
+                {
+                    if (TickSwungThrow(weapon, thrown, souls))
+                    {
+                        return;
+                    }
+                }
                 TickSoulsSword(souls);
                 return;
             }
@@ -480,6 +490,46 @@ namespace CityX.Character
         /// attack has no key for now.
         /// Every swing goes where the camera looks.
         /// </summary>
+        /// <summary>
+        /// The aim and the throw of a swung weapon that can be thrown. True while it has the mouse (aiming, or the throw going): nothing is
+        /// swung or guarded then.
+        /// </summary>
+        private bool TickSwungThrow(IEquippableWeapon weapon, IAimedThrow thrown, SoulsSwordCombat souls)
+        {
+            Mouse mouse = Mouse.current;
+            bool canThrow = weapon.CanThrow() && !souls.IsCommitted;
+            WeaponAimInput.Action action = _weaponAim.Tick(
+                canThrow && mouse.rightButton.wasPressedThisFrame,
+                mouse.rightButton.wasReleasedThisFrame || (_weaponAim.IsAiming && (!mouse.rightButton.isPressed || !weapon.CanThrow())),
+                mouse.leftButton.wasPressedThisFrame);
+            if (action == WeaponAimInput.Action.Throw && weapon.CanThrow())
+            {
+                Transform yawSource = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
+                if (yawSource != null)
+                {
+                    Vector3 direction = ThrowDirection(yawSource);
+                    Vector3 origin = transform.position + Vector3.up * (_melee.OriginHeightFraction *
+                        (_locomotion != null ? _locomotion.WorldHeight : 1.8f)) + direction * 0.5f;
+                    weapon.Throw(gameObject, origin, direction);
+                }
+            }
+            bool busy = _weaponAim.IsAiming || thrown.IsThrowing;
+            if (_orbitCamera != null)
+            {
+                _orbitCamera.IsAiming = busy;
+            }
+            if (!thrown.IsThrowing)
+            {
+                thrown.SetAiming(gameObject, _weaponAim.IsAiming);
+            }
+            _throwAiming = busy;
+            if (busy)
+            {
+                souls.SetBlockHeld(false);
+            }
+            return busy;
+        }
+
         private void TickSoulsSword(SoulsSwordCombat souls)
         {
             Mouse mouse = Mouse.current;

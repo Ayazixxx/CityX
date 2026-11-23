@@ -179,6 +179,9 @@ PrefabInstance:
       addedObject: {fileID: 3353174932153861613}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 4634434617254352339}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 6287820491867235507}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -200,7 +203,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 3790777452179493783}
+      addedObject: {fileID: 2156714508577960188}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -463,8 +466,6 @@ MonoBehaviour:
   - ItemId: 
     Count: 0
   ItemPrefabs:
-  - ItemId: glass_bottle
-    Prefab: {fileID: 7564380461121874261, guid: f615af9ba7ae76e4b9494e58e831bcc7, type: 3}
   - ItemId: grappling_hook
     Prefab: {fileID: 8748897049915689983, guid: aa1a3e054dafd1e4689204413768550a, type: 3}
   - ItemId: pistol
@@ -609,6 +610,14 @@ MonoBehaviour:
     Prefab: {fileID: 1134740773219589210, guid: 720df01482731bf4f83bc1be31a9f863, type: 3}
   - ItemId: bw_sneakers
     Prefab: {fileID: 5600285032884238694, guid: a090140601ba787478135495df78d2d6, type: 3}
+  - ItemId: glass_bottle
+    Prefab: {fileID: 2456315277408525038, guid: 8ea76026d9a8adb46b21f48a2df38c49, type: 3}
+  - ItemId: beer_bottle
+    Prefab: {fileID: 3814419379802382758, guid: e79368f19c7a1014781b0cb34e0ace50, type: 3}
+  - ItemId: wine_bottle
+    Prefab: {fileID: 6553023325100973909, guid: 57bcc4a8933a266488342cbc5048e8ad, type: 3}
+  - ItemId: soda_bottle
+    Prefab: {fileID: 5856580927085859850, guid: e84953df37d57be43b40f57a778a569c, type: 3}
   - ItemId: black_fingerless_gloves
     Prefab: {fileID: 5931533627893786738, guid: fdb0894c2a877f243b6090be9d0fefd6, type: 3}
   - ItemId: brown_fingerless_gloves
@@ -1067,6 +1076,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.GrenadeThrower
   ThrownPrefab: {fileID: 1739624149125597005, guid: 20e5fc36ab98e8a4d9b1000dedea1075, type: 3}
   StickyPrefab: {fileID: 8251525289597130958, guid: ec5f3d249bd5d5f46b4a64c1eceacb26, type: 3}
+--- !u!114 &4634434617254352339
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf24603d6c864b04382ab412b9ffa519, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BottleThrower
+  ThrownPrefabs:
+  - {fileID: 4975853551717191964, guid: 9ac9577b8adf4214eb348d89ff62002f, type: 3}
+  - {fileID: 453155573149151686, guid: 5479b6b5e3b3d0543bc3a250cb386751, type: 3}
+  - {fileID: 6274430713240232464, guid: e78e8809ac5069042a0290081913cb63, type: 3}
+  - {fileID: 8185852258123393053, guid: 899fd4895c807d049a2d3eade3ff29d4, type: 3}
 --- !u!114 &6287820491867235507
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1160,7 +1186,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &3790777452179493783
+--- !u!114 &2156714508577960188
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

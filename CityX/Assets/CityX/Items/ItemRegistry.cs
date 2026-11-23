@@ -8,7 +8,7 @@ namespace CityX.Items
     /// </summary>
     public static class ItemRegistry
     {
-        public const string GlassBottle = "glass_bottle";
+        public const string GlassBottle = GlassBottleKinds.Classic;
         public const string HoodedCloak = "hooded_cloak";
         public const string MidnightCoat = "midnight_coat";
         public const string GreenFurHoodedParka = "green_fur_hooded_parka";
@@ -110,9 +110,8 @@ namespace CityX.Items
         public const int ShotgunShellStack = 60;
         public const int RpgRocketStack = 6;
 
-        private static readonly Dictionary<string, ItemDefinition> Items = WithGloves(new Dictionary<string, ItemDefinition>
+        private static readonly Dictionary<string, ItemDefinition> Items = WithBottles(WithGloves(new Dictionary<string, ItemDefinition>
         {
-            [GlassBottle] = new ItemDefinition(GlassBottle, "Glass Bottle", "weapon", EquipSlots.Primary, 1),
             [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [MidnightCoat] = new ItemDefinition(MidnightCoat, "Midnight Coat", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             // Meshy's parka remodelled onto this body (Wearables/FurHoodedParka); each colour is its own item.
@@ -232,7 +231,17 @@ namespace CityX.Items
             [RifleAmmo] = new ItemDefinition(RifleAmmo, "Rifle Ammo", AmmoCategory, string.Empty, RifleAmmoStack),
             [ShotgunShells] = new ItemDefinition(ShotgunShells, "Shotgun Shells", AmmoCategory, string.Empty, ShotgunShellStack),
             [RpgRockets] = new ItemDefinition(RpgRockets, "RPG Rockets", AmmoCategory, string.Empty, RpgRocketStack),
-        });
+        }));
+
+        /// <summary>The glass bottles, one item a shape (GlassBottleKinds): a one-handed club that breaks, thrown whole.</summary>
+        private static Dictionary<string, ItemDefinition> WithBottles(Dictionary<string, ItemDefinition> items)
+        {
+            foreach (GlassBottleKinds.Kind kind in GlassBottleKinds.All)
+            {
+                items[kind.ItemId] = new ItemDefinition(kind.ItemId, kind.DisplayName, "weapon", EquipSlots.Primary, 1);
+            }
+            return items;
+        }
 
         /// <summary>The fingerless gloves, one item a colour (FingerlessGloveColourways): on the hands, in the gloves slot.</summary>
         private static Dictionary<string, ItemDefinition> WithGloves(Dictionary<string, ItemDefinition> items)

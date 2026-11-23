@@ -1,4 +1,6 @@
-using CityX.CharacterEditor;
+using System.Collections.Generic;
+using CityX.Character;
+using CityX.Items;
 using CityX.Weapons;
 using UnityEditor;
 using UnityEngine;
@@ -6,77 +8,137 @@ using UnityEngine;
 namespace CityX.WeaponsEditor
 {
     /// <summary>
-    /// Builds the glass bottle and thrown-bottle prefabs, from
-    /// weapons/glass_bottle.gd's and thrown_bottle.gd's own numbers.
+    /// Builds every glass bottle (Items/GlassBottleKinds, docs/GLASS_BOTTLE.md) from its shape (BottleShape): for each, the bottle in the
+    /// hand and on the ground (whole, broken to a half with sharp points, broken down to its neck), the bottle in the air, and the pieces it
+    /// bursts into. The whole bottle is turned from its profile, or is the owner's own model (the first bottle, welded and smoothed); the
+    /// broken ones and the pieces are cut from that same bottle (BottleMesh), so a broken bottle is always the bottle it was.
     ///
-    /// BOTH VISUALS ARE PROCEDURAL, NOT bottle_model.glb. No glTF importer
-    /// is installed in this project -- every .glb here (not just this one)
-    /// sits on Unity's inert DefaultImporter and has never actually loaded
-    /// as geometry. Adding a package dependency to fix that is a call for
-    /// the user to make, not something to do silently mid-feature, so the
-    /// intact bottle is built with BottleMesh.BuildIntact the same way the
-    /// broken one already is.
-    ///
-    /// VisualRoot APPLIES BottleScale, THE ROOT NEVER DOES -- matching the
-    /// Godot original's own shape: BOTTLE_SCALE (2.4x) lives entirely on
-    /// the visual child transform, because the root's own position/
-    /// rotation is the live grip anchor while equipped.
+    /// Everything is made in the HELD bottle's frame (the fist's middle on the neck at the origin, the bottle out along +Y to its base) and
+    /// at its size in the game, so nothing is scaled or turned in the prefabs.
     /// </summary>
     public static class BottleBuilder
     {
-        private const string PrefabPath = "Assets/CityX/Weapons/GlassBottle.prefab";
-        private const string ThrownPrefabPath = "Assets/CityX/Weapons/ThrownBottle.prefab";
+        public const string Folder = "Assets/CityX/Weapons/Bottles";
 
-        // --- glass_bottle.gd's own unscaled proportions, in metres ---
-        private const float BodyHeight = 0.15f;
-        private const float ShoulderHeight = 0.02f;
-        private const float NeckHeight = 0.045f;
-        private const float RimHeight = 0.015f;
-        private const float BodyRadius = 0.032f;
-        private const float NeckRadius = 0.011f;
-        private const float IntactHeight = BodyHeight + ShoulderHeight + NeckHeight + RimHeight;
+        /// <summary>How finely the whole bottle is turned, and the bottle its broken halves and its pieces are cut from (the cuts need the finer).</summary>
+        private const int Sides = 20;
+        private const float RingEvery = 0.012f;
+        private const int CutSides = 36;
+        private const float CutRingEvery = 0.006f;
 
-        [MenuItem("CityX/Rebuild Glass Bottle")]
+        /// <summary>How many pieces a bottle bursts into, and each one's weight, kg.</summary>
+        private const int PieceCount = 14;
+        private const float PieceMass = 0.03f;
+
+        /// <summary>The label stands this far off the glass, metres of a real bottle.</summary>
+        private const float LabelProud = 0.0007f;
+
+        /// <summary>Glass shines; paper does not; a cap is painted tin.</summary>
+        private const float GlassSmoothness = 0.88f;
+        private const float PaperSmoothness = 0.1f;
+        private const float CapSmoothness = 0.6f;
+        private const float CapMetallic = 0.5f;
+
+        private const string ImpactCharacterSound = "Assets/CityX/Weapons/Audio/glass_hit_enemy.mp3";
+        private const string ImpactTerrainSound = "Assets/CityX/Weapons/Audio/glass_hit_terrain.mp3";
+
+        public static string ShatterPrefabPath(string itemId) => $"{Folder}/{itemId}_shatter.prefab";
+
+        [MenuItem("CityX/Rebuild Glass Bottles")]
+        public static void BuildAllFromMenu() => BuildAll();
+
+        /// <summary>The first bottle's prefab (every bottle is built).</summary>
         public static GameObject Build()
         {
-            var root = new GameObject("GlassBottle");
+            BuildAll();
+            return AssetDatabase.LoadAssetAtPath<GameObject>(GlassBottleKinds.PrefabPath(GlassBottleKinds.Classic));
+        }
+
+        /// <summary>Every bottle's prefab, for an inventory's list.</summary>
+        public static Inventory.ItemPrefabEntry[] BuildAll()
+        {
+            if (!AssetDatabase.IsValidFolder(Folder))
+            {
+                AssetDatabase.CreateFolder("Assets/CityX/Weapons", "Bottles");
+            }
+            var entries = new List<Inventory.ItemPrefabEntry>();
+            foreach (GlassBottleKinds.Kind kind in GlassBottleKinds.All)
+            {
+                GameObject prefab = BuildOne(BottleShape.For(kind.ItemId));
+                if (prefab != null)
+                {
+                    entries.Add(new Inventory.ItemPrefabEntry { ItemId = kind.ItemId, Prefab = prefab });
+                }
+            }
+            AssetDatabase.SaveAssets();
+            return entries.ToArray();
+        }
+
+        /// <summary>What a bottle is drawn in.</summary>
+        private sealed class Look
+        {
+            public Material Glass, OpenGlass, Label, Cap;
+        }
+
+        private static GameObject BuildOne(BottleShape shape)
+        {
+            string id = shape.ItemId;
+            var look = new Look
+            {
+                Glass = HeldModelBaker.LitMaterial($"{Folder}/{id}_glass.mat", shape.Glass, 0.0f, GlassSmoothness),
+                // A broken bottle and its pieces are seen from inside too.
+                OpenGlass = HeldModelBaker.LitMaterial($"{Folder}/{id}_glass_open.mat", shape.Glass, 0.0f, GlassSmoothness),
+                Label = shape.HasLabel ? HeldModelBaker.LitMaterial($"{Folder}/{id}_label.mat", shape.Label, 0.0f, PaperSmoothness) : null,
+                Cap = shape.Cap != null ? HeldModelBaker.LitMaterial($"{Folder}/{id}_cap.mat", shape.CapColour, CapMetallic, CapSmoothness) : null,
+            };
+            look.OpenGlass.SetFloat("_Cull", 0.0f);
+            if (look.Label != null)
+            {
+                look.Label.SetFloat("_Cull", 0.0f);
+            }
+
+            BottleMesh.Model whole = shape.Profile != null ? BottleMesh.Turned(shape.Profile, Sides, RingEvery) : Smoothed(shape.ModelPath);
+            BottleMesh.Model forCuts = shape.Profile != null ? BottleMesh.Turned(shape.Profile, CutSides, CutRingEvery) : whole;
+            BottleMesh.Model label = shape.HasLabel
+                ? BottleMesh.Turned(new[]
+                {
+                    new Vector2(shape.BodyRadius + LabelProud, shape.LabelFrom), new Vector2(shape.BodyRadius + LabelProud, shape.LabelTo),
+                }, CutSides, CutRingEvery)
+                : null;
+            BottleMesh.Model cap = shape.Cap != null ? BottleMesh.Turned(shape.Cap, Sides, RingEvery) : null;
+
+            GameObject shatter = BuildShatter(shape, forCuts, look);
+            GameObject thrown = BuildThrown(shape, whole, label, cap, look, shatter);
+
+            var root = new GameObject(id);
             try
             {
-                var visualRoot = new GameObject("VisualRoot");
-                visualRoot.transform.SetParent(root.transform, false);
-                visualRoot.transform.localScale = Vector3.one * BottleWeapon.BottleScale;
+                var intact = new GameObject("Intact");
+                intact.transform.SetParent(root.transform, false);
+                Part(intact.transform, "Glass", Saved(shape, "whole", whole), look.Glass);
+                AddDressing(intact.transform, shape, "whole", label, cap, look);
 
-                GameObject intact = BuildIntactVisual(visualRoot.transform);
-                GameObject broken = BuildBrokenVisual(visualRoot.transform);
+                GameObject broken = Broken(root.transform, "Broken", shape, forCuts, label, cap, look, shape.BrokenAt, BottleShape.LongestPoint, "broken");
+                GameObject neck = Broken(root.transform, "Shattered", shape, forCuts, null, cap, look, shape.ShatteredAt, BottleShape.LongestPoint * 0.6f, "neck");
                 broken.SetActive(false);
+                neck.SetActive(false);
 
-                var capsule = root.AddComponent<CapsuleCollider>();
-                capsule.radius = BodyRadius * BottleWeapon.BottleScale;
-                capsule.height = IntactHeight * BottleWeapon.BottleScale;
-                capsule.center = new Vector3(0.0f, capsule.height * 0.5f, 0.0f);
-                capsule.material = new PhysicsMaterial("BottleGlassPhysics")
-                {
-                    bounciness = BottleWeapon.BottleBounce,
-                    dynamicFriction = BottleWeapon.BottleFriction,
-                    staticFriction = BottleWeapon.BottleFriction,
-                };
-
-                var body = root.AddComponent<Rigidbody>();
-                body.mass = BottleWeapon.BottleMass;
-
+                AddBody(root, shape);
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
                 pickupTrigger.radius = BottleWeapon.InteractRange;
 
                 var bottle = root.AddComponent<BottleWeapon>();
-                bottle.VisualRoot = visualRoot.transform;
+                bottle.SetItemId(id);
                 bottle.IntactVisual = intact;
                 bottle.BrokenVisual = broken;
-                bottle.ThrownBottlePrefab = BuildThrownBottle();
+                bottle.ShatteredVisual = neck;
+                bottle.ThrownBottlePrefab = thrown;
+                bottle.ShatterPrefab = shatter;
+                bottle.BreakSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactTerrainSound);
 
-                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
-                AssetDatabase.SaveAssets();
-                Debug.Log($"CityX: glass bottle written to {PrefabPath}");
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, GlassBottleKinds.PrefabPath(id));
+                Debug.Log($"CityX: {id} written to {GlassBottleKinds.PrefabPath(id)} -- {whole.TriangleCount} triangles whole");
                 return saved;
             }
             finally
@@ -85,96 +147,225 @@ namespace CityX.WeaponsEditor
             }
         }
 
-        private static GameObject BuildIntactVisual(Transform parent)
+        /// <summary>The owner's model as a bottle standing on its base: its points welded and its faces smoothed over (it came as loose triangles).</summary>
+        private static BottleMesh.Model Smoothed(string modelPath)
         {
-            var visual = new GameObject("Intact");
-            visual.transform.SetParent(parent, false);
-
-            var filter = visual.AddComponent<MeshFilter>();
-            filter.sharedMesh = EnsureMeshAsset(
-                BottleMesh.BuildIntact(BodyHeight, ShoulderHeight, NeckHeight, RimHeight, BodyRadius, NeckRadius),
-                "Assets/CityX/Weapons/IntactBottleMesh.asset");
-
-            Material glass = CharacterSkin.Ensure("BottleGlass", new Color(0.34f, 0.22f, 0.08f, 0.55f));
-            glass.SetFloat("_Smoothness", 0.85f);
-            var renderer = visual.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = glass;
-            return visual;
+            HeldModelBaker.Load(modelPath, out Vector3[] vertices, out _, out int[] triangles);
+            var model = new BottleMesh.Model();
+            var at = new Dictionary<Vector3Int, int>();
+            var remap = new int[vertices.Length];
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3Int place = Vector3Int.RoundToInt(vertices[i] * 100000.0f);
+                if (!at.TryGetValue(place, out int made))
+                {
+                    made = model.Vertices.Count;
+                    model.Vertices.Add(vertices[i]);
+                    model.Normals.Add(Vector3.zero);
+                    at[place] = made;
+                }
+                remap[i] = made;
+            }
+            for (int t = 0; t + 2 < triangles.Length; t += 3)
+            {
+                int a = remap[triangles[t]], b = remap[triangles[t + 1]], c = remap[triangles[t + 2]];
+                if (a == b || b == c || a == c)
+                {
+                    continue;
+                }
+                Vector3 face = Vector3.Cross(model.Vertices[b] - model.Vertices[a], model.Vertices[c] - model.Vertices[a]);
+                model.Normals[a] += face;
+                model.Normals[b] += face;
+                model.Normals[c] += face;
+                model.Triangles.Add(a);
+                model.Triangles.Add(b);
+                model.Triangles.Add(c);
+            }
+            for (int i = 0; i < model.Normals.Count; i++)
+            {
+                model.Normals[i] = model.Normals[i].sqrMagnitude > 1e-20f ? model.Normals[i].normalized : Vector3.up;
+            }
+            return model;
         }
 
-        private static GameObject BuildBrokenVisual(Transform parent)
+        /// <summary>A standing model saved as a mesh in the held bottle's frame, at the game's size.</summary>
+        private static Mesh Saved(BottleShape shape, string part, BottleMesh.Model standing)
         {
-            var broken = new GameObject("Broken");
+            BottleMesh.Model held = BottleMesh.InHand(standing, shape.GripHeight, BottleShape.Scale);
+            return HeldModelBaker.Save($"{Folder}/{shape.ItemId}_{part}.asset", $"{shape.ItemId}_{part}", held.Vertices.ToArray(), held.Normals.ToArray(),
+                held.Triangles.ToArray());
+        }
+
+        private static void Part(Transform parent, string name, Mesh mesh, Material material)
+        {
+            HeldModelBaker.Part(parent, name, mesh, material);
+        }
+
+        private static void AddDressing(Transform parent, BottleShape shape, string part, BottleMesh.Model label, BottleMesh.Model cap, Look look)
+        {
+            if (label != null && label.TriangleCount > 0)
+            {
+                Part(parent, "Label", Saved(shape, part + "_label", label), look.Label);
+            }
+            if (cap != null)
+            {
+                Part(parent, "Cap", Saved(shape, "cap", cap), look.Cap);
+            }
+        }
+
+        /// <summary>The bottle from its mouth down to a break at <paramref name="level"/>, with what is left of its label, and its cap.</summary>
+        private static GameObject Broken(Transform parent, string name, BottleShape shape, BottleMesh.Model forCuts, BottleMesh.Model label,
+            BottleMesh.Model cap, Look look, float level, float longestPoint, string part)
+        {
+            var broken = new GameObject(name);
             broken.transform.SetParent(parent, false);
-
-            var filter = broken.AddComponent<MeshFilter>();
-            filter.sharedMesh = EnsureMeshAsset(
-                BottleMesh.BuildBroken(IntactHeight), "Assets/CityX/Weapons/BrokenBottleMesh.asset");
-
-            Material dullGlass = CharacterSkin.Ensure("BottleGlassBroken", new Color(0.22f, 0.19f, 0.16f, 0.85f));
-            dullGlass.SetFloat("_Smoothness", 0.35f);
-            var renderer = broken.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = dullGlass;
+            Part(broken.transform, "Glass", Saved(shape, part, BottleMesh.BrokenOff(forCuts, level, longestPoint)), look.OpenGlass);
+            AddDressing(broken.transform, shape, part, label != null ? BottleMesh.BrokenOff(label, level, longestPoint) : null, cap, look);
             return broken;
         }
 
-        /// <summary>
-        /// A Mesh built with `new Mesh()` lives only in memory -- assigning
-        /// it to a MeshFilter and saving the PREFAB does not persist it, so
-        /// the reference resolves to nothing the next time the project
-        /// loads. Saved as its own small asset instead, matching how every
-        /// other generated mesh in this project (FusedBody's own included)
-        /// is made to survive a reload.
-        /// </summary>
-        private static Mesh EnsureMeshAsset(Mesh mesh, string path)
+        /// <summary>A body and a capsule about the whole bottle.</summary>
+        private static void AddBody(GameObject root, BottleShape shape)
         {
-            Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(path);
-            if (existing != null)
-            {
-                AssetDatabase.DeleteAsset(path);
-            }
-            AssetDatabase.CreateAsset(mesh, path);
-            return mesh;
+            var capsule = root.AddComponent<CapsuleCollider>();
+            capsule.direction = 1;
+            capsule.radius = shape.BodyRadius * BottleShape.Scale;
+            capsule.height = shape.Height * BottleShape.Scale;
+            capsule.center = new Vector3(0.0f, (shape.GripHeight - shape.Height * 0.5f) * BottleShape.Scale, 0.0f);
+            var body = root.AddComponent<Rigidbody>();
+            body.mass = BottleWeapon.BottleMass;
         }
 
-        private static GameObject BuildThrownBottle()
+        private static GameObject BuildThrown(BottleShape shape, BottleMesh.Model whole, BottleMesh.Model label, BottleMesh.Model cap, Look look,
+            GameObject shatter)
         {
-            var root = new GameObject("ThrownBottle");
+            var root = new GameObject(shape.ItemId + "_thrown");
             try
             {
-                var visual = new GameObject("Visual");
-                visual.transform.SetParent(root.transform, false);
-                visual.transform.localScale = Vector3.one * BottleWeapon.BottleScale;
-                var filter = visual.AddComponent<MeshFilter>();
-                filter.sharedMesh = EnsureMeshAsset(
-                    BottleMesh.BuildIntact(BodyHeight, ShoulderHeight, NeckHeight, RimHeight, BodyRadius, NeckRadius),
-                    "Assets/CityX/Weapons/ThrownBottleMesh.asset");
-                Material glass = CharacterSkin.Ensure("BottleGlass", new Color(0.34f, 0.22f, 0.08f, 0.55f));
-                var renderer = visual.AddComponent<MeshRenderer>();
-                renderer.sharedMaterial = glass;
-
-                var body = root.AddComponent<Rigidbody>();
-                body.mass = BottleWeapon.BottleMass;
-                body.useGravity = true;
-
-                var collider = root.AddComponent<SphereCollider>();
-                collider.radius = BodyRadius * BottleWeapon.BottleScale * 1.2f;
-
+                Part(root.transform, "Glass", Saved(shape, "whole", whole), look.Glass);
+                AddDressing(root.transform, shape, "whole", label, cap, look);
+                AddBody(root, shape);
                 var thrown = root.AddComponent<ThrownBottle>();
-                thrown.ShatterPrefab = GlassShatterBuilder.Build();
-                thrown.ImpactCharacterSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
-                    "Assets/CityX/Weapons/Audio/glass_hit_enemy.mp3");
-                thrown.ImpactTerrainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
-                    "Assets/CityX/Weapons/Audio/glass_hit_terrain.mp3");
-
-                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, ThrownPrefabPath);
-                Debug.Log($"CityX: thrown bottle written to {ThrownPrefabPath}");
-                return saved;
+                thrown.ShatterPrefab = shatter;
+                thrown.ImpactCharacterSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactCharacterSound);
+                thrown.ImpactTerrainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactTerrainSound);
+                return PrefabUtility.SaveAsPrefabAsset(root, GlassBottleKinds.ThrownPrefabPath(shape.ItemId));
             }
             finally
             {
                 Object.DestroyImmediate(root);
             }
+        }
+
+        /// <summary>The bottle in pieces (BottleShatter): each a body of its own where it was in the bottle, and a burst of glints.</summary>
+        private static GameObject BuildShatter(BottleShape shape, BottleMesh.Model forCuts, Look look)
+        {
+            var root = new GameObject(shape.ItemId + "_shatter");
+            try
+            {
+                List<BottleMesh.Piece> pieces = BottleMesh.Pieces(forCuts, PieceCount, shape.NeckBase, shape.ItemId.Length * 7919);
+                var bodies = new List<Rigidbody>();
+                var along = new List<float>();
+                for (int i = 0; i < pieces.Count; i++)
+                {
+                    BottleMesh.Model model = pieces[i].Model;
+                    var vertices = new Vector3[model.Vertices.Count];
+                    var normals = new Vector3[model.Normals.Count];
+                    for (int v = 0; v < vertices.Length; v++)
+                    {
+                        vertices[v] = BottleMesh.HeldDirection(model.Vertices[v]) * BottleShape.Scale;
+                        normals[v] = BottleMesh.HeldDirection(model.Normals[v]);
+                    }
+                    Mesh mesh = HeldModelBaker.Save($"{Folder}/{shape.ItemId}_piece{i}.asset", $"{shape.ItemId}_piece{i}", vertices, normals,
+                        model.Triangles.ToArray());
+                    Transform piece = HeldModelBaker.Part(root.transform, "Piece" + i, mesh, look.OpenGlass);
+                    piece.localPosition = BottleMesh.Held(pieces[i].Centre, shape.GripHeight, BottleShape.Scale);
+                    var box = piece.gameObject.AddComponent<BoxCollider>();
+                    box.center = mesh.bounds.center;
+                    box.size = Vector3.Max(mesh.bounds.size, Vector3.one * 0.02f);
+                    var body = piece.gameObject.AddComponent<Rigidbody>();
+                    body.mass = PieceMass;
+                    bodies.Add(body);
+                    along.Add(piece.localPosition.y);
+                }
+                var shatter = root.AddComponent<BottleShatter>();
+                shatter.Pieces = bodies.ToArray();
+                shatter.AlongBottle = along.ToArray();
+                AddGlints(root.transform, shape);
+                return PrefabUtility.SaveAsPrefabAsset(root, ShatterPrefabPath(shape.ItemId));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        // ---- the glints: a spray of bright specks of glass, gone in half a second ----
+
+        private const string GlintMaterialPath = Folder + "/BottleGlints.mat";
+        private const int Glints = 26;
+        private const float GlintSeconds = 0.5f;
+        private const float GlintSize = 0.035f;
+
+        private static void AddGlints(Transform parent, BottleShape shape)
+        {
+            var glints = new GameObject("Glints");
+            glints.transform.SetParent(parent, false);
+            glints.transform.localPosition = new Vector3(0.0f, shape.Reach * 0.5f, 0.0f);
+            ParticleSystem particles = glints.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = particles.main;
+            main.duration = GlintSeconds;
+            main.loop = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(GlintSeconds * 0.5f, GlintSeconds);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(2.0f, 6.0f);
+            main.startSize = new ParticleSystem.MinMaxCurve(GlintSize * 0.4f, GlintSize);
+            main.startRotation3D = true;
+            main.startRotationX = new ParticleSystem.MinMaxCurve(0.0f, Mathf.PI * 2.0f);
+            main.startRotationY = new ParticleSystem.MinMaxCurve(0.0f, Mathf.PI * 2.0f);
+            main.startRotationZ = new ParticleSystem.MinMaxCurve(0.0f, Mathf.PI * 2.0f);
+            // The glass's own colour, most of the way to white: a glint is the light off it.
+            Color bright = Color.Lerp(shape.Glass, Color.white, 0.65f);
+            main.startColor = bright;
+            main.gravityModifier = 1.2f;
+            main.playOnAwake = true;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = Glints;
+            ParticleSystem.EmissionModule emission = particles.emission;
+            emission.rateOverTime = 0.0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0.0f, Glints) });
+            ParticleSystem.ShapeModule burst = particles.shape;
+            burst.enabled = true;
+            burst.shapeType = ParticleSystemShapeType.Sphere;
+            burst.radius = shape.BodyRadius * BottleShape.Scale;
+            ParticleSystem.SizeOverLifetimeModule size = particles.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1.0f, AnimationCurve.Linear(0.0f, 1.0f, 1.0f, 0.0f));
+
+            var material = AssetDatabase.LoadAssetAtPath<Material>(GlintMaterialPath);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+                AssetDatabase.CreateAsset(material, GlintMaterialPath);
+                var speck = new Mesh { name = "Glint" };
+                speck.SetVertices(new[] { new Vector3(-0.5f, -0.4f, 0.0f), new Vector3(0.5f, -0.2f, 0.0f), new Vector3(0.1f, 0.6f, 0.0f) });
+                speck.SetTriangles(new[] { 0, 1, 2, 0, 2, 1 }, 0);
+                speck.RecalculateNormals();
+                speck.RecalculateBounds();
+                AssetDatabase.AddObjectToAsset(speck, material);   // parked on the material, so it is not loose
+            }
+            material.color = Color.white;
+            ParticleSystemRenderer renderer = glints.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Mesh;
+            foreach (Object sub in AssetDatabase.LoadAllAssetsAtPath(GlintMaterialPath))
+            {
+                if (sub is Mesh speck)
+                {
+                    renderer.mesh = speck;
+                }
+            }
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
         }
     }
 }

@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.Items;
 using CityX.Weapons;
 using UnityEditor;
 using UnityEngine;
@@ -135,6 +136,17 @@ namespace CityX.CharacterEditor
             var grenades = GetOrAdd<GrenadeThrower>(player);
             grenades.ThrownPrefab = Load(ThrownGrenadePrefabPath) ?? grenades.ThrownPrefab;
             grenades.StickyPrefab = Load(ThrownSemtexPrefabPath) ?? grenades.StickyPrefab;
+
+            // --- a glass bottle as other players see it (2026-11-23, docs/GLASS_BOTTLE.md): aimed, thrown (a copy of it flies and shatters) and
+            // --- broken in the hand.
+            var bottles = GetOrAdd<BottleThrower>(player);
+            var thrownBottles = new GameObject[GlassBottleKinds.All.Length];
+            for (int i = 0; i < thrownBottles.Length; i++)
+            {
+                thrownBottles[i] = Load(GlassBottleKinds.ThrownPrefabPath(GlassBottleKinds.All[i].ItemId))
+                    ?? (i < bottles.ThrownPrefabs.Length ? bottles.ThrownPrefabs[i] : null);
+            }
+            bottles.ThrownPrefabs = thrownBottles;
 
             // --- the RPG's rockets as other players see them (2026-11-19, docs/RPG.md): a copy fires the same rocket, and it bursts where it did.
             GetOrAdd<RocketLauncher>(player);

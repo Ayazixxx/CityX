@@ -13,6 +13,9 @@ namespace CityX.Weapons
     {
         public const string Label = "Hits";
 
+        /// <summary>A glass bottle (owner, 2026-11-23: "it starts as a blunt", "a broken bottle that does pierce damage").</summary>
+        private const string BottleHits = "Blunt (broken: Pierce; thrown: Impact)";
+
         private static readonly Dictionary<string, string> Lines = new Dictionary<string, string>
         {
             // One-handed melee
@@ -20,7 +23,10 @@ namespace CityX.Weapons
             [ItemRegistry.MetalCrowbar] = "Blunt",
             [ItemRegistry.KitchenKnife] = "Slash (heavy stab: Pierce)",
             [ItemRegistry.ButterKnife] = "Blunt (heavy stab: Pierce)",
-            [ItemRegistry.GlassBottle] = "Blunt (thrown: Impact)",
+            [GlassBottleKinds.Classic] = BottleHits,
+            [GlassBottleKinds.Beer] = BottleHits,
+            [GlassBottleKinds.Wine] = BottleHits,
+            [GlassBottleKinds.Soda] = BottleHits,
             [ItemRegistry.Chain] = "Blunt",
             // Two-handed melee
             [ItemRegistry.SpikeSword] = "Slash",

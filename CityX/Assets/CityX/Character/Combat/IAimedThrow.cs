@@ -9,5 +9,8 @@ namespace CityX.Character
     public interface IAimedThrow
     {
         void SetAiming(GameObject player, bool aiming);
+
+        /// <summary>A throw has begun and the thing has not left the hand yet (a bottle's arm coming forward): nothing else is begun with it.</summary>
+        bool IsThrowing => false;
     }
 }
