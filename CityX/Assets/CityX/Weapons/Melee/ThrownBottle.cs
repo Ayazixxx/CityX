@@ -25,6 +25,20 @@ namespace CityX.Weapons
 
         [Tooltip("The bottle's own pieces (BottleShatter), made where it breaks.")]
         public GameObject ShatterPrefab;
+
+        [Tooltip("Where the pieces are made from, if not this: a full drink's model stands on its base, its pieces are made about its neck.")]
+        public Transform ShatterAt;
+
+        [Tooltip("A full drink: it splashes this colour where it lands (docs/PHIZZ_CAN.md).")]
+        public bool Splashes;
+
+        public Color SplashColour = Color.white;
+
+        [Tooltip("What is left where it lands, if anything (a can bursts open and lies there empty).")]
+        public GameObject LeftBehind;
+
+        /// <summary>How hard a drink splashes where it lands (BloodBurst's strength: a heavy blow's).</summary>
+        public const float SplashStrength = 1.8f;
         public AudioClip ImpactCharacterSound;
         public AudioClip ImpactTerrainSound;
 
@@ -151,7 +165,21 @@ namespace CityX.Weapons
                 breakable?.TakeBlow(point, -normal, CityX.World.BlowStrength.Heavy);
             }
 
-            BottleShatter.Spawn(ShatterPrefab, transform.position, transform.rotation, _velocity, normal, float.NegativeInfinity, _reachesTo);
+            Transform pieces = ShatterAt != null ? ShatterAt : transform;
+            BottleShatter.Spawn(ShatterPrefab, pieces.position, pieces.rotation, _velocity, normal, float.NegativeInfinity, _reachesTo);
+            if (Splashes)
+            {
+                BloodBurst.Splash(point, normal, SplashStrength, SplashColour);
+            }
+            if (LeftBehind != null)
+            {
+                GameObject left = Instantiate(LeftBehind, transform.position, transform.rotation);
+                var body = left.GetComponent<Rigidbody>();
+                if (body != null)
+                {
+                    body.linearVelocity = Vector3.Reflect(_velocity, normal) * 0.25f;
+                }
+            }
             AudioClip sound = hitCharacter ? ImpactCharacterSound : ImpactTerrainSound;
             if (sound != null)
             {

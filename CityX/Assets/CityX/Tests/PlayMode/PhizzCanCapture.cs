@@ -135,5 +135,66 @@ namespace CityX.Tests
             var lid = new Vector3(0.25f, 1.6f, 0.5f);
             BuildingShapeCapture.Shoot(camera, folder, $"{prefix}-tab-{moment}", lid + new Vector3(-0.35f, 0.75f, 0.85f), lid);
         }
+
+        /// <summary>A full bottle and a can thrown at a wall, moment by moment from beside: drink-splash-*.png (the pieces, the yellow splash, the can left).</summary>
+        [UnityTest]
+        public IEnumerator RenderTheSplash()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            LogAssert.ignoreFailingMessages = true;
+            Time.captureFramerate = 60;
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            ground.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.transform.position = new Vector3(0.0f, 2.0f, 4.0f);
+            wall.transform.localScale = new Vector3(8.0f, 4.0f, 0.4f);
+            var sun = new GameObject("Sun").AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.intensity = 1.3f;
+            sun.transform.rotation = Quaternion.Euler(35.0f, 160.0f, 0.0f);
+            var camera = new GameObject("Cam").AddComponent<Camera>();
+            camera.fieldOfView = 40.0f;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
+            string folder = BuildingShapeCapture.ShotsFolder;
+            foreach (string kind in new[] { "bottle", "can" })
+            {
+                GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(kind == "bottle" ? FullBottle.ThrownPrefabPath : PhizzCan.ThrownPrefabPath);
+                ThrownBottle.Spawn(prefab, new Vector3(0.0f, 1.8f, 0.5f), Quaternion.identity, new Vector3(0.0f, 1.0f, 12.0f), 0, null);
+                float seconds = 0.0f;
+                int shot = 0;
+                float[] moments = { 0.2f, 0.3f, 0.4f, 0.55f, 0.8f, 1.2f };
+                while (shot < moments.Length)
+                {
+                    yield return null;
+                    seconds += 1.0f / 60.0f;
+                    if (seconds >= moments[shot])
+                    {
+                        BuildingShapeCapture.Shoot(camera, folder, $"drink-splash-{kind}-{shot}", new Vector3(4.0f, 2.2f, 1.5f), new Vector3(0.0f, 1.4f, 3.5f));
+                        shot++;
+                    }
+                }
+                foreach (BottleShatter pieces in Object.FindObjectsByType<BottleShatter>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(pieces.gameObject);
+                }
+                foreach (DroppedCan left in Object.FindObjectsByType<DroppedCan>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(left.gameObject);
+                }
+                yield return null;
+            }
+            Object.Destroy(camera.gameObject);
+            Object.Destroy(sun.gameObject);
+            Object.Destroy(wall);
+            Object.Destroy(ground);
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+#else
+            Assert.Ignore("needs the editor to load the prefabs.");
+            yield break;
+#endif
+        }
     }
 }

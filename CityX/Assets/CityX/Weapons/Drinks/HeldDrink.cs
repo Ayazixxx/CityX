@@ -12,13 +12,20 @@ namespace CityX.Weapons
     /// opened, what is left after, what it heals) is the drink's own.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public abstract class HeldDrink : MonoBehaviour, IEquippableItem, ICosmeticMountable, IHandGripStyle, IRaisedCarry, IHeldDrink
+    public abstract class HeldDrink : MonoBehaviour, IEquippableItem, ICosmeticMountable, IHandGripStyle, IRaisedCarry, IHeldDrink, IAimedThrow,
+        CityX.World.IBreakableSurface
     {
         public const float InteractRange = 2.5f;
 
         private Rigidbody _rigidbody;
         private readonly GroundPickup _pickup = new GroundPickup();
         private bool _equipped;
+        private BottleThrower _thrower;
+        private bool _throwing;
+        private Vector3 _aimPoint;
+
+        [Tooltip("It in the air, thrown full: it lands with a splash (ThrownBottle).")]
+        public GameObject ThrownPrefab;
 
         /// <summary>The body holding it (its owner's, or another player's copy of it); null on the ground.</summary>
         protected GameObject Holder { get; private set; }
@@ -111,11 +118,105 @@ namespace CityX.Weapons
             return drinker != null && drinker.Begin(this);
         }
 
+        // ---- broken where it lies (owner: "a yellow liquid splash effect when the bottle is broken (when shot or thrown)") ----
+
+        /// <summary>How hard a drink splashes when it is broken where it lies (BloodBurst's strength).</summary>
+        public const float BrokenSplashStrength = 1.6f;
+
+        /// <summary>A blow or a shot on it where it lies (not in a hand): it bursts and splashes; a shot goes on through.</summary>
+        public bool TakePunch(Vector3 point) => TakeBlow(point, Vector3.down, CityX.World.BlowStrength.Light);
+
+        public bool TakeBlow(Vector3 point, Vector3 direction, CityX.World.BlowStrength strength)
+        {
+            if (Holder != null || !gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+            BloodBurst.Splash(point, direction.sqrMagnitude > 1e-6f ? direction : Vector3.up, BrokenSplashStrength, FullBottle.LiquidColour);
+            Burst(point, direction);
+            Destroy(gameObject);
+            return true;
+        }
+
+        /// <summary>What is left when it is broken where it lies (the bottle's pieces, the can lying open).</summary>
+        protected abstract void Burst(Vector3 point, Vector3 direction);
+
+        // ---- thrown (the bottle's aim and throw: BottleThrower, its moves seen by other players) ----
+
+        private bool BeingDrunk => Holder != null && Holder.GetComponent<Drinker>() is Drinker drinker && drinker.Drinking;
+
+        public bool CanThrow => !_throwing && !BeingDrunk;
+
+        public bool IsThrowing => _throwing;
+
+        public void SetAiming(GameObject player, bool aiming)
+        {
+            if (_thrower != null && !_throwing)
+            {
+                _thrower.Aim(aiming);
+            }
+        }
+
+        public void Throw(GameObject player, Vector3 origin, Vector3 direction)
+        {
+            if (!CanThrow)
+            {
+                return;
+            }
+            _aimPoint = origin + direction.normalized * BottleWeapon.AimMetres;
+            if (_thrower == null)
+            {
+                LetGoThrown();
+                return;
+            }
+            _throwing = true;
+            _thrower.Driver.Released += LetGoThrown;
+            if (!_thrower.BeginThrow())
+            {
+                _thrower.Driver.Released -= LetGoThrown;
+                _throwing = false;
+            }
+        }
+
+        /// <summary>Its middle, the game's metres up from its base: a thrown drink turns about itself.</summary>
+        protected abstract float MiddleHeight { get; }
+
+        /// <summary>The throw lets it go: it flies at the crosshair, full, and the next of a stack comes out of the bag.</summary>
+        private void LetGoThrown()
+        {
+            if (_thrower != null)
+            {
+                _thrower.Driver.Released -= LetGoThrown;
+            }
+            _throwing = false;
+            GameObject player = Holder;
+            if (player == null)
+            {
+                return;
+            }
+            Vector3 from = transform.TransformPoint(Vector3.up * MiddleHeight);
+            Vector3 way = _aimPoint - from;
+            way = way.sqrMagnitude > 1e-6f ? way.normalized : player.transform.forward;
+            if (_thrower != null)
+            {
+                _thrower.Throw(ThrownPrefab, DrinkItemId, BottleWeapon.DurabilityState.Intact, from, transform.rotation, way * BottleWeapon.ThrowSpeedConst,
+                    BottleWeapon.IntactThrowDamage);
+            }
+            else
+            {
+                var vitals = player.GetComponent<PlayerVitals>();
+                ThrownBottle.Spawn(ThrownPrefab, from, transform.rotation, way * BottleWeapon.ThrowSpeedConst, vitals != null ? vitals.Strength : 0,
+                    player.GetComponentsInChildren<Collider>(), 0.0f, player, false, 0, BottleWeapon.IntactThrowDamage);
+            }
+            DrinkStack.Drunk(this, player, null);
+        }
+
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
         {
             Hold(player);
             Holder = player;
             _equipped = true;
+            _thrower = player.GetComponent<BottleThrower>();
             var input = player.GetComponent<PlayerInputReader>();
             if (input != null)
             {
@@ -125,6 +226,14 @@ namespace CityX.Weapons
 
         public void OnUnequip(GameObject player)
         {
+            if (_thrower != null)
+            {
+                _thrower.Driver.Released -= LetGoThrown;
+                if (_throwing)
+                {
+                    _thrower.Driver.Stop();
+                }
+            }
             var drinker = player != null ? player.GetComponent<Drinker>() : null;
             if (drinker != null)
             {

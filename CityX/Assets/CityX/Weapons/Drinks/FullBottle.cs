@@ -18,6 +18,9 @@ namespace CityX.Weapons
 
         public const string DrinkClip = "bottle_drink";
 
+        /// <summary>The bottle in the air, thrown full (FullBottleBuilder).</summary>
+        public const string ThrownPrefabPath = "Assets/CityX/Weapons/Cans/phizz_bottle_thrown.prefab";
+
         /// <summary>What a full bottle heals, and over how long (the owner's).</summary>
         public const float Heal = 100.0f;
         public const float Seconds = 10.0f;
@@ -61,6 +64,8 @@ namespace CityX.Weapons
         public override float HealAmount => Heal;
         public override float HealSeconds => Seconds;
         protected override Vector3 HoldPosition => Hold;
+
+        protected override float MiddleHeight => Shape != null ? Shape.Height * Shape.Scale * 0.5f : 0.3f;
 
         /// <summary>The thumb turned round the bottle's side (measured on the skin: CanGripPlayTests).</summary>
         protected override float ThumbTurn => -90.0f;
@@ -161,6 +166,17 @@ namespace CityX.Weapons
         public override void Finished()
         {
             DrinkStack.Drunk(this, Holder, EmptyItemId);
+        }
+
+        [Tooltip("The soda bottle's own pieces (BottleShatter), made about its neck: broken where it lies.")]
+        public GameObject ShatterPrefab;
+
+        /// <summary>Broken where it lies: it bursts into the soda bottle's pieces (made in the held frame: the neck at the origin, the base along +Y).</summary>
+        protected override void Burst(Vector3 point, Vector3 direction)
+        {
+            BottleShape shape = Shape;
+            Vector3 neck = transform.TransformPoint(Vector3.up * (shape != null ? shape.GripHeight * shape.Scale : 0.4f));
+            BottleShatter.Spawn(ShatterPrefab, neck, transform.rotation * Quaternion.Euler(180.0f, 0.0f, 0.0f), direction * 2.0f, -direction);
         }
     }
 }

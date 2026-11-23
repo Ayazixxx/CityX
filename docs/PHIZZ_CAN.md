@@ -91,3 +91,20 @@ Owner, 2026-11-23: "make the glass bottle full of piss yellow liquid and when yo
 - **Stacks** (`DrinkStack`, both drinks, `ItemRegistry.EndlessStack`): one in the hand, the rest in a bag slot; when the one in the hand is gone the next
   comes out of the bag (as grenades do). The empty bottle goes in the bag while there are more to drink, stays in the hand after the last (set down at
   the feet if the bag is full). `/spawn` and `/equip` hand out 6.
+
+## Thrown, splashed, shot (2026-11-23)
+
+Owner: "in inventory primary or secondary and you hold it in hand, click to drink hold right click to aim and click to throw when aiming", "make a yellow
+liquid splash effect when the bottle is broken (when shot or thrown)".
+
+- **Thrown**: right-click held raises a drink with the bottle's own aim move, a click from there throws it with the bottle's throw (`BottleThrower`: other
+  players see the moves and a copy fly; it is listed after the bottles in `BottleThrower.Throwables`), at the crosshair, full; the next of a stack comes
+  out of the bag. The input is the bottle's (`PlayerInputReader.TickAimedThrow`, shared). A whole bottle's damage (`BottleWeapon.IntactThrowDamage`).
+- **Where it lands** (`ThrownBottle`): the full bottle bursts into the soda bottle's own pieces (`ShatterAt` turns its standing frame into the held one
+  the pieces are made in) and splashes yellow; the can splashes and is left lying there empty (`LeftBehind`). The splash is the blood burst in the
+  drink's colour (`BloodBurst.Splash`: heavy drops that arc and a fine spray).
+- **Shot or struck where it lies** (`HeldDrink` is an `IBreakableSurface`, as a window is): it bursts and splashes, and a bullet goes on through.
+  Only a drink lying as itself in the world: one dropped from a bag is an inert copy (`DroppedItem`) and is not broken yet; a drink in a hand is never
+  hit (the shot skips the holder's colliders).
+
+Tests: `DrinkThrowPlayTests`. `PhizzCanCapture.RenderTheSplash` (Explicit, `-Graphics`): `drink-splash-*.png`.

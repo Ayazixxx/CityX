@@ -486,6 +486,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f6f52a7a698314681ca925f7f524d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.PhizzCan
+  ThrownPrefab: {fileID: 8343226988097854766, guid: 55eb22987f2a36948833f8d4742cb379, type: 3}
   TabHinge: {fileID: 6102821134480829291}
   Hole: {fileID: 8403043067193857081}
   OpenSound: {fileID: 8300000, guid: 8579f9d218b22c547bd10ca1b0993b81, type: 3}

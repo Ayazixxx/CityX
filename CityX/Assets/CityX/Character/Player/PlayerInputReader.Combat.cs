@@ -173,10 +173,13 @@ namespace CityX.Character
                 return;
             }
 
-            // A DRINK (2026-11-23, docs/PHIZZ_CAN.md): a click drinks it; nothing is punched or blocked with a can in hand.
+            // A DRINK (2026-11-23, docs/PHIZZ_CAN.md): a click drinks it; right-click held raises it and a click from there throws it; nothing is
+            // punched or blocked with a drink in hand.
             if (EquippedDrink != null)
             {
-                if (Mouse.current.leftButton.wasPressedThisFrame)
+                bool raised = EquippedDrink is IAimedThrow aimed
+                    && TickAimedThrow(EquippedDrink.CanThrow, EquippedDrink.CanThrow, null, EquippedDrink, aimed);
+                if (!raised && Mouse.current.leftButton.wasPressedThisFrame)
                 {
                     EquippedDrink.Drink();
                 }
@@ -510,13 +513,26 @@ namespace CityX.Character
         /// </summary>
         private bool TickSwungThrow(IEquippableWeapon weapon, IAimedThrow thrown, SoulsSwordCombat souls)
         {
+            bool busy = TickAimedThrow(weapon.CanThrow() && !souls.IsCommitted, weapon.CanThrow(), weapon, null, thrown);
+            if (busy)
+            {
+                souls.SetBlockHeld(false);
+            }
+            return busy;
+        }
+
+        /// <summary>
+        /// Right-click held raises a thing to throw and a click from there throws it, at the crosshair (a swung weapon that can be thrown, a drink):
+        /// <paramref name="mayRaise"/>, it can be raised now; <paramref name="mayKeep"/>, it can still be thrown. True while it is raised or going.
+        /// </summary>
+        private bool TickAimedThrow(bool mayRaise, bool mayKeep, IEquippableWeapon weapon, IHeldDrink drink, IAimedThrow thrown)
+        {
             Mouse mouse = Mouse.current;
-            bool canThrow = weapon.CanThrow() && !souls.IsCommitted;
             WeaponAimInput.Action action = _weaponAim.Tick(
-                canThrow && mouse.rightButton.wasPressedThisFrame,
-                mouse.rightButton.wasReleasedThisFrame || (_weaponAim.IsAiming && (!mouse.rightButton.isPressed || !weapon.CanThrow())),
+                mayRaise && mouse.rightButton.wasPressedThisFrame,
+                mouse.rightButton.wasReleasedThisFrame || (_weaponAim.IsAiming && (!mouse.rightButton.isPressed || !mayKeep)),
                 mouse.leftButton.wasPressedThisFrame);
-            if (action == WeaponAimInput.Action.Throw && weapon.CanThrow())
+            if (action == WeaponAimInput.Action.Throw && mayKeep)
             {
                 Transform yawSource = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
                 if (yawSource != null)
@@ -524,7 +540,14 @@ namespace CityX.Character
                     Vector3 direction = ThrowDirection(yawSource);
                     Vector3 origin = transform.position + Vector3.up * (_melee.OriginHeightFraction *
                         (_locomotion != null ? _locomotion.WorldHeight : 1.8f)) + direction * 0.5f;
-                    weapon.Throw(gameObject, origin, direction);
+                    if (weapon != null)
+                    {
+                        weapon.Throw(gameObject, origin, direction);
+                    }
+                    else
+                    {
+                        drink?.Throw(gameObject, origin, direction);
+                    }
                 }
             }
             bool busy = _weaponAim.IsAiming || thrown.IsThrowing;
@@ -537,10 +560,6 @@ namespace CityX.Character
                 thrown.SetAiming(gameObject, _weaponAim.IsAiming);
             }
             _throwAiming = busy;
-            if (busy)
-            {
-                souls.SetBlockHeld(false);
-            }
             return busy;
         }
 

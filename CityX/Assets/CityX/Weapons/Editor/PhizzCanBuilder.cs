@@ -72,6 +72,15 @@ namespace CityX.WeaponsEditor
                 root.AddComponent<DroppedCan>();
             });
 
+            // Thrown full and shut: where it lands it bursts, splashes yellow and is left lying there empty.
+            GameObject thrown = SaveCan("phizz_can_thrown", PhizzCan.ThrownPrefabPath, look, root =>
+            {
+                var flying = root.AddComponent<ThrownBottle>();
+                flying.Splashes = true;
+                flying.SplashColour = FullBottle.LiquidColour;
+                flying.LeftBehind = empty;
+            });
+
             GameObject saved = SaveCan("phizz_can", PrefabPath, look, root =>
             {
                 var pickup = root.AddComponent<SphereCollider>();
@@ -81,6 +90,7 @@ namespace CityX.WeaponsEditor
                 can.TabHinge = root.transform.Find("TabHinge");
                 can.Hole = root.transform.Find("Hole").gameObject;
                 can.EmptyPrefab = empty;
+                can.ThrownPrefab = thrown;
                 can.OpenSound = AssetDatabase.LoadAssetAtPath<AudioClip>(OpenSoundPath);
             });
             AssetDatabase.SaveAssets();

@@ -140,11 +140,14 @@ namespace CityX.CharacterEditor
             // --- a glass bottle as other players see it (2026-11-23, docs/GLASS_BOTTLE.md): aimed, thrown (a copy of it flies and shatters) and
             // --- broken in the hand.
             var bottles = GetOrAdd<BottleThrower>(player);
-            var thrownBottles = new GameObject[GlassBottleKinds.All.Length];
+            // --- and the drinks thrown (docs/PHIZZ_CAN.md): after the bottles, in BottleThrower.Throwables' order.
+            var thrownBottles = new GameObject[BottleThrower.Throwables.Length];
             for (int i = 0; i < thrownBottles.Length; i++)
             {
-                thrownBottles[i] = Load(GlassBottleKinds.ThrownPrefabPath(GlassBottleKinds.All[i].ItemId))
-                    ?? (i < bottles.ThrownPrefabs.Length ? bottles.ThrownPrefabs[i] : null);
+                string id = BottleThrower.Throwables[i];
+                string path = id == ItemRegistry.PhizzCan ? PhizzCan.ThrownPrefabPath
+                    : id == ItemRegistry.PhizzBottle ? FullBottle.ThrownPrefabPath : GlassBottleKinds.ThrownPrefabPath(id);
+                thrownBottles[i] = Load(path) ?? (i < bottles.ThrownPrefabs.Length ? bottles.ThrownPrefabs[i] : null);
             }
             bottles.ThrownPrefabs = thrownBottles;
 

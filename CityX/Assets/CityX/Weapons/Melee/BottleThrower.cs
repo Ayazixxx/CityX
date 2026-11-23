@@ -15,8 +15,8 @@ namespace CityX.Weapons
         public const string Id = "bottle";
 
         /// <summary>
-        /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the bottle, Direction its way, A its speed, B its stage, N which bottle of
-        /// GlassBottleKinds.All), ShatteredInHand (Direction the way the last blow went: nothing is left of it), Broke (N the state it broke to, Direction the way the blow was going), Aimed (N 1 raised, 0 lowered) and
+        /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the bottle, Direction its way, A its speed, B its stage, N which of
+        /// Throwables), ShatteredInHand (Direction the way the last blow went: nothing is left of it), Broke (N the state it broke to, Direction the way the blow was going), Aimed (N 1 raised, 0 lowered) and
         /// ThrowStarted (the arm goes).
         /// </summary>
         public const int Thrown = 0;
@@ -29,7 +29,22 @@ namespace CityX.Weapons
 
         public event System.Action<AbilityEvent> Fired;
 
-        [Tooltip("What each bottle is in the air, in GlassBottleKinds.All's order (PlayerAbilityWiring).")]
+        /// <summary>What this body can throw, in the order of <see cref="ThrownPrefabs"/> and of a throw's N: the bottles (GlassBottleKinds.All), then the drinks.</summary>
+        public static readonly string[] Throwables = BuildThrowables();
+
+        private static string[] BuildThrowables()
+        {
+            var ids = new System.Collections.Generic.List<string>();
+            foreach (GlassBottleKinds.Kind kind in GlassBottleKinds.All)
+            {
+                ids.Add(kind.ItemId);
+            }
+            ids.Add(ItemRegistry.PhizzCan);
+            ids.Add(ItemRegistry.PhizzBottle);
+            return ids.ToArray();
+        }
+
+        [Tooltip("What each throwable is in the air, in Throwables' order (PlayerAbilityWiring).")]
         public GameObject[] ThrownPrefabs = new GameObject[0];
 
         private BottlePoseDriver _driver;
@@ -87,7 +102,7 @@ namespace CityX.Weapons
             if (thrown != null)
             {
                 // The velocity travels as its way and its speed (an event's direction is no longer than 1.5).
-                Fired?.Invoke(new AbilityEvent(Thrown, from, velocity.normalized, velocity.magnitude, (float)stage, Mathf.Max(0, GlassBottleKinds.IndexOf(itemId))));
+                Fired?.Invoke(new AbilityEvent(Thrown, from, velocity.normalized, velocity.magnitude, (float)stage, Mathf.Max(0, System.Array.IndexOf(Throwables, itemId))));
             }
             return thrown;
         }
@@ -120,7 +135,8 @@ namespace CityX.Weapons
                     Quaternion rotation = held != null ? held.transform.rotation : Quaternion.LookRotation(velocity.normalized);
                     int stage = float.IsNaN(evt.B) ? 0 : Mathf.Clamp(Mathf.RoundToInt(evt.B), 0, (int)BottleWeapon.DurabilityState.FullyBroken);
                     ThrownBottle.Spawn(ThrownPrefabs[evt.N], evt.Origin, rotation, velocity, 0, GetComponentsInChildren<Collider>(), 0.0f, gameObject, true,
-                        stage, 0.0f, BottleWeapon.LeftUntil(GlassBottleKinds.All[evt.N].ItemId, (BottleWeapon.DurabilityState)stage));
+                        stage, 0.0f,
+                        evt.N < GlassBottleKinds.All.Length ? BottleWeapon.LeftUntil(GlassBottleKinds.All[evt.N].ItemId, (BottleWeapon.DurabilityState)stage) : float.PositiveInfinity);
                     break;
                 }
                 case Broke:

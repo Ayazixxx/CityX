@@ -45,8 +45,8 @@ namespace CityX.WeaponsEditor
         private const float CapSmoothness = 0.6f;
         private const float CapMetallic = 0.5f;
 
-        private const string ImpactCharacterSound = "Assets/CityX/Weapons/Audio/glass_hit_enemy.mp3";
-        private const string ImpactTerrainSound = "Assets/CityX/Weapons/Audio/glass_hit_terrain.mp3";
+        public const string ImpactCharacterSoundPath = "Assets/CityX/Weapons/Audio/glass_hit_enemy.mp3";
+        public const string ImpactTerrainSoundPath = "Assets/CityX/Weapons/Audio/glass_hit_terrain.mp3";
 
         public static string ShatterPrefabPath(string itemId) => $"{Folder}/{itemId}_shatter.prefab";
 
@@ -151,7 +151,7 @@ namespace CityX.WeaponsEditor
                 bottle.ShatteredVisual = neck;
                 bottle.ThrownBottlePrefab = thrown;
                 bottle.ShatterPrefab = shatter;
-                bottle.BreakSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactTerrainSound);
+                bottle.BreakSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactTerrainSoundPath);
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, GlassBottleKinds.PrefabPath(id));
                 Debug.Log($"CityX: {id} written to {GlassBottleKinds.PrefabPath(id)} -- {whole.TriangleCount} triangles whole");
@@ -302,8 +302,8 @@ namespace CityX.WeaponsEditor
                 var thrown = root.AddComponent<ThrownBottle>();
                 thrown.StageVisuals = new[] { intact, broken, neck };
                 thrown.ShatterPrefab = shatter;
-                thrown.ImpactCharacterSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactCharacterSound);
-                thrown.ImpactTerrainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactTerrainSound);
+                thrown.ImpactCharacterSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactCharacterSoundPath);
+                thrown.ImpactTerrainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactTerrainSoundPath);
                 return PrefabUtility.SaveAsPrefabAsset(root, GlassBottleKinds.ThrownPrefabPath(shape.ItemId));
             }
             finally

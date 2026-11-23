@@ -301,11 +301,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8d0717a043fbc0d4298a853cf896d6dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.FullBottle
+  ThrownPrefab: {fileID: 3681511651364361429, guid: b805037809474b244835eeb8e2979de1, type: 3}
   Glass:
   - {fileID: 5649996107912938978}
   Cap: {fileID: 7681523129170084798}
   CapPrefab: {fileID: 932739574153205414, guid: 674a686dea08d4d4b9f7f1fd83d7d4ba, type: 3}
   OpenSound: {fileID: 8300000, guid: 8579f9d218b22c547bd10ca1b0993b81, type: 3}
+  ShatterPrefab: {fileID: 8449313180742891546, guid: b9b4a0b9bfa5c3545a355c24b051c2ef, type: 3}
 --- !u!1 &7681523129170084798
 GameObject:
   m_ObjectHideFlags: 0

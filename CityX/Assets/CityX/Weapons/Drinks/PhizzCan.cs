@@ -13,6 +13,9 @@ namespace CityX.Weapons
 
         public const string DrinkClip = "can_drink";
 
+        /// <summary>The can in the air, thrown (PhizzCanBuilder).</summary>
+        public const string ThrownPrefabPath = "Assets/CityX/Weapons/Cans/phizz_can_thrown.prefab";
+
         /// <summary>What a can heals, and over how long (the owner's).</summary>
         public const float Heal = 80.0f;
         public const float Seconds = 10.0f;
@@ -45,6 +48,8 @@ namespace CityX.Weapons
         public override float HealAmount => Heal;
         public override float HealSeconds => Seconds;
         protected override Vector3 HoldPosition => Hold;
+
+        protected override float MiddleHeight => CanMesh.Height * BottleShape.LifeScale * 0.5f;
 
         /// <summary>The tab lifted, and the hole shown (with the owner's sound) once it has cracked the lid.</summary>
         protected override void ShowOpened(float was, float now)
@@ -82,6 +87,15 @@ namespace CityX.Weapons
         public override void Finished()
         {
             DrinkStack.Drunk(this, Holder, null);
+        }
+
+        /// <summary>Broken where it lies: it is left there open and empty.</summary>
+        protected override void Burst(Vector3 point, Vector3 direction)
+        {
+            if (EmptyPrefab != null)
+            {
+                Instantiate(EmptyPrefab, transform.position, transform.rotation);
+            }
         }
 
         /// <summary>The next can of a stack in the hand: shut, shown again.</summary>

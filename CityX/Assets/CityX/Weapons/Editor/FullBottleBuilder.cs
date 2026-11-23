@@ -40,6 +40,7 @@ namespace CityX.WeaponsEditor
             BottleMesh.Model capModel = BottleMesh.Turned(shape.Cap, Sides, RingEvery);
 
             GameObject fallingCap = SaveCap(shape, capModel, cap);
+            GameObject thrown = SaveThrown(shape, print, cap, capModel);
             var root = new GameObject("phizz_bottle");
             try
             {
@@ -63,12 +64,54 @@ namespace CityX.WeaponsEditor
                 bottle.Glass = new[] { glassRenderer };
                 bottle.Cap = capPart.gameObject;
                 bottle.CapPrefab = fallingCap;
+                bottle.ThrownPrefab = thrown;
+                bottle.ShatterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BottleBuilder.ShatterPrefabPath(GlassBottleKinds.Soda));
                 bottle.OpenSound = AssetDatabase.LoadAssetAtPath<AudioClip>(PhizzCanBuilder.OpenSoundPath);
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();
                 Debug.Log($"CityX: full PHIZZ bottle written to {PrefabPath}");
                 return saved;
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
+        /// The bottle thrown full: its glass the drink's yellow all through (no level: it is full), shut; where it lands it bursts into the soda bottle's own pieces
+        /// (made about its neck: ShatterAt turns this standing frame into the held one they are in) and splashes yellow.
+        /// </summary>
+        private static GameObject SaveThrown(BottleShape shape, Material print, Material cap, BottleMesh.Model capModel)
+        {
+            Material full = HeldModelBaker.LitMaterial($"{Folder}/phizz_bottle_glass_full.mat", FullBottle.LiquidColour, 0.0f, GlassSmoothness);
+            var root = new GameObject("phizz_bottle_thrown");
+            try
+            {
+                Part(root.transform, shape, "Glass", BottleMesh.Turned(shape.Profile, Sides, RingEvery), full);
+                Part(root.transform, shape, "Print", BottleMesh.Joined(
+                    BottleMesh.Printed(shape.Profile, shape.DecalFrom, shape.DecalTo, 90.0f, shape.DecalArcDegrees, PrintProud, PrintColumns, PrintRows, RingEvery * 0.5f),
+                    BottleMesh.Printed(shape.Profile, shape.DecalFrom, shape.DecalTo, 270.0f, shape.DecalArcDegrees, PrintProud, PrintColumns, PrintRows, RingEvery * 0.5f)), print);
+                Part(root.transform, shape, "Cap", capModel, cap);
+                var pieces = new GameObject("ShatterAt").transform;
+                pieces.SetParent(root.transform, false);
+                pieces.localPosition = new Vector3(0.0f, shape.GripHeight * shape.Scale, 0.0f);
+                pieces.localRotation = Quaternion.Euler(180.0f, 0.0f, 0.0f);
+                var capsule = root.AddComponent<CapsuleCollider>();
+                capsule.direction = 1;
+                capsule.radius = shape.BodyRadius * shape.Scale;
+                capsule.height = shape.Height * shape.Scale;
+                capsule.center = new Vector3(0.0f, capsule.height * 0.5f, 0.0f);
+                root.AddComponent<Rigidbody>().mass = FullBottle.BottleMass;
+                var flying = root.AddComponent<ThrownBottle>();
+                flying.ShatterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BottleBuilder.ShatterPrefabPath(GlassBottleKinds.Soda));
+                flying.ShatterAt = pieces;
+                flying.Splashes = true;
+                flying.SplashColour = FullBottle.LiquidColour;
+                flying.ImpactCharacterSound = AssetDatabase.LoadAssetAtPath<AudioClip>(BottleBuilder.ImpactCharacterSoundPath);
+                flying.ImpactTerrainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(BottleBuilder.ImpactTerrainSoundPath);
+                return PrefabUtility.SaveAsPrefabAsset(root, FullBottle.ThrownPrefabPath);
             }
             finally
             {

@@ -36,6 +36,9 @@ namespace CityX.Character
         /// <summary>How many bursts have been spawned (for tests).</summary>
         public static int Spawned { get; private set; }
 
+        /// <summary>How many splashes of another liquid have been spawned (for tests).</summary>
+        public static int Splashed { get; private set; }
+
         /// <summary>
         /// One burst at <paramref name="point"/>, spraying along <paramref name="direction"/> (away from whoever struck; tilted up here).
         /// <paramref name="strength"/> scales the amount and the speed: 1 is a light cut, about 1.6 a heavy, 0.6 a bullet. Destroys itself.
@@ -95,6 +98,36 @@ namespace CityX.Character
             return _template;
         }
 
+        /// <summary>
+        /// The same burst in another liquid's <paramref name="colour"/> (a drink splashing out of a broken bottle or a burst can: docs/PHIZZ_CAN.md). Not blood: not
+        /// counted in <see cref="Spawned"/>.
+        /// </summary>
+        public static GameObject Splash(Vector3 point, Vector3 direction, float strength, Color colour)
+        {
+            Spawned--;
+            Splashed++;
+            GameObject burst = Spawn(point, direction, strength);
+            burst.name = "Splash";
+            foreach (ParticleSystem system in burst.GetComponentsInChildren<ParticleSystem>())
+            {
+                ParticleSystem.MainModule main = system.main;
+                main.startColor = colour;
+                ParticleSystem.ColorOverLifetimeModule fade = system.colorOverLifetime;
+                fade.color = new ParticleSystem.MinMaxGradient(Fading(colour));
+            }
+            return burst;
+        }
+
+        /// <summary>A colour darkening as it flies and gone in the last third of its life.</summary>
+        private static Gradient Fading(Color colour)
+        {
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(colour, 0.0f), new GradientColorKey(colour * 0.75f, 1.0f) },
+                new[] { new GradientAlphaKey(1.0f, 0.0f), new GradientAlphaKey(1.0f, 0.65f), new GradientAlphaKey(0.0f, 1.0f) });
+            return gradient;
+        }
+
         private static void Configure(ParticleSystem system, int count, float lifeMin, float lifeMax, float speedMin, float speedMax,
             float sizeMin, float sizeMax, float coneDegrees, float gravity, float stretch, bool collide)
         {
@@ -124,11 +157,7 @@ namespace CityX.Character
             // Deep red, darkening as it flies, and gone in the last third of its life.
             ParticleSystem.ColorOverLifetimeModule colour = system.colorOverLifetime;
             colour.enabled = true;
-            var gradient = new Gradient();
-            gradient.SetKeys(
-                new[] { new GradientColorKey(Red, 0.0f), new GradientColorKey(Red * 0.75f, 1.0f) },
-                new[] { new GradientAlphaKey(1.0f, 0.0f), new GradientAlphaKey(1.0f, 0.65f), new GradientAlphaKey(0.0f, 1.0f) });
-            colour.color = new ParticleSystem.MinMaxGradient(gradient);
+            colour.color = new ParticleSystem.MinMaxGradient(Fading(Red));
 
             ParticleSystem.SizeOverLifetimeModule size = system.sizeOverLifetime;
             size.enabled = true;
