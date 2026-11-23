@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.Items;
 using CityX.Weapons;
 using CityX.WeaponsEditor;
 using NUnit.Framework;
@@ -51,11 +52,11 @@ namespace CityX.Tests
         public void ACanHealsEightyOverTenSecondsEvenlyAndTwoHealSideBySide()
         {
             var heal = new HealOverTime();
-            heal.Add(PhizzCan.HealAmount, PhizzCan.HealSeconds);
-            Assert.AreEqual(80.0f, PhizzCan.HealAmount, "the owner's 80");
-            Assert.AreEqual(10.0f, PhizzCan.HealSeconds, "the owner's 10 seconds");
+            heal.Add(PhizzCan.Heal, PhizzCan.Seconds);
+            Assert.AreEqual(80.0f, PhizzCan.Heal, "the owner's 80");
+            Assert.AreEqual(10.0f, PhizzCan.Seconds, "the owner's 10 seconds");
             Assert.AreEqual(8.0f, heal.Take(1.0f), 1e-4f, "not even over the ten seconds");
-            heal.Add(PhizzCan.HealAmount, PhizzCan.HealSeconds);
+            heal.Add(PhizzCan.Heal, PhizzCan.Seconds);
             Assert.AreEqual(16.0f, heal.Take(1.0f), 1e-4f, "a second drink does not heal beside the first");
             float given = 24.0f;
             for (int i = 0; i < 20; i++)
@@ -69,14 +70,38 @@ namespace CityX.Tests
         [Test]
         public void TheDrinkClipIsThreeAndAHalfSecondsAndItsMomentsComeInOrder()
         {
-            BakedMotion motion = BakedMotion.Load(CanDrinker.MotionPath);
+            BakedMotion motion = BakedMotion.Load(Drinker.MotionPath);
             Assert.IsNotNull(motion, "the drink clip is not in Resources: run can_drink_build.py --export");
-            Assert.IsTrue(motion.HasSegment(CanDrinker.Clip));
-            Assert.AreEqual(CanDrinker.Seconds, (motion.SegmentFrames(CanDrinker.Clip) - 1) / (float)motion.FramesPerSecond, 0.02f, "the owner's 3.5 seconds");
-            Assert.Less(CanDrinker.TabFromSeconds, CanDrinker.TabToSeconds);
-            Assert.Less(CanDrinker.TabToSeconds, CanDrinker.HealFromSeconds);
-            Assert.Less(CanDrinker.HealFromSeconds, CanDrinker.DropSeconds);
-            Assert.Less(CanDrinker.DropSeconds, CanDrinker.Seconds);
+            Assert.IsTrue(motion.HasSegment(PhizzCan.DrinkClip));
+            Assert.AreEqual(Drinker.Seconds, (motion.SegmentFrames(PhizzCan.DrinkClip) - 1) / (float)motion.FramesPerSecond, 0.02f, "the owner's 3.5 seconds");
+            Assert.IsTrue(motion.HasSegment(FullBottle.DrinkClip), "the bottle has no drink clip");
+            Assert.AreEqual(Drinker.Seconds, (motion.SegmentFrames(FullBottle.DrinkClip) - 1) / (float)motion.FramesPerSecond, 0.02f, "the bottle's drink is not 3.5 seconds");
+            Assert.Less(Drinker.HealFromSeconds, Drinker.DrunkBySeconds);
+            Assert.Less(Drinker.DrunkBySeconds, Drinker.Seconds);
+            Assert.Less(Drinker.TabFromSeconds, Drinker.TabToSeconds);
+            Assert.Less(Drinker.TabToSeconds, Drinker.HealFromSeconds);
+            Assert.Less(Drinker.HealFromSeconds, Drinker.DropSeconds);
+            Assert.Less(Drinker.DropSeconds, Drinker.Seconds);
+        }
+
+        [Test]
+        public void AFullBottleHealsAHundredStacksWithoutEndAndShowsItsDrink()
+        {
+            Assert.AreEqual(100.0f, FullBottle.Heal, "the owner's 100");
+            Assert.AreEqual(10.0f, FullBottle.Seconds, "the owner's 10 seconds");
+            Assert.AreEqual(GlassBottleKinds.Soda, FullBottle.EmptyItemId, "drunk empty it is not the soda bottle");
+            foreach (string drink in new[] { CityX.Items.ItemRegistry.PhizzCan, CityX.Items.ItemRegistry.PhizzBottle })
+            {
+                Assert.IsTrue(CityX.Items.ItemRegistry.TryGet(drink, out CityX.Items.ItemDefinition definition), drink);
+                Assert.AreEqual(CityX.Items.ItemRegistry.EndlessStack, definition.StackSize, drink + " does not stack without end");
+            }
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(FullBottleBuilder.PrefabPath);
+            Assert.IsNotNull(prefab, "run CityX/Rebuild PHIZZ Bottle");
+            var bottle = prefab.GetComponent<FullBottle>();
+            Assert.IsNotNull(bottle.Cap, "no cap to pull off");
+            Assert.IsNotNull(bottle.CapPrefab, "the cap does not fall");
+            Assert.AreEqual(1, bottle.Glass.Length);
+            Assert.IsTrue(bottle.Glass[0].sharedMaterial.IsKeywordEnabled("_CITYX_LIQUID"), "the glass shows no drink");
         }
 
         [Test]

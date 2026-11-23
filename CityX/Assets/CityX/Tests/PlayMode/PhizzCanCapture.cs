@@ -58,7 +58,13 @@ namespace CityX.Tests
 
         /// <summary>The drink, moment by moment, from in front (close on the hands and the face) and from the game's camera behind: can-drink-*.png.</summary>
         [UnityTest]
-        public IEnumerator RenderTheDrink()
+        public IEnumerator RenderTheDrink() => RenderDrinking("Assets/CityX/Weapons/Cans/phizz_can.prefab", "can-drink");
+
+        /// <summary>The full PHIZZ bottle drunk the same way: bottle-drink-*.png (the cap off, the drink going down, the bottle kept).</summary>
+        [UnityTest]
+        public IEnumerator RenderTheBottleDrink() => RenderDrinking("Assets/CityX/Weapons/Cans/phizz_bottle.prefab", "bottle-drink");
+
+        private static IEnumerator RenderDrinking(string prefabPath, string prefix)
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
@@ -79,9 +85,9 @@ namespace CityX.Tests
             GameObject body = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                 new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
             body.GetComponent<CityX.Character.PlayerInputReader>().enabled = false;
-            var drinker = body.GetComponent<CanDrinker>() ?? body.AddComponent<CanDrinker>();
-            var can = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Cans/phizz_can.prefab"),
-                new Vector3(5.0f, 1.0f, 5.0f), Quaternion.identity).GetComponent<PhizzCan>();
+            var drinker = body.GetComponent<Drinker>() ?? body.AddComponent<Drinker>();
+            var can = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath),
+                new Vector3(5.0f, 1.0f, 5.0f), Quaternion.identity).GetComponent<HeldDrink>();
             can.OnEquip(body, CityX.Items.ItemInstanceData.None);
             var locomotion = body.GetComponent<CityX.Character.PlayerLocomotion>();
             for (int i = 0; i < 40; i++)
@@ -89,7 +95,7 @@ namespace CityX.Tests
                 locomotion.Tick(new CityX.Character.LocomotionInput(), 1.0f / 60.0f);
                 yield return null;
             }
-            Shoot(camera, folder, "carry");
+            Shoot(camera, folder, prefix, "carry");
             can.Drink();
             float seconds = 0.0f;
             int next = 0;
@@ -101,7 +107,7 @@ namespace CityX.Tests
                 seconds += 1.0f / 60.0f;
                 if (seconds >= moments[next])
                 {
-                    Shoot(camera, folder, $"{moments[next]:0.00}s");
+                    Shoot(camera, folder, prefix, $"{moments[next]:0.00}s");
                     next++;
                 }
             }
@@ -120,14 +126,14 @@ namespace CityX.Tests
 #endif
         }
 
-        private static void Shoot(Camera camera, string folder, string moment)
+        private static void Shoot(Camera camera, string folder, string prefix, string moment)
         {
             var face = new Vector3(0.0f, 2.0f, 0.0f);
-            BuildingShapeCapture.Shoot(camera, folder, $"can-drink-front-{moment}", face + new Vector3(1.3f, 0.3f, 2.6f), face + new Vector3(0.1f, 0.0f, 0.2f));
-            BuildingShapeCapture.Shoot(camera, folder, $"can-drink-game-{moment}", new Vector3(0.87f, 2.9f, -5.0f), new Vector3(0.3f, 1.6f, 1.0f));
+            BuildingShapeCapture.Shoot(camera, folder, $"{prefix}-front-{moment}", face + new Vector3(1.3f, 0.3f, 2.6f), face + new Vector3(0.1f, 0.0f, 0.2f));
+            BuildingShapeCapture.Shoot(camera, folder, $"{prefix}-game-{moment}", new Vector3(0.87f, 2.9f, -5.0f), new Vector3(0.3f, 1.6f, 1.0f));
             // Close on the can before the chest, where the left hand opens it (as the owner's photo of a can being opened is taken).
             var lid = new Vector3(0.25f, 1.6f, 0.5f);
-            BuildingShapeCapture.Shoot(camera, folder, $"can-drink-tab-{moment}", lid + new Vector3(-0.35f, 0.75f, 0.85f), lid);
+            BuildingShapeCapture.Shoot(camera, folder, $"{prefix}-tab-{moment}", lid + new Vector3(-0.35f, 0.75f, 0.85f), lid);
         }
     }
 }

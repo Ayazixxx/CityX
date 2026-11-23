@@ -4,33 +4,36 @@ using UnityEngine;
 namespace CityX.Weapons
 {
     /// <summary>
-    /// DRINKING A CAN, ON THE BODY (docs/PHIZZ_CAN.md, docs/MULTIPLAYER_STATE.md): plays the drink (one full-body clip made in Blender,
-    /// CityX/SourceArt/Drink/can_drink.py, 3.5 s from the click: the owner's) and times what the can does to it: the left hand lifts the tab and the
-    /// hole shows, the can goes to the mouth and the heal begins (the owner's body only: 80 health over 10 s), the hand lets the empty can drop.
-    /// Other players are told when a drink begins; their copy of the body drinks its copy of the can the same way, healing no one. Standing, the clip
+    /// DRINKING, ON THE BODY (docs/PHIZZ_CAN.md, docs/MULTIPLAYER_STATE.md): plays the drink in the hand (<see cref="HeldDrink"/>: a can of PHIZZ, a full
+    /// PHIZZ bottle; one full-body clip each, made in Blender, CityX/SourceArt/Drink/can_drink.py, 3.5 s from the click: the owner's) and times what the
+    /// drink does to it: the left hand opens it, it goes to the mouth and the heal begins (the owner's body only: what the drink heals), the bottle's
+    /// liquid goes down as it is drunk, the hand lets an empty can fall. Other players are told when a drink begins; their copy of the body drinks its
+    /// copy of the drink the same way, healing no one. Standing, the clip
     /// is the whole body's; moving, the legs walk on.
     /// </summary>
     [DefaultExecutionOrder(10)]
-    public sealed class CanDrinker : MonoBehaviour, IReplicatedAbility
+    public sealed class Drinker : MonoBehaviour, IReplicatedAbility
     {
         public const string Id = "drink";
 
         /// <summary>The event (<see cref="AbilityEvent.Kind"/>): a drink begins.</summary>
         public const int Began = 0;
 
-        public const string MotionPath = "Drink/CanDrinkMotion";
-        public const string Clip = "can_drink";
+        public const string MotionPath = "Drink/DrinkMotion";
 
         /// <summary>The whole drink, click to done, seconds (the owner's).</summary>
         public const float Seconds = 3.5f;
 
         /// <summary>
         /// The moments of the drink, seconds in: keep them in step with can_drink.py's keys. The left fingertip under the tab and flicking it up;
-        /// the lid cracked (the hole shows); the can at the lips for the first sip (the heal begins); the hand opening on the empty can.
+        /// the lid cracked (the hole shows); the drink at the lips for the first sip (the heal begins); the hand opening on an empty can.
         /// </summary>
         public const float TabFromSeconds = 0.32f;
         public const float TabToSeconds = 0.44f;
         public const float HealFromSeconds = 0.75f + 30.0f / 30.0f / 1.65f;
+
+        /// <summary>When the drink is all drunk, seconds in: the end of the gulp (the recording's frame 140). The bottle's liquid goes down from the first sip to here.</summary>
+        public const float DrunkBySeconds = 0.75f + 85.0f / 30.0f / 1.65f;
         public const float DropSeconds = 3.22f;
 
         /// <summary>
@@ -66,7 +69,7 @@ namespace CityX.Weapons
         private BakedMotion _motion;
         private BakedPose _pose;
         private bool _looked;
-        private PhizzCan _can;
+        private HeldDrink _drink;
         private bool _harmless;
         private float _elapsed;
         private float _weight;
@@ -76,7 +79,7 @@ namespace CityX.Weapons
         private bool _holdsBody;
 
         /// <summary>A drink is going.</summary>
-        public bool Drinking => _can != null;
+        public bool Drinking => _drink != null;
 
         /// <summary>How far into the drink, seconds (tests).</summary>
         public float Elapsed => _elapsed;
@@ -93,13 +96,13 @@ namespace CityX.Weapons
 
         private bool Standing => _locomotion == null || _locomotion.CurrentSpeed < StandingSpeed;
 
-        private bool HasClip()
+        private bool HasClip(string clip)
         {
             if (!_looked)
             {
                 _looked = true;
                 _motion = BakedMotion.Load(MotionPath);
-                if (_motion != null && _motion.HasSegment(Clip))
+                if (_motion != null)
                 {
                     _pose = _motion.NewPose();
                 }
@@ -108,28 +111,28 @@ namespace CityX.Weapons
                     _motion = null;
                 }
             }
-            return _motion != null;
+            return _motion != null && _motion.HasSegment(clip);
         }
 
-        /// <summary>This body drinks <paramref name="can"/> (its owner's click). False if a drink is already going or it is dead.</summary>
-        public bool Begin(PhizzCan can)
+        /// <summary>This body drinks <paramref name="drink"/> (its owner's click). False if a drink is already going or it is dead.</summary>
+        public bool Begin(HeldDrink drink)
         {
             var vitals = GetComponent<PlayerVitals>();
-            if (can == null || Drinking || (vitals != null && vitals.IsDead))
+            if (drink == null || Drinking || (vitals != null && vitals.IsDead))
             {
                 return false;
             }
-            Play(can, false);
+            Play(drink, false);
             Fired?.Invoke(new AbilityEvent(Began, transform.position, Vector3.zero));
             return true;
         }
 
-        /// <summary>The can is put away or lost mid-drink: everything stops.</summary>
-        public void Stop(PhizzCan can)
+        /// <summary>The drink is put away or lost mid-drink: everything stops.</summary>
+        public void Stop(HeldDrink drink)
         {
-            if (can != null && ReferenceEquals(can, _can))
+            if (drink != null && ReferenceEquals(drink, _drink))
             {
-                _can = null;
+                _drink = null;
             }
         }
 
@@ -139,16 +142,16 @@ namespace CityX.Weapons
             {
                 return;
             }
-            PhizzCan can = GetComponentInChildren<PhizzCan>();
-            if (can != null)
+            HeldDrink drink = GetComponentInChildren<HeldDrink>();
+            if (drink != null)
             {
-                Play(can, true);
+                Play(drink, true);
             }
         }
 
-        private void Play(PhizzCan can, bool harmless)
+        private void Play(HeldDrink drink, bool harmless)
         {
-            _can = can;
+            _drink = drink;
             _harmless = harmless;
             _elapsed = 0.0f;
             _healed = false;
@@ -157,7 +160,8 @@ namespace CityX.Weapons
             {
                 _legs = Standing ? 1.0f : 0.0f;
             }
-            can.SetOpened(0.0f);
+            drink.SetOpened(0.0f);
+            drink.SetDrunk(0.0f);
             enabled = true;
         }
 
@@ -169,13 +173,15 @@ namespace CityX.Weapons
         /// <summary>Advances by <paramref name="deltaTime"/>: the can's moments, and the body's pose. Public so a test can step it.</summary>
         public void Step(float deltaTime)
         {
-            if (_can == null)
+            if (_drink == null)
             {
                 Ease(deltaTime);
                 return;
             }
             _elapsed += deltaTime;
-            _can.SetOpened(Mathf.InverseLerp(TabFromSeconds, TabToSeconds, _elapsed));
+            HeldDrink drink = _drink;
+            drink.SetOpened(Mathf.InverseLerp(TabFromSeconds, TabToSeconds, _elapsed));
+            drink.SetDrunk(Mathf.InverseLerp(HealFromSeconds, DrunkBySeconds, _elapsed));
             float shaped = Mathf.Min(Mathf.InverseLerp(TabHandFromSeconds, TabHandShapedSeconds, _elapsed), 1.0f - Mathf.InverseLerp(TabHandLetGoSeconds, TabHandDoneSeconds, _elapsed));
             if (shaped > 0.0f && _locomotion != null)
             {
@@ -186,29 +192,32 @@ namespace CityX.Weapons
                 _healed = true;
                 if (!_harmless)
                 {
-                    GetComponent<PlayerVitals>()?.AddHealOverTime(PhizzCan.HealAmount, PhizzCan.HealSeconds);
+                    GetComponent<PlayerVitals>()?.AddHealOverTime(drink.HealAmount, drink.HealSeconds);
                     Healed?.Invoke();
                 }
             }
             if (!_dropped && _elapsed >= DropSeconds)
             {
                 _dropped = true;
-                _can.DropEmpty(transform.forward * DropSpeed + Vector3.down * DropSpeed);
+                drink.LetGo(transform.forward * DropSpeed + Vector3.down * DropSpeed);
             }
             if (_elapsed >= Seconds)
             {
-                PhizzCan done = _can;
-                _can = null;
-                if (!_harmless)
+                _drink = null;
+                if (_harmless)
                 {
-                    done.Finished();
+                    drink.FinishedCopy();
+                }
+                else
+                {
+                    drink.Finished();
                 }
             }
-            if (!HasClip())
+            if (!HasClip(drink.Clip))
             {
                 return;
             }
-            _motion.Sample(Clip, Mathf.Min(_elapsed, Seconds), false, _pose);
+            _motion.Sample(drink.Clip, Mathf.Min(_elapsed, Seconds), false, _pose);
             _legs = Mathf.MoveTowards(_legs, Standing ? 1.0f : 0.0f, deltaTime / LegsSeconds);
             _pose.LegsWeight = Mathf.SmoothStep(0.0f, 1.0f, _legs);
             _weight = Mathf.MoveTowards(_weight, 1.0f, deltaTime / EaseInSeconds);

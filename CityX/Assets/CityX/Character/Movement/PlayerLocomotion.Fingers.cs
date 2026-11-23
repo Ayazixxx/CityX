@@ -27,7 +27,7 @@ namespace CityX.Character
         private float _leftFingersByMoveWeight;
 
         /// <summary>
-        /// The left hand's fingers shaped by a move for this frame (the drink's finger hooked under a can's tab: CanDrinker), <paramref name="weight"/> 0 to 1 of
+        /// The left hand's fingers shaped by a move for this frame (the drink's finger hooked under a can's tab: Drinker), <paramref name="weight"/> 0 to 1 of
         /// the way from what they would be. Asked for every frame it is wanted (in Update): it lasts the one frame.
         /// </summary>
         public void SetLeftFingers(in FingerAmounts amounts, float weight)

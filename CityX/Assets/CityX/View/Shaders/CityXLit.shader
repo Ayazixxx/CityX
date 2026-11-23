@@ -184,6 +184,8 @@ Shader "CityX/Lit"
             #pragma multi_compile_fragment _ CITYX_TOON
             // The city's own things take snow (CityXSnow.hlsl); the same shader on a body does not.
             #pragma shader_feature_local_fragment _CITYX_SNOW
+            // A bottle's glass shows the drink in it below a level (CityXLiquid.hlsl, FullBottle).
+            #pragma shader_feature_local_fragment _CITYX_LIQUID
 
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "CityXToonLighting.hlsl"

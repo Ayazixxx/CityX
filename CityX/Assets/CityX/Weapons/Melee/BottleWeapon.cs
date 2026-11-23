@@ -64,6 +64,11 @@ namespace CityX.Weapons
 
         public static Quaternion HoldRotation => SwordWeapon.DefaultOneHandGripRotation;
 
+        /// <summary>Carried by the neck before the chest: the first frame of its own moves (bottle_moves.py).</summary>
+        public string CarryMotion => RaisedCarry.MotionPath;
+
+        public string CarryClip => RaisedCarry.Clip;
+
         [SerializeField] private string _itemId = GlassBottleKinds.Classic;
 
         [Tooltip("The whole bottle, the half a blow leaves, and the neck that is left when that has broken down too (BottleBuilder).")]

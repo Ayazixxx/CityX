@@ -5,6 +5,10 @@ namespace CityX.Character
     /// <summary>A held thing that is carried raised (a bottle by its neck, a can of PHIZZ upright: the can's drink begins from the same pose): the body holds its right arm in <see cref="RaisedCarry"/>'s pose.</summary>
     public interface IRaisedCarry
     {
+        /// <summary>The baked moves (Resources) whose clip <see cref="CarryClip"/> begins with the carry: the arm is held in its first frame.</summary>
+        string CarryMotion { get; }
+
+        string CarryClip { get; }
     }
 
     /// <summary>
@@ -21,36 +25,35 @@ namespace CityX.Character
         /// <summary>The right arm's bones, shoulder to wrist: the carry is theirs alone.</summary>
         public static readonly string[] ArmBones = { "arm_r", "forearm_r", "hand_r" };
 
-        private static Quaternion[] _arm;
-        private static bool _looked;
+        private static readonly System.Collections.Generic.Dictionary<string, Quaternion[]> _arms = new System.Collections.Generic.Dictionary<string, Quaternion[]>();
 
-        /// <summary>The arm bones' local rotations in the carry (<see cref="ArmBones"/>' order), or null if the moves are not there.</summary>
-        public static Quaternion[] Arm
+        /// <summary>The arm bones' local rotations in the carry that begins <paramref name="clip"/> of <paramref name="motionPath"/> (<see cref="ArmBones"/>' order), or null if the moves are not there.</summary>
+        public static Quaternion[] ArmFor(string motionPath, string clip)
         {
-            get
+            string key = motionPath + "/" + clip;
+            if (_arms.TryGetValue(key, out Quaternion[] known))
             {
-                if (!_looked)
+                return known;
+            }
+            Quaternion[] arm = null;
+            BakedMotion motion = BakedMotion.Load(motionPath);
+            if (motion != null && motion.HasSegment(clip))
+            {
+                arm = new Quaternion[ArmBones.Length];
+                int found = 0;
+                for (int b = 0; b < motion.Bones.Count; b++)
                 {
-                    _looked = true;
-                    BakedMotion motion = BakedMotion.Load(MotionPath);
-                    if (motion != null && motion.HasSegment(Clip))
+                    int which = System.Array.IndexOf(ArmBones, motion.Bones[b]);
+                    if (which >= 0)
                     {
-                        var arm = new Quaternion[ArmBones.Length];
-                        int found = 0;
-                        for (int b = 0; b < motion.Bones.Count; b++)
-                        {
-                            int which = System.Array.IndexOf(ArmBones, motion.Bones[b]);
-                            if (which >= 0)
-                            {
-                                arm[which] = motion.RotationAt(motion.SegmentStart(Clip), b);
-                                found++;
-                            }
-                        }
-                        _arm = found == ArmBones.Length ? arm : null;
+                        arm[which] = motion.RotationAt(motion.SegmentStart(clip), b);
+                        found++;
                     }
                 }
-                return _arm;
+                arm = found == ArmBones.Length ? arm : null;
             }
+            _arms[key] = arm;
+            return arm;
         }
     }
 
@@ -65,28 +68,28 @@ namespace CityX.Character
         /// <summary>The right hand's child count when it was last searched for a raised carry, and what was found (searched only when it changes).</summary>
         private int _raisedCarryChildren = -1;
 
-        private bool _raisedCarryHeld;
+        private IRaisedCarry _raisedCarryItem;
 
-        /// <summary>Something mounted on the right hand is carried raised (<see cref="IRaisedCarry"/>): a bottle, a can.</summary>
-        private bool HoldsRaisedCarry
+        /// <summary>What is mounted on the right hand and carried raised (<see cref="IRaisedCarry"/>: a bottle, a drink), or null.</summary>
+        private IRaisedCarry RaisedCarryItem
         {
             get
             {
                 if (_handR == null)
                 {
-                    return false;
+                    return null;
                 }
                 int children = _handR.childCount;
-                if (children != _raisedCarryChildren)
+                if (children != _raisedCarryChildren || (_raisedCarryItem is Object gone && gone == null))
                 {
                     _raisedCarryChildren = children;
-                    _raisedCarryHeld = false;
-                    for (int i = 0; i < children && !_raisedCarryHeld; i++)
+                    _raisedCarryItem = null;
+                    for (int i = 0; i < children && _raisedCarryItem == null; i++)
                     {
-                        _raisedCarryHeld = _handR.GetChild(i).GetComponent<IRaisedCarry>() != null;
+                        _raisedCarryItem = _handR.GetChild(i).GetComponent<IRaisedCarry>();
                     }
                 }
-                return _raisedCarryHeld;
+                return _raisedCarryItem;
             }
         }
 
@@ -95,8 +98,9 @@ namespace CityX.Character
 
         private void ApplyRaisedCarry()
         {
-            Quaternion[] arm = RaisedCarry.Arm;
-            bool carried = arm != null && HoldsRaisedCarry && _rightUpperArm != null && _rightLowerArm != null && _handR != null;
+            IRaisedCarry item = RaisedCarryItem;
+            Quaternion[] arm = item != null ? RaisedCarry.ArmFor(item.CarryMotion, item.CarryClip) : null;
+            bool carried = arm != null && _rightUpperArm != null && _rightLowerArm != null && _handR != null;
             // A swing, a guard or a baked move (the aim, the throw) has the arm: the carry gives way as they come in.
             float wanted = carried
                 ? (1.0f - (_swordFrame.Active ? Mathf.Clamp01(_swordFrame.Weight) : 0.0f)) * (1.0f - BakedArmsWeight)

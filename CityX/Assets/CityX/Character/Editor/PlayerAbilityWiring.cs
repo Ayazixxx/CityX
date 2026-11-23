@@ -149,7 +149,7 @@ namespace CityX.CharacterEditor
             bottles.ThrownPrefabs = thrownBottles;
 
             // --- drinking a can of PHIZZ as other players see it (2026-11-23, docs/PHIZZ_CAN.md): the tab, the drink and the empty can dropped.
-            GetOrAdd<CanDrinker>(player);
+            GetOrAdd<Drinker>(player);
 
             // --- the RPG's rockets as other players see them (2026-11-19, docs/RPG.md): a copy fires the same rocket, and it bursts where it did.
             GetOrAdd<RocketLauncher>(player);

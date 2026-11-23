@@ -76,7 +76,7 @@ namespace CityX.WeaponsEditor
             {
                 var pickup = root.AddComponent<SphereCollider>();
                 pickup.isTrigger = true;
-                pickup.radius = PhizzCan.InteractRange;
+                pickup.radius = HeldDrink.InteractRange;
                 var can = root.AddComponent<PhizzCan>();
                 can.TabHinge = root.transform.Find("TabHinge");
                 can.Hole = root.transform.Find("Hole").gameObject;

@@ -17,11 +17,11 @@ namespace CityX.Tests
     {
         private static GameObject Load(string path) => UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
 
-        private static (GameObject body, PhizzCan can, CanDrinker drinker) Body(Vector3 at)
+        private static (GameObject body, PhizzCan can, Drinker drinker) Body(Vector3 at)
         {
             GameObject body = Object.Instantiate(Load("Assets/CityX/Character/Player.prefab"), at, Quaternion.identity);
             body.GetComponent<PlayerInputReader>().enabled = false;
-            var drinker = body.GetComponent<CanDrinker>() ?? body.AddComponent<CanDrinker>();
+            var drinker = body.GetComponent<Drinker>() ?? body.AddComponent<Drinker>();
             var can = Object.Instantiate(Load("Assets/CityX/Weapons/Cans/phizz_can.prefab"), at + Vector3.up * 5.0f, Quaternion.identity).GetComponent<PhizzCan>();
             return (body, can, drinker);
         }
@@ -33,8 +33,8 @@ namespace CityX.Tests
             var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
             ground.transform.localScale = new Vector3(50.0f, 1.0f, 50.0f);
-            (GameObject body, PhizzCan can, CanDrinker drinker) = Body(new Vector3(0.0f, 0.05f, 0.0f));
-            (GameObject copy, PhizzCan copiedCan, CanDrinker copyDrinker) = Body(new Vector3(6.0f, 0.05f, 0.0f));
+            (GameObject body, PhizzCan can, Drinker drinker) = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            (GameObject copy, PhizzCan copiedCan, Drinker copyDrinker) = Body(new Vector3(6.0f, 0.05f, 0.0f));
             try
             {
                 var vitals = body.GetComponent<PlayerVitals>();
@@ -55,24 +55,24 @@ namespace CityX.Tests
 
                 float seconds = 0.0f;
                 bool opened = false, healedInTime = false, droppedInTime = false;
-                while (seconds < CanDrinker.Seconds + 0.3f)
+                while (seconds < Drinker.Seconds + 0.3f)
                 {
                     yield return null;
                     seconds += 1.0f / 60.0f;
-                    if (can != null && can.Opened >= 1.0f && seconds < CanDrinker.TabToSeconds + 0.1f)
+                    if (can != null && can.Opened >= 1.0f && seconds < Drinker.TabToSeconds + 0.1f)
                     {
                         opened = can.Hole.activeSelf;
                     }
                     if (healed && !healedInTime)
                     {
                         healedInTime = true;
-                        Assert.That(seconds, Is.InRange(CanDrinker.HealFromSeconds - 0.1f, CanDrinker.HealFromSeconds + 0.1f), "the heal began away from the first sip");
-                        Assert.AreEqual(PhizzCan.HealAmount, vitals.HealingToCome, 0.01f, "the drink does not heal 80");
+                        Assert.That(seconds, Is.InRange(Drinker.HealFromSeconds - 0.1f, Drinker.HealFromSeconds + 0.1f), "the heal began away from the first sip");
+                        Assert.AreEqual(PhizzCan.Heal, vitals.HealingToCome, 0.01f, "the drink does not heal 80");
                     }
                     if (!droppedInTime && Object.FindObjectsByType<DroppedCan>(FindObjectsSortMode.None).Length >= 2)
                     {
                         droppedInTime = true;
-                        Assert.That(seconds, Is.InRange(CanDrinker.DropSeconds - 0.1f, CanDrinker.Seconds), "the can was dropped at the wrong moment");
+                        Assert.That(seconds, Is.InRange(Drinker.DropSeconds - 0.1f, Drinker.Seconds), "the can was dropped at the wrong moment");
                     }
                 }
                 Assert.IsTrue(opened, "the tab did not lift and show the hole early in the drink");
@@ -88,7 +88,7 @@ namespace CityX.Tests
                 vitals.TakeDamage(vitals.MaxHealth * 0.9f);
                 float before = vitals.Health;
                 float healing = vitals.HealingToCome;
-                vitals.TickHealthRegen(PhizzCan.HealSeconds * 0.5f);
+                vitals.TickHealthRegen(PhizzCan.Seconds * 0.5f);
                 Assert.Greater(vitals.Health - before, healing * 0.45f, "the heal does not come over the ten seconds");
             }
             finally
@@ -115,7 +115,7 @@ namespace CityX.Tests
             var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
             ground.transform.localScale = new Vector3(50.0f, 1.0f, 50.0f);
-            (GameObject body, PhizzCan can, CanDrinker drinker) = Body(new Vector3(0.0f, 0.05f, 0.0f));
+            (GameObject body, PhizzCan can, Drinker drinker) = Body(new Vector3(0.0f, 0.05f, 0.0f));
             try
             {
                 can.OnEquip(body, ItemInstanceData.None);
@@ -130,12 +130,12 @@ namespace CityX.Tests
                 float seconds = 0.0f, deepest = 0.0f, farthestTip = 0.0f, deepestAt = 0.0f;
                 string deepestPart = string.Empty;
                 string report = string.Empty;
-                while (seconds < CanDrinker.TabToSeconds)
+                while (seconds < Drinker.TabToSeconds)
                 {
                     locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
                     yield return null;
                     seconds += 1.0f / 60.0f;
-                    if (seconds < CanDrinker.TabFromSeconds)
+                    if (seconds < Drinker.TabFromSeconds)
                     {
                         continue;
                     }
@@ -190,6 +190,84 @@ namespace CityX.Tests
             {
                 Object.Destroy(body);
                 Object.Destroy(ground);
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+            }
+        }
+
+        /// <summary>
+        /// The full PHIZZ bottle (owner, 2026-11-23: "full of piss yellow liquid and when you drink its, it visually lowers until empty", "100 health over 10
+        /// seconds", drunk empty it "stays as a weapon", drinks "stack infinitely"): two in the bag, one taken in hand; the first drunk goes down to nothing
+        /// and heals 100, the second comes into the hand and the empty one goes in the bag; the second drunk, the hand holds the empty soda bottle.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AFullBottleIsDrunkDownHealsAHundredAndTheLastLeavesTheSodaBottleInTheHand()
+        {
+            Time.captureFramerate = 60;
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            ground.transform.localScale = new Vector3(50.0f, 1.0f, 50.0f);
+            GameObject body = Object.Instantiate(Load("Assets/CityX/Character/Player.prefab"), new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            try
+            {
+                body.GetComponent<PlayerInputReader>().enabled = false;
+                if (body.GetComponent<Drinker>() == null)
+                {
+                    body.AddComponent<Drinker>();
+                }
+                var inventory = body.GetComponent<Inventory>() ?? body.AddComponent<Inventory>();
+                inventory.ItemPrefabs = new[]
+                {
+                    new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.PhizzBottle, Prefab = Load("Assets/CityX/Weapons/Cans/phizz_bottle.prefab") },
+                    new Inventory.ItemPrefabEntry { ItemId = GlassBottleKinds.Soda, Prefab = Load(GlassBottleKinds.PrefabPath(GlassBottleKinds.Soda)) },
+                };
+                Assert.IsTrue(inventory.AddItem(ItemRegistry.PhizzBottle, 2));
+                Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.PhizzBottle, 1, out ItemInstanceData taken));
+                Assert.IsTrue(inventory.EquipItemId(ItemRegistry.PhizzBottle, body, taken));
+                var vitals = body.GetComponent<PlayerVitals>();
+                FullBottle Held() => inventory.EquippedInstance(inventory.ActiveWeaponSlot)?.GetComponent<FullBottle>();
+
+                for (int drink = 0; drink < 2; drink++)
+                {
+                    FullBottle bottle = Held();
+                    Assert.IsNotNull(bottle, $"drink {drink + 1}: no full bottle in the hand");
+                    yield return null;
+                    float fullLevel = bottle.Level;
+                    Assert.IsTrue(bottle.Drink());
+                    float seconds = 0.0f, lowest = float.MaxValue;
+                    bool capOff = false;
+                    while (seconds < Drinker.Seconds + 0.3f)
+                    {
+                        yield return null;
+                        seconds += 1.0f / 60.0f;
+                        if (bottle != null)
+                        {
+                            capOff |= !bottle.Cap.activeSelf;
+                            if (seconds > Drinker.HealFromSeconds && seconds < Drinker.DrunkBySeconds)
+                            {
+                                lowest = Mathf.Min(lowest, bottle.Left);
+                            }
+                        }
+                    }
+                    Assert.IsTrue(capOff, "the cap never came off");
+                    Assert.Less(lowest, 0.3f, "the drink did not go down as it was drunk");
+                    Assert.AreEqual(FullBottle.Heal * (drink + 1), vitals.HealingToCome, 0.01f, "a full bottle does not heal 100");
+                    Assert.IsFalse(float.IsInfinity(fullLevel), "a full bottle shows no drink");
+                }
+                GameObject inHand = inventory.EquippedInstance(inventory.ActiveWeaponSlot);
+                Assert.IsNotNull(inHand, "the hand is empty after the last bottle");
+                Assert.IsNotNull(inHand.GetComponent<BottleWeapon>(), "the last bottle drunk is not the soda bottle, a weapon, in the hand");
+                Assert.AreEqual(GlassBottleKinds.Soda, inHand.GetComponent<BottleWeapon>().ItemId);
+                Assert.AreEqual(1, inventory.CountInStorage(GlassBottleKinds.Soda), "the first empty bottle did not go in the bag");
+                Assert.AreEqual(0, inventory.CountInStorage(ItemRegistry.PhizzBottle));
+            }
+            finally
+            {
+                Object.Destroy(body);
+                Object.Destroy(ground);
+                foreach (DroppedCan dropped in Object.FindObjectsByType<DroppedCan>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(dropped.gameObject);
+                }
                 Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             }
         }

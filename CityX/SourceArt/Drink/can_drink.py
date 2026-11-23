@@ -45,6 +45,9 @@ HEAD_REST = u_trs(tuple(to_unity(HEAD["head"])), Quaternion())
 # THE CARRY: the bottle's (Bottle/bottle_moves.py), so a can taken in hand is held as a bottle is and the drink begins where the arm already is.
 CARRY = nodding(ikey((0.46, 1.48, 0.50), (-0.50, 1.04, 0.06), wrist=(0.0, -12.0, -10.0), fist_pole=(0.45, -1.0, -0.35)))
 
+# The full PHIZZ bottle carried lower: it is as long as an arm, and held upright at the chest its neck stood before the face.
+LOW_CARRY = nodding(ikey((0.46, 1.18, 0.46), (-0.50, 1.04, 0.06), wrist=(0.0, -12.0, -10.0), fist_pole=(0.45, -1.0, -0.35)))
+
 # The can brought in before the chest for the other hand to open it.
 OPENING_RIGHT = dict(fist=V(0.30, 1.50, 0.56), wrist=V(0.0, -8.0, -4.0), fist_pole=V(0.55, -1.0, -0.2))
 
@@ -57,7 +60,7 @@ def can_in_head(tilt):
     ahead and up), the hole at the lowest point of the tipped lid, where the drink runs out."""
     s, c = math.sin(math.radians(tilt)), math.cos(math.radians(tilt))
     turn = Matrix(((0.0, 0.0, -1.0), (s, c, 0.0), (c, -s, 0.0)))          # columns: the can's X, Y, Z in the head's axes
-    lip = V(-RIM_RADIUS, CAN_HEIGHT, 0.0)
+    lip = V(-DRINK["rim"], DRINK["height"], 0.0)
     m = turn.to_4x4()
     m.translation = MOUTH - turn @ lip
     return m
@@ -65,15 +68,16 @@ def can_in_head(tilt):
 
 def at_mouth(k, tilt, name):
     """Key `k` with the right hand where it holds the can tipped `tilt` degrees with its rim at the lips."""
-    hold = CAN_HOLD.inverted()
+    hold = DRINK["hold"].inverted()
     fit_hand(k, lambda head: head @ can_in_head(tilt) @ hold, name, "head", HEAD_REST)
     return k
 
 
 def tab_end_in_character(k, end=None):
-    """Where the tab's free end is (`end`, the can's frame: shut if none), in the character's frame, with the right hand as key `k` holds the can."""
+    """Where the opener (the can's tab, the bottle's cap: `end` in the drink's frame, shut if none) is in the character's frame, with the right hand as
+    key `k` holds the drink."""
     D, pos = _solved_key(k, True)
-    return (unity_frame(D, pos, "hand_r", HAND_REST) @ CAN_HOLD) @ (TAB_END if end is None else end)
+    return (unity_frame(D, pos, "hand_r", HAND_REST) @ DRINK["hold"]) @ (DRINK["opener"] if end is None else end)
 
 
 # THE LEFT HAND AT THE TAB (owner, with a photo of a can being opened: "make it so the hand his turned knuckles upward and the finger is pinching the 'tab'. no
@@ -132,13 +136,13 @@ def turn_left_hand(D, keys, t01):
 
 def build_keys():
     """The clip's keys: [(share of the clip, key, ease)]. Built by fitting, so it runs once the rig and CAN_HOLD are there."""
-    opening = ikey(tuple(OPENING_RIGHT["fist"]), (-0.40, 1.60, 0.40), wrist=tuple(OPENING_RIGHT["wrist"]), fist_pole=tuple(OPENING_RIGHT["fist_pole"]),
+    opening = ikey(tuple(DRINK["opening_fist"]), (-0.40, 1.60, 0.40), wrist=tuple(OPENING_RIGHT["wrist"]), fist_pole=tuple(OPENING_RIGHT["fist_pole"]),
                    off_pole=(-0.6, -0.6, -0.3), twist=8.0, lean=4.0, chin=10.0)
     tab = tab_end_in_character(opening)
     # The fingertip comes over the top to just past the tab's free end, under it, then flicks up.
     # The pinch comes down onto the tab's free end, a little above the lid, and lifts it as it is pulled up and back.
     under = pinching(dict(opening), tab + V(0.0, FINGERTIP_OVER, 0.0), "pinching the tab")
-    flicked = pinching(dict(opening, chin=12.0), tab_end_in_character(opening, TAB_END_OPEN) + V(0.0, FINGERTIP_OVER, 0.0), "the tab pulled up")
+    flicked = pinching(dict(opening, chin=12.0), tab_end_in_character(opening, DRINK["opened"]) + V(0.0, FINGERTIP_OVER, 0.0), "the tab pulled up")
     above = pinching(dict(opening), tab + V(-0.04, FINGERTIP_OVER + 0.16, 0.0), "over the can")
     opened = dict(opening, off=V(-0.50, 1.04, 0.06), off_pole=V(-0.4, -0.2, -1.0), chin=6.0)
 
@@ -150,7 +154,7 @@ def build_keys():
     gulped = at_mouth(ikey((0.20, 2.10, 0.50), (-0.50, 1.04, 0.06), lean=-16.0, chin=-24.0, twist=4.0, hips=2.0, drop=0.06, shift=(0.0, -0.03), fist_pole=(0.5, -0.7, 1.0)),
                       100.0, "the last of it")
     lowering = ikey((0.36, 1.62, 0.56), (-0.50, 1.04, 0.06), wrist=(0.0, -10.0, -10.0), lean=2.0, chin=4.0, fist_pole=(0.5, -1.0, -0.3))
-    carried = dict(CARRY)
+    carried = dict(DRINK["carry"])
     let_go = ikey((0.50, 1.30, 0.42), (-0.50, 1.04, 0.06), wrist=(0.0, -10.0, -6.0), fist_pole=(0.45, -1.0, -0.4))
 
     def at(seconds):
@@ -161,7 +165,7 @@ def build_keys():
         return at(0.75 + (f - 55) / 30.0 / 1.65)
 
     return [
-        (0.0, CARRY, None),
+        (0.0, DRINK["carry"], None),
         (at(0.22), dict(above), "smooth"),
         (at(0.32), under, "smooth"),
         (at(0.44), flicked, "linear"),
@@ -173,9 +177,7 @@ def build_keys():
         (frame(140), gulped, "linear"),
         (frame(158), lowering, "smooth"),
         (frame(172), carried, "smooth"),
-        (at(3.28), let_go, "smooth"),
-        (1.0, STAND, "smooth"),
-    ]
+    ] + ([(1.0, dict(DRINK["end"]), "smooth")] if DRINK["kept"] else [(at(3.28), let_go, "smooth"), (1.0, STAND, "smooth")])
 
 
 # The feet stay planted where they stand: a drink is taken standing, and walking the legs are the walk's (the game's driver).
@@ -191,44 +193,66 @@ def drink_pose(keys, t01, stats):
     return P
 
 
-def bake_drink():
-    keys = build_keys()
+# THE DRINKS (each its own clip, 3.5 s): how the right hand holds it (the game's hold: keep in step), its rim, where the left hand pinches it shut and
+# where that has gone once open, whether it stays in the hand after (the can is let fall; the PHIZZ bottle, drunk empty, is kept as a weapon: owner),
+# its carry (the first frame: the game holds the arm there while it is in hand) and where it is opened. The can's tab swings up on its rivet; the
+# bottle's crown cap is pulled up off its mouth, and its clip ends in the empty bottle's own carry, which it becomes.
+SODA = 2.4 * 1.1                                    # BottleShape.Scale for the soda bottle
+DRINKS = [
+    dict(name="can_drink", hold=CAN_HOLD, height=CAN_HEIGHT, rim=RIM_RADIUS, opener=TAB_END, opened=TAB_END_OPEN, kept=False, carry=CARRY,
+         opening_fist=OPENING_RIGHT["fist"]),
+    dict(name="bottle_drink", hold=BOTTLE_HOLD, height=0.238 * SODA, rim=0.0128 * SODA, opener=V(0.03, 0.2425 * SODA, 0.0),
+         opened=V(-0.01, 0.2425 * SODA + 0.08, 0.0), kept=True, carry=LOW_CARRY, opening_fist=V(0.30, 1.16, 0.56),
+         end=CARRY),
+]
+
+
+def bake_drinks():
+    """Every drink's clip, one after another on one action; returns {name: (first frame, frames)}."""
+    global DRINK
     if rig.animation_data and rig.animation_data.action:
         old = rig.animation_data.action
         rig.animation_data.action = None
         bpy.data.actions.remove(old)
     rig.animation_data_create()
-    action = bpy.data.actions.new("CanDrink")
+    action = bpy.data.actions.new("Drinks")
     rig.animation_data.action = action
     scene = bpy.context.scene
     scene.timeline_markers.clear()
-    scene.timeline_markers.new("can_drink", frame=0)
     frames = int(round(SECONDS * FPS))
     previous = {}
     stats = {"reach": 0.0}
-    for i in range(frames):
-        t01 = i / float(frames - 1)
-        D, pos = solve(drink_pose(keys, t01, stats))
-        turn_wrist(D, pos, sample_wrist(keys, t01))
-        turn_left_hand(D, keys, t01)
-        carry_head(D, pos, keys, t01)
-        apply_pose(locals_of(D), pos["hips"])
-        for n in ORDER:
-            pb = rig.pose.bones[n]
-            q = pb.rotation_quaternion.copy()
-            if n in previous and previous[n].dot(q) < 0.0:
-                q = -q
-            pb.rotation_quaternion = q
-            previous[n] = q
-            pb.keyframe_insert("rotation_quaternion", frame=i, group=n)
-            if PARENT[n] is None:
-                pb.keyframe_insert("location", frame=i, group=n)
-    scene.timeline_markers.new("end", frame=frames)
+    spans = {}
+    start = 0
+    for drink in DRINKS:
+        DRINK = drink
+        keys = build_keys()
+        scene.timeline_markers.new(drink["name"], frame=start)
+        for i in range(frames):
+            t01 = i / float(frames - 1)
+            D, pos = solve(drink_pose(keys, t01, stats))
+            turn_wrist(D, pos, sample_wrist(keys, t01))
+            turn_left_hand(D, keys, t01)
+            carry_head(D, pos, keys, t01)
+            apply_pose(locals_of(D), pos["hips"])
+            for n in ORDER:
+                pb = rig.pose.bones[n]
+                q = pb.rotation_quaternion.copy()
+                if n in previous and previous[n].dot(q) < 0.0:
+                    q = -q
+                pb.rotation_quaternion = q
+                previous[n] = q
+                pb.keyframe_insert("rotation_quaternion", frame=start + i, group=n)
+                if PARENT[n] is None:
+                    pb.keyframe_insert("location", frame=start + i, group=n)
+        spans[drink["name"]] = (start, frames)
+        start += frames
+    scene.timeline_markers.new("end", frame=start)
     for fc in action.fcurves:
         for kp in fc.keyframe_points:
             kp.interpolation = 'LINEAR'
     scene.render.fps = FPS
     scene.frame_start = 0
-    scene.frame_end = frames - 1
+    scene.frame_end = start - 1
     scene.frame_set(0)
-    return frames
+    return spans

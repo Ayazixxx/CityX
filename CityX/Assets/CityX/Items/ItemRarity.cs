@@ -76,6 +76,7 @@ namespace CityX.Items
             [ItemRegistry.RiotShield] = Rarity.Uncommon,
             [ItemRegistry.SprayCan] = Rarity.Common,
             [ItemRegistry.PhizzCan] = Rarity.Uncommon,
+            [ItemRegistry.PhizzBottle] = Rarity.Uncommon,
             [ItemRegistry.Flashlight] = Rarity.Common,
             [ItemRegistry.JerryCan] = Rarity.Common,
             [ItemRegistry.HoodedCloak] = Rarity.Uncommon,

@@ -532,6 +532,10 @@ namespace CityX.UI
                 case "soda_can":
                 case "sodacan":
                     return ItemRegistry.PhizzCan;
+                case "phizz_bottle":
+                case "phizzbottle":
+                case "full_bottle":
+                    return ItemRegistry.PhizzBottle;
                 case "ak":
                 case "ak47":
                 case "ak-47":
@@ -586,7 +590,8 @@ namespace CityX.UI
             if (!inventory.HasItem(itemId))
             {
                 // A whole stack of what comes in stacks (grenades: spent as thrown, the next one into the hand), one of anything else.
-                inventory.AddItem(itemId, ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? Mathf.Max(1, definition.StackSize) : 1);
+                inventory.AddItem(itemId, ItemRegistry.TryGet(itemId, out ItemDefinition definition)
+                    ? (definition.StackSize == ItemRegistry.EndlessStack ? ItemRegistry.HandedOutOfEndless : Mathf.Max(1, definition.StackSize)) : 1);
             }
 
             if (!inventory.RemoveFromStorage(itemId, 1, out ItemInstanceData instanceData))
