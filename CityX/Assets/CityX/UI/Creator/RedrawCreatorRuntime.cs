@@ -215,7 +215,10 @@ namespace CityX.UI
             // showed through each other in speckles (owner, 2026-11-15: "make sure there isnt a new hair overlapping with the old one").
             foreach (Transform part in body.GetComponentsInChildren<Transform>(includeInactive: true))
             {
-                if (part.name == CharacterHair.WornName && part.GetComponent<MeshRenderer>() != null)
+                // The beard likewise: left, it showed in the material's own orange through the new one (owner, 2026-11-23: "when you click
+                // redraw with a beard equipped it shows an orange version of the beard clipping through").
+                bool worn = part.name == CharacterHair.WornName || part.name == CharacterHair.BeardWornName;
+                if (worn && part.GetComponent<MeshRenderer>() != null)
                 {
                     part.name = "CopiedHair";   // gone at the end of the frame; renamed now, so nothing finds it before then
                     Object.Destroy(part.gameObject);

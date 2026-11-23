@@ -120,6 +120,7 @@ namespace CityX.Tests
             yield return Open(2);
             CharacterSave chosen = _server.Characters[0];
             chosen.HairStyle = CharacterHair.ValidStyles[1];
+            chosen.Beard = CharacterHair.FullBeard;
             _select.Refresh();
             yield return Frames(3);
             yield return Tap(_keyboard.enterKey);
@@ -135,12 +136,16 @@ namespace CityX.Tests
             Assert.AreEqual(chosen.HairStyle, overlays.Creator.HairStyle, "the redraw does not open on the character's own hair");
             // Owner, 2026-11-15: "make sure there isnt a new hair overlapping with the old one".
             Transform redrawnHead = TransformSearch.FindDeep(overlays.Creator.RotationPivot, "head");
-            int hairs = 0;
+            int hairs = 0, beards = 0;
             foreach (Transform child in redrawnHead)
             {
                 if (child.name == CharacterHair.WornName) hairs++;
+                if (child.name == CharacterHair.BeardWornName) beards++;
             }
             Assert.AreEqual(1, hairs, "the redrawn body wears its copied hair and a new one, one inside the other");
+            // Owner, 2026-11-23: "it shows an orange version of the beard clipping through the one where you selected the colorway".
+            Assert.AreEqual(CharacterHair.FullBeard, overlays.Creator.Beard, "the redraw does not open on the character's own beard");
+            Assert.AreEqual(1, beards, "the redrawn body wears its copied beard and a new one, one inside the other");
             int beltLayer = _select.Lineup.gameObject.layer;
             Assert.AreEqual(0, overlays.Creator.Camera.cullingMask & (1 << beltLayer), "the redraw sees the belt and the characters on it");
             foreach (Light light in _select.Lineup.GetComponentsInChildren<Light>())
