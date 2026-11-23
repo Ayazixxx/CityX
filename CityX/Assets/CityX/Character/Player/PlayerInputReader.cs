@@ -63,6 +63,9 @@ namespace CityX.Character
         /// </summary>
         public ISprayCan EquippedSprayCan;
 
+        /// <summary>A drink in the hand (a can of PHIZZ): a click drinks it (docs/PHIZZ_CAN.md).</summary>
+        public IHeldDrink EquippedDrink;
+
         /// <summary>Right-click with a spray can in hand: the UI (GraffitiMenuView) finds the wall in front and opens the canvas on it.</summary>
         public static event System.Action<PlayerInputReader> SprayRequested;
 

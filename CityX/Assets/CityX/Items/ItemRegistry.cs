@@ -54,6 +54,9 @@ namespace CityX.Items
         /// <summary>A shoulder-fired rocket launcher after the RPG-7 (docs/RPG.md).</summary>
         public const string RPG = "rpg";
         public const string SprayCan = "spray_can";
+
+        /// <summary>A can of PHIZZ, the owner's banana soda: drunk with a click, it heals (docs/PHIZZ_CAN.md).</summary>
+        public const string PhizzCan = "phizz_can";
         public const string KnightHelmet = "knight_helmet";
         public const string FarmerHat = "farmer_hat";
         public const string ClawSkull = "claw_skull";
@@ -178,6 +181,7 @@ namespace CityX.Items
             [RPG] = new ItemDefinition(RPG, "RPG", "weapon", EquipSlots.Primary, 1),
             // Right-click a wall with it to paint graffiti (GraffitiMenuView).
             [SprayCan] = new ItemDefinition(SprayCan, "Spray Can", "tool", EquipSlots.Primary, 1),
+            [PhizzCan] = new ItemDefinition(PhizzCan, "PHIZZ Banana Soda", "drink", EquipSlots.Primary, 1),
             // Hats and helmets on the head; the face (the mask slot) is worn beside them.
             [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // A wide straw hat: Meshy's, cut off its figure (Wearables/FarmerHat).

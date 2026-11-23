@@ -44,6 +44,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.ShotgunShells, "Assets/CityX/Weapons/Ammo/ShotgunShells.prefab"),
             (ItemRegistry.RpgRockets, "Assets/CityX/Weapons/Ammo/RpgRockets.prefab"),
             (ItemRegistry.SprayCan, "Assets/CityX/Weapons/SprayCan.prefab"),
+            (ItemRegistry.PhizzCan, "Assets/CityX/Weapons/Cans/phizz_can.prefab"),
             (ItemRegistry.ArcaneStaff, "Assets/CityX/Weapons/ArcaneStaff.prefab"),
             (ItemRegistry.FireballStaff, "Assets/CityX/Weapons/FireballStaff.prefab"),
             (ItemRegistry.IceShardStaff, "Assets/CityX/Weapons/IceShardStaff.prefab"),

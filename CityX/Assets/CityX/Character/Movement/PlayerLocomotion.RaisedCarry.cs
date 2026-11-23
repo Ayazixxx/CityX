@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace CityX.Character
 {
-    /// <summary>A held thing that is carried raised (a bottle by its neck): the body holds its right arm in <see cref="RaisedCarry"/>'s pose.</summary>
+    /// <summary>A held thing that is carried raised (a bottle by its neck, a can of PHIZZ upright: the can's drink begins from the same pose): the body holds its right arm in <see cref="RaisedCarry"/>'s pose.</summary>
     public interface IRaisedCarry
     {
     }
@@ -62,13 +62,41 @@ namespace CityX.Character
 
         private float _raisedCarry;
 
+        /// <summary>The right hand's child count when it was last searched for a raised carry, and what was found (searched only when it changes).</summary>
+        private int _raisedCarryChildren = -1;
+
+        private bool _raisedCarryHeld;
+
+        /// <summary>Something mounted on the right hand is carried raised (<see cref="IRaisedCarry"/>): a bottle, a can.</summary>
+        private bool HoldsRaisedCarry
+        {
+            get
+            {
+                if (_handR == null)
+                {
+                    return false;
+                }
+                int children = _handR.childCount;
+                if (children != _raisedCarryChildren)
+                {
+                    _raisedCarryChildren = children;
+                    _raisedCarryHeld = false;
+                    for (int i = 0; i < children && !_raisedCarryHeld; i++)
+                    {
+                        _raisedCarryHeld = _handR.GetChild(i).GetComponent<IRaisedCarry>() != null;
+                    }
+                }
+                return _raisedCarryHeld;
+            }
+        }
+
         /// <summary>How much of the right arm the raised carry holds, 0 to 1 (for tests).</summary>
         public float RaisedCarryWeight { get; private set; }
 
         private void ApplyRaisedCarry()
         {
             Quaternion[] arm = RaisedCarry.Arm;
-            bool carried = arm != null && HeldSword is IRaisedCarry && _rightUpperArm != null && _rightLowerArm != null && _handR != null;
+            bool carried = arm != null && HoldsRaisedCarry && _rightUpperArm != null && _rightLowerArm != null && _handR != null;
             // A swing, a guard or a baked move (the aim, the throw) has the arm: the carry gives way as they come in.
             float wanted = carried
                 ? (1.0f - (_swordFrame.Active ? Mathf.Clamp01(_swordFrame.Weight) : 0.0f)) * (1.0f - BakedArmsWeight)

@@ -293,6 +293,7 @@ namespace CityX.ViewEditor
             GameObject shotgunShellsPrefab = CityX.WeaponsEditor.AmmoBuilder.BuildShotgun();
             GameObject rpgRocketsPrefab = CityX.WeaponsEditor.AmmoBuilder.BuildRockets();
             GameObject sprayCanPrefab = CityX.WeaponsEditor.SprayCanBuilder.Build();
+            GameObject phizzCanPrefab = CityX.WeaponsEditor.PhizzCanBuilder.Build();
             GameObject knightHelmetPrefab = CityX.WearablesEditor.KnightHelmetBuilder.Build();
             GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
             GameObject clawSkullPrefab = CityX.WearablesEditor.ClawSkullBuilder.Build();
@@ -637,6 +638,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.RpgRockets, Prefab = rpgRocketsPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.SprayCan, Prefab = sprayCanPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.PhizzCan, Prefab = phizzCanPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.ArcaneStaff, Prefab = arcaneStaffPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

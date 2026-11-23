@@ -182,6 +182,9 @@ PrefabInstance:
       addedObject: {fileID: 4634434617254352339}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 2936329158269984373}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 6287820491867235507}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -203,7 +206,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2156714508577960188}
+      addedObject: {fileID: 2991930121450046346}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -516,6 +519,8 @@ MonoBehaviour:
     Prefab: {fileID: 4932145747573006328, guid: 96955707e0cb6af44b3e3a7e8ce70ff6, type: 3}
   - ItemId: spray_can
     Prefab: {fileID: 1457213973204992229, guid: c6f1f93176398104d9f27215ee7a94dd, type: 3}
+  - ItemId: phizz_can
+    Prefab: {fileID: 5390695618396308588, guid: 5967e3a119409fa479cd1867fcfd0f0a, type: 3}
   - ItemId: arcane_staff
     Prefab: {fileID: 3468880142499063071, guid: 54afee851d426e540a538ff4e5800caf, type: 3}
   - ItemId: fireball_staff
@@ -1093,6 +1098,18 @@ MonoBehaviour:
   - {fileID: 453155573149151686, guid: 5479b6b5e3b3d0543bc3a250cb386751, type: 3}
   - {fileID: 6274430713240232464, guid: e78e8809ac5069042a0290081913cb63, type: 3}
   - {fileID: 8185852258123393053, guid: 899fd4895c807d049a2d3eade3ff29d4, type: 3}
+--- !u!114 &2936329158269984373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af3062212fc59fe459f58394e18f1882, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.CanDrinker
 --- !u!114 &6287820491867235507
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1186,7 +1203,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &2156714508577960188
+--- !u!114 &2991930121450046346
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

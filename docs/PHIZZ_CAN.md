@@ -5,8 +5,9 @@ usually are" (a Sketchfab soda can and a picture of yellow cans with silver lids
 pretty simple design": made here, nothing downloaded). "the can version is not meant to be used as a weapon heals only. i will have fable
 build the heals and drinking element ... you will do the models".
 
-**A model only.** It is no item yet: drinking it and its heal (80 health over 10 s, the owner's) are Fable's to build (see the PHIZZ notes in
-docs/GLASS_BOTTLE.md for where full ones come from).
+**An item you drink** (owner, later the same day: "make a drinking animation for the can", "make it heal how we described 80 hp over 10 seconds"). Not a weapon. Full
+ones are meant to come from vending machines, fridges and bars (docs/GLASS_BOTTLE.md, PHIZZ); for now `/spawn phizz` (or `phizz_can`, `soda_can`).
+The bottle's drink, with liquid sloshing inside, is Fable's (owner).
 
 ## What it is
 
@@ -40,3 +41,33 @@ docs/GLASS_BOTTLE.md for where full ones come from).
 `PhizzCanTests` (its parts, its size, the triangle budget, the label printed; the tab and the opening on the lid inside the rim, either side
 of the rivet). `PhizzCanCapture` (Explicit, `-Graphics`): front, back, side, above, the lid close, one lying down from below:
 `Logs/CityShots/can-*.png`.
+
+## Drinking it (`PhizzCan`, `CanDrinker`)
+
+Owner: "he holds it in his right hand, and when you initiate the drinking. he reaches over with his left hand and does an opening the tab animation
+and a black hole appears where the drinking hole is. then it plays the drinking animation attached drops the can", "from click to completion last 3.5
+seconds", "thumb wrapped around for grip no not clipping into the can, maybe a very slight amount of the finger tips can clip through".
+
+| | |
+|---|---|
+| Carried | upright in the right fist, raised as the bottle is (the same carry pose, `IRaisedCarry`), its hole toward the body |
+| The grip | the palm on the can, the fingers bent at the knuckles and hardly at the tips (curled evenly, their tips hit a can this wide a third of the way to a fist), the thumb turned 30 degrees away and closed onto the can's near side: thumb 3 mm off it, fingertips 8 mm in (`CanGripPlayTests`) |
+| Left-click | drinks. 0 to 0.6 s: the can comes in before the chest, the left fingertip gets under the tab and flicks it up (0.32 to 0.44 s), the hole shows black. Then the owner's Mixamo "Drinking", mirrored to the right hand, 1.65 times as fast: a sip with the head bowed (1.36 s: **the heal begins**, 80 health over 10 s), the can tipped up with the head back (about 2.1 to 2.4 s), down again. 3.22 s: the hand lets the empty can drop. 3.5 s: done, the hand empty |
+| The heal | `PlayerVitals.AddHealOverTime`: even over the 10 s, a blow does not pause it (the body's own regeneration waits after a blow; a drink does not), two drinks heal side by side, lost on death (`HealOverTime`) |
+| The empty can | falls from the hand, rolls, lies for 30 s and shrinks away (`DroppedCan`); litter, on each machine its own |
+| Moving | the drink is from the waist up and the legs walk on, as the bottle's moves |
+
+**The clip** (`CityX/SourceArt/Drink/can_drink.py`, built by `can_drink_build.py`): key poses on the punches' solver. The can's rim is put to the
+mouth (low on the head's front: faces are painted, so where a drawn mouth sits) at each moment the recording's cup is at its mouth, the hand fitted
+to the can from the head (`wrist_turn.fit_hand` with `bone="head"`; its turn now searched out when the angles read off it miss, as they did for the
+can tipped up). Keep `CanDrinker`'s moments and `PhizzCan.HoldPosition`/`HoldRotation` in step with it. Rebuild:
+
+    blender --background --factory-startup --python CityX/SourceArt/Drink/can_drink_build.py -- --render <folder> --export CityX/Assets/CityX/Character/Resources/Drink/CanDrinkMotion.json
+
+**Other players** (`CanDrinker`, an `IReplicatedAbility` "drink", on every body: `PlayerAbilityWiring`): told when a drink begins, their copy of
+the body drinks its copy of the can the same way (the tab, the hole, the drop) and heals no one. The can in the hand is an `ICosmeticMountable`
+(`NetworkedPlayerWiring`).
+
+Tests: `PhizzCanTests` (the heal's numbers and stacking, the clip's 3.5 s and its moments in order), `CanGripPlayTests`, `CanDrinkPlayTests` (a
+click to the end: the tab and hole, the heal at the sip, the drop, the hand empty, the copy). `PhizzCanCapture.RenderTheDrink` (Explicit,
+`-Graphics`): `can-drink-front-*.png`, `can-drink-game-*.png`.

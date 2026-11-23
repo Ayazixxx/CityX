@@ -107,6 +107,16 @@ namespace CityX.Weapons
                 OpeningFar, OpeningNear, OpeningHalfWidth - halfScore, LidHeight, ScoreHeight);
         }
 
+        /// <summary>How far the opened hole's black stands off the lid, inside the scored line.</summary>
+        public const float HoleProud = 0.0002f;
+
+        /// <summary>The opened hole: the black inside the scored line, a plate the shape of the opening (shown once the tab has cracked the lid).</summary>
+        public static BottleMesh.Model Hole()
+        {
+            float middle = (OpeningNear + OpeningFar) * 0.5f;
+            return Ring(new Vector2(middle, 0.0f), OpeningFar, OpeningNear, OpeningHalfWidth - ScoreWidth * 0.5f, middle, middle, 0.00005f, LidHeight, HoleProud);
+        }
+
         /// <summary>
         /// A flat ring lying on the lid between two stadiums (each the segment from (a, 0) to (b, 0) with a radius round it), from
         /// <paramref name="bottom"/> up <paramref name="thickness"/>: a top, an underside and the walls round both edges. Each outline point is where a ray

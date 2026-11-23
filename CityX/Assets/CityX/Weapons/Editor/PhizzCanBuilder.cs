@@ -13,6 +13,7 @@ namespace CityX.WeaponsEditor
     {
         public const string Folder = "Assets/CityX/Weapons/Cans";
         public const string PrefabPath = Folder + "/phizz_can.prefab";
+        public const string EmptyPrefabPath = Folder + "/phizz_can_empty.prefab";
 
         /// <summary>The can's own PHIZZ label: the owner's splash with no margin and their BANANA SODA drawn smaller inside it, so that printed half way round the splash is about 1.2 times the bottle's and the wording the size it is on the bottle (owner: "make the phizz logo 1.1x bigger", "leave the banana soda the same size", "make the logo 1.1x bigger"): SourceArt/Phizz/phizz_label.ps1 -WordingScale 0.834 -Margin 0.</summary>
         public const string LabelPath = Folder + "/PhizzCanLabel.png";
@@ -57,29 +58,66 @@ namespace CityX.WeaponsEditor
             Material tab = HeldModelBaker.LitMaterial($"{Folder}/phizz_can_tab.mat", TabSilver, Metallic, TabSmoothness);
             Material print = BottleBuilder.PrintMaterial($"{Folder}/phizz_can_print.mat", LabelPath);
 
-            var root = new GameObject("phizz_can");
+            Material hole = HeldModelBaker.LitMaterial($"{Folder}/phizz_can_hole.mat", Color.black, 0.0f, 0.0f);
+            var look = new Look { Gold = gold, Silver = silver, Tab = tab, Print = print, Hole = hole };
+
+            // The empty can first: the full one drops it.
+            GameObject empty = SaveCan("phizz_can_empty", EmptyPrefabPath, look, root =>
+            {
+                root.transform.Find("TabHinge").localRotation = Quaternion.AngleAxis(PhizzCan.TabOpenDegrees, Vector3.forward);
+                root.transform.Find("Hole").gameObject.SetActive(true);
+                root.AddComponent<DroppedCan>();
+            });
+
+            GameObject saved = SaveCan("phizz_can", PrefabPath, look, root =>
+            {
+                var pickup = root.AddComponent<SphereCollider>();
+                pickup.isTrigger = true;
+                pickup.radius = PhizzCan.InteractRange;
+                var can = root.AddComponent<PhizzCan>();
+                can.TabHinge = root.transform.Find("TabHinge");
+                can.Hole = root.transform.Find("Hole").gameObject;
+                can.EmptyPrefab = empty;
+            });
+            AssetDatabase.SaveAssets();
+            Debug.Log($"CityX: PHIZZ can written to {PrefabPath}");
+            return saved;
+        }
+
+        private sealed class Look
+        {
+            public Material Gold, Silver, Tab, Print, Hole;
+        }
+
+        /// <summary>The can's model (the tab on a hinge at its rivet, the hole hidden), a body and a capsule, finished by <paramref name="finish"/> and saved.</summary>
+        private static GameObject SaveCan(string name, string path, Look look, System.Action<GameObject> finish)
+        {
+            var root = new GameObject(name);
             try
             {
-                Part(root.transform, "Body", BottleMesh.Turned(CanMesh.Body, Sides, StraightRingEvery), gold);
-                Part(root.transform, "Foot", BottleMesh.Turned(CanMesh.Foot, Sides, RingEvery), silver);
-                Part(root.transform, "Top", BottleMesh.Turned(CanMesh.Top, Sides, RingEvery), silver);
-                Part(root.transform, "Rivet", BottleMesh.Turned(CanMesh.Rivet, 12, RingEvery * 0.5f), silver);
-                Part(root.transform, "Tab", CanMesh.Tab(), tab);
-                Part(root.transform, "Opening", CanMesh.Opening(), silver);
+                Part(root.transform, "Body", BottleMesh.Turned(CanMesh.Body, Sides, StraightRingEvery), look.Gold);
+                Part(root.transform, "Foot", BottleMesh.Turned(CanMesh.Foot, Sides, RingEvery), look.Silver);
+                Part(root.transform, "Top", BottleMesh.Turned(CanMesh.Top, Sides, RingEvery), look.Silver);
+                Part(root.transform, "Rivet", BottleMesh.Turned(CanMesh.Rivet, 12, RingEvery * 0.5f), look.Silver);
+                Part(root.transform, "Opening", CanMesh.Opening(), look.Silver);
+                Part(root.transform, "Hole", CanMesh.Hole(), look.Hole).gameObject.SetActive(false);
                 Part(root.transform, "Print", BottleMesh.Joined(
                     BottleMesh.Printed(CanMesh.Outline, PrintFrom, PrintTo, 90.0f, PrintArcDegrees, PrintProud, PrintColumns, PrintRows, RingEvery),
-                    BottleMesh.Printed(CanMesh.Outline, PrintFrom, PrintTo, 270.0f, PrintArcDegrees, PrintProud, PrintColumns, PrintRows, RingEvery)), print);
+                    BottleMesh.Printed(CanMesh.Outline, PrintFrom, PrintTo, 270.0f, PrintArcDegrees, PrintProud, PrintColumns, PrintRows, RingEvery)), look.Print);
+                // The tab turns about its rivet (along the can's Z) to lift its free end.
+                var hinge = new GameObject("TabHinge");
+                hinge.transform.SetParent(root.transform, false);
+                hinge.transform.localPosition = new Vector3(0.0f, CanMesh.LidHeight * BottleShape.LifeScale, 0.0f);
+                Part(hinge.transform, "Tab", CanMesh.Tab(), look.Tab).localPosition = -hinge.transform.localPosition;
 
-                var body = root.AddComponent<CapsuleCollider>();
-                body.direction = 1;
-                body.radius = CanMesh.Radius * BottleShape.LifeScale;
-                body.height = CanMesh.Height * BottleShape.LifeScale;
-                body.center = new Vector3(0.0f, body.height * 0.5f, 0.0f);
-
-                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
-                AssetDatabase.SaveAssets();
-                Debug.Log($"CityX: PHIZZ can written to {PrefabPath}");
-                return saved;
+                var capsule = root.AddComponent<CapsuleCollider>();
+                capsule.direction = 1;
+                capsule.radius = CanMesh.Radius * BottleShape.LifeScale;
+                capsule.height = CanMesh.Height * BottleShape.LifeScale;
+                capsule.center = new Vector3(0.0f, capsule.height * 0.5f, 0.0f);
+                root.AddComponent<Rigidbody>().mass = PhizzCan.CanMass;
+                finish(root);
+                return PrefabUtility.SaveAsPrefabAsset(root, path);
             }
             finally
             {
@@ -88,7 +126,7 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>A part of the can at the game's size, saved as its own mesh.</summary>
-        private static void Part(Transform parent, string name, BottleMesh.Model model, Material material)
+        private static Transform Part(Transform parent, string name, BottleMesh.Model model, Material material)
         {
             var vertices = new Vector3[model.Vertices.Count];
             for (int i = 0; i < vertices.Length; i++)
@@ -97,7 +135,7 @@ namespace CityX.WeaponsEditor
             }
             Mesh mesh = HeldModelBaker.Save($"{Folder}/phizz_can_{name.ToLowerInvariant()}.asset", $"phizz_can_{name.ToLowerInvariant()}", vertices,
                 model.Normals.ToArray(), model.Triangles.ToArray(), model.HasUvs ? model.Uvs.ToArray() : null);
-            HeldModelBaker.Part(parent, name, mesh, material);
+            return HeldModelBaker.Part(parent, name, mesh, material);
         }
     }
 }

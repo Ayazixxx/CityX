@@ -1,3 +1,4 @@
+using CityX.Character;
 using CityX.Weapons;
 using CityX.WeaponsEditor;
 using NUnit.Framework;
@@ -20,7 +21,7 @@ namespace CityX.Tests
             int triangles = 0;
             Bounds bounds = default;
             bool first = true;
-            foreach (string part in new[] { "Body", "Foot", "Top", "Rivet", "Tab", "Opening", "Print" })
+            foreach (string part in new[] { "Body", "Foot", "Top", "Rivet", "TabHinge/Tab", "Opening", "Hole", "Print" })
             {
                 Transform child = prefab.transform.Find(part);
                 Assert.IsNotNull(child, $"the can has no {part}");
@@ -43,6 +44,38 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, bounds.min.y, 0.002f);
             Assert.AreEqual(CanMesh.Radius * BottleShape.LifeScale, bounds.max.x, 0.004f, "a real can's width");
             Assert.IsNotNull(prefab.transform.Find("Print").GetComponent<MeshRenderer>().sharedMaterial.GetTexture("_BaseMap"), "the label is not printed");
+        }
+
+        [Test]
+        public void ACanHealsEightyOverTenSecondsEvenlyAndTwoHealSideBySide()
+        {
+            var heal = new HealOverTime();
+            heal.Add(PhizzCan.HealAmount, PhizzCan.HealSeconds);
+            Assert.AreEqual(80.0f, PhizzCan.HealAmount, "the owner's 80");
+            Assert.AreEqual(10.0f, PhizzCan.HealSeconds, "the owner's 10 seconds");
+            Assert.AreEqual(8.0f, heal.Take(1.0f), 1e-4f, "not even over the ten seconds");
+            heal.Add(PhizzCan.HealAmount, PhizzCan.HealSeconds);
+            Assert.AreEqual(16.0f, heal.Take(1.0f), 1e-4f, "a second drink does not heal beside the first");
+            float given = 24.0f;
+            for (int i = 0; i < 20; i++)
+            {
+                given += heal.Take(1.0f);
+            }
+            Assert.AreEqual(160.0f, given, 1e-3f, "two cans did not give 160 in all");
+            Assert.IsFalse(heal.Running);
+        }
+
+        [Test]
+        public void TheDrinkClipIsThreeAndAHalfSecondsAndItsMomentsComeInOrder()
+        {
+            BakedMotion motion = BakedMotion.Load(CanDrinker.MotionPath);
+            Assert.IsNotNull(motion, "the drink clip is not in Resources: run can_drink_build.py --export");
+            Assert.IsTrue(motion.HasSegment(CanDrinker.Clip));
+            Assert.AreEqual(CanDrinker.Seconds, (motion.SegmentFrames(CanDrinker.Clip) - 1) / (float)motion.FramesPerSecond, 0.02f, "the owner's 3.5 seconds");
+            Assert.Less(CanDrinker.TabFromSeconds, CanDrinker.TabToSeconds);
+            Assert.Less(CanDrinker.TabToSeconds, CanDrinker.HealFromSeconds);
+            Assert.Less(CanDrinker.HealFromSeconds, CanDrinker.DropSeconds);
+            Assert.Less(CanDrinker.DropSeconds, CanDrinker.Seconds);
         }
 
         [Test]

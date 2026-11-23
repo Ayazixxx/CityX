@@ -66,13 +66,37 @@ def _solved_key(k, turned):
     return D, pos
 
 
-def fit_hand(k, hand_wanted, name="the grab"):
-    """Moves key `k`'s right wrist, and turns its hand on the forearm, to where `hand_wanted(spine)` has the hand (both the game's frames, the spine's as the key poses it):
-    where the hand's hold of a thing is the thing as it hangs from the spine. Returns the wrist's turn."""
+def _turn_miss(wrist, local):
+    """Degrees between the hand turned by `wrist` and the turn wanted (a turn and its opposite quaternion are the same turn)."""
+    return math.degrees(2.0 * math.acos(min(1.0, abs(_wrist_turn(wrist).dot(local)))))
+
+
+def _refined(best, local):
+    """A wrist turn searched out from `best` (miss, wrist) a degree step at a time, coarse to fine: the angles read off the turn miss a large one."""
+    miss, wrist = best
+    step = 32.0
+    while step >= 0.25:
+        moved = True
+        while moved:
+            moved = False
+            for axis in range(3):
+                for sign in (1.0, -1.0):
+                    tried = wrist.copy()
+                    tried[axis] += sign * step
+                    tried_miss = _turn_miss(tried, local)
+                    if tried_miss < miss - 1e-4:
+                        miss, wrist, moved = tried_miss, tried, True
+        step *= 0.5
+    return miss, wrist
+
+
+def fit_hand(k, hand_wanted, name="the grab", bone="spine", rest=SPINE_REST):
+    """Moves key `k`'s right wrist, and turns its hand on the forearm, to where `hand_wanted(frame)` has the hand (both the game's frames; `frame` is `bone`'s as the key
+    poses it, `rest` its place at the rig's rest: the spine, where a carried thing hangs, or the head, where a drink is put to the mouth). Returns the wrist's turn."""
     best = None
     for _ in range(3):
         D, pos = _solved_key(k, True)
-        wanted = hand_wanted(unity_frame(D, pos, "spine", SPINE_REST))
+        wanted = hand_wanted(unity_frame(D, pos, bone, rest))
         k["fist"] = V(*wanted.to_translation())
         D, pos = _solved_key(k, False)
         # The hand's turn on the forearm, in the rig's own terms: wanted = forearm @ local.
@@ -85,13 +109,15 @@ def fit_hand(k, hand_wanted, name="the grab"):
             for ss in (1.0, -1.0):
                 for sb in (1.0, -1.0):
                     wrist = V(math.degrees(e.z) * sb, math.degrees(e.y) * ss, math.degrees(e.x) * sr)
-                    miss = math.degrees(_wrist_turn(wrist).rotation_difference(local).angle)
+                    miss = _turn_miss(wrist, local)
                     if best is None or miss < best[0]:
                         best = (miss, wrist)
+        if best[0] > 1.0:
+            best = _refined(best, local)
         k["wrist"] = best[1]
     D, pos = _solved_key(k, True)
     reached = unity_frame(D, pos, "hand_r", HAND_REST)
-    short = (reached.to_translation() - hand_wanted(unity_frame(D, pos, "spine", SPINE_REST)).to_translation()).length
+    short = (reached.to_translation() - hand_wanted(unity_frame(D, pos, bone, rest)).to_translation()).length
     print("%s fitted: wrist at (%.2f, %.2f, %.2f), the hand turned on the forearm (%.0f, %.0f, %.0f), %.1f deg and %.2f m off"
           % (name, k["fist"].x, k["fist"].y, k["fist"].z, best[1].x, best[1].y, best[1].z, best[0], short))
     return best[1]

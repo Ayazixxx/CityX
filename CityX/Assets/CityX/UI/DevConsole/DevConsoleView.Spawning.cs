@@ -527,6 +527,11 @@ namespace CityX.UI
                 case "spraycan":
                 case "spray_can":
                 case "graffiti": return ItemRegistry.SprayCan;
+                case "phizz":
+                case "phizz_can":
+                case "soda_can":
+                case "sodacan":
+                    return ItemRegistry.PhizzCan;
                 case "ak":
                 case "ak47":
                 case "ak-47":

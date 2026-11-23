@@ -61,6 +61,10 @@ namespace CityX.Character
             {
                 return HeldKind.SprayCan;
             }
+            if (EquippedDrink != null)
+            {
+                return HeldKind.Other;
+            }
             if (EquippedGun != null)
             {
                 return _locomotion != null && _locomotion.HoldsPistol ? HeldKind.Pistol : HeldKind.LongGun;
@@ -165,6 +169,16 @@ namespace CityX.Character
                 if (Mouse.current.rightButton.wasPressedThisFrame)
                 {
                     SprayRequested?.Invoke(this);
+                }
+                return;
+            }
+
+            // A DRINK (2026-11-23, docs/PHIZZ_CAN.md): a click drinks it; nothing is punched or blocked with a can in hand.
+            if (EquippedDrink != null)
+            {
+                if (Mouse.current.leftButton.wasPressedThisFrame)
+                {
+                    EquippedDrink.Drink();
                 }
                 return;
             }

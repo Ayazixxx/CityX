@@ -1011,6 +1011,7 @@ namespace CityX.Character
         public void Revive()
         {
             _health = MaxHealth;
+            _healOverTime.Clear();
             _stamina = MaxStamina;
             _mana = MaxMana;
             _exhausted = false;
@@ -1175,15 +1176,42 @@ namespace CityX.Character
 
         private float _healthRegenDelay;
 
+        private readonly HealOverTime _healOverTime = new HealOverTime();
+
+        /// <summary>Health still to come from heals given over time (a drink).</summary>
+        public float HealingToCome => _healOverTime.Remaining;
+
+        /// <summary>
+        /// <paramref name="amount"/> health given evenly over <paramref name="seconds"/> (a can of PHIZZ: docs/PHIZZ_CAN.md), alongside any other running; given
+        /// by <see cref="TickHealthRegen"/> on the owner's machine, a blow not pausing it. Lost on death.
+        /// </summary>
+        public void AddHealOverTime(float amount, float seconds)
+        {
+            if (!IsDead)
+            {
+                _healOverTime.Add(amount, seconds);
+            }
+        }
+
         /// <summary>
         /// Health comes back on its own (2026-10-14): <see cref="BaseHealthRegenPerSecond"/> plus Health Regen, once
         /// <see cref="HealthRegenDelaySeconds"/> have passed since the last blow. Not while dead. Call once per frame (PlayerInputReader does).
         /// </summary>
         public void TickHealthRegen(float deltaTime)
         {
-            if (IsDead || deltaTime <= 0.0f)
+            if (IsDead)
+            {
+                _healOverTime.Clear();
+                return;
+            }
+            if (deltaTime <= 0.0f)
             {
                 return;
+            }
+            float drunk = _healOverTime.Take(deltaTime);
+            if (drunk > 0.0f)
+            {
+                _health = Mathf.Min(MaxHealth, _health + drunk);
             }
             if (_healthRegenDelay > 0.0f)
             {
