@@ -171,7 +171,7 @@ namespace CityX.Tests
             foreach (string id in ids)
             {
                 GameObject prefab = inventory.PrefabForItem(id);
-                if (prefab != null && (prefab.GetComponent<SwordWeapon>() != null || prefab.GetComponent<BottleWeapon>() != null))
+                if (prefab != null && (prefab.GetComponent<ISwordBlade>() != null || prefab.GetComponent<BottleWeapon>() != null))   // (every blade, and the chain)
                 {
                     weapons.Add(id);
                 }

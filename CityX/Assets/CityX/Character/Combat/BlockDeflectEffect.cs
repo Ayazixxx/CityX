@@ -77,8 +77,9 @@ namespace CityX.Character
         /// <summary>
         /// Sparks thrown up out of the ground at <paramref name="point"/>, a flash and the ring of the blade: a sword driven into the
         /// ground. Called on every body that plays the blow (SwordPoseDriver), so every player sees and hears it with nothing sent.
+        /// <paramref name="loudness"/> is a share of a sword's.
         /// </summary>
-        public static void GroundStrike(Vector3 point)
+        public static void GroundStrike(Vector3 point, float loudness = 1.0f)
         {
             GroundStrikesShown++;
             LastGroundStrike = point;
@@ -90,7 +91,35 @@ namespace CityX.Character
             burst.transform.position = point;
             burst.AddComponent<SparkBurst>().Begin(point, Vector3.up, GroundSparkCount, GroundSparkSpeed, GroundSparkWidth, GroundSparkSeconds, GroundSparkLength);
             AttackGlint.Flash(point);
-            PlayClashSound(ClashBody(), point, ClashBodyVolume);
+            PlayClashSound(ClashBody(), point, ClashBodyVolume * loudness);
+        }
+
+        /// <summary>How many times <see cref="Scrape"/> has thrown sparks (for tests), and where last.</summary>
+        public static int ScrapesShown { get; private set; }
+
+        public static Vector3 LastScrape { get; private set; }
+
+        public const int ScrapeSparkCount = 7;
+        public const float ScrapeSparkSeconds = 0.22f;
+        public const float ScrapeSparkSpeed = 5.0f;
+        public const float ScrapeSparkLength = 0.2f;
+        public const float ScrapeSparkWidth = 0.02f;
+
+        /// <summary>
+        /// A few sparks off the ground at <paramref name="point"/>, thrown mostly <paramref name="along"/>: steel dragged or flung across it (a
+        /// chain's links, docs/CHAIN.md). No flash and no ring: a scrape, not a blow. Shown by whichever body drags it, owner or copy.
+        /// </summary>
+        public static void Scrape(Vector3 point, Vector3 along)
+        {
+            ScrapesShown++;
+            LastScrape = point;
+            if (!Application.isPlaying)
+            {
+                return;
+            }
+            var burst = new GameObject("ScrapeSparks");
+            burst.transform.position = point;
+            burst.AddComponent<SparkBurst>().Begin(point, along + Vector3.up, ScrapeSparkCount, ScrapeSparkSpeed, ScrapeSparkWidth, ScrapeSparkSeconds, ScrapeSparkLength);
         }
 
         public const int ClashSparkCount = 26;

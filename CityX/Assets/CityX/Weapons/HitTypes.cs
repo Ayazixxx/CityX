@@ -21,6 +21,7 @@ namespace CityX.Weapons
             [ItemRegistry.KitchenKnife] = "Slash (heavy stab: Pierce)",
             [ItemRegistry.ButterKnife] = "Blunt (heavy stab: Pierce)",
             [ItemRegistry.GlassBottle] = "Blunt (thrown: Impact)",
+            [ItemRegistry.Chain] = "Blunt",
             // Two-handed melee
             [ItemRegistry.SpikeSword] = "Slash",
             [ItemRegistry.BaseballBat] = "Blunt",

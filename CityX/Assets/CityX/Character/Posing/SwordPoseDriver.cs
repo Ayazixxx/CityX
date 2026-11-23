@@ -243,6 +243,11 @@ namespace CityX.Character
         private MeleeAttacker _melee;
         private bool _lookedForTrail;
         private bool _whooshed;
+        private int _chainSound;
+        private ChainSounds.Set _chainSounds = ChainSounds.Cold;
+        private FireEnhancementAbility _fire;
+        private bool _lookedForFire;
+        private float _chainSoundAt;
 
         /// <summary>The light trailing from the blade (null until the first live window on a body that has a blade and the streak material).</summary>
         public BladeTrail Trail => _trail;
@@ -257,11 +262,19 @@ namespace CityX.Character
         /// </summary>
         private void ShowTheCut(ISwordBlade held)
         {
-            if (_striking && !_whooshed && Progress >= SwordStrikes.StrikeStart(_kind))
+            bool chain = SwordStrikes.IsChain(_kind);
+            if (_striking && !_whooshed && (chain ? _elapsed >= _chainSoundAt : Progress >= SwordStrikes.StrikeStart(_kind)))
             {
                 _whooshed = true;
                 Vector3 point = held != null ? (held.BladeBaseWorld + held.BladeTipWorld) * 0.5f : transform.position + Vector3.up * 1.5f;
-                SwingWhoosh.Play(SwordStrikes.SoundsHeavy(_kind), point);
+                if (chain)
+                {
+                    ChainSounds.Play(_chainSounds, _chainSound, held != null ? held.BladeBaseWorld : point);
+                }
+                else
+                {
+                    SwingWhoosh.Play(SwordStrikes.SoundsHeavy(_kind), point);
+                }
             }
 
             bool live = BladeIsLive;
@@ -304,6 +317,19 @@ namespace CityX.Character
             StartTakeover(SwordStrikes.TakeoverSeconds(kind));
             _whooshed = false;
             _kind = kind;
+            if (SwordStrikes.IsChain(kind))
+            {
+                // The recording that will be heard, started so that it is loudest as the blow lands.
+                // A chain with the Fire Enhancement on it is heard burning (on a copy too: the enhancement is shown there).
+                if (!_lookedForFire)
+                {
+                    _lookedForFire = true;
+                    _fire = GetComponent<FireEnhancementAbility>();
+                }
+                _chainSounds = _fire != null && _fire.IsAblaze ? ChainSounds.Hot : ChainSounds.Cold;
+                _chainSound = ChainSounds.Next(_chainSounds);
+                _chainSoundAt = ChainSounds.StartSeconds(_chainSounds, _chainSound, SwordStrikes.TimingOf(kind).Contact);
+            }
             _oneHanded = SwordStrikes.IsOneHanded(kind);
             _striking = true;
             _guarding = false;
@@ -339,7 +365,7 @@ namespace CityX.Character
             }
             BakedPose was = _pose;
             BakedMotion motion = SwordStrikes.MotionFor(kind);
-            _armFromClip = ReferenceEquals(motion, SwordStrikes.ArmMotion);
+            _armFromClip = ReferenceEquals(motion, SwordStrikes.ArmMotion) || ReferenceEquals(motion, SwordStrikes.ChainMotion);   // (a chain's clips have both arms)
             if (!ReferenceEquals(motion, _motion))
             {
                 // A clip of the other motion (one with the sword arm in it, or one without): its own poses, the one on the body handed over.

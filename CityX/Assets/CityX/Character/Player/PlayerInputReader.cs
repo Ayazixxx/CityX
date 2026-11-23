@@ -1262,7 +1262,7 @@ namespace CityX.Character
                 // The one-handed sword's own carry clips (Sword1HLocomotion: SwordCarryBaker's walk, run and strafes with a sword arm).
                 Sword1HEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                   _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&
-                                  _melee.EquippedWeapon is ISwordBlade heldBlade && heldBlade.IsOneHanded,
+                                  _melee.EquippedWeapon is ISwordBlade heldBlade && heldBlade.IsOneHanded && !heldBlade.IsChain,
                 // A drawn weapon (the bow) poses both arms itself (PlayerLocomotion.Bow.cs): the gun's own arm pose stays off for it.
                 GunEquipped = EquippedGun != null && !(EquippedGun is IDrawnWeapon),
                 // Where the gun's shot would end -- the arm aims at it (see

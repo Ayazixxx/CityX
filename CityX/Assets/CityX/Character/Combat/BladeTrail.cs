@@ -85,8 +85,8 @@ namespace CityX.Character
             float now = Time.time;
             if (_emitting && _blade is Object alive && alive != null)
             {
-                Vector3 guard = transform.InverseTransformPoint(_blade.BladeBaseWorld);
-                Vector3 tip = transform.InverseTransformPoint(_blade.BladeTipWorld);
+                Vector3 guard = transform.InverseTransformPoint(_blade.TrailBaseWorld);
+                Vector3 tip = transform.InverseTransformPoint(_blade.TrailTipWorld);
                 _path.Add(now, Vector3.Lerp(guard, tip, InnerFraction), tip, StepsPerFrame);
             }
             else if (_emitting)

@@ -178,8 +178,8 @@ namespace CityX.Tests
 
             TickSeconds(claw, 1.0f);
 
-            Assert.AreEqual(start.x, claw.transform.position.x, 0.01f, "moved toward a target far outside detection range");
-            Assert.AreEqual(start.z, claw.transform.position.z, 0.01f);
+            // (With nothing to fight it may drift about where it stands: NpcWander. Whether it does within this second goes by its instance id.)
+            Assert.Less(Vector3.Distance(claw.transform.position, start), CrimsonClaw.WanderSpeed * 1.0f + 0.01f, "went for a target far outside detection range");
         }
 
         [Test]

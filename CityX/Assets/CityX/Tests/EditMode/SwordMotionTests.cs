@@ -94,7 +94,8 @@ namespace CityX.Tests
             Assert.IsFalse(SwordStrikes.HasClip(SwordStrikeKind.Thrust1H), "the knife's thrust has a clip now: list it here and test it");
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                Assert.IsTrue(System.Array.IndexOf(WithClips, kind) >= 0 || kind == SwordStrikeKind.Thrust1H, $"{kind} is in neither list");
+                // (The chain's clips are their own, arms and all: ChainTests.)
+                Assert.IsTrue(System.Array.IndexOf(WithClips, kind) >= 0 || kind == SwordStrikeKind.Thrust1H || SwordStrikes.IsChain(kind), $"{kind} is in neither list");
             }
         }
 

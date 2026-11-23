@@ -33,6 +33,7 @@ namespace CityX.Weapons
             if (prefab != null)
             {
                 if (prefab.GetComponent<SwordWeapon>() is SwordWeapon sword) Melee(card, sword);
+                else if (prefab.GetComponent<ChainWeapon>() is ChainWeapon chain) Chain(card, chain);
                 else if (prefab.GetComponent<PistolWeapon>() is PistolWeapon gun) Gun(card, gun.Profile);
                 else if (prefab.GetComponent<BowWeapon>() is BowWeapon bow) Drawn(card, bow.Profile);
                 else if (prefab.GetComponent<StaffItem>() is StaffItem staff) Staff(card, staff);
@@ -104,6 +105,20 @@ namespace CityX.Weapons
             {
                 card.Note("No edge: it bruises, and cuts nothing off");
             }
+        }
+
+        private static void Chain(ItemCard card, ChainWeapon chain)
+        {
+            card.Kind = "Chain";
+            card.Hands = OneHand;
+            card.Style = "One-Handed Melee";
+            card.ScalesWith = MeleeDamageStat;
+            card.Add("Attack", chain.GetMeleeDamage(), chain.GetMeleeDamage().ToString("0.#"));
+            card.Add("Speed", 1.0f, "Normal");
+            card.Add("Reach", ChainRules.ReachShare, Mathf.RoundToInt(ChainRules.ReachShare * 100.0f) + "%");
+            card.Note("Worn on the wrist; a click throws it out and lashes");
+            card.Note("Swung in the air, it comes straight down");
+            card.Note("Whips down onto anyone on the ground");
         }
 
         private static string MeleeKind(string itemId, bool oneHanded)

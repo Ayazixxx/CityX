@@ -167,6 +167,19 @@ namespace CityX.Character
             Ensure()._look.Lick(from, to, strength, scale, deltaTime);
         }
 
+        /// <summary>
+        /// The embers a stretch of hot chain lays over what it crossed since the last frame, <paramref name="fromWas"/>-<paramref name="toWas"/>
+        /// to <paramref name="from"/>-<paramref name="to"/> (<see cref="FireLook.EmberTrail"/>).
+        /// </summary>
+        public static void LayEmbers(Vector3 fromWas, Vector3 toWas, Vector3 from, Vector3 to, float scale, float deltaTime)
+        {
+            FireScene scene = Ensure();
+            if (scene != null)
+            {
+                scene._look.EmberTrail(fromWas, toWas, from, to, scale, deltaTime);
+            }
+        }
+
         /// <summary>An explosion's fire (docs/GRENADE.md): the fire's tongues licking up out of it for a moment, and its column of smoke.</summary>
         public static void Explode(Vector3 at, float radius)
         {

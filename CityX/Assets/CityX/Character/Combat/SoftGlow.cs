@@ -10,6 +10,42 @@ namespace CityX.Character
     public static class SoftGlow
     {
         private static Texture2D _spot;
+        private static Texture2D _stripe;
+
+        /// <summary>A material of <paramref name="colour"/> for a ribbon of light (a LineRenderer): soft at both edges all along it, added to what is behind.</summary>
+        public static Material MakeBand(string name, Color colour)
+        {
+            Material material = Make(name, colour, true);
+            material.SetTexture("_BaseMap", Stripe());
+            material.mainTexture = Stripe();
+            return material;
+        }
+
+        /// <summary>The soft spot's fall-off across a ribbon only: the same all along it, opaque down its middle and gone at its edges.</summary>
+        public static Texture2D Stripe()
+        {
+            if (_stripe != null)
+            {
+                return _stripe;
+            }
+            const int across = 32, along = 4;
+            _stripe = new Texture2D(along, across, TextureFormat.RGBA32, false) { name = "SoftGlowStripe", hideFlags = HideFlags.DontSave };
+            _stripe.wrapMode = TextureWrapMode.Clamp;
+            var pixels = new Color32[along * across];
+            for (int y = 0; y < across; y++)
+            {
+                float d = (y + 0.5f) / across * 2.0f - 1.0f;
+                float fall = 1.0f - d * d;
+                byte a = (byte)Mathf.RoundToInt(fall * fall * fall * 255.0f);
+                for (int x = 0; x < along; x++)
+                {
+                    pixels[y * along + x] = new Color32(255, 255, 255, a);
+                }
+            }
+            _stripe.SetPixels32(pixels);
+            _stripe.Apply(false, true);
+            return _stripe;
+        }
 
         /// <summary>A see-through material of <paramref name="colour"/> painted with the soft spot.</summary>
         public static Material Make(string name, Color colour, bool additive, Material template = null)

@@ -425,6 +425,8 @@ namespace CityX.UI
                 case "bo":
                 case "pole":
                 case "metalpole": return ItemRegistry.BoStaff;
+                case "chain":
+                case "chains": return ItemRegistry.Chain;
                 case "flamethrower": return ItemRegistry.Flamethrower;
                 case "staff":
                 case "arcane":

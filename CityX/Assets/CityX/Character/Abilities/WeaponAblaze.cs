@@ -20,6 +20,14 @@ namespace CityX.Character
         public const float LightLift = 0.3f;
 
         /// <summary>
+        /// Glowing steel (a chain) is a light of its own, by night as by day (owner, 2026-11-22: "make it glow at night too make it an actual
+        /// light source ingaame"): brighter than the flames' and reaching further, there being three metres of it.
+        /// </summary>
+        public const float GlowingSteelLightIntensity = 0.9f;
+
+        public const float GlowingSteelLightRange = 5.5f;
+
+        /// <summary>
         /// Round the hand, the flames run this far along its forearm and past its fingers, metres (at a body's own size), and this far over it: the
         /// fire's flames fade where they touch a surface, and ones in the hand would not show.
         /// </summary>
@@ -32,6 +40,7 @@ namespace CityX.Character
         private Light _light;
         private bool _on;
         private float _flicker;
+        private bool _glowsItself;
 
         /// <summary>Where the flames burn this frame (for tests): along From to To.</summary>
         public Vector3 From { get; private set; }
@@ -79,9 +88,12 @@ namespace CityX.Character
             _flicker += Time.deltaTime;
             Vector3 middle = Vector3.Lerp(From, To, 0.5f);
             transform.position = middle + Vector3.up * LightLift * scale;
-            _light.range = LightRange * scale;
-            _light.intensity = LightIntensity * (0.75f + 0.25f * Mathf.PerlinNoise(_flicker * 11.0f, 0.7f));
-            FireScene.BurnAlong(From, To, Strength, scale, Time.deltaTime);
+            _light.range = (_glowsItself ? GlowingSteelLightRange : LightRange) * scale;
+            _light.intensity = (_glowsItself ? GlowingSteelLightIntensity : LightIntensity) * (0.75f + 0.25f * Mathf.PerlinNoise(_flicker * 11.0f, 0.7f));
+            if (!_glowsItself)
+            {
+                FireScene.BurnAlong(From, To, Strength, scale, Time.deltaTime);
+            }
         }
 
         /// <summary>The held sword's blade, or the right hand when it holds no sword; false with a staff in hand.</summary>
@@ -92,7 +104,16 @@ namespace CityX.Character
                 return false;
             }
             var blade = _body.GetComponentInChildren<ISwordBlade>();
-            if (blade != null)
+            // A chain is not set ablaze: its steel glows and sheds sparks, its own doing (ChainWeapon). Here, only its light, from the middle of
+            // where its links are (wound on, the fist).
+            _glowsItself = blade != null && blade.IsChain;
+            if (_glowsItself)
+            {
+                From = blade.BladeBaseWorld;
+                To = blade.TrailTipWorld;
+                return true;
+            }
+            if (blade != null && !_glowsItself)
             {
                 From = blade.BladeBaseWorld;
                 To = blade.BladeTipWorld;

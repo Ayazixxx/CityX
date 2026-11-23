@@ -143,7 +143,7 @@ namespace CityX.Character
         private void KeepTheBladeOutOfWalls()
         {
             ISwordBlade blade = _handR != null ? HeldSword : null;
-            if (blade == null)
+            if (blade == null || blade.IsChain)   // (a chain has no blade to turn off a wall)
             {
                 return;
             }

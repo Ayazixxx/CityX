@@ -176,6 +176,14 @@ namespace CityX.Character
         /// </summary>
         Vector3 EdgeDirectionWorld => Vector3.zero;
 
+        /// <summary>
+        /// Between which two points the light that trails a swing is drawn (BladeTrail): along the blade. A chain says where its links
+        /// really are, which is not on the line it is thrown along.
+        /// </summary>
+        Vector3 TrailBaseWorld => BladeBaseWorld;
+
+        Vector3 TrailTipWorld => BladeTipWorld;
+
         /// <summary>True for a sword held in one hand (the other is free): the one-handed attacks and guard are used.</summary>
         bool IsOneHanded => false;
 
@@ -193,6 +201,12 @@ namespace CityX.Character
 
         /// <summary>True for a bo staff (docs/BO_STAFF.md): its own attacks (a chain of three and a spinning heavy), held in both hands like a two-handed blade, carried upright.</summary>
         bool IsStaff => false;
+
+        /// <summary>
+        /// True for a chain (docs/CHAIN.md): swung in one hand, its own attacks (two lashes back and forth, one in the air, one onto a body on the
+        /// ground), no heavy and no guard; worn wrapped round the wrist between fights, so the body walks as an empty-handed one does.
+        /// </summary>
+        bool IsChain => false;
 
         /// <summary>
         /// Holds the sword in the thrust grip at <paramref name="weight"/> (the handle in the fist, turned so the blade leans out toward the
@@ -349,6 +363,17 @@ namespace CityX.Character
         public SoulsAttack StaffHeavy = SoulsAttack.AsKnockdown(SoulsAttack.FromStrike(SwordStrikeKind.StaffSpin, 0.55f, 36.0f, 2.00f, 0.95f, SwordStrikes.StepMetres(SwordStrikeKind.StaffSpin), 55.0f, true));
 
         public SoulsAttack StaffRunAttack = SoulsAttack.FromStrike(SwordStrikeKind.StaffRun, 0.45f, 20.0f, 1.50f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.StaffRun), 28.0f, false);
+
+        // THE CHAIN (ChainRules, docs/CHAIN.md): two lashes, back and forth for as long as the clicks come (the reference's swings never end in a
+        // finisher), each a little lighter than a one-handed sword's cut but from much further away, stunning as long as the next takes to arrive;
+        // in the air, one brought straight down; onto a body on the ground, a heavier one. No heavy and no guard yet. My numbers.
+        [Header("Chain (left click): the lash and the backhand; in the air; onto a body on the ground")]
+        public SoulsAttack ChainLight1 = SoulsAttack.FromStrike(SwordStrikeKind.ChainLash, 0.35f, 14.0f, 0.95f, 0.50f, SwordStrikes.StepMetres(SwordStrikeKind.ChainLash), 18.0f, false);
+        public SoulsAttack ChainLight2 = SoulsAttack.FromStrike(SwordStrikeKind.ChainBackhand, 0.35f, 14.0f, 0.95f, 0.50f, SwordStrikes.StepMetres(SwordStrikeKind.ChainBackhand), 18.0f, false);
+
+        public SoulsAttack ChainAirAttack = SoulsAttack.FromStrike(SwordStrikeKind.ChainAir, 0.35f, 16.0f, 1.20f, 0.55f, 0.0f, 22.0f, false);
+
+        public SoulsAttack ChainGroundAttack = SoulsAttack.FromStrike(SwordStrikeKind.ChainGround, 0.45f, 18.0f, 1.50f, 0.50f, SwordStrikes.StepMetres(SwordStrikeKind.ChainGround), 25.0f, false);
 
         [Header("Feel")]
         [Tooltip("How long an early attack press is remembered. Long enough that a click during a light swing still chains at its window, " +
@@ -522,6 +547,7 @@ namespace CityX.Character
         private bool _hammer;
         private bool _spear;
         private bool _staff;
+        private bool _wieldsChain;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
         private PlayerAnimationDriver _driver;
@@ -566,6 +592,10 @@ namespace CityX.Character
         /// <summary>The light chain for the sword in hand (0-2).</summary>
         public SoulsAttack LightAttack(int index)
         {
+            if (_wieldsChain)
+            {
+                return index == 0 ? ChainLight1 : ChainLight2;
+            }
             if (_staff)
             {
                 return index == 0 ? StaffLight1 : index == 1 ? StaffLight2 : StaffLight3;
@@ -591,6 +621,10 @@ namespace CityX.Character
         /// </summary>
         public SoulsAttack OpenerAt(float forwardSpeed)
         {
+            if (_wieldsChain)
+            {
+                return ChainLight1;
+            }
             if (_staff)
             {
                 return SwordStrikes.StaffOpenerFor(forwardSpeed) == SwordStrikeKind.StaffRun ? StaffRunAttack : StaffLight1;
@@ -612,7 +646,7 @@ namespace CityX.Character
         }
 
         /// <summary>How many lights the chain runs through before it starts again: three, ending in the finisher; a knife's two, back and forth.</summary>
-        public int LightChainLength => _knife ? 2 : 3;
+        public int LightChainLength => _knife || _wieldsChain ? 2 : 3;
 
         /// <summary>The heavy for the sword in hand.</summary>
         public SoulsAttack HeavyAttack => _spear ? SpearHeavy : _staff ? StaffHeavy : _knife ? KnifeHeavy : (_oneHanded ? OneHandHeavy : Heavy);
@@ -621,7 +655,7 @@ namespace CityX.Character
         public float BladeSwingSpeed => _knife ? KnifeRules.SwingSpeed : 1.0f;
 
         /// <summary>How far ahead of the body a swing catches a target, metres: <see cref="ReachMetres"/>, a knife's a little short of it.</summary>
-        public float Reach => ReachMetres * (_spear ? SpearRules.ReachShare : _staff ? StaffRules.ReachShare : _knife ? KnifeRules.ReachShare : 1.0f);
+        public float Reach => ReachMetres * (_spear ? SpearRules.ReachShare : _staff ? StaffRules.ReachShare : _wieldsChain ? ChainRules.ReachShare : _knife ? KnifeRules.ReachShare : 1.0f);
 
         /// <summary>The stamina a blow on the held guard costs, per point of damage: a knife's guard pays more for each.</summary>
         public float GuardStaminaPerDamage => BlockStaminaPerDamage * (_knife ? KnifeRules.GuardStaminaShare : 1.0f);
@@ -689,6 +723,7 @@ namespace CityX.Character
             _hammer = sword != null && sword.IsHammer;
             _spear = sword != null && sword.IsSpear;
             _staff = sword != null && sword.IsStaff;
+            _wieldsChain = sword != null && sword.IsChain;
             _equipped = true;
             if (_vitals != null)
             {
@@ -736,7 +771,7 @@ namespace CityX.Character
         /// <summary>Asks for the heavy attack.</summary>
         public void RequestHeavy(float yawDegrees)
         {
-            Buffer(Buffered.Heavy, yawDegrees);
+            Buffer(_wieldsChain ? Buffered.Light : Buffered.Heavy, yawDegrees);   // a chain has no heavy: its lash
         }
 
         /// <summary>
@@ -754,7 +789,7 @@ namespace CityX.Character
         /// </summary>
         public void HoldIntoHeavy(float yawDegrees)
         {
-            if (!_equipped)
+            if (!_equipped || _wieldsChain)
             {
                 return;
             }
@@ -842,7 +877,7 @@ namespace CityX.Character
         /// <summary>Called every frame with whether the block button is down. A guard may come up in a swing's recovery tail: it ends the swing.</summary>
         public void SetBlockHeld(bool held)
         {
-            bool canBlock = held && _equipped && (_phase == SoulsPhase.Idle || InRecoveryTail)
+            bool canBlock = held && _equipped && !_wieldsChain && (_phase == SoulsPhase.Idle || InRecoveryTail)
                 && _vitals != null && !_vitals.IsDead && !_vitals.IsStunned
                 && !_vitals.IsExhausted && _vitals.Stamina > 0.0f;
 
@@ -1071,7 +1106,8 @@ namespace CityX.Character
             {
                 int index = chained && _currentIsLight ? (_chainIndex + 1) % LightChainLength : 0;
                 // The opener is the one for the pace the body has toward where it will swing: at a sprint, the running attack.
-                next = index == 0 && !chained && _locomotion != null
+                next = _wieldsChain ? ChainLightAt(index, yaw)
+                    : index == 0 && !chained && _locomotion != null
                     ? OpenerAt(_locomotion.GroundSpeedAlong(Quaternion.Euler(0.0f, yaw, 0.0f) * Vector3.forward))
                     : LightAttack(index);
                 _pendingChainIndex = index;
@@ -1086,6 +1122,20 @@ namespace CityX.Character
 
             StartSwing(next, light, yaw, chained);
             return true;
+        }
+
+        /// <summary>
+        /// The chain's blow for a click aimed along <paramref name="yawDegrees"/>: off the ground, the one brought down out of the air; with somebody
+        /// lying ahead and nobody standing there, the one onto the ground (ChainRules.SomeoneDownAhead); else the lash or the backhand, in turn.
+        /// </summary>
+        private SoulsAttack ChainLightAt(int index, float yawDegrees)
+        {
+            if (_locomotion != null && !_locomotion.IsGrounded)
+            {
+                return ChainAirAttack;
+            }
+            float height = _locomotion != null ? _locomotion.StandingHeight : 1.8f;
+            return ChainRules.SomeoneDownAhead(transform.position, yawDegrees, height, transform, TargetLayers, _overlap) ? ChainGroundAttack : LightAttack(index);
         }
 
         private int _pendingChainIndex;
@@ -1325,7 +1375,7 @@ namespace CityX.Character
             // THE BACKSTAB (Backstab): a one-handed blade's blow from behind a living body is a critical hit -- far more damage (a knife's the
             // most), and a stagger even from a knife's light.
             float hitstun = _current.HitstunAt(_swingSpeed);
-            bool backstab = _oneHanded && target.IsAlive && target is Component body && body != null
+            bool backstab = _oneHanded && !_wieldsChain && target.IsAlive && target is Component body && body != null
                 && Backstab.IsBehind(body.transform.position, body.transform.forward, transform.position);
             if (backstab)
             {

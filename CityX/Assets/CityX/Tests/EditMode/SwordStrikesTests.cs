@@ -45,9 +45,9 @@ namespace CityX.Tests
                 if (SwordStrikes.IsOneHanded(kind)) oneHanded++;
             }
             // Each hold: its lights, its heavy and its running attack (the one-handed has the knife's thrust besides; the two-handed, the hammer's smash);
-            // the spear's five and the bo staff's five, posed with both hands on them.
-            Assert.AreEqual(6, oneHanded);
-            Assert.AreEqual(22, SwordStrikes.All.Length);
+            // the spear's five and the bo staff's five, posed with both hands on them; and the chain's four, thrown with one.
+            Assert.AreEqual(10, oneHanded);
+            Assert.AreEqual(26, SwordStrikes.All.Length);
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.All[0]);
         }
 
@@ -136,6 +136,10 @@ namespace CityX.Tests
             // The right shoulder is 1.9 m up; the hand's offset is in arm lengths, the blade in metres, the hips' drop lowers everything.
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
+                if (SwordStrikes.IsChain(kind))
+                {
+                    continue;   // a chain has no tip to keep up: its links lie on the ground (ChainLash)
+                }
                 float lowest = float.MaxValue;
                 float lowestAt = 0.0f;
                 for (int i = 0; i <= 200; i++)
@@ -227,7 +231,7 @@ namespace CityX.Tests
                     heavyDrop = Mathf.Max(heavyDrop, most);
                     Assert.Greater(lean, 15.0f, $"{kind} does not lean into the blow");
                 }
-                else
+                else if (!SwordStrikes.IsChain(kind))   // (a chain's blow onto a body on the ground bends right down to it)
                 {
                     lightDrop = Mathf.Max(lightDrop, most);
                 }
@@ -658,6 +662,10 @@ namespace CityX.Tests
             // The stance opens from the wind-up to the contact (the front foot strides, SwordFootwork steps it), and the feet stand in it.
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
+                if (kind == SwordStrikeKind.ChainAir)
+                {
+                    continue;   // thrown off the ground: nothing to step on
+                }
                 SwordFrame windup = SwordStrikes.Evaluate(kind, SwordStrikes.ActiveStart(kind) - 0.03f);
                 SwordFrame contact = SwordStrikes.Evaluate(kind, SwordStrikes.ContactFraction(kind));
                 Assert.Greater(contact.StanceDepth, windup.StanceDepth + 0.1f, $"{kind} does not step into the cut");

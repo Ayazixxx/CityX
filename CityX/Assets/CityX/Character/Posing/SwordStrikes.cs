@@ -76,6 +76,18 @@ namespace CityX.Character
 
         /// <summary>The staff at a sprint: the thrust driven in with the run behind it.</summary>
         StaffRun,
+
+        /// <summary>The chain's first light (docs/CHAIN.md): lashed from over the right shoulder down across the front to the lower left.</summary>
+        ChainLash,
+
+        /// <summary>The chain's second light: the backhand, from over the left shoulder down to the lower right. The two alternate for as long as the clicks come.</summary>
+        ChainBackhand,
+
+        /// <summary>The chain swung in the air: the body arched back, then jack-knifed and the chain brought straight down ahead.</summary>
+        ChainAir,
+
+        /// <summary>The chain on someone lying on the ground: raised straight up and whipped down onto them.</summary>
+        ChainGround,
     }
 
     /// <summary>
@@ -247,6 +259,7 @@ namespace CityX.Character
             SwordStrikeKind.SpearJab, SwordStrikeKind.SpearThrust, SwordStrikeKind.SpearLunge, SwordStrikeKind.SpearSweep, SwordStrikeKind.SpearRun,
             SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffRising, SwordStrikeKind.StaffSpin,
             SwordStrikeKind.StaffRun,
+            SwordStrikeKind.ChainLash, SwordStrikeKind.ChainBackhand, SwordStrikeKind.ChainAir, SwordStrikeKind.ChainGround,
         };
 
         public static bool TryGet(string animation, out SwordStrikeKind kind)
@@ -275,6 +288,10 @@ namespace CityX.Character
                 case StaffRisingName: kind = SwordStrikeKind.StaffRising; return true;
                 case StaffSpinName: kind = SwordStrikeKind.StaffSpin; return true;
                 case StaffRunName: kind = SwordStrikeKind.StaffRun; return true;
+                case ChainLashName: kind = SwordStrikeKind.ChainLash; return true;
+                case ChainBackhandName: kind = SwordStrikeKind.ChainBackhand; return true;
+                case ChainAirName: kind = SwordStrikeKind.ChainAir; return true;
+                case ChainGroundName: kind = SwordStrikeKind.ChainGround; return true;
                 default: kind = SwordStrikeKind.Slash1H; return false;
             }
         }
@@ -315,6 +332,10 @@ namespace CityX.Character
                 case SwordStrikeKind.StaffRising: return StaffRisingName;
                 case SwordStrikeKind.StaffSpin: return StaffSpinName;
                 case SwordStrikeKind.StaffRun: return StaffRunName;
+                case SwordStrikeKind.ChainLash: return ChainLashName;
+                case SwordStrikeKind.ChainBackhand: return ChainBackhandName;
+                case SwordStrikeKind.ChainAir: return ChainAirName;
+                case SwordStrikeKind.ChainGround: return ChainGroundName;
                 default: return Slam2HName;
             }
         }
@@ -325,7 +346,7 @@ namespace CityX.Character
         {
             return kind == SwordStrikeKind.Slash1H || kind == SwordStrikeKind.Cut1H
                 || kind == SwordStrikeKind.Thrust1H || kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Finisher1H
-                || kind == SwordStrikeKind.Run1H;
+                || kind == SwordStrikeKind.Run1H || IsChain(kind);
         }
 
         public static bool IsHeavy(SwordStrikeKind kind) => kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Slam2H || kind == SwordStrikeKind.SpearSweep
@@ -409,6 +430,13 @@ namespace CityX.Character
                 case SwordStrikeKind.StaffRising: return new StrikeTiming(0.28f, 0.08f, 0.14f, 0.12f, 0.10f, 0.50f);
                 case SwordStrikeKind.StaffSpin: return new StrikeTiming(0.40f, 0.30f, 0.16f, 0.15f, 0.14f, 0.40f);
                 case SwordStrikeKind.StaffRun: return new StrikeTiming(0.25f, 0.06f, 0.06f, 0.05f, 0.14f, 0.42f);
+                // THE CHAIN (docs/CHAIN.md): the two lashes are quick up and long through, a little quicker than a one-handed sword's cuts (the reference's swings
+                // come one after another); the one in the air is quicker still (a jump is short); the one onto a body on the ground is raised and held a beat.
+                // The clips are made to these (SourceArt/Chain/chain_pose.py).
+                case SwordStrikeKind.ChainLash: return new StrikeTiming(0.20f, 0.05f, 0.12f, 0.08f, 0.10f, 0.25f);
+                case SwordStrikeKind.ChainBackhand: return new StrikeTiming(0.20f, 0.05f, 0.12f, 0.08f, 0.10f, 0.25f);
+                case SwordStrikeKind.ChainAir: return new StrikeTiming(0.19f, 0.05f, 0.11f, 0.08f, 0.10f, 0.20f);
+                case SwordStrikeKind.ChainGround: return new StrikeTiming(0.26f, 0.08f, 0.12f, 0.10f, 0.16f, 0.30f);
                 default: return new StrikeTiming(0.42f, 0.38f, 0.16f, 0.13f, 0.18f, 0.38f);
             }
         }
@@ -499,6 +527,10 @@ namespace CityX.Character
         /// <summary>The clip <paramref name="kind"/> plays: the one with its sword arm, if it has one, else its body's.</summary>
         public static BakedMotion MotionFor(SwordStrikeKind kind)
         {
+            if (IsChain(kind))
+            {
+                return ChainMotion;
+            }
             BakedMotion arms = ArmMotion;
             return arms != null && arms.HasSegment(NameOf(kind)) ? arms : Motion;
         }
@@ -522,7 +554,11 @@ namespace CityX.Character
                 case SwordStrikeKind.Run1H:
                 case SwordStrikeKind.Run2H:
                 case SwordStrikeKind.StaffRun:
+                case SwordStrikeKind.ChainAir:
                 case SwordStrikeKind.SpearRun: return 0.0f;
+                case SwordStrikeKind.ChainLash: return 0.45f;
+                case SwordStrikeKind.ChainBackhand: return 0.40f;
+                case SwordStrikeKind.ChainGround: return 0.20f;
                 case SwordStrikeKind.SpearJab: return 0.30f;
                 case SwordStrikeKind.SpearThrust: return 0.40f;
                 case SwordStrikeKind.SpearLunge: return 0.80f;
@@ -685,7 +721,7 @@ namespace CityX.Character
         /// </summary>
         public static float ClipLegs(SwordStrikeKind kind, float ownSpeed)
         {
-            return IsRunningAttack(kind) ? 0.0f : StandingShare(ownSpeed);
+            return IsRunningAttack(kind) ? 0.0f : kind == SwordStrikeKind.ChainAir ? 1.0f : StandingShare(ownSpeed);   // (in the air there is no walk to give the legs to)
         }
 
         /// <summary>The first light of a body that is sprinting: thrown only on the run, so its legs are never its clip's.</summary>
@@ -792,7 +828,8 @@ namespace CityX.Character
 
         /// <summary>The stance <paramref name="kind"/> starts from and returns to: its hold's, or a spear's own.</summary>
         public static SwordFrame ReadyFor(SwordStrikeKind kind) =>
-            IsSpear(kind) ? Frame(SpearReadyKey, 1.0f, true) : IsStaff(kind) ? Frame(StaffReadyKey, 1.0f, true) : Ready(IsOneHanded(kind));
+            IsSpear(kind) ? Frame(SpearReadyKey, 1.0f, true) : IsStaff(kind) ? Frame(StaffReadyKey, 1.0f, true)
+            : IsChain(kind) ? ChainFrame(ChainReadyKey) : Ready(IsOneHanded(kind));
 
         /// <summary>The held guard: one-handed, the blade across the body at chest height and the free arm relaxed (the clips'); two-handed, the blade up across the front, edge out.</summary>
         public static SwordFrame Guard(bool oneHanded)
@@ -1154,6 +1191,11 @@ namespace CityX.Character
                 case SwordStrikeKind.StaffSpin:
                 case SwordStrikeKind.StaffRun:
                     return BuildStaffKeys(kind);
+                case SwordStrikeKind.ChainLash:
+                case SwordStrikeKind.ChainBackhand:
+                case SwordStrikeKind.ChainAir:
+                case SwordStrikeKind.ChainGround:
+                    return BuildChainKeys(kind);
                 case SwordStrikeKind.Sweep2H:
                 {
                     // THE FOREHAND: wound up beside the right shoulder like a bat, the blade back over it, hips and shoulders turned right; the
@@ -1401,6 +1443,10 @@ namespace CityX.Character
             t01 = Mathf.Clamp01(t01);
             SwordFrame frame = Sample(KeysFor(kind), t01, !IsOneHanded(kind));
             frame.HoldsItsLine = (IsSpear(kind) && !IsHeavy(kind)) || IsStaffThrust(kind) ? 1.0f : 0.0f;
+            if (IsChain(kind))
+            {
+                frame.FreeHandWeight = 0.0f;   // both arms are the clip's (ChainMotion)
+            }
             frame.Steps = StepsAt(kind, t01);
             return frame;
         }

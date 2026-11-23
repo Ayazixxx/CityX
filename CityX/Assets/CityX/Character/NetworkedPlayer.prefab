@@ -200,7 +200,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 4443177515282141721}
+      addedObject: {fileID: 1752970730198198689}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -491,6 +491,8 @@ MonoBehaviour:
     Prefab: {fileID: 5183785787317396449, guid: b1ba99fc3b31d854e99d1ba0296bd67c, type: 3}
   - ItemId: bo_staff
     Prefab: {fileID: 4939107151757833994, guid: b350810d098f0224fa4cfc395ab5425c, type: 3}
+  - ItemId: chain
+    Prefab: {fileID: 8566456013579319157, guid: a126b6e27c0a99c4193e947f0a9e7da9, type: 3}
   - ItemId: kitchen_knife
     Prefab: {fileID: 7746254663578898335, guid: 0b0407cf948881a46ac449408aecbe2b, type: 3}
   - ItemId: butter_knife
@@ -1154,7 +1156,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &4443177515282141721
+--- !u!114 &1752970730198198689
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
