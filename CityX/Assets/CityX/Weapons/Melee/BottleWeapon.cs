@@ -29,10 +29,25 @@ namespace CityX.Weapons
             FullyBroken,
         }
 
-        public const float IntactMeleeDamage = 15.0f;
-        public const float BrokenMeleeDamage = 22.0f;
-        public const float FullyBrokenMeleeDamage = 0.0f;
+        /// <summary>
+        /// A low-level weapon that breaks on you, not a specialisation (owner, 2026-11-23: "the broken glass bottle is too op ... this is a low level
+        /// weapon"; "the not broken bottles are probably op as well"): about a fist's or a knife's blow (10 and 9), the jagged half a touch more.
+        /// Thrown, a little more than swung at the same stage ("make throwing it do a little more damage then swinging"). Mine, as numbers.
+        /// </summary>
+        public const float IntactMeleeDamage = 8.0f;
+        public const float BrokenMeleeDamage = 9.0f;
+        public const float FullyBrokenMeleeDamage = 7.0f;
+        public const float IntactThrowDamage = 10.0f;
+        public const float BrokenThrowDamage = 11.0f;
+        public const float FullyBrokenThrowDamage = 9.0f;
+
+        /// <summary>
+        /// How long each broken stage lasts, in blows landed (owner: "make it go to its even more broken model after 10 landed hits and then it
+        /// lasts 10 more and it shatters completely"): whole until the first thing it hits, then the half for 10 blows, then the neck for 10
+        /// more, and then nothing is left in the hand.
+        /// </summary>
         public const int BrokenHitsToFullyBroken = 10;
+        public const int FullyBrokenHitsToShatter = 10;
         public const float MeleeCooldownSecondsConst = 0.5f;
         public const float ThrowSpeedConst = 16.0f;
         public const float BottleMass = 0.4f;
@@ -131,7 +146,7 @@ namespace CityX.Weapons
                 {
                     case DurabilityState.Intact: return shape.Reach;
                     case DurabilityState.Broken: return shape.BrokenReach;
-                    default: return (shape.GripHeight - shape.ShatteredAt) * BottleShape.Scale;
+                    default: return (shape.GripHeight - shape.ShatteredAt) * shape.Scale;
                 }
             }
         }
@@ -170,8 +185,59 @@ namespace CityX.Weapons
                     }
                     break;
                 default:
-                    break; // fully broken is inert
+                    _brokenHitCount++;
+                    if (_brokenHitCount >= FullyBrokenHitsToShatter)
+                    {
+                        ShatterInHand();
+                    }
+                    break;
             }
+        }
+
+        /// <summary>The last of it gone: its pieces fly, the hand and the inventory are empty, and other players are told.</summary>
+        private void ShatterInHand()
+        {
+            Vector3 way = _holder != null ? _holder.transform.forward : transform.up;
+            BottleShatter.Spawn(ShatterPrefab, transform.position, transform.rotation, way * BrokenOnASwingSpeed, -way, float.NegativeInfinity, LeftUntil(State));
+            if (BreakSound != null)
+            {
+                AudioSource.PlayClipAtPoint(BreakSound, transform.position);
+            }
+            if (_thrower != null)
+            {
+                _thrower.TellShatteredInHand(way);
+                _thrower.Driver.Stop();
+            }
+            GameObject player = _holder;
+            if (player == null)
+            {
+                return;
+            }
+            Release(player);
+            var inventory = player.GetComponent<Inventory>();
+            inventory?.ClearEquipSlotWithoutReturning(inventory.ActiveWeaponSlot);
+            Destroy(gameObject);
+        }
+
+        private float LeftUntil(DurabilityState state) => LeftUntil(_itemId, state);
+
+        /// <summary>How far along bottle <paramref name="itemId"/> (from the fist, the game's metres) reaches in <paramref name="state"/>: the pieces it still has go up to there.</summary>
+        public static float LeftUntil(string itemId, DurabilityState state)
+        {
+            BottleShape shape = BottleShape.For(itemId) ?? BottleShape.For(GlassBottleKinds.Classic);
+            switch (state)
+            {
+                case DurabilityState.Intact: return float.PositiveInfinity;
+                case DurabilityState.Broken: return (shape.GripHeight - shape.BrokenAt) * shape.Scale;
+                default: return (shape.GripHeight - shape.ShatteredAt) * shape.Scale;
+            }
+        }
+
+        /// <summary>A copy of another player's bottle that broke away to nothing in their hand: its pieces fly, and the model goes.</summary>
+        public void ShatterCopy(Vector3 way)
+        {
+            BottleShatter.Spawn(ShatterPrefab, transform.position, transform.rotation, way * BrokenOnASwingSpeed, -way, float.NegativeInfinity, LeftUntil(State));
+            gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -233,7 +299,6 @@ namespace CityX.Weapons
             if (_thrower != null)
             {
                 _thrower.TellBroke(to, way);
-                _thrower.Driver.Stop();   // a bottle that is no longer whole is not thrown
             }
         }
 
@@ -248,8 +313,8 @@ namespace CityX.Weapons
                 return;
             }
             BottleShape shape = Shape;
-            float from = (shape.GripHeight - (to == DurabilityState.Broken ? shape.BrokenAt : shape.ShatteredAt)) * BottleShape.Scale;
-            float until = State == DurabilityState.Intact ? float.PositiveInfinity : (shape.GripHeight - shape.BrokenAt) * BottleShape.Scale;
+            float from = (shape.GripHeight - (to == DurabilityState.Broken ? shape.BrokenAt : shape.ShatteredAt)) * shape.Scale;
+            float until = LeftUntil(State);
             State = to;
             RefreshVisual();
             Vector3 along = way.sqrMagnitude > 1e-6f ? way.normalized : transform.up;
@@ -266,28 +331,43 @@ namespace CityX.Weapons
         /// The fist round the neck with the thumb curled round it too, turned away from the bottle's body: left to point along the bottle as a
         /// sword's grip has it, the thumb went into the shoulder.
         /// </summary>
-        public const float ThumbRoundTheNeckDegrees = 50.0f;
+        public const float ThumbRoundTheNeckDegrees = -125.0f;
 
         public FingerAmounts StrongHandGrip => new FingerAmounts(NeckFingers, NeckFingers, NeckFingers, NeckFingers, NeckThumb, ThumbRoundTheNeckDegrees);
 
         /// <summary>How far the fingers and the thumb close on the neck (a neck is narrower than a sword's handle: closed all the way they went into the glass).</summary>
         public const float NeckFingers = 0.85f;
-        public const float NeckThumb = 0.15f;
+        public const float NeckThumb = 0.85f;
 
         public FingerAmounts SupportHandGrip => FingerAmounts.Wrap(1.0f);
 
         // ---- the throw ----
 
-        public bool CanThrow() => State == DurabilityState.Intact;
+        /// <summary>Whole or broken, it can be thrown (owner: "make it so you can still throw it in both its broken states").</summary>
+        public bool CanThrow() => true;
+
+        /// <summary>What it does thrown, at the stage it is at.</summary>
+        public float ThrowDamage
+        {
+            get
+            {
+                switch (State)
+                {
+                    case DurabilityState.Intact: return IntactThrowDamage;
+                    case DurabilityState.Broken: return BrokenThrowDamage;
+                    default: return FullyBrokenThrowDamage;
+                }
+            }
+        }
 
         public float ThrowSpeed => ThrowSpeedConst;
 
         public bool IsThrowing => _throwing;
 
-        /// <summary>Right-click held with a whole bottle: the arm winds back with it, or comes back to the carry.</summary>
+        /// <summary>Right-click held: the arm winds back with it, or comes back to the carry.</summary>
         public void SetAiming(GameObject player, bool aiming)
         {
-            if (_thrower != null && !_throwing && (CanThrow() || !aiming))
+            if (_thrower != null && !_throwing)
             {
                 _thrower.Aim(aiming);
             }
@@ -342,13 +422,14 @@ namespace CityX.Weapons
             Quaternion held = transform.rotation;
             if (_thrower != null)
             {
-                _thrower.Throw(ThrownBottlePrefab, _itemId, from, held, way * ThrowSpeedConst);
+                _thrower.Throw(ThrownBottlePrefab, _itemId, State, from, held, way * ThrowSpeedConst, ThrowDamage);
             }
             else
             {
                 var vitals = player.GetComponent<PlayerVitals>();
                 ThrownBottle.Spawn(ThrownBottlePrefab, from, held, way * ThrowSpeedConst, vitals != null ? vitals.Strength : 0,
-                    player.GetComponentsInChildren<Collider>(), vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, player);
+                    player.GetComponentsInChildren<Collider>(), vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, player, false,
+                    (int)State, ThrowDamage, LeftUntil(State));
             }
 
             Release(player);

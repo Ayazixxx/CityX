@@ -21,7 +21,7 @@ squares.
 | `soda_bottle` "Soda Bottle" | `soda` | a returnable soda bottle: pale sea-green, a waist, a gold crown cap, the owner's PHIZZ BANANA SODA printed on the glass front and back (below) |
 
 `/equip` or `/spawn` any of them. All Common, one to a slot (a bottle carries its own state). Every one is 2.4 times a real bottle's size (the
-owner's size for the first), as the hands are. Opaque glossy glass with the game's black line: see-through glass gets no line and reads as a
+owner's size for the first; the soda 1.1 times that again), as the hands are. Opaque glossy glass with the game's black line: see-through glass gets no line and reads as a
 smudge in the cel look.
 
 **A new bottle**: a line in `GlassBottleKinds.All` and a `BottleShape` (its profile as (radius, height) points of a real bottle standing on
@@ -41,14 +41,22 @@ bottle is held by its neck). Not yet: a full bottle to drink (the owner: for Fab
 | | |
 |---|---|
 | Carried | by the neck in the right fist, the forearm out before the chest and the bottle standing up out of the thumb's side ("like the demoman") |
-| Left-click | swung: the one-handed sword's own swings and heavy (`SoulsSwordCombat`), 15 base damage, blunt |
+| Left-click | swung: the one-handed sword's own swings and heavy (`SoulsSwordCombat`), blunt |
 | It hits anything | a body (the swing's own hit) or a wall, the ground, any loose thing (the bottle is traced through the swing's hitting frames): it **breaks**. Its body bursts into its own pieces and what is left in the hand is the neck and half the bottle ending in sharp points |
-| Broken | 22 base damage, "Pierce" on its card (hit types do nothing yet: `HitTypes`). Right-click is the guard, as any one-handed weapon's. After ten more landed blows it breaks down to the neck, which does nothing (the owner's old ruling: it stays in the hand, inert) |
-| Whole, right-click held | the aim: the body turns side-on, the arm goes up and back with the bottle laid back; let go, it comes back to the carry |
-| A click from the aim | thrown: the arm comes over, the bottle leaves the hand 0.2 s in, from where the hand is, toward where the crosshair pointed 20 m out, at 16 m/s, tumbling end over end. Clicked before the arm is back, it throws as soon as it is |
-| In the air | it shatters **whole** on whatever it first touches. 18 damage to a body; a window it hits is taken out. Nothing is left to pick up |
+| Broken | "Pierce" on its card (hit types do nothing yet: `HitTypes`). Right-click is the guard, as any one-handed weapon's. After ten landed blows it breaks down to the neck, still a weapon; after ten more the neck shatters away in the hand and the slot is empty (owner, 2026-11-23) |
+| Right-click held (any state) | the aim: the body turns side-on, the arm goes up and back with the bottle laid back; let go, it comes back to the carry |
+| A click from the aim | thrown: the arm comes over, the bottle leaves the hand 0.2 s in, from where the hand is, toward where the crosshair pointed 20 m out, at 16 m/s, tumbling end over end. Clicked before the arm is back, it throws as soon as it is. Whole, broken or a neck, it flies as it is |
+| In the air | it shatters on whatever it first touches; a window it hits is taken out. Nothing is left to pick up |
 
-Numbers are the Godot game's (15 / 22 / 18, ten blows, 16 m/s); the swings' own are the one-handed sword's.
+**Damage** (base, before Strength: `CombatTuning.DamageFor`). A low-level weapon that breaks on you, not a specialisation (owner,
+2026-11-23: "too op"): a swing lands about a punch, a throw a little more ("make throwing it do a little more damage then swinging").
+
+| | whole | broken | neck |
+|---|---|---|---|
+| swung (`BottleWeapon.*MeleeDamage`, times the swing's own scale) | 8 | 9 | 7 |
+| thrown (`*ThrowDamage`) | 10 | 11 | 9 |
+
+A thrown bottle names its thrower with its blow, so the thrower sees the damage number (`DamageDealt`); a blocked or guarded blow shows none.
 
 ## How it is made
 
@@ -58,6 +66,11 @@ Numbers are the Godot game's (15 / 22 / 18, ten blows, 16 m/s); the swings' own 
   foot whole, the walls in shards: each the glass nearest one of a scatter of points). So a broken bottle is always the bottle it was.
   Everything is in the HELD frame: the fist's middle on the neck at the origin, the bottle out along +Y to its base.
 - **The hold**: `SwordWeapon.FistPoint` and the one-handed sword's rotation: the neck across the palm, the bottle out past the thumb.
+  The fist sits up the neck with the index finger at the shoulder's top (`BottleShape.GripHeight`), and the thumb is turned away from the
+  bottle (`BottleWeapon.ThumbRoundTheNeckDegrees`, -125) so it closes round the far side of the neck: turned any way toward the bottle it
+  went through the neck's middle (owner, 2026-11-23: "this is clipping through the center of it"). `BottleGripPlayTests` measures thumb,
+  palm and fingers against the glass on the body's own skin.
+- **Size**: 2.4 times a real bottle (`BottleShape.LifeScale`), times the bottle's own `Size` (the soda 1.1: the owner's).
 - **The carry** (`PlayerLocomotion.RaisedCarry.cs`, `IRaisedCarry`): the right arm, shoulder to wrist, held in the first frame of the
   bottle's moves while a bottle is in the hand; it gives way to a swing, a guard or the aim as they come in. The rest of the body walks,
   runs and stands as ever.
@@ -78,8 +91,8 @@ Numbers are the Godot game's (15 / 22 / 18, ten blows, 16 m/s); the swings' own 
 ## Other players
 
 `BottleThrower` (an `IReplicatedAbility`, "bottle", on every body: `PlayerAbilityWiring`): Aimed, ThrowStarted (their copy of the body plays
-the same moves), Thrown (their copy of the bottle flies the same way and shatters where it lands, hurting no one) and Broke (their copy of
-the bottle in the hand breaks, its pieces flying). The swings travel as every sword swing does.
+the same moves), Thrown (their copy of the bottle, at the same stage, flies the same way and shatters where it lands, hurting no one), Broke (their
+copy of the bottle in the hand breaks, its pieces flying) and ShatteredInHand (the neck's last blow: their copy goes to pieces too). The swings travel as every sword swing does.
 
 ## Tests
 

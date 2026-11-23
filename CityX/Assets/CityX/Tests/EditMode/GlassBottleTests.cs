@@ -97,7 +97,7 @@ namespace CityX.Tests
             int beyondTheBreak = 0;
             foreach (float along in shatter.AlongBottle)
             {
-                beyondTheBreak += along > (shape.GripHeight - shape.BrokenAt) * BottleShape.Scale ? 1 : 0;
+                beyondTheBreak += along > (shape.GripHeight - shape.BrokenAt) * shape.Scale ? 1 : 0;
             }
             Assert.Greater(beyondTheBreak, 0, "broken in the hand, nothing would fly off");
             Assert.Less(beyondTheBreak, shatter.Pieces.Length, "broken in the hand, the neck would fly off too");
@@ -178,8 +178,8 @@ namespace CityX.Tests
             Assert.AreEqual(SwordWeapon.FistPoint, BottleWeapon.HoldPosition);
             // A standing bottle's base is at the far end of the held one, its mouth behind the fist.
             BottleShape shape = BottleShape.For(GlassBottleKinds.Soda);
-            Assert.AreEqual(shape.Reach, BottleMesh.Held(Vector3.zero, shape.GripHeight, BottleShape.Scale).y, 1e-4f);
-            Assert.Less(BottleMesh.Held(new Vector3(0.0f, shape.Height, 0.0f), shape.GripHeight, BottleShape.Scale).y, 0.0f);
+            Assert.AreEqual(shape.Reach, BottleMesh.Held(Vector3.zero, shape.GripHeight, shape.Scale).y, 1e-4f);
+            Assert.Less(BottleMesh.Held(new Vector3(0.0f, shape.Height, 0.0f), shape.GripHeight, shape.Scale).y, 0.0f);
         }
     }
 }

@@ -7,13 +7,19 @@ namespace CityX.Weapons
     /// ONE KIND OF GLASS BOTTLE'S SHAPE AND GLASS (docs/GLASS_BOTTLE.md; the kinds are Items/GlassBottleKinds): its outline as a potter's
     /// profile (how wide it is at each height, standing on its base, in a real bottle's metres), turned into its model by BottleBuilder, or the
     /// owner's own model for the first bottle; its glass, its paper label and its cap; and where its body, shoulder and neck are, which is
-    /// where it is held, where it breaks and how it lies in the hand. Every bottle is drawn <see cref="Scale"/> times life (the owner's size for
+    /// where it is held, where it breaks and how it lies in the hand. Every bottle is drawn <see cref="LifeScale"/> times life (the owner's size for
     /// the first one: "2x", then "1.2x bigger"), as the hands that hold it are.
     /// </summary>
     public sealed class BottleShape
     {
         /// <summary>A bottle in the game against a real one.</summary>
-        public const float Scale = 2.4f;
+        public const float LifeScale = 2.4f;
+
+        /// <summary>This bottle against the others, on top of <see cref="LifeScale"/> (owner, 2026-11-23, of the soda bottle: "scale the whole soda bottle up 1.1x").</summary>
+        public float Size = 1.0f;
+
+        /// <summary>This bottle in the game against a real one.</summary>
+        public float Scale => LifeScale * Size;
 
         public string ItemId;
 
@@ -51,7 +57,7 @@ namespace CityX.Weapons
         /// fist is all on the neck and none of it on the shoulder, the little finger's side up over the mouth (owner, 2026-11-23: "the thumb is
         /// clipping into the soda bottle instead of gripping around it"; the fist is wider than any bottle's neck is long).
         /// </summary>
-        public float GripHeight => Mathf.Min(NeckBase + FistIndexSide, Height);
+        public float GripHeight => Mathf.Min(NeckBase + FistIndexSide / Size, Height);
 
         /// <summary>From the fist's middle to the outside of its index finger, along a held bottle, a real bottle's metres (the hand's 11 cm in the game).</summary>
         public const float FistIndexSide = 0.048f;
@@ -144,6 +150,7 @@ namespace CityX.Weapons
                     new Vector2(0.000f, 0.2425f),
                 },
                 CapColour = new Color(0.86f, 0.66f, 0.16f),
+                Size = 1.1f,
                 BodyTop = 0.106f, NeckBase = 0.176f, Height = 0.238f, BodyRadius = 0.0300f, NeckRadius = 0.0138f,
             },
         };

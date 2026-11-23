@@ -124,7 +124,7 @@ namespace CityX.WeaponsEditor
             BottleMesh.Model cap = shape.Cap != null ? BottleMesh.Turned(shape.Cap, Sides, RingEvery) : null;
 
             GameObject shatter = BuildShatter(shape, forCuts, look);
-            GameObject thrown = BuildThrown(shape, whole, label, print, cap, look, shatter);
+            GameObject thrown = BuildThrown(shape, whole, forCuts, label, print, cap, look, shatter);
 
             var root = new GameObject(id);
             try
@@ -207,7 +207,7 @@ namespace CityX.WeaponsEditor
         /// <summary>A standing model saved as a mesh in the held bottle's frame, at the game's size.</summary>
         private static Mesh Saved(BottleShape shape, string part, BottleMesh.Model standing)
         {
-            BottleMesh.Model held = BottleMesh.InHand(standing, shape.GripHeight, BottleShape.Scale);
+            BottleMesh.Model held = BottleMesh.InHand(standing, shape.GripHeight, shape.Scale);
             return HeldModelBaker.Save($"{Folder}/{shape.ItemId}_{part}.asset", $"{shape.ItemId}_{part}", held.Vertices.ToArray(), held.Normals.ToArray(),
                 held.Triangles.ToArray(), held.HasUvs ? held.Uvs.ToArray() : null);
         }
@@ -276,23 +276,31 @@ namespace CityX.WeaponsEditor
         {
             var capsule = root.AddComponent<CapsuleCollider>();
             capsule.direction = 1;
-            capsule.radius = shape.BodyRadius * BottleShape.Scale;
-            capsule.height = shape.Height * BottleShape.Scale;
-            capsule.center = new Vector3(0.0f, (shape.GripHeight - shape.Height * 0.5f) * BottleShape.Scale, 0.0f);
+            capsule.radius = shape.BodyRadius * shape.Scale;
+            capsule.height = shape.Height * shape.Scale;
+            capsule.center = new Vector3(0.0f, (shape.GripHeight - shape.Height * 0.5f) * shape.Scale, 0.0f);
             var body = root.AddComponent<Rigidbody>();
             body.mass = BottleWeapon.BottleMass;
         }
 
-        private static GameObject BuildThrown(BottleShape shape, BottleMesh.Model whole, BottleMesh.Model label, BottleMesh.Model print, BottleMesh.Model cap, Look look,
-            GameObject shatter)
+        /// <summary>The bottle in the air: whole, broken or down to its neck, whichever it was thrown as (ThrownBottle.StageVisuals).</summary>
+        private static GameObject BuildThrown(BottleShape shape, BottleMesh.Model whole, BottleMesh.Model forCuts, BottleMesh.Model label,
+            BottleMesh.Model print, BottleMesh.Model cap, Look look, GameObject shatter)
         {
             var root = new GameObject(shape.ItemId + "_thrown");
             try
             {
-                Part(root.transform, "Glass", Saved(shape, "whole", whole), look.Glass);
-                AddDressing(root.transform, shape, "whole", label, print, cap, look);
+                var intact = new GameObject("Intact");
+                intact.transform.SetParent(root.transform, false);
+                Part(intact.transform, "Glass", Saved(shape, "whole", whole), look.Glass);
+                AddDressing(intact.transform, shape, "whole", label, print, cap, look);
+                GameObject broken = Broken(root.transform, "Broken", shape, forCuts, label, print, cap, look, shape.BrokenAt, BottleShape.LongestPoint, "broken");
+                GameObject neck = Broken(root.transform, "Shattered", shape, forCuts, null, null, cap, look, shape.ShatteredAt, BottleShape.LongestPoint * 0.6f, "neck");
+                broken.SetActive(false);
+                neck.SetActive(false);
                 AddBody(root, shape);
                 var thrown = root.AddComponent<ThrownBottle>();
+                thrown.StageVisuals = new[] { intact, broken, neck };
                 thrown.ShatterPrefab = shatter;
                 thrown.ImpactCharacterSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactCharacterSound);
                 thrown.ImpactTerrainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ImpactTerrainSound);
@@ -320,13 +328,13 @@ namespace CityX.WeaponsEditor
                     var normals = new Vector3[model.Normals.Count];
                     for (int v = 0; v < vertices.Length; v++)
                     {
-                        vertices[v] = BottleMesh.HeldDirection(model.Vertices[v]) * BottleShape.Scale;
+                        vertices[v] = BottleMesh.HeldDirection(model.Vertices[v]) * shape.Scale;
                         normals[v] = BottleMesh.HeldDirection(model.Normals[v]);
                     }
                     Mesh mesh = HeldModelBaker.Save($"{Folder}/{shape.ItemId}_piece{i}.asset", $"{shape.ItemId}_piece{i}", vertices, normals,
                         model.Triangles.ToArray());
                     Transform piece = HeldModelBaker.Part(root.transform, "Piece" + i, mesh, look.OpenGlass);
-                    piece.localPosition = BottleMesh.Held(pieces[i].Centre, shape.GripHeight, BottleShape.Scale);
+                    piece.localPosition = BottleMesh.Held(pieces[i].Centre, shape.GripHeight, shape.Scale);
                     var box = piece.gameObject.AddComponent<BoxCollider>();
                     box.center = mesh.bounds.center;
                     box.size = Vector3.Max(mesh.bounds.size, Vector3.one * 0.02f);
@@ -383,7 +391,7 @@ namespace CityX.WeaponsEditor
             ParticleSystem.ShapeModule burst = particles.shape;
             burst.enabled = true;
             burst.shapeType = ParticleSystemShapeType.Sphere;
-            burst.radius = shape.BodyRadius * BottleShape.Scale;
+            burst.radius = shape.BodyRadius * shape.Scale;
             ParticleSystem.SizeOverLifetimeModule size = particles.sizeOverLifetime;
             size.enabled = true;
             size.size = new ParticleSystem.MinMaxCurve(1.0f, AnimationCurve.Linear(0.0f, 1.0f, 1.0f, 0.0f));

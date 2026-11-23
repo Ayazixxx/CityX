@@ -47,7 +47,7 @@ namespace CityX.Tests
                 for (int state = 0; state < 3; state++)
                 {
                     GameObject standing = Object.Instantiate(Load(GlassBottleKinds.PrefabPath(kind.ItemId)),
-                        new Vector3(x, shape.GripHeight * BottleShape.Scale, 40.0f), Quaternion.Euler(180.0f, 0.0f, 0.0f));
+                        new Vector3(x, shape.GripHeight * shape.Scale, 40.0f), Quaternion.Euler(180.0f, 0.0f, 0.0f));
                     standing.GetComponent<Rigidbody>().isKinematic = true;
                     var bottle = standing.GetComponent<BottleWeapon>();
                     bottle.IntactVisual.SetActive(state == 0);
@@ -87,6 +87,9 @@ namespace CityX.Tests
                 BuildingShapeCapture.Shoot(camera, folder, $"bottle-held-{name}-side", chest + new Vector3(6.0f, 0.3f, 0.6f), chest);
                 BuildingShapeCapture.Shoot(camera, folder, $"bottle-held-{name}-back", chest + new Vector3(-0.87f, 1.2f, -5.0f), chest);
                 BuildingShapeCapture.Shoot(camera, folder, $"bottle-held-{name}-hand", hand + new Vector3(1.0f, 0.2f, 1.3f), hand + Vector3.up * 0.15f);
+                // From above and behind the shoulder, close (the owner's view of the thumb), and from the thumb's side.
+                BuildingShapeCapture.Shoot(camera, folder, $"bottle-held-{name}-thumb", hand + new Vector3(-0.35f, 0.75f, -0.45f), hand + Vector3.up * 0.1f);
+                BuildingShapeCapture.Shoot(camera, folder, $"bottle-held-{name}-inner", hand + new Vector3(-0.8f, 0.25f, 0.5f), hand + Vector3.up * 0.1f);
                 held.GetComponent<IEquippableItem>().OnUnequip(player);
                 yield return null;
             }

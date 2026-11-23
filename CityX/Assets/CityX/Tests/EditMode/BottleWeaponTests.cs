@@ -1,3 +1,4 @@
+using CityX.Character;
 using CityX.Items;
 using CityX.Weapons;
 using NUnit.Framework;
@@ -39,7 +40,8 @@ namespace CityX.Tests
 
             Assert.AreEqual(BottleWeapon.DurabilityState.Broken, _bottle.State);
             Assert.AreEqual(BottleWeapon.BrokenMeleeDamage, _bottle.GetMeleeDamage());
-            Assert.IsFalse(_bottle.CanThrow(), "a broken bottle can no longer be thrown");
+            Assert.IsTrue(_bottle.CanThrow(), "a broken bottle can still be thrown (owner: \"make it so you can still throw it in both its broken states\")");
+            Assert.AreEqual(BottleWeapon.BrokenThrowDamage, _bottle.ThrowDamage);
         }
 
         [Test]
@@ -68,17 +70,33 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void AFullyBrokenBottleIsInertAndFurtherHitsAreNoOps()
+        public void TheNeckStillHitsAndIsThrownUntilItsTenthBlow()
         {
             _bottle.RegisterLandedMeleeHit();
-            for (int i = 0; i < BottleWeapon.BrokenHitsToFullyBroken; i++)
+            for (int i = 0; i < BottleWeapon.BrokenHitsToFullyBroken + BottleWeapon.FullyBrokenHitsToShatter - 1; i++)
             {
                 _bottle.RegisterLandedMeleeHit();
             }
 
-            _bottle.RegisterLandedMeleeHit();
-
             Assert.AreEqual(BottleWeapon.DurabilityState.FullyBroken, _bottle.State);
+            Assert.Greater(_bottle.GetMeleeDamage(), 0.0f, "the neck does nothing");
+            Assert.IsTrue(_bottle.CanThrow());
+        }
+
+        [Test]
+        public void ABottleIsAWeakWeaponAndThrownHitsALittleHarderThanSwung()
+        {
+            // Owner, 2026-11-23: "this is low level stuff"; "make throwing it do a little more damage then swinging".
+            foreach ((float swung, float thrown) in new[]
+            {
+                (BottleWeapon.IntactMeleeDamage, BottleWeapon.IntactThrowDamage), (BottleWeapon.BrokenMeleeDamage, BottleWeapon.BrokenThrowDamage),
+                (BottleWeapon.FullyBrokenMeleeDamage, BottleWeapon.FullyBrokenThrowDamage),
+            })
+            {
+                Assert.LessOrEqual(swung, CombatTuning.PunchDamage, "a bottle hits harder than a fist");
+                Assert.Greater(thrown, swung, "thrown it does no more than swung");
+                Assert.Less(thrown, swung * 1.5f, "thrown it does far more than swung");
+            }
         }
 
         [Test]

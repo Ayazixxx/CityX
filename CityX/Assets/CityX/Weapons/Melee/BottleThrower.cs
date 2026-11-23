@@ -15,14 +15,15 @@ namespace CityX.Weapons
         public const string Id = "bottle";
 
         /// <summary>
-        /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the bottle, Direction its way, A its speed, N which bottle of
-        /// GlassBottleKinds.All), Broke (N the state it broke to, Direction the way the blow was going), Aimed (N 1 raised, 0 lowered) and
+        /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the bottle, Direction its way, A its speed, B its stage, N which bottle of
+        /// GlassBottleKinds.All), ShatteredInHand (Direction the way the last blow went: nothing is left of it), Broke (N the state it broke to, Direction the way the blow was going), Aimed (N 1 raised, 0 lowered) and
         /// ThrowStarted (the arm goes).
         /// </summary>
         public const int Thrown = 0;
         public const int Broke = 1;
         public const int Aimed = 2;
         public const int ThrowStarted = 3;
+        public const int ShatteredInHand = 4;
 
         string IReplicatedAbility.AbilityId => Id;
 
@@ -76,17 +77,25 @@ namespace CityX.Weapons
         }
 
         /// <summary>This body's bottle leaves its hand: it flies, and other players are told.</summary>
-        public ThrownBottle Throw(GameObject prefab, string itemId, Vector3 from, Quaternion rotation, Vector3 velocity)
+        public ThrownBottle Throw(GameObject prefab, string itemId, BottleWeapon.DurabilityState stage, Vector3 from, Quaternion rotation, Vector3 velocity,
+            float damage)
         {
             var vitals = GetComponent<PlayerVitals>();
             ThrownBottle thrown = ThrownBottle.Spawn(prefab, from, rotation, velocity, vitals != null ? vitals.Strength : 0,
-                GetComponentsInChildren<Collider>(), vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, gameObject);
+                GetComponentsInChildren<Collider>(), vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, gameObject, false,
+                (int)stage, damage, BottleWeapon.LeftUntil(itemId, stage));
             if (thrown != null)
             {
                 // The velocity travels as its way and its speed (an event's direction is no longer than 1.5).
-                Fired?.Invoke(new AbilityEvent(Thrown, from, velocity.normalized, velocity.magnitude, 0.0f, Mathf.Max(0, GlassBottleKinds.IndexOf(itemId))));
+                Fired?.Invoke(new AbilityEvent(Thrown, from, velocity.normalized, velocity.magnitude, (float)stage, Mathf.Max(0, GlassBottleKinds.IndexOf(itemId))));
             }
             return thrown;
+        }
+
+        /// <summary>This body's bottle broke away to nothing in its hand, on a blow going <paramref name="way"/>: other players are told.</summary>
+        public void TellShatteredInHand(Vector3 way)
+        {
+            Fired?.Invoke(new AbilityEvent(ShatteredInHand, transform.position, way.sqrMagnitude > 1e-6f ? way.normalized : Vector3.forward));
         }
 
         /// <summary>This body's bottle broke in its hand, on a blow going <paramref name="way"/>: other players are told.</summary>
@@ -109,7 +118,9 @@ namespace CityX.Weapons
                     Vector3 velocity = evt.Direction.normalized * Mathf.Min(evt.A, BottleWeapon.ThrowSpeedConst * 2.0f);
                     BottleWeapon held = Held;
                     Quaternion rotation = held != null ? held.transform.rotation : Quaternion.LookRotation(velocity.normalized);
-                    ThrownBottle.Spawn(ThrownPrefabs[evt.N], evt.Origin, rotation, velocity, 0, GetComponentsInChildren<Collider>(), 0.0f, gameObject, true);
+                    int stage = float.IsNaN(evt.B) ? 0 : Mathf.Clamp(Mathf.RoundToInt(evt.B), 0, (int)BottleWeapon.DurabilityState.FullyBroken);
+                    ThrownBottle.Spawn(ThrownPrefabs[evt.N], evt.Origin, rotation, velocity, 0, GetComponentsInChildren<Collider>(), 0.0f, gameObject, true,
+                        stage, 0.0f, BottleWeapon.LeftUntil(GlassBottleKinds.All[evt.N].ItemId, (BottleWeapon.DurabilityState)stage));
                     break;
                 }
                 case Broke:
@@ -118,6 +129,15 @@ namespace CityX.Weapons
                     if (held != null && evt.N >= (int)BottleWeapon.DurabilityState.Broken && evt.N <= (int)BottleWeapon.DurabilityState.FullyBroken)
                     {
                         held.BreakTo((BottleWeapon.DurabilityState)evt.N, evt.Direction);
+                    }
+                    break;
+                }
+                case ShatteredInHand:
+                {
+                    BottleWeapon held = Held;
+                    if (held != null)
+                    {
+                        held.ShatterCopy(evt.Direction);
                     }
                     break;
                 }

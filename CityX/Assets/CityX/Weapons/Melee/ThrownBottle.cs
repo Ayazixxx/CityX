@@ -13,13 +13,15 @@ namespace CityX.Weapons
     [RequireComponent(typeof(Rigidbody))]
     public sealed class ThrownBottle : MonoBehaviour
     {
-        public const float ThrowDamage = 18.0f;
 
         /// <summary>The impact speed, in m/s, a bottle needs to break a pane rather than only itself.</summary>
         public const float MinGlassBreakSpeed = 4.0f;
 
         /// <summary>How fast it turns end over end, turns a second: a thrown bottle is seen to tumble.</summary>
         public const float TumblesPerSecond = 2.2f;
+
+        [Tooltip("The bottle as it may be thrown, in BottleWeapon.DurabilityState's order: whole, broken, down to its neck (BottleBuilder).")]
+        public GameObject[] StageVisuals = new GameObject[0];
 
         [Tooltip("The bottle's own pieces (BottleShatter), made where it breaks.")]
         public GameObject ShatterPrefab;
@@ -34,6 +36,8 @@ namespace CityX.Weapons
         private float _penetration;
         private bool _consumed;
         private Vector3 _velocity;
+        private float _damage;
+        private float _reachesTo = float.PositiveInfinity;
 
         /// <summary>A copy of another player's throw: it breaks and hurts nothing.</summary>
         public bool Harmless { get; private set; }
@@ -46,7 +50,8 @@ namespace CityX.Weapons
         /// <paramref name="velocity"/> and tumbling forward over itself.
         /// </summary>
         public static ThrownBottle Spawn(GameObject prefab, Vector3 origin, Quaternion rotation, Vector3 velocity,
-            int throwerStrength, Collider[] ignoreColliders, float penetration = 0.0f, GameObject striker = null, bool harmless = false)
+            int throwerStrength, Collider[] ignoreColliders, float penetration = 0.0f, GameObject striker = null, bool harmless = false,
+            int stage = 0, float damage = BottleWeapon.IntactThrowDamage, float reachesTo = float.PositiveInfinity)
         {
             if (prefab == null)
             {
@@ -64,6 +69,15 @@ namespace CityX.Weapons
             thrown._striker = striker;
             thrown._penetration = Mathf.Clamp01(penetration);
             thrown.Harmless = harmless;
+            thrown._damage = damage;
+            thrown._reachesTo = reachesTo;
+            for (int i = 0; i < thrown.StageVisuals.Length; i++)
+            {
+                if (thrown.StageVisuals[i] != null)
+                {
+                    thrown.StageVisuals[i].SetActive(i == Mathf.Clamp(stage, 0, thrown.StageVisuals.Length - 1));
+                }
+            }
             // GetComponent RATHER THAN THE CACHED FIELD: Awake() has not necessarily run yet on a clone made from an inactive prefab.
             if (thrown._rigidbody == null)
             {
@@ -137,7 +151,7 @@ namespace CityX.Weapons
                 breakable?.TakeBlow(point, -normal, CityX.World.BlowStrength.Heavy);
             }
 
-            BottleShatter.Spawn(ShatterPrefab, transform.position, transform.rotation, _velocity, normal);
+            BottleShatter.Spawn(ShatterPrefab, transform.position, transform.rotation, _velocity, normal, float.NegativeInfinity, _reachesTo);
             AudioClip sound = hitCharacter ? ImpactCharacterSound : ImpactTerrainSound;
             if (sound != null)
             {
@@ -146,7 +160,7 @@ namespace CityX.Weapons
 
             if (hitCharacter && !Harmless)
             {
-                float damage = CombatTuning.DamageFor(ThrowDamage, _throwerStrength);
+                float damage = CombatTuning.DamageFor(_damage, _throwerStrength);
                 DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration, null, _striker);
             }
 

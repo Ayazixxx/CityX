@@ -93,7 +93,7 @@ namespace CityX.Tests
                         continue;
                     }
                     // Into the bottle's own frame: the fist on the neck at the origin, the base out along +Y, a real bottle's metres.
-                    Vector3 held = bottle.transform.InverseTransformPoint(skin.transform.TransformPoint(points[i])) / BottleShape.Scale;
+                    Vector3 held = bottle.transform.InverseTransformPoint(skin.transform.TransformPoint(points[i])) / shape.Scale;
                     float height = shape.GripHeight - held.y;
                     float sunk = RadiusAt(shape, height) - new Vector2(held.x, held.z).magnitude;
                     string digit = bone.StartsWith("thumb") ? "thumb" : bone == "hand_r" ? "palm" : "fingers";
@@ -107,12 +107,12 @@ namespace CityX.Tests
                 string report = string.Empty;
                 foreach (KeyValuePair<string, float> pair in deepest)
                 {
-                    report += $"{pair.Key}: {pair.Value * BottleShape.Scale * 100.0f:F1} cm into the glass at {where[pair.Key] * 100.0f:F1} cm up (neck from {shape.NeckBase * 100.0f:F1}); ";
+                    report += $"{pair.Key}: {pair.Value * shape.Scale * 100.0f:F1} cm into the glass at {where[pair.Key] * 100.0f:F1} cm up (neck from {shape.NeckBase * 100.0f:F1}); ";
                 }
                 Debug.Log($"BOTTLE GRIP {itemId}: {report}");
                 foreach (KeyValuePair<string, float> pair in deepest)
                 {
-                    Assert.Less(pair.Value * BottleShape.Scale, MostSunk, $"{itemId}: the {pair.Key} goes into the glass. {report}");
+                    Assert.Less(pair.Value * shape.Scale, MostSunk, $"{itemId}: the {pair.Key} goes into the glass. {report}");
                 }
 #else
             Assert.Ignore("needs the editor to load the prefabs.");

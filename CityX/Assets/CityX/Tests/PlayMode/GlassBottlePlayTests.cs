@@ -178,7 +178,6 @@ namespace CityX.Tests
             Assert.That(whole, Is.InRange(BottleWeapon.IntactMeleeDamage * 0.7f, BottleWeapon.IntactMeleeDamage * 1.6f), "the first blow is the whole bottle's");
             Assert.AreEqual(BottleWeapon.DurabilityState.Broken, _bottle.State, "the bottle did not break on the blow");
             Assert.IsTrue(_bottle.BrokenVisual.activeSelf && !_bottle.IntactVisual.activeSelf, "the half with its points does not show");
-            Assert.IsFalse(_bottle.CanThrow(), "a broken bottle is thrown");
             BottleShatter shatter = Object.FindAnyObjectByType<BottleShatter>();
             Assert.IsNotNull(shatter, "nothing flew off as it broke");
             Assert.Greater(shatter.Flying, 0);
@@ -267,13 +266,49 @@ namespace CityX.Tests
                 yield return Frames(1);
             }
             Assert.AreEqual(1, target.Hits, "the thrown bottle missed the body it was thrown at");
-            Assert.AreEqual(CombatTuning.DamageFor(ThrownBottle.ThrowDamage, 0), target.LastDamage, 0.01f);
+            Assert.AreEqual(CombatTuning.DamageFor(BottleWeapon.IntactThrowDamage, _body.GetComponent<PlayerVitals>().Strength), target.LastDamage, 0.01f);
             yield return null;
             Assert.IsNull(Object.FindAnyObjectByType<ThrownBottle>(), "the bottle is still there after it hit");
             BottleShatter shatter = Object.FindAnyObjectByType<BottleShatter>();
             Assert.IsNotNull(shatter, "it vanished instead of shattering");
             Assert.AreEqual(shatter.Pieces.Length, shatter.Flying, "thrown, the whole bottle shatters: no half is left");
             Assert.IsNull(Object.FindAnyObjectByType<BottleWeapon>(), "a bottle was left to pick up");
+#else
+            Assert.Ignore("needs the editor to load the prefabs.");
+            yield break;
+#endif
+        }
+
+        /// <summary>Owner, 2026-11-23: "when i threw the soda bottle at an enemy it didnt show how much damage it did when it landed".</summary>
+        [UnityTest]
+        public IEnumerator AThrownBottleThatHitsAnEnemyShowsTheThrowerItsDamage()
+        {
+#if UNITY_EDITOR
+            Hold(GlassBottleKinds.Soda);
+            GameObject enemy = Object.Instantiate(Load("Assets/CityX/Character/Swordsman.prefab"), new Vector3(0.0f, 0.05f, 6.0f), Quaternion.Euler(0.0f, 180.0f, 0.0f));
+            _made.Add(enemy);
+            var reports = new List<DamageDealt>();
+            System.Action<DamageDealt> heard = hit => reports.Add(hit);
+            DamageDealt.Landed += heard;
+            try
+            {
+                yield return Frames(30);
+                _bottle.SetAiming(_body, true);
+                yield return Frames(30, aiming: true);
+                Vector3 chest = _body.transform.position + Vector3.up * 1.6f;
+                _bottle.Throw(_body, chest, (enemy.transform.position + Vector3.up * 1.4f - chest).normalized);
+                for (int i = 0; i < 120 && reports.Count == 0; i++)
+                {
+                    yield return Frames(1);
+                }
+                Assert.IsNotEmpty(reports, "the thrown bottle's blow on the enemy was told to no one: no damage number");
+                Assert.AreSame(_body, reports[0].Striker, "the blow is not the thrower's: their damage numbers do not show it");
+                Assert.AreSame(enemy, (reports[0].Target as Component).gameObject.transform.root.gameObject, "it is not the enemy that was hurt");
+            }
+            finally
+            {
+                DamageDealt.Landed -= heard;
+            }
 #else
             Assert.Ignore("needs the editor to load the prefabs.");
             yield break;
