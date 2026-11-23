@@ -61,6 +61,9 @@ namespace CityX.Items
         /// <summary>A full PHIZZ bottle: drunk with a click, it heals, and drunk empty it is the soda bottle, a weapon (docs/PHIZZ_CAN.md).</summary>
         public const string PhizzBottle = "phizz_bottle";
 
+        /// <summary>What a drink is (its card's category): a drink goes on the hotbar (Hotbar.IsBarItem).</summary>
+        public const string DrinkCategory = "drink";
+
         /// <summary>Drinks stack without end (owner, 2026-11-23: "they stack infinitely").</summary>
         public const int EndlessStack = int.MaxValue;
 
@@ -190,8 +193,8 @@ namespace CityX.Items
             [RPG] = new ItemDefinition(RPG, "RPG", "weapon", EquipSlots.Primary, 1),
             // Right-click a wall with it to paint graffiti (GraffitiMenuView).
             [SprayCan] = new ItemDefinition(SprayCan, "Spray Can", "tool", EquipSlots.Primary, 1),
-            [PhizzCan] = new ItemDefinition(PhizzCan, "PHIZZ Banana Soda", "drink", EquipSlots.Primary, EndlessStack),
-            [PhizzBottle] = new ItemDefinition(PhizzBottle, "PHIZZ Bottle", "drink", EquipSlots.Primary, EndlessStack),
+            [PhizzCan] = new ItemDefinition(PhizzCan, "PHIZZ Banana Soda", DrinkCategory, EquipSlots.Primary, EndlessStack),
+            [PhizzBottle] = new ItemDefinition(PhizzBottle, "PHIZZ Bottle", DrinkCategory, EquipSlots.Primary, EndlessStack),
             // Hats and helmets on the head; the face (the mask slot) is worn beside them.
             [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // A wide straw hat: Meshy's, cut off its figure (Wearables/FarmerHat).

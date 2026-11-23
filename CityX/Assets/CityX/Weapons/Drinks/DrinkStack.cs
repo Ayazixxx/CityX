@@ -7,7 +7,7 @@ namespace CityX.Weapons
     /// DRINKS STACK WITHOUT END (owner, 2026-11-23: "they stack infinitely"): one is in the hand, the rest in a bag slot. A hand holds one item, so a stack in
     /// the hand is held the way grenades are (GrenadeItem): when the one in the hand is gone (drunk, thrown), the next is taken out of the bag into the hand.
     /// What is left of a drink (the PHIZZ bottle drunk empty, a weapon again: owner) stays in the hand if it was the last, and goes in the bag if there are
-    /// more to drink.
+    /// more to drink. A drink taken from the hotbar (QuickDrink) gives the hand back what it held.
     /// </summary>
     public static class DrinkStack
     {
@@ -26,6 +26,19 @@ namespace CityX.Weapons
             }
             string slot = inventory.ActiveWeaponSlot;
             inventory.ClearEquipSlotWithoutReturning(slot);
+            if (drink.Quick)
+            {
+                // From the hotbar: what is left goes in the bag and the hand has back what it held.
+                if (!string.IsNullOrEmpty(leftover) && !inventory.AddItem(leftover, 1))
+                {
+                    DroppedLeftover(holder, leftover);
+                }
+                if (!string.IsNullOrEmpty(drink.HandBack) && inventory.RemoveFromStorage(drink.HandBack, 1, out Items.ItemInstanceData held))
+                {
+                    inventory.EquipItemId(drink.HandBack, holder, held);
+                }
+                return;
+            }
             if (inventory.RemoveFromStorage(itemId, 1, out Items.ItemInstanceData next))
             {
                 inventory.EquipItemId(itemId, holder, next);

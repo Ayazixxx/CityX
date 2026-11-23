@@ -153,6 +153,8 @@ namespace CityX.CharacterEditor
 
             // --- drinking a can of PHIZZ as other players see it (2026-11-23, docs/PHIZZ_CAN.md): the tab, the drink and the empty can dropped.
             GetOrAdd<Drinker>(player);
+            // --- and a drink from the hotbar: its key takes one out of the bag and drinks it (the player's own input; others see the drinking above).
+            GetOrAdd<QuickDrink>(player);
 
             // --- the RPG's rockets as other players see them (2026-11-19, docs/RPG.md): a copy fires the same rocket, and it bursts where it did.
             GetOrAdd<RocketLauncher>(player);

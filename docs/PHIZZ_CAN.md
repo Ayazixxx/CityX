@@ -108,3 +108,18 @@ liquid splash effect when the bottle is broken (when shot or thrown)".
   hit (the shot skips the holder's colliders).
 
 Tests: `DrinkThrowPlayTests`. `PhizzCanCapture.RenderTheSplash` (Explicit, `-Graphics`): `drink-splash-*.png`.
+
+## On the hotbar (2026-11-23)
+
+Owner: "make it so drinks can be equipped in the hotbar ant it appears and does the drinking animation immediately".
+
+- **A drink goes on the bar** (`Hotbar.IsBarItem`: an item whose category is `ItemRegistry.DrinkCategory`; `Hotbar.GoesOnBar` takes skills and drinks,
+  so a save keeps them): with the inventory open (I), the mouse over a drink in the bag and a number key 1 to 0 puts it on that slot
+  (`InventoryPanelView.PutDrinkOnBar`), as a number key puts a skill there in the skill menu.
+- **Its key** (`PlayerInputReader.HotbarItemPressed`, answered by `QuickDrink` on the player): what is in the hand goes in the bag, one drink comes out
+  into the hand and is drunk at once; drunk, the hand has back what it held and what is left of a bottle goes in the bag. Nothing happens while a drink is
+  going or with none in the bag; with the same drink already in the hand its key just drinks it.
+- **Its slot** shows the last word of the drink's name until the owner draws icons (both begin PHIZZ: S for the soda can, B for the bottle), greyed
+  with none in the bag or the hand (`PlayerSkills.CanUseNow`).
+
+Tests: `DrinkHotbarTests`, `QuickDrinkPlayTests`.

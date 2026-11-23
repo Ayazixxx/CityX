@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CityX.Character;
+using CityX.Items;
 using UnityEngine;
 
 namespace CityX.UI
@@ -55,6 +56,12 @@ namespace CityX.UI
         /// </summary>
         public static string LetterFor(string skillId)
         {
+            if (Hotbar.IsBarItem(skillId) && ItemRegistry.TryGet(skillId, out ItemDefinition item) && !string.IsNullOrEmpty(item.DisplayName))
+            {
+                // A drink on the bar: the last word of its name (both PHIZZ drinks begin alike: S for the soda can, B for the bottle).
+                string[] words = item.DisplayName.Split(' ');
+                return char.ToUpperInvariant(words[words.Length - 1][0]).ToString();
+            }
             SkillNode node = SkillCatalog.Find(skillId);
             if (node == null || node.IsPlaceholder || string.IsNullOrEmpty(node.Name) || For(skillId) != null)
             {

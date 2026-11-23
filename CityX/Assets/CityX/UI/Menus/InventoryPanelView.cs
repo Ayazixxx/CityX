@@ -151,6 +151,11 @@ namespace CityX.UI
                     Open();
                 }
             }
+
+            if (IsOpen)
+            {
+                PutDrinkOnBar(keyboard);
+            }
         }
 
         public void Open()
@@ -213,6 +218,48 @@ namespace CityX.UI
                 Inventory.AddItem(slot.ItemId, 1, instanceData);
             }
             Refresh();
+        }
+
+        /// <summary>
+        /// A number key with the mouse over a drink in the bag puts that drink on the hotbar slot of that key (owner, 2026-11-23: "make it so drinks can be
+        /// equipped in the hotbar"; docs/PHIZZ_CAN.md), as a number key puts a skill there in the skill menu. Its key then takes one out and drinks it.
+        /// </summary>
+        private void PutDrinkOnBar(Keyboard keyboard)
+        {
+            var skills = Player != null ? Player.GetComponent<PlayerSkills>() : null;
+            Mouse mouse = Mouse.current;
+            if (skills == null || mouse == null || Inventory == null)
+            {
+                return;
+            }
+            for (int bar = 0; bar < Hotbar.SlotCount; bar++)
+            {
+                if (!keyboard[PlayerSkills.KeyFor(bar)].wasPressedThisFrame)
+                {
+                    continue;
+                }
+                int under = StorageSlotUnder(mouse.position.ReadValue());
+                if (under >= 0 && under < Inventory.Storage.Length && Hotbar.IsBarItem(Inventory.Storage[under].ItemId))
+                {
+                    skills.PutOnBar(bar, Inventory.Storage[under].ItemId);
+                }
+            }
+        }
+
+        /// <summary>The bag slot whose button is under <paramref name="screenPoint"/>, or -1.</summary>
+        private int StorageSlotUnder(Vector2 screenPoint)
+        {
+            for (int i = 0; i < StorageButtons.Length; i++)
+            {
+                var rect = StorageButtons[i] != null ? StorageButtons[i].transform as RectTransform : null;
+                Canvas canvas = rect != null ? rect.GetComponentInParent<Canvas>() : null;
+                Camera eye = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+                if (rect != null && RectTransformUtility.RectangleContainsScreenPoint(rect, screenPoint, eye))
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         private void OnEquipSlotClicked(string slotKey)

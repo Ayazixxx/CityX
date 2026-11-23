@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Items;
 
 namespace CityX.Character
 {
@@ -44,6 +45,20 @@ namespace CityX.Character
             return -1;
         }
 
+        /// <summary>A skill that goes on the bar (a spell, a weapon technique), or a drink (an item: its key takes one out of the bag and drinks it).</summary>
+        public static bool GoesOnBar(string id)
+        {
+            SkillNode node = SkillCatalog.Find(id);
+            return (node != null && node.GoesOnBar) || IsBarItem(id);
+        }
+
+        /// <summary>
+        /// An item that goes on the bar: a drink (owner, 2026-11-23: "drinks can be equipped in the hotbar ant it appears and does the drinking animation
+        /// immediately"; docs/PHIZZ_CAN.md).
+        /// </summary>
+        public static bool IsBarItem(string id) =>
+            !string.IsNullOrEmpty(id) && ItemRegistry.TryGet(id, out ItemDefinition definition) && definition.Category == ItemRegistry.DrinkCategory;
+
         /// <summary>Puts a skill in a slot, taking it out of any other (null empties the slot). False when it is not a skill that goes on the bar.</summary>
         public bool Put(int slot, string id)
         {
@@ -55,8 +70,7 @@ namespace CityX.Character
             {
                 return Clear(slot);
             }
-            SkillNode node = SkillCatalog.Find(id);
-            if (node == null || !node.GoesOnBar)
+            if (!GoesOnBar(id))
             {
                 return false;
             }
@@ -129,8 +143,7 @@ namespace CityX.Character
             {
                 for (int i = 0; i < SlotCount && i < ids.Count; i++)
                 {
-                    SkillNode node = SkillCatalog.Find(ids[i]);
-                    if (node != null && node.GoesOnBar && SlotOf(ids[i]) < 0)
+                    if (GoesOnBar(ids[i]) && SlotOf(ids[i]) < 0)
                     {
                         _slots[i] = ids[i];
                     }

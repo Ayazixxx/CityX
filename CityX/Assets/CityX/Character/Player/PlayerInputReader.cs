@@ -69,6 +69,9 @@ namespace CityX.Character
         /// <summary>Right-click with a spray can in hand: the UI (GraffitiMenuView) finds the wall in front and opens the canvas on it.</summary>
         public static event System.Action<PlayerInputReader> SprayRequested;
 
+        /// <summary>The key of a hotbar slot holding an item (a drink) was pressed this frame: its id.</summary>
+        public event System.Action<string> HotbarItemPressed;
+
         /// <summary>
         /// Set by Jetpack's own OnEquip/OnUnequip, same pattern as
         /// EquippedGun. While non-null, Space thrusts instead of charging a
@@ -979,6 +982,19 @@ namespace CityX.Character
             // of Update long before reaching here), so those states block
             // a cast the same way they already block everything else.
             //
+            // A DRINK ON THE BAR (2026-11-23, docs/PHIZZ_CAN.md): its key takes one out of the bag and drinks it at once (QuickDrink answers).
+            if (_skills != null && HotbarItemPressed != null)
+            {
+                for (int slot = 0; slot < Hotbar.SlotCount; slot++)
+                {
+                    string onBar = _skills.Bar[slot];
+                    if (Hotbar.IsBarItem(onBar) && keyboard[PlayerSkills.KeyFor(slot)].wasPressedThisFrame)
+                    {
+                        HotbarItemPressed(onBar);
+                    }
+                }
+            }
+
             // EVERY SPELL NOW CASTS FROM ITS SLOT ON THE BAR (PlayerSkills.Pressed): whichever of the keys 1 to 0 holds it, once learnt.
             if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, keyboard) && yawSource != null)
             {

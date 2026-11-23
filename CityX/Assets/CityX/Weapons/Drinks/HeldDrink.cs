@@ -27,6 +27,11 @@ namespace CityX.Weapons
         [Tooltip("It in the air, thrown full: it lands with a splash (ThrownBottle).")]
         public GameObject ThrownPrefab;
 
+        /// <summary>Taken out of the bag by its hotbar key (QuickDrink): drunk, the hand has back <see cref="HandBack"/> (an item id, or nothing).</summary>
+        public bool Quick { get; set; }
+
+        public string HandBack { get; set; }
+
         /// <summary>The body holding it (its owner's, or another player's copy of it); null on the ground.</summary>
         protected GameObject Holder { get; private set; }
 

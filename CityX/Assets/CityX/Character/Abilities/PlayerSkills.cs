@@ -170,10 +170,10 @@ namespace CityX.Character
             RaiseChanged();
         }
 
-        /// <summary>Puts a learnt skill that goes on the bar into a slot. False for anything else.</summary>
+        /// <summary>Puts a learnt skill that goes on the bar, or a drink, into a slot. False for anything else.</summary>
         public bool PutOnBar(int slot, string id)
         {
-            if (!Book.Knows(id))
+            if (!Book.Knows(id) && !Hotbar.IsBarItem(id))
             {
                 return false;
             }
@@ -213,6 +213,12 @@ namespace CityX.Character
         /// <summary>Learnt, and nothing stops it right now that the bar can show: the sword's techniques need a sword in hand.</summary>
         public bool CanUseNow(string id)
         {
+            if (Hotbar.IsBarItem(id))
+            {
+                // A drink: there is one in the bag or the hand.
+                var inventory = GetComponent<Inventory>();
+                return inventory != null && (inventory.CountInStorage(id) > 0 || inventory.EquippedItemId(inventory.ActiveWeaponSlot) == id);
+            }
             SkillNode node = SkillCatalog.Find(id);
             if (node == null || !Book.Knows(id))
             {
