@@ -50,7 +50,7 @@ namespace CityX.Wearables
         public const float CloseBelow = 1.55f, OwnShapeFrom = 1.72f;
 
         /// <summary>Whether a coat fits close enough that a shirt under it is drawn in at the stomach.</summary>
-        public static bool FitsClose(string coatId) => coatId == ItemRegistry.BrownCoat;
+        public static bool FitsClose(string coatId) => coatId == ItemRegistry.BrownCoat || coatId == ItemRegistry.BlackCoat;
 
         /// <summary>Whether a worn item is a shirt that goes under a coat: worn as a top, and not a coat itself (Character.TopLayers).</summary>
         public static bool IsShirt(string itemId) =>

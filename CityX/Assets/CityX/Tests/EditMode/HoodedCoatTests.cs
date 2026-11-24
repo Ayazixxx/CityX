@@ -56,6 +56,37 @@ namespace CityX.Tests
             Assert.AreEqual("Brown Coat", ItemRegistry.TryGet(ItemRegistry.BrownCoat, out ItemDefinition brown) ? brown.DisplayName : null);
         }
 
+        /// <summary>The Black Coat (owner, 2026-11-24: "make a black version of the brown coat. just get rid of the color and make it darker"): the
+        /// Brown Coat's models, its paint grey and much darker.</summary>
+        [Test]
+        public void TheBlackCoatIsTheBrownCoatGreyAndDark()
+        {
+            HoodedCoat brown = Coat(ItemRegistry.BrownCoat), black = Coat(ItemRegistry.BlackCoat);
+            Assert.AreSame(brown.GarmentMesh, black.GarmentMesh, "the Black Coat is not the Brown Coat's model");
+            Assert.AreSame(brown.HoodUpMesh, black.HoodUpMesh, "hood up, the Black Coat is not the Brown Coat's model");
+            foreach ((string brownMap, string blackMap) in new[] { ("BrownCoat", "BlackCoat"), ("BrownCoatHoodUp", "BlackCoatHoodUp") })
+            {
+                Color brownMean = Mean($"Assets/CityX/Wearables/{brownMap}.jpg"), blackMean = Mean($"Assets/CityX/Wearables/{blackMap}.jpg");
+                Assert.Less(Mathf.Abs(blackMean.r - blackMean.b), 0.01f, $"{blackMap} still has colour: {blackMean}");
+                Assert.Less(blackMean.grayscale, brownMean.grayscale * 0.4f, $"{blackMap} is not much darker than {brownMap}");
+                Assert.Greater(blackMean.grayscale, 0.03f, $"{blackMap} is so dark its folds would be lost");
+            }
+        }
+
+        private static Color Mean(string path)
+        {
+            var texture = new Texture2D(2, 2);
+            texture.LoadImage(System.IO.File.ReadAllBytes(path));
+            Color sum = Color.clear;
+            Color[] texels = texture.GetPixels();
+            foreach (Color texel in texels)
+            {
+                sum += texel;
+            }
+            Object.DestroyImmediate(texture);
+            return sum / texels.Length;
+        }
+
         [Test]
         public void TheChatPutsTheHoodUpAndDown()
         {

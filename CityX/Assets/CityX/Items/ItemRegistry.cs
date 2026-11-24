@@ -14,6 +14,7 @@ namespace CityX.Items
         public const string GreenFurHoodedParka = "green_fur_hooded_parka";
         public const string MaroonFurHoodedParka = "maroon_fur_hooded_parka";
         public const string BrownCoat = "brown_coat";
+        public const string BlackCoat = "black_coat";
         public const string TShirt = "t_shirt";
         public const string BloodRavenTShirt = "blood_raven_t_shirt";
         public const string RedCamoTShirt = "red_camo_t_shirt";
@@ -139,6 +140,7 @@ namespace CityX.Items
             [MaroonFurHoodedParka] = new ItemDefinition(MaroonFurHoodedParka, "Maroon Fur Hooded Parka", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             // The owner's open-fronted hooded coat, made here (Wearables/HoodedCoat); each colour its own item; /hoodon puts its hood up.
             [BrownCoat] = new ItemDefinition(BrownCoat, "Brown Coat", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
+            [BlackCoat] = new ItemDefinition(BlackCoat, "Black Coat", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [TShirt] = new ItemDefinition(TShirt, "T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             // The T-Shirt with the Blood Raven logo printed on it (Wearables/Prints/BloodRavenPrint).
             [BloodRavenTShirt] = new ItemDefinition(BloodRavenTShirt, "Blood Raven T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
@@ -309,7 +311,7 @@ namespace CityX.Items
 
         /// <summary>A coat: worn over a shirt, which goes under it in the top slot (Character.TopLayers).</summary>
         public static bool IsCoat(string itemId) =>
-            itemId == MidnightCoat || itemId == GreenFurHoodedParka || itemId == MaroonFurHoodedParka || itemId == BrownCoat;
+            itemId == MidnightCoat || itemId == GreenFurHoodedParka || itemId == MaroonFurHoodedParka || itemId == BrownCoat || itemId == BlackCoat;
 
         public static IReadOnlyCollection<string> Ids => Items.Keys;
     }

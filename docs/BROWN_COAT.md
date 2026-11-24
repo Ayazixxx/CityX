@@ -76,7 +76,17 @@ bit". The shared rule (`UnderCoat`) draws a shirt under a coat only in the coat'
 - it hangs from the hips, as the coat's front does: its share of the legs goes to the hips (`OffTheLegs`), so a knee no longer swings its
   corner out through a panel.
 
+## The Black Coat
+
+Owner, 2026-11-24: "make a black version of the brown coat. just get rid of the color and make it darker". Item `black_coat`, "Black Coat",
+Uncommon, `/spawn blackcoat`. The Brown Coat's models; its paint made from the Brown Coat's by `HoodedCoatBuilder` (`Colourway.Grey`): each
+texel's lightness times 0.27, so the brown's lightness (about 0.34) comes to a very dark grey (about 0.09; pure black loses the folds to the
+outline). A shirt goes under it as under the Brown Coat.
+
 ## A new colour
+
+A grey or darker copy of a coat: one line in `HoodedCoatBuilder.Colourways` with the coat's models and a `Grey` factor, plus its item lines
+(below). A truly new colour:
 
 Meshy's two retextured models through the same script under a new name, then a line in `HoodedCoatBuilder.Colourways`, an item in
 `ItemRegistry` (and `IsCoat`), a rung in `ItemRarity`, its prefab in `NetworkedPlayerWiring` and the scene builder, a `/spawn` word; rebuild

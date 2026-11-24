@@ -57,7 +57,7 @@ GameObject:
   - component: {fileID: 1184192180562736159}
   - component: {fileID: 2266012398628619838}
   - component: {fileID: 2603190679090082038}
-  - component: {fileID: 7530735591746803385}
+  - component: {fileID: 7696176161543044124}
   m_Layer: 0
   m_Name: Hobo_1_Machete
   m_TagString: Untagged
@@ -388,7 +388,7 @@ MonoBehaviour:
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &7530735591746803385
+--- !u!114 &7696176161543044124
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

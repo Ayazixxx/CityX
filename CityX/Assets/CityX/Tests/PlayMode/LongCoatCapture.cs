@@ -32,6 +32,10 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderThePlayerInTheMaroonParkaOverTheStripedShirt() => Render("MaroonFurHoodedParka", "maroonparka-shirt", "RedStripedTShirt");
 
+        /// <summary>The Black Coat, the Brown Coat in black: blackcoat-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderThePlayerInTheBlackCoat() => Render("BlackCoat", "blackcoat", "TShirt");
+
         /// <summary>The Brown Coat (docs/BROWN_COAT.md), hood down: browncoat-*.png.</summary>
         [UnityTest]
         public IEnumerator RenderThePlayerInTheBrownCoat() => Render("BrownCoat", "browncoat", "TShirt");
