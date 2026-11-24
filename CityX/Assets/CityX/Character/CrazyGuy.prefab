@@ -2431,7 +2431,7 @@ GameObject:
   - component: {fileID: 5551744373013461777}
   - component: {fileID: 1004256688954987413}
   - component: {fileID: 6588972926316144315}
-  - component: {fileID: 6717913459388226450}
+  - component: {fileID: 2994113412770622667}
   m_Layer: 0
   m_Name: CrazyGuy
   m_TagString: Untagged
@@ -2756,7 +2756,7 @@ MonoBehaviour:
   Style: 1
   XpReward: 80
   Seed: 0
---- !u!114 &6717913459388226450
+--- !u!114 &2994113412770622667
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
