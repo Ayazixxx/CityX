@@ -711,6 +711,8 @@ namespace CityX.ViewEditor
                 // Every colourway of the fingerless gloves (FingerlessGloveColourways).
                 var withGloves = new List<CityX.Character.Inventory.ItemPrefabEntry>(inventory.ItemPrefabs);
                 withGloves.AddRange(CityX.WearablesEditor.FingerlessGlovesBuilder.BuildAll());
+                // Every colourway of the fitted cap (FittedCapColourways, docs/FITTED_CAP.md).
+                withGloves.AddRange(CityX.WearablesEditor.FittedCapBuilder.BuildAll());
                 // The other glass bottles (GlassBottleKinds; the first is listed above).
                 foreach (CityX.Items.GlassBottleKinds.Kind kind in CityX.Items.GlassBottleKinds.All)
                 {

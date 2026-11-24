@@ -100,7 +100,8 @@ namespace CityX.CharacterEditor
             (ItemRegistry.WornBoots, "Assets/CityX/Wearables/WornBoots.prefab"),
         });
 
-        /// <summary>Every glass bottle (GlassBottleKinds) and every colourway of the fingerless gloves (FingerlessGloveColourways) after the rest.</summary>
+        /// <summary>Every glass bottle (GlassBottleKinds), every colourway of the fingerless gloves (FingerlessGloveColourways) and of the fitted cap
+        /// (FittedCapColourways) after the rest.</summary>
         private static (string id, string path)[] WithGloves((string id, string path)[] paths)
         {
             var all = new System.Collections.Generic.List<(string id, string path)>(paths);
@@ -111,6 +112,10 @@ namespace CityX.CharacterEditor
             foreach (FingerlessGloveColourways.Colourway colourway in FingerlessGloveColourways.All)
             {
                 all.Add((colourway.ItemId, FingerlessGloveColourways.PrefabPath(colourway.ItemId)));
+            }
+            foreach (FittedCapColourways.Colourway colourway in FittedCapColourways.All)
+            {
+                all.Add((colourway.ItemId, FittedCapColourways.PrefabPath(colourway.ItemId)));
             }
             return all.ToArray();
         }

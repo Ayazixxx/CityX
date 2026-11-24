@@ -592,7 +592,8 @@ namespace CityX.UI
                 case "3d_glasses":
                 case "3dglasses":
                 case "glasses": return ItemRegistry.ThreeDGlasses;
-                default: return GlassBottleKinds.ItemIdForAlias(which) ?? FingerlessGloveColourways.ItemIdForAlias(which);
+                default: return GlassBottleKinds.ItemIdForAlias(which) ?? FingerlessGloveColourways.ItemIdForAlias(which)
+                                ?? FittedCapColourways.ItemIdForAlias(which);
             }
         }
 
