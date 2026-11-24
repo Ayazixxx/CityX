@@ -89,6 +89,38 @@ namespace CityX.Tests
             BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-threequarter", chest + new Vector3(6.4f, 1.5f, 6.4f), chest);
             Vector3 wrist = player.transform.position + new Vector3(0.6f, 1.05f, 0.0f);
             BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-cuff", wrist + new Vector3(2.2f, 0.2f, 1.6f), wrist);
+            // The crotch close, low in front (owner, 2026-11-24: "the croatch clips through"), and from under the coat looking up, as the
+            // game's camera sees it when it comes in low (owner: "there is holes in the armpit and one in the back").
+            Vector3 crotch = player.transform.position + Vector3.up * 0.95f;
+            BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-crotch", crotch + new Vector3(0.4f, -0.2f, 4.0f), crotch);
+            BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-below", player.transform.position + new Vector3(0.5f, 0.3f, -1.6f),
+                chest + Vector3.up * 0.3f);
+            // The seat from behind, close (owner: "is that line around where the butt is a hole in the coat?").
+            Vector3 seat = player.transform.position + Vector3.up * 0.85f;
+            BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-seat", seat + new Vector3(0.25f, 0.1f, -2.6f), seat);
+            BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-seatside", seat + new Vector3(2.2f, 0.1f, -1.2f), seat);
+
+            // The arms lifted, out to the sides and forward (a swing, an aim): the armpits open most there.
+            var lift = player.AddComponent<CoatCaptureArmLift>();
+            foreach ((string name, Vector3 way) in new[] { ("armsout", Vector3.right), ("armsforward", Vector3.forward) })
+            {
+                lift.Way = way;
+                lift.Degrees = 80.0f;
+                for (int i = 0; i < 10; i++)
+                {
+                    locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+                    yield return null;
+                }
+                chest = player.transform.position + Vector3.up * 1.4f;
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-{name}-front", chest + new Vector3(0.0f, 0.3f, 9.0f), chest);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-{name}-behind", chest + new Vector3(0.0f, 0.6f, -9.0f), chest);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-{name}-armpit",
+                    chest + new Vector3(2.6f, -0.5f, 2.0f), chest + new Vector3(0.35f, 0.15f, 0.0f));
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{shots}-{name}-below",
+                    player.transform.position + new Vector3(0.5f, 0.3f, -1.6f), chest + Vector3.up * 0.3f);
+            }
+            Object.Destroy(lift);
+            yield return null;
 
             // The walk once; the sprint at four moments of a stride (the knees and the armpits move most there).
             foreach ((string name, bool sprint, int frames) in new[] { ("walk", false, 50), ("sprint1", true, 60), ("sprint2", true, 6),
@@ -118,6 +150,35 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+    }
+}
+
+namespace CityX.Tests
+{
+    /// <summary>For LongCoatCapture: both upper arms swung up by Degrees, out to the sides or forward, after the body is posed.</summary>
+    [DefaultExecutionOrder(10000)]
+    public sealed class CoatCaptureArmLift : MonoBehaviour
+    {
+        public Vector3 Way = Vector3.right;
+        public float Degrees;
+
+        private void LateUpdate()
+        {
+            Animator animator = GetComponentInChildren<Animator>();
+            if (animator == null)
+            {
+                return;
+            }
+            foreach (HumanBodyBones bone in new[] { HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm })
+            {
+                Transform arm = animator.GetBoneTransform(bone);
+                Vector3 side = arm.position - transform.position;
+                side = Vector3.ProjectOnPlane(side, Vector3.up).normalized;
+                Vector3 toward = Way == Vector3.right ? side : transform.forward;
+                Vector3 axis = Vector3.Cross(Vector3.down, toward);
+                arm.rotation = Quaternion.AngleAxis(Degrees, axis) * arm.rotation;
+            }
         }
     }
 }

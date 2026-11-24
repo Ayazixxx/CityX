@@ -54,43 +54,52 @@ namespace CityX.Tests
 
         /// <summary>
         /// Under the Brown Coat a shirt hugs the body from the chest down (owner, 2026-11-24: "make the t shirt fit a bit tigher when brown coat is
-        /// equipped so it doesnt overlap like that", "the top part looks good its just the stomach"); under the parka it is left as it is.
+        /// equipped so it doesnt overlap like that", "the top part looks good its just the stomach"), and goes under the coat's front panels whole, never
+        /// cut round them or out in front of them; under the parka it is left as it is.
         /// </summary>
         [TestCase("LongSleeveTShirt")]
         [TestCase("TShirt")]
-        public void UnderTheBrownCoatAShirtsStomachIsDrawnInAndItsChestIsNot(string prefab)
+        public void UnderTheBrownCoatAShirtIsWholeItsStomachDrawnInAndItGoesUnderThePanels(string prefab)
         {
             Assert.IsTrue(UnderCoat.FitsClose(ItemRegistry.BrownCoat));
             Assert.IsFalse(UnderCoat.FitsClose(ItemRegistry.GreenFurHoodedParka), "the parka's shirt is drawn in too");
             Mesh shirt = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefab}.prefab").GetComponent<SkinnedGarment>().GarmentMesh;
             Mesh coat = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/BrownCoat.prefab").GetComponent<SkinnedGarment>().GarmentMesh;
             Mesh close = UnderCoat.FrontOnlyClose(shirt, coat);
-            Assert.Greater(close.triangles.Length, 0, "nothing of the shirt shows in the coat's gap");
-            Assert.Less(close.triangles.Length, UnderCoat.FrontOnly(shirt).triangles.Length, "the shirt is still drawn under the coat's panels");
-            HashSet<(int, int)> covered = UnderCoat.CoveredInFront(coat);
-            float tuck = UnderCoat.CoverCell * (UnderCoat.TuckCells + 1.5f) * 1.5f;
-            Vector3[] own = shirt.vertices, drawn = close.vertices;
+            // Whole: every triangle in the opening, none cut away round the panels (owner, 2026-11-24: "there is a bunch of "shards" missing
+            // from the t shirt").
+            Assert.AreEqual(UnderCoat.FrontOnly(shirt).triangles.Length, close.triangles.Length, "triangles of the shirt are cut away under the coat");
+            Dictionary<(int, int), float> panels = UnderCoat.PanelsInFront(coat);
+            Assert.Greater(panels.Count, 1000, "the coat covers nothing of the front");
+            Vector3[] drawn = close.vertices;
             float loosest = 0.0f;
-            int moved = 0;
+            int behind = 0;
             foreach (int v in close.triangles)
             {
-                float reach = new Vector2(drawn[v].x, drawn[v].z).magnitude;
                 if (drawn[v].y < UnderCoat.CloseBelow)
                 {
-                    loosest = Mathf.Max(loosest, reach);
+                    loosest = Mathf.Max(loosest, new Vector2(drawn[v].x, drawn[v].z).magnitude);
                 }
-                if (drawn[v].y > UnderCoat.OwnShapeFrom)
+                if (panels.TryGetValue((Mathf.FloorToInt(drawn[v].x / UnderCoat.CoverCell), Mathf.FloorToInt(drawn[v].y / UnderCoat.CoverCell)), out float panel))
                 {
-                    Assert.AreEqual(own[v], drawn[v], "the chest, which looked good, was moved");
+                    Assert.LessOrEqual(drawn[v].z, panel - UnderCoat.BehindThePanels + 1e-4f, $"the shirt comes out in front of the coat at {drawn[v]}");
+                    behind++;
                 }
-                if ((own[v] - drawn[v]).sqrMagnitude > 1e-8f) moved++;
             }
-            TestContext.WriteLine($"{prefab}: {moved} corners drawn in, the stomach now {loosest * 100.0f:0.0} cm from the middle line at the most");
-            Assert.Greater(moved, 0, "nothing of the shirt was drawn in");
+            TestContext.WriteLine($"{prefab}: {behind} corners under the panels, the stomach {loosest * 100.0f:0.0} cm from the middle line at the most");
+            Assert.Greater(behind, 0, "none of the shirt goes under the panels");
+            // Hung from the hips, not the thighs: a knee coming up swung its corners out through the panels ("the white shirt going through the
+            // coat a tiny bit").
+            int firstLeg = System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.LeftUpperLeg);
+            foreach (BoneWeight w in close.boneWeights)
+            {
+                foreach ((int bone, float share) in new[] { (w.boneIndex0, w.weight0), (w.boneIndex1, w.weight1), (w.boneIndex2, w.weight2), (w.boneIndex3, w.weight3) })
+                {
+                    Assert.IsFalse(share > 0.0f && bone >= firstLeg && bone < SkinnedGarment.Bones.Length, "the shirt under the coat still follows a leg");
+                }
+            }
             Assert.LessOrEqual(loosest, UnderCoat.TrunkRadius + UnderCoat.CloseOffTheTrunk + 1e-4f, "the stomach still hangs off the body");
             Assert.AreSame(close, UnderCoat.FrontOnlyClose(shirt, coat));
-            Assert.Greater(covered.Count, 1000, "the coat covers nothing of the front");
-            Assert.Greater(tuck, 0.0f);
         }
     }
 }
