@@ -85,6 +85,24 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void AThrownFullBottlesStainStaysDarkThenDriesAwayWithinAMinute()
+        {
+            // Owner, 2026-11-23: "make a stain like this appear on the floor when you throw a full phizz bottle and have it fade within a minute".
+            Assert.AreEqual(1.0f, DrinkStains.AlphaAt(0.0f));
+            Assert.AreEqual(1.0f, DrinkStains.AlphaAt(DrinkStains.HoldSeconds));
+            Assert.That(DrinkStains.AlphaAt(40.0f), Is.InRange(0.1f, 0.9f), "it does not dry away gradually");
+            Assert.AreEqual(0.0f, DrinkStains.AlphaAt(60.0f), "still there at a minute");
+            Assert.LessOrEqual(DrinkStains.LifeSeconds, 60.0f, "it lasts past a minute");
+            for (float age = 0.0f; age < DrinkStains.LifeSeconds; age += 1.0f)
+            {
+                Assert.LessOrEqual(DrinkStains.AlphaAt(age + 1.0f), DrinkStains.AlphaAt(age), "it darkens again");
+            }
+            var thrown = AssetDatabase.LoadAssetAtPath<GameObject>(FullBottle.ThrownPrefabPath).GetComponent<ThrownBottle>();
+            Assert.IsTrue(thrown.Stains, "the thrown full bottle leaves no stain");
+            Assert.IsFalse(AssetDatabase.LoadAssetAtPath<GameObject>(PhizzCan.ThrownPrefabPath).GetComponent<ThrownBottle>().Stains, "the can stains (the owner named the bottle)");
+        }
+
+        [Test]
         public void AFullBottleHealsAHundredStacksWithoutEndAndShowsItsDrink()
         {
             Assert.AreEqual(100.0f, FullBottle.Heal, "the owner's 100");

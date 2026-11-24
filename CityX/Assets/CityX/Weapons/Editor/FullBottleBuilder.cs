@@ -115,6 +115,7 @@ namespace CityX.WeaponsEditor
                 flying.ShatterAt = pieces;
                 flying.Splashes = true;
                 flying.SplashColour = FullBottle.LiquidColour;
+                flying.Stains = true;
                 flying.ImpactCharacterSound = AssetDatabase.LoadAssetAtPath<AudioClip>(BottleBuilder.ImpactCharacterSoundPath);
                 flying.ImpactTerrainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(BottleBuilder.ImpactTerrainSoundPath);
                 return PrefabUtility.SaveAsPrefabAsset(root, FullBottle.ThrownPrefabPath);

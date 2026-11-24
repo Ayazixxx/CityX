@@ -34,6 +34,9 @@ namespace CityX.Weapons
 
         public Color SplashColour = Color.white;
 
+        [Tooltip("A full bottle: the floor under where it bursts is left stained, drying away within a minute (DrinkStains).")]
+        public bool Stains;
+
         [Tooltip("What is left where it lands, if anything (a can bursts open and lies there empty).")]
         public GameObject LeftBehind;
 
@@ -170,6 +173,10 @@ namespace CityX.Weapons
             if (Splashes)
             {
                 BloodBurst.Splash(point, normal, SplashStrength, SplashColour);
+            }
+            if (Stains)
+            {
+                DrinkStains.Leave(point, _velocity, transform);
             }
             if (LeftBehind != null)
             {

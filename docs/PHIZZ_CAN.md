@@ -104,6 +104,12 @@ liquid splash effect when the bottle is broken (when shot or thrown)".
 - **Where it lands** (`ThrownBottle`): the full bottle bursts into the soda bottle's own pieces (`ShatterAt` turns its standing frame into the held one
   the pieces are made in) and splashes yellow; the can splashes and is left lying there empty (`LeftBehind`). The splash is the blood burst in the
   drink's colour (`BloodBurst.Splash`: heavy drops that arc and a fine spray).
+- **The stain** (owner: "make a stain like this appear on the floor when you throw a full phizz bottle and have it fade within a minute", with a photo of
+  a wet stain on concrete): a thrown full bottle leaves the floor under where it burst stained (`DrinkStains`, `ThrownBottle.Stains`, set on the full
+  bottle's thrown prefab only): a ragged dark patch, 1.1 m across, its fainter run-off trailing the way the bottle flew, a few darker specks. It
+  darkens the floor it lies on (a multiply, toward a yellow brown), so it is never lighter than the ground, by night as by day. Dark for 15 s, then
+  drying away, gone at 60 s (`DrinkStains.AlphaAt`); 16 at most. Every machine runs the bottle's flight, so every player sees it. A can leaves none
+  (the owner named the bottle), nor does a bottle shot where it lies. Pictures: `PhizzCanCapture.RenderTheStain` (`drink-stain-*.png`).
 - **Shot or struck where it lies** (`HeldDrink` is an `IBreakableSurface`, as a window is): it bursts and splashes, and a bullet goes on through.
   Only a drink lying as itself in the world: one dropped from a bag is an inert copy (`DroppedItem`) and is not broken yet; a drink in a hand is never
   hit (the shot skips the holder's colliders).

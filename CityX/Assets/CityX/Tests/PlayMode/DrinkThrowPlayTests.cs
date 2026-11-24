@@ -21,6 +21,7 @@ namespace CityX.Tests
 
         private static void Tidy()
         {
+            DrinkStains.Clear();
             foreach (var kind in new System.Type[] { typeof(BottleShatter), typeof(DroppedCan), typeof(ThrownBottle) })
             {
                 foreach (Object found in Object.FindObjectsByType(kind, FindObjectsSortMode.None))
@@ -55,6 +56,7 @@ namespace CityX.Tests
                 var drink = held.GetComponent<HeldDrink>();
                 yield return null;
                 int splashesBefore = Splashes();
+                DrinkStains.Clear();
 
                 Assert.IsTrue(drink.CanThrow, "a full drink in the hand cannot be thrown");
                 drink.Throw(body, body.transform.position + Vector3.up * 1.8f, Vector3.forward);
@@ -76,10 +78,17 @@ namespace CityX.Tests
                 if (itemId == ItemRegistry.PhizzBottle)
                 {
                     Assert.IsNotNull(Object.FindAnyObjectByType<BottleShatter>(), "the bottle did not burst into its pieces");
+                    // Owner, 2026-11-23: "make a stain like this appear on the floor when you throw a full phizz bottle and have it fade within a minute".
+                    Assert.AreEqual(1, DrinkStains.Count, "the full bottle left no stain");
+                    DrinkStain stain = Object.FindAnyObjectByType<DrinkStain>();
+                    Assert.AreEqual(DrinkStains.SurfaceOffset, stain.transform.position.y, 0.005f, "the stain is not on the floor");
+                    Assert.Greater(stain.transform.position.z, 3.0f, "the stain is not under where it burst, at the wall");
+                    Assert.Greater(Vector3.Dot(stain.transform.up, Vector3.up), 0.99f, "the stain does not lie flat");
                 }
                 else
                 {
                     Assert.IsNotNull(Object.FindAnyObjectByType<DroppedCan>(), "the empty can is not left lying there");
+                    Assert.AreEqual(0, DrinkStains.Count, "a can stains: the owner named the full bottle");
                 }
             }
             finally

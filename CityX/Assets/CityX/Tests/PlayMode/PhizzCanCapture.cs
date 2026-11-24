@@ -136,6 +136,70 @@ namespace CityX.Tests
             BuildingShapeCapture.Shoot(camera, folder, $"{prefix}-tab-{moment}", lid + new Vector3(-0.35f, 0.75f, 0.85f), lid);
         }
 
+        /// <summary>
+        /// A full bottle thrown onto the ground and the stain it leaves (owner, 2026-11-23: "make a stain like this appear on the floor ... and have it
+        /// fade within a minute"), from a player's height and from above, just after it burst, at half a minute and at fifty seconds, and
+        /// by night: drink-stain-*.png.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RenderTheStain()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            LogAssert.ignoreFailingMessages = true;
+            Time.captureFramerate = 60;
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            ground.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
+            ground.GetComponent<Renderer>().material.color = new Color(0.72f, 0.71f, 0.68f);
+            var sun = new GameObject("Sun").AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.intensity = 1.3f;
+            sun.transform.rotation = Quaternion.Euler(50.0f, 160.0f, 0.0f);
+            var camera = new GameObject("Cam").AddComponent<Camera>();
+            camera.fieldOfView = 40.0f;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
+            string folder = BuildingShapeCapture.ShotsFolder;
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(FullBottle.ThrownPrefabPath);
+            ThrownBottle.Spawn(prefab, new Vector3(0.0f, 1.8f, 0.5f), Quaternion.identity, new Vector3(0.0f, -2.0f, 6.0f), 0, null);
+            float seconds = 0.0f;
+            foreach ((float at, string name) in new[] { (1.5f, "fresh"), (30.0f, "30s"), (50.0f, "50s") })
+            {
+                while (seconds < at)
+                {
+                    yield return null;
+                    seconds += 1.0f / 60.0f;
+                }
+                BuildingShapeCapture.Shoot(camera, folder, $"drink-stain-{name}-eye", new Vector3(-2.5f, 2.6f, -1.0f), new Vector3(0.0f, 0.0f, 2.5f));
+                BuildingShapeCapture.Shoot(camera, folder, $"drink-stain-{name}-above", new Vector3(0.0f, 4.5f, 1.2f), new Vector3(0.0f, 0.0f, 2.5f));
+                if (name == "fresh")
+                {
+                    // By night: it must stay darker than the ground, not glow (the owner's rule for marks at night).
+                    Color ambient = RenderSettings.ambientLight;
+                    float day = sun.intensity;
+                    sun.intensity = 0.05f;
+                    RenderSettings.ambientLight = new Color(0.06f, 0.07f, 0.1f);
+                    BuildingShapeCapture.Shoot(camera, folder, "drink-stain-night-eye", new Vector3(-2.5f, 2.6f, -1.0f), new Vector3(0.0f, 0.0f, 2.5f));
+                    sun.intensity = day;
+                    RenderSettings.ambientLight = ambient;
+                }
+            }
+            DrinkStains.Clear();
+            foreach (BottleShatter pieces in Object.FindObjectsByType<BottleShatter>(FindObjectsSortMode.None))
+            {
+                Object.Destroy(pieces.gameObject);
+            }
+            Object.Destroy(camera.gameObject);
+            Object.Destroy(sun.gameObject);
+            Object.Destroy(ground);
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+#else
+            Assert.Ignore("needs the editor to load the prefabs.");
+            yield break;
+#endif
+        }
+
         /// <summary>A full bottle and a can thrown at a wall, moment by moment from beside: drink-splash-*.png (the pieces, the yellow splash, the can left).</summary>
         [UnityTest]
         public IEnumerator RenderTheSplash()
