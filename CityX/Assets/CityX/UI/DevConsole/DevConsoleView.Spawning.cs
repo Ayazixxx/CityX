@@ -403,6 +403,7 @@ namespace CityX.UI
                 case "combatsword":
                 case "combat_sword":
                 case "1h": return ItemRegistry.CombatSword;
+                case "machete": return ItemRegistry.Machete;
                 case "knife":
                 case "kitchenknife":
                 case "kitchen_knife": return ItemRegistry.KitchenKnife;

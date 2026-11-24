@@ -35,6 +35,7 @@ namespace CityX.Items
             [ItemRegistry.MagicWand] = Rarity.Common,
             [ItemRegistry.ButterKnife] = Rarity.Common,
             [ItemRegistry.KitchenKnife] = Rarity.Common,
+            [ItemRegistry.Machete] = Rarity.Common,   // my placement: a farm tool, beside the kitchen knife
             [ItemRegistry.CombatSword] = Rarity.Uncommon,
             [ItemRegistry.Pistol] = Rarity.Uncommon,
             [ItemRegistry.Bow] = Rarity.Uncommon,

@@ -21,12 +21,30 @@ namespace CityX.WeaponsEditor
         /// <summary>The same, with the model's texture coordinates (empty when it has none).</summary>
         public static void Load(string sourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uv)
         {
+            LoadPart(sourcePath, null, out vertices, out normals, out triangles, out uv);
+        }
+
+        /// <summary>The same for the glb's mesh object named <paramref name="part"/> (its first mesh when null): one part of a model made of several.</summary>
+        public static void LoadPart(string sourcePath, string part, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uv)
+        {
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
             if (model == null)
             {
                 throw new System.IO.FileNotFoundException($"CityX: no model at {sourcePath}");
             }
-            MeshFilter filter = model.GetComponentInChildren<MeshFilter>(true);
+            MeshFilter filter = null;
+            foreach (MeshFilter candidate in model.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (part == null || candidate.name == part)
+                {
+                    filter = candidate;
+                    break;
+                }
+            }
+            if (filter == null)
+            {
+                throw new System.ArgumentException($"CityX: {sourcePath} has no part named {part}");
+            }
             Mesh source = filter.sharedMesh;
             Matrix4x4 bake = filter.transform.localToWorldMatrix;
             vertices = source.vertices;

@@ -209,7 +209,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 5916849285013916305}
+      addedObject: {fileID: 2038281494232420257}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -490,6 +490,8 @@ MonoBehaviour:
     Prefab: {fileID: 5103039701722357346, guid: 6ab7683001589ae4ca309300ffef8afb, type: 3}
   - ItemId: metal_crowbar
     Prefab: {fileID: 1676274950303889575, guid: 41c11b84c9354364887f3228c7766a14, type: 3}
+  - ItemId: machete
+    Prefab: {fileID: 4844455151899744374, guid: 395985cee60332a43a4155a2e139cc02, type: 3}
   - ItemId: baseball_bat
     Prefab: {fileID: 1427942689939762654, guid: 2225b6eccb1297249928f27746951659, type: 3}
   - ItemId: sledgehammer
@@ -1222,7 +1224,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &5916849285013916305
+--- !u!114 &2038281494232420257
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

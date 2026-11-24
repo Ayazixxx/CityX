@@ -21,6 +21,7 @@ namespace CityX.Weapons
             // One-handed melee
             [ItemRegistry.CombatSword] = "Slash (Stab Dash: Pierce)",
             [ItemRegistry.MetalCrowbar] = "Blunt",
+            [ItemRegistry.Machete] = "Slash",
             [ItemRegistry.KitchenKnife] = "Slash (heavy stab: Pierce)",
             [ItemRegistry.ButterKnife] = "Blunt (heavy stab: Pierce)",
             [GlassBottleKinds.Classic] = BottleHits,

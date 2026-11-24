@@ -131,6 +131,7 @@ namespace CityX.Weapons
                 case ItemRegistry.Spear: return "Spear";
                 case ItemRegistry.BoStaff: return "Staff";
                 case ItemRegistry.CombatSword: return "Sword";
+                case ItemRegistry.Machete: return "Machete";
                 case ItemRegistry.SpikeSword: return "Greatsword";
                 default: return oneHanded ? "Blade" : "Greatsword";
             }

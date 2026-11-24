@@ -276,6 +276,7 @@ namespace CityX.ViewEditor
             GameObject spikeSwordPrefab = CityX.WeaponsEditor.SpikeSwordBuilder.Build();
             GameObject combatSwordPrefab = CityX.WeaponsEditor.CombatSwordBuilder.Build();
             GameObject metalCrowbarPrefab = CityX.WeaponsEditor.MetalCrowbarBuilder.Build();
+            GameObject machetePrefab = CityX.WeaponsEditor.MacheteBuilder.Build();
             GameObject baseballBatPrefab = CityX.WeaponsEditor.BaseballBatBuilder.Build();
             GameObject sledgehammerPrefab = CityX.WeaponsEditor.SledgehammerBuilder.Build();
             GameObject spearPrefab = CityX.WeaponsEditor.SpearBuilder.Build();
@@ -599,6 +600,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.ButterKnife, Prefab = butterKnifePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.MetalCrowbar, Prefab = metalCrowbarPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Machete, Prefab = machetePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.BaseballBat, Prefab = baseballBatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

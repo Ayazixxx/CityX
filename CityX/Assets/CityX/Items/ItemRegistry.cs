@@ -38,6 +38,7 @@ namespace CityX.Items
         public const string SpikeSword = "spike_sword";
         public const string CombatSword = "combat_sword";
         public const string MetalCrowbar = "metal_crowbar";
+        public const string Machete = "machete";
         public const string BaseballBat = "baseball_bat";
         public const string Sledgehammer = "sledgehammer";
 
@@ -171,6 +172,7 @@ namespace CityX.Items
             // One-handed, with its own attacks and guard; the crowbar is fought with its moves, the bat with the greatsword's.
             [CombatSword] = new ItemDefinition(CombatSword, "Combat Sword", "weapon", EquipSlots.Primary, 1),
             [MetalCrowbar] = new ItemDefinition(MetalCrowbar, "Metal Crowbar", "weapon", EquipSlots.Primary, 1),
+            [Machete] = new ItemDefinition(Machete, "Machete", "weapon", EquipSlots.Primary, 1),
             [BaseballBat] = new ItemDefinition(BaseballBat, "Baseball Bat", "weapon", EquipSlots.Primary, 1),
             // Two-handed and blunt: the greatsword's moves, with an overhead smash for its third light (owner, 2026-11-05).
             [Sledgehammer] = new ItemDefinition(Sledgehammer, "Sledgehammer", "weapon", EquipSlots.Primary, 1),
@@ -279,7 +281,7 @@ namespace CityX.Items
         public static bool Has(string itemId) => Items.ContainsKey(itemId);
 
         /// <summary>A blade: its killing blows cut a part off rather than bursting it (docs/DISMEMBERMENT.md).</summary>
-        public static bool HasEdge(string itemId) => itemId == CombatSword || itemId == SpikeSword || itemId == KitchenKnife;
+        public static bool HasEdge(string itemId) => itemId == CombatSword || itemId == SpikeSword || itemId == KitchenKnife || itemId == Machete;
 
         /// <summary>A gun held in one hand, which Dual Pistols pairs with another in the other hand (docs/DUAL_PISTOLS.md).</summary>
         public static bool IsHandgun(string itemId) => itemId == Pistol;
