@@ -68,6 +68,19 @@ Owner: "add these as a colorway for the shoes called "BW Sneakers"". Item `bw_sn
   them (`NetworkedPlayerWiring`).
 - Known: where black meets white (the sole's top edge at the toe, the laces' edges) the line is a little ragged.
 
+## Black Sneakers (2026-11-23)
+
+Owner: "make an all black version of the sneakers texture and make it a black sneakers items equippable", "use the bw sneakers and white ones as a
+guide", "but you can probably just make the white one darker". Item `black_sneakers`, `/spawn blacksneakers`. Common.
+
+- `SourceArt/WhiteSneaker/sneaker_black.py` darkens the white pair's own map (`Wearables/WhiteSneaker.jpg`) into `Wearables/BlackSneakers.jpg`:
+  each texel's brightness kept as shading, laid between a near-black and a dark grey, a touch cool, so the creases, stitching and tread still
+  show under the black outline and the shoe does not read as a flat silhouette. The sole is black too.
+- The same meshes again: `WhiteSneakerBuilder.BuildBlack` builds `BlackSneakers.prefab` with its own map. Other players see them
+  (`NetworkedPlayerWiring`).
+- Tests: `WhiteSneakerTests.TheBlackSneakersAreThePairAllInBlack` (the item, the shared meshes, the map, no texel lighter than a dark grey);
+  pictures `WhiteSneakerCapture.RenderTheBlackSneakers` (`blacksneaker-*.png`).
+
 ## Tests
 
 - `WhiteSneakerTests` (EditMode):

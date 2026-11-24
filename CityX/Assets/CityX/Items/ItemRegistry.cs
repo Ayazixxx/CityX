@@ -29,6 +29,7 @@ namespace CityX.Items
         public const string GreyJeans = "grey_jeans";
         public const string WhiteSneaker = "white_sneaker";
         public const string BWSneakers = "bw_sneakers";
+        public const string BlackSneakers = "black_sneakers";
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
@@ -156,9 +157,10 @@ namespace CityX.Items
             [MaroonJeans] = new ItemDefinition(MaroonJeans, "Maroon Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
             [Khakis] = new ItemDefinition(Khakis, "Khakis", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
             [GreyJeans] = new ItemDefinition(GreyJeans, "Grey Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
-            // A pair of chunky sneakers: the owner's trim of a Meshy model, each shoe on its foot (Wearables/Shoes), in white and in black and white.
+            // A pair of chunky sneakers: the owner's trim of a Meshy model, each shoe on its foot (Wearables/Shoes), in white, in black and white, and all black.
             [WhiteSneaker] = new ItemDefinition(WhiteSneaker, "White Sneaker", ItemDefinition.WearableCategory, EquipSlots.Shoes, 1),
             [BWSneakers] = new ItemDefinition(BWSneakers, "BW Sneakers", ItemDefinition.WearableCategory, EquipSlots.Shoes, 1),
+            [BlackSneakers] = new ItemDefinition(BlackSneakers, "Black Sneakers", ItemDefinition.WearableCategory, EquipSlots.Shoes, 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", EquipSlots.Primary, 1),
             [Pistol] = new ItemDefinition(Pistol, "Pistol", "weapon", EquipSlots.Primary, 1),
             // The jetpack and the parachute share the back slot: worn with a coat, never with each other (which would Space work?).

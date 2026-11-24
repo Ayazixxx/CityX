@@ -95,6 +95,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.GreyJeans, "Assets/CityX/Wearables/GreyJeans.prefab"),
             (ItemRegistry.WhiteSneaker, "Assets/CityX/Wearables/WhiteSneaker.prefab"),
             (ItemRegistry.BWSneakers, "Assets/CityX/Wearables/BWSneakers.prefab"),
+            (ItemRegistry.BlackSneakers, "Assets/CityX/Wearables/BlackSneakers.prefab"),
         });
 
         /// <summary>Every glass bottle (GlassBottleKinds) and every colourway of the fingerless gloves (FingerlessGloveColourways) after the rest.</summary>

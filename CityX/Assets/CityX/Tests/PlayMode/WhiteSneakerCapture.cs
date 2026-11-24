@@ -124,7 +124,13 @@ namespace CityX.Tests
 
         /// <summary>The BW Sneakers (2026-10-26) on the ground, then worn with the Khakis, standing: bwsneaker-*.png.</summary>
         [UnityTest]
-        public IEnumerator RenderTheBWSneakers()
+        public IEnumerator RenderTheBWSneakers() => RenderThePair("BWSneakers", "bwsneaker");
+
+        /// <summary>The Black Sneakers (2026-11-23), the same way: blacksneaker-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheBlackSneakers() => RenderThePair("BlackSneakers", "blacksneaker");
+
+        private static IEnumerator RenderThePair(string prefabName, string label)
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
@@ -144,18 +150,18 @@ namespace CityX.Tests
             camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
             string folder = BuildingShapeCapture.ShotsFolder;
 
-            GameObject onGround = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/BWSneakers.prefab"),
+            GameObject onGround = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefabName}.prefab"),
                 new Vector3(20.0f, 0.0f, 0.0f), Quaternion.identity);
             yield return null;
             Vector3 pair = onGround.transform.position + Vector3.up * 0.08f;
-            BuildingShapeCapture.Shoot(camera, folder, "bwsneaker-ground-threequarter", pair + new Vector3(1.2f, 0.9f, 1.4f), pair);
+            BuildingShapeCapture.Shoot(camera, folder, $"{label}-ground-threequarter", pair + new Vector3(1.2f, 0.9f, 1.4f), pair);
             Object.Destroy(onGround);
 
             GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                 new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
             player.GetComponent<PlayerInputReader>().enabled = false;
             var locomotion = player.GetComponent<PlayerLocomotion>();
-            foreach (string worn in new[] { "BWSneakers", "Khakis" })
+            foreach (string worn in new[] { prefabName, "Khakis" })
             {
                 Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{worn}.prefab"),
                     new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity).GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);
@@ -166,10 +172,10 @@ namespace CityX.Tests
                 yield return null;
             }
             Vector3 feet = player.transform.position + Vector3.up * 0.15f;
-            BuildingShapeCapture.Shoot(camera, folder, "bwsneaker-threequarter", feet + new Vector3(1.6f, 1.0f, 1.8f), feet);
-            BuildingShapeCapture.Shoot(camera, folder, "bwsneaker-side", feet + new Vector3(2.4f, 0.4f, 0.0f), feet);
+            BuildingShapeCapture.Shoot(camera, folder, $"{label}-threequarter", feet + new Vector3(1.6f, 1.0f, 1.8f), feet);
+            BuildingShapeCapture.Shoot(camera, folder, $"{label}-side", feet + new Vector3(2.4f, 0.4f, 0.0f), feet);
             Vector3 hips = player.transform.position + Vector3.up * 0.9f;
-            BuildingShapeCapture.Shoot(camera, folder, "bwsneaker-whole", hips + new Vector3(3.0f, 0.6f, 5.5f), hips);
+            BuildingShapeCapture.Shoot(camera, folder, $"{label}-whole", hips + new Vector3(3.0f, 0.6f, 5.5f), hips);
 
             Object.Destroy(player);
             Object.Destroy(camera.gameObject);

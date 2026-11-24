@@ -17,11 +17,14 @@ namespace CityX.WearablesEditor
     ///
     /// The BW Sneakers (owner, 2026-10-26) are the same pair in Meshy's black-and-white recolour, baked onto its layout by
     /// SourceArt/WhiteSneaker/sneaker_colour_bake.py: each colour its own map on the one pair of meshes.
+    /// The Black Sneakers (owner, 2026-11-23: "make an all black version of the sneakers texture", "you can probably just make the white one
+    /// darker") wear the white map darkened by SourceArt/WhiteSneaker/sneaker_black.py.
     /// </summary>
     public static class WhiteSneakerBuilder
     {
         public const string PrefabPath = "Assets/CityX/Wearables/WhiteSneaker.prefab";
         public const string BWPrefabPath = "Assets/CityX/Wearables/BWSneakers.prefab";
+        public const string BlackPrefabPath = "Assets/CityX/Wearables/BlackSneakers.prefab";
         public const string SourcePath = "Assets/CityX/Wearables/Models/WhiteSneaker.glb";
         public const string LeftMeshPath = "Assets/CityX/Wearables/WhiteSneakerLeftMesh.asset";
         public const string RightMeshPath = "Assets/CityX/Wearables/WhiteSneakerRightMesh.asset";
@@ -50,11 +53,14 @@ namespace CityX.WearablesEditor
         {
             Build();
             BuildBW();
+            BuildBlack();
         }
 
         public static GameObject Build() => Save("WhiteSneaker", PrefabPath, ItemRegistry.WhiteSneaker);
 
         public static GameObject BuildBW() => Save("BWSneakers", BWPrefabPath, ItemRegistry.BWSneakers);
+
+        public static GameObject BuildBlack() => Save("BlackSneakers", BlackPrefabPath, ItemRegistry.BlackSneakers);
 
         /// <summary>
         /// The pair as the item <paramref name="itemId"/>, wearing Wearables/<paramref name="name"/>.jpg (the meshes are the same for each).

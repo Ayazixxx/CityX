@@ -72,6 +72,7 @@ namespace CityX.Items
             [ItemRegistry.GreyJeans] = Rarity.Common,
             [ItemRegistry.WhiteSneaker] = Rarity.Common,
             [ItemRegistry.BWSneakers] = Rarity.Common,
+            [ItemRegistry.BlackSneakers] = Rarity.Common,   // as the other two colours
             [ItemRegistry.FarmerHat] = Rarity.Common,
             [ItemRegistry.ThreeDGlasses] = Rarity.Common,
             [ItemRegistry.RoundShield] = Rarity.Common,

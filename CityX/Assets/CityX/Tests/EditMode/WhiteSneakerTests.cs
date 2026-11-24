@@ -127,6 +127,40 @@ namespace CityX.Tests
             Assert.Less(hidden, shoes.HiddenFromBodyTriangles / 4, "the pair hides far more of the body than two feet");
         }
 
+        /// <summary>
+        /// The Black Sneakers (owner, 2026-11-23: "make an all black version of the sneakers texture and make it a black sneakers items
+        /// equippable"): the same pair, its own item, name and map, a dark one, and other players shown it too.
+        /// </summary>
+        [Test]
+        public void TheBlackSneakersAreThePairAllInBlack()
+        {
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.BlackSneakers, out ItemDefinition item));
+            Assert.AreEqual("Black Sneakers", item.DisplayName);
+            Assert.AreEqual(EquipSlots.Shoes, item.EquipSlot);
+            GameObject networked = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/NetworkedPlayer.prefab");
+            GameObject prefab = networked.GetComponent<Inventory>().PrefabForItem(ItemRegistry.BlackSneakers);
+            Assert.IsNotNull(prefab, "a copy of another player cannot build the Black Sneakers (NetworkedPlayerWiring.ItemPrefabPaths)");
+            var black = prefab.GetComponent<Shoes>();
+            Shoes white = Pair();
+            Assert.AreSame(MeshOf(white.Left), MeshOf(black.Left), "each colour should share the one pair of meshes");
+            Assert.AreSame(MeshOf(white.Right), MeshOf(black.Right), "each colour should share the one pair of meshes");
+            var map = black.Left.GetComponent<MeshRenderer>().sharedMaterial.GetTexture("_BaseMap") as Texture2D;
+            Assert.IsNotNull(map, "the Black Sneakers have no colour map");
+            Assert.AreEqual("Assets/CityX/Wearables/BlackSneakers.jpg", AssetDatabase.GetAssetPath(map));
+            Assert.AreEqual(white.HiddenBodyTriangles, black.HiddenBodyTriangles, "the same pair should hide the same feet");
+            // All black: no texel of the map brighter than a dark grey.
+            string file = System.IO.Path.Combine(System.IO.Directory.GetParent(Application.dataPath).FullName, AssetDatabase.GetAssetPath(map));
+            var pixels = new Texture2D(2, 2);
+            Assert.IsTrue(pixels.LoadImage(System.IO.File.ReadAllBytes(file)));
+            float brightest = 0.0f;
+            foreach (Color32 c in pixels.GetPixels32())
+            {
+                brightest = Mathf.Max(brightest, Mathf.Max(c.r, Mathf.Max(c.g, c.b)) / 255.0f);
+            }
+            Object.DestroyImmediate(pixels);
+            Assert.Less(brightest, 0.22f, "the black pair has light parts");
+        }
+
         /// <summary>The BW Sneakers (owner, 2026-10-26): the same pair, its own item, name and map, and other players shown it too.</summary>
         [Test]
         public void TheBWSneakersAreThePairInBlackAndWhite()
