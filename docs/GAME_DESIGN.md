@@ -515,6 +515,12 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
 
 Cut from year one: every zone below the Sewers and above the hub, god-tier spells (maybe one launch event), most trees, huge battles.
 
+**After the PC release, only if it does well there (owner, 2026-11-23: "this would be things to do after the pc release"):** online play
+through a connection service instead of typing a host's address (no VPN for friends; it is also what crossplay needs), then ID@Xbox and an
+Xbox port with PC/Xbox crossplay (Xbox's rules on players' privacy settings, blocking, reporting, and on what players make: painted bodies,
+drawn faces, graffiti, chat), other consoles after, and physical copies through a boutique publisher last. Controller support is not in this:
+it comes before the PC release (docs/CONTROLLER.md).
+
 **Rules for the year:** make the 30-second fight fun before anything else; finish things before starting new ones; no foundation restarts. Steam: a 30-day wait after paying the app fee for a first game; a Coming Soon page at least two weeks before launch; 1-5 days of review.
 
 ## Open decisions
