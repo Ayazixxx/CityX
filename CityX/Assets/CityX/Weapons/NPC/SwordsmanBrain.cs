@@ -23,10 +23,19 @@ namespace CityX.Weapons
     /// a kitchen knife and utilize its advantages") is this brain with the kitchen knife and the knife's style (DuelistStyle.Knife: close, fast,
     /// no guard, round to the back for the knife's backstab). CrazyGuyBuilder.
     /// </summary>
-    public sealed class SwordsmanBrain : MonoBehaviour, IHostile
+    public sealed partial class SwordsmanBrain : MonoBehaviour, IHostile
     {
         [Tooltip("The blade he fights with (the combat sword; Crazy Guy's kitchen knife), equipped at spawn as the player equips it.")]
         public GameObject SwordPrefab;
+
+        [Tooltip("What his weapon is, as an item (dropped when he falls); empty to read it off a sword.")]
+        public string BladeItemId = "";
+
+        [Tooltip("What state his weapon is in when he is spawned (a hobo's glass bottle broken: 1); below 0 as it comes.")]
+        public int BladeDurability = -1;
+
+        [Tooltip("Takes no one on until he is hurt, then whoever is nearest (a hobo: docs/HOBO.md); he wanders till then.")]
+        public bool PeacefulUntilHurt;
 
         [Tooltip("What he wears (the swordsman the Knight Helmet; Crazy Guy his jeans and sneakers), each put on at spawn as the player puts it on.")]
         public GameObject[] Wearing = new GameObject[0];
@@ -120,7 +129,10 @@ namespace CityX.Weapons
         private PlayerAudio _audio;
         private PlayerAnimationDriver _driver;
         private SoulsSwordCombat _combat;
-        private SwordWeapon _sword;
+        private ISwordBlade _blade;
+        private IEquippableItem _bladeItem;
+        private Component _bladeBody;
+        private bool _provoked;
         private IOpponent _target;
         private SoulsSwordCombat _targetCombat;
         private MeleeAttacker _targetMelee;
@@ -197,7 +209,7 @@ namespace CityX.Weapons
 
         private void ShowGlint()
         {
-            AttackGlint.Show(_sword != null ? _sword.BladeTipWorld : transform.position + Vector3.up * 2.0f);
+            AttackGlint.Show(_bladeBody != null ? _blade.BladeTipWorld : transform.position + Vector3.up * 2.0f);
         }
 
         /// <summary>
@@ -230,6 +242,11 @@ namespace CityX.Weapons
         {
             _hurt = true;
             WaitsToSee = false;
+            if (PeacefulUntilHurt && !_provoked)
+            {
+                _provoked = true;
+                _nextSearch = 0.0f;   // he looks round for who did it at once
+            }
         }
 
         /// <summary>
@@ -239,19 +256,23 @@ namespace CityX.Weapons
         private void OnDied()
         {
             EnemyPack.Leave(transform);   // a body on the ground takes no turn and is no one to step round
-            if (_sword == null)
+            StopThrowing();
+            if (_bladeBody == null)
             {
-                return;
+                return;   // none, or it broke away to nothing in his hand (a bottle)
             }
-            if (!EnemySession.IsCopy(gameObject))
+            string itemId = !string.IsNullOrEmpty(BladeItemId) ? BladeItemId : (_blade as SwordWeapon)?.ItemId;
+            if (!EnemySession.IsCopy(gameObject) && !string.IsNullOrEmpty(itemId))
             {
-                var pose = new Pose(_sword.transform.position, _sword.transform.rotation);
+                var pose = new Pose(_bladeBody.transform.position, _bladeBody.transform.rotation);
                 Vector3 bodyVelocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
-                DroppedItems.Shared.Drop(DroppedItem.LetGo(_sword.ItemId, ItemInstanceData.None, pose, transform, bodyVelocity, _vitals.DeathImpulse),
+                DroppedItems.Shared.Drop(DroppedItem.LetGo(itemId, _bladeItem.GetInstanceData(), pose, transform, bodyVelocity, _vitals.DeathImpulse),
                     shared: EnemySession.IsShared(gameObject), gameObject, SwordPrefab);
             }
-            _sword.OnUnequip(gameObject);
-            _sword = null;
+            _bladeItem.OnUnequip(gameObject);
+            _blade = null;
+            _bladeItem = null;
+            _bladeBody = null;
         }
 
         /// <summary>
@@ -273,7 +294,10 @@ namespace CityX.Weapons
             }
         }
 
-        /// <summary>The combat sword in his right hand, equipped exactly as the player equips one (the hold, the sword combat, the posing).</summary>
+        /// <summary>
+        /// The weapon in his right hand, equipped exactly as the player equips one (the hold, the sword combat, the posing): a sword, or anything
+        /// swung the sword's way (a hobo's bo staff, glass bottle, chain or machete).
+        /// </summary>
         private void EquipSword()
         {
             if (SwordPrefab == null)
@@ -282,13 +306,19 @@ namespace CityX.Weapons
             }
             GameObject sword = Instantiate(SwordPrefab);
             sword.name = SwordPrefab.name;
-            _sword = sword.GetComponent<SwordWeapon>();
-            if (_sword == null)
+            _blade = sword.GetComponent<ISwordBlade>();
+            _bladeItem = sword.GetComponent<IEquippableItem>();
+            if (_blade == null || _bladeItem == null)
             {
+                _blade = null;
+                _bladeItem = null;
                 Destroy(sword);
                 return;
             }
-            _sword.OnEquip(gameObject, ItemInstanceData.None);
+            _bladeBody = (Component)_blade;
+            _bladeItem.OnEquip(gameObject, BladeDurability >= 0
+                ? new ItemInstanceData { HasDurability = true, Durability = BladeDurability }
+                : ItemInstanceData.None);
             _combat = GetComponent<SoulsSwordCombat>();
             if (_combat != null)
             {
@@ -326,6 +356,7 @@ namespace CityX.Weapons
             if (_ragdoll != null && _ragdoll.IsLimp)
             {
                 _combat?.Interrupt();   // the cut he was in is gone: its clock stops with his mind, and it would go on from there once he was up
+                StopThrowing();
                 _ragdoll.Tick(deltaTime);
                 if (_ragdoll.CanStandUp)
                 {
@@ -342,6 +373,10 @@ namespace CityX.Weapons
             DuelistMind.Senses senses = Sense();
             ShareTheFight(ref senses, deltaTime);
             DuelistMind.Intent intent = Mind.Tick(senses, deltaTime);
+            if (ThrowsABottle(senses))
+            {
+                intent = new DuelistMind.Intent();   // he stands and throws: no swing, no step, no guard while the arm goes
+            }
             _hurt = false;
             Act(intent, deltaTime);
         }
@@ -612,6 +647,10 @@ namespace CityX.Weapons
                 return;
             }
             _nextSearch = Time.time + TargetSearchSeconds;
+            if (PeacefulUntilHurt && !_provoked)
+            {
+                return;   // he minds his own business until somebody hurts him
+            }
             IOpponent best = Opponents.NearestAlive(transform.position, NoticeMetres);
             if (WaitsToSee && best != null)
             {

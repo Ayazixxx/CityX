@@ -198,6 +198,26 @@ namespace CityX.UI
                     SpawnLog("spawned Crazy Guy -- a kitchen knife and no guard: he comes in fast and works round to your back. Don't turn it to him");
                     return true;
 
+                case HoboKinds.Any:
+                case "hobopole":
+                case "hobobottle":
+                case "hobochain":
+                case "hobomachete":
+                {
+                    // Any hobo, either look and weapon; or one with the weapon named (to try each).
+                    string kind = what == HoboKinds.Any ? HoboKinds.Pick(Random.value) : HoboKinds.PickWith(what.Substring(HoboKinds.Any.Length), Random.value);
+                    int index = System.Array.IndexOf(HoboKinds.All, kind);
+                    GameObject prefab = index >= 0 && index < HoboPrefabs.Length ? HoboPrefabs[index] : null;
+                    if (prefab == null)
+                    {
+                        Log("no hobo prefabs wired");
+                        return false;
+                    }
+                    PutDown(kind, prefab, origin.position + origin.forward * SwordsmanSpawnDistance + offset, facing);
+                    SpawnLog($"spawned a hobo ({kind}) -- he minds his own business until you hit him");
+                    return true;
+                }
+
                 case "giant":
                     if (GiantPrefab == null)
                     {

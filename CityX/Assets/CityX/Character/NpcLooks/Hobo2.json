@@ -1,0 +1,168 @@
+{
+    "Id":  "8b577134e46f4ad18f5b86dab0a4aeb0",
+    "Name":  "hobo2",
+    "Skin":  {
+                 "r":  0.7799999713897705,
+                 "g":  0.6200000047683716,
+                 "b":  0.5299999713897705,
+                 "a":  1.0
+             },
+    "Paint":  "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1wMAwC/phq8qPRcAAKgi3eZ6HwAArkPnAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPzTPhyQAAAAAAj6/7ofoaCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqrcBTVeMIwAAVAA=",
+    "HairStyle":  "dreads",
+    "HairColour":  {
+                       "r":  0.02439529448747635,
+                       "g":  0.02439529448747635,
+                       "b":  0.02439529448747635,
+                       "a":  1.0
+                   },
+    "Beard":  "full_beard",
+    "Level":  1,
+    "Experience":  0,
+    "StatPoints":  0,
+    "Stats":  [
+
+              ],
+    "Vitality":  0,
+    "Endurance":  0,
+    "Strength":  0,
+    "SkillsVersion":  1,
+    "SkillPoints":  1,
+    "LearnedSkills":  [
+                          "vault"
+                      ],
+    "SkillRanks":  [
+
+                   ],
+    "Hotbar":  [
+                   "",
+                   "",
+                   "",
+                   "",
+                   "",
+                   "",
+                   "",
+                   "",
+                   "",
+                   ""
+               ],
+    "Wearing":  [
+                    "black_fingerless_gloves",
+                    "black_sneakers",
+                    "green_fur_hooded_parka",
+                    "khakis",
+                    "t_shirt"
+                ],
+    "Bag":  [
+                {
+                    "Slot":  "",
+                    "Index":  0,
+                    "ItemId":  "white_sneaker",
+                    "Count":  1,
+                    "HasDurability":  false,
+                    "Durability":  0,
+                    "HasAmmo":  false,
+                    "Magazine":  0,
+                    "Reserve":  0,
+                    "HasContents":  false,
+                    "Contents":  0.0
+                },
+                {
+                    "Slot":  "",
+                    "Index":  1,
+                    "ItemId":  "black_jeans",
+                    "Count":  1,
+                    "HasDurability":  false,
+                    "Durability":  0,
+                    "HasAmmo":  false,
+                    "Magazine":  0,
+                    "Reserve":  0,
+                    "HasContents":  false,
+                    "Contents":  0.0
+                },
+                {
+                    "Slot":  "",
+                    "Index":  2,
+                    "ItemId":  "worn_boots",
+                    "Count":  1,
+                    "HasDurability":  false,
+                    "Durability":  0,
+                    "HasAmmo":  false,
+                    "Magazine":  0,
+                    "Reserve":  0,
+                    "HasContents":  false,
+                    "Contents":  0.0
+                },
+                {
+                    "Slot":  "gloves",
+                    "Index":  0,
+                    "ItemId":  "black_fingerless_gloves",
+                    "Count":  1,
+                    "HasDurability":  false,
+                    "Durability":  0,
+                    "HasAmmo":  false,
+                    "Magazine":  0,
+                    "Reserve":  0,
+                    "HasContents":  false,
+                    "Contents":  0.0
+                },
+                {
+                    "Slot":  "legs",
+                    "Index":  0,
+                    "ItemId":  "khakis",
+                    "Count":  1,
+                    "HasDurability":  false,
+                    "Durability":  0,
+                    "HasAmmo":  false,
+                    "Magazine":  0,
+                    "Reserve":  0,
+                    "HasContents":  false,
+                    "Contents":  0.0
+                },
+                {
+                    "Slot":  "shoes",
+                    "Index":  0,
+                    "ItemId":  "black_sneakers",
+                    "Count":  1,
+                    "HasDurability":  false,
+                    "Durability":  0,
+                    "HasAmmo":  false,
+                    "Magazine":  0,
+                    "Reserve":  0,
+                    "HasContents":  false,
+                    "Contents":  0.0
+                },
+                {
+                    "Slot":  "top",
+                    "Index":  0,
+                    "ItemId":  "green_fur_hooded_parka",
+                    "Count":  1,
+                    "HasDurability":  false,
+                    "Durability":  0,
+                    "HasAmmo":  false,
+                    "Magazine":  0,
+                    "Reserve":  0,
+                    "HasContents":  false,
+                    "Contents":  0.0
+                },
+                {
+                    "Slot":  "top_under",
+                    "Index":  0,
+                    "ItemId":  "t_shirt",
+                    "Count":  1,
+                    "HasDurability":  false,
+                    "Durability":  0,
+                    "HasAmmo":  false,
+                    "Magazine":  0,
+                    "Reserve":  0,
+                    "HasContents":  false,
+                    "Contents":  0.0
+                }
+            ],
+    "BagVersion":  1,
+    "WeaponInHand":  "hand_r",
+    "PrimaryWeapon":  "",
+    "TutorialDone":  false,
+    "PlaytimeSeconds":  95.2959642522037,
+    "CreatedUnixSeconds":  1795495874,
+    "LastPlayedUnixSeconds":  1795504940
+}

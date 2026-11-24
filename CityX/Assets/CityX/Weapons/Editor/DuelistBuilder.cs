@@ -31,6 +31,21 @@ namespace CityX.WeaponsEditor
             public Color FallbackSkin;
 
             public int XpReward = 80;
+
+            /// <summary>The painted skin's name, when several enemies share one look (the hobos); empty for Name + "Skin".</summary>
+            public string SkinName = "";
+
+            /// <summary>Which item the blade is (dropped when he falls); empty to read it off a sword.</summary>
+            public string BladeItemId = "";
+
+            /// <summary>The blade's state when he is spawned (a broken glass bottle: 1); below 0 as it comes.</summary>
+            public int BladeDurability = -1;
+
+            /// <summary>Takes no one on until he is hurt (a hobo).</summary>
+            public bool PeacefulUntilHurt;
+
+            /// <summary>What he carries besides (a hobo's three spare bottles, which he throws): lootable from his body.</summary>
+            public string[] Carried = new string[0];
         }
 
         public static GameObject Build(Recipe recipe)
@@ -49,10 +64,11 @@ namespace CityX.WeaponsEditor
             try
             {
                 CharacterSave look = Look(recipe.LookPath);
-                Material skin = look != null ? PaintedSkin(look, recipe.Name + "Skin") : null;
+                string skinName = !string.IsNullOrEmpty(recipe.SkinName) ? recipe.SkinName : recipe.Name + "Skin";
+                Material skin = look != null ? PaintedSkin(look, skinName) : null;
                 if (skin == null)
                 {
-                    skin = CharacterSkin.Ensure(recipe.Name + "Skin", recipe.FallbackSkin);
+                    skin = CharacterSkin.Ensure(skinName, recipe.FallbackSkin);
                 }
                 EnemyBody.Reskin(root, skin);   // (the hair goes on in the scene builder, which alone reaches HairAssets: WearTheLooksHair)
 
@@ -63,6 +79,17 @@ namespace CityX.WeaponsEditor
                 brain.Style = recipe.Style;
                 brain.XpReward = recipe.XpReward;
                 brain.Wearing = Wearing(look, recipe.ExtraWearingPaths);
+                brain.BladeItemId = recipe.BladeItemId;
+                brain.BladeDurability = recipe.BladeDurability;
+                brain.PeacefulUntilHurt = recipe.PeacefulUntilHurt;
+                if (recipe.Carried.Length > 0)
+                {
+                    root.AddComponent<CarriedLoot>().Items = new List<string>(recipe.Carried);
+                }
+                if (blade.GetComponent<BottleWeapon>() != null)
+                {
+                    PlayerAbilityWiring.AddBottleThrower(root);   // a bottle's moves, throws and breaking, here and on every other screen
+                }
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, recipe.PrefabPath);
                 AssetDatabase.SaveAssets();

@@ -8,6 +8,9 @@ namespace CityX.World
         Ghost,
         Monster,
         Humanoid,
+
+        /// <summary>A hobo (docs/HOBO.md): out of doors, minding his own business until hurt.</summary>
+        Hobo,
     }
 
     /// <summary>What a spot in the city is, to an enemy looking for somewhere to appear.</summary>
@@ -31,8 +34,11 @@ namespace CityX.World
     /// </summary>
     public static class MobHabitats
     {
-        /// <summary>The share of the outdoor enemies that are monsters; the rest are ghosts.</summary>
+        /// <summary>The share of the outdoor enemies that are monsters (the hobos are next, then the ghosts).</summary>
         public const float MonsterShare = 0.25f;
+
+        /// <summary>The share of the outdoor enemies that are hobos (docs/HOBO.md, mine); after the monsters, the rest are ghosts.</summary>
+        public const float HoboShare = 0.4f;
 
         /// <summary>How far in from a building's outside walls an enemy appears at the least, metres, and how far out from them outdoors.</summary>
         public const double IndoorWallMarginMetres = 2.5;
@@ -160,7 +166,7 @@ namespace CityX.World
             {
                 return MobFamily.Humanoid;
             }
-            return roll < MonsterShare ? MobFamily.Monster : MobFamily.Ghost;
+            return roll < MonsterShare ? MobFamily.Monster : roll < MonsterShare + HoboShare ? MobFamily.Hobo : MobFamily.Ghost;
         }
     }
 }

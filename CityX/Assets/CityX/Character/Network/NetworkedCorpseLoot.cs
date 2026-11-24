@@ -23,6 +23,9 @@ namespace CityX.Character
         private CorpseLoot _loot;
         private readonly List<string> _taken = new List<string>();
 
+        /// <summary>How many of each item this machine has heard taken.</summary>
+        private readonly Dictionary<string, int> _heard = new Dictionary<string, int>();
+
         /// <summary>The takes this machine has been told of (for tests).</summary>
         public int TakesHeard { get; private set; }
 
@@ -42,13 +45,15 @@ namespace CityX.Character
         [ServerRpc(RequireOwnership = false)]
         private void SendTakeToServer(string itemId, NetworkConnection sender = null)
         {
-            if (sender == null || string.IsNullOrEmpty(itemId) || !ItemRegistry.TryGet(itemId, out _) || _taken.Contains(itemId))
+            if (sender == null || string.IsNullOrEmpty(itemId) || !ItemRegistry.TryGet(itemId, out _))
             {
-                return;   // unknown, or someone was first
+                return;   // unknown
             }
-            if (!_loot.Wears(itemId))
+            // Worn, one of it; carried, as many as it carried (a hobo's three bottles): taken that many times already, someone was first.
+            int there = _loot.Wears(itemId) ? 1 : _loot.Carries(itemId);
+            if (CountOf(_taken, itemId) >= there)
             {
-                return;   // not on the body
+                return;   // not on the body, or all taken
             }
             Vector3 body = _loot.Container != null ? _loot.Container.Centre : transform.position;
             if (!DroppedItemsNetwork.Near(sender, body, TakeReachMetres))
@@ -60,14 +65,37 @@ namespace CityX.Character
             BroadcastTaken(_taken.ToArray(), itemId, sender.ClientId);
         }
 
+        private static int CountOf(List<string> list, string itemId)
+        {
+            int count = 0;
+            foreach (string id in list)
+            {
+                if (id == itemId)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
         [ObserversRpc(BufferLast = true)]
         private void BroadcastTaken(string[] taken, string itemId, int takerClientId)
         {
             TakesHeard++;
             bool mine = LocalConnection != null && LocalConnection.ClientId == takerClientId;
-            foreach (string id in taken)
+            // The whole list comes each time: only the takes not heard yet are new (the same item may be taken more than once, a carried one).
+            var seen = new Dictionary<string, int>();
+            for (int i = 0; i < taken.Length; i++)
             {
-                _loot.Taken(id, mine && id == itemId);
+                string id = taken[i];
+                seen.TryGetValue(id, out int count);
+                seen[id] = ++count;
+                _heard.TryGetValue(id, out int heard);
+                if (count > heard)
+                {
+                    _heard[id] = count;
+                    _loot.Taken(id, mine && i == taken.Length - 1);
+                }
             }
         }
     }

@@ -60,6 +60,11 @@ namespace CityX.Character
                     items.Add(worn.WornItemId);
                 }
             }
+            var carried = GetComponent<CarriedLoot>();
+            if (carried != null)
+            {
+                items.AddRange(carried.Items);   // what it carried (a hobo's spare bottles), as many as it had left
+            }
             if (items.Count == 0)
             {
                 return;   // nothing on it: no prompt over every fallen body
@@ -77,7 +82,9 @@ namespace CityX.Character
         public static string NameOf(GameObject body)
         {
             string name = body.name.Replace("(Clone)", "").Trim();
-            return name.StartsWith("Networked") ? name.Substring("Networked".Length) : name;
+            name = name.StartsWith("Networked") ? name.Substring("Networked".Length) : name;
+            int variant = name.IndexOf('_');
+            return variant > 0 ? name.Substring(0, variant) : name;   // one of several makes of it (Hobo_1_Pole is a Hobo)
         }
 
         /// <summary>Whether the body still wears <paramref name="itemId"/> here, fallen or not (the server's check: a dedicated server's copy is never told it fell).</summary>
@@ -95,6 +102,13 @@ namespace CityX.Character
                 }
             }
             return false;
+        }
+
+        /// <summary>How many of <paramref name="itemId"/> the body carried when it fell (CarriedLoot): the most of it there is to take; one entry each.</summary>
+        public int Carries(string itemId)
+        {
+            var carried = GetComponent<CarriedLoot>();
+            return carried != null ? carried.Count(itemId) : 0;
         }
 
         /// <summary>Whether <paramref name="itemId"/> is still on the fallen body, to be taken.</summary>
@@ -125,9 +139,14 @@ namespace CityX.Character
         /// </summary>
         public void Taken(string itemId, bool byThisMachine)
         {
-            if (!_gone.Add(itemId))
+            bool worn = Wears(itemId);
+            if (worn)
             {
-                return;   // heard already (the whole list comes each time)
+                _gone.Add(itemId);
+            }
+            else if (Carries(itemId) == 0)
+            {
+                return;
             }
             if (byThisMachine && _asked.TryGetValue(itemId, out Inventory into) && into != null)
             {

@@ -76,6 +76,8 @@ Owner, 2026-11-06: "i want enemies to be lootable like skyrim how you can grab t
   - It tells every machine, so the piece comes off every copy of the body and goes into the taker's inventory alone.
   - The message is buffered, so a later arrival finds the body as it is now.
 
+- **What a body carries** (2026-11-24, `CarriedLoot`): a hobo's spare bottles are listed with what he wears; the same item may be listed, and taken, more than once (the server counts the takes).
+
 Tests: `CorpseLootPlayTests` (the swordsman's helmet listed, in reach from beside him, taken into the inventory and off his head; a player's body and a bare body are not loot), `NetworkedPlayerStateSyncPlayTests.AFallenEnemysHelmetIsTakenOnceAndComesOffOnEveryScreen` (real sockets). Pictures: `CorpseLootCapture` (`corpse-loot-window.png`, `corpse-loot-taken.png`).
 
 Next (queued, owner 2026-11-06, docs/ARMOUR.md): armour on a part makes it harder to cut off, and a part that comes off anyway drops its armour as the real item.

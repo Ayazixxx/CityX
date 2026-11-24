@@ -375,6 +375,13 @@ namespace CityX.ViewEditor
             GameObject swordsmanPrefab = CityX.WeaponsEditor.SwordsmanBuilder.Build();
             // --- Crazy Guy (2026-11-16): the swordsman's make in the owner's guycrazy, with the kitchen knife; /spawn crazyguy.
             WearTheLooksHair(CityX.WeaponsEditor.CrazyGuyBuilder.Build(), CityX.WeaponsEditor.CrazyGuyBuilder.LookPath);
+            // --- the hobos (2026-11-24, docs/HOBO.md): the owner's two hobo characters, each with each of the four weapons; /spawn hobo, and
+            // --- in the streets (MobSpawner).
+            GameObject[] hoboPrefabs = CityX.WeaponsEditor.HoboBuilder.BuildAll();
+            for (int i = 0; i < hoboPrefabs.Length; i++)
+            {
+                WearTheLooksHair(hoboPrefabs[i], CityX.WeaponsEditor.HoboBuilder.LookPaths[i / CityX.Character.HoboKinds.Weapons.Length]);
+            }
 
             // --- the giant (2026-10-29): the player's own body at the Grow spell's size, stone grey, that leaps and slams the ground. After the
             // --- player rig; spawned only by /spawn giant.
@@ -1035,6 +1042,7 @@ namespace CityX.ViewEditor
             mobs.CrimsonClawPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrimsonClaw.prefab");
             mobs.SwordsmanPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Swordsman.prefab");
             mobs.ShootaPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Shoota.prefab");
+            mobs.HoboPrefabs = hoboPrefabs;
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
             streamerObject.AddComponent<CityX.Character.GraffitiNetwork>().PaintMaterial = CityX.WeaponsEditor.SprayCanBuilder.EnsureGraffitiMaterial();
             streamer.RoadLineMaterial = roadLine;

@@ -30,6 +30,7 @@ they behave"), this is the first piece: WHERE and WHAT. Levels and new behaviour
 - **The same for every player online** (owner, 2026-11-14: "monsters should appear in the same location between players when
   online"): the Crimson Claw is now shared between machines like the others, so monsters appear in sessions too.
 - **None within 120 m of Old Guy's house**: a new character starts there with nothing in its hands.
+- **Hobos** (2026-11-24, docs/HOBO.md): out of doors too, 40% of the outdoor ones (mine); calm until hurt.
 - **`/mobs off`** takes them all away and stops them appearing, **`/mobs on`** brings them back, **`/mobs`** says how many are alive.
 
 ## The numbers to tune

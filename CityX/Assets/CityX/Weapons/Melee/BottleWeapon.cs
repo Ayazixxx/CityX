@@ -535,11 +535,24 @@ namespace CityX.Weapons
         public ItemInstanceData GetInstanceData() =>
             new ItemInstanceData { HasDurability = true, Durability = (int)State };
 
+        /// <summary>
+        /// A whole spare in the hand for a throw (a hobo with a broken bottle throws his three spares, docs/HOBO.md): from the arm going back
+        /// until it leaves the hand the whole bottle shows here, and then what the hand still holds.
+        /// </summary>
+        public bool ShowsSpare { get; private set; }
+
+        public void ShowSpare(bool on)
+        {
+            ShowsSpare = on;
+            RefreshVisual();
+        }
+
         private void RefreshVisual()
         {
-            if (IntactVisual != null) IntactVisual.SetActive(State == DurabilityState.Intact);
-            if (BrokenVisual != null) BrokenVisual.SetActive(State == DurabilityState.Broken);
-            if (ShatteredVisual != null) ShatteredVisual.SetActive(State == DurabilityState.FullyBroken);
+            DurabilityState shown = ShowsSpare ? DurabilityState.Intact : State;
+            if (IntactVisual != null) IntactVisual.SetActive(shown == DurabilityState.Intact);
+            if (BrokenVisual != null) BrokenVisual.SetActive(shown == DurabilityState.Broken);
+            if (ShatteredVisual != null) ShatteredVisual.SetActive(shown == DurabilityState.FullyBroken);
         }
     }
 }

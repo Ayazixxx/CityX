@@ -113,10 +113,11 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void OutOfDoorsAQuarterAreMonstersAndTheRestGhosts()
+        public void OutOfDoorsAQuarterAreMonstersThenHobosAndTheRestGhosts()
         {
             Assert.AreEqual(MobFamily.Monster, MobHabitats.FamilyFor(MobHabitat.Outdoors, MobHabitats.MonsterShare - 0.01f));
-            Assert.AreEqual(MobFamily.Ghost, MobHabitats.FamilyFor(MobHabitat.Outdoors, MobHabitats.MonsterShare + 0.01f));
+            Assert.AreEqual(MobFamily.Hobo, MobHabitats.FamilyFor(MobHabitat.Outdoors, MobHabitats.MonsterShare + 0.01f));
+            Assert.AreEqual(MobFamily.Ghost, MobHabitats.FamilyFor(MobHabitat.Outdoors, MobHabitats.MonsterShare + MobHabitats.HoboShare + 0.01f));
             Assert.AreEqual(MobFamily.Humanoid, MobHabitats.FamilyFor(MobHabitat.Indoors, 0.0f));
             Assert.Less(MobHabitats.MonsterShare, 0.5f, "monsters are meant to be the rarer");
             Assert.AreEqual(MobHabitats.MostOutdoors, MobHabitats.Most(MobHabitat.Outdoors));

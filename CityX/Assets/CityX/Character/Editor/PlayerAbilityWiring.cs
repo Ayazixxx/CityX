@@ -138,19 +138,7 @@ namespace CityX.CharacterEditor
             grenades.ThrownPrefab = Load(ThrownGrenadePrefabPath) ?? grenades.ThrownPrefab;
             grenades.StickyPrefab = Load(ThrownSemtexPrefabPath) ?? grenades.StickyPrefab;
 
-            // --- a glass bottle as other players see it (2026-11-23, docs/GLASS_BOTTLE.md): aimed, thrown (a copy of it flies and shatters) and
-            // --- broken in the hand.
-            var bottles = GetOrAdd<BottleThrower>(player);
-            // --- and the drinks thrown (docs/PHIZZ_CAN.md): after the bottles, in BottleThrower.Throwables' order.
-            var thrownBottles = new GameObject[BottleThrower.Throwables.Length];
-            for (int i = 0; i < thrownBottles.Length; i++)
-            {
-                string id = BottleThrower.Throwables[i];
-                string path = id == ItemRegistry.PhizzCan ? PhizzCan.ThrownPrefabPath
-                    : id == ItemRegistry.PhizzBottle ? FullBottle.ThrownPrefabPath : GlassBottleKinds.ThrownPrefabPath(id);
-                thrownBottles[i] = Load(path) ?? (i < bottles.ThrownPrefabs.Length ? bottles.ThrownPrefabs[i] : null);
-            }
-            bottles.ThrownPrefabs = thrownBottles;
+            AddBottleThrower(player);
 
             // --- drinking a can of PHIZZ as other players see it (2026-11-23, docs/PHIZZ_CAN.md): the tab, the drink and the empty can dropped.
             GetOrAdd<Drinker>(player);
@@ -222,6 +210,26 @@ namespace CityX.CharacterEditor
             material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
             EditorUtility.SetDirty(material);
             return material;
+        }
+
+        /// <summary>
+        /// A glass bottle as other players see it (2026-11-23, docs/GLASS_BOTTLE.md): aimed, thrown (a copy of it flies and shatters) and broken in
+        /// the hand; and the drinks thrown (docs/PHIZZ_CAN.md), after the bottles, in BottleThrower.Throwables' order. On every player body, and
+        /// on a hobo carrying a bottle (docs/HOBO.md).
+        /// </summary>
+        public static BottleThrower AddBottleThrower(GameObject body)
+        {
+            var bottles = GetOrAdd<BottleThrower>(body);
+            var thrownBottles = new GameObject[BottleThrower.Throwables.Length];
+            for (int i = 0; i < thrownBottles.Length; i++)
+            {
+                string id = BottleThrower.Throwables[i];
+                string path = id == ItemRegistry.PhizzCan ? PhizzCan.ThrownPrefabPath
+                    : id == ItemRegistry.PhizzBottle ? FullBottle.ThrownPrefabPath : GlassBottleKinds.ThrownPrefabPath(id);
+                thrownBottles[i] = Load(path) ?? (i < bottles.ThrownPrefabs.Length ? bottles.ThrownPrefabs[i] : null);
+            }
+            bottles.ThrownPrefabs = thrownBottles;
+            return bottles;
         }
 
         private static T GetOrAdd<T>(GameObject go) where T : Component

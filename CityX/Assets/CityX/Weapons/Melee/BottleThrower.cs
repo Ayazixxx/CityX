@@ -17,7 +17,7 @@ namespace CityX.Weapons
         /// <summary>
         /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the bottle, Direction its way, A its speed, B its stage, N which of
         /// Throwables), ShatteredInHand (Direction the way the last blow went: nothing is left of it), Broke (N the state it broke to, Direction the way the blow was going), Aimed (N 1 raised, 0 lowered) and
-        /// ThrowStarted (the arm goes).
+        /// ThrowStarted (the arm goes; N 1 for a spare from the pocket, shown in the hand until it leaves: a hobo's, docs/HOBO.md).
         /// </summary>
         public const int Thrown = 0;
         public const int Broke = 1;
@@ -81,13 +81,13 @@ namespace CityX.Weapons
         }
 
         /// <summary>The throw begins (the bottle leaves the hand at the move's release). False if one is already going.</summary>
-        public bool BeginThrow()
+        public bool BeginThrow(bool spare = false)
         {
             if (!Driver.Throw())
             {
                 return false;
             }
-            Fired?.Invoke(new AbilityEvent(ThrowStarted, transform.position, Vector3.zero));
+            Fired?.Invoke(new AbilityEvent(ThrowStarted, transform.position, Vector3.zero, 0.0f, 0.0f, spare ? 1 : 0));
             return true;
         }
 
@@ -137,6 +137,11 @@ namespace CityX.Weapons
                     ThrownBottle.Spawn(ThrownPrefabs[evt.N], evt.Origin, rotation, velocity, 0, GetComponentsInChildren<Collider>(), 0.0f, gameObject, true,
                         stage, 0.0f,
                         evt.N < GlassBottleKinds.All.Length ? BottleWeapon.LeftUntil(GlassBottleKinds.All[evt.N].ItemId, (BottleWeapon.DurabilityState)stage) : float.PositiveInfinity);
+                    if (held != null && held.ShowsSpare)
+                    {
+                        held.ShowSpare(false);   // a spare from the pocket left the hand: one fewer carried here too
+                        GetComponent<CarriedLoot>()?.Spend(Throwables[evt.N]);
+                    }
                     break;
                 }
                 case Broke:
@@ -162,6 +167,10 @@ namespace CityX.Weapons
                     break;
                 case ThrowStarted:
                     Driver.Throw();
+                    if (evt.N == 1)
+                    {
+                        Held?.ShowSpare(true);
+                    }
                     break;
             }
         }

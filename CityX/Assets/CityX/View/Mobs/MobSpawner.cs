@@ -40,6 +40,9 @@ namespace CityX.View
 
         public GameObject ShootaPrefab;
 
+        [Tooltip("The hobos, in HoboKinds.All's order (docs/HOBO.md).")]
+        public GameObject[] HoboPrefabs = new GameObject[0];
+
         [Tooltip("Off: nothing new appears.")]
         public bool Spawning = true;
 
@@ -413,6 +416,11 @@ namespace CityX.View
                 case MobSpawnRules.Ghost: return WraithPrefab;
                 case MobSpawnRules.Monster: return CrimsonClawPrefab;
                 case MobSpawnRules.Gunner: return ShootaPrefab;
+                case string hobo when HoboKinds.IsHobo(hobo):
+                {
+                    int index = System.Array.IndexOf(HoboKinds.All, hobo);
+                    return index >= 0 && index < HoboPrefabs.Length ? HoboPrefabs[index] : null;
+                }
                 default: return SwordsmanPrefab;
             }
         }

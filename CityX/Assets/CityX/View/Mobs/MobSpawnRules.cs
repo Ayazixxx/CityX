@@ -48,6 +48,7 @@ namespace CityX.View
             {
                 case MobFamily.Ghost: return Ghost;
                 case MobFamily.Monster: return Monster;
+                case MobFamily.Hobo: return HoboKinds.Pick(roll);
                 default: return roll < GunnerShare ? Gunner : Swordsman;
             }
         }
