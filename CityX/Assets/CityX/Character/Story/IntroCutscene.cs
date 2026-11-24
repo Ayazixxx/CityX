@@ -161,6 +161,12 @@ namespace CityX.Character
 
         public event System.Action Finished;
 
+        /// <summary>
+        /// Whether the fall plays its music. Off for now (owner, 2026-11-24: "make it so the music that plays during the falling cutscene is muted
+        /// i will let you know when to turn it back on"): set back to true to bring it back.
+        /// </summary>
+        public static readonly bool PlaysMusic = false;
+
         [Tooltip("Reparented onto the player, not this cutscene, so it survives past handoff and plays out to its own natural end.")]
         public AudioClip RuinsMusic;
 
@@ -235,7 +241,7 @@ namespace CityX.Character
             _thirdPersonCamera.Yaw = 0.0f;
             PlaceCamera(OverheadSpringLength, OverheadPitchDegrees, 0.0f);
 
-            if (RuinsMusic != null)
+            if (PlaysMusic && RuinsMusic != null)
             {
                 var musicObject = new GameObject("IntroCutsceneMusic");
                 musicObject.transform.SetParent(transform.parent, false);
