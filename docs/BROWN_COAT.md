@@ -35,10 +35,14 @@ Item `brown_coat`, "Brown Coat", a coat (a shirt goes under it), Uncommon (mine)
 2. **No refitting**: Meshy's mannequin scaled to our body's 2.6 m is our body's size (arms, legs and head as wide), so the coat is only scaled
    and stood on the ground.
 3. Reduced to 9,000 triangles.
-4. **The sleeves are cut loose under the arm** (owner, 2026-11-24: "fix the armpit stretch"): Meshy joins each sleeve to the coat's side from
-   the armpit to the elbow, and a lifted arm drew the join into a web. The faces joining them are given to the coat's side whole (their
-   sleeve points made again as the coat's own), so the side has no hole and the sleeve swings free; under a raised arm a little of the
-   sleeve's inside shows. The cloth just under the armpit stays with the body (`ARMS_FROM` 1.58 to 1.72).
+4. **The sleeves on the arms, cut loose under them** (owner, 2026-11-24: "fix the armpit stretch", "the coat is still stretching", "there is
+   still these single spikes coming from the armpit"):
+   - a point is a sleeve's when it lies nearer the arm's surface than the trunk's (the sleeve's inner side, under the arm, had been counted
+     as the coat's and stayed with the body, a web under a lifted arm); stray single points are given to the side round them;
+   - below 1.81 m the seam between each sleeve and the coat is split, each keeping its own faces;
+   - every sleeve point below the shoulder's cap goes with its arm alone (upper arm or forearm, blended across the elbow);
+   - the coat's own cloth there takes no arm or shoulder weight (the armpit's smoothing had joined the split seam again and pulled spikes).
+   Left (paused 2026-11-24, the owner playtesting): a small jagged edge inside the armpit when an arm swings up, most visible from the side.
 5. The cloth is kept 2.8 cm off the body (a shirt goes under) and 2.2 cm off the head, a ball here where Meshy's is an egg: points too near
    are moved straight out.
 6. Skinned as the coats are (`garment_rig.py`): the nearest skin; only the sleeves on the arms (told apart by where they hang); the skirt on

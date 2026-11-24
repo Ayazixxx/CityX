@@ -45,11 +45,23 @@ MAP_SIZE = 1024
 JPEG_QUALITY = 88
 # The skinning: the parka's measures (Parka/parka_skin.py), a coat of the same cut.
 ARM = [np.array([0.35, 0.0, 1.9]), np.array([0.465, 0.0, 1.39]), np.array([0.545, 0.0, 1.033]), np.array([0.58, 0.0, 0.88])]
-SLEEVE_NEAR_ARM = 0.19     # a point this near an arm's line, and outside the trunk, is a sleeve's
-TRUNK_HALF_WIDTH = 0.355
-ARMS_FROM = (1.58, 1.72)   # the cloth just under the armpit stays with the body: lower, flaps of it went out with a lifted arm
-SLEEVES_LOOSE_BELOW = 1.62  # under the armpit the sleeves are cut loose from the coat's sides
-ARMPIT_REACH, ARMPIT_ABOVE, ARMPIT_SMOOTHING = 0.40, 0.04, 16
+SLEEVE_NEAR_ARM = 0.22     # a point this near an arm's line can be a sleeve's
+TRUNK_HALF_WIDTH = 0.355   # over the shoulder, a sleeve's points are those further out than this
+# Under the shoulder a point is a sleeve's when it lies nearer the arm's surface than the trunk's (the body's arm and trunk radii): the
+# sleeve's inner side, under the arm, is no further out than the coat's own side, and counted as the coat's it stayed with the body and
+# webbed out under a lifted arm (owner, 2026-11-24: "the coat is still stretching").
+ARM_SURFACE, TRUNK_SURFACE = 0.09, 0.26
+SHOULDER_CAP_FROM = 1.72   # above this the shoulder's cap, where sleeve and coat are one
+ARMS_FROM = (1.80, 1.92)   # the coat's own cloth follows an arm only over the shoulder
+SLEEVES_LOOSE_BELOW = 1.81  # below this the seam between a sleeve and the coat is split: as high as a sleeve point follows its arm at all (SLEEVE_ARM_ONLY)
+COAT_ON_SHOULDER = 0.06     # above the seam's top the coat's own cloth takes the shoulder's and arm's share back over this far
+STRAY_PIECE = 40           # a piece of sleeve or coat this small, cut off by the other, is a stray
+STRAY_ENCLOSED = 0.6        # ... and closed round by the other on this share of its edges at least
+ARMPIT_REACH, ARMPIT_ABOVE, ARMPIT_SMOOTHING = 0.24, 0.04, 6
+# A sleeve below the shoulder's cap goes with its arm alone: wholly from this far down the arm from the shoulder joint, metres, blending
+# in from the first; the forearm takes over across the elbow over this far either side.
+SLEEVE_ARM_ONLY = (0.10, 0.22)
+ELBOW_BLEND = 0.06
 SKIRT_FROM, SKIRT_FULL = 1.15, 0.9
 COLLAR_FROM, COLLAR_RISE, COLLAR_REACH, COLLAR_FRONT = 1.95, 0.11, 0.55, 0.12
 HEAD_NEAR = (0.04, 0.10)
@@ -177,38 +189,60 @@ def flag_sleeves(obj):
             a, b = a * [side, 1, 1], b * [side, 1, 1]
             along = np.clip(((co - a) @ (b - a)) / ((b - a) @ (b - a)), 0.0, 1.0)
             nearest = np.minimum(nearest, np.linalg.norm(co - (a + along[:, None] * (b - a)), axis=1))
-        sleeve |= (nearest < SLEEVE_NEAR_ARM) & (co[:, 0] * side > TRUNK_HALF_WIDTH) & (co[:, 2] < ARMS_FROM[1] + 0.2)
-    # THE SLEEVES CUT LOOSE UNDER THE ARM (owner, 2026-11-24: "fix the armpit stretch"): Meshy joins each sleeve to the coat's side from the
-    # armpit down to the elbow, and an arm lifted drew that join out into a web. The faces joining a sleeve's points to the coat's below the
-    # armpit are given to the coat's side whole: each keeps its place, but its sleeve points are made again as the coat's own, so the coat's
-    # side has no hole and only the sleeve is let go (its opening is on its inner side, against the body). Taken out instead, they left a
-    # hole in the coat's side that showed in a sprint.
+        trunk = np.hypot(co[:, 0], co[:, 1]) - TRUNK_SURFACE
+        cap = co[:, 2] >= SHOULDER_CAP_FROM
+        over_shoulder = cap & (co[:, 0] * side > TRUNK_HALF_WIDTH) & (co[:, 2] < SHOULDER_CAP_FROM + 0.23)
+        under = ~cap & (co[:, 0] * side > 0.2) & (nearest - ARM_SURFACE < trunk)
+        sleeve |= (nearest < SLEEVE_NEAR_ARM) & (over_shoulder | under)
+    # WHOLE PIECES (owner, 2026-11-24, of spikes out of the armpit: "there is still these single spikes coming from the armpit"): a point told
+    # apart by itself can land on the wrong side of the line, a single coat point among the sleeve's or the other way, and stayed behind when
+    # the arm moved, pulling a spike. So each face is a sleeve's or the coat's by most of its points, and a piece of either smaller than
+    # STRAY_PIECE faces, cut off by the other, goes over to the other.
     bm = bmesh.new()
     bm.from_mesh(mesh)
     bm.verts.ensure_lookup_table()
-    uv_layer = bm.loops.layers.uv.active
-    joins = [f for f in bm.faces if f.calc_center_median().z < SLEEVES_LOOSE_BELOW
-             and any(sleeve[v.index] for v in f.verts) and not all(sleeve[v.index] for v in f.verts)]
-    own = {}
-    for face in joins:
-        verts, uvs = [], []
-        for loop in face.loops:
-            v = loop.vert
-            if sleeve[v.index]:
-                if v not in own:
-                    own[v] = bm.verts.new(v.co)
-                v = own[v]
-            verts.append(v)
-            uvs.append(loop[uv_layer].uv.copy())
-        bm.faces.remove(face)
-        made = bm.faces.new(verts)
-        made.smooth = True
-        for loop, st in zip(made.loops, uvs):
-            loop[uv_layer].uv = st
-    sleeve = np.concatenate([sleeve, np.zeros(len(own), dtype=bool)])   # the new points are the coat's
+    bm.faces.ensure_lookup_table()
+    of_sleeve = {f: sum(sleeve[v.index] for v in f.verts) * 2 > len(f.verts) for f in bm.faces}
+    flipped = 0
+    for _ in range(3):
+        seen, changed = set(), 0
+        for start in bm.faces:
+            if start in seen:
+                continue
+            piece, stack = [start], [start]
+            seen.add(start)
+            border = against = 0
+            while stack:
+                for edge in stack.pop().edges:
+                    others = [o for o in edge.link_faces if of_sleeve[o] != of_sleeve[start]]
+                    if len(edge.link_faces) < 2 or others:
+                        border += 1
+                        against += 1 if others else 0
+                    for other in edge.link_faces:
+                        if other not in seen and of_sleeve[other] == of_sleeve[start]:
+                            seen.add(other)
+                            piece.append(other)
+                            stack.append(other)
+            # Only a piece the other side closes round: a small strip of the coat's own (the front edges' piping) is a piece of its own and stays.
+            if len(piece) < STRAY_PIECE and against >= STRAY_ENCLOSED * border:
+                for f in piece:
+                    of_sleeve[f] = not of_sleeve[f]
+                changed += len(piece)
+        flipped += changed
+        if not changed:
+            break
+    # THE SLEEVES CUT LOOSE UNDER THE ARM (owner, 2026-11-24: "fix the armpit stretch"): Meshy joins each sleeve to the coat's side from the
+    # armpit down to the elbow, and an arm lifted drew that join out into a web. Below SLEEVES_LOOSE_BELOW the seam between a sleeve's faces
+    # and the coat's is split: each keeps its own faces (no hole in either), the sleeve swings free. Above it the two stay one skin, and there
+    # a sleeve point still keeps the shoulder's weights (sleeves_on_arms), so nothing is pulled.
+    seam = [e for e in bm.edges if len(e.link_faces) == 2 and of_sleeve[e.link_faces[0]] != of_sleeve[e.link_faces[1]]
+            and max(v.co.z for v in e.verts) < SLEEVES_LOOSE_BELOW]
+    bmesh.ops.split_edges(bm, edges=seam)
+    bm.verts.ensure_lookup_table()
+    sleeve = np.array([sum(of_sleeve[f] for f in v.link_faces) * 2 > len(v.link_faces) if v.link_faces else False for v in bm.verts])
     bm.to_mesh(mesh)
     bm.free()
-    print("%s: %d faces joining a sleeve to the coat's side given to the side (%d points made again)" % (obj.name, len(joins), len(own)))
+    print("%s: %d faces of stray pieces given to the side round them, %d seam edges split under the arms" % (obj.name, flipped, len(seam)))
     layer = mesh.uv_layers.new(name="Sleeve")
     corner = np.empty(len(mesh.loops), dtype=np.int64)
     mesh.loops.foreach_get("vertex_index", corner)
@@ -217,6 +251,59 @@ def flag_sleeves(obj):
     layer.data.foreach_set("uv", flags.ravel())
     mesh.uv_layers.active = mesh.uv_layers[0]
     print("%s: %d of %d points are a sleeve's" % (obj.name, sleeve.sum(), len(co)))
+
+
+def sleeves_on_arms(weights, co, mesh):
+    """Every sleeve point below the shoulder's cap on its arm alone, the upper arm or the forearm by where it lies along the arm's line (the
+    nearest skin gave the sleeve's inner side to the trunk, and a lifted arm drew it out into a web); over the cap it keeps what the shoulder
+    gave it."""
+    flag = np.zeros(len(mesh.loops) * 2, dtype=np.float32)
+    mesh.uv_layers["Sleeve"].data.foreach_get("uv", flag)
+    corner = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get("vertex_index", corner)
+    sleeve = np.zeros(len(co))
+    sleeve[corner] = flag.reshape(-1, 2)[:, 0]
+    for side, name in ((1.0, "l"), (-1.0, "r")):
+        shoulder, elbow = ARM[0] * [side, 1, 1], ARM[1] * [side, 1, 1]
+        upper = elbow - shoulder
+        length = np.linalg.norm(upper)
+        along = ((co - shoulder) @ upper) / length
+        mine = (sleeve > 0.5) & (co[:, 0] * side > 0.0)
+        forearm = np.clip((along - length + ELBOW_BLEND) / (2.0 * ELBOW_BLEND), 0.0, 1.0)
+        forearm = forearm * forearm * (3.0 - 2.0 * forearm)
+        arm_only = np.clip((along - SLEEVE_ARM_ONLY[0]) / (SLEEVE_ARM_ONLY[1] - SLEEVE_ARM_ONLY[0]), 0.0, 1.0)
+        arm_only = arm_only * arm_only * (3.0 - 2.0 * arm_only) * mine
+        on_arm = np.zeros_like(weights)
+        on_arm[:, BONE["arm_" + name]] = 1.0 - forearm
+        on_arm[:, BONE["forearm_" + name]] = forearm
+        weights = weights * (1.0 - arm_only)[:, None] + on_arm * arm_only[:, None]
+    print("sleeves: %d points on their arm alone" % (sleeve > 0.5).sum())
+    return weights
+
+
+def coat_off_arms(weights, co, mesh):
+    """The coat's own cloth where it is cut loose from the sleeves (below SLEEVES_LOOSE_BELOW) follows no arm and no shoulder: the armpit's
+    smoothing (share_armpits) reads points in one place as one, joining the split seam again, and gave the coat's side by the seam a share
+    of the arm, which pulled it out into spikes (owner, 2026-11-24: "there is still these single spikes coming from the armpit"). Their
+    share goes to the trunk; it comes back over COAT_ON_SHOULDER above the seam's top, where coat and sleeve are one skin."""
+    flag = np.zeros(len(mesh.loops) * 2, dtype=np.float32)
+    mesh.uv_layers["Sleeve"].data.foreach_get("uv", flag)
+    corner = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get("vertex_index", corner)
+    sleeve = np.zeros(len(co))
+    sleeve[corner] = flag.reshape(-1, 2)[:, 0]
+    keep = np.clip((co[:, 2] - SLEEVES_LOOSE_BELOW) / COAT_ON_SHOULDER, 0.0, 1.0)
+    keep = np.where(sleeve > 0.5, 1.0, keep * keep * (3.0 - 2.0 * keep))
+    hips = np.clip((HIPS_UP_TO[1] - co[:, 2]) / (HIPS_UP_TO[1] - HIPS_UP_TO[0]), 0.0, 1.0)
+    moved = 0.0
+    for bone in ("arm_l", "forearm_l", "arm_r", "forearm_r", "shoulder_l", "shoulder_r"):
+        given = weights[:, BONE[bone]] * (1.0 - keep)
+        weights[:, BONE[bone]] -= given
+        weights[:, BONE["hips"]] += given * hips
+        weights[:, BONE["spine"]] += given * (1.0 - hips)
+        moved += given.sum()
+    print("coat: %.0f points' worth of arm and shoulder taken off the coat's side under the arms" % moved)
+    return weights
 
 
 def skin_brown_coat(obj, body, rig, hood_up):
@@ -234,6 +321,8 @@ def skin_brown_coat(obj, body, rig, hood_up):
     took = near * (1.0 - weights[:, BONE["collar"]])
     weights = weights * (1.0 - took)[:, None]
     weights[:, BONE["collar"]] += took
+    weights = sleeves_on_arms(weights, co, mesh)
+    weights = coat_off_arms(weights, co, mesh)
     if hood_up:
         # The hood is the head's own, so it turns with the face.
         on_head = np.clip((co[:, 2] - HOOD_ON_HEAD[0]) / (HOOD_ON_HEAD[1] - HOOD_ON_HEAD[0]), 0.0, 1.0)
