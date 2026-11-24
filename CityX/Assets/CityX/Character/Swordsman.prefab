@@ -1449,6 +1449,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordsmanBrain
   SwordPrefab: {fileID: 5103039701722357346, guid: 6ab7683001589ae4ca309300ffef8afb, type: 3}
+  BladeItemId: 
+  BladeDurability: -1
+  PeacefulUntilHurt: 0
   Wearing:
   - {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
   Style: 0
