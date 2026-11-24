@@ -47,7 +47,8 @@ JPEG_QUALITY = 88
 ARM = [np.array([0.35, 0.0, 1.9]), np.array([0.465, 0.0, 1.39]), np.array([0.545, 0.0, 1.033]), np.array([0.58, 0.0, 0.88])]
 SLEEVE_NEAR_ARM = 0.19     # a point this near an arm's line, and outside the trunk, is a sleeve's
 TRUNK_HALF_WIDTH = 0.355
-ARMS_FROM = (1.50, 1.62)
+ARMS_FROM = (1.58, 1.72)   # the cloth just under the armpit stays with the body: lower, flaps of it went out with a lifted arm
+SLEEVES_LOOSE_BELOW = 1.62  # under the armpit the sleeves are cut loose from the coat's sides
 ARMPIT_REACH, ARMPIT_ABOVE, ARMPIT_SMOOTHING = 0.40, 0.04, 16
 SKIRT_FROM, SKIRT_FULL = 1.15, 0.9
 COLLAR_FROM, COLLAR_RISE, COLLAR_REACH, COLLAR_FRONT = 1.95, 0.11, 0.55, 0.12
@@ -177,6 +178,37 @@ def flag_sleeves(obj):
             along = np.clip(((co - a) @ (b - a)) / ((b - a) @ (b - a)), 0.0, 1.0)
             nearest = np.minimum(nearest, np.linalg.norm(co - (a + along[:, None] * (b - a)), axis=1))
         sleeve |= (nearest < SLEEVE_NEAR_ARM) & (co[:, 0] * side > TRUNK_HALF_WIDTH) & (co[:, 2] < ARMS_FROM[1] + 0.2)
+    # THE SLEEVES CUT LOOSE UNDER THE ARM (owner, 2026-11-24: "fix the armpit stretch"): Meshy joins each sleeve to the coat's side from the
+    # armpit down to the elbow, and an arm lifted drew that join out into a web. The faces joining a sleeve's points to the coat's below the
+    # armpit are given to the coat's side whole: each keeps its place, but its sleeve points are made again as the coat's own, so the coat's
+    # side has no hole and only the sleeve is let go (its opening is on its inner side, against the body). Taken out instead, they left a
+    # hole in the coat's side that showed in a sprint.
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bm.verts.ensure_lookup_table()
+    uv_layer = bm.loops.layers.uv.active
+    joins = [f for f in bm.faces if f.calc_center_median().z < SLEEVES_LOOSE_BELOW
+             and any(sleeve[v.index] for v in f.verts) and not all(sleeve[v.index] for v in f.verts)]
+    own = {}
+    for face in joins:
+        verts, uvs = [], []
+        for loop in face.loops:
+            v = loop.vert
+            if sleeve[v.index]:
+                if v not in own:
+                    own[v] = bm.verts.new(v.co)
+                v = own[v]
+            verts.append(v)
+            uvs.append(loop[uv_layer].uv.copy())
+        bm.faces.remove(face)
+        made = bm.faces.new(verts)
+        made.smooth = True
+        for loop, st in zip(made.loops, uvs):
+            loop[uv_layer].uv = st
+    sleeve = np.concatenate([sleeve, np.zeros(len(own), dtype=bool)])   # the new points are the coat's
+    bm.to_mesh(mesh)
+    bm.free()
+    print("%s: %d faces joining a sleeve to the coat's side given to the side (%d points made again)" % (obj.name, len(joins), len(own)))
     layer = mesh.uv_layers.new(name="Sleeve")
     corner = np.empty(len(mesh.loops), dtype=np.int64)
     mesh.loops.foreach_get("vertex_index", corner)

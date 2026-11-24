@@ -51,5 +51,46 @@ namespace CityX.Tests
             }
             Assert.AreSame(under, UnderCoat.FrontOnly(shirt), "the shirt as it shows under a coat is made again every time");
         }
+
+        /// <summary>
+        /// Under the Brown Coat a shirt hugs the body from the chest down (owner, 2026-11-24: "make the t shirt fit a bit tigher when brown coat is
+        /// equipped so it doesnt overlap like that", "the top part looks good its just the stomach"); under the parka it is left as it is.
+        /// </summary>
+        [TestCase("LongSleeveTShirt")]
+        [TestCase("TShirt")]
+        public void UnderTheBrownCoatAShirtsStomachIsDrawnInAndItsChestIsNot(string prefab)
+        {
+            Assert.IsTrue(UnderCoat.FitsClose(ItemRegistry.BrownCoat));
+            Assert.IsFalse(UnderCoat.FitsClose(ItemRegistry.GreenFurHoodedParka), "the parka's shirt is drawn in too");
+            Mesh shirt = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefab}.prefab").GetComponent<SkinnedGarment>().GarmentMesh;
+            Mesh coat = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/BrownCoat.prefab").GetComponent<SkinnedGarment>().GarmentMesh;
+            Mesh close = UnderCoat.FrontOnlyClose(shirt, coat);
+            Assert.Greater(close.triangles.Length, 0, "nothing of the shirt shows in the coat's gap");
+            Assert.Less(close.triangles.Length, UnderCoat.FrontOnly(shirt).triangles.Length, "the shirt is still drawn under the coat's panels");
+            HashSet<(int, int)> covered = UnderCoat.CoveredInFront(coat);
+            float tuck = UnderCoat.CoverCell * (UnderCoat.TuckCells + 1.5f) * 1.5f;
+            Vector3[] own = shirt.vertices, drawn = close.vertices;
+            float loosest = 0.0f;
+            int moved = 0;
+            foreach (int v in close.triangles)
+            {
+                float reach = new Vector2(drawn[v].x, drawn[v].z).magnitude;
+                if (drawn[v].y < UnderCoat.CloseBelow)
+                {
+                    loosest = Mathf.Max(loosest, reach);
+                }
+                if (drawn[v].y > UnderCoat.OwnShapeFrom)
+                {
+                    Assert.AreEqual(own[v], drawn[v], "the chest, which looked good, was moved");
+                }
+                if ((own[v] - drawn[v]).sqrMagnitude > 1e-8f) moved++;
+            }
+            TestContext.WriteLine($"{prefab}: {moved} corners drawn in, the stomach now {loosest * 100.0f:0.0} cm from the middle line at the most");
+            Assert.Greater(moved, 0, "nothing of the shirt was drawn in");
+            Assert.LessOrEqual(loosest, UnderCoat.TrunkRadius + UnderCoat.CloseOffTheTrunk + 1e-4f, "the stomach still hangs off the body");
+            Assert.AreSame(close, UnderCoat.FrontOnlyClose(shirt, coat));
+            Assert.Greater(covered.Count, 1000, "the coat covers nothing of the front");
+            Assert.Greater(tuck, 0.0f);
+        }
     }
 }

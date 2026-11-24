@@ -152,13 +152,14 @@ namespace CityX.Wearables
 
             // Under a coat a shirt is drawn only in the coat's open front: the coat covers the rest (UnderCoat).
             bool coatOn = _order.Exists(id => _entries[id].Visible && ItemRegistry.IsCoat(id));
+            string closeCoat = _order.Find(id => _entries[id].Visible && UnderCoat.FitsClose(id));
             var visible = new List<Entry>(_order.Count);
             foreach (string id in _order)
             {
                 Entry entry = _entries[id];
                 if (entry.Visible)
                 {
-                    visible.Add(coatOn && UnderCoat.IsShirt(id) ? new Entry { Mesh = UnderCoat.FrontOnly(entry.Mesh), Material = entry.Material } : entry);
+                    visible.Add(coatOn && UnderCoat.IsShirt(id) ? new Entry { Mesh = closeCoat != null ? UnderCoat.FrontOnlyClose(entry.Mesh, _entries[closeCoat].Mesh) : UnderCoat.FrontOnly(entry.Mesh), Material = entry.Material } : entry);
                 }
             }
 
