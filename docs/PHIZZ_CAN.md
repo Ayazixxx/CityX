@@ -86,7 +86,8 @@ Owner, 2026-11-23: "make the glass bottle full of piss yellow liquid and when yo
 - **Held** like the can, round the straight of its body below the shoulder (higher, the thumb went over the shoulder into the glass), its thumb turned
   round its side (`FullBottle.ThumbTurn`; `CanGripPlayTests` measures both drinks). Carried lower than the can (`can_drink.py`'s `LOW_CARRY`): it is as
   long as an arm, and held at the chest its neck stood before the face. Every carried thing names the clip it is carried in (`IRaisedCarry.CarryClip`).
-- **Drunk** (`bottle_drink`, the same 3.5 s): the left hand pinches the cap and pulls it off (it falls), the bottle to the mouth, the drink goes down,
+- **Drunk** (`bottle_drink`, the same 3.5 s): the left hand pinches the cap and pulls it off (it falls, with your bottle-opening sound,
+  `Weapons/Audio/soda_bottle_open.ogg`, its silence before and after cut off: owner, 2026-11-23), the bottle to the mouth, the drink goes down,
   100 health over 10 s from the first sip. The clip ends in the bottle weapon's carry and the hand then holds the empty **soda bottle**, the weapon.
 - **Stacks** (`DrinkStack`, both drinks, `ItemRegistry.EndlessStack`): one in the hand, the rest in a bag slot; when the one in the hand is gone the next
   comes out of the bag (as grenades do). The empty bottle goes in the bag while there are more to drink, stays in the hand after the last (set down at

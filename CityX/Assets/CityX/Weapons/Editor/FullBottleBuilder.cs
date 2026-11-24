@@ -16,6 +16,12 @@ namespace CityX.WeaponsEditor
         public const string PrefabPath = Folder + "/phizz_bottle.prefab";
         public const string CapPrefabPath = Folder + "/phizz_bottle_cap.prefab";
 
+        /// <summary>
+        /// The cap coming off: the owner's bottle-opening sound with its silence before and after cut off (owner, 2026-11-23). The can keeps its own
+        /// (PhizzCanBuilder.OpenSoundPath).
+        /// </summary>
+        public const string OpenSoundPath = "Assets/CityX/Weapons/Audio/soda_bottle_open.ogg";
+
         private const int Sides = 20;
         private const float RingEvery = 0.012f;
         private const int PrintColumns = 18;
@@ -66,7 +72,7 @@ namespace CityX.WeaponsEditor
                 bottle.CapPrefab = fallingCap;
                 bottle.ThrownPrefab = thrown;
                 bottle.ShatterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BottleBuilder.ShatterPrefabPath(GlassBottleKinds.Soda));
-                bottle.OpenSound = AssetDatabase.LoadAssetAtPath<AudioClip>(PhizzCanBuilder.OpenSoundPath);
+                bottle.OpenSound = AssetDatabase.LoadAssetAtPath<AudioClip>(OpenSoundPath);
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();

@@ -102,6 +102,9 @@ namespace CityX.Tests
             Assert.IsNotNull(bottle.CapPrefab, "the cap does not fall");
             Assert.AreEqual(1, bottle.Glass.Length);
             Assert.IsTrue(bottle.Glass[0].sharedMaterial.IsKeywordEnabled("_CITYX_LIQUID"), "the glass shows no drink");
+            // Owner, 2026-11-23: "replace the soda bottle open with this noise ... leave the can opening sound as is".
+            Assert.AreEqual(FullBottleBuilder.OpenSoundPath, AssetDatabase.GetAssetPath(bottle.OpenSound), "the cap comes off without the bottle's own sound");
+            Assert.AreEqual(PhizzCanBuilder.OpenSoundPath, AssetDatabase.GetAssetPath(AssetDatabase.LoadAssetAtPath<GameObject>(PhizzCanBuilder.PrefabPath).GetComponent<PhizzCan>().OpenSound), "the can's sound changed");
         }
 
         [Test]
