@@ -42,9 +42,10 @@ namespace CityX.Character
         /// amplitude -- a real explicit ask to bring the ambience down by 30%,
         /// and 0.7 is what that actually means. Taking 30% off a decibel figure
         /// instead would be a far smaller change, because decibels are already
-        /// logarithmic and percentages of them do not subtract.
+        /// logarithmic and percentages of them do not subtract. Then 60% quieter again, by the same reading (owner, 2026-11-24: "make the wind
+        /// noise ambience that plays when outside 60% quieter"): 0.7 x 0.4.
         /// </summary>
-        public const float AmbienceVolume = 0.7f;
+        public const float AmbienceVolume = 0.28f;
 
         /// <summary>
         /// How long the ambience takes to fade out on stepping inside, and to
