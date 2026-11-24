@@ -26,7 +26,7 @@ SOURCE = args[0]
 EXPORT = args[args.index("--export") + 1] if "--export" in args else None
 RENDER = args[args.index("--render") + 1] if "--render" in args else None
 
-LENGTH = 1.1                # the machete end to end on the 2.6 m body, metres (a real one's 70 cm at the game's 1.3x, a little more)
+LENGTH = 1.21               # the machete end to end on the 2.6 m body, metres (a real one's 70 cm at the game's 1.3x, and 1.1x that: owner, 2026-11-23)
 BLADE_TRIANGLES = 1600
 HANDLE_STEP = 0.008         # between the handle's rings, in Meshy's metres
 RING_POINTS = 20

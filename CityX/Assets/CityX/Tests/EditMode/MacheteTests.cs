@@ -79,8 +79,9 @@ namespace CityX.Tests
             Bounds blade = Part(prefab, "Blade").bounds, handle = Part(prefab, "Handle").bounds;
             Assert.Greater(blade.min.y, -0.02f, "the blade goes down past the guard");
             Assert.Less(handle.max.y, 0.02f, "the handle comes up past the guard");
-            Assert.That(blade.max.y - handle.min.y, Is.InRange(1.0f, 1.2f), "not a machete's length on this body");
-            Assert.AreEqual(blade.max.y, prefab.GetComponent<SwordWeapon>().BladeLength, 1e-3f, "the sword does not reach as far as its blade");
+            Assert.That(blade.max.y - handle.min.y, Is.InRange(1.15f, 1.3f), "not a machete's length on this body (1.1 times a real one's at the game's 1.3x)");
+            float setDown = prefab.transform.Find("Blade").localPosition.y;
+            Assert.AreEqual(blade.max.y + setDown, prefab.GetComponent<SwordWeapon>().BladeLength, 1e-3f, "the sword does not reach as far as its blade");
 
             // The edge is the blade's thin side, and the butt's hook (the fingers' side) is on it.
             // (Measured over a stretch of the blade, each side against that stretch's own width: the blade widens toward the tip.)

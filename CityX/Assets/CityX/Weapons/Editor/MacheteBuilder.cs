@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.Items;
 using CityX.Weapons;
 using UnityEditor;
@@ -13,6 +14,10 @@ namespace CityX.WeaponsEditor
     /// The model is made in Blender (SourceArt/Machete/machete_build.py) already in the sword frame: the guard at the root, the handle down -Y, the
     /// blade up +Y, its edge toward -X. It comes in three parts, each in its own plain colour: the silver blade, the smooth black handle and its six
     /// silver rivets.
+    ///
+    /// Its handle is short for the one-handed hold the owner tuned on the combat sword (the guard some 27 cm above the fist), so the machete is
+    /// set down the hold until the fist closes on its middle rivet (owner, 2026-11-23: "make the grip further down the hand, make the second
+    /// silver dot covered by the grip").
     /// </summary>
     public static class MacheteBuilder
     {
@@ -29,6 +34,9 @@ namespace CityX.WeaponsEditor
         private const float SteelSmoothness = 0.6f;
         private const float GripSmoothness = 0.3f;
 
+        /// <summary>Rivets' points further apart than this down the handle belong to different rivets.</summary>
+        private const float RivetBunchGap = 0.02f;
+
         [MenuItem("CityX/Rebuild Machete")]
         public static GameObject Build()
         {
@@ -41,27 +49,28 @@ namespace CityX.WeaponsEditor
             var root = new GameObject("Machete");
             try
             {
-                float tip = 0.0f;
+                SwordWeapon sword = root.AddComponent<SwordWeapon>();
+                sword.ItemId = ItemRegistry.Machete;
+                sword.OneHanded = true;
+
+                var meshes = new Dictionary<string, Mesh>();
                 foreach (string part in Parts)
                 {
                     HeldModelBaker.LoadPart(SourcePath, part, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uv);
-                    Mesh mesh = HeldModelBaker.Save($"{Folder}/Machete{part}.asset", $"Machete{part}", vertices, normals, triangles, uv);
-                    HeldModelBaker.Part(root.transform, part, mesh, part == "Handle" ? grip : steel);
-                    if (part == "Blade")
-                    {
-                        tip = mesh.bounds.max.y;
-                    }
+                    meshes[part] = HeldModelBaker.Save($"{Folder}/Machete{part}.asset", $"Machete{part}", vertices, normals, triangles, uv);
                 }
+                float down = -sword.FistBelowGuard - MiddleRivet(meshes["Rivets"]);
+                foreach (string part in Parts)
+                {
+                    HeldModelBaker.Part(root.transform, part, meshes[part], part == "Handle" ? grip : steel).localPosition = new Vector3(0.0f, down, 0.0f);
+                }
+                float tip = meshes["Blade"].bounds.max.y + down;
+                sword.BladeLength = tip;
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
                 pickupTrigger.radius = SwordWeapon.InteractRange;
                 pickupTrigger.center = new Vector3(0.0f, tip * 0.5f, 0.0f);
-
-                SwordWeapon sword = root.AddComponent<SwordWeapon>();
-                sword.ItemId = ItemRegistry.Machete;
-                sword.OneHanded = true;
-                sword.BladeLength = tip;
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();
@@ -71,6 +80,33 @@ namespace CityX.WeaponsEditor
             {
                 Object.DestroyImmediate(root);
             }
+        }
+
+        /// <summary>How far down the handle the middle of its three rivets is, in the model's frame (the guard at 0): the rivets' points in three bunches down it.</summary>
+        public static float MiddleRivet(Mesh rivets)
+        {
+            var heights = new List<float>();
+            foreach (Vector3 v in rivets.vertices)
+            {
+                heights.Add(v.y);
+            }
+            heights.Sort();
+            var bunches = new List<List<float>> { new List<float>() };
+            for (int i = 0; i < heights.Count; i++)
+            {
+                if (i > 0 && heights[i] - heights[i - 1] > RivetBunchGap)
+                {
+                    bunches.Add(new List<float>());
+                }
+                bunches[bunches.Count - 1].Add(heights[i]);
+            }
+            List<float> middle = bunches[bunches.Count / 2];
+            float sum = 0.0f;
+            foreach (float h in middle)
+            {
+                sum += h;
+            }
+            return sum / middle.Count;
         }
     }
 }

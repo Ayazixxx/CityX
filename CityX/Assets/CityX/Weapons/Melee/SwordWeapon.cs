@@ -292,8 +292,11 @@ namespace CityX.Weapons
         /// <summary>This sword's rotation in the right hand in the thrust grip: the one-handed hold's (edge toward the knuckles), leaned.</summary>
         public Quaternion ThrustGripRotation => Quaternion.AngleAxis(ThrustTiltDegrees, Vector3.up) * DefaultOneHandGripRotationFor(_edgeOnPlusX);
 
-        /// <summary>How far up the handle from the fist this sword's guard sits: its one-handed hold's own (tuned) reach, or the two-handed upper grip's.</summary>
-        private float ThrustGripReach => _oneHanded
+        /// <summary>
+        /// How far up the handle from the fist this sword's guard sits: its one-handed hold's own (tuned) reach, or the two-handed upper grip's. A
+        /// short handle is placed by it so the fist closes where it should (MacheteBuilder).
+        /// </summary>
+        public float FistBelowGuard => _oneHanded
             ? Mathf.Max(OneHandGripDown, Vector3.Dot(HoldPosition - FistPoint, HoldRotation * Vector3.up))
             : DefaultPrimaryGripDown;
 
@@ -301,7 +304,7 @@ namespace CityX.Weapons
         public void HoldForThrust(float weight)
         {
             _flipDegrees = 0.0f;
-            transform.localPosition = Vector3.Lerp(HoldPosition, FistPoint + ThrustBladeAxisInHand * ThrustGripReach, weight);
+            transform.localPosition = Vector3.Lerp(HoldPosition, FistPoint + ThrustBladeAxisInHand * FistBelowGuard, weight);
             transform.localRotation = Quaternion.Slerp(HoldRotation, ThrustGripRotation, weight);
         }
 

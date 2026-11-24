@@ -27,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 2330756128553303551}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -0.15865967, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -101,6 +101,7 @@ GameObject:
   - component: {fileID: 2118365293563200931}
   - component: {fileID: 6901197078018015627}
   - component: {fileID: 1944784747906267469}
+  - component: {fileID: 3616947144520492272}
   m_Layer: 0
   m_Name: Machete
   m_TagString: Untagged
@@ -141,12 +142,12 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 2.5
-  m_Center: {x: 0, y: 0.4435317, z: 0}
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &1944784747906267469
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -161,7 +162,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordWeapon
   _itemId: machete
   _oneHanded: 1
-  _bladeLength: 0.8870634
+  _bladeLength: 0.81710994
   _knife: 0
   _hammer: 0
   _spear: 0
@@ -171,6 +172,28 @@ MonoBehaviour:
   _ownHold: 0
   _ownHoldPosition: {x: 0, y: 0, z: 0}
   _ownHoldEuler: {x: 0, y: 0, z: 0}
+  _supportPalmOffset: {x: 0, y: 0, z: 0}
+--- !u!135 &3616947144520492272
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4844455151899744374}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 2.5
+  m_Center: {x: 0, y: 0.40855497, z: 0}
 --- !u!1 &8027785096283311740
 GameObject:
   m_ObjectHideFlags: 0
@@ -198,7 +221,7 @@ Transform:
   m_GameObject: {fileID: 8027785096283311740}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -0.15865967, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -288,7 +311,7 @@ Transform:
   m_GameObject: {fileID: 8652144232842949818}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -0.15865967, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

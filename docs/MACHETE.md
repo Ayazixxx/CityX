@@ -24,7 +24,12 @@ A one-handed sword with an edge, exactly as the combat sword: the same one-hande
 | Rivets | none | three low silver domes on each face, an eighth, nearly a half and three quarters of the way down, as in the photo |
 | Texture coordinates | none | unwrapped (no map is used: each part is one plain colour) |
 
-- **Size**: 1.10 m end to end on the 2.6 m body (a real one's 70 cm at the game's 1.3x, a little more), the blade 0.89 m. Mine.
+- **Size**: 1.21 m end to end on the 2.6 m body: a real one's 70 cm at the game's 1.3x, a little more (mine), then 1.1 times that (owner,
+  2026-11-23: "scale the whole thing up x1.1").
+- **Where the hand holds it**: the one-handed hold the owner tuned on the combat sword puts the guard some 27 cm above the fist, past the end
+  of this short handle, so the fist closed on nothing at its butt. The machete is set down the hold until the fist closes on its middle rivet
+  (owner: "make the grip further down the hand, make the second silver dot covered by the grip"): `MacheteBuilder` reads the hold
+  (`SwordWeapon.FistBelowGuard`) and the rivets and moves the parts; `MachetePlayTests` measures the fist on the real body.
 - **Colours** (`MacheteBuilder`): the blade and rivets silver (0.78, 0.79, 0.82; a little metal, fairly smooth), the handle black.
 - **Frame**: laid in the sword frame in Blender: the guard (where the handle meets the blade) at the root on the handle's middle line, the blade
   up, the edge (Meshy's thin bottom side, 3 mm against the spine's 12) toward the sword's -X, where every swing leads; the butt's hook is on the
@@ -38,5 +43,5 @@ A `SwordWeapon` in `NetworkedPlayerWiring`: held, swung and cut with on every ma
 ## Tests
 
 `MacheteTests` (the item, one-handed and edged, the blow; under 6,000 triangles, the handle a smooth one; silver blade and rivets, black handle;
-the handle down, the edge on the thin side and the hook on it, three rivets on each face). Pictures: `SwordStrikeCapture.RenderTheMacheteAttacks`
+the handle down, the edge on the thin side and the hook on it, three rivets on each face), `MachetePlayTests` (the fist on the middle rivet). Pictures: `SwordStrikeCapture.RenderTheMacheteAttacks`
 (Explicit, -Graphics): `strike-machete-*.png`.
