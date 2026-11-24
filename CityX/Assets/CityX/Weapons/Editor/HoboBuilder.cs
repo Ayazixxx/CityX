@@ -10,18 +10,19 @@ namespace CityX.WeaponsEditor
     /// and then the other type that can spawn is just hobo ... make it so they spawn with either a metal pole, broken glass bottle. or a chain,
     /// or a machete as their weapon"; "also make wood plank one of the weapons hobos can spawn with". "its random which one and which skin they get. make them not hostile until hit they jus walk around"): the
     /// swordsman's make (DuelistBuilder) in each of the owner's two hobo characters (their saves copied to NpcLooks/Hobo.json and Hobo2.json),
-    /// once with each weapon (HoboKinds): ten prefabs, Character/Hobos/Hobo_1_Pole ... Hobo_2_Plank. With the broken bottle he also
+    /// once with each weapon (HoboKinds): fifteen prefabs, Character/Hobos/Hobo_1_Pole ... Hobo_3_Plank. With the broken bottle he also
     /// carries three whole empty ones, which he throws and which are found on his body. Run after the player rig, the weapons and the clothes.
     /// </summary>
     public static class HoboBuilder
     {
         public const string Folder = "Assets/CityX/Character/Hobos";
 
-        /// <summary>Each look's save, in HoboKinds.Looks' order: the owner's "Hobo", then "hobo2".</summary>
+        /// <summary>Each look's save, in HoboKinds.Looks' order: the owner's "Hobo", "hobo2", then "brack guy".</summary>
         public static readonly string[] LookPaths =
         {
             "Assets/CityX/Character/NpcLooks/Hobo.json",
             "Assets/CityX/Character/NpcLooks/Hobo2.json",
+            "Assets/CityX/Character/NpcLooks/BrackGuy.json",
         };
 
         /// <summary>The bottle: the plain glass one, broken (BottleWeapon.DurabilityState.Broken).</summary>

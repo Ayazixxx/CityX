@@ -101,5 +101,58 @@ namespace CityX.Tests
             Assert.LessOrEqual(loosest, UnderCoat.TrunkRadius + UnderCoat.CloseOffTheTrunk + 1e-4f, "the stomach still hangs off the body");
             Assert.AreSame(close, UnderCoat.FrontOnlyClose(shirt, coat));
         }
+
+        /// <summary>
+        /// Every pair of trousers under the Brown Coat (owner, 2026-11-24: "fix the jeans clipping through the brown coat"): wherever the coat lies
+        /// over them, from in front or behind, they are behind its cloth; below its hem they are as they were.
+        /// </summary>
+        [Test]
+        public void UnderTheBrownCoatTrousersStayBehindItsCloth()
+        {
+            Mesh coat = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/BrownCoat.prefab").GetComponent<SkinnedGarment>().GarmentMesh;
+            Dictionary<(int, int), float> front = UnderCoat.PanelsInFront(coat), back = UnderCoat.PanelsBehind(coat);
+            Assert.Greater(back.Count, 1000, "the coat covers nothing of the back");
+            int checkedTrousers = 0;
+            foreach (Character.Inventory.ItemPrefabEntry entry in CityX.CharacterEditor.NetworkedPlayerWiring.ItemPrefabEntries(definition =>
+                         definition.EquipSlot == EquipSlots.Legs))
+            {
+                var garment = entry.Prefab != null ? entry.Prefab.GetComponent<SkinnedGarment>() : null;
+                if (garment == null || garment.GarmentMesh == null)
+                {
+                    continue;
+                }
+                Assert.IsTrue(UnderCoat.IsTrousers(entry.ItemId), entry.ItemId);
+                Mesh own = garment.GarmentMesh, under = UnderCoat.TrousersUnderClose(own, coat);
+                Vector3[] before = own.vertices, after = under.vertices;
+                Assert.AreEqual(before.Length, after.Length);
+                int moved = 0;
+                for (int i = 0; i < after.Length; i++)
+                {
+                    var cell = (Mathf.FloorToInt(after[i].x / UnderCoat.CoverCell), Mathf.FloorToInt(after[i].y / UnderCoat.CoverCell));
+                    if (after[i].z >= 0.0f && front.TryGetValue(cell, out float panel))
+                    {
+                        Assert.LessOrEqual(after[i].z, panel - UnderCoat.TrousersBehindTheCoat + 1e-4f, $"{entry.ItemId} come out in front of the coat at {after[i]}");
+                    }
+                    if (after[i].z < 0.0f && back.TryGetValue(cell, out float cloth))
+                    {
+                        Assert.GreaterOrEqual(after[i].z, cloth + UnderCoat.TrousersBehindTheCoat - 1e-4f, $"{entry.ItemId} come out through the coat's back at {after[i]}");
+                    }
+                    if (after[i] != before[i])
+                    {
+                        moved++;
+                    }
+                }
+                for (int i = 0; i < after.Length; i++)
+                {
+                    if (before[i].y < coat.bounds.min.y - 0.05f)
+                    {
+                        Assert.AreEqual(before[i], after[i], $"{entry.ItemId} moved below the coat's hem at {before[i]}");
+                    }
+                }
+                TestContext.WriteLine($"{entry.ItemId}: {moved} points drawn in under the coat");
+                checkedTrousers++;
+            }
+            Assert.Greater(checkedTrousers, 0, "no trousers to check");
+        }
     }
 }

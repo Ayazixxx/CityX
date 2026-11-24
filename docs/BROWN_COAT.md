@@ -76,6 +76,14 @@ bit". The shared rule (`UnderCoat`) draws a shirt under a coat only in the coat'
 - it hangs from the hips, as the coat's front does: its share of the legs goes to the hips (`OffTheLegs`), so a knee no longer swings its
   corner out through a panel.
 
+## Trousers under it
+
+Owner, 2026-11-24, of jeans through the coat's back at the seat: "fix the jeans clipping through the brown coat". At rest the jeans' seat stood
+up to 4.5 cm out through the back. Under the Brown or Black Coat every pair of trousers (`UnderCoat.TrousersUnderClose`, applied by
+`SkinnedGarmentCombiner`) is pushed 2 cm behind the coat's cloth wherever the cloth lies over it: in front behind the panels (`PanelsInFront`),
+behind in front of the back (`PanelsBehind`, the outermost-back map). Below the hem nothing moves. `UnderCoatTests` checks every Legs item;
+`LongCoatCapture.RenderThePlayerInTheBrownCoatOverJeans` renders it.
+
 ## The Black Coat
 
 Owner, 2026-11-24: "make a black version of the brown coat. just get rid of the color and make it darker". Item `black_coat`, "Black Coat",

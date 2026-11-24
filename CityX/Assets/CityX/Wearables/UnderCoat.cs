@@ -104,6 +104,109 @@ namespace CityX.Wearables
         }
 
         /// <summary>
+        /// TROUSERS UNDER A CLOSE-FITTING COAT (owner, 2026-11-24, of jeans out through the Brown Coat's back at the seat: "fix the jeans clipping
+        /// through the brown coat"): cut roomier at the seat than the coat leaves room for, they came out up to 4.5 cm. Wherever the coat lies
+        /// over them, seen from in front or from behind, they are pushed in this far behind its cloth (more than a shirt: the coat's skirt and the
+        /// legs move apart in a stride); elsewhere, and without the coat, they are as they are.
+        /// </summary>
+        public const float TrousersBehindTheCoat = 0.02f;
+
+        private static readonly Dictionary<(Mesh, Mesh), Mesh> CloseTrousers = new Dictionary<(Mesh, Mesh), Mesh>();
+
+        /// <summary>Whether a worn item is a pair of trousers (worn on the legs).</summary>
+        public static bool IsTrousers(string itemId) =>
+            ItemRegistry.TryGet(itemId, out ItemDefinition definition) && definition.EquipSlot == EquipSlots.Legs;
+
+        /// <summary>The trousers' mesh as they lie under a close-fitting coat (<see cref="TrousersBehindTheCoat"/>), made once for trousers and a coat.</summary>
+        public static Mesh TrousersUnderClose(Mesh trousers, Mesh coat)
+        {
+            if (trousers == null || !trousers.isReadable || coat == null || !coat.isReadable)
+            {
+                return trousers;
+            }
+            if (!CloseTrousers.TryGetValue((trousers, coat), out Mesh close))
+            {
+                close = Object.Instantiate(trousers);
+                close.name = trousers.name + " (under a close coat)";
+                Dictionary<(int, int), float> front = PanelsInFront(coat), back = PanelsBehind(coat);
+                Vector3[] points = close.vertices;
+                for (int i = 0; i < points.Length; i++)
+                {
+                    points[i] = points[i].z >= 0.0f ? Covered(points[i], front, -1.0f) : Covered(points[i], back, 1.0f);
+                }
+                close.vertices = points;
+                close.RecalculateBounds();
+                CloseTrousers[(trousers, coat)] = close;
+            }
+            return close;
+        }
+
+        /// <summary>
+        /// <paramref name="point"/> kept <see cref="TrousersBehindTheCoat"/> inside the coat's cloth where <paramref name="cloth"/> (the innermost
+        /// layer's z, cell by cell) lies over it, or within <see cref="TuckCells"/> of where it does; <paramref name="inward"/> the way in along z.
+        /// </summary>
+        private static Vector3 Covered(Vector3 point, Dictionary<(int, int), float> cloth, float inward)
+        {
+            int cx = Mathf.FloorToInt(point.x / CoverCell), cy = Mathf.FloorToInt(point.y / CoverCell);
+            bool found = false;
+            float innermost = 0.0f;
+            for (int dx = -TuckCells; dx <= TuckCells; dx++)
+            {
+                for (int dy = -TuckCells; dy <= TuckCells; dy++)
+                {
+                    if (cloth.TryGetValue((cx + dx, cy + dy), out float z) && (!found || z * inward > innermost * inward))
+                    {
+                        innermost = z;
+                        found = true;
+                    }
+                }
+            }
+            if (!found)
+            {
+                return point;
+            }
+            float most = innermost + inward * TrousersBehindTheCoat;
+            return (point.z - most) * inward < 0.0f ? new Vector3(point.x, point.y, most) : point;
+        }
+
+        /// <summary>The coat's back half seen from behind: for each cell (x, y) it covers, how far back its innermost layer is (the largest z).</summary>
+        public static Dictionary<(int, int), float> PanelsBehind(Mesh coat)
+        {
+            var depth = new Dictionary<(int, int), float>();
+            Vector3[] points = coat.vertices;
+            int[] triangles = coat.triangles;
+            for (int t = 0; t + 2 < triangles.Length; t += 3)
+            {
+                Vector3 a = points[triangles[t]], b = points[triangles[t + 1]], c = points[triangles[t + 2]];
+                if (a.z >= 0.0f || b.z >= 0.0f || c.z >= 0.0f)
+                {
+                    continue;   // the front half
+                }
+                Rasterize(a, b, c, depth, Mathf.Max);
+            }
+            return depth;
+        }
+
+        /// <summary>Each cell the triangle covers seen straight on (x, y), its z there kept in <paramref name="depth"/> by <paramref name="keep"/>.</summary>
+        private static void Rasterize(Vector3 a, Vector3 b, Vector3 c, Dictionary<(int, int), float> depth, System.Func<float, float, float> keep)
+        {
+            int x0 = Mathf.FloorToInt(Mathf.Min(a.x, Mathf.Min(b.x, c.x)) / CoverCell), x1 = Mathf.FloorToInt(Mathf.Max(a.x, Mathf.Max(b.x, c.x)) / CoverCell);
+            int y0 = Mathf.FloorToInt(Mathf.Min(a.y, Mathf.Min(b.y, c.y)) / CoverCell), y1 = Mathf.FloorToInt(Mathf.Max(a.y, Mathf.Max(b.y, c.y)) / CoverCell);
+            for (int x = x0; x <= x1; x++)
+            {
+                for (int y = y0; y <= y1; y++)
+                {
+                    var middle = new Vector2((x + 0.5f) * CoverCell, (y + 0.5f) * CoverCell);
+                    if (Across(middle, a, b, c, out Vector3 share))
+                    {
+                        float z = share.x * a.z + share.y * b.z + share.z * c.z;
+                        depth[(x, y)] = depth.TryGetValue((x, y), out float there) ? keep(there, z) : z;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// UNDER THE COAT THE SHIRT HANGS FROM THE HIPS (owner, 2026-11-24, of the shirt's lower corners over the Brown Coat's panels mid-stride:
         /// "slightly clipping here with the white shirt going through the coat a tiny bit", "and on the other side as well same spot"): its hem took
         /// a share of the thighs from the skin nearest it, and a knee coming up swung it forward out through the panel, which hangs from the hips.
@@ -163,20 +266,7 @@ namespace CityX.Wearables
                 {
                     continue;   // the back half
                 }
-                int x0 = Mathf.FloorToInt(Mathf.Min(a.x, Mathf.Min(b.x, c.x)) / CoverCell), x1 = Mathf.FloorToInt(Mathf.Max(a.x, Mathf.Max(b.x, c.x)) / CoverCell);
-                int y0 = Mathf.FloorToInt(Mathf.Min(a.y, Mathf.Min(b.y, c.y)) / CoverCell), y1 = Mathf.FloorToInt(Mathf.Max(a.y, Mathf.Max(b.y, c.y)) / CoverCell);
-                for (int x = x0; x <= x1; x++)
-                {
-                    for (int y = y0; y <= y1; y++)
-                    {
-                        var middle = new Vector2((x + 0.5f) * CoverCell, (y + 0.5f) * CoverCell);
-                        if (Across(middle, a, b, c, out Vector3 share))
-                        {
-                            float z = share.x * a.z + share.y * b.z + share.z * c.z;
-                            depth[(x, y)] = depth.TryGetValue((x, y), out float there) ? Mathf.Min(there, z) : z;
-                        }
-                    }
-                }
+                Rasterize(a, b, c, depth, Mathf.Min);
             }
             return depth;
         }

@@ -19,7 +19,7 @@ namespace CityX.Tests
         [Test]
         public void EveryLookComesWithEveryWeapon()
         {
-            Assert.AreEqual(10, HoboKinds.All.Length);
+            Assert.AreEqual(15, HoboKinds.All.Length);
             CollectionAssert.AllItemsAreUnique(HoboKinds.All);
             CollectionAssert.Contains(HoboKinds.All, "hobo_1_pole");
             CollectionAssert.Contains(HoboKinds.All, "hobo_2_plank");
@@ -30,7 +30,7 @@ namespace CityX.Tests
         public void TheRollPicksEveryHoboAsOftenAsAnyOther()
         {
             var counts = new Dictionary<string, int>();
-            const int rolls = 8000;
+            const int rolls = 15000;
             for (int i = 0; i < rolls; i++)
             {
                 string kind = HoboKinds.Pick((i + 0.5f) / rolls);
@@ -148,7 +148,7 @@ namespace CityX.Tests
         [Test]
         public void EachLookWearsItsBeard()
         {
-            string[] beards = { CharacterHair.SpikyBeard, CharacterHair.FullBeard };
+            string[] beards = { CharacterHair.SpikyBeard, CharacterHair.FullBeard, CharacterHair.SpikyBeard };
             for (int look = 0; look < HoboKinds.Looks.Length; look++)
             {
                 for (int weapon = 0; weapon < HoboKinds.Weapons.Length; weapon++)
@@ -169,6 +169,7 @@ namespace CityX.Tests
             {
                 new[] { "green_fur_hooded_parka", "black_jeans", "bw_sneakers", "black_fingerless_gloves" },
                 new[] { "green_fur_hooded_parka", "khakis", "black_sneakers", "black_fingerless_gloves", "t_shirt" },
+                new string[0],   // brack guy, as saved, wears nothing
             };
             Inventory.ItemPrefabEntry[] clothes = CityX.CharacterEditor.NetworkedPlayerWiring.ItemPrefabEntries(definition => definition.IsWearable);
             for (int look = 0; look < HoboKinds.Looks.Length; look++)

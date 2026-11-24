@@ -48,6 +48,53 @@ namespace CityX.Tests
         }
 #endif
 
+        /// <summary>
+        /// In the game itself (owner, 2026-11-24: "/hoodon isnt workin", "or /hoodup"): the game's own scene, its player putting the coat on from
+        /// the inventory, the words typed into its text chat.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TypedInTheGamesChatTheHoodGoesUpAndDown()
+        {
+#if UNITY_EDITOR
+            const string scenePath = "Assets/CityX/Scenes/CityMassing.unity";
+            LogAssert.ignoreFailingMessages = true;
+            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(scenePath,
+                new UnityEngine.SceneManagement.LoadSceneParameters(UnityEngine.SceneManagement.LoadSceneMode.Additive));
+            yield return null;
+            yield return null;
+            UnityEngine.SceneManagement.Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(scenePath);
+            try
+            {
+                PlayerInputReader player = System.Array.Find(Object.FindObjectsByType<PlayerInputReader>(FindObjectsSortMode.None), r => r.enabled);
+                Assert.IsNotNull(player, "no player in the game's scene");
+                var chat = Object.FindFirstObjectByType<CityX.UI.PlayerChat>(FindObjectsInactive.Include);
+                Assert.IsNotNull(chat, "no text chat in the game's scene");
+                Assert.IsTrue(player.GetComponent<Inventory>().EquipItemId(ItemRegistry.BrownCoat, player.gameObject), "the coat would not go on");
+                yield return null;
+                HoodedCoat coat = player.GetComponentInChildren<HoodedCoat>(true);
+                Assert.IsNotNull(coat, "the coat is not on the player");
+                Assert.AreSame(chat.InputReader, player, "the chat speaks for another body");
+                foreach ((string typed, bool up) in new[] { ("/hoodon", true), ("/hoodoff", false), ("/hoodup", true), ("/hooddown", false) })
+                {
+                    chat.Submit(typed);
+                    yield return null;
+                    Assert.AreEqual(up, coat.HoodUp, $"typing {typed} did not put the hood {(up ? "up" : "down")}");
+                }
+            }
+            finally
+            {
+                if (scene.IsValid() && scene.isLoaded)
+                {
+                    UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
+                }
+            }
+            yield return null;
+            LogAssert.ignoreFailingMessages = false;
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator TheHoodGoesUpAndDownHereAndOnAnotherPlayersCopy()
         {

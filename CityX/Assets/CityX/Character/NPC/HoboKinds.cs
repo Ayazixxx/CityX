@@ -11,13 +11,14 @@ namespace CityX.Character
         /// <summary>What /spawn and the mob spawner ask for: any hobo, rolled.</summary>
         public const string Any = "hobo";
 
-        /// <summary>The owner's two hobo characters (Character/NpcLooks): "Hobo", and "hobo2".</summary>
-        public static readonly string[] Looks = { "1", "2" };
+        /// <summary>The owner's hobo characters (Character/NpcLooks): "Hobo", "hobo2", and "brack guy" (owner, 2026-11-24: "add my character
+        /// "brack guy" as one of the hobos that can spawn").</summary>
+        public static readonly string[] Looks = { "1", "2", "3" };
 
         /// <summary>The weapons a hobo is found with: the bo staff ("metal pole"), a broken glass bottle, the chain, the machete, the wood plank (owner, 2026-11-24: "also make wood plank one of the weapons hobos can spawn with").</summary>
         public static readonly string[] Weapons = { "pole", "bottle", "chain", "machete", "plank" };
 
-        /// <summary>Every hobo's kind name (EnemyNetwork's, the console's), each look with each weapon: "hobo_1_pole" ... "hobo_2_plank".</summary>
+        /// <summary>Every hobo's kind name (EnemyNetwork's, the console's), each look with each weapon: "hobo_1_pole" ... "hobo_3_plank".</summary>
         public static readonly string[] All = BuildAll();
 
         private static string[] BuildAll()

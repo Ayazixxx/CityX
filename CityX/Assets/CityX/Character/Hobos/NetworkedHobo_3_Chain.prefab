@@ -1,0 +1,298 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &3782666423111294018
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 269493239166488331, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      propertyPath: m_Name
+      value: NetworkedHobo_3_Chain
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3195970033523034628}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3219401228986262851}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3270957120947963561}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1525716682412053606}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4093800315580159503}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 119989997142148083}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8964308681728804653}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1499379745614666014}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7340173954867416}
+    - targetCorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1110393732577824301}
+  m_SourcePrefab: {fileID: 100100000, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+--- !u!1 &5646770408013927233 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8801125309433974531, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+  m_PrefabInstance: {fileID: 3782666423111294018}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &3195970033523034628
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26b716c41e9b56b4baafaf13a523ba2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FishNet.Runtime::FishNet.Object.NetworkObject
+  _localLevelOfDetailCalculationType: 0
+  _useLevelOfDetail: 0
+  _useRootLevelOfDetail: 1
+  NetworkObserver: {fileID: 0}
+  _enablePrediction: 0
+  _predictionType: 0
+  _localReconcileCorrectionType: 2
+  _graphicalObject: {fileID: 0}
+  _detachGraphicalObject: 0
+  _enableStateForwarding: 1
+  _networkTransform: {fileID: 0}
+  _ownerInterpolation: 1
+  _ownerSmoothedProperties: 255
+  _adaptiveInterpolation: 3
+  _spectatorSmoothedProperties: 255
+  _spectatorInterpolation: 2
+  _enableTeleport: 0
+  _teleportThreshold: 1
+  <PrefabId>k__BackingField: 65535
+  <SpawnableCollectionId>k__BackingField: 0
+  <AssetPathHash>k__BackingField: 10844775297109063935
+  SceneId: 0
+  SerializedTransformProperties:
+    Position: {x: 0, y: 0, z: 0}
+    Rotation: {x: 0, y: 0, z: 0, w: 0}
+    Scale: {x: 0, y: 0, z: 0}
+    IsValid: 0
+  <IsNested>k__BackingField: 0
+  WasActiveDuringEdit: 0
+  WasActiveDuringEdit_Set1: 1
+  <ComponentIndex>k__BackingField: 0
+  <PredictedSpawn>k__BackingField: {fileID: 0}
+  <PredictedOwner>k__BackingField: {fileID: 0}
+  NetworkBehaviours: []
+  InitializedParentNetworkBehaviour: {fileID: 0}
+  InitializedNestedNetworkObjects: []
+  RuntimeParentNetworkBehaviour: {fileID: 0}
+  RuntimeChildNetworkBehaviours: []
+  _isNetworked: 1
+  _isSpawnable: 1
+  _isGlobal: 0
+  _initializeOrder: 0
+  _preventDespawnOnDisconnect: 0
+  _defaultDespawnType: 0
+  _initializedTimestamp: 0
+--- !u!114 &3219401228986262851
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4d4ebc93fa08f446a00825b228f8b86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedBodyMotion
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 3195970033523034628}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &3270957120947963561
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea1a5fd686d20b243a80e6f2cd0f13bf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedAnimatorSync
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 3195970033523034628}
+  _networkObjectCache: {fileID: 0}
+  SendIntervalSeconds: 0.05
+--- !u!114 &1525716682412053606
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d13dbd993248aff45b9e5a4f06c0307a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedDamage
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 3195970033523034628}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &4093800315580159503
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b49f346341d53fb49a9e963a6f7f34b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedAbilitySync
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 3195970033523034628}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &119989997142148083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8ce2c927a3a9264f84fff61cf7a73b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedCorpseLoot
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 3195970033523034628}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &8964308681728804653
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 376fab3faadcde040a1e4e41fc7dc59d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.RagdollMirror
+--- !u!114 &1499379745614666014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc12801661194ac4cb324f5afd19fa96, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedRagdollSync
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 3195970033523034628}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &7340173954867416
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43529a99da4b378469c4007fc8751335, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedEnemy
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 3195970033523034628}
+  _networkObjectCache: {fileID: 0}
+  OwnerOnly:
+  - {fileID: 6060999180644546364}
+--- !u!114 &1110393732577824301
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c71fd7f855ec523429999fc4e14a1928, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FishNet.Runtime::FishNet.Observing.NetworkObserver
+  _overrideType: 3
+  _updateHostVisibility: 1
+  _observerConditions:
+  - {fileID: 11400000, guid: 066946c5dd274e54ba13b22358304264, type: 2}
+--- !u!114 &6060999180644546364 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6945190225208994686, guid: 138dfe5062e2c974eae350b50daa9f77, type: 3}
+  m_PrefabInstance: {fileID: 3782666423111294018}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5646770408013927233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78defb2a7fb212e4b977117bb47b3c09, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordsmanBrain

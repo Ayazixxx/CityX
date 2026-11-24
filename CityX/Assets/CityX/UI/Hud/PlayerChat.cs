@@ -194,13 +194,14 @@ namespace CityX.UI
 
         /// <summary>
         /// /hoodon and /hoodoff (owner, 2026-11-23: "if you type /hoodon in the text chat not the console command chat, then it turns into the hood
-        /// on version"): true for either, <paramref name="up"/> which. The same rule as IsClaimCommand.
+        /// on version"); /hoodup and /hooddown too (owner, 2026-11-24: "or /hoodup"): true for any, <paramref name="up"/> which. The same rule as
+        /// IsClaimCommand.
         /// </summary>
         public static bool IsHoodCommand(string text, out bool up)
         {
             string command = text?.Trim().ToLowerInvariant();
-            up = command == "/hoodon";
-            return up || command == "/hoodoff";
+            up = command == "/hoodon" || command == "/hoodup";
+            return up || command == "/hoodoff" || command == "/hooddown";
         }
 
         /// <summary>

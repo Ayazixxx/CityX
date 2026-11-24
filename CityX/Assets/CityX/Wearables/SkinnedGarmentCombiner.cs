@@ -159,7 +159,19 @@ namespace CityX.Wearables
                 Entry entry = _entries[id];
                 if (entry.Visible)
                 {
-                    visible.Add(coatOn && UnderCoat.IsShirt(id) ? new Entry { Mesh = closeCoat != null ? UnderCoat.FrontOnlyClose(entry.Mesh, _entries[closeCoat].Mesh) : UnderCoat.FrontOnly(entry.Mesh), Material = entry.Material } : entry);
+                    if (coatOn && UnderCoat.IsShirt(id))
+                    {
+                        visible.Add(new Entry { Mesh = closeCoat != null ? UnderCoat.FrontOnlyClose(entry.Mesh, _entries[closeCoat].Mesh) : UnderCoat.FrontOnly(entry.Mesh), Material = entry.Material });
+                    }
+                    else if (closeCoat != null && UnderCoat.IsTrousers(id))
+                    {
+                        // Trousers under a close-fitting coat are drawn in behind its cloth (UnderCoat.TrousersUnderClose).
+                        visible.Add(new Entry { Mesh = UnderCoat.TrousersUnderClose(entry.Mesh, _entries[closeCoat].Mesh), Material = entry.Material });
+                    }
+                    else
+                    {
+                        visible.Add(entry);
+                    }
                 }
             }
 
