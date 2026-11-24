@@ -260,6 +260,7 @@ namespace CityX.ViewEditor
             GameObject whiteSneakerPrefab = CityX.WearablesEditor.WhiteSneakerBuilder.Build();
             GameObject bwSneakersPrefab = CityX.WearablesEditor.WhiteSneakerBuilder.BuildBW();
             GameObject blackSneakersPrefab = CityX.WearablesEditor.WhiteSneakerBuilder.BuildBlack();
+            GameObject wornBootsPrefab = CityX.WearablesEditor.WornBootsBuilder.Build();
             GameObject bloodRavenTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildBloodRaven();
             GameObject redCamoTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildRedCamo();
             GameObject blackTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildBlack();
@@ -568,6 +569,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.BWSneakers, Prefab = bwSneakersPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.BlackSneakers, Prefab = blackSneakersPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.WornBoots, Prefab = wornBootsPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.BloodRavenTShirt, Prefab = bloodRavenTShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

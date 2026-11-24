@@ -73,6 +73,7 @@ namespace CityX.Items
             [ItemRegistry.WhiteSneaker] = Rarity.Common,
             [ItemRegistry.BWSneakers] = Rarity.Common,
             [ItemRegistry.BlackSneakers] = Rarity.Common,   // as the other two colours
+            [ItemRegistry.WornBoots] = Rarity.Common,   // a boot a homeless person would wear (the owner's words): my placement
             [ItemRegistry.FarmerHat] = Rarity.Common,
             [ItemRegistry.ThreeDGlasses] = Rarity.Common,
             [ItemRegistry.RoundShield] = Rarity.Common,

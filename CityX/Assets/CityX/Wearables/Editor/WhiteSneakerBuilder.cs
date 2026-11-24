@@ -65,23 +65,32 @@ namespace CityX.WearablesEditor
         /// <summary>
         /// The pair as the item <paramref name="itemId"/>, wearing Wearables/<paramref name="name"/>.jpg (the meshes are the same for each).
         /// </summary>
-        private static GameObject Save(string name, string prefabPath, string itemId)
+        private static GameObject Save(string name, string prefabPath, string itemId) =>
+            SavePair(name, prefabPath, itemId, SourcePath, LeftMeshPath, RightMeshPath, "WhiteSneaker", Grown, Smoothness);
+
+        /// <summary>
+        /// A pair of shoes as the item <paramref name="itemId"/>: the model at <paramref name="sourcePath"/> (both shoes standing on the body's feet
+        /// in the game's frame), each point put where <paramref name="placed"/> says, split by side, each shoe baked onto its foot (Shoes), wearing
+        /// Wearables/<paramref name="name"/>.jpg. Shared by every pair (the sneakers, the Worn Boots).
+        /// </summary>
+        public static GameObject SavePair(string name, string prefabPath, string itemId, string sourcePath, string leftMeshPath, string rightMeshPath,
+            string meshName, System.Func<Vector3, Vector3> placed, float smoothness)
         {
-            HeldModelBaker.Load(SourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uv);
+            HeldModelBaker.Load(sourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uv);
             for (int i = 0; i < vertices.Length; i++)
             {
-                vertices[i] = Grown(vertices[i]);
+                vertices[i] = placed(vertices[i]);
             }
             var root = new GameObject(name);
-            var pair = new Mesh { name = "WhiteSneakerPair", vertices = vertices, normals = normals, triangles = triangles };
+            var pair = new Mesh { name = meshName + "Pair", vertices = vertices, normals = normals, triangles = triangles };
             try
             {
                 Material material = BlenderGarmentMesh.TexturedMaterial($"Assets/CityX/Wearables/{name}.mat", $"Assets/CityX/Wearables/{name}.jpg",
-                    Smoothness);
+                    smoothness);
                 // The left foot is on -x: each shoe the triangles wholly on its side.
-                Transform left = Shoe(root.transform, "Left", LeftMeshPath, HumanBodyBones.LeftFoot, vertices, normals, triangles, uv,
+                Transform left = Shoe(root.transform, "Left", leftMeshPath, meshName, HumanBodyBones.LeftFoot, vertices, normals, triangles, uv,
                     p => p.x < 0.0f, material);
-                Transform right = Shoe(root.transform, "Right", RightMeshPath, HumanBodyBones.RightFoot, vertices, normals, triangles, uv,
+                Transform right = Shoe(root.transform, "Right", rightMeshPath, meshName, HumanBodyBones.RightFoot, vertices, normals, triangles, uv,
                     p => p.x >= 0.0f, material);
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();
@@ -121,7 +130,7 @@ namespace CityX.WearablesEditor
         /// is bound to it (BodyRig.RestBindMatrix), saved, and placed under the pair's root where that foot stands (so the pair lies on the
         /// ground as worn).
         /// </summary>
-        private static Transform Shoe(Transform root, string name, string meshPath, HumanBodyBones foot, Vector3[] vertices,
+        private static Transform Shoe(Transform root, string name, string meshPath, string meshName, HumanBodyBones foot, Vector3[] vertices,
             Vector3[] normals, int[] triangles, Vector2[] uv, System.Predicate<Vector3> side, Material material)
         {
             Matrix4x4 footInBody = BodyRig.RestBindMatrix(foot);
@@ -151,7 +160,7 @@ namespace CityX.WearablesEditor
                     tris.Add(j);
                 }
             }
-            Mesh mesh = HeldModelBaker.Save(meshPath, "WhiteSneaker" + name + "Mesh", verts.ToArray(), norms.ToArray(), tris.ToArray(), uvs.ToArray());
+            Mesh mesh = HeldModelBaker.Save(meshPath, meshName + name + "Mesh", verts.ToArray(), norms.ToArray(), tris.ToArray(), uvs.ToArray());
             var model = new GameObject(name);
             model.transform.SetParent(root, false);
             model.transform.localPosition = footInBody.GetColumn(3);

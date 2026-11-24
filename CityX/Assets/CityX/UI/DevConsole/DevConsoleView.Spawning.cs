@@ -348,6 +348,9 @@ namespace CityX.UI
                 case "black_sneakers":
                 case "blacksneakers":
                 case "blacksneaker": return ItemRegistry.BlackSneakers;
+                case "boots":
+                case "wornboots":
+                case "worn_boots": return ItemRegistry.WornBoots;
                 case "coat":
                 case "midnight_coat":
                 case "midnightcoat": return ItemRegistry.MidnightCoat;

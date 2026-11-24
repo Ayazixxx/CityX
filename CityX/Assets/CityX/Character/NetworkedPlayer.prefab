@@ -209,7 +209,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 6609709949139893962}
+      addedObject: {fileID: 1253041623110171898}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -626,6 +626,8 @@ MonoBehaviour:
     Prefab: {fileID: 5600285032884238694, guid: a090140601ba787478135495df78d2d6, type: 3}
   - ItemId: black_sneakers
     Prefab: {fileID: 1507439274282442899, guid: b3e11f525e06f414d938d032c205cb80, type: 3}
+  - ItemId: worn_boots
+    Prefab: {fileID: 1564956193275732015, guid: b9799899091efc74a9ed81e277bc7f19, type: 3}
   - ItemId: glass_bottle
     Prefab: {fileID: 2456315277408525038, guid: 8ea76026d9a8adb46b21f48a2df38c49, type: 3}
   - ItemId: beer_bottle
@@ -1228,7 +1230,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &6609709949139893962
+--- !u!114 &1253041623110171898
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

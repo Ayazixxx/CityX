@@ -130,7 +130,11 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheBlackSneakers() => RenderThePair("BlackSneakers", "blacksneaker");
 
-        private static IEnumerator RenderThePair(string prefabName, string label)
+        /// <summary>The Worn Boots (2026-11-23, docs/WORN_BOOTS.md) with the Black Jeans, the same way: wornboots-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheWornBoots() => RenderThePair("WornBoots", "wornboots", "BlackJeans");
+
+        private static IEnumerator RenderThePair(string prefabName, string label, string trousers = "Khakis")
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
@@ -161,7 +165,7 @@ namespace CityX.Tests
                 new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
             player.GetComponent<PlayerInputReader>().enabled = false;
             var locomotion = player.GetComponent<PlayerLocomotion>();
-            foreach (string worn in new[] { prefabName, "Khakis" })
+            foreach (string worn in new[] { prefabName, trousers })
             {
                 Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{worn}.prefab"),
                     new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity).GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);
