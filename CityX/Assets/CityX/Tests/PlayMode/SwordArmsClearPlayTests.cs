@@ -255,7 +255,9 @@ namespace CityX.Tests
                         }
                     }
                     string which = pass == 0 ? "light chain" : pass == 1 ? "heavy" : pass == 2 ? "first light at a walk" : pass == 3 ? "running attack" : "light chain at a walk";
-                    if (pass >= 2 && pass <= 3 && (lastThrown == combat.LightAttack(0).Animation) != (pass == 2)) failures.Add($"{weapon} {which}: {lastThrown} was thrown");
+                    // (At a sprint, the weapon's running attack; a staff has none and opens with its chop: owner, 2026-11-23.)
+                    string expected = pass == 2 ? combat.LightAttack(0).Animation : combat.OpenerAt(locomotion.SprintSpeed).Animation;
+                    if (pass >= 2 && pass <= 3 && lastThrown != expected) failures.Add($"{weapon} {which}: {lastThrown} was thrown, not {expected}");
                     report.AppendLine($"{weapon} {which}: arms clear the torso by {worstTorso * 100.0f:0} cm at the least ({torsoWhen}), the wrists by {worstHand * 100.0f:0} cm ({handWhen}), the head by {worstHead * 100.0f:0} cm ({headWhen})");
                     if (!clipHeld) failures.Add($"{weapon} {which}: the attack's clip never held the body");
                     if (worstTorso < -SwingTouch) failures.Add($"{weapon} {which}: an arm is {-worstTorso * 100.0f:0.0} cm inside the torso ({torsoWhen})");

@@ -8,8 +8,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// THE BO STAFF (owner, 2026-11-19, with a clip of a staff fighter: "make copy these movements as best you can", its opening spin "maybe that will
-    /// be the heavy hold click attack"; "make the model just a basic metal pole"; docs/BO_STAFF.md): its five attacks and their clips, the chain of three, the running
-    /// thrust keeping its line, the pole's far end off the ground through every attack, the chop and the level sweep landing straight ahead, and the built pole.
+    /// be the heavy hold click attack"; "make the model just a basic metal pole"; docs/BO_STAFF.md): its four attacks and their clips, the chain of three (opened with the chop at a
+    /// sprint too: no thrust), the pole's far end off the ground through every attack, the chop and the level sweep landing straight ahead, and the built pole.
     /// </summary>
     public sealed class BoStaffTests
     {
@@ -27,7 +27,6 @@ namespace CityX.Tests
         private static readonly SwordStrikeKind[] Staff =
         {
             SwordStrikeKind.StaffChop, SwordStrikeKind.StaffSweep, SwordStrikeKind.StaffRising, SwordStrikeKind.StaffSpin,
-            SwordStrikeKind.StaffRun,
         };
 
         /// <summary>The far end, from the frame's wrist along the pole, in the body's standing frame lowered by the frame's sink, metres.</summary>
@@ -35,7 +34,7 @@ namespace CityX.Tests
             SwordStrikes.HandPoint(frame) + frame.Blade * (StaffRules.Tip + SwordWeapon.DefaultPrimaryGripDown) + Vector3.down * frame.HipDrop;
 
         [Test]
-        public void FiveAttacksEachWithItsClipTheSpinTheHeavyAndTheThrustOnTheRun()
+        public void FourAttacksEachWithItsClipAndTheSpinTheHeavy()
         {
             foreach (SwordStrikeKind kind in Staff)
             {
@@ -46,28 +45,10 @@ namespace CityX.Tests
             }
             Assert.IsTrue(SwordStrikes.IsHeavy(SwordStrikeKind.StaffSpin), "the spin (the clip's opening blow) is not the heavy");
             Assert.Greater(SwordStrikes.TimingOf(SwordStrikeKind.StaffSpin).Hold, 0.25f, "the heavy is not held wound up long enough to read");
-            Assert.AreEqual(SwordStrikeKind.StaffRun, SwordStrikes.StaffOpenerFor(7.5f));
-            Assert.AreEqual(SwordStrikeKind.StaffChop, SwordStrikes.StaffOpenerFor(4.0f));
-            Assert.IsTrue(SwordStrikes.IsRunningAttack(SwordStrikeKind.StaffRun));
-            Assert.AreEqual(0.0f, SwordStrikes.StepMetres(SwordStrikeKind.StaffRun));
         }
 
         [Test]
-        public void TheRunningThrustGoesStraightOutAndKeepsItsLine()
-        {
-            SwordStrikes.StrikeTiming timing = SwordStrikes.TimingOf(SwordStrikeKind.StaffRun);
-            float held = (timing.WindUp + timing.Hold) / timing.Total, contact = timing.Contact / timing.Total;
-            SwordFrame from = SwordStrikes.Evaluate(SwordStrikeKind.StaffRun, held), at = SwordStrikes.Evaluate(SwordStrikeKind.StaffRun, contact);
-            Assert.AreEqual(1.0f, at.HoldsItsLine, "the thrust turns with the clip's shoulders: its long end would swing sideways");
-            Assert.Greater(at.Blade.z, 0.95f, "at the contact the pole does not point straight ahead");
-            Vector3 travel = FarEnd(at) - FarEnd(from);
-            TestContext.WriteLine($"the far end went out {travel.z:0.00} m");
-            Assert.Greater(travel.z, 0.2f, "the far end hardly went out from the body (the run carries it on besides)");
-            Assert.Less(Mathf.Abs(travel.x), 0.25f, "the far end went out sideways, not straight");
-        }
-
-        [Test]
-        public void TheChainIsThreeBlowsWithNoThrust()
+        public void TheChainIsThreeBlowsWithNoThrustAndASprintOpensItWithTheChop()
         {
             var go = new GameObject("Staff");
             try
@@ -79,6 +60,14 @@ namespace CityX.Tests
                 Assert.AreEqual(SwordStrikes.StaffSweepName, combat.LightAttack(1).Animation);
                 Assert.AreEqual(SwordStrikes.StaffRisingName, combat.LightAttack(2).Animation);
                 Assert.IsTrue(combat.LightAttack(2).LandsHeavily && combat.LightAttack(2).KnocksDown, "the rising blow does not end the chain");
+                // Owner, 2026-11-23: "when your sprinting and attack with the metalpole it still does a stabbing animation ... make it do the normal
+                // click swing. there should be no stabbing animation with the pole".
+                Assert.AreEqual(SwordStrikes.StaffChopName, combat.OpenerAt(SwordStrikes.RunOpenerFromSpeed + 1.0f).Animation, "at a sprint it does not open with the chop");
+                Assert.AreEqual(SwordStrikes.StaffChopName, combat.OpenerAt(0.0f).Animation);
+                foreach (SwordStrikeKind kind in SwordStrikes.All)
+                {
+                    Assert.IsFalse(SwordStrikes.IsStaff(kind) && SwordStrikes.IsRunningAttack(kind), kind + " is a running attack of the staff's");
+                }
             }
             finally
             {

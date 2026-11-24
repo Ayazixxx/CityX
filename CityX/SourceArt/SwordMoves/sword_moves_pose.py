@@ -278,7 +278,7 @@ ATTACKS.update({
 # Owner, 2026-11-19, with a clip of a staff fighter: "make copy these movements as best you can", its first spinning swing "maybe that will be the heavy hold click attack but
 # the rest looks pretty good" (docs/BO_STAFF.md). A staff is swung from the hips with both hands, low and wide, the body turning right round through each blow: a chop
 # from over the right shoulder, a level backhand sweep at the middle, and a rising blow from low on the right up past the left shoulder that ends the chain (owner, 2026-11-22: the lunging thrust cut); the
-# heavy is wound right round to the right, held, and let go flat round the front. As for every cut, the contacts' twists are SwordStrikes' own; the running thrust's keys all are.
+# heavy is wound right round to the right, held, and let go flat round the front. As for every cut, the contacts' twists are SwordStrikes' own.
 READY_STAFF = key(twist=14.0, hips=8.0, lean=5.0, drop=0.10)
 ATTACKS.update({
     # THE CHOP: up over the right shoulder, the body coiled and leaning back, then down through the front with a stride, square to the enemy at the
@@ -330,20 +330,10 @@ ATTACKS.update({
         right=[(0.95, 1.20, (STANCE_X, 0.40), 0.06)],
         ready=READY_STAFF, two_handed=True,
         rising=(0.18, key(twist=40.0, hips=18.0, lean=-4.0, drop=0.12, shift=(0.04, -0.05)))),
-    # THE RUNNING ATTACK: the thrust on the run (the legs are the run's own).
-    "staff_run": attack(
-        (0.25, 0.06, 0.06, 0.05, 0.14, 0.42), 0.0,
-        key(twist=40.0, hips=20.0, lean=8.0, drop=0.03),
-        key(twist=42.0, hips=21.0, lean=7.0, drop=0.02),
-        key(twist=6.0, hips=-6.0, lean=28.0, tilt=2.0, drop=0.14, chin=4.0, staged=True),
-        key(twist=2.0, hips=-8.0, lean=30.0, tilt=2.0, drop=0.14, chin=4.0),
-        key(twist=16.0, hips=6.0, lean=14.0, drop=0.08),
-        left=[], right=[],
-        ready=READY_STAFF, two_handed=True),
 })
 ORDER_OF_ATTACKS = ("sword1h_slash", "sword1h_cut", "sword1h_finisher", "sword1h_overhead", "sword2h_sweep", "sword2h_reverse", "sword2h_cut", "sword2h_smash", "sword2h_slam",
                     "sword1h_run", "sword2h_run", "spear_jab", "spear_thrust", "spear_lunge", "spear_sweep", "spear_run",
-                    "staff_chop", "staff_sweep", "staff_rising", "staff_spin", "staff_run")
+                    "staff_chop", "staff_sweep", "staff_rising", "staff_spin")
 
 # What the game is given: no arm bone (the game's own poses have the arms).
 EXPORTED_BONES = ("hips", "spine", "neck", "head", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r")

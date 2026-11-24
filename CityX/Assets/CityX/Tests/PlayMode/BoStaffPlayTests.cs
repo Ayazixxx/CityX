@@ -11,7 +11,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// THE BO STAFF ON THE REAL BODY (owner, 2026-11-19; docs/BO_STAFF.md): carried upright in both hands; swung with both hands near the end, reaching further than a sword; the chain is the chop, the low sweep and the rising blow (owner, 2026-11-22: the thrust cut), the held click
-    /// the spin; the rising blow and the spin throw a player down; and another player's copy swings it (the running thrust) when told the attack's name.
+    /// the spin; the rising blow and the spin throw a player down; and another player's copy swings it (the chop) when told the attack's name.
     /// </summary>
     public sealed class BoStaffPlayTests
     {
@@ -261,7 +261,7 @@ namespace CityX.Tests
             Animator animator = _body.GetComponentInChildren<Animator>();
             yield return Frames(50, true);
             Assert.AreEqual(animator.GetBoneTransform(HumanBodyBones.RightHand), _staff.transform.parent, "the copy does not hold the staff");
-            _body.GetComponent<PlayerAnimationDriver>().PlayRemoteState(SwordStrikes.StaffRunName);
+            _body.GetComponent<PlayerAnimationDriver>().PlayRemoteState(SwordStrikes.StaffChopName);
             float furthest = float.MinValue, nearestHand = float.MaxValue;
             bool struck = false;
             for (int i = 0; i < 150 && (poser.IsStriking || i < 3); i++)
@@ -270,7 +270,7 @@ namespace CityX.Tests
                 if (poser.IsStriking)
                 {
                     struck = true;
-                    Assert.AreEqual(SwordStrikeKind.StaffRun, poser.Kind);
+                    Assert.AreEqual(SwordStrikeKind.StaffChop, poser.Kind);
                     furthest = Mathf.Max(furthest, TipInBody.z);
                     if (poser.Progress > 0.3f && poser.Progress < 0.55f)
                     {
@@ -278,9 +278,9 @@ namespace CityX.Tests
                     }
                 }
             }
-            Assert.IsTrue(struck, "the copy did not play the thrust");
-            Assert.Greater(furthest, 2.0f, "the copy's thrust did not reach out");
-            Assert.Less(nearestHand, 0.09f, "the copy's left hand is not on the pole for the thrust");
+            Assert.IsTrue(struck, "the copy did not play the chop");
+            Assert.Greater(furthest, 2.0f, "the copy's chop did not reach out");
+            Assert.Less(nearestHand, 0.09f, "the copy's left hand is not on the pole for the chop");
 #else
             yield break;
 #endif

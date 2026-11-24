@@ -45,9 +45,10 @@ namespace CityX.Tests
                 if (SwordStrikes.IsOneHanded(kind)) oneHanded++;
             }
             // Each hold: its lights, its heavy and its running attack (the one-handed has the knife's thrust besides; the two-handed, the hammer's smash);
-            // the spear's five and the bo staff's five, posed with both hands on them; and the chain's four, thrown with one.
+            // the spear's five and the bo staff's four (no running attack: it opens with its chop at a sprint), posed
+            // with both hands on them; and the chain's four, thrown with one.
             Assert.AreEqual(10, oneHanded);
-            Assert.AreEqual(26, SwordStrikes.All.Length);
+            Assert.AreEqual(25, SwordStrikes.All.Length);
             Assert.AreEqual(SwordStrikeKind.Slash1H, SwordStrikes.All[0]);
         }
 
@@ -424,7 +425,7 @@ namespace CityX.Tests
             // is moving across itself -- the spikes arrive first, never the flat or the back. (Not the thrust: it leads with its point.)
             foreach (SwordStrikeKind kind in SwordStrikes.All)
             {
-                if (kind == SwordStrikeKind.Thrust1H || (SwordStrikes.IsSpear(kind) && !SwordStrikes.IsHeavy(kind)) || SwordStrikes.IsStaffThrust(kind))   // (nor a spear's or a staff's thrusts)
+                if (kind == SwordStrikeKind.Thrust1H || (SwordStrikes.IsSpear(kind) && !SwordStrikes.IsHeavy(kind)))   // (nor a spear's thrusts)
                 {
                     continue;
                 }

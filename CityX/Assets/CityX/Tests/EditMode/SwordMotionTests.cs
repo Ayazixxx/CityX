@@ -27,7 +27,7 @@ namespace CityX.Tests
         };
 
         /// <summary>The running attacks: thrown only at a sprint, so only their torso and head are ever played (the legs are the run's).</summary>
-        private static readonly SwordStrikeKind[] Running = { SwordStrikeKind.Run1H, SwordStrikeKind.Run2H, SwordStrikeKind.SpearRun, SwordStrikeKind.StaffRun };
+        private static readonly SwordStrikeKind[] Running = { SwordStrikeKind.Run1H, SwordStrikeKind.Run2H, SwordStrikeKind.SpearRun };
 
         private static readonly SwordStrikeKind[] WithClips = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(Standing, Running));
 
@@ -209,7 +209,7 @@ namespace CityX.Tests
                 Joints(motion, kind, followed, out Dictionary<string, Quaternion> through);
                 bool overhead = kind == SwordStrikeKind.Overhead1H || kind == SwordStrikeKind.Smash2H || kind == SwordStrikeKind.Slam2H;
                 // A spear's thrust is not a turn of the body: the fighter stays side on and the weight goes along the shaft (docs/SPEAR.md).
-                bool thrust = (SwordStrikes.IsSpear(kind) && kind != SwordStrikeKind.SpearSweep) || SwordStrikes.IsStaffThrust(kind);
+                bool thrust = SwordStrikes.IsSpear(kind) && kind != SwordStrikeKind.SpearSweep;
                 if (thrust)
                 {
                     float opened = Mathf.DeltaAngle(YawOf(through["spine"]), YawOf(coiled["spine"]));

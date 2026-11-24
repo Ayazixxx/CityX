@@ -353,7 +353,8 @@ namespace CityX.Character
         public SoulsAttack SpearRunAttack = SoulsAttack.FromStrike(SwordStrikeKind.SpearRun, 0.45f, 20.0f, 1.50f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.SpearRun), 28.0f, false);
 
         // THE BO STAFF (StaffRules, docs/BO_STAFF.md): a chain of three from the owner's clip, each a little lighter than a greatsword's (a pole, blunt) and
-        // reaching further; the third, the rising blow, and the heavy, the spin, throw whoever they land on down; at a sprint, the thrust. My numbers.
+        // reaching further; the third, the rising blow, and the heavy, the spin, throw whoever they land on down. At a sprint it opens with the chop
+        // too (owner, 2026-11-23: "there should be no stabbing animation with the pole"). My numbers.
         [Header("Bo staff light chain (left click)")]
         public SoulsAttack StaffLight1 = SoulsAttack.FromStrike(SwordStrikeKind.StaffChop, 0.35f, 18.0f, 1.10f, 0.55f, SwordStrikes.StepMetres(SwordStrikeKind.StaffChop), 22.0f, false);
         public SoulsAttack StaffLight2 = SoulsAttack.FromStrike(SwordStrikeKind.StaffSweep, 0.35f, 18.0f, 1.05f, 0.55f, SwordStrikes.StepMetres(SwordStrikeKind.StaffSweep), 22.0f, false);
@@ -361,8 +362,6 @@ namespace CityX.Character
 
         [Header("Bo staff heavy (held left click): the spin")]
         public SoulsAttack StaffHeavy = SoulsAttack.AsKnockdown(SoulsAttack.FromStrike(SwordStrikeKind.StaffSpin, 0.55f, 36.0f, 2.00f, 0.95f, SwordStrikes.StepMetres(SwordStrikeKind.StaffSpin), 55.0f, true));
-
-        public SoulsAttack StaffRunAttack = SoulsAttack.FromStrike(SwordStrikeKind.StaffRun, 0.45f, 20.0f, 1.50f, 0.60f, SwordStrikes.StepMetres(SwordStrikeKind.StaffRun), 28.0f, false);
 
         // THE CHAIN (ChainRules, docs/CHAIN.md): two lashes, back and forth for as long as the clicks come (the reference's swings never end in a
         // finisher), each a little lighter than a one-handed sword's cut but from much further away, stunning as long as the next takes to arrive;
@@ -617,7 +616,7 @@ namespace CityX.Character
 
         /// <summary>
         /// The light that opens an attack with the body going forward at <paramref name="forwardSpeed"/> m/s: the chain's first cut, or at a
-        /// sprint the running attack (SwordStrikes.OpenerFor). A knife has the one.
+        /// sprint the running attack (SwordStrikes.OpenerFor). A knife, a chain and a staff have the one.
         /// </summary>
         public SoulsAttack OpenerAt(float forwardSpeed)
         {
@@ -627,7 +626,7 @@ namespace CityX.Character
             }
             if (_staff)
             {
-                return SwordStrikes.StaffOpenerFor(forwardSpeed) == SwordStrikeKind.StaffRun ? StaffRunAttack : StaffLight1;
+                return StaffLight1;
             }
             if (_spear)
             {

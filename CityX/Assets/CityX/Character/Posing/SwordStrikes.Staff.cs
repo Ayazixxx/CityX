@@ -9,8 +9,9 @@ namespace CityX.Character
     /// half metre as on a bat (StaffRules), the two-handed blades' hold. The chain of three: a chop from over the right shoulder, a level backhand
     /// sweep at the middle (both aimed straight ahead: owner, 2026-11-22), and a rising blow from low on the right up past the left shoulder
     /// (owner, 2026-11-22: the lunging thrust that was third "just looks bad", cut); the heavy is the clip's opening spin, wound right round to the
-    /// right, held, and let go flat round the front. Every contact's twist is the clip's own (SourceArt/SwordMoves), and the running thrust's
-    /// keys all are (it keeps its line, as a spear's does). The pole is 1.85 m past the fist: the low blows' keys keep its far end off the ground.
+    /// right, held, and let go flat round the front. No attack stabs (owner, 2026-11-23: "there should be no stabbing animation with the pole"): at a
+    /// sprint the chain opens with the chop, as it does standing. Every contact's twist is the clip's own (SourceArt/SwordMoves). The pole is
+    /// 1.85 m past the fist: the low blows' keys keep its far end off the ground.
     /// </summary>
     public static partial class SwordStrikes
     {
@@ -18,17 +19,9 @@ namespace CityX.Character
         public const string StaffSweepName = "staff_sweep";
         public const string StaffRisingName = "staff_rising";
         public const string StaffSpinName = "staff_spin";
-        public const string StaffRunName = "staff_run";
 
         /// <summary>A bo staff's attack.</summary>
-        public static bool IsStaff(SwordStrikeKind kind) => kind >= SwordStrikeKind.StaffChop && kind <= SwordStrikeKind.StaffRun;
-
-        /// <summary>The staff's thrust, the running attack: straight out along the pole and stopped, keeping its line under the clip.</summary>
-        public static bool IsStaffThrust(SwordStrikeKind kind) => kind == SwordStrikeKind.StaffRun;
-
-        /// <summary>The staff's first light for a body going forward at <paramref name="forwardSpeed"/> m/s: the chop, or at a sprint the running thrust.</summary>
-        public static SwordStrikeKind StaffOpenerFor(float forwardSpeed) =>
-            forwardSpeed >= RunOpenerFromSpeed ? SwordStrikeKind.StaffRun : SwordStrikeKind.StaffChop;
+        public static bool IsStaff(SwordStrikeKind kind) => kind >= SwordStrikeKind.StaffChop && kind <= SwordStrikeKind.StaffSpin;
 
         /// <summary>
         /// The chop's plane: from over the right shoulder down across the front to the lower left, holding the straight-ahead, so the blow lands on
@@ -114,19 +107,6 @@ namespace CityX.Character
                         lean: 10.0f, tilt: -2.0f, drop: 0.16f, lead: -1.0f, depth: 0.65f, reach: 1.0f), new Vector3(-0.40f, 1.46f, 0.50f), -20.0f);
                     Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.55f, 1.44f, 0.30f), cut, 100.0f, elbow: 0.40f, twist: 56.0f, hips: 42.0f,
                         lean: 8.0f, tilt: 0.0f, drop: 0.15f, lead: -1.0f, depth: 0.60f, reach: 0.6f);
-                    return Assemble(kind, StaffReadyKey, windup, contact, follow);
-                }
-                case SwordStrikeKind.StaffRun:
-                {
-                    // THE RUNNING THRUST: the fists drawn in to the right hip (in front of it: the left arm cannot reach behind it without crossing the
-                    // chest) with the pole level at the enemy, then everything driven out along it, the body stretched low over the run; it stops where it
-                    // lands. The key's edge is the side the forearm comes from (the two-handed keys' rule).
-                    Key windup = Pose(0.0f, Ease.Smooth, new Vector3(0.34f, 1.38f, 0.40f), new Vector3(-0.10f, 0.10f, 0.99f), new Vector3(-0.5f, -0.85f, 0.1f),
-                        elbow: 0.35f, twist: 40.0f, hips: 20.0f, lean: -4.0f, tilt: 0.0f, drop: 0.14f, lead: -1.0f, depth: 0.42f);
-                    Key contact = Pose(0.0f, Ease.Snap, new Vector3(0.22f, 1.47f, 0.68f), new Vector3(-0.08f, 0.06f, 0.995f), new Vector3(-0.9f, -0.4f, 0.0f),
-                        elbow: 0.60f, twist: 6.0f, hips: -6.0f, lean: 18.0f, tilt: 2.0f, drop: 0.24f, lead: -1.0f, depth: 0.85f, reach: 1.0f);
-                    Key follow = Pose(0.0f, Ease.SlowIn, new Vector3(0.22f, 1.46f, 0.72f), new Vector3(-0.08f, 0.06f, 0.995f), new Vector3(-0.9f, -0.4f, 0.0f),
-                        elbow: 0.60f, twist: 2.0f, hips: -8.0f, lean: 20.0f, tilt: 2.0f, drop: 0.25f, lead: -1.0f, depth: 0.85f, reach: 0.6f);
                     return Assemble(kind, StaffReadyKey, windup, contact, follow);
                 }
                 case SwordStrikeKind.StaffRising:
