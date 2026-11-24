@@ -351,3 +351,4 @@ MonoBehaviour:
   _ownHold: 1
   _ownHoldPosition: {x: 0.13267833, y: -0.072, z: 0.084999956}
   _ownHoldEuler: {x: 270, y: 211.78838, z: 0}
+  _supportPalmOffset: {x: 0, y: 0, z: 0}

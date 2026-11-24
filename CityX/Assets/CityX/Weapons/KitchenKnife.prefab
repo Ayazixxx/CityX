@@ -293,6 +293,7 @@ MonoBehaviour:
   _ownHold: 1
   _ownHoldPosition: {x: 0.109, y: -0.04, z: 0.17}
   _ownHoldEuler: {x: -85.6, y: -5.15, z: -178.1}
+  _supportPalmOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &7930883742021837047
 GameObject:
   m_ObjectHideFlags: 0

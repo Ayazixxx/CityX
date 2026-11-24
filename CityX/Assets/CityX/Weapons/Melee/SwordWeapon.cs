@@ -247,6 +247,14 @@ namespace CityX.Weapons
             _ownHoldEuler = euler;
         }
 
+        /// <summary>
+        /// Where the left palm goes on this weapon, off the shared support point, in its own space: a board is no round handle, and the palm on its
+        /// line went into the wood (the wood plank's, WoodPlankShape.SupportPalmOffset).
+        /// </summary>
+        [SerializeField] private Vector3 _supportPalmOffset;
+
+        public Vector3 SupportPalmOffset { get => _supportPalmOffset; set => _supportPalmOffset = value; }
+
         /// <summary>The edge of the sword the saved one-handed hold was set on: the combat sword's, +X (the owner's hold, 2026-10-17).</summary>
         public const bool SavedOneHandHoldEdgeOnPlusX = true;
 
@@ -382,7 +390,7 @@ namespace CityX.Weapons
             transform.localRotation = HoldRotation;
             if (_leftHandGrip != null)
             {
-                _leftHandGrip.localPosition = _spear ? Vector3.zero : SupportPoint;   // a spear's front hand slides up the shaft from the rear one
+                _leftHandGrip.localPosition = _spear ? Vector3.zero : SupportPoint + _supportPalmOffset;   // a spear's front hand slides up the shaft from the rear one
             }
         }
 

@@ -24,6 +24,7 @@ namespace CityX.Items
             // The owner's list.
             [ItemRegistry.MetalCrowbar] = Rarity.Common,
             [ItemRegistry.BaseballBat] = Rarity.Common,
+            [ItemRegistry.WoodPlank] = Rarity.Common,   // the owner's: one of the lowest two-handed weapons
             [ItemRegistry.Sledgehammer] = Rarity.Common,   // not on GAME_DESIGN's list: my placement, beside the bat
             [ItemRegistry.Spear] = Rarity.Common,   // my placement too
             [ItemRegistry.BoStaff] = Rarity.Common,   // a metal pole: my placement

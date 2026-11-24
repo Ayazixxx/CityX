@@ -127,6 +127,7 @@ namespace CityX.Weapons
             {
                 case ItemRegistry.MetalCrowbar: return "Crowbar";
                 case ItemRegistry.BaseballBat: return "Bat";
+                case ItemRegistry.WoodPlank: return "Plank";
                 case ItemRegistry.Sledgehammer: return "Hammer";
                 case ItemRegistry.Spear: return "Spear";
                 case ItemRegistry.BoStaff: return "Staff";

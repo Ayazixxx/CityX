@@ -40,6 +40,7 @@ namespace CityX.Items
         public const string MetalCrowbar = "metal_crowbar";
         public const string Machete = "machete";
         public const string BaseballBat = "baseball_bat";
+        public const string WoodPlank = "wood_plank";
         public const string Sledgehammer = "sledgehammer";
 
         public const string Spear = "spear";
@@ -174,6 +175,7 @@ namespace CityX.Items
             [MetalCrowbar] = new ItemDefinition(MetalCrowbar, "Metal Crowbar", "weapon", EquipSlots.Primary, 1),
             [Machete] = new ItemDefinition(Machete, "Machete", "weapon", EquipSlots.Primary, 1),
             [BaseballBat] = new ItemDefinition(BaseballBat, "Baseball Bat", "weapon", EquipSlots.Primary, 1),
+            [WoodPlank] = new ItemDefinition(WoodPlank, "Wood Plank", "weapon", EquipSlots.Primary, 1),
             // Two-handed and blunt: the greatsword's moves, with an overhead smash for its third light (owner, 2026-11-05).
             [Sledgehammer] = new ItemDefinition(Sledgehammer, "Sledgehammer", "weapon", EquipSlots.Primary, 1),
             // The spear (2026-11-18, docs/SPEAR.md): thrusts, a sweep for the heavy, beside a shield or in both hands. Character/SpearRules.

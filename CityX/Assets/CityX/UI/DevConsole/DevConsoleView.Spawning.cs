@@ -416,6 +416,10 @@ namespace CityX.UI
                 case "bat":
                 case "baseballbat":
                 case "baseball_bat": return ItemRegistry.BaseballBat;
+                case "plank":
+                case "woodplank":
+                case "wood_plank":
+                case "2x4": return ItemRegistry.WoodPlank;
                 case "sledge":
                 case "hammer":
                 case "sledgehammer": return ItemRegistry.Sledgehammer;

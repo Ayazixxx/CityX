@@ -81,6 +81,7 @@ MonoBehaviour:
   _ownHold: 0
   _ownHoldPosition: {x: 0, y: 0, z: 0}
   _ownHoldEuler: {x: 0, y: 0, z: 0}
+  _supportPalmOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &6235071288515742317
 GameObject:
   m_ObjectHideFlags: 0

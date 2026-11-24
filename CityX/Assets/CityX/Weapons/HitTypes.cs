@@ -32,6 +32,7 @@ namespace CityX.Weapons
             // Two-handed melee
             [ItemRegistry.SpikeSword] = "Slash",
             [ItemRegistry.BaseballBat] = "Blunt",
+            [ItemRegistry.WoodPlank] = "Blunt",
             [ItemRegistry.Sledgehammer] = "Blunt",
             [ItemRegistry.Spear] = "Pierce (heavy sweep: Slash)",
             [ItemRegistry.BoStaff] = "Blunt",

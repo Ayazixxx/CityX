@@ -56,6 +56,13 @@ namespace CityX.Tests
             yield return RenderTheAttacksOf(new[] { ("machete", "Assets/CityX/Weapons/Machete.prefab") });
         }
 
+        /// <summary>The wood plank alone (docs/WOOD_PLANK.md): strike-plank-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheWoodPlankAttacks()
+        {
+            yield return RenderTheAttacksOf(new[] { ("plank", "Assets/CityX/Weapons/WoodPlank.prefab") });
+        }
+
         /// <summary>The spear alone (docs/SPEAR.md): strike-spear-*.png.</summary>
         [UnityTest]
         public IEnumerator RenderTheSpearAttacks()
