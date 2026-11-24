@@ -421,7 +421,17 @@ The owner's design for the surface city's homeless people:
 - **Many looks:** the owner designs a bunch in the character creator (started with Hobo1) for a wide variety; each wears a **random outfit** from a selection of clothing items the owner will pick later.
 - **Random weapons, low level for the most part:** glass bottles, bricks, knives, wrenches and the like, but **sometimes better stuff**, so they are a way to farm items and XP "if you dont mind the negative karma from killing innocents".
 - **Not hostile until struck.** Other hobos **join in, until a gun or offensive magic is used: then they get scared and run.**
-- **If you don't want to kill them:** still being thought about; maybe trading with them.
+- **If you don't want to kill them: talk, trade, befriend, recruit** (owner, 2026-11-24):
+  - **Dialogue, then trade, like Skyrim:** walk up and talk; one of the choices asks to trade. **The owner writes the dialogue lines**, many of them, so it feels fresh.
+  - **Giving is part of trading:** a one-sided trade the hobo obviously wins (food, for example) is **+karma** and **a better relationship with that hobo**, worked toward **recruiting him**.
+  - **A recruited hobo stays at your base** (the followers' rule below: never part of the fighting meta). There he:
+    - **regenerates a few empty glass bottles every day**, which he can throw or trade to you;
+    - **scavenges**;
+    - **defends the base**;
+    - gives **street tips**;
+    - **can have his weapon swapped**, as Skyrim's followers: trade him something stronger and take his weak default weapon;
+    - **does not run from guns** once recruited.
+  - My suggestions, not decided: each hobo keeps a relationship score per player (lopsided trades raise it, robbing or hitting him drops it hard), with steps (greets you, better trades, recruitable); item values from rarity, to tell a lopsided trade; a hobo with any relationship becomes a lasting character the server saves (look, weapon, score) who stays round his spot instead of being taken away as mobs are; besides Trade, a Rob/intimidate choice (karma down) and Ask around (rumours: sewer entrances, loot); a recruit's scavenging bringing a random low-tier item, rarely a good one; at the base, a lookout who shouts when enemies or players come near. Open: barter, money, or both.
 - **They remember** (owner, same day): once your karma is **halfway to the most evil** (owner, same day: the karma levels above), or you have killed a lot of hobos, **they turn hostile and attack you on sight**. Decided (owner, same day): **only towards that player** (others online still find them neutral); it does not wear off by itself: **positive karma has to be earned** to turn them back; **hostile hobos still run from guns** (and offensive magic). **About 15% of hobos are not scared of guns or magic** (owner, same day): they stand and fight.
 
 My suggestions for building them, not decided: looks copied from the owner's Hobo characters in the creator (as Old Guy's is); a weighted weapon table with what a hobo holds being exactly what drops (a visibly rare weapon is a temptation); the brick and wrench as items on existing movesets (thrown like the bottle; the crowbar's moves); the swordsman's brain tuned weaker; outdoors on the surface only, with their own small budget beside the monsters'; killing one who did not strike first is a murder for karma (the first thing to feed it).
