@@ -93,6 +93,7 @@ namespace CityX.Items
             [ItemRegistry.MidnightCoat] = Rarity.Rare,
             [ItemRegistry.GreenFurHoodedParka] = Rarity.Rare,   // the owner's: "make it blue rarity"
             [ItemRegistry.MaroonFurHoodedParka] = Rarity.Rare,   // the owner's: "same blue rarity level"
+            [ItemRegistry.BrownCoat] = Rarity.Uncommon,   // my placement: a plain cloth coat, under the parkas
             [ItemRegistry.FireballStaff] = Rarity.Rare,
             [ItemRegistry.IceShardStaff] = Rarity.Rare,
             [ItemRegistry.ArcaneBeamStaff] = Rarity.Rare,

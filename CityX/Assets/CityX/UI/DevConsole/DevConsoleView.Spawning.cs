@@ -361,6 +361,9 @@ namespace CityX.UI
                 case "maroonparka":
                 case "maroon_parka":
                 case "maroon_fur_hooded_parka": return ItemRegistry.MaroonFurHoodedParka;
+                case "browncoat":
+                case "hoodedcoat":
+                case "brown_coat": return ItemRegistry.BrownCoat;
                 case "tshirt":
                 case "t_shirt":
                 case "shirt": return ItemRegistry.TShirt;

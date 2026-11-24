@@ -193,6 +193,17 @@ namespace CityX.UI
         }
 
         /// <summary>
+        /// /hoodon and /hoodoff (owner, 2026-11-23: "if you type /hoodon in the text chat not the console command chat, then it turns into the hood
+        /// on version"): true for either, <paramref name="up"/> which. The same rule as IsClaimCommand.
+        /// </summary>
+        public static bool IsHoodCommand(string text, out bool up)
+        {
+            string command = text?.Trim().ToLowerInvariant();
+            up = command == "/hoodon";
+            return up || command == "/hoodoff";
+        }
+
+        /// <summary>
         /// Same normalization rule as IsClaimCommand, for /sleep -- a diagnostic,
         /// not a real feature: Requested, "make it so if you press enter and
         /// open text chat and type '/sleep' the character just goes limp and
@@ -224,6 +235,14 @@ namespace CityX.UI
             if (IsPushUpsCommand(text))
             {
                 InputReader?.StartPushUps();
+                return;
+            }
+            if (IsHoodCommand(text, out bool hoodUp))
+            {
+                if (InputReader != null && InputReader.TryGetComponent(out HoodSync hood))
+                {
+                    hood.SetHood(hoodUp);
+                }
                 return;
             }
             if (IsSleepCommand(text))

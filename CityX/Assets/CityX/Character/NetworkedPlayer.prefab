@@ -164,6 +164,9 @@ PrefabInstance:
       addedObject: {fileID: 8019551475507903044}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 3535952687783996376}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 1793043998850541404}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -209,7 +212,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1253041623110171898}
+      addedObject: {fileID: 1767968714720187176}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -592,6 +595,8 @@ MonoBehaviour:
     Prefab: {fileID: 421418391853620305, guid: d04d3922e6fe52e479173ef36096c59f, type: 3}
   - ItemId: maroon_fur_hooded_parka
     Prefab: {fileID: 8457966476011097981, guid: e7199bcec43dbb64bb1439993ee538eb, type: 3}
+  - ItemId: brown_coat
+    Prefab: {fileID: 9128724279061053278, guid: ac34e2c6cb7999b4fb522edee0f9c978, type: 3}
   - ItemId: t_shirt
     Prefab: {fileID: 3717271276691646498, guid: f0b4700e8a9d5314bbe35feb52b50c30, type: 3}
   - ItemId: blood_raven_t_shirt
@@ -1028,6 +1033,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d96f37b9067f83c4ab771d0cf5b0edab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.FlashlightSync
+--- !u!114 &3535952687783996376
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d208d947ea252974986e2498d13c1a8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.HoodSync
 --- !u!114 &1793043998850541404
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1230,7 +1247,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &1253041623110171898
+--- !u!114 &1767968714720187176
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

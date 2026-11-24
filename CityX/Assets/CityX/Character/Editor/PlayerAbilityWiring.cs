@@ -117,6 +117,7 @@ namespace CityX.CharacterEditor
             // --- the Fire Enhancement, the flashlight's word to other players, and the Frost Staff's spray (2026-10-29): drawn in code.
             GetOrAdd<FireEnhancementAbility>(player);
             GetOrAdd<FlashlightSync>(player);
+            GetOrAdd<HoodSync>(player);   // a worn hood up or down, told to other players (docs/BROWN_COAT.md)
             GetOrAdd<FrostSprayCaster>(player);
 
             // --- the Magic Wand's and the Magic Staff's speck of dust (2026-10-30, docs/MAGIC_WAND.md): drawn in code, its glows from the same light.

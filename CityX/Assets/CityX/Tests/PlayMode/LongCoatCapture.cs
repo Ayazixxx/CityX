@@ -32,7 +32,15 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderThePlayerInTheMaroonParkaOverTheStripedShirt() => Render("MaroonFurHoodedParka", "maroonparka-shirt", "RedStripedTShirt");
 
-        private static IEnumerator Render(string prefab, string shots, string shirtUnder = null)
+        /// <summary>The Brown Coat (docs/BROWN_COAT.md), hood down: browncoat-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderThePlayerInTheBrownCoat() => Render("BrownCoat", "browncoat", "TShirt");
+
+        /// <summary>The same with its hood up (/hoodon): browncoat-hood-*.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderThePlayerInTheBrownCoatHoodUp() => Render("BrownCoat", "browncoat-hood", "TShirt", hoodUp: true);
+
+        private static IEnumerator Render(string prefab, string shots, string shirtUnder = null, bool hoodUp = false)
         {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
@@ -50,6 +58,7 @@ namespace CityX.Tests
                 new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
             player.GetComponent<PlayerInputReader>().enabled = false;
             var locomotion = player.GetComponent<PlayerLocomotion>();
+            if (player.GetComponent<HoodSync>() == null) player.AddComponent<HoodSync>();
             var camera = new GameObject("Cam").AddComponent<Camera>();
             camera.fieldOfView = 30.0f;
             camera.clearFlags = CameraClearFlags.SolidColor;
@@ -63,6 +72,10 @@ namespace CityX.Tests
             GameObject coat = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{prefab}.prefab"),
                 new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
             coat.GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);
+            if (hoodUp)
+            {
+                player.GetComponent<HoodSync>().SetHood(true);
+            }
 
             for (int i = 0; i < 90; i++)
             {

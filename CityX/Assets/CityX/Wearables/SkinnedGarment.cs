@@ -237,6 +237,16 @@ namespace CityX.Wearables
             }
         }
 
+        /// <summary>Draws <paramref name="mesh"/> as this garment's worn skin in place of what it wore (a coat with its hood up for the same coat with it down).</summary>
+        protected void ShowWorn(Mesh mesh, Material material)
+        {
+            if (Combiner != null && mesh != null)
+            {
+                Combiner.Unregister(ItemId);
+                Combiner.Register(ItemId, mesh, material != null ? material : GarmentMaterial);
+            }
+        }
+
         /// <summary>Plain clothing carries no per-instance state.</summary>
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
     }
