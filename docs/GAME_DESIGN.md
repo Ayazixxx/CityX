@@ -425,7 +425,9 @@ The owner's design for the surface city's homeless people:
   - **Dialogue, then trade, like Skyrim:** walk up and talk; one of the choices asks to trade. **The owner writes the dialogue lines**, many of them, so it feels fresh.
   - **Giving is part of trading:** a one-sided trade the hobo obviously wins (food, for example) is **+karma** and **a better relationship with that hobo**, worked toward **recruiting him**.
   - **A recruited hobo stays at your base** (the followers' rule below: never part of the fighting meta). There he:
-    - **regenerates a few empty glass bottles every day**, which he can throw or trade to you;
+    - **regenerates 3 empty glass bottles every in-game day**, which he can throw or trade to you; and besides them, **each in-game day a
+      17% chance of a full PHIZZ bottle and a 19% chance of a PHIZZ can** (owner, 2026-11-24; read as two separate rolls, so a day can bring
+      both);
     - **scavenges**;
     - **defends the base**;
     - gives **street tips**;
