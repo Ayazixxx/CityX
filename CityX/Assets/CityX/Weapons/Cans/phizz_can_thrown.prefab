@@ -861,6 +861,7 @@ MonoBehaviour:
   ShatterAt: {fileID: 0}
   Splashes: 1
   SplashColour: {r: 0.93, g: 0.82, b: 0.18, a: 1}
+  Stains: 0
   LeftBehind: {fileID: 1890203667351238754, guid: 1e0c89b243500e949b1d1c83e4b02b28, type: 3}
   ImpactCharacterSound: {fileID: 0}
   ImpactTerrainSound: {fileID: 0}
