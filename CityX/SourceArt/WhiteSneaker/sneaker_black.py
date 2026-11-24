@@ -12,8 +12,8 @@ import numpy as np
 
 SOURCE, OUT = (os.path.abspath(a) for a in sys.argv[sys.argv.index("--") + 1:][:2])
 
-DARKEST = np.array([0.030, 0.030, 0.034])    # the white map's darkest becomes this (sRGB)
-LIGHTEST = np.array([0.150, 0.150, 0.160])   # and its white this
+DARKEST = np.array([0.022, 0.022, 0.025])    # the white map's darkest becomes this (sRGB)
+LIGHTEST = np.array([0.115, 0.115, 0.123])   # and its white this (a tad darker than first made: owner, 2026-11-23)
 JPEG_QUALITY = 90
 
 image = bpy.data.images.load(SOURCE)
