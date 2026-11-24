@@ -7,15 +7,18 @@ or a machete as their weapon. its random which one and which skin they get. make
 they throw a bottle at you if you are distanced from them and they have a bottle in hand. if they spawn with the broken bottle make it so they
 have 3 not broken but empty glass bottles in their inventory they can throw and are lootable upon death."
 
+Then, the same day: "also make wood plank one of the weapons hobos can spawn with", and of the first build: "the hobos dont have their beards or walking animations".
+
 The first slice of the design in `docs/GAME_DESIGN.md` (Hobos). Not in it yet: other hobos joining in, running from guns and magic, karma.
 
 ## How it plays
 
-- **`/spawn hobo`** puts one down: either look, any of the four weapons, at random. `/spawn hobopole`, `hobobottle`, `hobochain`,
-  `hobomachete` pick the weapon (to try each).
+- **`/spawn hobo`** puts one down: either look, any of the five weapons (metal pole, broken bottle, chain, machete, wood plank), at random.
+  `/spawn hobopole`, `hobobottle`, `hobochain`, `hobomachete`, `hoboplank` pick the weapon (to try each).
 - **In the streets**: hobos appear out of doors with the ghosts and the monsters (`docs/MOB_SPAWNING.md`): of the outdoor ones, a quarter
   monsters, 40% hobos (mine), the rest ghosts. The outdoor budget (4 alive round a player) is unchanged.
-- **They wander** and leave everyone alone, even standing right beside them.
+- **They wander** and leave everyone alone, even standing right beside them. Wandering, every enemy now walks at a full walking pace, its legs in the walk: at under half a walk (as before) the walk was blended half with the standing pose, and the body glided with its legs nearly still.
+- **Beards**: each wears its character's beard (Hobo spiky, hobo2 full), put on with the hair by the scene builder.
 - **Hit one** and he fights back: whoever is nearest when he is hurt (the one who hit him, nearly always). He fights with the
   swordsman's mind (guards, dashes, punishes) and the weapon's own moves, as the player swings it.
 - **With the broken bottle** he carries three whole empty ones. When the one he fights is 6 to 24 m off, in front of him and in sight,
@@ -27,7 +30,7 @@ The first slice of the design in `docs/GAME_DESIGN.md` (Hobos). Not in it yet: o
 
 ## Online
 
-- Each look with each weapon is a prefab of its own (eight, `Character/Hobos/Hobo_1_Pole` ... `Hobo_2_Machete`, and a networked
+- Each look with each weapon is a prefab of its own (ten, `Character/Hobos/Hobo_1_Pole` ... `Hobo_2_Plank`, and a networked
   copy of each), so every machine spawns the same hobo without being told which. `"hobo"` is rolled where it is asked for.
 - The machine that runs him decides; the others see his walk, swings, guard (as every enemy's), and the throw: the arm, the whole bottle
   in the hand, the bottle flying (`BottleThrower`, the player's own). Their copy of him carries one fewer with each throw, so his body

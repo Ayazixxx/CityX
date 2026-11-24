@@ -91,14 +91,23 @@ namespace CityX.Tests
             Assert.AreEqual(0, hits, "a hobo cut a player who never touched him");
 
             ((IDamageable)_hobo.GetComponent<PlayerVitals>()).ApplyHit(5.0f, _player.transform.position, 0.0f);
-            yield return Run(12.0f, vitals);
+            float nearest = float.MaxValue;
+            for (float clock = 0.0f; clock < 8.0f; clock += Dt)
+            {
+                vitals.TickHitstun(Dt);
+                yield return null;
+                nearest = Mathf.Min(nearest, Vector3.Distance(_hobo.transform.position, _player.transform.position));
+            }
+            // He fights as the swordsman does: in to fighting distance, then his guard, circling and cuts as the fight goes (a player who
+            // only stands there may be circled a long while: SwordsmanBrain's duel).
             Assert.AreEqual(vitals, brain.Target, "hurt, he did not turn on the one who hurt him");
-            Assert.Greater(hits, 0, "hurt, he never fought back");
+            Assert.Less(nearest, 4.0f, "hurt, he never came at the one who hurt him");
+            Assert.AreNotEqual(DuelistState.Idle, brain.State, "hurt, he does not fight");
         }
 
         /// <summary>Each weapon in his hand is swung as the player swings it.</summary>
         [UnityTest]
-        public IEnumerator EachWeaponIsInHisHand([Values("Hobo_1_Pole", "Hobo_2_Bottle", "Hobo_1_Chain", "Hobo_2_Machete")] string hobo)
+        public IEnumerator EachWeaponIsInHisHand([Values("Hobo_1_Pole", "Hobo_2_Bottle", "Hobo_1_Chain", "Hobo_2_Machete", "Hobo_1_Plank")] string hobo)
         {
             PlayerVitals vitals = SetUp(hobo, 8.0f);
             yield return null;
@@ -111,6 +120,37 @@ namespace CityX.Tests
                 Assert.IsNotNull(bottle, "no bottle in his hand");
                 Assert.AreEqual(BottleWeapon.DurabilityState.Broken, bottle.State, "his bottle is not broken");
             }
+            Assert.IsNotNull(vitals);
+        }
+
+        /// <summary>
+        /// Wandering, his legs walk (owner, 2026-11-24: "the hobos dont have their ... walking animations"): while he moves, the walk plays, not
+        /// the standing pose half blended in (the stroll used to be under half a walk, and the body glided with its legs nearly still).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WanderingHisLegsWalk()
+        {
+            PlayerVitals vitals = SetUp("Hobo_2_Machete", 30.0f);
+            Object.Destroy(_player);   // nobody about: he wanders
+            var animator = _hobo.GetComponentInChildren<Animator>();
+            var body = _hobo.GetComponent<PlayerLocomotion>();
+            int moving = 0;
+            for (int frame = 0; frame < 600; frame++)
+            {
+                yield return null;
+                if (body.CurrentSpeed < 3.5f || animator.IsInTransition(0))
+                {
+                    continue;
+                }
+                float walking = 0.0f;
+                foreach (AnimatorClipInfo clip in animator.GetCurrentAnimatorClipInfo(0))
+                {
+                    if (clip.clip.name.Contains("walk")) walking += clip.weight;
+                }
+                Assert.Greater(walking, 0.8f, $"moving at {body.CurrentSpeed:0.0} m/s his legs are mostly standing still");
+                moving++;
+            }
+            Assert.Greater(moving, 60, "he never wandered");
             Assert.IsNotNull(vitals);
         }
 

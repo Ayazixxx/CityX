@@ -2577,7 +2577,7 @@ GameObject:
   - component: {fileID: 8007396833164545375}
   - component: {fileID: 3050993020634234965}
   - component: {fileID: 6336965192643900752}
-  - component: {fileID: 3875071610885067930}
+  - component: {fileID: 1982825973371282737}
   m_Layer: 0
   m_Name: Hobo_2_Pole
   m_TagString: Untagged
@@ -2908,7 +2908,7 @@ MonoBehaviour:
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &3875071610885067930
+--- !u!114 &1982825973371282737
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2920,7 +2920,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1104293235b3f6148ace8f0839fc964d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.CharacterHair
-  _beard: none
+  _beard: full_beard
   Head: {fileID: 112381794983845571}
   StyleMeshes:
   - {fileID: 4300000, guid: cab69372b4a80e449bc5cb695735d3b4, type: 2}

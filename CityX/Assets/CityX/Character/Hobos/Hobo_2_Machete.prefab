@@ -806,7 +806,7 @@ GameObject:
   - component: {fileID: 5101539672645790075}
   - component: {fileID: 1126466974001505895}
   - component: {fileID: 4036109959738774613}
-  - component: {fileID: 2660810404660518618}
+  - component: {fileID: 5360491951948954882}
   m_Layer: 0
   m_Name: Hobo_2_Machete
   m_TagString: Untagged
@@ -1137,7 +1137,7 @@ MonoBehaviour:
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &2660810404660518618
+--- !u!114 &5360491951948954882
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1149,7 +1149,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1104293235b3f6148ace8f0839fc964d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.CharacterHair
-  _beard: none
+  _beard: full_beard
   Head: {fileID: 6031063683473543593}
   StyleMeshes:
   - {fileID: 4300000, guid: cab69372b4a80e449bc5cb695735d3b4, type: 2}

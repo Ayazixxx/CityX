@@ -45,7 +45,7 @@ they behave"), this is the first piece: WHERE and WHAT. Levels and new behaviour
 | Taken away past | 130 m | `MobHabitats.CrowdMetres` |
 | A cleared building stays empty | a day | `MobHabitats.ClearedSeconds` |
 | Stroll / stand, seconds | 2.5 to 6 / 1.5 to 4.5 | `NpcWander.WalkSeconds*`, `PauseSeconds*` |
-| Strolling pace | 0.45 of a walk (the Claw 1.6 m/s) | `NpcWander.StrollShare`, `CrimsonClaw.WanderSpeed` |
+| Strolling pace | a full walk (0.45 until 2026-11-24: the legs glided; the Claw 1.6 m/s) | `NpcWander.StrollShare`, `CrimsonClaw.WanderSpeed` |
 | Stays within | 9 m of where it began | `NpcWander.HomeRadiusMetres` |
 | Safe round Old Guy's house | 120 m | `MobHabitats.TutorialSafeMetres` |
 

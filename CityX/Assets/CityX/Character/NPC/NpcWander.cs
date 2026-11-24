@@ -15,8 +15,12 @@ namespace CityX.Character
     /// </summary>
     public sealed class NpcWander
     {
-        /// <summary>How fast it strolls, as a share of the body's walk: an amble, not a march.</summary>
-        public const float StrollShare = 0.45f;
+        /// <summary>
+        /// How fast it strolls, as a share of the body's walk: the walk itself (owner, 2026-11-24, of the hobos: "dont have their ... walking
+        /// animations"). At 0.45 the walk cycle was blended half with the standing pose, so the legs hardly moved and the body glided; a slower
+        /// stroll needs its own clip, not a blend.
+        /// </summary>
+        public const float StrollShare = 1.0f;
 
         /// <summary>
         /// A walking body coming round from something in its way (it cannot turn where it stands) shuffles round at this share of its

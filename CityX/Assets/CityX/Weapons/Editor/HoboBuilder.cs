@@ -8,9 +8,9 @@ namespace CityX.WeaponsEditor
     /// <summary>
     /// Builds the hobos (docs/HOBO.md; owner, 2026-11-24: "make an enemy called hobo and it spawns as either the character i made named hobo2 ...
     /// and then the other type that can spawn is just hobo ... make it so they spawn with either a metal pole, broken glass bottle. or a chain,
-    /// or a machete as their weapon. its random which one and which skin they get. make them not hostile until hit they jus walk around"): the
+    /// or a machete as their weapon"; "also make wood plank one of the weapons hobos can spawn with". "its random which one and which skin they get. make them not hostile until hit they jus walk around"): the
     /// swordsman's make (DuelistBuilder) in each of the owner's two hobo characters (their saves copied to NpcLooks/Hobo.json and Hobo2.json),
-    /// once with each weapon (HoboKinds): eight prefabs, Character/Hobos/Hobo_1_Pole ... Hobo_2_Machete. With the broken bottle he also
+    /// once with each weapon (HoboKinds): ten prefabs, Character/Hobos/Hobo_1_Pole ... Hobo_2_Plank. With the broken bottle he also
     /// carries three whole empty ones, which he throws and which are found on his body. Run after the player rig, the weapons and the clothes.
     /// </summary>
     public static class HoboBuilder
@@ -46,6 +46,7 @@ namespace CityX.WeaponsEditor
                 case "pole": return (BoStaffBuilder.PrefabPath, ItemRegistry.BoStaff);
                 case "bottle": return (GlassBottleKinds.PrefabPath(Bottle), Bottle);
                 case "chain": return (ChainBuilder.PrefabPath, ItemRegistry.Chain);
+                case "plank": return (WoodPlankBuilder.PrefabPath, ItemRegistry.WoodPlank);
                 default: return (MacheteBuilder.PrefabPath, ItemRegistry.Machete);
             }
         }

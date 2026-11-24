@@ -1280,9 +1280,14 @@ namespace CityX.ViewEditor
                 {
                     hair.SetStyle(look.HairStyle);
                     hair.SetColour(look.HairColour);
+                    hair.SetBeard(look.Beard);   // (owner, 2026-11-24: "the hobos dont have their beards")
                     if (hair.Worn != null)
                     {
                         Object.DestroyImmediate(hair.Worn.gameObject);
+                    }
+                    if (hair.BeardWorn != null)
+                    {
+                        Object.DestroyImmediate(hair.BeardWorn.gameObject);   // grown again at spawn, as the hair is
                     }
                     PrefabUtility.SaveAsPrefabAsset(contents, path);
                 }

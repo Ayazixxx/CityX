@@ -203,6 +203,7 @@ namespace CityX.UI
                 case "hobobottle":
                 case "hobochain":
                 case "hobomachete":
+                case "hoboplank":
                 {
                     // Any hobo, either look and weapon; or one with the weapon named (to try each).
                     string kind = what == HoboKinds.Any ? HoboKinds.Pick(Random.value) : HoboKinds.PickWith(what.Substring(HoboKinds.Any.Length), Random.value);

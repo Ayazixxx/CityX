@@ -19,10 +19,10 @@ namespace CityX.Tests
         [Test]
         public void EveryLookComesWithEveryWeapon()
         {
-            Assert.AreEqual(8, HoboKinds.All.Length);
+            Assert.AreEqual(10, HoboKinds.All.Length);
             CollectionAssert.AllItemsAreUnique(HoboKinds.All);
             CollectionAssert.Contains(HoboKinds.All, "hobo_1_pole");
-            CollectionAssert.Contains(HoboKinds.All, "hobo_2_machete");
+            CollectionAssert.Contains(HoboKinds.All, "hobo_2_plank");
             Assert.AreEqual("Hobo_2_Bottle", HoboKinds.PrefabNameOf(1, 1));
         }
 
@@ -109,7 +109,7 @@ namespace CityX.Tests
         {
             var weapons = new Dictionary<string, string>
             {
-                ["pole"] = ItemRegistry.BoStaff, ["bottle"] = GlassBottleKinds.Classic, ["chain"] = ItemRegistry.Chain, ["machete"] = ItemRegistry.Machete,
+                ["pole"] = ItemRegistry.BoStaff, ["bottle"] = GlassBottleKinds.Classic, ["chain"] = ItemRegistry.Chain, ["machete"] = ItemRegistry.Machete, ["plank"] = ItemRegistry.WoodPlank,
             };
             for (int look = 0; look < HoboKinds.Looks.Length; look++)
             {
@@ -140,6 +140,23 @@ namespace CityX.Tests
                     }
                     string networked = $"{CityX.WeaponsEditor.HoboBuilder.Folder}/Networked{prefab.name}.prefab";
                     Assert.IsNotNull(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(networked), $"{networked} is missing: not in sessions");
+                }
+            }
+        }
+
+        /// <summary>Each wears the beard of the owner's character (owner, 2026-11-24: "the hobos dont have their beards").</summary>
+        [Test]
+        public void EachLookWearsItsBeard()
+        {
+            string[] beards = { CharacterHair.SpikyBeard, CharacterHair.FullBeard };
+            for (int look = 0; look < HoboKinds.Looks.Length; look++)
+            {
+                for (int weapon = 0; weapon < HoboKinds.Weapons.Length; weapon++)
+                {
+                    var hair = Prefab(look, weapon).GetComponent<CharacterHair>();
+                    Assert.IsNotNull(hair, "no hair on the hobo");
+                    Assert.AreEqual(beards[look], hair.Beard, $"{Prefab(look, weapon).name} has the wrong beard");
+                    Assert.IsNull(hair.BeardWorn, "a beard built into the prefab would stay on beside the one grown at spawn");
                 }
             }
         }

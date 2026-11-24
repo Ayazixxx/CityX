@@ -1446,7 +1446,7 @@ GameObject:
   - component: {fileID: 4070236938796086878}
   - component: {fileID: 3086684096493319575}
   - component: {fileID: 3054727255334481557}
-  - component: {fileID: 3864892213855927315}
+  - component: {fileID: 868637340201267072}
   m_Layer: 0
   m_Name: Hobo_2_Bottle
   m_TagString: Untagged
@@ -1812,7 +1812,7 @@ MonoBehaviour:
   - {fileID: 8185852258123393053, guid: 899fd4895c807d049a2d3eade3ff29d4, type: 3}
   - {fileID: 8343226988097854766, guid: 55eb22987f2a36948833f8d4742cb379, type: 3}
   - {fileID: 3681511651364361429, guid: b805037809474b244835eeb8e2979de1, type: 3}
---- !u!114 &3864892213855927315
+--- !u!114 &868637340201267072
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1824,7 +1824,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1104293235b3f6148ace8f0839fc964d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.CharacterHair
-  _beard: none
+  _beard: full_beard
   Head: {fileID: 2462641799150480856}
   StyleMeshes:
   - {fileID: 4300000, guid: cab69372b4a80e449bc5cb695735d3b4, type: 2}
