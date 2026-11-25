@@ -519,7 +519,8 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   does clothes and skin, and not only a water spell (owner: "there will be other ways to wash it off like a watergun or something for people
   who dont want to use magic"); **a marker runs out**. My suggestion, not decided: its ink measured in length drawn (a durability bar), thrown away
   empty. **Markers are rare and cannot be refilled** (owner). Open: how much one draws. Open: whether a new character still
-  picks a shirt colour in the creator; whether the press is carried or a machine found or put in a base.
+  picks a shirt colour in the creator (the owner is still deciding whether a new player chooses a first basic outfit there at all). **The heat
+  press is furniture** (owner).
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
 - **An import pipeline** (drop a model in a folder → cleaned, small, gripped, iconed item with stats in a settings file) and **random rolls** (one model, many versions) make hundreds to thousands of items realistic.
