@@ -520,7 +520,10 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   who dont want to use magic"); **a marker runs out**. My suggestion, not decided: its ink measured in length drawn (a durability bar), thrown away
   empty. **Markers are rare and cannot be refilled** (owner). Open: how much one draws. Open: whether a new character still
   picks a shirt colour in the creator (the owner is still deciding whether a new player chooses a first basic outfit there at all). **The heat
-  press is furniture** (owner).
+  press is furniture** (owner). **A design stays with its item forever** (owner: "I want the design to stay in the game forever unless the
+  item is lost somehow. but as long as an npc or player has it in inventory or equipped it will stay. and i want other peoples designs to stay on
+  the shirts so you can come across random shirts that others designed"): worn, carried, stored, dropped, looted off a body or handed on, the
+  shirt keeps its design, so a shirt someone printed can turn up on someone else.
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
 - **An import pipeline** (drop a model in a folder → cleaned, small, gripped, iconed item with stats in a settings file) and **random rolls** (one model, many versions) make hundreds to thousands of items realistic.
