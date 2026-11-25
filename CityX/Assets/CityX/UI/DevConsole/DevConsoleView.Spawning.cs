@@ -242,6 +242,18 @@ namespace CityX.UI
                     SpawnLog("spawned radio -- press E to switch it on");
                     return true;
 
+                case "heatpress":
+                case "press":
+                    if (HeatPressPrefab == null)
+                    {
+                        Log("no heat press prefab wired");
+                        return false;
+                    }
+                    GameObject heatPress = Instantiate(HeatPressPrefab, where, facing);
+                    heatPress.GetComponentInChildren<CityX.Wearables.HeatPress>().Begin();   // the clamp and the steam, to see it work
+                    SpawnLog("spawned a heat press -- it shows one pressing");
+                    return true;
+
                 case "mustang":
                     if (MustangPrefab == null)
                     {

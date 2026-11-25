@@ -889,6 +889,8 @@ namespace CityX.ViewEditor
                 mustangPrefab,
                 Object.FindFirstObjectByType<PlayerInputReader>(),
                 Object.FindFirstObjectByType<ThirdPersonCamera>());
+            console.HeatPressPrefab = CityX.WearablesEditor.HeatPressBuilder.Build();
+            EditorUtility.SetDirty(console);
 
             // Watches the player's own rig every real frame during ordinary
             // play and logs a full snapshot the instant it looks distorted
