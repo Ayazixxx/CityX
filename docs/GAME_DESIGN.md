@@ -511,8 +511,10 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   not decided: the press has two tabs, drawing (the creator's tools on a front and back canvas) and placing a picture; dye a found item (common
   colours common, odd ones rare) and bleach back to white; marker strokes rough and thick next to the press's clean print; each shirt carries
   its own design (in the bag, dropped, looted), sent once to other players with a size cap, and a setting to hide other players' prints and
-  drawings. Open: whether a new character still picks a shirt colour in the creator; whether the press is carried or a machine found or put in a
-  base; whether others can draw on you only when you allow it (it could be used to grief, or for pranks).
+  drawings. **Anyone may draw on anyone** (owner, same day: "you are allowed to draw on anyone it will be funny to kidnap someone and draw like
+  "idiot" on their face and then send them back to their faction"): the face and skin too, not only clothes, so marker strokes are a layer of
+  their own over the character's paint, which the water washes away and the creator's paint never loses. Open: whether a new character still
+  picks a shirt colour in the creator; whether the press is carried or a machine found or put in a base.
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
 - **An import pipeline** (drop a model in a folder → cleaned, small, gripped, iconed item with stats in a settings file) and **random rolls** (one model, many versions) make hundreds to thousands of items realistic.
