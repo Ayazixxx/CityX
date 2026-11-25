@@ -157,6 +157,97 @@ namespace CityX.Wearables
             return rest;
         }
 
+        // ---- fitted to the body like a skin suit (owner, 2026-11-25: "make it fit to his shoulders like a skin suit. like the same dimensions of
+        // ---- the shoulder just a tiny bit bigger so its not clipping through") ----
+
+        /// <summary>How far off the body's surface the yoke and the collar lie, metres.</summary>
+        public const float SkinGap = 0.015f;
+
+        /// <summary>Whether a point is held on the body (the yoke and the collar), and so fitted to it.</summary>
+        public static bool IsOnBody(int point) => point >= GridPoints || point / Columns < YokeRows;
+
+        /// <summary>
+        /// The cape at rest fitted to a body (<paramref name="skin"/>, <paramref name="normals"/>: its mesh at rest, in body space): each point of
+        /// the yoke and the collar put <see cref="SkinGap"/> off the body's surface under it (the plane of the body's nearest point; the head's
+        /// ball left out, and kept clear of), the yoke smoothed so it lies as cloth does; the falling cloth's first rows moved with the yoke's
+        /// back edge. <paramref name="nearest"/> gives each fitted point's nearest body point (its bones are the ones it then follows), -1 for
+        /// the rest.
+        /// </summary>
+        public static Vector3[] FitToBody(Vector3[] rest, Vector3[] skin, Vector3[] normals, out int[] nearest)
+        {
+            var head = new Vector3(0.0f, CityX.Character.BodyRig.HeadCentreY, 0.0f);
+            float headClear = CityX.Character.FusedBodyShape.HeadRadius;
+            var near = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < skin.Length; i++)
+            {
+                if (skin[i].y > 1.5f && Vector3.Distance(skin[i], head) > headClear + 0.005f) near.Add(i);
+            }
+            var fitted = (Vector3[])rest.Clone();
+            nearest = new int[rest.Length];
+            for (int i = 0; i < rest.Length; i++) nearest[i] = -1;
+            for (int pass = 0; pass < 3; pass++)
+            {
+                for (int i = 0; i < rest.Length; i++)
+                {
+                    if (!IsOnBody(i)) continue;
+                    int k = Nearest(fitted[i], skin, near);
+                    Vector3 n = normals[k].normalized;
+                    Vector3 onSurface = fitted[i] - n * Vector3.Dot(fitted[i] - skin[k], n);
+                    Vector3 p = onSurface + n * SkinGap;
+                    Vector3 fromHead = p - head;
+                    if (fromHead.magnitude < headClear + SkinGap) p = head + fromHead.normalized * (headClear + SkinGap);
+                    fitted[i] = p;
+                    nearest[i] = k;
+                }
+                if (pass < 2) SmoothYoke(fitted);
+            }
+            // The falling cloth's first rows follow its top, the yoke's back edge, where it moved (the move fading out down the cloth).
+            for (int column = 0; column < Columns; column++)
+            {
+                Vector3 moved = fitted[GridIndex(column, YokeRows - 1)] - rest[GridIndex(column, YokeRows - 1)];
+                for (int row = YokeRows; row < Rows; row++)
+                {
+                    float t = (row - (YokeRows - 1)) / (float)HangingRows;
+                    fitted[GridIndex(column, row)] += moved * (1.0f - Mathf.SmoothStep(0.0f, 1.0f, t / FallsAway));
+                }
+            }
+            return fitted;
+        }
+
+        private static int Nearest(Vector3 p, Vector3[] skin, System.Collections.Generic.List<int> among)
+        {
+            int best = among[0];
+            float bestDistance = float.MaxValue;
+            foreach (int i in among)
+            {
+                float d = (skin[i] - p).sqrMagnitude;
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    best = i;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>Each inside point of the yoke drawn halfway to its neighbours' middle: a body's small bumps not copied into the cloth.</summary>
+        private static void SmoothYoke(Vector3[] points)
+        {
+            var smoothed = (Vector3[])points.Clone();
+            for (int row = 0; row < YokeRows; row++)
+            {
+                for (int column = 1; column + 1 < Columns; column++)
+                {
+                    Vector3 sum = points[GridIndex(column - 1, row)] + points[GridIndex(column + 1, row)];
+                    int count = 2;
+                    if (row > 0) { sum += points[GridIndex(column, row - 1)]; count++; }
+                    if (row + 1 < YokeRows) { sum += points[GridIndex(column, row + 1)]; count++; }
+                    smoothed[GridIndex(column, row)] = Vector3.Lerp(points[GridIndex(column, row)], sum / count, 0.5f);
+                }
+            }
+            System.Array.Copy(smoothed, points, points.Length);
+        }
+
         /// <summary>Stiffness of the links across and down the weave, across its diagonals, and across two points (its resistance to folding).</summary>
         public const float WeaveStiffness = 1.0f;
         public const float ShearStiffness = 0.6f;

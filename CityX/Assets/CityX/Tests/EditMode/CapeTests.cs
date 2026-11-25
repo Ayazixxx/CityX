@@ -78,6 +78,37 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// Fitted to the body like a skin suit (owner, 2026-11-25: "like the same dimensions of the shoulder just a tiny bit bigger so its not
+        /// clipping through"): every point of the yoke and the collar just off the body's own surface, never in it, never in the head.
+        /// </summary>
+        [Test]
+        public void FittedItLiesJustOffTheShouldersLikeASkinSuit()
+        {
+            var body = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
+            Vector3[] skin = body.vertices, facing = body.normals;
+            Vector3[] fitted = CapeShape.FitToBody(CapeShape.RestPoints(), skin, facing, out int[] nearest);
+            var head = new Vector3(0.0f, BodyRig.HeadCentreY, 0.0f);
+            float furthest = 0.0f;
+            for (int i = 0; i < fitted.Length; i++)
+            {
+                if (!CapeShape.IsOnBody(i)) continue;
+                Assert.GreaterOrEqual(nearest[i], 0, "a point of the yoke is not fitted");
+                float off = float.MaxValue;
+                int k = 0;
+                for (int j = 0; j < skin.Length; j++)
+                {
+                    float d = (skin[j] - fitted[i]).sqrMagnitude;
+                    if (d < off) { off = d; k = j; }
+                }
+                float above = Vector3.Dot(fitted[i] - skin[k], facing[k]);
+                Assert.Greater(above, 0.004f, $"the yoke is in the body at {fitted[i]}");
+                furthest = Mathf.Max(furthest, Mathf.Sqrt(off));
+                Assert.Greater(Vector3.Distance(fitted[i], head), FusedBodyShape.HeadRadius + 0.01f, $"the yoke is in the head at {fitted[i]}");
+            }
+            Assert.Less(furthest, 0.045f, "part of the yoke stands well off the body: not fitted like a skin suit");
+        }
+
         /// <summary>The outside of the cape faces out (up on the shoulders, ahead on the collar, back down the back), so it is lit from out there.</summary>
         [Test]
         public void ItsOutsideFacesOut()

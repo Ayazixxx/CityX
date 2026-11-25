@@ -51,6 +51,9 @@ namespace CityX.Wearables
         /// <summary>The cloth (null until worn).</summary>
         public CapeCloth Cloth { get; private set; }
 
+        /// <summary>The cape at rest as it was fitted to the body it is worn on (body space), for tests.</summary>
+        public Vector3[] Rest { get; private set; }
+
         /// <summary>The body's capsules as they were last step, for tests.</summary>
         public IReadOnlyList<CapeCloth.Capsule> Capsules => _capsules;
 
@@ -78,6 +81,16 @@ namespace CityX.Wearables
         private Quaternion _anchorTurnWas;
         private float _owed;
         private CapeLook _look;
+
+        /// <summary>The cape fitted to each body mesh it has been worn on (one fit for every body of the same mesh).</summary>
+        private static readonly Dictionary<Mesh, (Vector3[] fitted, int[] nearest)> Fits = new Dictionary<Mesh, (Vector3[], int[])>();
+
+        /// <summary>The points held on the body that follow its skin: their index, and up to four bones each with the point in that bone's space and its weight.</summary>
+        private int[] _onSkin = System.Array.Empty<int>();
+        private Transform[] _skinBones;
+        private (int bone, Vector3 local, float weight)[][] _skinning;
+        private Vector3[] _skinNow = System.Array.Empty<Vector3>();
+        private Vector3[] _skinWas = System.Array.Empty<Vector3>();
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData) => PutOn(player);
 
@@ -117,7 +130,8 @@ namespace CityX.Wearables
             _anchor = animator.GetBoneTransform(HumanBodyBones.Spine) ?? animator.GetBoneTransform(HumanBodyBones.Hips);
             Transform skinTransform = TransformSearch.FindDeep(body.transform, BodySurface.SkinName);
             var skin = skinTransform != null ? skinTransform.GetComponent<SkinnedMeshRenderer>() : null;
-            Vector3[] rest = CapeShape.RestPoints();
+            Vector3[] rest = FitTo(skin);
+            Rest = rest;
             _restOnAnchor = new Vector3[rest.Length];
             for (int i = 0; i < rest.Length; i++)
             {
@@ -125,12 +139,86 @@ namespace CityX.Wearables
             }
             _shape = new Vector3[rest.Length];
             Shape(_anchor.localToWorldMatrix);
+            ReadSkin();
+            System.Array.Copy(_skinNow, _skinWas, _skinNow.Length);
+            HoldOnSkin(_shape, 1.0f);
             Cloth = CapeShape.MakeCloth(_shape);
             FindCapsules(animator);
             _anchorWas = _anchor.position;
             _anchorTurnWas = _anchor.rotation;
             _look = new CapeLook(transform, Fabric);
             _look.Draw(Cloth.Position);
+        }
+
+        /// <summary>
+        /// The cape at rest fitted to this body like a skin suit (CapeShape.FitToBody) when its skin can be read, and each point of the yoke and the
+        /// collar set to follow the body's skin under it (the bones and weights of the body's nearest point): the shoulders move with the arms and
+        /// the yoke moves with them. Without a readable skin, the cape as made, held on the Spine bone.
+        /// </summary>
+        private Vector3[] FitTo(SkinnedMeshRenderer skin)
+        {
+            Mesh mesh = skin != null ? skin.sharedMesh : null;
+            if (mesh == null || !mesh.isReadable)
+            {
+                return CapeShape.RestPoints();
+            }
+            if (!Fits.TryGetValue(mesh, out (Vector3[] fitted, int[] nearest) fit))
+            {
+                fit.fitted = CapeShape.FitToBody(CapeShape.RestPoints(), mesh.vertices, mesh.normals, out fit.nearest);
+                Fits[mesh] = fit;
+            }
+            BoneWeight[] weights = mesh.boneWeights;
+            Matrix4x4[] binds = mesh.bindposes;
+            _skinBones = skin.bones;
+            var onSkin = new List<int>();
+            var skinning = new List<(int, Vector3, float)[]>();
+            for (int i = 0; i < fit.fitted.Length; i++)
+            {
+                int k = fit.nearest[i];
+                if (k < 0 || k >= weights.Length) continue;
+                BoneWeight w = weights[k];
+                var parts = new List<(int, Vector3, float)>();
+                foreach ((int bone, float weight) in new[] { (w.boneIndex0, w.weight0), (w.boneIndex1, w.weight1), (w.boneIndex2, w.weight2), (w.boneIndex3, w.weight3) })
+                {
+                    if (weight > 0.0f && bone < binds.Length && bone < _skinBones.Length && _skinBones[bone] != null)
+                    {
+                        parts.Add((bone, binds[bone].MultiplyPoint3x4(fit.fitted[i]), weight));
+                    }
+                }
+                if (parts.Count == 0) continue;
+                onSkin.Add(i);
+                skinning.Add(parts.ToArray());
+            }
+            _onSkin = onSkin.ToArray();
+            _skinning = skinning.ToArray();
+            _skinNow = new Vector3[_onSkin.Length];
+            _skinWas = new Vector3[_onSkin.Length];
+            return fit.fitted;
+        }
+
+        /// <summary>Where the points on the skin are now, as the body's own skin is moved by its bones.</summary>
+        private void ReadSkin()
+        {
+            for (int j = 0; j < _onSkin.Length; j++)
+            {
+                Vector3 p = Vector3.zero;
+                float total = 0.0f;
+                foreach ((int bone, Vector3 local, float weight) in _skinning[j])
+                {
+                    p += _skinBones[bone].localToWorldMatrix.MultiplyPoint3x4(local) * weight;
+                    total += weight;
+                }
+                _skinNow[j] = total > 0.0f ? p / total : p;
+            }
+        }
+
+        /// <summary>The points on the skin into <paramref name="into"/>, <paramref name="s"/> of the way from last frame to this one.</summary>
+        private void HoldOnSkin(Vector3[] into, float s)
+        {
+            for (int j = 0; j < _onSkin.Length; j++)
+            {
+                into[_onSkin[j]] = Vector3.Lerp(_skinWas[j], _skinNow[j], s);
+            }
         }
 
         /// <summary>
@@ -196,9 +284,12 @@ namespace CityX.Wearables
             }
             Vector3 anchorNow = _anchor.position;
             Quaternion turnNow = _anchor.rotation;
+            ReadSkin();
             if (Vector3.Distance(anchorNow, _anchorWas) > TeleportMetres)
             {
                 Shape(_anchor.localToWorldMatrix);
+                System.Array.Copy(_skinNow, _skinWas, _skinNow.Length);
+                HoldOnSkin(_shape, 1.0f);
                 Cloth.Reset(_shape);
                 _owed = 0.0f;
             }
@@ -221,6 +312,7 @@ namespace CityX.Wearables
                 float s = step / (float)steps;
                 Matrix4x4 anchor = Matrix4x4.TRS(Vector3.Lerp(_anchorWas, anchorNow, s), Quaternion.Slerp(_anchorTurnWas, turnNow, s), _anchor.lossyScale);
                 Shape(anchor);
+                HoldOnSkin(_shape, s);   // the yoke and the collar where the body's skin is
                 _pins.Clear();
                 for (int i = 0; i < _shape.Length; i++)
                 {
@@ -230,6 +322,7 @@ namespace CityX.Wearables
             }
             _anchorWas = anchorNow;
             _anchorTurnWas = turnNow;
+            System.Array.Copy(_skinNow, _skinWas, _skinNow.Length);
             _look.Draw(Cloth.Position);
         }
 

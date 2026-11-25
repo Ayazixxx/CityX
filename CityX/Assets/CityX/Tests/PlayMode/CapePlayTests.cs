@@ -75,7 +75,7 @@ namespace CityX.Tests
             Transform root = _player.transform;
             for (int column = 0; column < CapeShape.Columns; column++)
             {
-                Vector3 expected = root.TransformPoint(CapeShape.GridPoint(column, 0));
+                Vector3 expected = root.TransformPoint(cape.Rest[CapeShape.GridIndex(column, 0)]);
                 Assert.Less(Vector3.Distance(cape.Cloth.Position[CapeShape.GridIndex(column, 0)], expected), 0.06f,
                     "the top edge is not on the shoulders standing");
             }

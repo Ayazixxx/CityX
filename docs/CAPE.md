@@ -18,7 +18,12 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
   - the **cloth** falling from the yoke's back edge behind the back and beside the arms to the calves, widening to the hem: the back as it
     was. Only this moves.
   - All one colour, inside and out; no cords, no rolled hem (the hem caught the light as a brighter line).
-- The edges were measured off the body: the shoulders' top is flat at 1.93 to 1.94 m out to 0.40 m, about 10 cm either side of its middle,
+- **Fitted like a skin suit** (owner, 2026-11-25: "make it fit to his shoulders like a skin suit. like the same dimensions of the shoulder
+  just a tiny bit bigger so its not clipping through"): when it is put on, every point of the yoke and the collar is laid 1.5 cm off the
+  body's own surface under it (`CapeShape.FitToBody`, from the body mesh; the yoke smoothed so it lies as cloth, kept clear of the head), and
+  follows the bones and weights of the body's skin there each frame, so the shoulders move with the arms and the yoke with them. One fit a
+  body mesh, shared by every body wearing one. A body whose skin cannot be read wears it as made, on the Spine bone.
+- The edges were first laid out from measures of the body: the shoulders' top is flat at 1.93 to 1.94 m out to 0.40 m, about 10 cm either side of its middle,
   and falls away at 0.43 m; the back of the neck is 0.14 m behind at 1.90 m; the head's ball comes down to 1.90 m. Everything sits 1.5 to
   5 cm off the body and clear of the head.
 - Shading: the head is a big ball right over the shoulders, so with the sun high the yoke and collar are often in its shadow and read darker
