@@ -34,6 +34,7 @@ namespace CityX.Items
 
         public const string RedItemId = "red_cape";
         public const string BlackItemId = "black_cape";
+        public const string BrownItemId = "brown_cape";
 
         /// <summary>
         /// Every colourway. Black is a very dark grey (pure black loses the folds to the outline).
@@ -42,6 +43,7 @@ namespace CityX.Items
         {
             new Colourway(RedItemId, "Red Cape", "redcape", new Color(0.66f, 0.07f, 0.08f)),
             new Colourway(BlackItemId, "Black Cape", "blackcape", new Color(0.08f, 0.08f, 0.09f)),
+            new Colourway(BrownItemId, "Brown Cape", "browncape", new Color(0.30f, 0.18f, 0.10f)),   // owner, 2026-11-25: "make a brown one"
         };
 
         /// <summary>Where a colourway's prefab is built (CapeBuilder), for the lists of item prefabs that bodies draw from.</summary>
