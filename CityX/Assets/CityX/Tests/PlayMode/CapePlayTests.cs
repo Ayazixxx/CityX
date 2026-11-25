@@ -94,7 +94,7 @@ namespace CityX.Tests
             }
             Assert.AreEqual(0, inside, "parts of the cape are deep inside the body");
             Assert.IsNotNull(cape.transform.Find("CapeCloth"), "the cloth is not drawn");
-            Assert.IsNotNull(cape.transform.Find("CapeTies"), "the ties are not drawn");
+            Assert.IsNotNull(cape.transform.Find("CapeHem"), "the hem over the shoulders is not drawn");
         }
 
         [UnityTest]

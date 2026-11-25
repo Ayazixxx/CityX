@@ -4,8 +4,9 @@ namespace CityX.Items
 {
     /// <summary>
     /// THE CAPE'S COLOURWAYS (docs/CAPE.md; owner, 2026-11-24: "make a basic cape that we can make a bunch of different colorways of easily, make it
-    /// tied around the front"): one item a colourway, the cape's outside in one colour, its lining in another, the ties at the throat in a third. A
-    /// new colourway is one line in <see cref="All"/>; the builder, the item list, the console and the bodies' item prefabs all read this list.
+    /// tied around the front"): one item a colourway, the cape's outside (and the rolled hem over the shoulders) in one colour, its lining in
+    /// another. A new colourway is one line in <see cref="All"/>; the builder, the item list, the console and the bodies' item prefabs all read
+    /// this list.
     /// </summary>
     public static class CapeColourways
     {
@@ -26,17 +27,13 @@ namespace CityX.Items
             /// <summary>The inside (the lining), seen when it swings out or blows up.</summary>
             public readonly Color Lining;
 
-            /// <summary>The cords tied at the throat and the knot.</summary>
-            public readonly Color Ties;
-
-            public Colourway(string itemId, string displayName, string alias, Color outside, Color lining, Color ties)
+            public Colourway(string itemId, string displayName, string alias, Color outside, Color lining)
             {
                 ItemId = itemId;
                 DisplayName = displayName;
                 Alias = alias;
                 Outside = outside;
                 Lining = lining;
-                Ties = ties;
             }
         }
 
@@ -44,26 +41,16 @@ namespace CityX.Items
         public const string BlackItemId = "black_cape";
 
         /// <summary>
-        /// Every colourway. Red with a darker red lining and gold ties; black (a very dark grey: pure black loses the folds to the outline) with a
-        /// charcoal lining and ties.
+        /// Every colourway. Red with a darker red lining; black (a very dark grey: pure black loses the folds to the outline) with a charcoal lining.
         /// </summary>
         public static readonly Colourway[] All =
         {
-            new Colourway(RedItemId, "Red Cape", "redcape", new Color(0.66f, 0.07f, 0.08f), new Color(0.40f, 0.04f, 0.05f), new Color(0.86f, 0.68f, 0.22f)),
-            new Colourway(BlackItemId, "Black Cape", "blackcape", new Color(0.08f, 0.08f, 0.09f), new Color(0.22f, 0.22f, 0.24f), new Color(0.30f, 0.30f, 0.32f)),
+            new Colourway(RedItemId, "Red Cape", "redcape", new Color(0.66f, 0.07f, 0.08f), new Color(0.40f, 0.04f, 0.05f)),
+            new Colourway(BlackItemId, "Black Cape", "blackcape", new Color(0.08f, 0.08f, 0.09f), new Color(0.22f, 0.22f, 0.24f)),
         };
 
         /// <summary>Where a colourway's prefab is built (CapeBuilder), for the lists of item prefabs that bodies draw from.</summary>
         public static string PrefabPath(string itemId) => $"Assets/CityX/Wearables/Capes/{itemId}.prefab";
-
-        public static bool IsCape(string itemId)
-        {
-            foreach (Colourway each in All)
-            {
-                if (each.ItemId == itemId) return true;
-            }
-            return false;
-        }
 
         /// <summary>The colourway a console name means: its alias or its id; "cape" alone is the first.</summary>
         public static string ItemIdForAlias(string alias)

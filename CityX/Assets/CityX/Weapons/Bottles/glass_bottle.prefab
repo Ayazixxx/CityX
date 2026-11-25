@@ -218,7 +218,7 @@ MonoBehaviour:
   ThrownBottlePrefab: {fileID: 4975853551717191964, guid: 9ac9577b8adf4214eb348d89ff62002f, type: 3}
   ShatterPrefab: {fileID: 820663132837949490, guid: c8fabeaf79bffbe4a87945c25c50806c, type: 3}
   BreakSound: {fileID: 8300000, guid: 3b7b3398c33c9da40a415bcb3c7df89b, type: 3}
---- !u!1 &3788539631126068744
+--- !u!1 &3058080602358203749
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -226,9 +226,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3752633350694712701}
-  - component: {fileID: 6381378102945014516}
-  - component: {fileID: 1098610603600906946}
+  - component: {fileID: 5995975089770276435}
+  - component: {fileID: 5971796877374511946}
+  - component: {fileID: 5054242663197117381}
   m_Layer: 0
   m_Name: Glass
   m_TagString: Untagged
@@ -236,36 +236,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3752633350694712701
+--- !u!4 &5995975089770276435
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3788539631126068744}
+  m_GameObject: {fileID: 3058080602358203749}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 6081010445195428455}
+  m_Father: {fileID: 6709871256849491756}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &6381378102945014516
+--- !u!33 &5971796877374511946
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3788539631126068744}
-  m_Mesh: {fileID: 4300000, guid: e369bf2d9290a874da649974dc80270c, type: 2}
---- !u!23 &1098610603600906946
+  m_GameObject: {fileID: 3058080602358203749}
+  m_Mesh: {fileID: 4300000, guid: 845a13a5d86e28544b616aa916f7b4c7, type: 2}
+--- !u!23 &5054242663197117381
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3788539631126068744}
+  m_GameObject: {fileID: 3058080602358203749}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -369,10 +369,10 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3752633350694712701}
+  - {fileID: 5773676951583829590}
   m_Father: {fileID: 6758820887634297776}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &6313653326200126458
+--- !u!1 &6778637005690258945
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -380,9 +380,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5238622842893830774}
-  - component: {fileID: 9008093117890762823}
-  - component: {fileID: 7600301680833575423}
+  - component: {fileID: 5773676951583829590}
+  - component: {fileID: 3001883630720504379}
+  - component: {fileID: 4292725526094523173}
   m_Layer: 0
   m_Name: Glass
   m_TagString: Untagged
@@ -390,36 +390,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5238622842893830774
+--- !u!4 &5773676951583829590
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6313653326200126458}
+  m_GameObject: {fileID: 6778637005690258945}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 6709871256849491756}
+  m_Father: {fileID: 6081010445195428455}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &9008093117890762823
+--- !u!33 &3001883630720504379
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6313653326200126458}
-  m_Mesh: {fileID: 4300000, guid: 845a13a5d86e28544b616aa916f7b4c7, type: 2}
---- !u!23 &7600301680833575423
+  m_GameObject: {fileID: 6778637005690258945}
+  m_Mesh: {fileID: 4300000, guid: e369bf2d9290a874da649974dc80270c, type: 2}
+--- !u!23 &4292725526094523173
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6313653326200126458}
+  m_GameObject: {fileID: 6778637005690258945}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -491,6 +491,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 5238622842893830774}
+  - {fileID: 5995975089770276435}
   m_Father: {fileID: 6758820887634297776}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

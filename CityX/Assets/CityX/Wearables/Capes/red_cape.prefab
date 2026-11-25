@@ -161,5 +161,4 @@ MonoBehaviour:
   _itemId: red_cape
   Outside: {fileID: 2100000, guid: f8c3078763ee57643a840a810a6f42c3, type: 2}
   Lining: {fileID: 2100000, guid: 8d968d1077894474e83035e5a50827d9, type: 2}
-  Ties: {fileID: 2100000, guid: a14b99608fd146645ab076fc5d3316a7, type: 2}
   GroundPreview: {fileID: 2040436354518097161}

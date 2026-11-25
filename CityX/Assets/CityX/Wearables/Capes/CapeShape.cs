@@ -1,100 +1,108 @@
-using CityX.Character;
 using UnityEngine;
 
 namespace CityX.Wearables
 {
     /// <summary>
-    /// THE CAPE AT REST (docs/CAPE.md; owner, 2026-11-24: "make a basic cape ... make it tied around the front"): where each point of the cloth sits
-    /// on the standing body, in the body's own space (bind pose, metres, +z ahead, feet at 0). A grid of <see cref="Columns"/> by
-    /// <see cref="Rows"/> points: its top row wraps round the back of the neck and over the shoulders to the front of each shoulder, where two
-    /// cords run round the chest to a knot at the throat, and two short ends hang from the knot. Below the shoulders the cloth falls behind the
-    /// back to the calves, widening to the hem. The cloth moves (<see cref="CapeCloth"/>); this is the shape it is drawn back towards and starts
-    /// from. Pure, so it is tested without a scene.
+    /// THE CAPE AT REST (docs/CAPE.md; owner, 2026-11-24: "make a basic cape", then, drawing it on a picture of the body from the front and from
+    /// behind: "get rid of the yellow string and make it like my drawing", "model it based on my design"): where each point of the cloth sits on
+    /// the standing body, in the body's own space (bind pose, metres, +z ahead, feet at 0). A grid of <see cref="Columns"/> by <see cref="Rows"/>
+    /// points. Its top edge lies ON the shoulders, as the owner drew it: from one shoulder's tip along the top of the shoulder in to under the
+    /// head, round behind the neck, and out along the other shoulder to its tip, so from in front it shows as a band over each shoulder (a
+    /// rolled hem, <see cref="EdgeRadius"/>). Below the shoulders the cloth falls behind the back to the calves, widening to the hem. The cloth
+    /// moves (<see cref="CapeCloth"/>); this is the shape it is drawn back towards and starts from. Pure, so it is tested without a scene.
     /// </summary>
     public static class CapeShape
     {
-        public const int Columns = 13;
+        public const int Columns = 15;
         public const int Rows = 18;
 
-        /// <summary>The top edge: its height, how far it reaches out over the shoulders (x) and back behind the neck (z), and how far round.</summary>
-        public const float TopHeight = BodyRig.ShoulderY - 0.06f;
-        public const float TopHalfWidth = BodyRig.ShoulderX + 0.02f;
-        public const float TopBehind = 0.25f;
-        public const float WrapDegrees = 100.0f;
+        /// <summary>
+        /// The top edge, half of it, from behind the neck (first) out to the shoulder's tip (last), measured off the body (FusedBody, 2026-11-25:
+        /// the shoulders' top is flat at 1.93 to 1.94 m out to 0.40 m, falling away at 0.43; the back of the neck at 1.90 m is 0.14 m behind; the
+        /// head's ball, 0.35 round about 2.25 m, comes down to 1.90 m). Each point 3 cm off the body and clear of the head; mirrored for the other
+        /// side.
+        /// </summary>
+        public static readonly Vector3[] TopEdge =
+        {
+            new Vector3(0.00f, 1.910f, -0.185f),
+            new Vector3(0.11f, 1.925f, -0.165f),
+            new Vector3(0.22f, 1.950f, -0.080f),
+            new Vector3(0.33f, 1.975f, -0.005f),
+            new Vector3(0.44f, 1.945f, 0.000f),
+        };
+
+        /// <summary>The rolled hem along the top edge, its thickness: the band over the shoulders in the owner's drawing.</summary>
+        public const float EdgeRadius = 0.022f;
 
         /// <summary>From the top edge to the hem, metres: the hem at the calves.</summary>
-        public const float Length = 1.22f;
+        public const float Length = 1.32f;
 
         /// <summary>How wide the hem is, half of it.</summary>
-        public const float HemHalfWidth = 0.58f;
+        public const float HemHalfWidth = 0.60f;
 
         /// <summary>How far behind the body the middle of the hanging cloth lies, and how much nearer its sides come round.</summary>
         public const float HangBehind = 0.35f;
         public const float SidesComeRound = 0.19f;
 
-        /// <summary>How far down from the top the cloth turns from lying on the shoulders to hanging.</summary>
-        public const float ShoulderShare = 0.22f;
+        /// <summary>How far down from the top the cloth lies over the shoulders (where it is held firmly to its shape).</summary>
+        public const float ShoulderShare = 0.2f;
 
-        /// <summary>The knot at the throat, in front of the chest under the head.</summary>
-        public static readonly Vector3 Knot = new Vector3(0.0f, TopHeight - 0.08f, FusedBodyShape.TorsoRadius + 0.04f);
-
-        /// <summary>Points in each cord from a shoulder to the knot (both ends included), and in each end hanging from the knot (the knot not).</summary>
-        public const int CordPoints = 7;
-        public const int EndPoints = 5;
-
-        /// <summary>The spacing of an end's points, and how much longer than the way round each cord is (so it lies a little loose).</summary>
-        public const float EndSpacing = 0.04f;
-        public const float CordSlack = 1.04f;
-
-        /// <summary>The cords' thickness.</summary>
-        public const float CordRadius = 0.017f;
-        public const float KnotRadius = 0.038f;
+        /// <summary>
+        /// How much of the cloth's length goes back over the shoulders, in a quarter circle from the top edge to behind them (it falls from
+        /// there): a straight line from the top edge to behind the shoulder cut through the shoulder's round top.
+        /// </summary>
+        public const float OverTheShoulder = 0.2f;
 
         public static int GridIndex(int column, int row) => row * Columns + column;
+
+        /// <summary>The top edge at <paramref name="u"/> (-1 one shoulder's tip, 0 behind the neck, 1 the other's): a smooth curve through <see cref="TopEdge"/>.</summary>
+        public static Vector3 TopPoint(float u)
+        {
+            float along = Mathf.Abs(u) * (TopEdge.Length - 1);
+            int i = Mathf.Min(Mathf.FloorToInt(along), TopEdge.Length - 2);
+            float f = along - i;
+            Vector3 p0 = Edge(i - 1), p1 = Edge(i), p2 = Edge(i + 1), p3 = Edge(i + 2);
+            // Catmull-Rom through the points (the point before the first is its mirror: the curve crosses the middle level).
+            Vector3 p = 0.5f * (2.0f * p1 + (-p0 + p2) * f + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * f * f + (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * f * f * f);
+            if (u < 0.0f) p.x = -p.x;
+            return p;
+        }
+
+        private static Vector3 Edge(int i)
+        {
+            if (i < 0)
+            {
+                Vector3 mirror = TopEdge[-i];
+                return new Vector3(-mirror.x, mirror.y, mirror.z);
+            }
+            return TopEdge[Mathf.Min(i, TopEdge.Length - 1)];
+        }
 
         /// <summary>A point of the cloth at rest.</summary>
         public static Vector3 GridPoint(int column, int row)
         {
             float u = column / (Columns - 1.0f) * 2.0f - 1.0f;   // -1 one edge, +1 the other
             float t = row / (Rows - 1.0f);                      // 0 the top, 1 the hem
-            float theta = u * WrapDegrees * Mathf.Deg2Rad;
-            var top = new Vector3(TopHalfWidth * Mathf.Sin(theta), 0.0f, -TopBehind * Mathf.Cos(theta));
-            float halfWidth = Mathf.Lerp(TopHalfWidth + 0.05f, HemHalfWidth, t);
-            var hanging = new Vector3(u * halfWidth, 0.0f, -HangBehind - 0.05f * t + SidesComeRound * u * u);
-            float s = Mathf.SmoothStep(0.0f, 1.0f, t / ShoulderShare);
-            Vector3 p = Vector3.Lerp(top, hanging, s);
-            p.y = TopHeight - t * Length;
-            return p;
+            Vector3 top = TopPoint(u);
+            float hangX = u * Mathf.Lerp(TopEdge[TopEdge.Length - 1].x + 0.04f, HemHalfWidth, t);
+            float hangZ = -HangBehind - 0.05f * t + SidesComeRound * u * u;
+            float back = Mathf.Max(0.05f, top.z - hangZ);
+            if (t <= OverTheShoulder)
+            {
+                // Over the shoulder: a quarter circle back and down from the top edge.
+                float a = t / OverTheShoulder * Mathf.PI * 0.5f;
+                return new Vector3(Mathf.Lerp(top.x, hangX, Mathf.Sin(a)), top.y - back * (1.0f - Mathf.Cos(a)), top.z - back * Mathf.Sin(a));
+            }
+            float below = (t - OverTheShoulder) / (1.0f - OverTheShoulder) * (Length - back * Mathf.PI * 0.5f);
+            return new Vector3(hangX, top.y - back - below, hangZ);
         }
 
-        /// <summary>The cloth's top-edge corners, where the cords start: the first and last points of the top row.</summary>
+        /// <summary>The top edge's ends: the cape's corners on the shoulders' tips.</summary>
         public static Vector3 Corner(bool first) => GridPoint(first ? 0 : Columns - 1, 0);
 
-        /// <summary>A point of a cord, from its shoulder corner (0) round the chest to the knot (<see cref="CordPoints"/> - 1).</summary>
-        public static Vector3 CordPoint(bool first, int index)
-        {
-            Vector3 corner = Corner(first);
-            float s = index / (CordPoints - 1.0f);
-            float from = Mathf.Atan2(corner.x, corner.z), to = 0.0f;
-            float angle = Mathf.Lerp(from, to, s);
-            float radius = Mathf.Lerp(new Vector2(corner.x, corner.z).magnitude, Knot.z, s);
-            return new Vector3(Mathf.Sin(angle) * radius, Mathf.Lerp(corner.y, Knot.y, s), Mathf.Cos(angle) * radius);
-        }
+        public const int Points = Columns * Rows;
 
-        // ---- every point of the cape in one list: the grid, the knot, the cords' middles, the ends ----
-
-        public const int GridPoints = Columns * Rows;
-        public const int KnotIndex = GridPoints;
-
-        /// <summary>Points in the whole cape.</summary>
-        public const int Points = GridPoints + 1 + 2 * (CordPoints - 2) + 2 * EndPoints;
-
-        /// <summary>A cord's middle point (1 .. <see cref="CordPoints"/> - 2; its ends are the cloth's corner and the knot).</summary>
-        public static int CordIndex(bool first, int index) => KnotIndex + 1 + (first ? 0 : CordPoints - 2) + index - 1;
-
-        public static int EndIndex(bool first, int index) => KnotIndex + 1 + 2 * (CordPoints - 2) + (first ? 0 : EndPoints) + index;
-
-        /// <summary>Every point at rest, in the list's order.</summary>
+        /// <summary>Every point at rest, in the grid's order.</summary>
         public static Vector3[] RestPoints()
         {
             var rest = new Vector3[Points];
@@ -104,12 +112,6 @@ namespace CityX.Wearables
                 {
                     rest[GridIndex(column, row)] = GridPoint(column, row);
                 }
-            }
-            rest[KnotIndex] = Knot;
-            foreach (bool first in new[] { true, false })
-            {
-                for (int i = 1; i < CordPoints - 1; i++) rest[CordIndex(first, i)] = CordPoint(first, i);
-                for (int i = 0; i < EndPoints; i++) rest[EndIndex(first, i)] = EndPoint(first, i);
             }
             return rest;
         }
@@ -127,7 +129,6 @@ namespace CityX.Wearables
         public const float DriveAtTop = 0.06f;
         public const float DriveWhereItHangs = 0.002f;
         public const float DriveAtHem = 0.0004f;
-        public const float DriveOnCords = 0.04f;
 
         /// <summary>The drive at a row's share of the way down (0 the top, 1 the hem).</summary>
         public static float DriveAt(float t) => t <= ShoulderShare
@@ -135,8 +136,8 @@ namespace CityX.Wearables
             : Mathf.Lerp(DriveWhereItHangs, DriveAtHem, (t - ShoulderShare) / (1.0f - ShoulderShare));
 
         /// <summary>
-        /// The cape's cloth starting at <paramref name="rest"/> (<see cref="RestPoints"/> placed on the body): the weave, its diagonals and
-        /// fold links, each point tethered to its column's top, the top edge and the knot held (the body carries them), the cords and ends.
+        /// The cape's cloth starting at <paramref name="rest"/> (<see cref="RestPoints"/> placed on the body): the weave, its diagonals and fold
+        /// links, each point tethered to its column's top, and the top edge held (the body carries it).
         /// </summary>
         public static CapeCloth MakeCloth(Vector3[] rest)
         {
@@ -169,34 +170,7 @@ namespace CityX.Wearables
                 }
                 cloth.Hold(GridIndex(column, 0), rest[GridIndex(column, 0)]);
             }
-            cloth.Hold(KnotIndex, rest[KnotIndex]);
-            foreach (bool first in new[] { true, false })
-            {
-                int previous = GridIndex(first ? 0 : Columns - 1, 0);
-                for (int i = 1; i < CordPoints - 1; i++)
-                {
-                    int point = CordIndex(first, i);
-                    cloth.Join(previous, point, 1.0f, CordSlack);
-                    cloth.Drive[point] = DriveOnCords;
-                    previous = point;
-                }
-                cloth.Join(previous, KnotIndex, 1.0f, CordSlack);
-                previous = KnotIndex;
-                for (int i = 0; i < EndPoints; i++)
-                {
-                    int point = EndIndex(first, i);
-                    cloth.Join(previous, point, 1.0f);
-                    previous = point;
-                }
-            }
             return cloth;
-        }
-
-        /// <summary>A point of an end hanging from the knot (0 the first below it).</summary>
-        public static Vector3 EndPoint(bool first, int index)
-        {
-            float side = first ? -1.0f : 1.0f;
-            return Knot + new Vector3(side * 0.012f * (index + 1), -EndSpacing * (index + 1), 0.006f * (index + 1));
         }
     }
 }

@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: the red cape standing (front, side, behind, three-quarter, the knot close), then walking, sprinting and turning while sprinting,
+    /// Not a test: the red cape standing (front, side, behind, three-quarter, the shoulders close), then walking, sprinting and turning while sprinting,
     /// seen from the side and behind. Written to Logs/CityShots/cape-*.png. Explicit; needs -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -56,8 +56,10 @@ namespace CityX.Tests
             BuildingShapeCapture.Shoot(camera, folder, "cape-side", chest + new Vector3(9.0f, 0.3f, 0.0f), chest);
             BuildingShapeCapture.Shoot(camera, folder, "cape-behind", chest + new Vector3(0.0f, 0.6f, -9.0f), chest);
             BuildingShapeCapture.Shoot(camera, folder, "cape-threequarter", chest + new Vector3(6.4f, 1.5f, -6.4f), chest);
-            Vector3 knot = player.transform.position + Vector3.up * 1.8f;
-            BuildingShapeCapture.Shoot(camera, folder, "cape-knot", knot + new Vector3(0.9f, 0.4f, 2.6f), knot);
+            // The shoulders close from in front, as the owner drew them (the hem lies over each one), and from above behind (the game's camera).
+            Vector3 shoulders = player.transform.position + Vector3.up * 1.85f;
+            BuildingShapeCapture.Shoot(camera, folder, "cape-shoulders", shoulders + new Vector3(0.0f, 0.2f, 2.8f), shoulders);
+            BuildingShapeCapture.Shoot(camera, folder, "cape-shoulders-above", shoulders + new Vector3(0.0f, 1.2f, -2.6f), shoulders);
             BuildingShapeCapture.Shoot(camera, folder, "cape-lying", new Vector3(2.2f, 1.6f, 4.2f), new Vector3(2.2f, 0.0f, 1.0f));
             Object.Destroy(lying);
 

@@ -70,7 +70,6 @@ MonoBehaviour:
   _itemId: black_cape
   Outside: {fileID: 2100000, guid: 777cc5a5937b6744fa725ab50407b5ea, type: 2}
   Lining: {fileID: 2100000, guid: 33e4356796ebe384d9b97764ed5f07e2, type: 2}
-  Ties: {fileID: 2100000, guid: 9f7460539c54ae04c99c054ed771a886, type: 2}
   GroundPreview: {fileID: 6066883930494768331}
 --- !u!1 &6066883930494768331
 GameObject:

@@ -47,7 +47,7 @@ namespace CityX.Wearables
         }
 
         public const float StepSeconds = 1.0f / 90.0f;
-        public const int Iterations = 6;
+        public const int Iterations = 8;
         public static readonly Vector3 Gravity = new Vector3(0.0f, -9.81f, 0.0f);
 
         /// <summary>The share of its speed a point keeps each step (what air and the cloth's own stiffness take).</summary>

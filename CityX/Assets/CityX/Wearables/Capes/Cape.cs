@@ -8,9 +8,10 @@ namespace CityX.Wearables
 {
     /// <summary>
     /// A CAPE (docs/CAPE.md; owner, 2026-11-24: "make a basic cape that we can make a bunch of different colorways of easily, make it tied around
-    /// the front. and research how to make good cape physics in video games"). Worn on the back: its top edge rides the upper back and shoulders,
-    /// tied at the throat with a knot, and the rest is cloth (<see cref="CapeCloth"/>) that falls, swings and streams behind a runner, kept out
-    /// of the body by capsules on its bones. Lying on the ground it is a folded cape, picked up with E.
+    /// the front. and research how to make good cape physics in video games"; then, drawing it: "get rid of the yellow string and make it like my
+    /// drawing"). Worn on the back: its top edge lies on the shoulders from tip to tip and round behind the neck, a rolled hem that shows over
+    /// each shoulder from in front, and the rest is cloth (<see cref="CapeCloth"/>) that falls, swings and streams behind a runner, kept out of
+    /// the body by capsules on its bones. Lying on the ground it is a folded cape, picked up with E.
     ///
     /// The body is followed after its animation and its posing (late in the frame), and part of the body's own movement is carried straight
     /// into the cloth (<see cref="CarryShare"/>) so a turn or a sprint does not whip it about; a body put somewhere new (a respawn) starts the
@@ -24,7 +25,6 @@ namespace CityX.Wearables
 
         public Material Outside;
         public Material Lining;
-        public Material Ties;
 
         [Tooltip("The folded cape lying on the ground; hidden while worn.")]
         public GameObject GroundPreview;
@@ -129,7 +129,7 @@ namespace CityX.Wearables
             FindCapsules(animator);
             _anchorWas = _anchor.position;
             _anchorTurnWas = _anchor.rotation;
-            _look = new CapeLook(transform, Outside, Lining, Ties);
+            _look = new CapeLook(transform, Outside, Lining);
             _look.Draw(Cloth.Position);
         }
 
@@ -227,7 +227,6 @@ namespace CityX.Wearables
                     int top = CapeShape.GridIndex(column, 0);
                     _pins.Add((top, _shape[top]));
                 }
-                _pins.Add((CapeShape.KnotIndex, _shape[CapeShape.KnotIndex]));
                 Cloth.Step(_pins, _shape, _capsules, wind, floor);
             }
             _anchorWas = anchorNow;

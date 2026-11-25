@@ -9,7 +9,7 @@ namespace CityX.WearablesEditor
 {
     /// <summary>
     /// Builds the capes (docs/CAPE.md; owner, 2026-11-24: "make a basic cape that we can make a bunch of different colorways of easily, make it tied
-    /// around the front"): one prefab a colourway (CapeColourways), its outside, lining and ties each in the colourway's colour. The cape itself is
+    /// around the front"): one prefab a colourway (CapeColourways), its outside and lining each in the colourway's colour. The cape itself is
     /// made when it is worn (CapeShape, CapeCloth, CapeLook); the prefab holds its materials and the folded cape it lies as on the ground.
     /// </summary>
     public static class CapeBuilder
@@ -50,7 +50,6 @@ namespace CityX.WearablesEditor
         {
             Material outside = BlenderGarmentMesh.PlainMaterial($"{Folder}/{colourway.ItemId}_outside.mat", colourway.Outside, Smoothness);
             Material lining = BlenderGarmentMesh.PlainMaterial($"{Folder}/{colourway.ItemId}_lining.mat", colourway.Lining, Smoothness);
-            Material ties = BlenderGarmentMesh.PlainMaterial($"{Folder}/{colourway.ItemId}_ties.mat", colourway.Ties, Smoothness);
             var root = new GameObject(colourway.ItemId);
             try
             {
@@ -65,7 +64,6 @@ namespace CityX.WearablesEditor
                 cape.SetItemId(colourway.ItemId);
                 cape.Outside = outside;
                 cape.Lining = lining;
-                cape.Ties = ties;
                 cape.GroundPreview = preview;
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, CapeColourways.PrefabPath(colourway.ItemId));
                 Debug.Log($"CityX: {colourway.DisplayName} written to {CapeColourways.PrefabPath(colourway.ItemId)}");
