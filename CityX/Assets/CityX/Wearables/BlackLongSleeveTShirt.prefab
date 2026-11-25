@@ -143,6 +143,9 @@ MonoBehaviour:
   HiddenFromBodyTriangles: 85838
   HiddenBodyTrianglesWithShoes: 
   _itemId: black_long_sleeve_t_shirt
+  FrontMiddleUv: {x: 0.2493196, y: 0.7514378}
+  BackMiddleUv: {x: 0.7505186, y: 0.745655}
+  UvPerMetre: 0.42901504
 --- !u!135 &561564804977720746
 SphereCollider:
   m_ObjectHideFlags: 0

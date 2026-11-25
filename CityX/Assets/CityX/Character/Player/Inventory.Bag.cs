@@ -135,9 +135,27 @@ namespace CityX.Character
             Reserve = data.Reserve,
             HasContents = data.HasContents,
             Contents = data.Contents,
+            DesignId = data.DesignId ?? string.Empty,
         };
 
-        private static ItemInstanceData DataOf(BagEntry entry) => new ItemInstanceData
+        /// <summary>The state a character's worn <paramref name="itemId"/> was saved with (a pressed shirt's design), for a body that only shows them.</summary>
+        public static ItemInstanceData WornData(CharacterSave character, string itemId)
+        {
+            if (character?.Bag != null)
+            {
+                foreach (BagEntry entry in character.Bag)
+                {
+                    if (entry != null && !entry.InStorage && entry.ItemId == itemId)
+                    {
+                        return DataOf(entry);
+                    }
+                }
+            }
+            return ItemInstanceData.None;
+        }
+
+        /// <summary>A saved thing's state (its rounds, cracks, litres, printed design), as the item takes it; a design id that is not one is dropped.</summary>
+        public static ItemInstanceData DataOf(BagEntry entry) => new ItemInstanceData
         {
             HasDurability = entry.HasDurability,
             Durability = entry.Durability,
@@ -146,6 +164,7 @@ namespace CityX.Character
             Reserve = entry.Reserve,
             HasContents = entry.HasContents,
             Contents = entry.Contents,
+            DesignId = DesignStore.IsValidId(entry.DesignId) ? entry.DesignId : null,
         };
     }
 }

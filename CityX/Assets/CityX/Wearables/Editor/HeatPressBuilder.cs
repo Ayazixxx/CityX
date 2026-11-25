@@ -49,6 +49,7 @@ namespace CityX.WearablesEditor
                 var heatPress = press.gameObject.AddComponent<HeatPress>();
                 heatPress.LidPivot = pivot;
                 heatPress.Drawer = drawer;
+                press.gameObject.AddComponent<HeatPressUse>();   // "[E] Print a shirt" 
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();

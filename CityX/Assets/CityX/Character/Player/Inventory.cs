@@ -597,9 +597,21 @@ namespace CityX.Character
             return pair;
         }
 
+        /// <summary>What another player's copy is told a printed shirt is: its id, this mark, then its design's id (<see cref="ShownDesign"/>).</summary>
+        public const char DesignMark = '#';
+
+        /// <summary>A shown id's item (still marked if a left-hand pistol) and the design printed on it (empty for none).</summary>
+        public static string ShownDesign(string shownId, out string designId)
+        {
+            int mark = shownId != null ? shownId.IndexOf(DesignMark) : -1;
+            designId = mark >= 0 ? shownId.Substring(mark + 1) : string.Empty;
+            return mark >= 0 ? shownId.Substring(0, mark) : shownId;
+        }
+
         /// <summary>
         /// The ids of every equipped item that exists as an object right now (a holstered weapon is not one); a left-hand pistol is marked
-        /// (<see cref="PairMark"/>), so a copy holds it in that hand and tells it from the right-hand one.
+        /// (<see cref="PairMark"/>), so a copy holds it in that hand and tells it from the right-hand one; a printed shirt carries its design's
+        /// id (<see cref="DesignMark"/>), so a copy wears the same print.
         /// </summary>
         public System.Collections.Generic.List<string> VisibleItemIds()
         {
@@ -608,7 +620,9 @@ namespace CityX.Character
             {
                 if (pair.Value != null && _equipment.TryGetValue(pair.Key, out string id) && !string.IsNullOrEmpty(id))
                 {
-                    ids.Add(PistolPairs.IsPair(pair.Key) ? PairMark + id : id);
+                    string shown = PistolPairs.IsPair(pair.Key) ? PairMark + id : id;
+                    string design = pair.Value.GetComponent<IPrintable>()?.DesignId;
+                    ids.Add(string.IsNullOrEmpty(design) ? shown : shown + DesignMark + design);
                 }
             }
             ids.Sort(System.StringComparer.Ordinal);

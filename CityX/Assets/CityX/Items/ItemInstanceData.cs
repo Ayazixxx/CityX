@@ -24,8 +24,16 @@ namespace CityX.Items
 
         public float Contents;
 
+        /// <summary>
+        /// The design printed on it (a shirt pressed at the heat press, docs/HEAT_PRESS.md): the id of a design the server keeps
+        /// (Core.DesignStore), empty for none. It stays with the shirt wherever the shirt goes.
+        /// </summary>
+        public string DesignId;
+
+        public bool HasDesign => !string.IsNullOrEmpty(DesignId);
+
         public static readonly ItemInstanceData None = default;
 
-        public bool IsEmpty => !HasDurability && !HasAmmo && !HasContents;
+        public bool IsEmpty => !HasDurability && !HasAmmo && !HasContents && !HasDesign;
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Core;
 using CityX.Items;
 using FishNet.Object;
 using UnityEngine;
@@ -108,7 +109,16 @@ namespace CityX.Character
             {
                 return;
             }
-            SendEquipmentToServer(_inventory.VisibleItemIds().ToArray());
+            List<string> ids = _inventory.VisibleItemIds();
+            foreach (string id in ids)
+            {
+                Inventory.ShownDesign(id, out string designId);
+                if (designId.Length > 0)
+                {
+                    DesignLibrary.Share(designId);   // before the copies are told: they will ask the server for it
+                }
+            }
+            SendEquipmentToServer(ids.ToArray());
         }
 
         [ServerRpc(RequireOwnership = true)]
@@ -121,8 +131,10 @@ namespace CityX.Character
             var clean = new List<string>();
             foreach (string id in itemIds)
             {
-                Inventory.ShownAsPair(id, out string itemId);   // a left-hand pistol's id is its item's, marked
-                if (!string.IsNullOrEmpty(itemId) && ItemRegistry.Has(itemId) && !clean.Contains(id))
+                string item = Inventory.ShownDesign(id, out string designId);   // a printed shirt's id carries its design's
+                Inventory.ShownAsPair(item, out string itemId);   // a left-hand pistol's id is its item's, marked
+                bool designOk = designId.Length == 0 || DesignStore.IsValidId(designId);
+                if (!string.IsNullOrEmpty(itemId) && ItemRegistry.Has(itemId) && designOk && !clean.Contains(id))
                 {
                     clean.Add(id);
                 }
@@ -162,9 +174,14 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                bool leftHand = Inventory.ShownAsPair(id, out string itemId);   // the second of a pair of pistols (docs/DUAL_PISTOLS.md)
+                string item = Inventory.ShownDesign(id, out string designId);   // a printed shirt (docs/HEAT_PRESS.md)
+                bool leftHand = Inventory.ShownAsPair(item, out string itemId);   // the second of a pair of pistols (docs/DUAL_PISTOLS.md)
                 GameObject prefab = _inventory.PrefabForItem(itemId);
                 GameObject model = prefab != null ? Build(prefab, leftHand) : null;
+                if (model != null && designId.Length > 0)
+                {
+                    model.GetComponent<IPrintable>()?.ShowDesign(designId);
+                }
                 if (model != null)
                 {
                     _shown[id] = model;

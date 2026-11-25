@@ -1052,6 +1052,9 @@ namespace CityX.ViewEditor
             mobs.HoboPrefabs = hoboPrefabs;
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
             streamerObject.AddComponent<CityX.Character.GraffitiNetwork>().PaintMaterial = CityX.WeaponsEditor.SprayCanBuilder.EnsureGraffitiMaterial();
+            // Shirt designs pressed at a heat press, and the presses themselves, the same on every machine (docs/HEAT_PRESS.md).
+            streamerObject.AddComponent<CityX.Character.DesignNetwork>();
+            streamerObject.AddComponent<CityX.Wearables.HeatPressNetwork>().PressPrefab = CityX.WearablesEditor.HeatPressBuilder.Build();
             streamer.RoadLineMaterial = roadLine;
             streamer.CrosswalkMaterial = crosswalk;
             streamer.DoorMaterial = door;

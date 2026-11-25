@@ -9,7 +9,7 @@ namespace CityX.Wearables
     /// <see cref="HeatPressCycle"/> says for the seconds since its pressing began, and puffs steam from round the plates as the lid lifts. It only
     /// shows a pressing: what starts one (and prints the shirt) is told the start time, so every machine shows the same moment.
     /// </summary>
-    public sealed class HeatPress : MonoBehaviour
+    public sealed partial class HeatPress : MonoBehaviour
     {
         [Tooltip("Turns the lid about the pivot (HeatPressShape.Pivot); the lid's mesh is its child.")]
         public Transform LidPivot;
@@ -57,6 +57,7 @@ namespace CityX.Wearables
                 _steamed = true;
                 Puff();
             }
+            TickShirt(seconds);
         }
 
         private void Show(HeatPressCycle.Pose pose)

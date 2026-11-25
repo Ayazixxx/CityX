@@ -250,8 +250,8 @@ namespace CityX.UI
                         return false;
                     }
                     GameObject heatPress = Instantiate(HeatPressPrefab, where, facing);
-                    heatPress.GetComponentInChildren<CityX.Wearables.HeatPress>().Begin();   // the clamp and the steam, to see it work
-                    SpawnLog("spawned a heat press -- it shows one pressing");
+                    CityX.Wearables.HeatPressNetwork.TellPlaced(heatPress.GetComponentInChildren<CityX.Wearables.HeatPress>());   // on every machine
+                    SpawnLog("spawned a heat press -- look at it and press E to print a shirt");
                     return true;
 
                 case "mustang":

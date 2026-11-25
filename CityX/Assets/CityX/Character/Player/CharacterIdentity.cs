@@ -160,7 +160,7 @@ namespace CityX.Character
             {
                 if (ItemRegistry.TryGet(itemId, out ItemDefinition definition) && definition.IsWearable)
                 {
-                    _inventory.EquipItemId(itemId, gameObject);
+                    _inventory.EquipItemId(itemId, gameObject, Inventory.WornData(character, itemId));
                 }
             }
             // And the primary weapon back in the hands (CharacterSave.PrimaryWeapon), if nothing is there already.

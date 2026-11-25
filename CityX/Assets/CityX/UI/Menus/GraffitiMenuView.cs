@@ -533,45 +533,45 @@ namespace CityX.UI
             _root.AddComponent<GraphicRaycaster>();
             var root = (RectTransform)_root.transform;
 
-            Image backdrop = MakeImage("Backdrop", root, Backdrop);
+            Image backdrop = UiKit.MakeImage("Backdrop", root, Backdrop);
             UiKit.Stretch(backdrop.rectTransform);
             backdrop.raycastTarget = true;   // nothing behind the menu takes a click
 
             Text title = MakeText("Title", root, "GRAFFITI", 24, TextAnchor.MiddleCenter);
-            Place(title.rectTransform, new Vector2(0.0f, 296.0f), new Vector2(400.0f, 34.0f));
+            UiKit.Place(title.rectTransform, new Vector2(0.0f, 296.0f), new Vector2(400.0f, 34.0f));
 
             // The wall, and the paint over it.
-            Image frame = MakeImage("Frame", root, PanelColour);
-            Place(frame.rectTransform, new Vector2(-160.0f, -6.0f), new Vector2(CanvasSize + 12.0f, CanvasSize + 12.0f));
-            _wall = MakeRaw("Wall", root, null, Color.white);
-            Place(_wall.rectTransform, new Vector2(-160.0f, -6.0f), new Vector2(CanvasSize, CanvasSize));
+            Image frame = UiKit.MakeImage("Frame", root, PanelColour);
+            UiKit.Place(frame.rectTransform, new Vector2(-160.0f, -6.0f), new Vector2(CanvasSize + 12.0f, CanvasSize + 12.0f));
+            _wall = UiKit.MakeRaw("Wall", root, null, Color.white);
+            UiKit.Place(_wall.rectTransform, new Vector2(-160.0f, -6.0f), new Vector2(CanvasSize, CanvasSize));
             _maskTexture = new Texture2D(GraffitiCanvas.Size, GraffitiCanvas.Size, TextureFormat.RGBA32, false)
             {
                 name = "GraffitiMask", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point,
             };
-            RawImage masked = MakeRaw("NotTheWall", root, _maskTexture, Color.white);
-            Place(masked.rectTransform, new Vector2(-160.0f, -6.0f), new Vector2(CanvasSize, CanvasSize));
+            RawImage masked = UiKit.MakeRaw("NotTheWall", root, _maskTexture, Color.white);
+            UiKit.Place(masked.rectTransform, new Vector2(-160.0f, -6.0f), new Vector2(CanvasSize, CanvasSize));
             _paintTexture = new Texture2D(GraffitiCanvas.Size, GraffitiCanvas.Size, TextureFormat.RGBA32, false)
             {
                 name = "GraffitiPaint", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear,
             };
-            _paint = MakeRaw("Paint", root, _paintTexture, Color.white);
-            Place(_paint.rectTransform, new Vector2(-160.0f, -6.0f), new Vector2(CanvasSize, CanvasSize));
+            _paint = UiKit.MakeRaw("Paint", root, _paintTexture, Color.white);
+            UiKit.Place(_paint.rectTransform, new Vector2(-160.0f, -6.0f), new Vector2(CanvasSize, CanvasSize));
 
             // The colour, the brush, the buttons.
-            Image side = MakeImage("Side", root, PanelColour);
-            Place(side.rectTransform, new Vector2(300.0f, -6.0f), new Vector2(250.0f, CanvasSize + 12.0f));
+            Image side = UiKit.MakeImage("Side", root, PanelColour);
+            UiKit.Place(side.rectTransform, new Vector2(300.0f, -6.0f), new Vector2(250.0f, CanvasSize + 12.0f));
             Text colourLabel = MakeText("ColourLabel", root, "COLOUR", 14, TextAnchor.MiddleLeft);
-            Place(colourLabel.rectTransform, new Vector2(300.0f, 222.0f), new Vector2(210.0f, 20.0f));
-            _square = MakeRaw("SaturationValue", root, CreatorControls.BuildSquare(_hue), Color.white);
-            Place(_square.rectTransform, new Vector2(300.0f, 112.0f), new Vector2(210.0f, 190.0f));
-            _hueStrip = MakeRaw("Hue", root, CreatorControls.BuildHueStrip(), Color.white);
-            Place(_hueStrip.rectTransform, new Vector2(300.0f, 2.0f), new Vector2(210.0f, 20.0f));
-            _swatch = MakeImage("Swatch", root, Colour);
-            Place(_swatch.rectTransform, new Vector2(240.0f, -46.0f), new Vector2(90.0f, 40.0f));
+            UiKit.Place(colourLabel.rectTransform, new Vector2(300.0f, 222.0f), new Vector2(210.0f, 20.0f));
+            _square = UiKit.MakeRaw("SaturationValue", root, CreatorControls.BuildSquare(_hue), Color.white);
+            UiKit.Place(_square.rectTransform, new Vector2(300.0f, 112.0f), new Vector2(210.0f, 190.0f));
+            _hueStrip = UiKit.MakeRaw("Hue", root, CreatorControls.BuildHueStrip(), Color.white);
+            UiKit.Place(_hueStrip.rectTransform, new Vector2(300.0f, 2.0f), new Vector2(210.0f, 20.0f));
+            _swatch = UiKit.MakeImage("Swatch", root, Colour);
+            UiKit.Place(_swatch.rectTransform, new Vector2(240.0f, -46.0f), new Vector2(90.0f, 40.0f));
 
             _brushLabel = MakeText("BrushLabel", root, "BRUSH", 14, TextAnchor.MiddleLeft);
-            Place(_brushLabel.rectTransform, new Vector2(320.0f, -100.0f), new Vector2(170.0f, 22.0f));
+            UiKit.Place(_brushLabel.rectTransform, new Vector2(320.0f, -100.0f), new Vector2(170.0f, 22.0f));
             MakeButton(root, "-", new Vector2(212.0f, -100.0f), new Vector2(36.0f, 30.0f), ButtonColour, () => SetBrush(Brush - 1));
             MakeButton(root, "+", new Vector2(388.0f, -100.0f), new Vector2(36.0f, 30.0f), ButtonColour, () => SetBrush(Brush + 1));
 
@@ -583,7 +583,7 @@ namespace CityX.UI
                 "Drag on the wall to spray (hatched: not the wall, paint will not stick)   [ ] brush size   Enter done   Esc cancel", 13,
                 TextAnchor.MiddleCenter);
             hint.color = new Color(Ink.r, Ink.g, Ink.b, 0.7f);
-            Place(hint.rectTransform, new Vector2(0.0f, -290.0f), new Vector2(900.0f, 22.0f));
+            UiKit.Place(hint.rectTransform, new Vector2(0.0f, -290.0f), new Vector2(900.0f, 22.0f));
 
             _hiss = gameObject.AddComponent<AudioSource>();
             _hiss.clip = HissClip();
@@ -622,66 +622,10 @@ namespace CityX.UI
             return _hissClip;
         }
 
-        private static Font Font => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        private static Text MakeText(string name, RectTransform parent, string content, int size, TextAnchor alignment) =>
+            UiKit.MakeLabel(name, parent, content, size, alignment, Ink);
 
-        private static RectTransform NewChild(string name, RectTransform parent)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            return rect;
-        }
-
-        /// <summary>Centred on the screen's middle, at <paramref name="at"/> design pixels, <paramref name="size"/> big.</summary>
-        private static void Place(RectTransform rect, Vector2 at, Vector2 size)
-        {
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = at;
-            rect.sizeDelta = size;
-        }
-
-        private static Image MakeImage(string name, RectTransform parent, Color colour)
-        {
-            Image image = NewChild(name, parent).gameObject.AddComponent<Image>();
-            image.color = colour;
-            image.raycastTarget = false;
-            return image;
-        }
-
-        private static RawImage MakeRaw(string name, RectTransform parent, Texture texture, Color colour)
-        {
-            RawImage image = NewChild(name, parent).gameObject.AddComponent<RawImage>();
-            image.texture = texture;
-            image.color = colour;
-            image.raycastTarget = false;
-            return image;
-        }
-
-        private static Text MakeText(string name, RectTransform parent, string content, int size, TextAnchor alignment)
-        {
-            Text text = NewChild(name, parent).gameObject.AddComponent<Text>();
-            text.font = Font;
-            text.fontSize = size;
-            text.fontStyle = FontStyle.Bold;
-            text.color = Ink;
-            text.alignment = alignment;
-            text.raycastTarget = false;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            text.text = content;
-            return text;
-        }
-
-        private static void MakeButton(RectTransform parent, string label, Vector2 at, Vector2 size, Color colour, UnityEngine.Events.UnityAction onClick)
-        {
-            Image face = MakeImage(label + "Button", parent, colour);
-            face.raycastTarget = true;
-            Place(face.rectTransform, at, size);
-            var button = face.gameObject.AddComponent<Button>();
-            button.targetGraphic = face;
-            button.onClick.AddListener(onClick);
-            Text text = MakeText("Label", face.rectTransform, label, 15, TextAnchor.MiddleCenter);
-            UiKit.Stretch(text.rectTransform);
-        }
+        private static void MakeButton(RectTransform parent, string label, Vector2 at, Vector2 size, Color colour, UnityEngine.Events.UnityAction onClick) =>
+            UiKit.MakeButton(parent, label, at, size, colour, Ink, onClick);
     }
 }

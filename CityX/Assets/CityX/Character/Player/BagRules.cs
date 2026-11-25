@@ -106,6 +106,10 @@ namespace CityX.Character
             {
                 return "its state";
             }
+            if (!string.IsNullOrEmpty(entry.DesignId) && !DesignStore.IsValidId(entry.DesignId))
+            {
+                return "its printed design";
+            }
             return null;
         }
 

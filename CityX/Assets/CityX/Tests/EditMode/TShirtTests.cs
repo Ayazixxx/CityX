@@ -37,8 +37,8 @@ namespace CityX.Tests
         private const float LongCuffAboveWrist = 0.06f;
 
         /// <summary>Where on the template each piece lies (tshirt_build.py's PIECE_BOXES): the front on the left of the top, the back on the right.</summary>
-        private static readonly Rect FrontPiece = new Rect(0.0f, 0.4f, 0.5f, 0.6f);
-        private static readonly Rect BackPiece = new Rect(0.5f, 0.4f, 0.5f, 0.6f);
+        private static readonly Rect FrontPiece = ShirtPrintLayout.FrontPiece;
+        private static readonly Rect BackPiece = ShirtPrintLayout.BackPiece;
 
         /// <summary>The middle of the chest, bind pose (+z ahead).</summary>
         private const float ChestHeight = 1.62f;

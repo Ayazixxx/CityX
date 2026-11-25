@@ -8,6 +8,14 @@ namespace CityX.Wearables
     /// </summary>
     public static class ShirtPrintLayout
     {
+        /// <summary>Where the T-Shirt's front and back pieces lie on its texture (tshirt_build.py's PIECE_BOXES).</summary>
+        public static readonly Rect FrontPiece = new Rect(0.0f, 0.4f, 0.5f, 0.6f);
+
+        public static readonly Rect BackPiece = new Rect(0.5f, 0.4f, 0.5f, 0.6f);
+
+        /// <summary>The middle of the chest and of the back, bind pose (tshirt_build.py's TEMPLATE_MARKS).</summary>
+        public const float MiddleHeight = 1.62f;
+
         /// <summary>
         /// Where a print's centre lands on the texture: the middle of its side (<paramref name="middleUv"/>) moved <paramref name="rightMetres"/>
         /// and <paramref name="upMetres"/> along the cloth, at <paramref name="uvPerMetre"/> (the side's piece lies upright on the texture,
@@ -57,6 +65,48 @@ namespace CityX.Wearables
         }
 
         /// <summary>
+        /// Lays <paramref name="picture"/> (rows bottom up) over a square texture of <paramref name="size"/> texels already holding the cloth,
+        /// centred at <paramref name="centreUv"/>, <paramref name="widthUv"/> wide, upright; only inside <paramref name="piece"/>, so nothing
+        /// spills onto the texture's other pieces (a sleeve, the other side). Its transparency lets the cloth through.
+        /// </summary>
+        public static void Overlay(Color32[] texels, int size, Color32[] picture, int pictureWidth, int pictureHeight, Vector2 centreUv, float widthUv,
+            Rect piece)
+        {
+            float heightUv = widthUv * pictureHeight / pictureWidth;
+            float left = Mathf.Max(centreUv.x - widthUv * 0.5f, piece.xMin), right = Mathf.Min(centreUv.x + widthUv * 0.5f, piece.xMax);
+            float bottom = Mathf.Max(centreUv.y - heightUv * 0.5f, piece.yMin), top = Mathf.Min(centreUv.y + heightUv * 0.5f, piece.yMax);
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(left * size)), x1 = Mathf.Min(size - 1, Mathf.CeilToInt(right * size));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(bottom * size)), y1 = Mathf.Min(size - 1, Mathf.CeilToInt(top * size));
+            for (int y = y0; y <= y1; y++)
+            {
+                float v = (y + 0.5f) / size;
+                float up = (v - centreUv.y) / heightUv + 0.5f;
+                if (up < 0.0f || up > 1.0f || !InRange(v, piece.yMin, piece.yMax))
+                {
+                    continue;
+                }
+                for (int x = x0; x <= x1; x++)
+                {
+                    float u = (x + 0.5f) / size;
+                    float across = (u - centreUv.x) / widthUv + 0.5f;
+                    if (across < 0.0f || across > 1.0f || !InRange(u, piece.xMin, piece.xMax))
+                    {
+                        continue;
+                    }
+                    Color ink = Sample(picture, pictureWidth, pictureHeight, across, up);
+                    if (ink.a <= 0.0f)
+                    {
+                        continue;
+                    }
+                    Color cloth = texels[y * size + x];
+                    texels[y * size + x] = Color.Lerp(cloth, new Color(ink.r, ink.g, ink.b, 1.0f), ink.a);
+                }
+            }
+        }
+
+        private static bool InRange(float value, float min, float max) => value >= min && value <= max;
+
+        /// <summary>
         /// A square texture of <paramref name="size"/> texels covered all over with the picture, each copy <paramref name="repeatUv"/> wide
         /// (the garment's pieces lie at one scale on it, so the pattern is one size everywhere on the cloth), the pattern slid by
         /// <paramref name="offsetUv"/> and turned <paramref name="rotationDegrees"/> anticlockwise, the picture's transparency letting
@@ -85,8 +135,8 @@ namespace CityX.Wearables
             return texels;
         }
 
-        /// <summary>The picture at (u, v) in 0..1, blended between its four nearest texels.</summary>
-        private static Color Sample(Color32[] logo, int width, int height, float u, float v, bool wrap = false)
+        /// <summary>The picture at (u, v) in 0..1, blended between its four nearest texels (its colour, not weighted by its own transparency).</summary>
+        public static Color Sample(Color32[] logo, int width, int height, float u, float v, bool wrap = false)
         {
             if (width < 2 || height < 2)
             {

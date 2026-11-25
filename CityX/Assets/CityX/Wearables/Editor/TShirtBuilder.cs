@@ -372,6 +372,10 @@ namespace CityX.WearablesEditor
                     shirt.SetItemId(itemId);
                     shirt.HiddenBodyTriangles = hidden;
                     shirt.HiddenFromBodyTriangles = bodyTriangles;
+                    // Where a design pressed at the heat press goes on its texture (docs/HEAT_PRESS.md).
+                    ShirtPrintBaker.FitSide(mesh, true, out shirt.FrontMiddleUv, out float frontScale);
+                    ShirtPrintBaker.FitSide(mesh, false, out shirt.BackMiddleUv, out float backScale);
+                    shirt.UvPerMetre = 0.5f * (frontScale + backScale);
                 },
                 AssetDatabase.LoadAssetAtPath<Mesh>(FoldedMeshPath));
             if (saved != null)

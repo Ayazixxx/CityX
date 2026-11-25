@@ -5,7 +5,8 @@
         "CityX.Character",
         "CityX.Core",
         "CityX.Items",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "FishNet.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

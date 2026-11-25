@@ -87,6 +87,10 @@ namespace CityX.Character
             GameObject model = Instantiate(prefab, drop.Position, drop.Rotation);
             model.name = prefab.name + " (dropped)";
             InertModel.Strip(model);
+            if (drop.Data.HasDesign)
+            {
+                model.GetComponent<IPrintable>()?.ShowDesign(drop.Data.DesignId);   // a pressed shirt lies with its print (docs/HEAT_PRESS.md)
+            }
             var item = model.AddComponent<DroppedItem>();
             item.Id = drop.Id;
             item.ItemId = drop.ItemId;

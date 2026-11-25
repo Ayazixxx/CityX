@@ -354,6 +354,7 @@ GameObject:
   - component: {fileID: 110629452821670521}
   - component: {fileID: 6642584421889304087}
   - component: {fileID: 3514672350208231906}
+  - component: {fileID: 7795267513523392671}
   m_Layer: 0
   m_Name: Press
   m_TagString: Untagged
@@ -414,6 +415,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Wearables::CityX.Wearables.HeatPress
   LidPivot: {fileID: 5908386294180009219}
   Drawer: {fileID: 3275194512118740876}
+--- !u!114 &7795267513523392671
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5684932940486774081}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 788f1519e8d4426428d8886e12461bdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Wearables::CityX.Wearables.HeatPressUse
 --- !u!1 &7039992508092311733
 GameObject:
   m_ObjectHideFlags: 0

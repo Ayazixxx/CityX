@@ -30,6 +30,9 @@ namespace CityX.Core
         public bool HasContents;
         public float Contents;
 
+        /// <summary>The design printed on it (a pressed shirt); empty for none.</summary>
+        public string DesignId = string.Empty;
+
         public bool InStorage => string.IsNullOrEmpty(Slot);
     }
 }

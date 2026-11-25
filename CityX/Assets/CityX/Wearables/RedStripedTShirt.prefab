@@ -143,6 +143,9 @@ MonoBehaviour:
   HiddenFromBodyTriangles: 85838
   HiddenBodyTrianglesWithShoes: 
   _itemId: red_striped_t_shirt
+  FrontMiddleUv: {x: 0.24916826, y: 0.75949544}
+  BackMiddleUv: {x: 0.750592, y: 0.7527568}
+  UvPerMetre: 0.49572217
 --- !u!135 &1036039050117810495
 SphereCollider:
   m_ObjectHideFlags: 0

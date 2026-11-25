@@ -85,7 +85,7 @@ namespace CityX.UI
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
-        [Tooltip("What /spawn heatpress puts down (docs/HEAT_PRESS.md): it shows one pressing as it lands.")]
+        [Tooltip("What /spawn heatpress puts down (docs/HEAT_PRESS.md), for everyone in a session.")]
         public GameObject HeatPressPrefab;
 
         [Tooltip("What /spawn mustang puts down.")]

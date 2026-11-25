@@ -85,7 +85,8 @@ namespace CityX.UI
             if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
                 (Map != null && Map.IsOpen) || (Inventory != null && Inventory.IsOpen) ||
                 (Chat != null && Chat.IsOpen) || SkillMenuView.IsAnyOpen || SkillMenuView.ClosedOnFrame == Time.frameCount ||
-                GraffitiMenuView.IsAnyOpen || GraffitiMenuView.ClosedOnFrame == Time.frameCount)
+                GraffitiMenuView.IsAnyOpen || GraffitiMenuView.ClosedOnFrame == Time.frameCount ||
+                HeatPressView.IsAnyOpen || HeatPressView.ClosedOnFrame == Time.frameCount)
             {
                 // (The skill menu closes on C too: the press that closed it does not also open this.)
                 return;

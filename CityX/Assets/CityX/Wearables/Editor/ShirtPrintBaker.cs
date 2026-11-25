@@ -19,12 +19,9 @@ namespace CityX.WearablesEditor
         /// <summary>Texels across the printed texture: about 960 a metre on the shirt, so a picture 34 cm wide is printed 330 texels wide.</summary>
         public const int TextureSize = 2048;
 
-        /// <summary>Where the front and back pieces lie on the texture (tshirt_build.py's PIECE_BOXES).</summary>
-        private static readonly Rect FrontPiece = new Rect(0.0f, 0.4f, 0.5f, 0.6f);
-        private static readonly Rect BackPiece = new Rect(0.5f, 0.4f, 0.5f, 0.6f);
-
-        /// <summary>The middle of the chest and of the back, bind pose (tshirt_build.py's TEMPLATE_MARKS).</summary>
-        private const float MiddleHeight = 1.62f;
+        private static Rect FrontPiece => ShirtPrintLayout.FrontPiece;
+        private static Rect BackPiece => ShirtPrintLayout.BackPiece;
+        private const float MiddleHeight = ShirtPrintLayout.MiddleHeight;
 
         /// <summary>The cloth around the middle a side's placement is fitted to: this far either side of it, and up and down.</summary>
         private const float FitAcross = 0.2f;

@@ -154,6 +154,12 @@ namespace CityX.UI
                 gameObject.AddComponent<GraffitiMenuView>();
             }
 
+            // The heat press screen, opened with E at a press (docs/HEAT_PRESS.md).
+            if (GetComponent<HeatPressView>() == null)
+            {
+                gameObject.AddComponent<HeatPressView>();
+            }
+
             // The objective in the top-right corner, and the tutorial that sets it (docs/TUTORIAL.md).
             if (GetComponent<ObjectiveView>() == null)
             {

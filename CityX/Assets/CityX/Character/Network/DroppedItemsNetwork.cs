@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Core;
 using CityX.Items;
 using FishNet.Broadcast;
 using FishNet.Connection;
@@ -24,6 +25,9 @@ namespace CityX.Character
         public int Reserve;
         public bool HasContents;
         public float Contents;
+
+        /// <summary>A pressed shirt's design (docs/HEAT_PRESS.md); empty for none.</summary>
+        public string DesignId;
         public Vector3 Position;
         public Quaternion Rotation;
         public Vector3 Velocity;
@@ -74,6 +78,7 @@ namespace CityX.Character
         public int[] Reserve;
         public bool[] HasContents;
         public float[] Contents;
+        public string[] DesignId;
         public Vector3[] Position;
         public Quaternion[] Rotation;
     }
@@ -276,7 +281,7 @@ namespace CityX.Character
             var state = new ItemDropStateMessage
             {
                 Id = new long[n], ItemId = new string[n], Durability = new int[n], HasAmmo = new bool[n], Magazine = new int[n], Reserve = new int[n],
-                HasContents = new bool[n], Contents = new float[n], Position = new Vector3[n], Rotation = new Quaternion[n],
+                HasContents = new bool[n], Contents = new float[n], DesignId = new string[n], Position = new Vector3[n], Rotation = new Quaternion[n],
             };
             int i = 0;
             foreach (long id in _order)
@@ -295,6 +300,7 @@ namespace CityX.Character
                 state.Reserve[i] = drop.Reserve;
                 state.HasContents[i] = drop.HasContents;
                 state.Contents[i] = drop.Contents;
+                state.DesignId[i] = drop.DesignId ?? string.Empty;
                 state.Position[i] = shown != null ? shown.transform.position : drop.Position;
                 state.Rotation[i] = shown != null ? shown.transform.rotation : drop.Rotation;
                 i++;
@@ -341,7 +347,7 @@ namespace CityX.Character
             n = Mathf.Min(n, Mathf.Min(state.ItemId?.Length ?? 0, Mathf.Min(state.Durability?.Length ?? 0,
                 Mathf.Min(state.Position?.Length ?? 0, state.Rotation?.Length ?? 0))));
             n = Mathf.Min(n, Mathf.Min(state.HasAmmo?.Length ?? 0, Mathf.Min(state.Magazine?.Length ?? 0, state.Reserve?.Length ?? 0)));
-            n = Mathf.Min(n, Mathf.Min(state.HasContents?.Length ?? 0, state.Contents?.Length ?? 0));
+            n = Mathf.Min(n, Mathf.Min(state.HasContents?.Length ?? 0, Mathf.Min(state.Contents?.Length ?? 0, state.DesignId?.Length ?? 0)));
             LastStateSize = n;
             for (int i = 0; i < n; i++)
             {
@@ -349,7 +355,7 @@ namespace CityX.Character
                 {
                     Id = state.Id[i], ItemId = state.ItemId[i], Durability = state.Durability[i],
                     HasAmmo = state.HasAmmo[i], Magazine = state.Magazine[i], Reserve = state.Reserve[i],
-                    HasContents = state.HasContents[i], Contents = state.Contents[i],
+                    HasContents = state.HasContents[i], Contents = state.Contents[i], DesignId = state.DesignId[i],
                     Position = state.Position[i], Rotation = state.Rotation[i],
                 };
                 if (Acceptable(message))
@@ -381,6 +387,10 @@ namespace CityX.Character
             {
                 return false;   // (not-a-number fails both comparisons)
             }
+            if (!string.IsNullOrEmpty(message.DesignId) && !DesignStore.IsValidId(message.DesignId))
+            {
+                return false;
+            }
             return message.Velocity.magnitude <= MaxSpeed && message.Spin.magnitude <= MaxSpeed && Mathf.Abs(message.Position.y) < 100000.0f;
         }
 
@@ -391,7 +401,7 @@ namespace CityX.Character
         {
             Id = drop.Id, ItemId = drop.ItemId, Durability = drop.Data.HasDurability ? drop.Data.Durability : -1,
             HasAmmo = drop.Data.HasAmmo, Magazine = drop.Data.Magazine, Reserve = drop.Data.Reserve,
-            HasContents = drop.Data.HasContents, Contents = drop.Data.Contents,
+            HasContents = drop.Data.HasContents, Contents = drop.Data.Contents, DesignId = drop.Data.DesignId ?? string.Empty,
             Position = drop.Position, Rotation = drop.Rotation, Velocity = drop.Velocity, Spin = drop.Spin,
         };
 
@@ -403,6 +413,7 @@ namespace CityX.Character
                 HasDurability = message.Durability >= 0, Durability = Mathf.Max(0, message.Durability),
                 HasAmmo = message.HasAmmo, Magazine = message.HasAmmo ? message.Magazine : 0, Reserve = message.HasAmmo ? message.Reserve : 0,
                 HasContents = message.HasContents, Contents = message.HasContents ? message.Contents : 0.0f,
+                DesignId = string.IsNullOrEmpty(message.DesignId) ? null : message.DesignId,
             },
             Position = message.Position, Rotation = message.Rotation, Velocity = message.Velocity, Spin = message.Spin,
         };

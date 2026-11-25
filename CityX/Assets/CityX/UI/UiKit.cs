@@ -46,6 +46,72 @@ namespace CityX.UI
             field.selectionFocusPosition = end;
         }
 
+        /// <summary>A new empty rect under <paramref name="parent"/>.</summary>
+        public static RectTransform NewChild(string name, RectTransform parent)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            return rect;
+        }
+
+        /// <summary>Centred on its parent's middle, at <paramref name="at"/> design pixels, <paramref name="size"/> big.</summary>
+        public static void Place(RectTransform rect, Vector2 at, Vector2 size)
+        {
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = at;
+            rect.sizeDelta = size;
+        }
+
+        /// <summary>A flat-coloured image that clicks pass through.</summary>
+        public static Image MakeImage(string name, RectTransform parent, Color colour)
+        {
+            Image image = NewChild(name, parent).gameObject.AddComponent<Image>();
+            image.color = colour;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        /// <summary>A texture shown as it is, that clicks pass through.</summary>
+        public static RawImage MakeRaw(string name, RectTransform parent, Texture texture, Color colour)
+        {
+            RawImage image = NewChild(name, parent).gameObject.AddComponent<RawImage>();
+            image.texture = texture;
+            image.color = colour;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        /// <summary>A bold label in the built-in font that clicks pass through, never wrapped.</summary>
+        public static Text MakeLabel(string name, RectTransform parent, string content, int size, TextAnchor alignment, Color colour)
+        {
+            Text text = NewChild(name, parent).gameObject.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = size;
+            text.fontStyle = FontStyle.Bold;
+            text.color = colour;
+            text.alignment = alignment;
+            text.raycastTarget = false;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.text = content;
+            return text;
+        }
+
+        /// <summary>A flat button with its word across it, placed on its parent's middle.</summary>
+        public static Button MakeButton(RectTransform parent, string label, Vector2 at, Vector2 size, Color face, Color ink, UnityEngine.Events.UnityAction onClick)
+        {
+            Image image = MakeImage(label + "Button", parent, face);
+            image.raycastTarget = true;
+            Place(image.rectTransform, at, size);
+            var button = image.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(onClick);
+            Text text = MakeLabel("Label", image.rectTransform, label, 15, TextAnchor.MiddleCenter, ink);
+            Stretch(text.rectTransform);
+            return button;
+        }
+
         /// <summary>A label in the built-in font that clicks pass through, sized and placed by the caller.</summary>
         public static Text MakeText(Transform parent, string name, string content, int size, Color colour)
         {

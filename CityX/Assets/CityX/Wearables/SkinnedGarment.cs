@@ -80,7 +80,7 @@ namespace CityX.Wearables
         {
             if (!_equipped && _pickup.TappedWithin(transform.position, InteractRange))
             {
-                GroundPickup.Take(_pickup.Player, gameObject, ItemId);
+                GroundPickup.Take(_pickup.Player, gameObject, ItemId, GetInstanceData());
             }
         }
 
@@ -90,8 +90,17 @@ namespace CityX.Wearables
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
         {
+            TakeInstanceData(instanceData);
             PutOn(player);
         }
+
+        /// <summary>What this one garment carries (a pressed shirt's design), handed over as it is put on; plain clothing carries nothing.</summary>
+        protected virtual void TakeInstanceData(ItemInstanceData instanceData)
+        {
+        }
+
+        /// <summary>The material the worn skin is drawn in (a pressed shirt's printed one).</summary>
+        protected virtual Material WornMaterial => GarmentMaterial;
 
         /// <summary>Unregisters from the shared combiner, then destroys the (by then bare) root.</summary>
         public void OnUnequip(GameObject player)
@@ -152,7 +161,7 @@ namespace CityX.Wearables
             {
                 Combiner = player.AddComponent<SkinnedGarmentCombiner>();
             }
-            Combiner.Register(ItemId, GarmentMesh, GarmentMaterial);
+            Combiner.Register(ItemId, GarmentMesh, WornMaterial);
             CoverBody(player);
             if (TucksHairUnderCollar && GarmentCollar.TuckHairUnder(animator, GarmentMesh, CollarRimHalfWidth))
             {
@@ -248,6 +257,6 @@ namespace CityX.Wearables
         }
 
         /// <summary>Plain clothing carries no per-instance state.</summary>
-        public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
+        public virtual ItemInstanceData GetInstanceData() => ItemInstanceData.None;
     }
 }

@@ -374,7 +374,7 @@ namespace CityX.UI
                     Destroy(worn);
                     continue;
                 }
-                equippable.OnEquip(body, ItemInstanceData.None);
+                equippable.OnEquip(body, Inventory.WornData(character, itemId));   // a pressed shirt with its print
                 foreach (Collider pickup in worn.GetComponentsInChildren<Collider>(true))
                 {
                     pickup.enabled = false;

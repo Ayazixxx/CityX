@@ -503,7 +503,7 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   you harder to be dismembered and if you do still get dismembered badly we could have the armor just come off the body and turn into its
   object form".
 
-- **Shirt prints, dye and the paint marker (owner, 2026-11-24; not built yet).** The owner, on building the heat press now: "it will also be a
+- **Shirt prints, dye and the paint marker (owner, 2026-11-24; the heat press and designs built the same day, docs/HEAT_PRESS.md; dye and the marker not yet).** The owner, on building the heat press now: "it will also be a
   good ingame tool to make a bunch of shirt designs quick", and on picking a shirt's colour: "the whole select shirt color thing kinda makes no
   sense ... it would kinda make more sense if you just have to print on whatever shirt color you find or if there is another way to dye the
   shirts". So a shirt's colour is the one you find, or one you dye it; the press prints on it. **The paint marker** (owner; first called the fabric marker, then "maybe it can just be called paint marker and it works on walls too"): "you can just
