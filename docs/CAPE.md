@@ -22,8 +22,14 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
   material as well as trim those triangles poking out on the sides. the middle stays as it"): the yoke's front edge runs from the collar's
   lower edge out along the front of each shoulder to its tip, with no skin between the collar and the yoke (the collar's ends tucked under
   the yoke), and the tips round back over the shoulder instead of folding down into points. The collar in the middle as it was.
+- **One straight line across** (owner, 2026-11-25, drawing it: "make it a straight line across fill in with material based on my drawing"):
+  the lower edge in front runs straight from one shoulder's tip along the yoke and the collar's lower edge to the other, filled with cloth
+  above it (`CapeShape.FrontLine`; the shoulders' part a few centimetres lower than the collar's middle, which stands nearer the eye, so the
+  line reads straight from in front). Beside the neck the head sits almost on the shoulder, so the yoke routes round the neck where there is
+  room and tucks a little under the head there (hidden by it); the collar lies a little nearer the body than the yoke where its ends tuck
+  under it. 21 columns across, so the turn round the neck does not fold the cloth.
 - **Fitted like a skin suit** (owner, 2026-11-25: "make it fit to his shoulders like a skin suit. like the same dimensions of the shoulder
-  just a tiny bit bigger so its not clipping through"): when it is put on, every point of the yoke and the collar is laid 1.5 cm off the
+  just a tiny bit bigger so its not clipping through"): when it is put on, every point of the yoke and the collar is laid 2.2 cm off the
   body's own surface under it (`CapeShape.FitToBody`, from the body mesh; the yoke smoothed so it lies as cloth, kept clear of the head), and
   follows the bones and weights of the body's skin there each frame, so the shoulders move with the arms and the yoke with them. One fit a
   body mesh, shared by every body wearing one. A body whose skin cannot be read wears it as made, on the Spine bone.

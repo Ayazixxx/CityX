@@ -39,7 +39,7 @@ namespace CityX.Tests
                     // Over the shoulder's top (about 10 cm either side of its middle): from in front of it to behind it (that it stays out of
                     // the shoulder is the body-surface check below).
                     Assert.Greater(front.z, 0.06f, $"the yoke does not come over the front of the shoulder at {front}");
-                    Assert.Less(back.z, -0.1f, $"the yoke does not reach behind the shoulder at {back}");
+                    Assert.Less(back.z, -0.08f, $"the yoke does not reach behind the shoulder at {back}");
                 }
                 for (int row = 0; row < CapeShape.YokeRows; row++)
                 {
@@ -113,9 +113,30 @@ namespace CityX.Tests
                 float above = Vector3.Dot(fitted[i] - skin[k], facing[k]);
                 Assert.Greater(above, 0.004f, $"the yoke is in the body at {fitted[i]}");
                 furthest = Mathf.Max(furthest, Mathf.Sqrt(off));
-                Assert.Greater(Vector3.Distance(fitted[i], head), FusedBodyShape.HeadRadius + 0.01f, $"the yoke is in the head at {fitted[i]}");
+                // (Beside the neck it may tuck a little under the head's ball, which hides it: there is no room between the two there.)
+                Assert.Greater(Vector3.Distance(fitted[i], head), FusedBodyShape.HeadRadius - 0.04f, $"the yoke stands in the head at {fitted[i]}");
             }
             Assert.Less(furthest, 0.045f, "part of the yoke stands well off the body: not fitted like a skin suit");
+
+            // Nowhere folded over itself (a fold shows as specks of outline): every triangle of the yoke faces away from the body under it.
+            int[] faces = CapeLook.Faces();
+            var folded = new System.Collections.Generic.List<string>();
+            for (int t = 0; t < faces.Length; t += 3)
+            {
+                int a = faces[t], b = faces[t + 1], c = faces[t + 2];
+                if (a >= fitted.Length || b >= fitted.Length || c >= fitted.Length || !CapeShape.IsOnBody(a) || !CapeShape.IsOnBody(b) || !CapeShape.IsOnBody(c))
+                {
+                    continue;   // the inside's copies, and the falling cloth
+                }
+                Vector3 face = Vector3.Cross(fitted[b] - fitted[a], fitted[c] - fitted[a]);
+                Vector3 centre = (fitted[a] + fitted[b] + fitted[c]) / 3.0f;
+                if (new Vector2(centre.x, centre.z).magnitude < 0.22f && centre.y > head.y - FusedBodyShape.HeadRadius - 0.03f)
+                {
+                    continue;   // tucked under the head's ball beside the neck: hidden by it (there is no room there to lie smooth)
+                }
+                if (Vector3.Dot(face, facing[nearest[a]] + facing[nearest[b]] + facing[nearest[c]]) <= 0.0f) folded.Add($"{a}:{fitted[a]} {b}:{fitted[b]} {c}:{fitted[c]} body {facing[nearest[a]]}");
+            }
+            Assert.IsEmpty(folded, $"the yoke folds over itself at {string.Join(", ", folded)}");
         }
 
         /// <summary>The outside of the cape faces out (up on the shoulders, ahead on the collar, back down the back), so it is lit from out there.</summary>

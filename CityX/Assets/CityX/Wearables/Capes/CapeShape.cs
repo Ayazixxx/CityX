@@ -20,7 +20,7 @@ namespace CityX.Wearables
     /// </summary>
     public static class CapeShape
     {
-        public const int Columns = 15;
+        public const int Columns = 21;
 
         /// <summary>Rows of the yoke (held), and rows of the cloth falling from it.</summary>
         public const int YokeRows = 5;
@@ -35,11 +35,19 @@ namespace CityX.Wearables
         public static readonly Vector3[] FrontEdge =
         {
             new Vector3(0.00f, 1.910f, -0.185f),
-            new Vector3(0.12f, 1.900f, -0.030f),
-            new Vector3(0.23f, 1.855f, 0.160f),
-            new Vector3(0.33f, 1.862f, 0.135f),
-            new Vector3(0.42f, 1.895f, 0.040f),
+            new Vector3(0.13f, 1.905f, -0.140f),
+            new Vector3(0.23f, FrontLine - 0.015f, 0.160f),
+            new Vector3(0.33f, FrontLine - 0.030f, 0.135f),
+            new Vector3(0.43f, FrontLine - 0.035f, 0.085f),
         };
+
+        /// <summary>
+        /// The height of the cape's lower edge in front at the collar's middle: one straight line across, seen from in front, from one shoulder's
+        /// tip along the yoke's front and the collar's lower edge to the other (owner, 2026-11-25, drawing it: "make it a straight line across fill
+        /// in with material based on my drawing"). The shoulders' part is a little lower than the collar's middle: the middle stands nearer the
+        /// eye, and level all round it was seen dipping in the middle.
+        /// </summary>
+        public const float FrontLine = 1.865f;
 
         /// <summary>The yoke's back edge, where the cloth falls from: below the neck behind, along the back of the shoulders, over the tips.</summary>
         public static readonly Vector3[] BackEdge =
@@ -57,16 +65,14 @@ namespace CityX.Wearables
 
         /// <summary>The collar round the front of the neck: points along it, how far round it goes each way (degrees from straight ahead), its
         /// upper edge's reach out to the sides and forward (its ends tucked under the yoke, so no edge shows where they meet), its middle's height and
-        /// how much it rises to meet the yoke, how far down it lies and how
-        /// much further out its lower edge is (it lies back on the top of the chest, facing up as the yoke does, so it is lit as the yoke is: stood
-        /// upright it caught the light as a bright ring).</summary>
+        /// how much it rises to meet the yoke, and how much further out its lower edge is, at <see cref="FrontLine"/> (it lies back on the top of the
+        /// chest, facing up as the yoke does, so it is lit as the yoke is: stood upright it caught the light as a bright ring).</summary>
         public const int CollarPoints = 11;
-        public const float CollarDegrees = 98.0f;
+        public const float CollarDegrees = 90.0f;
         public const float CollarSide = 0.225f;
         public const float CollarFront = 0.205f;
         public const float CollarHeight = 1.935f;
         public const float CollarRise = 0.02f;
-        public const float CollarDrop = 0.075f;
         public const float CollarSpread = 1.14f;
 
         /// <summary>From the yoke's back edge to the hem, metres: the hem at the calves.</summary>
@@ -135,7 +141,7 @@ namespace CityX.Wearables
             float angle = share * CollarDegrees * Mathf.Deg2Rad;
             float lies = 1.0f - 0.4f * share * share;   // lying back on the chest in front, a little narrower where it meets the yoke
             float reach = bottom ? 1.0f + (CollarSpread - 1.0f) * lies : 1.0f;
-            float y = CollarHeight + CollarRise * share * share - (bottom ? CollarDrop * lies : 0.0f);
+            float y = bottom ? FrontLine : CollarHeight + CollarRise * share * share;
             return new Vector3(CollarSide * reach * Mathf.Sin(angle), y, CollarFront * reach * Mathf.Cos(angle));
         }
 
@@ -165,7 +171,10 @@ namespace CityX.Wearables
         // ---- the shoulder just a tiny bit bigger so its not clipping through") ----
 
         /// <summary>How far off the body's surface the yoke and the collar lie, metres.</summary>
-        public const float SkinGap = 0.015f;
+        public const float SkinGap = 0.022f;
+
+        /// <summary>How far off the body the collar lies: under the yoke where they overlap.</summary>
+        public const float CollarGap = 0.012f;
 
         /// <summary>Whether a point is held on the body (the yoke and the collar), and so fitted to it.</summary>
         public static bool IsOnBody(int point) => point >= GridPoints || point / Columns < YokeRows;
@@ -173,7 +182,7 @@ namespace CityX.Wearables
         /// <summary>
         /// The cape at rest fitted to a body (<paramref name="skin"/>, <paramref name="normals"/>: its mesh at rest, in body space): each point of
         /// the yoke and the collar put <see cref="SkinGap"/> off the body's surface under it (the plane of the body's nearest point; the head's
-        /// ball left out, and kept clear of), the yoke smoothed so it lies as cloth does; the falling cloth's first rows moved with the yoke's
+        /// ball left out), the yoke smoothed so it lies as cloth does; the falling cloth's first rows moved with the yoke's
         /// back edge. <paramref name="nearest"/> gives each fitted point's nearest body point (its bones are the ones it then follows), -1 for
         /// the rest.
         /// </summary>
@@ -197,9 +206,11 @@ namespace CityX.Wearables
                     int k = Nearest(fitted[i], skin, near);
                     Vector3 n = normals[k].normalized;
                     Vector3 onSurface = fitted[i] - n * Vector3.Dot(fitted[i] - skin[k], n);
-                    Vector3 p = onSurface + n * SkinGap;
-                    Vector3 fromHead = p - head;
-                    if (fromHead.magnitude < headClear + SkinGap) p = head + fromHead.normalized * (headClear + SkinGap);
+                    // The collar a little nearer the body than the yoke: where its ends tuck under the yoke the yoke covers them cleanly (at
+                    // one distance the two fought and the outline drew specks).
+                    Vector3 p = onSurface + n * (i >= GridPoints ? CollarGap : SkinGap);
+                    // Off the body first: beside the neck the head sits almost on the shoulder, and pushed out of the head the cloth went into
+                    // the shoulder (holes of skin) or its rows crossed (specks). Tucked a little under the head there, the head hides it.
                     fitted[i] = p;
                     nearest[i] = k;
                 }
@@ -234,6 +245,9 @@ namespace CityX.Wearables
             return best;
         }
 
+        /// <summary>How far out from behind the neck (as <see cref="Along"/>'s u) the yoke lies under the head.</summary>
+        public const float NeckSide = 0.45f;
+
         /// <summary>Each inside point of the yoke drawn halfway to its neighbours' middle: a body's small bumps not copied into the cloth.</summary>
         private static void SmoothYoke(Vector3[] points)
         {
@@ -244,11 +258,19 @@ namespace CityX.Wearables
                 {
                     Vector3 sum = points[GridIndex(column - 1, row)] + points[GridIndex(column + 1, row)];
                     int count = 2;
+                    float u = Mathf.Abs(column / (Columns - 1.0f) * 2.0f - 1.0f);
                     if (row > 0 && row + 1 < YokeRows)
                     {
-                        // Inside the yoke: across and down. Its front edge is smoothed only along itself, so it keeps the owner's line.
+                        // Inside the yoke: across and down.
                         sum += points[GridIndex(column, row - 1)] + points[GridIndex(column, row + 1)];
                         count += 2;
+                    }
+                    else if (row == 0 && u < NeckSide)
+                    {
+                        // The front edge beside and behind the neck, under the head: smoothed down too, or the rows cross there where the head
+                        // pushes the cloth out. Over the shoulders it is smoothed only along itself, so it keeps the owner's line.
+                        sum += points[GridIndex(column, 1)];
+                        count += 1;
                     }
                     smoothed[GridIndex(column, row)] = Vector3.Lerp(points[GridIndex(column, row)], sum / count, 0.5f);
                 }
