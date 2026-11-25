@@ -29,7 +29,7 @@ namespace CityX.Tests
             Assert.Less(behindNeck.z, -0.15f, "the yoke does not go round behind the neck");
             foreach (bool first in new[] { true, false })
             {
-                Assert.Greater(Mathf.Abs(CapeShape.Corner(first).x), 0.44f, "the yoke does not reach over the shoulder's tip");
+                Assert.Greater(Mathf.Abs(CapeShape.Corner(first).x), 0.40f, "the yoke does not reach the shoulder's tip");
             }
             for (int column = 0; column < CapeShape.Columns; column++)
             {
@@ -57,16 +57,25 @@ namespace CityX.Tests
                     Assert.Greater(Vector3.Distance(p, head), FusedBodyShape.HeadRadius + 0.01f, $"the collar runs into the head at {p}");
                 }
             }
-            Assert.Less(Vector3.Distance(CapeShape.CollarPoint(CapeShape.CollarPoints - 1, false), CapeShape.GridPoint(CapeShape.Columns * 3 / 4, 0)), 0.08f,
-                "the collar does not meet the yoke");
+            Vector3 collarEnd = CapeShape.CollarPoint(CapeShape.CollarPoints - 1, true);
+            float meets = float.MaxValue;
+            for (int column = 0; column < CapeShape.Columns; column++)
+            {
+                for (int row = 0; row < CapeShape.YokeRows; row++) meets = Mathf.Min(meets, Vector3.Distance(collarEnd, CapeShape.GridPoint(column, row)));
+            }
+            Assert.Less(meets, 0.08f, "the collar's ends do not tuck under the yoke");
 
             float hem = CapeShape.GridPoint(CapeShape.Columns / 2, CapeShape.Rows - 1).y;
             Assert.That(hem, Is.InRange(0.5f, 0.75f), "the hem is not at the calves");
-            // Outside the body's own surface everywhere (each point on the outer side of the body's nearest point).
+            // The falling cloth outside the body's own surface everywhere (each point on the outer side of the body's nearest point); the yoke and
+            // the collar are fitted onto the body when worn (FittedItLiesJustOffTheShouldersLikeASkinSuit).
             var body = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
             Vector3[] skin = body.vertices, facing = body.normals;
-            foreach (Vector3 p in CapeShape.RestPoints())
+            Vector3[] restPoints = CapeShape.RestPoints();
+            for (int point = 0; point < restPoints.Length; point++)
             {
+                if (CapeShape.IsOnBody(point)) continue;
+                Vector3 p = restPoints[point];
                 int nearest = 0;
                 float best = float.MaxValue;
                 for (int i = 0; i < skin.Length; i++)

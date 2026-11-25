@@ -18,6 +18,10 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
   - the **cloth** falling from the yoke's back edge behind the back and beside the arms to the calves, widening to the hem: the back as it
     was. Only this moves.
   - All one colour, inside and out; no cords, no rolled hem (the hem caught the light as a brighter line).
+- **The front edge as the owner drew it** (2026-11-25, a black line over a picture: "follow the black line i drew and fill in the missing
+  material as well as trim those triangles poking out on the sides. the middle stays as it"): the yoke's front edge runs from the collar's
+  lower edge out along the front of each shoulder to its tip, with no skin between the collar and the yoke (the collar's ends tucked under
+  the yoke), and the tips round back over the shoulder instead of folding down into points. The collar in the middle as it was.
 - **Fitted like a skin suit** (owner, 2026-11-25: "make it fit to his shoulders like a skin suit. like the same dimensions of the shoulder
   just a tiny bit bigger so its not clipping through"): when it is put on, every point of the yoke and the collar is laid 1.5 cm off the
   body's own surface under it (`CapeShape.FitToBody`, from the body mesh; the yoke smoothed so it lies as cloth, kept clear of the head), and
