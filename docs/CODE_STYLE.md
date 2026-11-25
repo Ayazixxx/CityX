@@ -32,6 +32,8 @@ conventions down and apply them every time.
    - `Character/Interaction/InteractionReach.LookSource`, `CanReach`, `LocalPlayerBody` and `IsLeaving`: where a player looks from, whether a
      pickup is in reach, and which body entering or leaving its trigger is this machine's player.
    - `Wearables/GroundWearable`: a rigid wearable lying on the ground, picked up with E (headwear and shoes derive from it).
+   - `Wearables/Editor/ModelParts.Add`: one named part of an imported model, baked with its own material under a rigid wearable's prefab (the
+     3D Glasses, the Squirrel Mask).
    - `Wearables/WornBodyCover.Hide`/`Show`: hide the body under whatever is worn (garments, shoes), several at once.
    - `Wearables/Editor/LongCoatBody`: what a long open-fronted coat hides of the body and how it lies on the ground (the Midnight Coat, the
      Fur Hooded Parka). In Blender, `SourceArt/garment_rig.py` holds the skinning steps every garment's build script shares.

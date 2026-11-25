@@ -1,5 +1,4 @@
 using CityX.Character;
-using CityX.Core;
 using CityX.Wearables;
 using CityX.WeaponsEditor;
 using UnityEditor;
@@ -31,6 +30,9 @@ namespace CityX.WearablesEditor
         public static readonly Color RedFilm = new Color(1.0f, 0.1f, 0.1f, 0.4f);
 
         public static readonly Color BlueFilm = new Color(0.1f, 0.3f, 1.0f, 0.4f);
+
+        private static void Part(Transform root, Transform model, string name, Material material) =>
+            ModelParts.Add(root, model, name, material, MeshFolder, "ThreeDGlasses");
 
         [MenuItem("CityX/Rebuild 3D Glasses")]
         public static GameObject Build()
@@ -65,28 +67,6 @@ namespace CityX.WearablesEditor
             {
                 Object.DestroyImmediate(root);
             }
-        }
-
-        /// <summary>One of the model's parts, as it lies in the head's frame, under the root with its material.</summary>
-        private static void Part(Transform root, Transform model, string name, Material material)
-        {
-            Transform source = TransformSearch.FindDeep(model, name);
-            MeshFilter filter = source != null ? source.GetComponent<MeshFilter>() : null;
-            if (filter == null || filter.sharedMesh == null)
-            {
-                Debug.LogError($"CityX: the 3D Glasses model has no part named {name}.");
-                return;
-            }
-            Matrix4x4 bake = model.worldToLocalMatrix * filter.transform.localToWorldMatrix;
-            Mesh mesh = FirearmBuilder.BakedMesh(filter.sharedMesh, bake, $"{MeshFolder}/{name}.asset", "ThreeDGlasses" + name);
-            var part = new GameObject(name);
-            part.transform.SetParent(root, false);
-            part.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var renderer = part.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = material;
-            renderer.shadowCastingMode = material.renderQueue >= (int)UnityEngine.Rendering.RenderQueue.Transparent
-                ? UnityEngine.Rendering.ShadowCastingMode.Off
-                : UnityEngine.Rendering.ShadowCastingMode.On;
         }
 
         /// <summary>A lens's tinted film: unlit, so it reads the same colour in any light, and seen through (SeeThroughMaterial).</summary>

@@ -1251,7 +1251,7 @@ GameObject:
   - component: {fileID: 4924855750203886717}
   - component: {fileID: 3990328505782985882}
   - component: {fileID: 7225685918897070430}
-  - component: {fileID: 2185177461429405808}
+  - component: {fileID: 5688492373913637177}
   m_Layer: 0
   m_Name: Hobo_1_Plank
   m_TagString: Untagged
@@ -1584,7 +1584,7 @@ MonoBehaviour:
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &2185177461429405808
+--- !u!114 &5688492373913637177
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

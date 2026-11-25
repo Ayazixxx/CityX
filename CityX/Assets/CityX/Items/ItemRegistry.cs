@@ -78,6 +78,7 @@ namespace CityX.Items
         public const string KnightHelmet = "knight_helmet";
         public const string FarmerHat = "farmer_hat";
         public const string ClawSkull = "claw_skull";
+        public const string SquirrelMask = "squirrel_mask";
         public const string ThreeDGlasses = "3d_glasses";
         public const string RoundShield = "round_shield";
 
@@ -215,6 +216,8 @@ namespace CityX.Items
             [FarmerHat] = new ItemDefinition(FarmerHat, "Farmer Hat", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // The Crimson Claw's own head, worn (Wearables/ClawSkull).
             [ClawSkull] = new ItemDefinition(ClawSkull, "Claw Skull", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
+            // The owner's furry mask for their superhero Squirrel Boy (Wearables/SquirrelMask): it covers the whole head, ears on top, so a helmet.
+            [SquirrelMask] = new ItemDefinition(SquirrelMask, "Squirrel Mask", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             // White paper cinema glasses, red and blue lenses seen through (Wearables/ThreeDGlasses): on the face, so with any hat.
             [ThreeDGlasses] = new ItemDefinition(ThreeDGlasses, "3D Glasses", ItemDefinition.WearableCategory, EquipSlots.Mask, 1),
             // A plain wooden round shield on the left forearm, to test shields with until the owner's model (Wearables/RoundShield, docs/SHIELD.md).

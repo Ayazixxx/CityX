@@ -304,6 +304,7 @@ namespace CityX.ViewEditor
             GameObject knightHelmetPrefab = CityX.WearablesEditor.KnightHelmetBuilder.Build();
             GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
             GameObject clawSkullPrefab = CityX.WearablesEditor.ClawSkullBuilder.Build();
+            GameObject squirrelMaskPrefab = CityX.WearablesEditor.SquirrelMaskBuilder.Build();
             GameObject threeDGlassesPrefab = CityX.WearablesEditor.ThreeDGlassesBuilder.Build();
             // The round shield (2026-10-27): drawn in code, a stand-in to test shields with (docs/SHIELD.md).
             GameObject roundShieldPrefab = CityX.WearablesEditor.RoundShieldBuilder.Build();
@@ -640,6 +641,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.FarmerHat, Prefab = farmerHatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.ClawSkull, Prefab = clawSkullPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.SquirrelMask, Prefab = squirrelMaskPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.ThreeDGlasses, Prefab = threeDGlassesPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
