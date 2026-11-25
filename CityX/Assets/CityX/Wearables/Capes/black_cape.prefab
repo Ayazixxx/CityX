@@ -68,8 +68,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Wearables::CityX.Wearables.Cape
   _itemId: black_cape
-  Outside: {fileID: 2100000, guid: 777cc5a5937b6744fa725ab50407b5ea, type: 2}
-  Lining: {fileID: 2100000, guid: 33e4356796ebe384d9b97764ed5f07e2, type: 2}
+  Fabric: {fileID: 2100000, guid: feec98a9cc89ae94b8f8d29c5cf712a9, type: 2}
   GroundPreview: {fileID: 6066883930494768331}
 --- !u!1 &6066883930494768331
 GameObject:
@@ -137,8 +136,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 777cc5a5937b6744fa725ab50407b5ea, type: 2}
-  - {fileID: 2100000, guid: 33e4356796ebe384d9b97764ed5f07e2, type: 2}
+  - {fileID: 2100000, guid: feec98a9cc89ae94b8f8d29c5cf712a9, type: 2}
+  - {fileID: 2100000, guid: feec98a9cc89ae94b8f8d29c5cf712a9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

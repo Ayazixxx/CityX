@@ -8,10 +8,10 @@ namespace CityX.Wearables
 {
     /// <summary>
     /// A CAPE (docs/CAPE.md; owner, 2026-11-24: "make a basic cape that we can make a bunch of different colorways of easily, make it tied around
-    /// the front. and research how to make good cape physics in video games"; then, drawing it: "get rid of the yellow string and make it like my
-    /// drawing"). Worn on the back: its top edge lies on the shoulders from tip to tip and round behind the neck, a rolled hem that shows over
-    /// each shoulder from in front, and the rest is cloth (<see cref="CapeCloth"/>) that falls, swings and streams behind a runner, kept out of
-    /// the body by capsules on its bones. Lying on the ground it is a folded cape, picked up with E.
+    /// the front. and research how to make good cape physics in video games"; then "make it fit something like this", a LEGO cape). Worn on the
+    /// back, fitted as a LEGO cape is (CapeShape): a yoke over the whole top of the shoulders and round behind the neck, a collar round the front
+    /// of the neck, both held to the body, and the rest cloth (<see cref="CapeCloth"/>) that falls, swings and streams behind a runner, kept out
+    /// of the body by capsules on its bones. All one colour. Lying on the ground it is a folded cape, picked up with E.
     ///
     /// The body is followed after its animation and its posing (late in the frame), and part of the body's own movement is carried straight
     /// into the cloth (<see cref="CarryShare"/>) so a turn or a sprint does not whip it about; a body put somewhere new (a respawn) starts the
@@ -23,8 +23,8 @@ namespace CityX.Wearables
     {
         [SerializeField] private string _itemId = CapeColourways.RedItemId;
 
-        public Material Outside;
-        public Material Lining;
+        [Tooltip("The cape's cloth, every face of it (one colour a colourway).")]
+        public Material Fabric;
 
         [Tooltip("The folded cape lying on the ground; hidden while worn.")]
         public GameObject GroundPreview;
@@ -129,7 +129,7 @@ namespace CityX.Wearables
             FindCapsules(animator);
             _anchorWas = _anchor.position;
             _anchorTurnWas = _anchor.rotation;
-            _look = new CapeLook(transform, Outside, Lining);
+            _look = new CapeLook(transform, Fabric);
             _look.Draw(Cloth.Position);
         }
 
@@ -222,10 +222,9 @@ namespace CityX.Wearables
                 Matrix4x4 anchor = Matrix4x4.TRS(Vector3.Lerp(_anchorWas, anchorNow, s), Quaternion.Slerp(_anchorTurnWas, turnNow, s), _anchor.lossyScale);
                 Shape(anchor);
                 _pins.Clear();
-                for (int column = 0; column < CapeShape.Columns; column++)
+                for (int i = 0; i < _shape.Length; i++)
                 {
-                    int top = CapeShape.GridIndex(column, 0);
-                    _pins.Add((top, _shape[top]));
+                    if (Cloth.Pinned[i]) _pins.Add((i, _shape[i]));   // the yoke and the collar, carried by the body
                 }
                 Cloth.Step(_pins, _shape, _capsules, wind, floor);
             }

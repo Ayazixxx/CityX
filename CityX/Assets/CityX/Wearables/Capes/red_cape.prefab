@@ -66,8 +66,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f8c3078763ee57643a840a810a6f42c3, type: 2}
-  - {fileID: 2100000, guid: 8d968d1077894474e83035e5a50827d9, type: 2}
+  - {fileID: 2100000, guid: 0f6d5758126a65f4485240b3f0146b22, type: 2}
+  - {fileID: 2100000, guid: 0f6d5758126a65f4485240b3f0146b22, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -159,6 +159,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Wearables::CityX.Wearables.Cape
   _itemId: red_cape
-  Outside: {fileID: 2100000, guid: f8c3078763ee57643a840a810a6f42c3, type: 2}
-  Lining: {fileID: 2100000, guid: 8d968d1077894474e83035e5a50827d9, type: 2}
+  Fabric: {fileID: 2100000, guid: 0f6d5758126a65f4485240b3f0146b22, type: 2}
   GroundPreview: {fileID: 2040436354518097161}

@@ -60,6 +60,11 @@ namespace CityX.Tests
             Vector3 shoulders = player.transform.position + Vector3.up * 1.85f;
             BuildingShapeCapture.Shoot(camera, folder, "cape-shoulders", shoulders + new Vector3(0.0f, 0.2f, 2.8f), shoulders);
             BuildingShapeCapture.Shoot(camera, folder, "cape-shoulders-above", shoulders + new Vector3(0.0f, 1.2f, -2.6f), shoulders);
+            // The same from in front with the sun in front too (above, the sun is behind the player and the front is in its shade).
+            Quaternion sunWas = sun.transform.rotation;
+            sun.transform.rotation = Quaternion.Euler(40.0f, 160.0f, 0.0f);
+            BuildingShapeCapture.Shoot(camera, folder, "cape-shoulders-frontlit", shoulders + new Vector3(0.0f, 0.2f, 2.8f), shoulders);
+            sun.transform.rotation = sunWas;
             BuildingShapeCapture.Shoot(camera, folder, "cape-lying", new Vector3(2.2f, 1.6f, 4.2f), new Vector3(2.2f, 0.0f, 1.0f));
             Object.Destroy(lying);
 

@@ -17,33 +17,48 @@ namespace CityX.Tests
     {
 
         /// <summary>
-        /// As the owner drew it (2026-11-25, from in front and behind): the top edge on the shoulders from tip to tip, over them where it shows
-        /// from in front, round behind the neck under the head; no cords.
+        /// Fitted as a LEGO cape is (owner, 2026-11-25, with a picture of one: "make it fit something like this ... just the shoulders neck part"):
+        /// a yoke over the whole top of each shoulder, from over its front to behind it, round behind the neck under the head; a collar round the
+        /// front of the neck under the chin; nothing of either in the head; the cloth falling behind to the calves.
         /// </summary>
         [Test]
-        public void AtRestItLiesOnTheShouldersAndFallsBehindToTheCalves()
+        public void AtRestItSitsOnTheShouldersAsALegoCapeDoesAndFallsBehindToTheCalves()
         {
             var head = new Vector3(0.0f, BodyRig.HeadCentreY, 0.0f);
-            Vector3 middleTop = CapeShape.GridPoint(CapeShape.Columns / 2, 0);
-            Assert.Less(middleTop.z, -0.15f, "the top edge is not behind the neck");
-            Assert.Less(middleTop.y, BodyRig.HeadCentreY - FusedBodyShape.HeadRadius + 0.03f, "behind the neck the top edge is not under the head");
+            Vector3 behindNeck = CapeShape.GridPoint(CapeShape.Columns / 2, 0);
+            Assert.Less(behindNeck.z, -0.15f, "the yoke does not go round behind the neck");
             foreach (bool first in new[] { true, false })
             {
-                Vector3 corner = CapeShape.Corner(first);
-                Assert.Greater(Mathf.Abs(corner.x), 0.42f, "the top edge does not reach the shoulder's tip");
-                Assert.Greater(corner.z, -0.02f, "at the shoulder's tip the top edge is behind it, not on it");
+                Assert.Greater(Mathf.Abs(CapeShape.Corner(first).x), 0.44f, "the yoke does not reach over the shoulder's tip");
             }
             for (int column = 0; column < CapeShape.Columns; column++)
             {
-                Vector3 top = CapeShape.GridPoint(column, 0);
-                Assert.Greater(Vector3.Distance(top, head), FusedBodyShape.HeadRadius + CapeShape.EdgeRadius, $"the top edge runs into the head at {top}");
-                if (Mathf.Abs(top.x) > 0.25f && Mathf.Abs(top.x) < 0.40f)
+                Vector3 front = CapeShape.GridPoint(column, 0), back = CapeShape.GridPoint(column, CapeShape.YokeRows - 1);
+                if (Mathf.Abs(front.x) > 0.25f && Mathf.Abs(front.x) < 0.40f)
                 {
-                    // Over the shoulder where it shows from in front: on top of it (the shoulders' top is at 1.94 m), not behind it.
-                    Assert.Greater(top.y, 1.94f + CapeShape.EdgeRadius * 0.5f, $"the top edge is not on top of the shoulder at {top}");
-                    Assert.Greater(top.z, -0.06f, $"the top edge is behind the shoulder, not over it, at {top}");
+                    // Over the shoulder's top (about 10 cm either side of its middle): from in front of it to behind it (that it stays out of
+                    // the shoulder is the body-surface check below).
+                    Assert.Greater(front.z, 0.06f, $"the yoke does not come over the front of the shoulder at {front}");
+                    Assert.Less(back.z, -0.1f, $"the yoke does not reach behind the shoulder at {back}");
+                }
+                for (int row = 0; row < CapeShape.YokeRows; row++)
+                {
+                    Vector3 p = CapeShape.GridPoint(column, row);
+                    Assert.Greater(Vector3.Distance(p, head), FusedBodyShape.HeadRadius + 0.01f, $"the yoke runs into the head at {p}");
                 }
             }
+            Vector3 collar = CapeShape.CollarPoint(CapeShape.CollarPoints / 2, false);
+            Assert.Greater(collar.z, 0.15f, "the collar does not go round the front of the neck");
+            for (int along = 0; along < CapeShape.CollarPoints; along++)
+            {
+                foreach (bool bottom in new[] { false, true })
+                {
+                    Vector3 p = CapeShape.CollarPoint(along, bottom);
+                    Assert.Greater(Vector3.Distance(p, head), FusedBodyShape.HeadRadius + 0.01f, $"the collar runs into the head at {p}");
+                }
+            }
+            Assert.Less(Vector3.Distance(CapeShape.CollarPoint(CapeShape.CollarPoints - 1, false), CapeShape.GridPoint(CapeShape.Columns * 3 / 4, 0)), 0.08f,
+                "the collar does not meet the yoke");
 
             float hem = CapeShape.GridPoint(CapeShape.Columns / 2, CapeShape.Rows - 1).y;
             Assert.That(hem, Is.InRange(0.5f, 0.75f), "the hem is not at the calves");
@@ -63,6 +78,26 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>The outside of the cape faces out (up on the shoulders, ahead on the collar, back down the back), so it is lit from out there.</summary>
+        [Test]
+        public void ItsOutsideFacesOut()
+        {
+            Vector3[] rest = CapeShape.RestPoints();
+            var vertices = new Vector3[rest.Length * 2];
+            rest.CopyTo(vertices, 0);
+            rest.CopyTo(vertices, rest.Length);
+            var mesh = new Mesh { vertices = vertices, triangles = CapeLook.Faces() };
+            mesh.RecalculateNormals();
+            Vector3[] normals = mesh.normals;
+            Object.DestroyImmediate(mesh);
+            int middle = CapeShape.Columns / 2, shoulder = CapeShape.Columns * 3 / 4;
+            Assert.Greater(normals[CapeShape.GridIndex(shoulder, 2)].y, 0.5f, $"the yoke's outside on the shoulder faces {normals[CapeShape.GridIndex(shoulder, 2)]}");
+            Assert.Less(normals[CapeShape.GridIndex(middle, CapeShape.Rows / 2)].z, -0.5f, "the back's outside does not face back");
+            Vector3 collar = normals[CapeShape.CollarIndex(CapeShape.CollarPoints / 2, false)];
+            Assert.Greater(collar.z + collar.y, 0.5f, $"the collar's outside faces {collar}");
+            Assert.Less(Vector3.Dot(normals[0], normals[rest.Length]), -0.9f, "the inside does not face the other way");
+        }
+
         private static CapeCloth Hanging(out Vector3[] rest)
         {
             rest = CapeShape.RestPoints();
@@ -72,7 +107,11 @@ namespace CityX.Tests
         private static List<(int, Vector3)> Pins(Vector3[] at)
         {
             var pins = new List<(int, Vector3)>();
-            for (int column = 0; column < CapeShape.Columns; column++) pins.Add((CapeShape.GridIndex(column, 0), at[CapeShape.GridIndex(column, 0)]));
+            bool[] held = CapeShape.MakeCloth(CapeShape.RestPoints()).Pinned;
+            for (int i = 0; i < held.Length; i++)
+            {
+                if (held[i]) pins.Add((i, at[i]));
+            }
             return pins;
         }
 
@@ -104,7 +143,7 @@ namespace CityX.Tests
             float moving = 0.0f;
             for (int i = 0; i < cloth.Position.Length; i++) moving = Mathf.Max(moving, (cloth.Position[i] - cloth.Previous[i]).magnitude / CapeCloth.StepSeconds);
             Assert.Less(moving, 0.3f, "after three seconds it still swings");
-            Assert.Less(cloth.Position[CapeShape.GridIndex(CapeShape.Columns / 2, CapeShape.Rows - 1)].y, CapeShape.TopEdge[0].y - CapeShape.Length * 0.9f,
+            Assert.Less(cloth.Position[CapeShape.GridIndex(CapeShape.Columns / 2, CapeShape.Rows - 1)].y, CapeShape.BackEdge[0].y - CapeShape.Length * 0.9f,
                 "the hem does not hang down");
         }
 
@@ -177,8 +216,7 @@ namespace CityX.Tests
                 Assert.IsNotNull(prefab, $"{colourway.ItemId} has no prefab -- rebuild the scene");
                 var cape = prefab.GetComponent<Cape>();
                 Assert.IsNotNull(cape);
-                Assert.IsTrue(ApproximatelyEqual(colourway.Outside, cape.Outside.GetColor("_BaseColor")), $"{colourway.ItemId}'s outside is the wrong colour");
-                Assert.IsTrue(ApproximatelyEqual(colourway.Lining, cape.Lining.GetColor("_BaseColor")));
+                Assert.IsTrue(ApproximatelyEqual(colourway.Colour, cape.Fabric.GetColor("_BaseColor")), $"{colourway.ItemId} is the wrong colour");
                 Assert.IsNotNull(prefab.GetComponent<ICosmeticMountable>(), "other players would not see it");
                 Assert.IsNotNull(cape.GroundPreview);
             }

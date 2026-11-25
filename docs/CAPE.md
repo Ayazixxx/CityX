@@ -10,19 +10,24 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
 
 - `/spawn cape` (or `redcape`, `blackcape`, `/equip ...`). Worn on the **back** (the slot the jetpack, the wings and the parachute use, so one
   of them at a time). Lying on the ground it is a folded cape, picked up with E.
-- As the owner drew it: its top edge lies **on top of the shoulders**, from one shoulder's tip along the shoulder in to under the head,
-  round behind the neck, and out to the other tip, finished in a rolled hem (`CapeShape.EdgeRadius`, 2.2 cm) that shows from in front as a
-  band over each shoulder. No cords, no knot. From the top edge the cloth goes back over the shoulders in a quarter circle and falls behind
-  to the calves, widening to the hem.
-- The top edge was measured off the body (`CapeShape.TopEdge`): the shoulders' top is flat at 1.93 to 1.94 m out to 0.40 m and falls away
-  at 0.43 m; the back of the neck is 0.14 m behind at 1.90 m; the head's ball comes down to 1.90 m. The edge sits 2 to 4 cm off all of it.
-- Standing it hangs behind; walking it sways; sprinting it streams out behind and lifts; turning it swings round; a light breeze stirs it.
-  Other players see it the same: their game runs the cloth from your body's moves (nothing extra is sent, only which cape you wear).
+- Fitted as a LEGO minifigure's cloth cape is (owner, 2026-11-25, with a picture of one: "make it fit something like this. no need to make
+  the back wider just the shoulders neck part"; before that: "why is there a brighter red line? make it all the same color"):
+  - a **yoke** over the whole top of each shoulder, from over its front down a little at the tip to behind it, round behind the neck under
+    the head (`CapeShape.FrontEdge`, `BackEdge`, rising over the shoulder's round top), held to the body as a LEGO cape's top is;
+  - a **collar** round the front of the neck under the chin, lying back on the top of the chest (it faces up as the yoke does), held too;
+  - the **cloth** falling from the yoke's back edge behind the back and beside the arms to the calves, widening to the hem: the back as it
+    was. Only this moves.
+  - All one colour, inside and out; no cords, no rolled hem (the hem caught the light as a brighter line).
+- The edges were measured off the body: the shoulders' top is flat at 1.93 to 1.94 m out to 0.40 m, about 10 cm either side of its middle,
+  and falls away at 0.43 m; the back of the neck is 0.14 m behind at 1.90 m; the head's ball comes down to 1.90 m. Everything sits 1.5 to
+  5 cm off the body and clear of the head.
+- Shading: the head is a big ball right over the shoulders, so with the sun high the yoke and collar are often in its shadow and read darker
+  than the sunlit back, as the body under them does. That is the light, not the cloth's colour (`CapeTests.ItsOutsideFacesOut` checks the
+  faces point the right way).
 
 ## Colourways
 
-`Items/CapeColourways.All`: one line each, the outside (and the hem over the shoulders) and the lining (the inside, seen when it swings out).
-Red (darker red lining) and Black (charcoal lining) to start. A new one is a new line; the scene builder makes its prefab and materials
+`Items/CapeColourways.All`: one line each, the cape's one colour. Red and Black to start. A new one is a new line; the scene builder makes its prefab and materials
 (`Wearables/Editor/CapeBuilder`), and the item list, the console and every body's item prefabs read the same list.
 
 ## Cape physics: what games do (research, 2026-11-24)
@@ -43,13 +48,13 @@ Plus air: the cloth's face pushed by its own speed through the air (and the bree
 | Piece | What |
 |---|---|
 | `Items/CapeColourways` | the colourways |
-| `Wearables/Capes/CapeShape` | the cape at rest on the body (a 15 x 18 grid, its top edge on the shoulders) and the cloth made from it: links across, down, diagonal and two apart (folding), tethers, what is held (the top edge), the pull to shape |
+| `Wearables/Capes/CapeShape` | the cape at rest on the body (a 15 x 20 grid: 5 rows of yoke, 16 of falling cloth; the collar) and the cloth made from it: links across, down, diagonal and two apart (folding), tethers to the yoke's back edge, what is held (the yoke and the collar), the pull to shape |
 | `Wearables/Capes/CapeCloth` | the cloth: fixed 90 steps a second, Verlet, air push, links, tethers, capsules, floor. Pure |
 | `Wearables/Capes/Cape` | on the body: follows the Spine bone after the animation and the posing (through the body skin's bind pose), the body's capsules, inertia, teleport, steps; worn on another player's copy too |
-| `Wearables/Capes/CapeLook` | drawn: the sheet with an outside and a lining, and the rolled hem along the top edge |
-| `Wearables/Editor/CapeBuilder` | a prefab a colourway: its two materials and the folded cape |
+| `Wearables/Capes/CapeLook` | drawn: the yoke, cloth and collar as one sheet with two faces, in one material |
+| `Wearables/Editor/CapeBuilder` | a prefab a colourway: its material and the folded cape |
 
-Numbers (mine, in `CapeShape` and `CapeCloth`): 270 points, about 1,400 links, 8 corrections a step, keeps 98.5% of its speed a step, air push
+Numbers (mine, in `CapeShape` and `CapeCloth`): 322 points (the yoke and collar held), about 1,100 links, 8 corrections a step, keeps 98.5% of its speed a step, air push
 2.2, pull to shape 0.06 at the shoulders, 0.002 where it starts to hang, 0.0004 at the hem.
 
 ## Not done
@@ -59,9 +64,8 @@ Numbers (mine, in `CapeShape` and `CapeCloth`): 270 points, about 1,400 links, 8
 
 ## Tests
 
-`CapeTests` (the shape at rest: the top edge on the shoulders' tips and over the shoulders where it shows from in front, behind the neck under
-the head, clear of the head, every point outside the body's own surface, hem at the calves; the cloth settles hanging without stretching, the body pushes it out, running it streams out behind and lifts; a capsule
+`CapeTests` (the shape at rest: the yoke from over the front of each shoulder to behind it and round behind the neck, the collar round the front of the neck meeting it, nothing in the head, every point outside the body's own surface, hem at the calves; the outside faces out; the cloth settles hanging without stretching, the body pushes it out, running it streams out behind and lifts; a capsule
 pushes a point to its surface; every colourway an item on the back with its prefab and colours), `CapePlayTests` (on the real body: the top
 edge on the shoulders standing, hanging behind, nothing loose deep inside the body; sprinting it streams back and lifts; moved somewhere new
-it comes along at rest; another player's copy wears it, moving), `CapeCapture` (standing from four sides, the shoulders close from in front and from above behind, the folded one, walking,
+it comes along at rest; another player's copy wears it, moving), `CapeCapture` (standing from four sides, the shoulders close from in front (the sun behind and in front) and from above behind, the folded one, walking,
 sprinting, turning, stopping).

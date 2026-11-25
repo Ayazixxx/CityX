@@ -9,7 +9,7 @@ namespace CityX.WearablesEditor
 {
     /// <summary>
     /// Builds the capes (docs/CAPE.md; owner, 2026-11-24: "make a basic cape that we can make a bunch of different colorways of easily, make it tied
-    /// around the front"): one prefab a colourway (CapeColourways), its outside and lining each in the colourway's colour. The cape itself is
+    /// around the front"): one prefab a colourway (CapeColourways), all of it in the colourway's one colour. The cape itself is
     /// made when it is worn (CapeShape, CapeCloth, CapeLook); the prefab holds its materials and the folded cape it lies as on the ground.
     /// </summary>
     public static class CapeBuilder
@@ -48,22 +48,20 @@ namespace CityX.WearablesEditor
 
         private static GameObject Save(CapeColourways.Colourway colourway, Mesh folded)
         {
-            Material outside = BlenderGarmentMesh.PlainMaterial($"{Folder}/{colourway.ItemId}_outside.mat", colourway.Outside, Smoothness);
-            Material lining = BlenderGarmentMesh.PlainMaterial($"{Folder}/{colourway.ItemId}_lining.mat", colourway.Lining, Smoothness);
+            Material fabric = BlenderGarmentMesh.PlainMaterial($"{Folder}/{colourway.ItemId}.mat", colourway.Colour, Smoothness);
             var root = new GameObject(colourway.ItemId);
             try
             {
                 var preview = new GameObject("Folded");
                 preview.transform.SetParent(root.transform, false);
                 preview.AddComponent<MeshFilter>().sharedMesh = folded;
-                preview.AddComponent<MeshRenderer>().sharedMaterials = new[] { outside, lining };
+                preview.AddComponent<MeshRenderer>().sharedMaterials = new[] { fabric, fabric };
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
                 pickupTrigger.radius = GroundWearable.InteractRange;
                 var cape = root.AddComponent<Cape>();
                 cape.SetItemId(colourway.ItemId);
-                cape.Outside = outside;
-                cape.Lining = lining;
+                cape.Fabric = fabric;
                 cape.GroundPreview = preview;
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, CapeColourways.PrefabPath(colourway.ItemId));
                 Debug.Log($"CityX: {colourway.DisplayName} written to {CapeColourways.PrefabPath(colourway.ItemId)}");
