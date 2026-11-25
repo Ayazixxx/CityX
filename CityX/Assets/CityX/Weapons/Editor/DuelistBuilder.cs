@@ -44,6 +44,12 @@ namespace CityX.WeaponsEditor
             /// <summary>Takes no one on until he is hurt (a hobo).</summary>
             public bool PeacefulUntilHurt;
 
+            /// <summary>The share spawned with the weapon in hand; the rest take it out when the fight starts (SwordsmanBrain.CalmArmedShare).</summary>
+            public float CalmArmedShare = 1.0f;
+
+            /// <summary>A hooded coat in the look is worn with its hood up.</summary>
+            public bool HoodUp;
+
             /// <summary>What he carries besides (a hobo's three spare bottles, which he throws): lootable from his body.</summary>
             public string[] Carried = new string[0];
         }
@@ -82,6 +88,8 @@ namespace CityX.WeaponsEditor
                 brain.BladeItemId = recipe.BladeItemId;
                 brain.BladeDurability = recipe.BladeDurability;
                 brain.PeacefulUntilHurt = recipe.PeacefulUntilHurt;
+                brain.CalmArmedShare = recipe.CalmArmedShare;
+                brain.HoodUp = recipe.HoodUp;
                 if (recipe.Carried.Length > 0)
                 {
                     root.AddComponent<CarriedLoot>().Items = new List<string>(recipe.Carried);

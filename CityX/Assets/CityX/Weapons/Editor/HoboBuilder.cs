@@ -25,6 +25,9 @@ namespace CityX.WeaponsEditor
             "Assets/CityX/Character/NpcLooks/BrackGuy.json",
         };
 
+        /// <summary>Each look's hood, in the same order: brack guy's up (owner, 2026-11-24: "make him wearing a brown coat ... and put the hood on").</summary>
+        public static readonly bool[] LookHoodUp = { false, false, true };
+
         /// <summary>The bottle: the plain glass one, broken (BottleWeapon.DurabilityState.Broken).</summary>
         public const string Bottle = GlassBottleKinds.Classic;
 
@@ -92,6 +95,8 @@ namespace CityX.WeaponsEditor
                 XpReward = XpReward,
                 SkinName = $"Hobo{HoboKinds.Looks[look]}Skin",   // one painted skin a look, shared by its four
                 PeacefulUntilHurt = true,
+                CalmArmedShare = HoboKinds.CalmArmedShare,
+                HoodUp = LookHoodUp[look],
                 Carried = carried,
             });
         }

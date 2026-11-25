@@ -359,6 +359,12 @@ namespace CityX.Character
         /// <summary>The giant this body is a copy of came down from its leap (<see cref="GroundSlamName"/>, from the network): the copy's ground heaves.</summary>
         public event System.Action RemoteSlammed;
 
+        /// <summary>The name an enemy taking his weapon out is announced by (a hobo: SwordsmanBrain.CalmArmedShare), so every copy of him holds it too.</summary>
+        public const string WeaponDrawnName = "weapon_drawn";
+
+        /// <summary>The enemy this body is a copy of has his weapon out (<see cref="WeaponDrawnName"/>, from the network).</summary>
+        public event System.Action RemoteWeaponDrawn;
+
         /// <summary>Tells other players' copies of this body about something that already happened here (a gun shot), without playing anything.</summary>
         public void AnnounceState(string stateName)
         {
@@ -499,6 +505,11 @@ namespace CityX.Character
             if (stateName == GroundSlamName)
             {
                 RemoteSlammed?.Invoke();
+                return;
+            }
+            if (stateName == WeaponDrawnName)
+            {
+                RemoteWeaponDrawn?.Invoke();
                 return;
             }
             if (HitImpactEffects.TryParse(stateName, out HitDirection woundDirection, out bool woundHeavy))

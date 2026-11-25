@@ -2159,7 +2159,7 @@ GameObject:
   - component: {fileID: 6465630482791781524}
   - component: {fileID: 497344477595463450}
   - component: {fileID: 6586042396692067366}
-  - component: {fileID: 825785848210426389}
+  - component: {fileID: 5075503041484748279}
   m_Layer: 0
   m_Name: Hobo_1_Pole
   m_TagString: Untagged
@@ -2477,6 +2477,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78defb2a7fb212e4b977117bb47b3c09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordsmanBrain
+  CalmArmedShare: 0.2
   SwordPrefab: {fileID: 4939107151757833994, guid: b350810d098f0224fa4cfc395ab5425c, type: 3}
   BladeItemId: bo_staff
   BladeDurability: -1
@@ -2487,10 +2488,11 @@ MonoBehaviour:
   - {fileID: 3676163138410343625, guid: c889a408fb5389f4090a70d060c70d53, type: 3}
   - {fileID: 5600285032884238694, guid: a090140601ba787478135495df78d2d6, type: 3}
   - {fileID: 421418391853620305, guid: d04d3922e6fe52e479173ef36096c59f, type: 3}
+  HoodUp: 0
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &825785848210426389
+--- !u!114 &5075503041484748279
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

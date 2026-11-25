@@ -119,6 +119,8 @@ namespace CityX.Tests
                     var brain = prefab.GetComponent<SwordsmanBrain>();
                     Assert.IsNotNull(brain, prefab.name);
                     Assert.IsTrue(brain.PeacefulUntilHurt, $"{prefab.name} is hostile from the start");
+                    Assert.AreEqual(HoboKinds.CalmArmedShare, brain.CalmArmedShare, $"{prefab.name} does not keep his weapon put away like most hobos");
+                    Assert.AreEqual(look == 2, brain.HoodUp, $"{prefab.name}'s hood");
                     Assert.AreEqual(weapons[HoboKinds.Weapons[weapon]], brain.BladeItemId, prefab.name);
                     Assert.IsNotNull(brain.SwordPrefab, prefab.name);
                     Assert.IsNotNull(brain.SwordPrefab.GetComponent<ISwordBlade>(), $"{prefab.name}'s weapon is not swung");
@@ -161,7 +163,7 @@ namespace CityX.Tests
             }
         }
 
-        /// <summary>Dressed as the owner's characters: hobo2 in the parka and khakis; Hobo in the parka and black jeans.</summary>
+        /// <summary>Dressed as the owner's characters: hobo2 in the parka and khakis; Hobo in the parka and black jeans; brack guy in the Brown Coat, hood up, over a black T-shirt and grey jeans.</summary>
         [Test]
         public void EachLookWearsItsOutfit()
         {
@@ -169,7 +171,7 @@ namespace CityX.Tests
             {
                 new[] { "green_fur_hooded_parka", "black_jeans", "bw_sneakers", "black_fingerless_gloves" },
                 new[] { "green_fur_hooded_parka", "khakis", "black_sneakers", "black_fingerless_gloves", "t_shirt" },
-                new string[0],   // brack guy, as saved, wears nothing
+                new[] { "brown_coat", "black_fingerless_gloves", "black_sneakers", "black_t_shirt", "grey_jeans" },   // brack guy (owner, 2026-11-24)
             };
             Inventory.ItemPrefabEntry[] clothes = CityX.CharacterEditor.NetworkedPlayerWiring.ItemPrefabEntries(definition => definition.IsWearable);
             for (int look = 0; look < HoboKinds.Looks.Length; look++)

@@ -1072,7 +1072,7 @@ GameObject:
   - component: {fileID: 1069842225707161462}
   - component: {fileID: 8209886528510781285}
   - component: {fileID: 758995698013347344}
-  - component: {fileID: 3074704245215212521}
+  - component: {fileID: 3484385667064072126}
   m_Layer: 0
   m_Name: Hobo_3_Machete
   m_TagString: Untagged
@@ -1390,15 +1390,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78defb2a7fb212e4b977117bb47b3c09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordsmanBrain
+  CalmArmedShare: 0.2
   SwordPrefab: {fileID: 4844455151899744374, guid: 395985cee60332a43a4155a2e139cc02, type: 3}
   BladeItemId: machete
   BladeDurability: -1
   PeacefulUntilHurt: 1
-  Wearing: []
+  Wearing:
+  - {fileID: 9128724279061053278, guid: ac34e2c6cb7999b4fb522edee0f9c978, type: 3}
+  - {fileID: 5931533627893786738, guid: fdb0894c2a877f243b6090be9d0fefd6, type: 3}
+  - {fileID: 1507439274282442899, guid: b3e11f525e06f414d938d032c205cb80, type: 3}
+  - {fileID: 3676163138410343625, guid: c889a408fb5389f4090a70d060c70d53, type: 3}
+  - {fileID: 4503169803525559037, guid: b6133b02dbe89ac48980d3cfd21f1586, type: 3}
+  HoodUp: 1
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &3074704245215212521
+--- !u!114 &3484385667064072126
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

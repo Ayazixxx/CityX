@@ -1448,12 +1448,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78defb2a7fb212e4b977117bb47b3c09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordsmanBrain
+  CalmArmedShare: 1
   SwordPrefab: {fileID: 5103039701722357346, guid: 6ab7683001589ae4ca309300ffef8afb, type: 3}
   BladeItemId: 
   BladeDurability: -1
   PeacefulUntilHurt: 0
   Wearing:
   - {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
+  HoodUp: 0
   Style: 0
   XpReward: 80
   Seed: 0

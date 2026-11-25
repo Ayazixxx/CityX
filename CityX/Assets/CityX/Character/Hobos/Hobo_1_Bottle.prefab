@@ -2154,7 +2154,7 @@ GameObject:
   - component: {fileID: 6048504705136178754}
   - component: {fileID: 7253286707599332104}
   - component: {fileID: 7779160357327782843}
-  - component: {fileID: 7294339819077139661}
+  - component: {fileID: 93410762037316207}
   m_Layer: 0
   m_Name: Hobo_1_Bottle
   m_TagString: Untagged
@@ -2472,6 +2472,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78defb2a7fb212e4b977117bb47b3c09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordsmanBrain
+  CalmArmedShare: 0.2
   SwordPrefab: {fileID: 2456315277408525038, guid: 8ea76026d9a8adb46b21f48a2df38c49, type: 3}
   BladeItemId: glass_bottle
   BladeDurability: 1
@@ -2482,6 +2483,7 @@ MonoBehaviour:
   - {fileID: 3676163138410343625, guid: c889a408fb5389f4090a70d060c70d53, type: 3}
   - {fileID: 5600285032884238694, guid: a090140601ba787478135495df78d2d6, type: 3}
   - {fileID: 421418391853620305, guid: d04d3922e6fe52e479173ef36096c59f, type: 3}
+  HoodUp: 0
   Style: 0
   XpReward: 40
   Seed: 0
@@ -2520,7 +2522,7 @@ MonoBehaviour:
   - {fileID: 8185852258123393053, guid: 899fd4895c807d049a2d3eade3ff29d4, type: 3}
   - {fileID: 8343226988097854766, guid: 55eb22987f2a36948833f8d4742cb379, type: 3}
   - {fileID: 3681511651364361429, guid: b805037809474b244835eeb8e2979de1, type: 3}
---- !u!114 &7294339819077139661
+--- !u!114 &93410762037316207
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

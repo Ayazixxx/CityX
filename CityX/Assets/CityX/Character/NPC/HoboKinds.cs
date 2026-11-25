@@ -18,6 +18,12 @@ namespace CityX.Character
         /// <summary>The weapons a hobo is found with: the bo staff ("metal pole"), a broken glass bottle, the chain, the machete, the wood plank (owner, 2026-11-24: "also make wood plank one of the weapons hobos can spawn with").</summary>
         public static readonly string[] Weapons = { "pole", "bottle", "chain", "machete", "plank" };
 
+        /// <summary>
+        /// The share of hobos walking about with the weapon in hand; the rest take it out when hurt or in a fight (owner, 2026-11-24: "make it so
+        /// homeless guys dont usually walk around with weapon in hand maybe 20 percent of them do. they usually only pull it out when attacked").
+        /// </summary>
+        public const float CalmArmedShare = 0.2f;
+
         /// <summary>Every hobo's kind name (EnemyNetwork's, the console's), each look with each weapon: "hobo_1_pole" ... "hobo_3_plank".</summary>
         public static readonly string[] All = BuildAll();
 

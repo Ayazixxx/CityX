@@ -2342,7 +2342,7 @@ GameObject:
   - component: {fileID: 7345704671556231043}
   - component: {fileID: 4940644607575994803}
   - component: {fileID: 6945190225208994686}
-  - component: {fileID: 1216871518819705174}
+  - component: {fileID: 7361450851752701213}
   m_Layer: 0
   m_Name: Hobo_3_Chain
   m_TagString: Untagged
@@ -2660,15 +2660,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78defb2a7fb212e4b977117bb47b3c09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordsmanBrain
+  CalmArmedShare: 0.2
   SwordPrefab: {fileID: 8566456013579319157, guid: a126b6e27c0a99c4193e947f0a9e7da9, type: 3}
   BladeItemId: chain
   BladeDurability: -1
   PeacefulUntilHurt: 1
-  Wearing: []
+  Wearing:
+  - {fileID: 9128724279061053278, guid: ac34e2c6cb7999b4fb522edee0f9c978, type: 3}
+  - {fileID: 5931533627893786738, guid: fdb0894c2a877f243b6090be9d0fefd6, type: 3}
+  - {fileID: 1507439274282442899, guid: b3e11f525e06f414d938d032c205cb80, type: 3}
+  - {fileID: 3676163138410343625, guid: c889a408fb5389f4090a70d060c70d53, type: 3}
+  - {fileID: 4503169803525559037, guid: b6133b02dbe89ac48980d3cfd21f1586, type: 3}
+  HoodUp: 1
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &1216871518819705174
+--- !u!114 &7361450851752701213
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

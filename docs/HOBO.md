@@ -13,10 +13,15 @@ The first slice of the design in `docs/GAME_DESIGN.md` (Hobos). Not in it yet: o
 
 ## How it plays
 
-- **`/spawn hobo`** puts one down: any of the three looks (Hobo, hobo2, and "brack guy": owner, 2026-11-24, "add my character "brack guy" as one of the hobos that can spawn"; he wears nothing in his save, so he comes as saved), any of the five weapons (metal pole, broken bottle, chain, machete, wood plank), at random.
+- **`/spawn hobo`** puts one down: any of the three looks (Hobo, hobo2, and "brack guy": owner, 2026-11-24, "add my character "brack guy" as one of the hobos that can spawn"; dressed by the owner the same day: "make him wearing a brown coat, black gloves ,sneakers and shirt. and grey jeans. and put the hood on": the Brown Coat with its hood up, black fingerless gloves, black sneakers, a black T-shirt, grey jeans, written into his look, `NpcLooks/BrackGuy.json`), any of the five weapons (metal pole, broken bottle, chain, machete, wood plank), at random.
   `/spawn hobopole`, `hobobottle`, `hobochain`, `hobomachete`, `hoboplank` pick the weapon (to try each).
 - **In the streets**: hobos appear out of doors with the ghosts and the monsters (`docs/MOB_SPAWNING.md`): of the outdoor ones, a quarter
   monsters, 40% hobos (mine), the rest ghosts. The outdoor budget (4 alive round a player) is unchanged.
+- **Weapon put away** (owner, 2026-11-24: "make it so homeless guys dont usually walk around with weapon in hand maybe 20 percent of them do. they
+  usually only pull it out when attacked"): one in five (`HoboKinds.CalmArmedShare`, rolled when he is spawned) walks about with it in hand; the
+  rest have nothing in hand until hit or in a fight, when it is in his hand at once (no drawing move yet). Other screens' copies start
+  empty-handed and are told when it comes out (`PlayerAnimationDriver.WeaponDrawnName`, told again every 4 s so a late arrival sees it).
+  `SwordsmanBrain.Sheathing`; every other enemy keeps his weapon in hand (`CalmArmedShare` 1).
 - **They wander** and leave everyone alone, even standing right beside them. Wandering, every enemy now walks at a full walking pace, its legs in the walk: at under half a walk (as before) the walk was blended half with the standing pose, and the body glided with its legs nearly still.
 - **Beards**: each wears its character's beard (Hobo spiky, hobo2 full, brack guy spiky), put on with the hair by the scene builder.
 - **Hit one** and he fights back: whoever is nearest when he is hurt (the one who hit him, nearly always). He fights with the
@@ -53,5 +58,5 @@ The first slice of the design in `docs/GAME_DESIGN.md` (Hobos). Not in it yet: o
 ## Tests
 
 `HoboTests` (the makes and the roll, the name on a fallen one, the lob lands on its mark, hobos out of doors, every prefab's weapon,
-spares, throw and networked copy, both outfits), `HoboPlayTests` (calm beside a player until hurt, then fights; each weapon in the hand,
+spares, throw and networked copy, the outfits, the put-away share and the hood), `HoboPlayTests` (calm beside a player until hurt, then fights; the weapon out when hit, on the copy too; brack guy's hood up; each weapon in the hand,
 the bottle broken; from 14 m he throws and hits, a copy carries one fewer and shows the whole bottle, the rest are on his body).

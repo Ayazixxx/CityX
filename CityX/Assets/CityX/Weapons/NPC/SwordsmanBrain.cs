@@ -40,6 +40,9 @@ namespace CityX.Weapons
         [Tooltip("What he wears (the swordsman the Knight Helmet; Crazy Guy his jeans and sneakers), each put on at spawn as the player puts it on.")]
         public GameObject[] Wearing = new GameObject[0];
 
+        [Tooltip("A coat with a hood he wears with the hood up (a hobo's look: brack guy).")]
+        public bool HoodUp;
+
         [Tooltip("How he fights (DuelistStyle): the swordsman's measured duel, or the knife's (Crazy Guy).")]
         public DuelistStyleKind Style = DuelistStyleKind.Swordsman;
 
@@ -178,7 +181,7 @@ namespace CityX.Weapons
             {
                 gameObject.AddComponent<HitImpactEffects>();
             }
-            EquipSword();
+            ArmAtSpawn();
             PutOnClothes();
         }
 
@@ -196,6 +199,7 @@ namespace CityX.Weapons
             if (_driver != null)
             {
                 _driver.RemoteGlinted -= ShowGlint;
+                _driver.RemoteWeaponDrawn -= DrawWeapon;
             }
             WatchTarget(null, null);
         }
@@ -242,6 +246,7 @@ namespace CityX.Weapons
         {
             _hurt = true;
             WaitsToSee = false;
+            DrawWeapon();   // out at once when he is hit
             if (PeacefulUntilHurt && !_provoked)
             {
                 _provoked = true;
@@ -291,6 +296,10 @@ namespace CityX.Weapons
                 GameObject worn = Instantiate(piece, transform, false);
                 worn.name = piece.name;
                 worn.GetComponent<IEquippableItem>()?.OnEquip(gameObject, ItemInstanceData.None);
+                if (HoodUp)
+                {
+                    worn.GetComponent<IHooded>()?.SetHood(true);   // the same on every machine: it is his look, not a change
+                }
             }
         }
 
@@ -367,6 +376,7 @@ namespace CityX.Weapons
             }
 
             FindTarget();
+            TickSheathing(deltaTime);
             WatchTarget(_targetCombat, _target as PlayerVitals);
             _combat?.Tick(deltaTime);
 

@@ -63,6 +63,7 @@ namespace CityX.Tests
             vitals.InfiniteHealth = true;
             _hobo = Object.Instantiate(Prefab(hobo), new Vector3(0.0f, 0.05f, apart), Quaternion.LookRotation(Vector3.back));   // facing the player
             _hobo.GetComponent<SwordsmanBrain>().Seed = 20261124;
+            _hobo.GetComponent<SwordsmanBrain>().CalmArmedShare = 1.0f;   // in hand from the start (a test of the weapon put away sets 0)
             return vitals;
 #else
             return null;
@@ -103,6 +104,52 @@ namespace CityX.Tests
             Assert.AreEqual(vitals, brain.Target, "hurt, he did not turn on the one who hurt him");
             Assert.Less(nearest, 4.0f, "hurt, he never came at the one who hurt him");
             Assert.AreNotEqual(DuelistState.Idle, brain.State, "hurt, he does not fight");
+        }
+
+        /// <summary>
+        /// Most walk about with nothing in hand and take the weapon out when hit (owner, 2026-11-24: "make it so homeless guys dont usually walk
+        /// around with weapon in hand maybe 20 percent of them do. they usually only pull it out when attacked"); a copy of him on another screen
+        /// has nothing in hand either until it is told, then holds it too.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator HeTakesHisWeaponOutWhenHitAndSoDoesHisCopy()
+        {
+            PlayerVitals vitals = SetUp("Hobo_1_Machete", 8.0f);
+            var brain = _hobo.GetComponent<SwordsmanBrain>();
+            brain.CalmArmedShare = 0.0f;
+            _copy = Object.Instantiate(Prefab("Hobo_1_Machete"), new Vector3(30.0f, 0.05f, 0.0f), Quaternion.identity);
+            var copy = _copy.GetComponent<SwordsmanBrain>();
+            copy.enabled = false;   // another screen's copy
+            var copyDriver = _copy.GetComponent<PlayerAnimationDriver>();
+            _hobo.GetComponent<PlayerAnimationDriver>().TimedStatePlayed += (state, speed, start) =>
+            {
+                if (state == PlayerAnimationDriver.WeaponDrawnName) copyDriver.PlayRemoteState(state, speed, start);
+            };
+            yield return Run(2.0f, vitals);
+            Assert.IsFalse(brain.WeaponDrawn, "he walks about with his machete out");
+            Assert.IsTrue(brain.Combat == null || !brain.Combat.IsEquipped, "a machete is in his hand");
+            Assert.IsFalse(copy.WeaponDrawn, "his copy walks about with the machete out");
+            Assert.IsNull(_hobo.GetComponentInChildren<ISwordBlade>(), "a machete is on him");
+
+            ((IDamageable)_hobo.GetComponent<PlayerVitals>()).ApplyHit(5.0f, _player.transform.position, 0.0f);
+            yield return null;
+            Assert.IsTrue(brain.WeaponDrawn, "hit, he did not take his machete out");
+            Assert.IsTrue(brain.Combat != null && brain.Combat.IsEquipped, "hit, the machete is not in his hand");
+            Assert.IsTrue(copy.WeaponDrawn, "his copy was not told he took it out");
+            Assert.IsTrue(copy.Combat != null && copy.Combat.IsEquipped, "his copy has no machete in hand");
+        }
+
+        /// <summary>Brack guy wears the owner's outfit with the Brown Coat's hood up (owner, 2026-11-24: "make him wearing a brown coat, black gloves ,sneakers and shirt. and grey jeans. and put the hood on").</summary>
+        [UnityTest]
+        public IEnumerator BrackGuyWearsHisHoodUp()
+        {
+            PlayerVitals vitals = SetUp("Hobo_3_Pole", 8.0f);
+            yield return null;
+            var coat = _hobo.GetComponentInChildren<CityX.Wearables.HoodedCoat>();
+            Assert.IsNotNull(coat, "brack guy has no coat on");
+            Assert.AreEqual(ItemRegistry.BrownCoat, coat.ItemId);
+            Assert.IsTrue(coat.HoodUp, "brack guy's hood is down");
+            Assert.IsNotNull(vitals);
         }
 
         /// <summary>Each weapon in his hand is swung as the player swings it.</summary>
@@ -164,6 +211,11 @@ namespace CityX.Tests
             PlayerVitals vitals = SetUp("Hobo_2_Bottle", 14.0f);
             _copy = Object.Instantiate(Prefab("Hobo_2_Bottle"), new Vector3(30.0f, 0.05f, 0.0f), Quaternion.identity);
             _copy.GetComponent<SwordsmanBrain>().enabled = false;   // another screen's copy: only shown what he does
+            var copyDriver = _copy.GetComponent<PlayerAnimationDriver>();
+            _hobo.GetComponent<PlayerAnimationDriver>().TimedStatePlayed += (state, speed, start) =>
+            {
+                if (state == PlayerAnimationDriver.WeaponDrawnName) copyDriver.PlayRemoteState(state, speed, start);   // as the network tells it
+            };
             yield return null;
             var brain = _hobo.GetComponent<SwordsmanBrain>();
             var carried = _hobo.GetComponent<CarriedLoot>();

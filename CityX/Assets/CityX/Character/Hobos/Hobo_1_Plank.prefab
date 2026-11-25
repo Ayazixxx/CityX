@@ -1251,7 +1251,7 @@ GameObject:
   - component: {fileID: 4924855750203886717}
   - component: {fileID: 3990328505782985882}
   - component: {fileID: 7225685918897070430}
-  - component: {fileID: 6665928267595999121}
+  - component: {fileID: 8721652901889381169}
   m_Layer: 0
   m_Name: Hobo_1_Plank
   m_TagString: Untagged
@@ -1569,6 +1569,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78defb2a7fb212e4b977117bb47b3c09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordsmanBrain
+  CalmArmedShare: 0.2
   SwordPrefab: {fileID: 19947138630075516, guid: c268413760f060f45b53c8f60157885f, type: 3}
   BladeItemId: wood_plank
   BladeDurability: -1
@@ -1579,10 +1580,11 @@ MonoBehaviour:
   - {fileID: 3676163138410343625, guid: c889a408fb5389f4090a70d060c70d53, type: 3}
   - {fileID: 5600285032884238694, guid: a090140601ba787478135495df78d2d6, type: 3}
   - {fileID: 421418391853620305, guid: d04d3922e6fe52e479173ef36096c59f, type: 3}
+  HoodUp: 0
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &6665928267595999121
+--- !u!114 &8721652901889381169
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
