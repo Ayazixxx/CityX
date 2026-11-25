@@ -212,7 +212,7 @@ PrefabInstance:
       addedObject: {fileID: 6609228567548558024}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 863668975522361992}
+      addedObject: {fileID: 7817487018673686757}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -649,6 +649,10 @@ MonoBehaviour:
     Prefab: {fileID: 1222058670356874189, guid: b9602d14c15185c4297aae2faacaee27, type: 3}
   - ItemId: black_fitted_cap
     Prefab: {fileID: 5847285358911033263, guid: b6eb133ba25fb0140bc05624a64687fe, type: 3}
+  - ItemId: red_cape
+    Prefab: {fileID: 8353370141061453915, guid: 7b4d14f18eadc42429b864248d2615d4, type: 3}
+  - ItemId: black_cape
+    Prefab: {fileID: 2400884628875139213, guid: 42cdb0583b717574fa86d5c69260a36b, type: 3}
 --- !u!114 &1608586426967413403
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1251,7 +1255,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a919571c41435f49a262b5d9cb4a57a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BulletRicochet
---- !u!114 &863668975522361992
+--- !u!114 &7817487018673686757
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

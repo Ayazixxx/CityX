@@ -102,7 +102,7 @@ namespace CityX.CharacterEditor
         });
 
         /// <summary>Every glass bottle (GlassBottleKinds), every colourway of the fingerless gloves (FingerlessGloveColourways) and of the fitted cap
-        /// (FittedCapColourways) after the rest.</summary>
+        /// (FittedCapColourways) and of the cape (CapeColourways) after the rest.</summary>
         private static (string id, string path)[] WithGloves((string id, string path)[] paths)
         {
             var all = new System.Collections.Generic.List<(string id, string path)>(paths);
@@ -117,6 +117,10 @@ namespace CityX.CharacterEditor
             foreach (FittedCapColourways.Colourway colourway in FittedCapColourways.All)
             {
                 all.Add((colourway.ItemId, FittedCapColourways.PrefabPath(colourway.ItemId)));
+            }
+            foreach (CapeColourways.Colourway colourway in CapeColourways.All)
+            {
+                all.Add((colourway.ItemId, CapeColourways.PrefabPath(colourway.ItemId)));
             }
             return all.ToArray();
         }

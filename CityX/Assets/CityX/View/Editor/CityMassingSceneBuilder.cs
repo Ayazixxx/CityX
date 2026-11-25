@@ -716,6 +716,8 @@ namespace CityX.ViewEditor
                 withGloves.AddRange(CityX.WearablesEditor.FingerlessGlovesBuilder.BuildAll());
                 // Every colourway of the fitted cap (FittedCapColourways, docs/FITTED_CAP.md).
                 withGloves.AddRange(CityX.WearablesEditor.FittedCapBuilder.BuildAll());
+                // Every colourway of the cape (CapeColourways, docs/CAPE.md).
+                withGloves.AddRange(CityX.WearablesEditor.CapeBuilder.BuildAll());
                 // The other glass bottles (GlassBottleKinds; the first is listed above).
                 foreach (CityX.Items.GlassBottleKinds.Kind kind in CityX.Items.GlassBottleKinds.All)
                 {

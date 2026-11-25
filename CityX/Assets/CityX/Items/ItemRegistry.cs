@@ -131,7 +131,7 @@ namespace CityX.Items
         public const int ShotgunShellStack = 60;
         public const int RpgRocketStack = 6;
 
-        private static readonly Dictionary<string, ItemDefinition> Items = WithCaps(WithBottles(WithGloves(new Dictionary<string, ItemDefinition>
+        private static readonly Dictionary<string, ItemDefinition> Items = WithCapes(WithCaps(WithBottles(WithGloves(new Dictionary<string, ItemDefinition>
         {
             [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [MidnightCoat] = new ItemDefinition(MidnightCoat, "Midnight Coat", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
@@ -262,7 +262,7 @@ namespace CityX.Items
             [RifleAmmo] = new ItemDefinition(RifleAmmo, "Rifle Ammo", AmmoCategory, string.Empty, RifleAmmoStack),
             [ShotgunShells] = new ItemDefinition(ShotgunShells, "Shotgun Shells", AmmoCategory, string.Empty, ShotgunShellStack),
             [RpgRockets] = new ItemDefinition(RpgRockets, "RPG Rockets", AmmoCategory, string.Empty, RpgRocketStack),
-        })));
+        }))));
 
         /// <summary>The glass bottles, one item a shape (GlassBottleKinds): a one-handed club that breaks, thrown whole.</summary>
         private static Dictionary<string, ItemDefinition> WithBottles(Dictionary<string, ItemDefinition> items)
@@ -281,6 +281,17 @@ namespace CityX.Items
             {
                 items[colourway.ItemId] = new ItemDefinition(colourway.ItemId, colourway.DisplayName, ItemDefinition.WearableCategory,
                     EquipSlots.Helmet, 1);
+            }
+            return items;
+        }
+
+        /// <summary>The capes, one item a colourway (CapeColourways): on the back.</summary>
+        private static Dictionary<string, ItemDefinition> WithCapes(Dictionary<string, ItemDefinition> items)
+        {
+            foreach (CapeColourways.Colourway colourway in CapeColourways.All)
+            {
+                items[colourway.ItemId] = new ItemDefinition(colourway.ItemId, colourway.DisplayName, ItemDefinition.WearableCategory,
+                    EquipSlots.Back, 1);
             }
             return items;
         }
