@@ -22,10 +22,10 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
   material as well as trim those triangles poking out on the sides. the middle stays as it"): the yoke's front edge runs from the collar's
   lower edge out along the front of each shoulder to its tip, with no skin between the collar and the yoke (the collar's ends tucked under
   the yoke), and the tips round back over the shoulder instead of folding down into points. The collar in the middle as it was.
-- **One straight line across** (owner, 2026-11-25, drawing it: "make it a straight line across fill in with material based on my drawing"):
-  the lower edge in front runs straight from one shoulder's tip along the yoke and the collar's lower edge to the other, filled with cloth
-  above it (`CapeShape.FrontLine`; the shoulders' part a few centimetres lower than the collar's middle, which stands nearer the eye, so the
-  line reads straight from in front). Beside the neck the head sits almost on the shoulder, so the yoke routes round the neck where there is
+- **The owner's black line** (2026-11-25, drawn over a picture: "make it a straight line across", "trim it as needed and fill material as
+  needed match the black line"): seen from in front, the lower edge runs straight from each shoulder's tip down to the collar's lower edge in
+  the middle (`CapeShape.FrontLineAt`: 7 cm higher at the tips), cloth above it; the collar's lower corners reach on out along it under the
+  yoke, so no notch shows where they meet. Beside the neck the head sits almost on the shoulder, so the yoke routes round the neck where there is
   room and tucks a little under the head there (hidden by it); the collar lies a little nearer the body than the yoke where its ends tuck
   under it. 21 columns across, so the turn round the neck does not fold the cloth.
 - **Fitted like a skin suit** (owner, 2026-11-25: "make it fit to his shoulders like a skin suit. like the same dimensions of the shoulder

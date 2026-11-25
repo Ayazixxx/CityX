@@ -36,18 +36,23 @@ namespace CityX.Wearables
         {
             new Vector3(0.00f, 1.910f, -0.185f),
             new Vector3(0.13f, 1.905f, -0.140f),
-            new Vector3(0.23f, FrontLine - 0.015f, 0.160f),
-            new Vector3(0.33f, FrontLine - 0.030f, 0.135f),
-            new Vector3(0.43f, FrontLine - 0.035f, 0.085f),
+            new Vector3(0.23f, FrontLineAt(0.23f), 0.160f),
+            new Vector3(0.33f, FrontLineAt(0.33f), 0.135f),
+            new Vector3(0.43f, FrontLineAt(0.43f), 0.085f),
         };
 
         /// <summary>
-        /// The height of the cape's lower edge in front at the collar's middle: one straight line across, seen from in front, from one shoulder's
-        /// tip along the yoke's front and the collar's lower edge to the other (owner, 2026-11-25, drawing it: "make it a straight line across fill
-        /// in with material based on my drawing"). The shoulders' part is a little lower than the collar's middle: the middle stands nearer the
-        /// eye, and level all round it was seen dipping in the middle.
+        /// The cape's lower edge in front, as the owner drew it (2026-11-25, a black line over a picture: "make it a straight line across",
+        /// "trim it as needed and fill material as needed match the black line"): seen from in front, straight from each shoulder's tip down to the
+        /// collar's lower edge in the middle. Its height there (<see cref="FrontLine"/>), and how much higher it is at the shoulder's tip
+        /// (<see cref="FrontLineRise"/>, at <see cref="FrontLineTip"/> across).
         /// </summary>
         public const float FrontLine = 1.865f;
+        public const float FrontLineRise = 0.07f;
+        public const float FrontLineTip = 0.43f;
+
+        /// <summary>The front line's height at <paramref name="x"/> across: a straight line from the middle up to each shoulder's tip.</summary>
+        public static float FrontLineAt(float x) => FrontLine + FrontLineRise * Mathf.Min(1.0f, Mathf.Abs(x) / FrontLineTip);
 
         /// <summary>The yoke's back edge, where the cloth falls from: below the neck behind, along the back of the shoulders, over the tips.</summary>
         public static readonly Vector3[] BackEdge =
@@ -74,6 +79,7 @@ namespace CityX.Wearables
         public const float CollarHeight = 1.935f;
         public const float CollarRise = 0.02f;
         public const float CollarSpread = 1.14f;
+        public const float CollarCornerReach = 0.35f;
 
         /// <summary>From the yoke's back edge to the hem, metres: the hem at the calves.</summary>
         public const float Length = 1.30f;
@@ -140,9 +146,11 @@ namespace CityX.Wearables
             float share = along / (CollarPoints - 1.0f) * 2.0f - 1.0f;
             float angle = share * CollarDegrees * Mathf.Deg2Rad;
             float lies = 1.0f - 0.4f * share * share;   // lying back on the chest in front, a little narrower where it meets the yoke
-            float reach = bottom ? 1.0f + (CollarSpread - 1.0f) * lies : 1.0f;
-            float y = bottom ? FrontLine : CollarHeight + CollarRise * share * share;
-            return new Vector3(CollarSide * reach * Mathf.Sin(angle), y, CollarFront * reach * Mathf.Cos(angle));
+            // Its lower corners reach on out along the front line under the yoke (curled back round the neck, their ends showed as a notch).
+            float reach = bottom ? 1.0f + (CollarSpread - 1.0f) * lies + CollarCornerReach * share * share * share * share : 1.0f;
+            float x = CollarSide * reach * Mathf.Sin(angle);
+            float y = bottom ? FrontLineAt(x) : CollarHeight + CollarRise * share * share;
+            return new Vector3(x, y, CollarFront * reach * Mathf.Cos(angle));
         }
 
         /// <summary>The yoke's front corners, on the shoulders' tips.</summary>
