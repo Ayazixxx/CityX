@@ -503,6 +503,17 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   you harder to be dismembered and if you do still get dismembered badly we could have the armor just come off the body and turn into its
   object form".
 
+- **Shirt prints, dye and the fabric marker (owner, 2026-11-24; not built yet).** The owner, on building the heat press now: "it will also be a
+  good ingame tool to make a bunch of shirt designs quick", and on picking a shirt's colour: "the whole select shirt color thing kinda makes no
+  sense ... it would kinda make more sense if you just have to print on whatever shirt color you find or if there is another way to dye the
+  shirts". So a shirt's colour is the one you find, or one you dye it; the press prints on it. **The fabric marker** (owner): "you can just
+  click to draw on someones outfit when standing close to them and it stays until washed off with a water spell", "or your own". My suggestions,
+  not decided: the press has two tabs, drawing (the creator's tools on a front and back canvas) and placing a picture; dye a found item (common
+  colours common, odd ones rare) and bleach back to white; marker strokes rough and thick next to the press's clean print; each shirt carries
+  its own design (in the bag, dropped, looted), sent once to other players with a size cap, and a setting to hide other players' prints and
+  drawings. Open: whether a new character still picks a shirt colour in the creator; whether the press is carried or a machine found or put in a
+  base; whether others can draw on you only when you allow it (it could be used to grief, or for pranks).
+
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
 - **An import pipeline** (drop a model in a folder → cleaned, small, gripped, iconed item with stats in a settings file) and **random rolls** (one model, many versions) make hundreds to thousands of items realistic.
 - Prefer rigid armor (rides one bone) over skinned clothing for volume.
