@@ -518,7 +518,7 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   players near them. **They stay until washed off** (owner: "until washed off. the marker only lasts so long though"): water washes walls as it
   does clothes and skin, and not only a water spell (owner: "there will be other ways to wash it off like a watergun or something for people
   who dont want to use magic"); **a marker runs out**. My suggestion, not decided: its ink measured in length drawn (a durability bar), thrown away
-  empty. Open: how much one draws, whether it can be refilled, how common markers are. Open: whether a new character still
+  empty. **Markers are rare and cannot be refilled** (owner). Open: how much one draws. Open: whether a new character still
   picks a shirt colour in the creator; whether the press is carried or a machine found or put in a base.
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
