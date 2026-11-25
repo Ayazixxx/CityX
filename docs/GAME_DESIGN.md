@@ -503,17 +503,20 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   you harder to be dismembered and if you do still get dismembered badly we could have the armor just come off the body and turn into its
   object form".
 
-- **Shirt prints, dye and the fabric marker (owner, 2026-11-24; not built yet).** The owner, on building the heat press now: "it will also be a
+- **Shirt prints, dye and the paint marker (owner, 2026-11-24; not built yet).** The owner, on building the heat press now: "it will also be a
   good ingame tool to make a bunch of shirt designs quick", and on picking a shirt's colour: "the whole select shirt color thing kinda makes no
   sense ... it would kinda make more sense if you just have to print on whatever shirt color you find or if there is another way to dye the
-  shirts". So a shirt's colour is the one you find, or one you dye it; the press prints on it. **The fabric marker** (owner): "you can just
+  shirts". So a shirt's colour is the one you find, or one you dye it; the press prints on it. **The paint marker** (owner; first called the fabric marker, then "maybe it can just be called paint marker and it works on walls too"): "you can just
   click to draw on someones outfit when standing close to them and it stays until washed off with a water spell", "or your own". My suggestions,
   not decided: the press has two tabs, drawing (the creator's tools on a front and back canvas) and placing a picture; dye a found item (common
   colours common, odd ones rare) and bleach back to white; marker strokes rough and thick next to the press's clean print; each shirt carries
   its own design (in the bag, dropped, looted), sent once to other players with a size cap, and a setting to hide other players' prints and
   drawings. **Anyone may draw on anyone** (owner, same day: "you are allowed to draw on anyone it will be funny to kidnap someone and draw like
   "idiot" on their face and then send them back to their faction"): the face and skin too, not only clothes, so marker strokes are a layer of
-  their own over the character's paint, which the water washes away and the creator's paint never loses. Open: whether a new character still
+  their own over the character's paint, which the water washes away and the creator's paint never loses. **It draws on walls too** (owner): the
+  city is made from the seed and stores nothing, so drawings on walls are the first thing kept on top of it, saved by the server and sent to
+  players near them. Open: how long wall drawings last (forever, until washed, fading over days, a cap per player), and whether a water spell
+  washes walls as it does clothes and skin. Open: whether a new character still
   picks a shirt colour in the creator; whether the press is carried or a machine found or put in a base.
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
