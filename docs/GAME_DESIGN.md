@@ -515,8 +515,9 @@ In the game but not on the list yet: the spike sword, the parachute, the spray c
   "idiot" on their face and then send them back to their faction"): the face and skin too, not only clothes, so marker strokes are a layer of
   their own over the character's paint, which the water washes away and the creator's paint never loses. **It draws on walls too** (owner): the
   city is made from the seed and stores nothing, so drawings on walls are the first thing kept on top of it, saved by the server and sent to
-  players near them. Open: how long wall drawings last (forever, until washed, fading over days, a cap per player), and whether a water spell
-  washes walls as it does clothes and skin. Open: whether a new character still
+  players near them. **They stay until washed off** (owner: "until washed off. the marker only lasts so long though"): water washes walls as it
+  does clothes and skin, and **a marker runs out**. My suggestion, not decided: its ink measured in length drawn (a durability bar), thrown away
+  empty. Open: how much one draws, whether it can be refilled, how common markers are. Open: whether a new character still
   picks a shirt colour in the creator; whether the press is carried or a machine found or put in a base.
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
