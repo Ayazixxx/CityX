@@ -202,6 +202,42 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// A throw cut short by a knockdown: a copy of him on another screen stops showing the whole bottle in his hand too (bug sweep 2026-11-25:
+        /// it showed it until his next throw).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator KnockedDownMidThrowTheCopyLetsGoOfTheSpareToo()
+        {
+            PlayerVitals vitals = SetUp("Hobo_2_Bottle", 14.0f);
+            _copy = Object.Instantiate(Prefab("Hobo_2_Bottle"), new Vector3(30.0f, 0.05f, 0.0f), Quaternion.identity);
+            _copy.GetComponent<SwordsmanBrain>().enabled = false;
+            var copyDriver = _copy.GetComponent<PlayerAnimationDriver>();
+            _hobo.GetComponent<PlayerAnimationDriver>().TimedStatePlayed += (state, speed, start) =>
+            {
+                if (state == PlayerAnimationDriver.WeaponDrawnName) copyDriver.PlayRemoteState(state, speed, start);
+            };
+            yield return null;
+            var brain = _hobo.GetComponent<SwordsmanBrain>();
+            var copyThrower = _copy.GetComponent<BottleThrower>();
+            var copyBottle = _copy.GetComponentInChildren<BottleWeapon>();
+            _hobo.GetComponent<BottleThrower>().Fired += evt => copyThrower.PlayRemote(evt);
+            brain.Target = vitals;
+            for (float clock = 0.0f; clock < 7.0f && !copyBottle.ShowsSpare; clock += Dt)
+            {
+                vitals.TickHitstun(Dt);
+                yield return null;
+            }
+            Assert.IsTrue(copyBottle.ShowsSpare, "from 14 m he never began a throw");
+            _hobo.GetComponent<Ragdoll>().Activate(Vector3.back * 3.0f);   // knocked down before the bottle left
+            for (int i = 0; i < 5; i++)
+            {
+                yield return null;
+            }
+            Assert.AreEqual(0, brain.BottlesThrown, "the bottle left after all");
+            Assert.IsFalse(copyBottle.ShowsSpare, "knocked down mid-throw, the copy still shows a whole bottle in his hand");
+        }
+
+        /// <summary>
         /// Hurt from a distance, he throws his whole bottles at the player and they hit; a copy of him on another screen carries one fewer each
         /// time, and shows a whole bottle in the hand as it goes. Then, beaten, the ones he has left are on his body.
         /// </summary>

@@ -17,13 +17,15 @@ namespace CityX.Weapons
         /// <summary>
         /// The events (<see cref="AbilityEvent.Kind"/>): Thrown (Origin the bottle, Direction its way, A its speed, B its stage, N which of
         /// Throwables), ShatteredInHand (Direction the way the last blow went: nothing is left of it), Broke (N the state it broke to, Direction the way the blow was going), Aimed (N 1 raised, 0 lowered) and
-        /// ThrowStarted (the arm goes; N 1 for a spare from the pocket, shown in the hand until it leaves: a hobo's, docs/HOBO.md).
+        /// ThrowStarted (the arm goes; N 1 for a spare from the pocket, shown in the hand until it leaves: a hobo's, docs/HOBO.md) and
+        /// ThrowCutShort (a throw stopped before the bottle left: a knockdown; the hand shows its own bottle again).
         /// </summary>
         public const int Thrown = 0;
         public const int Broke = 1;
         public const int Aimed = 2;
         public const int ThrowStarted = 3;
         public const int ShatteredInHand = 4;
+        public const int ThrowCutShort = 5;
 
         string IReplicatedAbility.AbilityId => Id;
 
@@ -113,6 +115,15 @@ namespace CityX.Weapons
             Fired?.Invoke(new AbilityEvent(ShatteredInHand, transform.position, way.sqrMagnitude > 1e-6f ? way.normalized : Vector3.forward));
         }
 
+        /// <summary>
+        /// A throw of a spare stopped before the bottle left (he was knocked down): other players' copies stop showing the spare in his hand
+        /// (bug sweep 2026-11-25: they showed a whole bottle there until his next throw).
+        /// </summary>
+        public void TellThrowCutShort()
+        {
+            Fired?.Invoke(new AbilityEvent(ThrowCutShort, transform.position, Vector3.zero));
+        }
+
         /// <summary>This body's bottle broke in its hand, on a blow going <paramref name="way"/>: other players are told.</summary>
         public void TellBroke(BottleWeapon.DurabilityState to, Vector3 way)
         {
@@ -171,6 +182,9 @@ namespace CityX.Weapons
                     {
                         Held?.ShowSpare(true);
                     }
+                    break;
+                case ThrowCutShort:
+                    Held?.ShowSpare(false);
                     break;
             }
         }

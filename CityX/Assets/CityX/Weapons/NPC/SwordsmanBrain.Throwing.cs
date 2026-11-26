@@ -115,7 +115,7 @@ namespace CityX.Weapons
         {
             BottleWeapon held = _throwingWith;
             string spare = _spare;
-            StopThrowing();
+            StopThrowing(cutShort: false);   // it leaves now: the Thrown event tells other screens
             _nextThrow = Time.time + SecondsBetweenThrows;
             if (held == null || !_carried.Spend(spare))
             {
@@ -132,8 +132,8 @@ namespace CityX.Weapons
             BottlesThrown++;
         }
 
-        /// <summary>A throw going on is over (thrown, or cut short): the hand shows its own bottle again.</summary>
-        private void StopThrowing()
+        /// <summary>A throw going on is over (thrown, or <paramref name="cutShort"/>: stopped before it left): the hand shows its own bottle again.</summary>
+        private void StopThrowing(bool cutShort = true)
         {
             if (_thrower != null)
             {
@@ -141,6 +141,10 @@ namespace CityX.Weapons
             }
             if (_throwingWith != null)
             {
+                if (cutShort && _throwingWith.ShowsSpare && _thrower != null)
+                {
+                    _thrower.TellThrowCutShort();   // the spare never left: other screens' copies show his own bottle again too
+                }
                 _throwingWith.ShowSpare(false);
             }
             _throwingWith = null;
