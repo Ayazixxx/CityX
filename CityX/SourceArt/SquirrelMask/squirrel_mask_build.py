@@ -42,6 +42,11 @@ TRIM_WORKING_TRIANGLES = 150000
 TRIM_TRIANGLES = 20000
 TRIM_SMOOTHING = 3
 EDGE_RELAX_ROUNDS = 12
+# The owner, on the game's pictures (2026-11-25): "fill in the missing triangle" (the top of the bare V between the cheeks, showing past the
+# nose's side) "and fill in the spaces i filled in with brown on the sides so you can see under the transparency under the mask" (the side
+# flaps stand off the head, and the game draws no back of a face). The V is closed above the nose's tip; the mask is given an inner side as far
+# as BACK_SIDE_REACH from its open edge (further in, the head covers it).
+BACK_SIDE_REACH = 0.10
 FINAL_TRIANGLES = 12000     # the fur and the eyes. Over the budget for a mask (2,000 to 5,000, at most 8,000): at 7,200 the fur was gone,
                             # and the owner wants its detail; as the Fur Hooded Parka's 14,600.
 # The final cut takes first where the fur stands out most (the face), so the shallower fur on the sides and back keeps some of its own;
@@ -340,6 +345,69 @@ def tidy(mask):
     print("tidied:", len(filled), "holes closed,", len(loose), "loose faces dropped")
 
 
+def outline_loops(bm):
+    """The mask's open edges, as loops of edges, longest first."""
+    seen, loops = set(), []
+    for e in bm.edges:
+        if not e.is_boundary or e in seen:
+            continue
+        loop, stack = [], [e]
+        seen.add(e)
+        while stack:
+            x = stack.pop()
+            loop.append(x)
+            for v in x.verts:
+                for y in v.link_edges:
+                    if y.is_boundary and y not in seen:
+                        seen.add(y)
+                        stack.append(y)
+        loops.append(loop)
+    return sorted(loops, key=len, reverse=True)
+
+
+def close_behind_nose(mask, nose):
+    """Closes the top of the bare V between the cheeks, from the nose's tip up (it showed past the nose's side as a small skin triangle)."""
+    tip = min(v.co.z for v in nose.data.vertices)
+    reach = max(abs(v.co.x) for v in nose.data.vertices) * 1.5
+    bm = bmesh.new()
+    bm.from_mesh(mask.data)
+    chain = [e for e in outline_loops(bm)[0] if all(v.co.z > tip and abs(v.co.x) < reach and v.co.y < 0.0 for v in e.verts)]
+    ends = [v for e in chain for v in e.verts if sum(1 for f in v.link_edges if f in chain) == 1]
+    if len(ends) == 2:
+        chain.append(bm.edges.new(ends))
+        made = bmesh.ops.triangle_fill(bm, use_beauty=True, use_dissolve=False, edges=chain)["geom"]
+        faces = [f for f in made if isinstance(f, bmesh.types.BMFace)]
+        for f in faces:
+            f.material_index = 0
+            f.normal_update()
+            if f.normal.dot(f.calc_center_median()) < 0.0:
+                f.normal_flip()
+        print("closed behind the nose:", len(faces), "faces")
+    else:
+        print("closed behind the nose: no gap found")
+    bm.to_mesh(mask.data)
+    bm.free()
+
+
+def back_side(mask):
+    """An inner side for the mask near its open edge: those faces again, facing in, on their own points (so the shading keeps apart)."""
+    bm = bmesh.new()
+    bm.from_mesh(mask.data)
+    edge = [v.co.copy() for e in outline_loops(bm)[0] for v in e.verts]
+    from mathutils.kdtree import KDTree
+    tree = KDTree(len(edge))
+    for i, p in enumerate(edge):
+        tree.insert(p, i)
+    tree.balance()
+    near = [f for f in bm.faces if f.material_index == 0 and tree.find(f.calc_center_median())[2] < BACK_SIDE_REACH]
+    copied = bmesh.ops.duplicate(bm, geom=near)["geom"]
+    inner = [f for f in copied if isinstance(f, bmesh.types.BMFace)]
+    bmesh.ops.reverse_faces(bm, faces=inner)
+    bm.to_mesh(mask.data)
+    bm.free()
+    print("inner side:", len(inner), "faces")
+
+
 def unwrap(obj):
     """Texture coordinates, for a texture one day (it wears flat colours today)."""
     bpy.ops.object.select_all(action="DESELECT")
@@ -470,6 +538,8 @@ def build():
         decimate(mask, FINAL_TRIANGLES, cut_order(mask))
     place_on_head([mask, nose], centre, radius)
     tidy(mask)
+    close_behind_nose(mask, nose)
+    back_side(mask)
 
     # The eyes into their own part with the nose: "Black". The rest is "Fur".
     bpy.ops.object.select_all(action="DESELECT")

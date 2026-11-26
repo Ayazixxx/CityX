@@ -20,9 +20,9 @@ namespace CityX.Tests
 
         /// <summary>
         /// Over a mask's usual 8,000: the owner chose the 20,000 rebuild of their trim, smoothed, over the 12,000 ones, which kept shards
-        /// (docs/SQUIRREL_MASK.md). This keeps it from growing further.
+        /// (docs/SQUIRREL_MASK.md), and an inner side near its open edge (about 4,000 more). This keeps it from growing further.
         /// </summary>
-        private const int TriangleBudget = 21000;
+        private const int TriangleBudget = 25000;
 
         private static GameObject Prefab()
         {

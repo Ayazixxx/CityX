@@ -24,6 +24,11 @@ the face count messed up the fur bad". Three rebuilds were put beside it; they c
 - Cut to 20,000 triangles (the cut sparing the eyes and the shallower fur, as below), then smoothed three times: no shards, the fur soft. The
   12,000 versions kept shards. The outline's points are relaxed along it, so the bottom edge runs smooth instead of jagged.
 - Fitted to the head as below (scale 1.40, the mask's ball 0.378 m).
+- Then, on the game's pictures: "fill in the missing triangle" (the top of the bare V between the cheeks showed past the nose's side as a
+  skin-coloured sliver) "and fill in the spaces i filled in with brown on the sides so you can see under the transparency under the mask". The
+  V is closed from the nose's tip up (behind the nose). The side flaps stand off the head and the game draws no back of a face, so the sky
+  showed through them: the mask has an inner side as far as 10 cm from its open edge (about 4,000 faces; further in, the head covers it). 24,500
+  triangles in all.
 
 ```
 "C:/Program Files/Blender Foundation/Blender 4.2/blender.exe" --background --factory-startup --python CityX/SourceArt/SquirrelMask/squirrel_mask_build.py -- "<Meshy fbx>" --trim "<full path of>/CityX/SourceArt/SquirrelMask/owner_trim.blend"
@@ -64,7 +69,7 @@ others at the ears, the rest passing.)
 
 ## Tests
 
-`SquirrelMaskTests`: the helmet slot, the triangle count (21,000 at most, so it does not grow), the owner's #874d00 fur and black eyes and nose, an eye
+`SquirrelMaskTests`: the helmet slot, the triangle count (25,000 at most, so it does not grow), the owner's #874d00 fur and black eyes and nose, an eye
 either side at the eyes' height, the nose standing out of the fur round it, the fur outside the head with ears above it, worn on the Head bone
 with the hair hidden, shown to other players (`NetworkedPlayerWiring.ItemPrefabPaths`, `ICosmeticMountable`), the console's names.
 Pictures: `SquirrelMaskCapture` (`squirrelmask-*.png`).
