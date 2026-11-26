@@ -17,6 +17,10 @@ namespace CityX.Tests
     /// near the crowd's middle and runs or walks to it, then another; a fighter stops now and then and attacks with what it holds (a sword's
     /// cut, a bat or fists, a gun's shot); a caster throws a spell (a fireball, ice shards, a poison cloud, now and then Self Smite). Every
     /// body is fully simulated, as the owner's own body is, so the crowd costs a little more than other players' copies would.
+    ///
+    /// <see cref="AsCopy"/>: moved as another player's copy is in a session (what a crowd in the hub is): its place and facing set straight
+    /// (NetworkedBodyMotion), its walk and run fed the speeds the owner would send (NetworkedAnimatorSync), its own movement never stepped.
+    /// It only runs about.
     /// </summary>
     public sealed class CrowdMember : MonoBehaviour
     {
@@ -25,6 +29,20 @@ namespace CityX.Tests
 
         public CrowdRole Role;
         public Vector3 Home;
+
+        /// <summary>Moved as another player's copy is, not stepped as a player's own body is.</summary>
+        public bool AsCopy;
+
+        private static readonly int SpeedParameter = Animator.StringToHash("Speed");
+        private static readonly int MoveXParameter = Animator.StringToHash("MoveX");
+        private static readonly int MoveZParameter = Animator.StringToHash("MoveZ");
+        private static readonly int GroundedParameter = Animator.StringToHash("Grounded");
+
+        /// <summary>How fast a copy's speed follows where it is going (the owner's own easing, about).</summary>
+        private const float CopyAcceleration = 20.0f;
+
+        private Animator _animator;
+        private Vector3 _copyVelocity;
 
         /// <summary>Seconds between a fighter's attacks and a caster's spells, at random within this range.</summary>
         public Vector2 ActionEvery = new Vector2(1.5f, 4.0f);
@@ -64,6 +82,7 @@ namespace CityX.Tests
             _poison = GetComponent<PoisonBreathCaster>();
             _smite = GetComponent<SelfSmiteAbility>();
             _own = GetComponentsInChildren<Collider>(true);
+            _animator = GetComponentInChildren<Animator>();
             if (_vitals != null)
             {
                 _vitals.InfiniteHealth = true;   // a test crowd: blows and spells land, nobody dies
@@ -124,6 +143,11 @@ namespace CityX.Tests
                 toGoal.y = 0.0f;
             }
             float yaw = toGoal.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(toGoal).eulerAngles.y : transform.eulerAngles.y;
+            if (AsCopy)
+            {
+                MoveAsACopy(toGoal, yaw, deltaTime);
+                return;
+            }
 
             _nextAction -= deltaTime;
             if (_nextAction <= 0.0f)
@@ -152,6 +176,29 @@ namespace CityX.Tests
             _fireball?.Tick(deltaTime);
             _ice?.Tick(deltaTime);
             _poison?.Tick(deltaTime);
+        }
+
+        /// <summary>
+        /// As a copy moves on another player's screen: placed and turned straight (no physics, no ground test: the owner's machine did that), the
+        /// height eased to the goal's (the street is near level), and the walk/run blend fed the speed the owner would send, eased as a copy eases it.
+        /// </summary>
+        private void MoveAsACopy(Vector3 toGoal, float yaw, float deltaTime)
+        {
+            float speed = _sprint ? _locomotion.SprintSpeed : _locomotion.WalkSpeed;
+            Vector3 wanted = toGoal.sqrMagnitude > 1e-4f ? toGoal.normalized * speed : Vector3.zero;
+            _copyVelocity = Vector3.MoveTowards(_copyVelocity, wanted, CopyAcceleration * deltaTime);
+            Vector3 position = transform.position + _copyVelocity * deltaTime;
+            position.y = Mathf.MoveTowards(position.y, _goal.y, 1.0f * deltaTime);
+            Quaternion facing = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(0.0f, yaw, 0.0f), 540.0f * deltaTime);
+            transform.SetPositionAndRotation(position, facing);
+            if (_animator != null)
+            {
+                Vector3 local = transform.InverseTransformDirection(_copyVelocity);
+                _animator.SetFloat(SpeedParameter, _copyVelocity.magnitude, NetworkedAnimatorSync.RemoteSmoothSeconds, deltaTime);
+                _animator.SetFloat(MoveXParameter, local.x, NetworkedAnimatorSync.RemoteSmoothSeconds, deltaTime);
+                _animator.SetFloat(MoveZParameter, local.z, NetworkedAnimatorSync.RemoteSmoothSeconds, deltaTime);
+                _animator.SetBool(GroundedParameter, true);
+            }
         }
 
         private SoulsSwordCombat Sword

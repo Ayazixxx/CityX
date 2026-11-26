@@ -159,6 +159,9 @@ namespace CityX.Tests
             Assert.IsTrue(_aOnA.GetComponent<PlayerInputReader>().enabled, "player A's own body does not obey player A");
             Assert.IsFalse(_aOnB.GetComponent<PlayerInputReader>().enabled, "player B's copy of player A obeys player B's keyboard");
             Assert.IsTrue(LocalPlayerBody.Current == _aOnA.gameObject || LocalPlayerBody.Current == _bOnB.gameObject, "a joining player's body did not claim this machine's screens");
+            // Another player's body is part of the crowd (drawn and posed less further off: CrowdDetail); this machine's own never is.
+            Assert.IsNotNull(_aOnB.GetComponent<CrowdDetail>(), "player B's copy of player A is not part of B's crowd");
+            Assert.IsNull(_aOnA.GetComponent<CrowdDetail>(), "player A's own body is treated as somebody else's in a crowd");
 
             // EVERY MACHINE OF THIS TEST SHARES ONE SCENE: the server's copy of each body and the other client's copy stand inside the real one.
             // A's real body walking into a ledge was shoved by its own copies' capsules -- now and then off its feet, which the copy then showed

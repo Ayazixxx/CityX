@@ -126,7 +126,7 @@ namespace CityX.Wearables
         private void Fit()
         {
             _clothesFittedOver = _clothes != null ? _clothes.CombinedMesh : null;
-            Mesh body = _skin != null ? _skin.sharedMesh : null;
+            Mesh body = _skin != null ? WornBodyCover.Whole(_skin) : null;   // the whole body, not what clothes leave of it
             bool readable = body != null && body.isReadable && _skin.bones.Length == body.bindposes.Length;
             Vector3[] rest;
             var onBody = new BoneWeight[CapeShape.Points];

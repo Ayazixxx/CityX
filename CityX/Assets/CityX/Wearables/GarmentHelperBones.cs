@@ -9,9 +9,12 @@ namespace CityX.Wearables
     /// head goes (the clips move the head along the neck, which a collar on the neck alone would let it sink into). Made on the body when a worn
     /// garment uses them, and set
     /// every frame after the body's pose is final (the Animator, then PlayerLocomotion's procedural poses).
+    ///
+    /// On another player's body in a crowd (CrowdDetail): past the nearest, the skirt is not kept off the legs (the costliest part of a body's
+    /// frame in a crowd: docs/CROWD_TEST.md); off the screen, nothing is set.
     /// </summary>
     [DefaultExecutionOrder(31000)]
-    public sealed class GarmentHelperBones : MonoBehaviour
+    public sealed class GarmentHelperBones : MonoBehaviour, ICrowdDetailed
     {
         /// <summary>A body this far down into a crouch (PlayerLocomotion.CrouchShown) has its skirt left hanging as the legs put it (SkirtCloth).</summary>
         private const float CrouchedPast = 0.3f;
@@ -43,6 +46,9 @@ namespace CityX.Wearables
         private PlayerLocomotion _locomotion;
         private Quaternion[] _rotations;
         private Vector3[] _places;
+        private CrowdTier _tier = CrowdTier.Full;
+
+        public void ShowAt(CrowdTier tier) => _tier = tier;
 
         /// <summary>
         /// The helper transforms, in <see cref="Helpers"/> order, made under the body's own bones on first call. The bind rotations come from the
@@ -92,7 +98,7 @@ namespace CityX.Wearables
 
         private void LateUpdate()
         {
-            if (_helpers == null)
+            if (_helpers == null || _tier == CrowdTier.Unseen)
             {
                 return;
             }
@@ -123,7 +129,7 @@ namespace CityX.Wearables
                 _rotations[i] = GarmentHelperPose.Follow(parent.rotation, _parentBind[i], child.rotation, _childBind[i], share);
                 _places[i] = child.position;
             }
-            if (_skirt != null && _parents[0] != null)
+            if (_skirt != null && _parents[0] != null && _tier == CrowdTier.Full)
             {
                 // Crouched, the folded legs sit inside the coat as it is cut: the skirt hangs as the legs put it (SkirtCloth).
                 bool standing = _locomotion == null || _locomotion.CrouchShown < CrouchedPast;

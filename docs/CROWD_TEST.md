@@ -92,3 +92,70 @@ garments, shoes, weapon), each drawn for the picture and again for the sun's sha
 
 What would help next (my suggestions, not decisions): fewer pieces per body (the head, hair and shoes merged into the body's own draw),
 no shadow from a body past some distance, and far bodies posed and animated less often (`PlayerLocomotion.LateUpdate`, the animator).
+
+## 2026-11-25: the crowd's level of detail
+
+Owner: "something that will not tank performance in large crowds of people remember there is a hub", then "work on that until we have made a
+significant improvement".
+
+### Measuring a hub's crowd, not a crowd of players' own bodies
+
+The test stepped every body as a player's own body is stepped (`PlayerLocomotion.Tick`: the controller, the ground, the walls). In a session
+another player's body is a copy: placed by the network (`NetworkedBodyMotion`), its walk and run fed the owner's speeds
+(`NetworkedAnimatorSync`), never stepped; only its posing runs (`PlayerLocomotion.LateUpdate`). `CITYX_CROWD_AS_COPIES=1` moves the crowd
+that way (`CrowdMember.AsCopy`), which is what a hub is. Two more tools, run by name with -Graphics:
+
+- `CrowdCapture.BreakDownWhatACopyCosts`: each kind of script on the copies switched off in turn (on, off, on: each "off" against the mean
+  of the two around it, so the laptop's drift between timings cancels), then their shadows, their drawing, their animators.
+  `crowd-breakdown.txt`.
+- `CrowdCapture.CompareTheCrowdsDetail`: the level of detail on and off in turns in one run (four rounds each), the same with the camera
+  turned away, where the drawing goes, and what a copy carries. `crowd-detail-ab.txt`. Single runs differ by 10 ms or more from one to the
+  next on this laptop; only a comparison inside one run can be trusted for a small change.
+
+### What a copy cost (before; 30 copies, everyone running, in the editor)
+
+| what | for the 30 |
+|---|---|
+| `GarmentHelperBones`: a coat's skirt kept off the legs (`SkirtCloth`, `SkirtClearance`: every skirt point against the legs, up to 4 rounds of 8 passes a frame) | 8.5 ms |
+| the crowd's shadows | 11.5 ms of the frame |
+| `PlayerLocomotion`'s posing (of it, the foot placement was 48 of about 75 microseconds a body) | 4.3 ms |
+| the animators (mostly what the bones then move: the skinning, the posing) | 14 ms of the frame |
+
+Every other script was within the noise (about 0.06 ms a copy for all of them together: some fifty abilities each looking once a frame).
+
+### What was done
+
+- **`CrowdDetail`** (`Character/Network`), put on every copy of another player by `NetworkedPlayerIdentity`, never on this machine's own
+  body. A few times a second the crowd is ranked by distance from the camera, and each body gets a tier (`CrowdTiers`):
+  - **Full**: within 15 m and among the nearest 10. Everything, as before.
+  - **Light**: the rest of the crowd on the screen. No shadow; no coat skirt kept off the legs (`GarmentHelperBones`); the feet and fingers as
+    the clip puts them (`PlayerLocomotion.Crowd.cs`).
+  - **Unseen**: off the screen. No shadow, nothing posed (only what counts time: a blow's freeze, the crouch), no garment helpers set; its
+    animator no longer moves the bones while none of it is seen (`AnimatorCullingMode.CullUpdateTransforms`).
+  - No game camera, or nothing drawn at all (a server, a run with no graphics): every body in full.
+  - A copy's skinned meshes keep no last-frame shape for motion vectors: nothing in the game draws with them (SMAA, motion blur at 0), and
+    keeping them cost 3.9 ms a frame for 50.
+- **The body cut keeps only the points it draws** (`BodyCover.Compact`): the graphics card bends every point of a skinned mesh, drawn or
+  not, and a dressed body hides most of its skin (a body in a T-shirt and jeans: 28,500 points of 43,500). For every body, the player's own
+  too. What needs the whole body asks `WornBodyCover.Whole` (the cape's fit now does).
+
+### After (same laptop, in the editor, as copies)
+
+| crowd | before | after |
+|---|---|---|
+| 25 | +34.9 ms over the empty street (20 fps) | +22.2 ms (25 fps) |
+| 50 | +64.9 ms (13 fps) | +40.4 ms (17 fps) |
+| 100 | (the test stopped at 50) | +66.2 ms (12 fps) |
+
+About 1.3 ms a copy before, about 0.66 ms after. In one run, 50 copies with the level of detail on and off in turns: 53 ms against 74 on the
+screen; with the camera turned away from them (as most of a hub is at any moment), 30 to 36 ms against 55. With no body in full at all, 47.6
+ms: the nearest in full (shadows, planted feet) cost about 0.35 ms each more, hence 10 of them.
+
+Where the rest goes, for 50 on the screen: the drawing (about 0.4 ms a copy: its nine or so pieces, each drawn for the picture and its depth;
+of it, hiding the skin saved 1 ms, the clothes 1.7, the rigid pieces (head, hair, shoes, held things, hats) 3.2, so the graphics card's
+bending is not the cost), the scripts (about 0.06 ms a copy, mostly the editor's own cost of calling some fifty idle `Update`s, far less in
+a built game), the physics (about 0.04 ms: the hit shapes, kept because blows and shots land on copies).
+
+Next, if the hub needs more: fewer pieces a body (the rigid pieces merged into one draw), the crowd budget hiding the furthest when very many
+are on the screen, abilities that sleep when idle instead of looking every frame, and a measurement in a built game (the editor overstates
+the scripts).

@@ -106,7 +106,7 @@ namespace CityX.Tests
                 BuildingShapeCapture.Shoot(camera, folder, $"cape-{name}-side", chest + side * 9.0f + Vector3.up * 0.4f, chest);
             }
 
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(player);
             Object.Destroy(camera.gameObject);
             Object.Destroy(sunObject);

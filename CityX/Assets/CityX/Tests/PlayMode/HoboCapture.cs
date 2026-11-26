@@ -54,7 +54,7 @@ namespace CityX.Tests
             chest = hobo.transform.position + Vector3.up * 1.5f;
             BuildingShapeCapture.Shoot(camera, folder, "hobo3-drawn", chest + new Vector3(4.0f, 0.5f, 4.0f), chest);
 
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(hobo);
             Object.Destroy(camera.gameObject);
             Object.Destroy(sunObject);

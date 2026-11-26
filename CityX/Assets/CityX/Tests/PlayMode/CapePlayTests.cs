@@ -23,7 +23,7 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             foreach (GameObject made in new[] { _player, _copy, _ground })
             {
                 if (made != null) Object.Destroy(made);

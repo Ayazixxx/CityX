@@ -121,9 +121,9 @@ namespace CityX.Character
 
             bool bones = _leftUpperLeg != null && _leftLowerLeg != null && _leftFoot != null && _rightUpperLeg != null && _rightLowerLeg != null && _rightFoot != null;
             float deltaTime = Time.deltaTime;
-            if (!bones || deltaTime <= 0.0f)
+            if (!bones || deltaTime <= 0.0f || !PosesTheDetails)
             {
-                return;
+                return;   // (another player's body past the nearest: its feet as the clip has them, PlayerLocomotion.Crowd.cs)
             }
 
             // The body's own motion, measured (so a network-moved copy sees the same): a landing, a turn on the spot, a teleport.

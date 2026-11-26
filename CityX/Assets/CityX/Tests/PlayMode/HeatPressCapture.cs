@@ -62,7 +62,7 @@ namespace CityX.Tests
                 BuildingShapeCapture.Shoot(camera, folder, $"heatpress-{names[i]}", top + new Vector3(1.4f, 0.5f, 1.8f), top);
             }
 
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(player);
             Object.Destroy(made);
             Object.Destroy(camera.gameObject);
@@ -153,7 +153,7 @@ namespace CityX.Tests
             BuildingShapeCapture.Shoot(camera, shots, "heatpress-print-worn-front", chest + new Vector3(0.0f, 0.2f, 5.0f), chest);
             BuildingShapeCapture.Shoot(camera, shots, "heatpress-print-worn-back", chest + new Vector3(0.0f, 0.2f, -5.0f), chest);
 
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(viewObject);
             Object.Destroy(player);
             Object.Destroy(made);

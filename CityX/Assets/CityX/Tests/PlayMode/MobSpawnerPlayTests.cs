@@ -47,6 +47,9 @@ namespace CityX.Tests
             yield return null;
             yield return null;
             _scene = SceneManager.GetSceneByPath(ScenePath);
+            // What the city makes (its chunks, the enemies) goes into its own scene and goes with it: left in the test scene, a kerb of it lay
+            // under the next tests' own street (SmallObstaclePlayTests' sprint over a bar ended 0.19 m up).
+            SceneManager.SetActiveScene(_scene);
             // (The humanoid enemies are built on the player's body: the player is the one with the keys.)
             PlayerInputReader reader = Object.FindFirstObjectByType<PlayerInputReader>();
             Assert.IsNotNull(reader, "no player in the real scene");
@@ -150,8 +153,10 @@ namespace CityX.Tests
                     {
                         outdoors++;
                         Assert.GreaterOrEqual(away, MobSpawnRules.OutdoorsFromMetres - 3.0f, "an enemy appeared in the player's face");
-                        Assert.IsTrue(body.GetComponent<Wraith>() != null || body.GetComponent<CrimsonClaw>() != null, "something other than a ghost or a monster appeared out of doors");
-                        Assert.Less(_plan.BuildingAt(where.x, where.z), 0, "a ghost or a monster appeared inside a building");
+                        // (Hobos too, since 2026-11-24: docs/HOBO.md.)
+                        Assert.IsTrue(body.GetComponent<Wraith>() != null || body.GetComponent<CrimsonClaw>() != null || body.name.StartsWith("Hobo_"),
+                            "something other than a ghost, a monster or a hobo appeared out of doors");
+                        Assert.Less(_plan.BuildingAt(where.x, where.z), 0, "an outdoor enemy appeared inside a building");
                         // (The built ground can lie a little off the height the plan gives a spot: a kerb, a slope across a block. The spawner allows that much.)
                         Assert.That(where.y - (float)_plan.GroundHeight(where.x, where.z), Is.InRange(-MobSpawner.GroundHeightTolerance - 0.1f, 5.0f), "an outdoor enemy is not over the ground");
                     }

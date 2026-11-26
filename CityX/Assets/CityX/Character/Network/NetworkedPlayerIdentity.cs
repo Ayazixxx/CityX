@@ -136,6 +136,7 @@ namespace CityX.Character
             base.OnStartClient();
             TellAudioWhoseBodyThisIs();
             TakeTheControlsIfOurs();
+            JoinTheCrowdIfNotOurs();
 
             // THE SKILL MENU AND THE BAR FOLLOW THE BODY THIS MACHINE CONTROLS:
             // somebody else's body gives the claim up, our own takes it.
@@ -195,6 +196,7 @@ namespace CityX.Character
             base.OnOwnershipClient(prevOwner);
             TellAudioWhoseBodyThisIs();
             TakeTheControlsIfOurs();
+            JoinTheCrowdIfNotOurs();
         }
 
         private void TakeTheControlsIfOurs()
@@ -206,6 +208,23 @@ namespace CityX.Character
             if (IsOwner && _identity != null)
             {
                 _identity.BeOurs();
+            }
+        }
+
+        /// <summary>Another player's body is part of the crowd (CrowdDetail: drawn and posed less further off); this machine's own never is.</summary>
+        private void JoinTheCrowdIfNotOurs()
+        {
+            var crowd = GetComponent<CrowdDetail>();
+            if (IsOwner)
+            {
+                if (crowd != null)
+                {
+                    Destroy(crowd);
+                }
+            }
+            else if (crowd == null)
+            {
+                gameObject.AddComponent<CrowdDetail>();
             }
         }
 

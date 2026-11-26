@@ -136,6 +136,10 @@ namespace CityX.Character
 
         private void ApplyFingerGrips()
         {
+            if (!PosesTheDetails)
+            {
+                return;   // another player's body past the nearest: its fingers as the clip has them (PlayerLocomotion.Crowd.cs)
+            }
             if (!_digitsLooked)
             {
                 _digitsLooked = true;

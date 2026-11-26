@@ -1,11 +1,17 @@
 using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace CityX.Wearables
 {
     /// <summary>
     /// The body's skin with the worn garments' hidden triangles left out (SkinnedGarment.HiddenBodyTriangles, one bit per triangle). Made once
     /// per body mesh and set of garments, shared by everyone wearing them.
+    ///
+    /// Only the points the shown triangles use are kept (2026-11-25, docs/CROWD_TEST.md): the graphics card bends every point of a skinned mesh
+    /// every frame, drawn or not, and a dressed body hides most of its skin, so a crowd of dressed bodies bent all of it for nothing. Whatever
+    /// needs the whole body (a cape's fit, gloves made from the hands) asks WornBodyCover.Whole.
     /// </summary>
     public static class BodyCover
     {
@@ -46,11 +52,104 @@ namespace CityX.Wearables
                     shown.Add(triangles[t * 3 + 2]);
                 }
             }
-            made = Object.Instantiate(body);
+            made = Compact(body, shown);
             made.name = body.name + "Covered";
-            made.SetTriangles(shown, 0);
             Made[(body, mask)] = made;
             return made;
+        }
+
+        /// <summary>
+        /// <paramref name="body"/> with only the points <paramref name="shown"/> (its triangles' corners, three a triangle) uses, renumbered:
+        /// every per-point stream carried over (place, facing, tangents, colours, each set of texture coordinates, bone weights however many a
+        /// point has, blend shapes), the bind poses and the bounds as they were.
+        /// </summary>
+        public static Mesh Compact(Mesh body, List<int> shown)
+        {
+            int count = body.vertexCount;
+            var renumber = new int[count];
+            for (int i = 0; i < count; i++) renumber[i] = -1;
+            var kept = new List<int>(count);
+            var triangles = new int[shown.Count];
+            for (int i = 0; i < shown.Count; i++)
+            {
+                int v = shown[i];
+                if (renumber[v] < 0)
+                {
+                    renumber[v] = kept.Count;
+                    kept.Add(v);
+                }
+                triangles[i] = renumber[v];
+            }
+
+            var made = new Mesh { indexFormat = kept.Count > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16 };
+            made.SetVertices(Pick(body.vertices, kept));
+            Vector3[] normals = body.normals;
+            if (normals.Length == count) made.SetNormals(Pick(normals, kept));
+            Vector4[] tangents = body.tangents;
+            if (tangents.Length == count) made.SetTangents(Pick(tangents, kept));
+            Color32[] colours = body.colors32;
+            if (colours.Length == count) made.SetColors(Pick(colours, kept));
+            for (int channel = 0; channel < 8; channel++)
+            {
+                if (!body.HasVertexAttribute(VertexAttribute.TexCoord0 + channel)) continue;
+                var uvs = new List<Vector4>(count);
+                body.GetUVs(channel, uvs);
+                switch (body.GetVertexAttributeDimension(VertexAttribute.TexCoord0 + channel))
+                {
+                    case 2: made.SetUVs(channel, Pick(uvs, kept).ConvertAll(uv => (Vector2)uv)); break;
+                    case 3: made.SetUVs(channel, Pick(uvs, kept).ConvertAll(uv => (Vector3)uv)); break;
+                    default: made.SetUVs(channel, Pick(uvs, kept)); break;
+                }
+            }
+
+            NativeArray<byte> perPoint = body.GetBonesPerVertex();
+            if (perPoint.Length == count)
+            {
+                NativeArray<BoneWeight1> all = body.GetAllBoneWeights();
+                var start = new int[count];
+                for (int i = 1; i < count; i++) start[i] = start[i - 1] + perPoint[i - 1];
+                var keptPerPoint = new NativeArray<byte>(kept.Count, Allocator.Temp);
+                int total = 0;
+                for (int k = 0; k < kept.Count; k++)
+                {
+                    keptPerPoint[k] = perPoint[kept[k]];
+                    total += perPoint[kept[k]];
+                }
+                var keptWeights = new NativeArray<BoneWeight1>(total, Allocator.Temp);
+                int at = 0;
+                foreach (int v in kept)
+                {
+                    for (int w = 0; w < perPoint[v]; w++) keptWeights[at++] = all[start[v] + w];
+                }
+                made.SetBoneWeights(keptPerPoint, keptWeights);
+                keptPerPoint.Dispose();
+                keptWeights.Dispose();
+            }
+            made.bindposes = body.bindposes;
+
+            var deltas = new Vector3[count];
+            var deltaNormals = new Vector3[count];
+            var deltaTangents = new Vector3[count];
+            for (int shape = 0; shape < body.blendShapeCount; shape++)
+            {
+                for (int frame = 0; frame < body.GetBlendShapeFrameCount(shape); frame++)
+                {
+                    body.GetBlendShapeFrameVertices(shape, frame, deltas, deltaNormals, deltaTangents);
+                    made.AddBlendShapeFrame(body.GetBlendShapeName(shape), body.GetBlendShapeFrameWeight(shape, frame),
+                        Pick(deltas, kept).ToArray(), Pick(deltaNormals, kept).ToArray(), Pick(deltaTangents, kept).ToArray());
+                }
+            }
+
+            made.SetTriangles(triangles, 0, false);
+            made.bounds = body.bounds;
+            return made;
+        }
+
+        private static List<T> Pick<T>(IList<T> from, List<int> kept)
+        {
+            var picked = new List<T>(kept.Count);
+            foreach (int v in kept) picked.Add(from[v]);
+            return picked;
         }
 
         /// <summary>

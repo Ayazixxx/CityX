@@ -31,6 +31,11 @@ namespace CityX.Character
         /// </summary>
         private void LateUpdate()
         {
+            if (_crowdTier == CrowdTier.Unseen)
+            {
+                KeepTimeUnseen();   // another player's body off the screen (PlayerLocomotion.Crowd.cs)
+                return;
+            }
             PoseAfterTheAnimator();
             if (_steppedFrame == Time.frameCount)
             {
