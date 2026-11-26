@@ -182,11 +182,20 @@ namespace CityX.UI
             }
         }
 
-        /// <summary>The city behind the title, and the character on its roof: drawn, or not at all.</summary>
+        /// <summary>
+        /// The city behind the title, and the character on its roof: drawn, or not at all. Not drawn, its camera is switched off as well as
+        /// shown nothing: the belt's camera clears the whole screen to its sky and draws over it, so everything the city's camera still did
+        /// each frame (its sky, the cel lines' pass, bloom, the smoothing of edges) was thrown away (owner, 2026-11-26: "see what you can do
+        /// to lower ... framerate on the character select screen").
+        /// </summary>
         private void ShowBackdrop(bool shown)
         {
             if (Hero != null) Hero.gameObject.SetActive(shown);
-            if (Backdrop != null) Backdrop.cullingMask = shown ? BackdropMask : 0;
+            if (Backdrop != null)
+            {
+                Backdrop.cullingMask = shown ? BackdropMask : 0;
+                Backdrop.enabled = shown;
+            }
         }
 
         /// <summary>Shows or hides the logo: the group the UI tests and the panels see, and the 3D logo itself.</summary>

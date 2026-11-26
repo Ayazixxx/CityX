@@ -217,11 +217,13 @@ namespace CityX.Tests
                 bool ownStage = panel == TitleScreen.Panel.CharacterSelect || panel == TitleScreen.Panel.Creator;
                 Assert.AreEqual(!ownStage, heroObject.activeSelf, $"the rooftop on {panel}");
                 Assert.AreEqual(ownStage ? 0 : 0x5, title.Backdrop.cullingMask, $"the city on {panel}");
+                Assert.AreEqual(!ownStage, title.Backdrop.enabled, $"the city's camera still draws under {panel}'s own stage");
             }
             title.Show(TitleScreen.Panel.Menu);
             Assert.IsTrue(title.Logo.Shown, "the logo went with the panels and did not come back on the menu");
             Assert.IsTrue(heroObject.activeSelf);
             Assert.AreEqual(0x5, title.Backdrop.cullingMask);
+            Assert.IsTrue(title.Backdrop.enabled, "back on the menu, the city's camera is still off");
         }
 
         // --- the scene ---
