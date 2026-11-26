@@ -204,6 +204,63 @@ namespace CityX.Tests
             Assert.Less(most, standing - 0.15f, $"jumping, the cape's back does not fly up (behind {standing:0.00}, at most {most:0.00})");
         }
 
+        /// <summary>
+        /// Sitting in a car driving at 20 m/s and turning, the cape hangs as it does standing: the body is not running (bug sweep 2026-11-25:
+        /// its lift came from the body's speed through the world, so a car ride flew it right up).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RidingInACarItHangsAsItDoesStanding()
+        {
+            (Cape cape, PlayerLocomotion body) = Wear();
+            yield return Run(body, new LocomotionInput(), 60);
+            var seat = new GameObject("Seat");
+            seat.transform.position = _player.transform.position;
+            try
+            {
+                _player.GetComponent<CharacterController>().enabled = false;
+                _player.transform.SetParent(seat.transform, true);   // as Car seats its driver
+                float most = 0.0f;
+                for (int i = 0; i < 120; i++)
+                {
+                    seat.transform.position += seat.transform.forward * (20.0f * Dt);
+                    seat.transform.Rotate(0.0f, 40.0f * Dt, 0.0f);   // round a bend
+                    yield return null;
+                    if (i > 10)
+                    {
+                        most = Mathf.Max(most, Mathf.Abs(cape.Swing.Lift), Mathf.Abs(cape.Swing.Sway));
+                    }
+                }
+                Assert.Less(most, 5.0f, $"riding in a car, the cape swung {most:0} degrees");
+            }
+            finally
+            {
+                _player.transform.SetParent(null, true);
+                Object.Destroy(seat);
+            }
+        }
+
+        /// <summary>
+        /// Going fast at a low frame rate (a skydive at 60 m/s, 20 frames a second: 3 m a frame) is still going, not being put somewhere: the
+        /// cape lifts (bug sweep 2026-11-25: every frame was taken for a teleport and the cape hung straight down).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator FastAtALowFrameRateItStillSwings()
+        {
+            (Cape cape, PlayerLocomotion body) = Wear();
+            yield return Run(body, new LocomotionInput(), 60);
+            _player.GetComponent<CharacterController>().enabled = false;
+            Time.captureFramerate = 20;
+            float most = 0.0f;
+            for (int i = 0; i < 40; i++)
+            {
+                _player.transform.position += _player.transform.forward * (60.0f / 20.0f);
+                yield return null;
+                most = Mathf.Max(most, Mathf.Abs(cape.Swing.Lift));
+            }
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+            Assert.Greater(most, 10.0f, "at 3 m a frame the cape took every frame for a teleport and hung still");
+        }
+
         [UnityTest]
         public IEnumerator PutSomewhereNewTheCapeComesAlongAtRest()
         {

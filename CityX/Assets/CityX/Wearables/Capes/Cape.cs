@@ -29,7 +29,12 @@ namespace CityX.Wearables
         [Tooltip("The folded cape lying on the ground; hidden while worn.")]
         public GameObject GroundPreview;
 
-        /// <summary>A body moved further than this in a frame was put somewhere, not walked there: the cape hangs still again.</summary>
+        /// <summary>
+        /// A body moved faster than this was put somewhere, not moved there: the cape hangs still again, metres a second (or at least
+        /// <see cref="TeleportMetres"/> in one frame). A speed, not a distance a frame: a skydive at a low frame rate crossed the old 2.5 m a
+        /// frame every frame, and the cape hung straight down (bug sweep 2026-11-25).
+        /// </summary>
+        public const float TeleportSpeed = 150.0f;
         public const float TeleportMetres = 2.5f;
 
         /// <summary>How quickly the wearer's measured movement follows their real one, seconds (a frame's jolt does not throw the cape).</summary>
@@ -68,6 +73,7 @@ namespace CityX.Wearables
         private Vector3 _ahead = Vector3.forward;
         private Vector3 _anchorWas;
         private float _headingWas;
+        private Transform _carrierWas;
         private Vector3 _velocity;
         private Mesh _mesh;
 
@@ -192,10 +198,19 @@ namespace CityX.Wearables
             Look.sharedMesh = _mesh;
             Look.localBounds = new Bounds(Vector3.zero, Vector3.one * 4.0f);   // round the Spine, room for the cape swung right up
             Swing.Reset();
-            _anchorWas = _anchor.position;
-            _headingWas = _body.eulerAngles.y;
+            _carrierWas = _body.parent;
+            _anchorWas = AnchorNow(_carrierWas);
+            _headingWas = HeadingNow(_carrierWas);
             _velocity = Vector3.zero;
         }
+
+        /// <summary>
+        /// Where the cape hangs from and which way the body faces, against whatever carries the body: a car's seat (the body is put under
+        /// it), else the world. A body sitting in a moving car is not running: the cape flew up and swung at every turn (bug sweep 2026-11-25).
+        /// </summary>
+        private Vector3 AnchorNow(Transform carrier) => carrier != null ? carrier.InverseTransformPoint(_anchor.position) : _anchor.position;
+
+        private float HeadingNow(Transform carrier) => carrier != null ? _body.localEulerAngles.y : _body.eulerAngles.y;
 
         /// <summary>The chain down the hanging part: a new one, each bone under the one before, the first under the Spine.</summary>
         private void MakeChain(Vector3[] localPositions)
@@ -248,17 +263,20 @@ namespace CityX.Wearables
                 return;
             }
             WatchClothes();
-            Vector3 anchorNow = _anchor.position;
-            float headingNow = _body.eulerAngles.y;
-            if (Vector3.Distance(anchorNow, _anchorWas) > TeleportMetres)
+            Transform carrier = _body.parent;
+            Vector3 anchorNow = AnchorNow(carrier);
+            float headingNow = HeadingNow(carrier);
+            Vector3 moved = carrier != null ? carrier.TransformVector(anchorNow - _anchorWas) : anchorNow - _anchorWas;
+            if (carrier != _carrierWas || moved.magnitude > Mathf.Max(TeleportMetres, TeleportSpeed * dt))
             {
-                Swing.Reset();
+                Swing.Reset();   // sat down, got up, or put somewhere
                 _velocity = Vector3.zero;
+                _carrierWas = carrier;
             }
             else
             {
                 // How the wearer moves, in their own frame, smoothed a little; and how fast they turn.
-                Vector3 moving = _body.InverseTransformDirection((anchorNow - _anchorWas) / dt);
+                Vector3 moving = _body.InverseTransformDirection(moved / dt);
                 _velocity = Vector3.Lerp(_velocity, moving, 1.0f - Mathf.Exp(-dt / MovementSmoothing));
                 Swing.Update(_velocity, Mathf.DeltaAngle(_headingWas, headingNow) / dt, Time.time, dt);
             }
