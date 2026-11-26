@@ -885,6 +885,7 @@ public static class Program
         if (args.Length > 0 && args[0] == "sunnyspawn") { SunnySpawn.Run(args.Length > 1 ? int.Parse(args[1]) : 20261025, args.Length > 2 ? int.Parse(args[2]) : 1500); return 0; }
         if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 48398181, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
         if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 48398181); return 0; }
+        if (args.Length > 0 && args[0] == "worldtime") { WorldTime.Run(args.Length > 1 ? int.Parse(args[1]) : 48398181); return 0; }
         if (args.Length > 0 && args[0] == "profile-line")
         {
             // The ground and what stands on it along a line: profile-line x0 z0 x1 z1 [seed]

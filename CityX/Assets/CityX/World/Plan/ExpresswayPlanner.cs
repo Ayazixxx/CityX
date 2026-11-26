@@ -750,7 +750,7 @@ namespace CityX.World.Plan
                         if (span > 0 && !(seen ?? (seen = new HashSet<long>())).Add(r)) continue;
                         int pathId = (int)(r >> 32), seg = (int)(uint)r;
                         ViaductPath v = _out.Paths[pathId];
-                        if (!PlanMath.PointInPolygon(p, v.Footprint(seg, margin))) continue;
+                        if (!v.FootprintContains(seg, margin, p)) continue;
                         result.Add((pathId, seg, v.TopAt(seg, p)));
                     }
                 }

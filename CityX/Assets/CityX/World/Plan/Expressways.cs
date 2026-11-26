@@ -114,6 +114,27 @@ namespace CityX.World.Plan
             };
         }
 
+        /// <summary>
+        /// Whether a point is inside <see cref="Footprint"/>(i, margin): the same corners and the same test as PlanMath.PointInPolygon over them,
+        /// in plain numbers and without making the array. The planner asks millions of times, and the game's Mono runs Vec2's operators several
+        /// times slower than the same sums written out (PlanMathFastPathTests holds the two to the same answers).
+        /// </summary>
+        public bool FootprintContains(int i, double margin, Vec2 p)
+        {
+            Vec2 a = P[i], b = P[i + 1], na = N[i], nb = N[i + 1];
+            double leftA = HalfLeft[i] + margin, leftB = HalfLeft[i + 1] + margin, rightB = HalfRight[i + 1] + margin, rightA = HalfRight[i] + margin;
+            double x0 = a.X + na.X * leftA, y0 = a.Y + na.Y * leftA;
+            double x1 = b.X + nb.X * leftB, y1 = b.Y + nb.Y * leftB;
+            double x2 = b.X - nb.X * rightB, y2 = b.Y - nb.Y * rightB;
+            double x3 = a.X - na.X * rightA, y3 = a.Y - na.Y * rightA;
+            // PointInPolygon's edges in its order, each from a corner to the one before it.
+            bool inside = PlanMath.EdgeCrosses(p.X, p.Y, x0, y0, x3, y3);
+            if (PlanMath.EdgeCrosses(p.X, p.Y, x1, y1, x0, y0)) inside = !inside;
+            if (PlanMath.EdgeCrosses(p.X, p.Y, x2, y2, x1, y1)) inside = !inside;
+            if (PlanMath.EdgeCrosses(p.X, p.Y, x3, y3, x2, y2)) inside = !inside;
+            return inside;
+        }
+
         /// <summary>The sample nearest a distance along the path.</summary>
         public int IndexAt(double s)
         {
@@ -512,7 +533,7 @@ namespace CityX.World.Plan
             foreach ((int path, int seg) in near)
             {
                 ViaductPath v = Paths[path];
-                if (!PlanMath.PointInPolygon(p, v.Footprint(seg, margin))) continue;
+                if (!v.FootprintContains(seg, margin, p)) continue;
                 double top = v.TopAt(seg, p);
                 if (double.IsNaN(best) || top > best)
                 {

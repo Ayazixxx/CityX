@@ -108,6 +108,10 @@ conventions down and apply them every time.
    was three quarters of all garbage while sprinting until 2026-10-31, docs/PERFORMANCE.md). The profile report's "Top by GARBAGE" table
    (`ProfileReport`) says where the garbage is made; a test can hold a pure helper to zero bytes with `GC.GetAllocatedBytesForCurrentThread`
    (`SkylineTests.MeasuringAGroupsDistanceMakesNoGarbage`).
+9. **No Vec2 operators in the plan's hottest loops.** The game runs on Mono, which turns each Vec2 `+`, `-`, `*` into a call that copies
+   structs: `PlanMath.DistanceToSegment` was seven times slower than written out in doubles (docs/PERFORMANCE.md, 2026-11-26). A helper
+   the plan asks millions of times is written out, doing the Vec2 form's sums in the same order (the city must stay the same to the last
+   bit), with a test holding the two equal (`PlanMathFastPathTests`). Measure in Mono, not CoreCLR: `tools/plan_time_mono.ps1`.
 
 ## The 2026-10-17 review
 

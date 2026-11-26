@@ -433,3 +433,31 @@ What the profile showed, and what was done:
 foot placing, hands, torso), and its brain and movement, 0.07 ms a swordsman. Most of the world's enemies are indoors, behind walls;
 posing only the ones a camera can see would be the next saving, and is a design decision (docs/CODE_STYLE.md, the 2026-11-14 review).
 What ten more bodies cost the graphics card is not in these numbers: `docs/CROWD_TEST.md` put the drawing at 0.27 ms a body.
+
+## Update: the city plans in about 40% less time (2026-11-26)
+
+Owner: "see what you can do to lower loading screen times". The title screen waits for the city plan (`PlanPrewarm` starts it at launch),
+so the plan's time is the first loading screen. Measured in the game's own runtime, Unity's Mono with the Boehm collector, by
+`tools/plan_time_mono.ps1` (new: it compiles the plan files with Unity's compiler and runs them in Unity's Mono; `tools/cityplan worldtime`
+does the same in .NET's CoreCLR):
+
+| the game's city (seed 48398181) | Mono (the game) | CoreCLR |
+|---|---|---|
+| before | 11.6 s | 1.4 s |
+| after | **6.8 s** | |
+
+Mono ran the plan eight times slower than CoreCLR, and most of the gap was one thing: **Vec2's operators**. Mono does not reduce
+`(p - q).Length` to plain sums as CoreCLR does; every operator is a call that copies its structs. `PlanMath.DistanceToSegment` (asked
+tens of millions of times by the expressway planner alone) took 212 ns a call with them and 31 ns written out. The expressway planner
+went from 6.7 s to 2.6 s on that and on `ViaductPath.FootprintContains`, which tests a point against a deck segment without building its
+four corners into an array three million times.
+
+Written out, they do **the same sums in the same order**, so the city is the same to the last bit: a hash of everything a finished
+`PlanWorld` holds (every field of every object, doubles by their bits, 4 to 8 million numbers) was identical before and after on six
+seeds of both scales, and `PlanMathFastPathTests` holds the written-out forms to the Vec2 ones. Every player still plans the same city,
+old build or new.
+
+Where the 6.8 s goes now: the expressway planner 2.8 s (no single hot spot left), placing the buildings 2.0 s (mostly sampling the ground
+under every lot, already spread over all the cores), cutting lots 0.8 s, the rest 0.9 s. The ground height is about 10 noise samples and
+0.8 us a call in Mono, and the plan asks it 2.8 million times, nearly all at different points (a cache would save 13%). Saving the
+finished plan to disk would skip all of it after the first launch; that is the next step if the title still waits too long.

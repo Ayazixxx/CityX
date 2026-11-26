@@ -127,14 +127,18 @@ namespace CityX.World.Plan
             return t >= 0.0 && t <= 1.0 && u >= 0.0 && u <= 1.0;
         }
 
-        /// <summary>Distance from a point to a segment; <paramref name="t"/> is where along it the nearest point is (0..1).</summary>
+        /// <summary>
+        /// Distance from a point to a segment; <paramref name="t"/> is where along it the nearest point is (0..1).
+        /// Written out in plain numbers: the game's Mono runs Vec2's operators about seven times slower than the same sums, and the plan asks this
+        /// tens of millions of times. The sums and their order are the Vec2 form's, so is the result, to the last bit (PlanMathFastPathTests).
+        /// </summary>
         public static double DistanceToSegment(Vec2 p, Vec2 a, Vec2 b, out double t)
         {
-            Vec2 ab = b - a;
-            double len2 = ab.SqrLength;
-            t = len2 < 1e-12 ? 0.0 : Clamp01(Vec2.Dot(p - a, ab) / len2);
-            Vec2 q = a + ab * t;
-            return (p - q).Length;
+            double abX = b.X - a.X, abY = b.Y - a.Y;
+            double len2 = abX * abX + abY * abY;
+            t = len2 < 1e-12 ? 0.0 : Clamp01(((p.X - a.X) * abX + (p.Y - a.Y) * abY) / len2);
+            double dX = p.X - (a.X + abX * t), dY = p.Y - (a.Y + abY * t);
+            return Math.Sqrt(dX * dX + dY * dY);
         }
 
         /// <summary>Signed area: positive for counter-clockwise polygons.</summary>
@@ -185,14 +189,20 @@ namespace CityX.World.Plan
             {
                 Vec2 a = poly[i];
                 Vec2 b = poly[j];
-                if ((a.Y > p.Y) != (b.Y > p.Y) &&
-                    p.X < (b.X - a.X) * (p.Y - a.Y) / (b.Y - a.Y) + a.X)
+                if (EdgeCrosses(p.X, p.Y, a.X, a.Y, b.X, b.Y))
                 {
                     inside = !inside;
                 }
             }
             return inside;
         }
+
+        /// <summary>
+        /// Whether the edge from a to b crosses the line from p towards +X: one step of <see cref="PointInPolygon"/>'s count, shared with
+        /// ViaductPath.FootprintContains, which must count exactly as it does.
+        /// </summary>
+        public static bool EdgeCrosses(double px, double py, double ax, double ay, double bx, double by) =>
+            (ay > py) != (by > py) && px < (bx - ax) * (py - ay) / (by - ay) + ax;
 
         /// <summary>
         /// Cuts a simple polygon (either winding, convex or not) into triangles by ear clipping: three vertex indices per triangle, wound like the polygon.
