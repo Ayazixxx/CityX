@@ -36,6 +36,15 @@ networks). If that was refused, allow `CityX.exe` again in Windows Security > Fi
 - Characters are kept by the host's computer (docs/SERVER_SAVING.md): a friend picks or makes one on the host's list after joining, and
   the ones on their own title screen are their own computer's.
 
+## Several friends at once (2026-11-26)
+
+- Everyone runs the same zip (`CityX/Builds/CityX-playtest-<date>.zip`, made with the share build above). One hosts; every other player
+  joins the host's address exactly as one friend would. A host takes up to 4,095 players; the tests play 30 at once.
+- The host should be whoever has the strongest computer and steadiest connection: the host's machine runs the world for everyone.
+- A friend who joins late sees the world as it is: other players and what they wear and hold, enemies (their weapons, what a hobo still
+  carries), bodies already looted, printed shirts.
+- A controller works (docs/CONTROLLER.md), plugged in before or during play; keyboard and mouse work as always.
+
 ## A two-minute check before the friend joins
 
 On the host's own computer, open `CityX.exe` twice (windowed). In the first, Host. In the second, Join `127.0.0.1`. If the two characters see

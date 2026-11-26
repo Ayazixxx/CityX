@@ -207,10 +207,8 @@ namespace CityX.Tests
                 }
                 landed += piece.Landed ? 1 : 0;
                 resting += piece.Resting ? 1 : 0;
-                if (piece.Resting)
-                {
-                    Assert.IsTrue(piece.GetComponent<Rigidbody>().isKinematic, $"{piece.name} lies still but is still simulated");
-                }
+                // Lying still, a piece keeps its physics (owner, 2026-11-26: "keep physics working for each dismembered limb"): it sleeps.
+                Assert.IsFalse(piece.GetComponent<Rigidbody>().isKinematic, $"{piece.name}'s physics were switched off");
             }
             Assert.Greater(landed, pieces.Count / 2, "most pieces never came down");
             Assert.Greater(resting, pieces.Count / 2, "most pieces never came to rest");

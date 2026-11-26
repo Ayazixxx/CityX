@@ -76,9 +76,16 @@ as well".
   material's block, and the cut-off head and a burst head's hair chunks came out in the hair material's gold (owner, 2026-11-08: "when my
   player got decapitated the hair color changed on the decapitated head"). Hair a hat or helmet covers (switched off under it) is not
   copied: it poked through the hat on the flying head.
-- A piece that has lain still 0.8 s stops being simulated (`GoreChunk`), and looks under itself every 0.4 s: when what it lay on has gone
-  (another corpse cut up, revived or cleared away, a piece that shrank away) it wakes and falls again (owner, 2026-11-19: "some of the
-  dismemberment parts freeze in mid air ... they should have physics"; `GoreChunkRestPlayTests`).
+- Every piece keeps its physics until it is taken away (owner, 2026-11-26: "keep physics working for each dismembered limb"). Lying still,
+  the physics engine puts it to sleep (`GoreChunk.SleepEnergy`), which costs next to nothing; whatever knocks it, or takes away what it
+  lies on, wakes it, and a sleeping piece looks under its middle every 0.4 s and wakes itself when nothing holds it up there. It used to
+  be frozen once still (kinematic, its collider off), woken only when nothing lay under its whole footprint: a limb leaning with one end on
+  a corpse kept finding the ground under its other end when the corpse went, and hung at its angle in the air (owner, 2026-11-19: "some of
+  the dismemberment parts freeze in mid air"; 2026-11-26: "arms at angles where its obvious the physics have stopped working";
+  `GoreChunkRestPlayTests`). People's capsules pass through pieces, as games' gibs do.
+- Blood stains keep to what they lie on (owner, 2026-11-26: "blood stains floating mid air"): a stain moves as its surface moves and goes
+  when it goes (`BloodSplat`), and a piece's landing smear goes only on firm ground (`BloodSplats.IsFirm`), never on another piece, a body
+  or a car, which used to carry the smear's ground away from under it (`BloodSplatSurfacePlayTests`).
 - Chunks and cut-off parts lie 60 s, then shrink away over 3 s, taking the meshes made for them (`Debris`). Revived, the body is whole
   (`Restore`).
 
@@ -120,7 +127,7 @@ Owner: "try to improve upon the dismemberment "chunks" that explode from the bod
 
 - **The body's own surface breaks up** (`GoreShatter`): a burst part's skin, clothes, skull and hair are cut into pieces of a size, each closed behind with a line of fat, the meat round its torn edge and the inside. Clothes over skin get a back of their own.
 - **What was inside comes out** (`GoreAnatomy`, `GoreMeshes`): a head throws its eyes, jaw, teeth and skull shards; a trunk its ribs, spine, heart, lungs, liver and guts; a limb its own bone. A whole body also throws its head and the end of each limb whole, each with a stump (`Dismemberer.Burst.cs`).
-- **They fly, land and rest** (`GoreChunk`): a few leave a smear where they land, they come to rest and stop being simulated. At most `Debris.MaxLive` pieces are out at once, the oldest going first.
+- **They fly, land and rest** (`GoreChunk`): a few leave a smear where they land on firm ground, and they come to rest, still simulated. At most `Debris.MaxLive` pieces are out at once, the oldest going first.
 - **The same on every screen**: the burst's seed goes in the replicated event. It is kept within what the server accepts (`Dismemberer.SeedRange` = `NetworkedAbilitySync.MaxSpeedOrDuration`): a larger one made the server refuse the cut, and other players never saw a head come off.
 - **No strobing light**: a cut-off part's bones stay on the body, weightless and without colliders, so it can be whole again when revived. They spun at up to 46 turns a second and swept any light riding them, a flashlight's beam or a burning blade, round like a strobe (owner: "a bunch of flashing lights ... like a flashlight type brightness"). They are now held from spinning (`CutBodyMostSpin`, `CutBodyAngularDamping`), the hidden ragdoll a whole burst leaves too, and every light on a part that is gone is off until revival.
 

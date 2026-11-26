@@ -65,30 +65,35 @@ namespace CityX.Character
             // Under the wound: the body's own blood, round.
             if (Surface(point + Vector3.up * 0.2f, Vector3.down, FloorReachMetres + 0.2f, body, out RaycastHit floor))
             {
-                Place(floor.point, floor.normal, (0.42f + 0.16f * (float)random.NextDouble()) * Mathf.Sqrt(strength), 1.15f, flat, random);
+                Place(floor.point, floor.normal, (0.42f + 0.16f * (float)random.NextDouble()) * Mathf.Sqrt(strength), 1.15f, flat, random, floor.collider);
             }
             // Where the spray comes down: further along the blow, bigger, stretched the way it flew.
             Vector3 landing = point + flat * ((0.7f + 0.5f * (float)random.NextDouble()) * strength) + Vector3.up * 0.3f;
             if (Surface(landing, Vector3.down, FloorReachMetres + 0.3f, body, out RaycastHit far))
             {
-                Place(far.point, far.normal, (0.55f + 0.3f * (float)random.NextDouble()) * Mathf.Sqrt(strength), 1.6f, flat, random);
+                Place(far.point, far.normal, (0.55f + 0.3f * (float)random.NextDouble()) * Mathf.Sqrt(strength), 1.6f, flat, random, far.collider);
             }
             // A wall behind the body, if one is close: the spray on it.
             if (Surface(point - flat * bodyRadius, flat, WallReachMetres + bodyRadius, body, out RaycastHit wall) && Mathf.Abs(wall.normal.y) < 0.5f)
             {
-                Place(wall.point, wall.normal, (0.4f + 0.25f * (float)random.NextDouble()) * Mathf.Sqrt(strength), 1.3f, Vector3.up, random);
+                Place(wall.point, wall.normal, (0.4f + 0.25f * (float)random.NextDouble()) * Mathf.Sqrt(strength), 1.3f, Vector3.up, random, wall.collider);
             }
         }
 
         /// <summary>
-        /// One smear where a piece of gore came down: at <paramref name="point"/> on a surface facing <paramref name="normal"/>,
-        /// <paramref name="size"/> across, drawn out the way it was going (<paramref name="along"/>).
+        /// One smear where a piece of gore came down: at <paramref name="point"/> on <paramref name="surface"/>, facing <paramref name="normal"/>,
+        /// <paramref name="size"/> across, drawn out the way it was going (<paramref name="along"/>). Nothing on what is not firm (<see cref="IsFirm"/>):
+        /// a smear on another piece, a body or a car was left hanging in the air when that moved off.
         /// </summary>
-        public static void Drop(Vector3 point, Vector3 normal, float size, Vector3 along)
+        public static void Drop(Vector3 point, Vector3 normal, float size, Vector3 along, Collider surface)
         {
+            if (!IsFirm(surface, null))
+            {
+                return;
+            }
             Dropped++;
             var random = new System.Random(unchecked((int)(Time.frameCount * 7919 + point.x * 131.0f + point.z * 17.0f)));
-            Place(point, normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.up, size, 1.4f, along, random);
+            Place(point, normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.up, size, 1.4f, along, random, surface);
         }
 
         /// <summary>Takes every splat away (a test, a new fight).</summary>
@@ -116,20 +121,7 @@ namespace CityX.Character
             for (int i = 0; i < count; i++)
             {
                 RaycastHit hit = Hits[i];
-                if (hit.distance >= nearest || hit.collider == null)
-                {
-                    continue;
-                }
-                if (body != null && (hit.transform == body || hit.transform.IsChildOf(body)))
-                {
-                    continue;
-                }
-                if (hit.collider.GetComponentInParent<IDamageable>() != null)
-                {
-                    continue;
-                }
-                Rigidbody loose = hit.collider.attachedRigidbody;
-                if (loose != null && !loose.isKinematic)
+                if (hit.distance >= nearest || !IsFirm(hit.collider, body))
                 {
                     continue;
                 }
@@ -139,7 +131,29 @@ namespace CityX.Character
             return nearest < float.MaxValue;
         }
 
-        private static void Place(Vector3 point, Vector3 normal, float size, float stretch, Vector3 along, System.Random random)
+        /// <summary>
+        /// Whether <paramref name="surface"/> is something to leave a mark on: not <paramref name="body"/>'s own, not a body at all (a capsule, a
+        /// ragdoll's limbs), nothing loose (a rigid body the physics moves: a piece of gore, a shard, a car).
+        /// </summary>
+        public static bool IsFirm(Collider surface, Transform body)
+        {
+            if (surface == null || surface.isTrigger)
+            {
+                return false;
+            }
+            if (body != null && (surface.transform == body || surface.transform.IsChildOf(body)))
+            {
+                return false;
+            }
+            if (surface is CharacterController || surface.GetComponentInParent<IDamageable>() != null)
+            {
+                return false;
+            }
+            Rigidbody loose = surface.attachedRigidbody;
+            return loose == null || loose.isKinematic;
+        }
+
+        private static void Place(Vector3 point, Vector3 normal, float size, float stretch, Vector3 along, System.Random random, Collider surface)
         {
             while (Live.Count >= MaxSplats)
             {
@@ -174,7 +188,7 @@ namespace CityX.Character
             renderer.receiveShadows = false;
             renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             BloodSplat marker = splat.AddComponent<BloodSplat>();
-            marker.Begin(renderer, Textures()[random.Next(Variants)]);
+            marker.Begin(renderer, Textures()[random.Next(Variants)], surface);
             Live.Add(marker);
         }
 
@@ -333,7 +347,16 @@ namespace CityX.Character
         /// <summary>How long this splat has been on the surface, seconds.</summary>
         public float Age => _age;
 
-        public void Begin(MeshRenderer renderer, Texture2D texture)
+        private Collider _surface;
+        private Vector3 _onSurface;
+        private Quaternion _turnedOnSurface;
+
+        /// <summary>
+        /// Starts showing <paramref name="texture"/>, lying on <paramref name="surface"/>: it keeps to it, moving as it moves (a door swung
+        /// open) and going when it goes (glass broken, a street taken away). Left where it was, it hung in the air (owner, 2026-11-26: "i keep
+        /// noticing blood stains floating mid air").
+        /// </summary>
+        public void Begin(MeshRenderer renderer, Texture2D texture, Collider surface)
         {
             _renderer = renderer;
             _block = new MaterialPropertyBlock();
@@ -342,12 +365,27 @@ namespace CityX.Character
             _block.SetColor("_BaseColor", Color.white);
             _block.SetColor("_Color", Color.white);
             _renderer.SetPropertyBlock(_block);
+            _surface = surface;
+            if (surface != null)
+            {
+                Transform under = surface.transform;
+                _onSurface = under.InverseTransformPoint(transform.position);
+                _turnedOnSurface = Quaternion.Inverse(under.rotation) * transform.rotation;
+            }
         }
+
+        /// <summary>What it lies on (null: placed with none, kept where it was put).</summary>
+        public Collider Surface => _surface;
 
         private void Update()
         {
             _age += Time.deltaTime;
             if (_age >= BloodSplats.LifeSeconds)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            if (!KeepToTheSurface())
             {
                 Destroy(gameObject);
                 return;
@@ -360,6 +398,22 @@ namespace CityX.Character
                 _block.SetColor("_Color", faded);
                 _renderer.SetPropertyBlock(_block);
             }
+        }
+
+        /// <summary>Puts the splat where its surface now has it; false when the surface has gone (destroyed, switched off).</summary>
+        private bool KeepToTheSurface()
+        {
+            if (ReferenceEquals(_surface, null))
+            {
+                return true;   // placed on nothing in particular
+            }
+            if (_surface == null || !_surface.enabled || !_surface.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+            Transform under = _surface.transform;
+            transform.SetPositionAndRotation(under.TransformPoint(_onSurface), under.rotation * _turnedOnSurface);
+            return true;
         }
 
         private void OnDestroy()
