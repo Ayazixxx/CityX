@@ -11,8 +11,8 @@ namespace CityX.Wearables
     /// front edge (<see cref="FrontEdge"/>, over the front of the shoulders) back to where the cloth falls (<see cref="BackEdge"/>), round
     /// behind the neck under the head; held to the body, as a LEGO cape's top is;</item>
     /// <item>a COLLAR closing it round the front of the neck under the chin (<see cref="CollarPoints"/> by 2), held to the body too;</item>
-    /// <item>the CLOTH falling from the yoke's back edge behind the back and beside the arms to the calves, widening to the hem, which moves
-    /// (<see cref="CapeCloth"/>).</item>
+    /// <item>the CLOTH falling from the yoke's back edge behind the back and beside the arms to the calves, widening to the hem, which swings
+    /// (<see cref="CapeSwing"/>, <see cref="CapeSkin"/>).</item>
     /// </list>
     /// All of it the one colour. The edges were measured off the body (FusedBody, 2026-11-25): the shoulders' top is flat at 1.93 to 1.94 m out
     /// to 0.40 m, about 0.10 m in front of and behind the shoulder's middle, falling away at 0.43 m; the back of the neck is 0.14 m behind at
@@ -93,9 +93,6 @@ namespace CityX.Wearables
 
         /// <summary>How much of the cloth's length it takes to go from the yoke's back edge out to where it hangs.</summary>
         public const float FallsAway = 0.15f;
-
-        /// <summary>How far down the cloth it is held firmly to its shape (the shoulders' drape), as a share of its length.</summary>
-        public const float ShoulderShare = 0.2f;
 
         public const int GridPoints = Columns * Rows;
         public const int Points = GridPoints + CollarPoints * 2;
@@ -345,39 +342,78 @@ namespace CityX.Wearables
             }
         }
 
-        /// <summary>
-        /// How far the clothes stand out from the body round the back of the torso, metres (0 for none): from the body's upright middle, how far
-        /// the clothes reach against how far the skin does, between the hips and the shoulder blades. The falling cloth is kept this much further
-        /// out from the body (it went into a shirt at the small of the back).
-        /// </summary>
-        public static float StandsOff(Vector3[] skin, Vector3[] cover)
-        {
-            if (cover == null || cover.Length == 0)
-            {
-                return 0.0f;
-            }
-            float clothes = BackReach(cover);
-            return clothes > 0.0f ? Mathf.Max(0.0f, clothes - BackReach(skin)) : 0.0f;
-        }
+        /// <summary>How near the clothes a hanging point is looked at (further off, it is clear of them).</summary>
+        public const float HangingReach = 0.1f;
 
-        /// <summary>How far out from the body's upright middle points reach round the back of the torso (the 95th in a hundred), 0 for none there.</summary>
-        private static float BackReach(Vector3[] points)
+        /// <summary>
+        /// The hanging part kept outside the clothes (<paramref name="cover"/>, <paramref name="coverNormals"/>: their points at rest and which way
+        /// each faces): a point nearer the clothes' surface than <see cref="CoverGap"/>, or under it, is moved out along it to that, the moves
+        /// spread to the points round it so the cloth stays smooth. With no cloth to push it out as it swings, the cape at rest must clear them
+        /// (it went into a shirt at the small of the back).
+        /// </summary>
+        public static Vector3[] ClearHanging(Vector3[] points, Vector3[] cover, Vector3[] coverNormals)
         {
-            float bottom = CityX.Character.BodyRig.HipY, top = CityX.Character.BodyRig.ShoulderY - 0.15f;
-            float side = CityX.Character.FusedBodyShape.TorsoRadius * 1.6f;
-            var reach = new System.Collections.Generic.List<float>();
-            foreach (Vector3 p in points)
+            var cleared = (Vector3[])points.Clone();
+            if (cover == null || cover.Length == 0 || coverNormals == null || coverNormals.Length != cover.Length)
             {
-                // The back half (the body faces +z), not the arms beside it.
-                if (p.y < bottom || p.y > top || p.z > 0.0f || Mathf.Abs(p.x) > side) continue;
-                reach.Add(new Vector2(p.x, p.z).magnitude);
+                return cleared;
             }
-            if (reach.Count == 0)
+            float top = float.MinValue, bottom = float.MaxValue;
+            for (int i = GridIndex(0, YokeRows); i < GridPoints; i++)
             {
-                return 0.0f;
+                top = Mathf.Max(top, points[i].y);
+                bottom = Mathf.Min(bottom, points[i].y);
             }
-            reach.Sort();
-            return reach[(int)((reach.Count - 1) * 0.95f)];
+            var near = new System.Collections.Generic.List<int>();
+            for (int j = 0; j < cover.Length; j++)
+            {
+                if (cover[j].y > bottom - HangingReach && cover[j].y < top + HangingReach && cover[j].z < 0.1f) near.Add(j);
+            }
+            if (near.Count == 0)
+            {
+                return cleared;
+            }
+            var lift = new float[points.Length];
+            var way = new Vector3[points.Length];
+            for (int i = GridIndex(0, YokeRows); i < GridPoints; i++)
+            {
+                int k = Nearest(points[i], cover, near);
+                if ((cover[k] - points[i]).sqrMagnitude > HangingReach * HangingReach) continue;
+                Vector3 n = coverNormals[k].normalized;
+                float off = Vector3.Dot(points[i] - cover[k], n);
+                if (off < CoverGap)
+                {
+                    lift[i] = CoverGap - off;
+                    way[i] = n;
+                }
+            }
+            for (int pass = 0; pass < 3; pass++)
+            {
+                var was = (float[])lift.Clone();
+                var wayWas = (Vector3[])way.Clone();
+                for (int row = YokeRows; row < Rows; row++)
+                {
+                    for (int column = 0; column < Columns; column++)
+                    {
+                        int i = GridIndex(column, row);
+                        foreach ((int c, int r) in new[] { (column - 1, row), (column + 1, row), (column, row - 1), (column, row + 1) })
+                        {
+                            if (c < 0 || c >= Columns || r < YokeRows || r >= Rows) continue;
+                            int j = GridIndex(c, r);
+                            if (was[j] * 0.5f > lift[i])
+                            {
+                                lift[i] = was[j] * 0.5f;
+                                way[i] = wayWas[j];
+                            }
+                        }
+                    }
+                }
+            }
+            for (int i = 0; i < points.Length; i++)
+            {
+                cleared[i] += way[i] * lift[i];
+            }
+            return cleared;
         }
 
         private static int Nearest(Vector3 p, Vector3[] skin, System.Collections.Generic.List<int> among)
@@ -427,71 +463,6 @@ namespace CityX.Wearables
                 }
             }
             System.Array.Copy(smoothed, points, points.Length);
-        }
-
-        /// <summary>Stiffness of the links across and down the weave, across its diagonals, and across two points (its resistance to folding).</summary>
-        public const float WeaveStiffness = 1.0f;
-        public const float ShearStiffness = 0.6f;
-        public const float FoldStiffness = 0.22f;
-
-        /// <summary>
-        /// How much of the way back to its shape at rest a point is drawn each step: firmly where the cape lies over the shoulders, gently where
-        /// it starts to hang, hardly at the hem (it swings most there). At 90 steps a second a share s pulls like a spring of s x 8100 per
-        /// second squared: 0.002 is about one and a half times gravity a metre out of place, 0.0004 a third of it.
-        /// </summary>
-        public const float DriveAtTop = 0.06f;
-        public const float DriveWhereItHangs = 0.002f;
-        public const float DriveAtHem = 0.0004f;
-
-        /// <summary>The drive at a share of the falling cloth's length (0 the yoke's back edge, 1 the hem).</summary>
-        public static float DriveAt(float t) => t <= ShoulderShare
-            ? Mathf.Lerp(DriveAtTop, DriveWhereItHangs, t / ShoulderShare)
-            : Mathf.Lerp(DriveWhereItHangs, DriveAtHem, (t - ShoulderShare) / (1.0f - ShoulderShare));
-
-        /// <summary>
-        /// The cape's cloth starting at <paramref name="rest"/> (<see cref="RestPoints"/> placed on the body): the weave, its diagonals and fold
-        /// links; the yoke and the collar held (the body carries them); each falling point tethered to its column's top, the yoke's back edge.
-        /// </summary>
-        public static CapeCloth MakeCloth(Vector3[] rest)
-        {
-            var cloth = new CapeCloth(rest, Columns, Rows);
-            for (int row = 0; row < Rows; row++)
-            {
-                for (int column = 0; column < Columns; column++)
-                {
-                    int i = GridIndex(column, row);
-                    if (row < YokeRows)
-                    {
-                        cloth.Hold(i, rest[i]);
-                        continue;
-                    }
-                    if (column + 1 < Columns) cloth.Join(i, GridIndex(column + 1, row), WeaveStiffness);
-                    cloth.Join(i, GridIndex(column, row - 1), WeaveStiffness);
-                    if (column + 1 < Columns)
-                    {
-                        cloth.Join(i, GridIndex(column + 1, row - 1), ShearStiffness);
-                        cloth.Join(GridIndex(column + 1, row), GridIndex(column, row - 1), ShearStiffness);
-                    }
-                    if (column + 2 < Columns) cloth.Join(i, GridIndex(column + 2, row), FoldStiffness);
-                    cloth.Join(i, GridIndex(column, row - 2), FoldStiffness);
-                    cloth.Drive[i] = DriveAt((row - (YokeRows - 1)) / (float)HangingRows);
-                }
-            }
-            // Long-range tethers: each falling point no further from the yoke's back edge than the cloth between them.
-            for (int column = 0; column < Columns; column++)
-            {
-                float along = 0.0f;
-                for (int row = YokeRows; row < Rows; row++)
-                {
-                    along += Vector3.Distance(rest[GridIndex(column, row - 1)], rest[GridIndex(column, row)]);
-                    cloth.TetherTo(GridIndex(column, row), GridIndex(column, YokeRows - 1), along * CapeCloth.TetherGive);
-                }
-            }
-            for (int i = GridPoints; i < Points; i++)
-            {
-                cloth.Hold(i, rest[i]);
-            }
-            return cloth;
         }
     }
 }

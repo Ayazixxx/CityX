@@ -16,7 +16,7 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
     the head (`CapeShape.FrontEdge`, `BackEdge`, rising over the shoulder's round top), held to the body as a LEGO cape's top is;
   - a **collar** round the front of the neck under the chin, lying back on the top of the chest (it faces up as the yoke does), held too;
   - the **cloth** falling from the yoke's back edge behind the back and beside the arms to the calves, widening to the hem: the back as it
-    was. Only this moves.
+    was. Only this swings.
   - All one colour, inside and out; no cords, no rolled hem (the hem caught the light as a brighter line).
 - **The front edge as the owner drew it** (2026-11-25, a black line over a picture: "follow the black line i drew and fill in the missing
   material as well as trim those triangles poking out on the sides. the middle stays as it"): the yoke's front edge runs from the collar's
@@ -31,8 +31,8 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
 - **Fitted like a skin suit** (owner, 2026-11-25: "make it fit to his shoulders like a skin suit. like the same dimensions of the shoulder
   just a tiny bit bigger so its not clipping through"): when it is put on, every point of the yoke and the collar is laid 2.2 cm off the
   body's own surface under it (`CapeShape.FitToBody`, from the body mesh; the yoke smoothed so it lies as cloth, kept clear of the head), and
-  follows the bones and weights of the body's skin there each frame, so the shoulders move with the arms and the yoke with them. One fit a
-  body mesh, shared by every body wearing one. A body whose skin cannot be read wears it as made, on the Spine bone.
+  is skinned to the bones and weights of the body's skin there, so the shoulders move with the arms and the yoke with them. One fit a body
+  mesh, shared by every body wearing one. A body whose skin cannot be read wears it as made, on the Spine bone.
 - The edges were first laid out from measures of the body: the shoulders' top is flat at 1.93 to 1.94 m out to 0.40 m, about 10 cm either side of its middle,
   and falls away at 0.43 m; the back of the neck is 0.14 m behind at 1.90 m; the head's ball comes down to 1.90 m. Everything sits 1.5 to
   5 cm off the body and clear of the head.
@@ -45,7 +45,7 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
 `Items/CapeColourways.All`: one line each, the cape's one colour. Red and Black to start. A new one is a new line; the scene builder makes its prefab and materials
 (`Wearables/Editor/CapeBuilder`), and the item list, the console and every body's item prefabs read the same list.
 
-## Cape physics: what games do (research, 2026-11-24)
+## Cape physics: what games do (research, 2026-11-24; the cloth built from it was replaced on 2026-11-25, below)
 
 | Source | What it says | What we took |
 |---|---|---|
@@ -58,19 +58,35 @@ was): "get rid of the yellow string and make it like my drawing, ive given two a
 
 Plus air: the cloth's face pushed by its own speed through the air (and the breeze), which is what makes a runner's cape stream out and rise.
 
-## How it is built
+## How it is built (since 2026-11-25: no cloth)
+
+Owner, 2026-11-25: "work to get cape physics that are easier on performance. it really doesnt need to be anything crazy world of warcraft cape
+physics are like nothing it just fits over the clothing and looks good. maybe the back flies up a bit when you jump or something. something
+that will not tank performance in large crowds of people remember there is a hub".
+
+The cloth simulation is gone. The cape is a **skinned mesh**, bent by the graphics card as the body and its clothes are:
+
+- the yoke and the collar on the body's own bones (each point the bones and weights of the body's nearest point), so they follow the
+  shoulders and arms exactly;
+- the hanging part on a chain of 4 bones down its middle, hung from the Spine; its first rows follow the yoke's back edge as they leave it
+  (fading to the chain over the first 15% of its length), so the two never come apart;
+- the chain swung by two springs (`CapeSwing`): **lift** back and up, about 4 degrees for each metre a second forward (a walk about 16,
+  a sprint about 30) and 6 for each metre a second up or down (a jump about 27, a long drop up to 70); **sway** to the side away from a turn
+  or a sidestep, with a light breeze. 1.6 swings a second, a little overshoot. It never swings in towards the body (3 degrees at most).
+  The lift and sway are shared equally down the chain, so the cape curves as it lifts.
+
+Cost: 0.3 microseconds a frame for one cape on the processor (`CapeCostBench`, Explicit, in the editor), against 7.5 ms for the cloth it
+replaced; the mesh (926 points, two faces each) bent on the graphics card, as a small piece of clothing is. A body moved over 2.5 m in a frame
+gets its cape hanging straight again. It does not collide with anything: like most games' capes, a leg can pass through its hem now and then.
 
 | Piece | What |
 |---|---|
 | `Items/CapeColourways` | the colourways |
-| `Wearables/Capes/CapeShape` | the cape at rest on the body (a 15 x 20 grid: 5 rows of yoke, 16 of falling cloth; the collar) and the cloth made from it: links across, down, diagonal and two apart (folding), tethers to the yoke's back edge, what is held (the yoke and the collar), the pull to shape |
-| `Wearables/Capes/CapeCloth` | the cloth: fixed 90 steps a second, Verlet, air push, links, tethers, capsules, floor. Pure |
-| `Wearables/Capes/Cape` | on the body: follows the Spine bone after the animation and the posing (through the body skin's bind pose), the body's capsules, inertia, teleport, steps; worn on another player's copy too |
-| `Wearables/Capes/CapeLook` | drawn: the yoke, cloth and collar as one sheet with two faces, in one material |
+| `Wearables/Capes/CapeShape` | the cape at rest on the body (a 21 x 21 grid: 5 rows of yoke, 16 hanging; the collar), fitted to the body and over the clothes. Pure |
+| `Wearables/Capes/CapeSkin` | the mesh: its faces, each point's bones and weights, the chain's places and bind poses. Pure |
+| `Wearables/Capes/CapeSwing` | the two springs. Pure |
+| `Wearables/Capes/Cape` | on the body: fits it, makes the chain and the mesh, swings the chain after the animation and the posing; refits when the clothes change; worn on another player's copy too |
 | `Wearables/Editor/CapeBuilder` | a prefab a colourway: its material and the folded cape |
-
-Numbers (mine, in `CapeShape` and `CapeCloth`): 463 points (the yoke and collar held), 1,936 links, 8 corrections a step, keeps 98.5% of its speed a step, air push
-2.2, pull to shape 0.06 at the shoulders, 0.002 where it starts to hang, 0.0004 at the hem.
 
 ## Over clothes (2026-11-25)
 
@@ -81,31 +97,29 @@ some of the lower back as well".
   point, the clothes within 6 cm along the body and up to 20 cm off it are looked at, and the point is raised to 1.2 cm outside the highest.
   A lift spreads to its neighbours (never lowered), so the cloth does not crease where a seam or a collar stands out. The clothes are the
   body's combined worn mesh (`SkinnedGarmentCombiner.CombinedMesh`), which is at rest in the body's own space.
-- The falling cloth is kept further out from the body by as much as the clothes stand off the back between the hips and the shoulder
-  blades (`CapeShape.StandsOff`, added to the torso capsule): it went into a shirt at the small of the back.
-- When the clothes change while the cape is worn (a new combined mesh), it is fitted again and its cloth starts again at rest.
+- The hanging part is kept outside the clothes too (`CapeShape.ClearHanging`): any point of it nearer the clothes' surface than 1.2 cm, or
+  under it, is moved out to that, the move spread to the points round it. It went into a shirt at the small of the back.
+- When the clothes change while the cape is worn (a new combined mesh), it is fitted again.
 
-## Cost and level of detail (2026-11-25)
+## Cost before (2026-11-25)
 
-Owner: "the cape physics look really good but would that be a risk for performance in an mmo. it doesnt need to be THAT good".
-
-- Measured (`CapeCostBench`, Explicit, in the editor, which runs scripts slower than a built game): one cape at full detail cost 7.5 ms a
-  frame at 60 fps. The cloth was made cheaper with the same behaviour: links and tethers as plain arrays in plain numbers, and the body
-  pushing the cloth out twice a step (halfway through and at the end) instead of after every one of the 8 corrections. Now 2.4 ms a frame
-  at full detail, 1.3 ms at the lighter one, in the editor. Not measured in a built game.
-- `CapeDetail`: within 20 m of the camera the cloth runs in full; from 20 to 45 m with 3 corrections a step (the tethers still keep it
-  from stretching); further, or off the screen, not at all: the cape is set at rest on the body once and goes where the body goes. With
-  no game camera (tests, pictures) it always runs in full.
+The cloth cost 7.5 ms a frame for one cape in the editor (`CapeCostBench` then); made cheaper (arrays, fewer collisions: 2.4 ms) and given
+distance levels, it was still too much for a hub, so it was replaced by the skinned cape above.
 
 ## Not done
 
-- No self-collision, and the cape does not collide with what is on the back (a giant boomerang carried there) or long hair.
+- It collides with nothing (the legs can pass through the hem now and then), nor with what is on the back or long hair.
 - No wind from the weather (a fixed light breeze for now).
 
 ## Tests
 
-`CapeTests` (the shape at rest: the yoke from over the front of each shoulder to behind it and round behind the neck, the collar round the front of the neck meeting it, nothing in the head, every point outside the body's own surface, hem at the calves; the outside faces out; the cloth settles hanging without stretching, the body pushes it out, running it streams out behind and lifts; a capsule
-pushes a point to its surface; every colourway an item on the back with its prefab and colours), `CapePlayTests` (on the real body: the top
-edge on the shoulders standing, hanging behind, nothing loose deep inside the body; sprinting it streams back and lifts; moved somewhere new
-it comes along at rest; another player's copy wears it, moving), `CapeCapture` (standing from four sides, the shoulders close from in front (the sun behind and in front) and from above behind, the folded one, walking,
-sprinting, turning, stopping).
+`CapeTests` (the shape at rest: the yoke from over the front of each shoulder to behind it and round behind the neck, the collar round the
+front of the neck meeting it, nothing in the head, every point outside the body's own surface, hem at the calves; fitted like a skin suit and
+not folded; over a T-shirt and a long-sleeved one, the yoke, the collar and the hanging part outside it; the outside faces out; the swing:
+straight standing, lifting walking and more sprinting, flying up in a jump and a drop, trailing a turn and a sidestep, never into the body,
+steady at any frame; the skinning: four bones at most adding to one, the yoke on the body's bones, the hem on the chain, every point back on
+itself at rest; every colourway an item on the back with its prefab and colours), `CapePlayTests` (on the real body, as drawn: the top edge
+on the shoulders standing, hanging behind, nothing deep in the torso; sprinting it lifts out behind; jumping its back flies up; over a
+T-shirt put on before or after it nothing of the shirt comes through; moved somewhere new it comes along hanging straight; another player's
+copy wears it, moving), `CapeCapture` (over a T-shirt: standing from four sides, the shoulders close from in front and from above behind,
+the lower back, the folded one, walking, sprinting, turning, stopping, jumping).

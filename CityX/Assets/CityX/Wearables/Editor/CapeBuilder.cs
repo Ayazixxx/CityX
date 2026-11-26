@@ -10,7 +10,7 @@ namespace CityX.WearablesEditor
     /// <summary>
     /// Builds the capes (docs/CAPE.md; owner, 2026-11-24: "make a basic cape that we can make a bunch of different colorways of easily, make it tied
     /// around the front"): one prefab a colourway (CapeColourways), all of it in the colourway's one colour. The cape itself is
-    /// made when it is worn (CapeShape, CapeCloth, CapeLook); the prefab holds its materials and the folded cape it lies as on the ground.
+    /// made when it is worn (CapeShape, CapeSkin, CapeSwing); the prefab holds its materials and the folded cape it lies as on the ground.
     /// </summary>
     public static class CapeBuilder
     {

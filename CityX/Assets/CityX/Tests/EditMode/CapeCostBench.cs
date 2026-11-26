@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Diagnostics;
 using CityX.Wearables;
 using NUnit.Framework;
@@ -7,8 +6,8 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: what one cape's cloth costs a frame at each level of detail (CapeDetail), with the body's eleven capsules, at 60 frames a
-    /// second (one and a half steps a frame). Logged; for docs/CAPE.md. Explicit.
+    /// Not a test: what one cape's swing costs a frame on the processor (CapeSwing's springs and turning its chain's four bones, what
+    /// Cape.LateUpdate does each frame); its mesh is bent by the graphics card with the body's. Logged; for docs/CAPE.md. Explicit.
     /// </summary>
     [Explicit("a timing, logged")]
     public sealed class CapeCostBench
@@ -16,41 +15,32 @@ namespace CityX.Tests
         [Test]
         public void TimeOneCapeAFrame()
         {
-            Vector3[] rest = CapeShape.RestPoints();
-            var capsules = new List<CapeCloth.Capsule>();
-            for (int i = 0; i < 11; i++)
+            var root = new GameObject("Spine").transform;
+            var chain = new Transform[4];
+            Transform parent = root;
+            for (int k = 0; k < chain.Length; k++)
             {
-                capsules.Add(new CapeCloth.Capsule(new Vector3(0.3f * (i % 3 - 1), 0.4f + 0.15f * i, 0.0f), new Vector3(0.3f * (i % 3 - 1), 0.6f + 0.15f * i, 0.0f), 0.1f));
+                chain[k] = new GameObject($"Chain{k}").transform;
+                chain[k].SetParent(parent, false);
+                chain[k].localPosition = Vector3.down * 0.3f;
+                parent = chain[k];
             }
-            var pins = new List<(int, Vector3)>();
-            foreach (CapeLevel level in new[] { new CapeLevel("full", CapeDetail.IterationsAt(CapeDetailLevel.Full)), new CapeLevel("light", CapeDetail.LightIterations) })
+            var swing = new CapeSwing();
+            const int frames = 100000;
+            var clock = Stopwatch.StartNew();
+            for (int i = 0; i < frames; i++)
             {
-                CapeCloth cloth = CapeShape.MakeCloth(rest);
-                pins.Clear();
-                for (int i = 0; i < rest.Length; i++)
+                swing.Update(new Vector3(0.3f, 0.1f * (i % 7), 4.0f), 30.0f, i / 60.0f, 1.0f / 60.0f);
+                Quaternion bend = Quaternion.AngleAxis(swing.Lift / chain.Length, Vector3.right) * Quaternion.AngleAxis(swing.Sway / chain.Length, Vector3.forward);
+                foreach (Transform bone in chain)
                 {
-                    if (cloth.Pinned[i]) pins.Add((i, rest[i]));
+                    bone.localRotation = bend;
                 }
-                const int steps = 3000;
-                for (int i = 0; i < 100; i++) cloth.Step(pins, rest, capsules, Vector3.right, -10.0f, level.Iterations);   // warmed up
-                var clock = Stopwatch.StartNew();
-                for (int i = 0; i < steps; i++) cloth.Step(pins, rest, capsules, Vector3.right, -10.0f, level.Iterations);
-                double perStep = clock.Elapsed.TotalMilliseconds / steps;
-                UnityEngine.Debug.Log($"CAPE COST {level.Name}: {perStep:0.000} ms a step, {perStep * 1.5:0.000} ms a frame at 60 fps ({cloth.LinkCount} links, {rest.Length} points)");
             }
+            double perFrame = clock.Elapsed.TotalMilliseconds / frames;
+            UnityEngine.Debug.Log($"CAPE COST swing: {perFrame * 1000.0:0.0} microseconds a frame ({perFrame:0.0000} ms)");
+            Object.DestroyImmediate(root.gameObject);
             Assert.Pass();
-        }
-
-        private readonly struct CapeLevel
-        {
-            public readonly string Name;
-            public readonly int Iterations;
-
-            public CapeLevel(string name, int iterations)
-            {
-                Name = name;
-                Iterations = iterations;
-            }
         }
     }
 }

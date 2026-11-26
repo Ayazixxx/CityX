@@ -91,6 +91,21 @@ namespace CityX.Tests
                 BuildingShapeCapture.Shoot(camera, folder, $"cape-{name}-behind", chest - ahead * 8.0f + side * 2.0f + Vector3.up * 1.2f, chest);
             }
 
+            // A jump from standing, near its top and coming down (owner: "maybe the back flies up a bit when you jump").
+            body.Tick(new LocomotionInput { Jump = true, JumpHeld = true }, 1.0f / 60.0f);
+            yield return null;
+            foreach ((string name, int frames) in new[] { ("jump-up", 14), ("jump-down", 16) })
+            {
+                for (int i = 0; i < frames; i++)
+                {
+                    body.Tick(new LocomotionInput { JumpHeld = true }, 1.0f / 60.0f);
+                    yield return null;
+                }
+                chest = player.transform.position + Vector3.up * 1.3f;
+                Vector3 side = player.transform.right, ahead = player.transform.forward;
+                BuildingShapeCapture.Shoot(camera, folder, $"cape-{name}-side", chest + side * 9.0f + Vector3.up * 0.4f, chest);
+            }
+
             Time.captureFramerate = 0;
             Object.Destroy(player);
             Object.Destroy(camera.gameObject);

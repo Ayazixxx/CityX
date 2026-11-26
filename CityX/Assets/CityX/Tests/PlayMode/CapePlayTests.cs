@@ -9,8 +9,9 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The cape on the real body (docs/CAPE.md): standing, its top edge sits on the shoulders, it hangs behind and nothing of it is inside the body;
-    /// sprinting, it streams out behind and lifts; a body put somewhere new takes its cape along at rest; another player's copy wears it, moving.
+    /// The cape on the real body (docs/CAPE.md), as it is drawn (its skinned mesh, baked): standing, its top edge sits on the shoulders, it hangs
+    /// behind and nothing of it is inside the body; sprinting, it lifts out behind; jumping, it flies up; over a shirt nothing of the shirt comes
+    /// through; a body put somewhere new takes its cape along; another player's copy wears it, moving.
     /// </summary>
     public sealed class CapePlayTests
     {
@@ -65,35 +66,50 @@ namespace CityX.Tests
 
         private static int Hem => CapeShape.GridIndex(CapeShape.Columns / 2, CapeShape.Rows - 1);
 
+        /// <summary>The cape as it is drawn now, in the world: each point's outside.</summary>
+        private static Vector3[] Drawn(Cape cape)
+        {
+            var baked = new Mesh();
+            cape.Look.BakeMesh(baked, true);
+            Matrix4x4 toWorld = Matrix4x4.TRS(cape.Look.transform.position, cape.Look.transform.rotation, Vector3.one);
+            Vector3[] vertices = baked.vertices;
+            Object.Destroy(baked);
+            var points = new Vector3[CapeShape.Points];
+            for (int i = 0; i < points.Length; i++)
+            {
+                points[i] = toWorld.MultiplyPoint3x4(vertices[i]);
+            }
+            return points;
+        }
+
         [UnityTest]
         public IEnumerator StandingItSitsOnTheShouldersAndHangsBehindOutOfTheBody()
         {
             (Cape cape, PlayerLocomotion body) = Wear();
-            Assert.IsNotNull(cape.Cloth, "the cape has no cloth");
+            Assert.IsNotNull(cape.Look, "the cape is not drawn");
             yield return Run(body, new LocomotionInput(), 150);
 
             Transform root = _player.transform;
+            Vector3[] drawn = Drawn(cape);
             for (int column = 0; column < CapeShape.Columns; column++)
             {
                 Vector3 expected = root.TransformPoint(cape.Rest[CapeShape.GridIndex(column, 0)]);
-                Assert.Less(Vector3.Distance(cape.Cloth.Position[CapeShape.GridIndex(column, 0)], expected), 0.06f,
-                    "the top edge is not on the shoulders standing");
+                Assert.Less(Vector3.Distance(drawn[CapeShape.GridIndex(column, 0)], expected), 0.06f, "the top edge is not on the shoulders standing");
             }
-            Vector3 hem = root.InverseTransformPoint(cape.Cloth.Position[Hem]);
+            Vector3 hem = root.InverseTransformPoint(drawn[Hem]);
             Assert.Less(hem.y, BodyRig.HipY, "the hem does not hang below the hips");
             Assert.Less(hem.z, -0.15f, "the cape does not hang behind");
+            // Nothing of the hanging part deep in the torso (a capsule from the hips to the neck).
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            Vector3 a = animator.GetBoneTransform(HumanBodyBones.Hips).position, b = animator.GetBoneTransform(HumanBodyBones.Neck).position;
             int inside = 0;
-            for (int i = 0; i < cape.Cloth.Position.Length; i++)
+            for (int i = CapeShape.GridIndex(0, CapeShape.YokeRows); i < CapeShape.GridPoints; i++)
             {
-                if (cape.Cloth.Pinned[i]) continue;   // the top edge and the knot are fastened on the body, at the shoulders and the throat
-                Vector3 p = cape.Cloth.Position[i];
-                foreach (CapeCloth.Capsule capsule in cape.Capsules)
-                {
-                    if (Vector3.Distance(CapeCloth.PushOut(p, capsule), p) > capsule.Radius * 0.35f + 0.02f) inside++;
-                }
+                Vector3 p = drawn[i];
+                float t = Mathf.Clamp01(Vector3.Dot(p - a, b - a) / (b - a).sqrMagnitude);
+                if (Vector3.Distance(p, a + (b - a) * t) < FusedBodyShape.TorsoRadius * 0.65f) inside++;
             }
             Assert.AreEqual(0, inside, "parts of the cape are deep inside the body");
-            Assert.IsNotNull(cape.transform.Find("CapeCloth"), "the cloth is not drawn");
         }
 
         /// <summary>
@@ -131,9 +147,10 @@ namespace CityX.Tests
             int through = 0;
             var where = new System.Collections.Generic.List<string>();
             float hips = _player.transform.position.y + BodyRig.HipY;
-            for (int i = 0; i < cape.Cloth.Position.Length; i++)
+            Vector3[] drawn = Drawn(cape);
+            for (int i = 0; i < drawn.Length; i++)
             {
-                Vector3 p = cape.Cloth.Position[i];
+                Vector3 p = drawn[i];
                 if (p.y < hips) continue;   // below the shirt
                 float best = float.MaxValue;
                 int k = -1;
@@ -154,17 +171,37 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator SprintingItStreamsOutBehindAndLifts()
+        public IEnumerator SprintingItLiftsOutBehind()
         {
             (Cape cape, PlayerLocomotion body) = Wear();
             yield return Run(body, new LocomotionInput(), 120);
             Transform root = _player.transform;
-            Vector3 standing = root.InverseTransformPoint(cape.Cloth.Position[Hem]);
+            Vector3 standing = root.InverseTransformPoint(Drawn(cape)[Hem]);
             yield return Run(body, new LocomotionInput { Move = Vector2.up, Sprint = true }, 150);
-            Vector3 sprinting = root.InverseTransformPoint(cape.Cloth.Position[Hem]);
+            Vector3 sprinting = root.InverseTransformPoint(Drawn(cape)[Hem]);
             Assert.Greater(body.CurrentSpeed, 4.0f, "the body did not sprint");
-            Assert.Less(sprinting.z, standing.z - 0.25f, $"sprinting, the cape does not stream out behind ({standing} then {sprinting})");
-            Assert.Greater(sprinting.y, standing.y + 0.1f, "sprinting, the cape's hem does not lift");
+            Assert.Less(sprinting.z, standing.z - 0.25f, $"sprinting, the cape does not lift out behind ({standing} then {sprinting})");
+            Assert.Greater(sprinting.y, standing.y + 0.08f, "sprinting, the cape's hem does not lift");
+        }
+
+        /// <summary>The owner: "maybe the back flies up a bit when you jump".</summary>
+        [UnityTest]
+        public IEnumerator JumpingTheBackFliesUp()
+        {
+            (Cape cape, PlayerLocomotion body) = Wear();
+            yield return Run(body, new LocomotionInput(), 120);
+            Transform root = _player.transform;
+            float standing = root.InverseTransformPoint(Drawn(cape)[Hem]).z;
+            float most = float.MaxValue;
+            body.Tick(new LocomotionInput { Jump = true, JumpHeld = true }, Dt);
+            yield return null;
+            for (int i = 0; i < 50; i++)
+            {
+                body.Tick(new LocomotionInput { JumpHeld = true }, Dt);
+                yield return null;
+                most = Mathf.Min(most, root.InverseTransformPoint(Drawn(cape)[Hem]).z);
+            }
+            Assert.Less(most, standing - 0.15f, $"jumping, the cape's back does not fly up (behind {standing:0.00}, at most {most:0.00})");
         }
 
         [UnityTest]
@@ -176,10 +213,11 @@ namespace CityX.Tests
             _player.transform.position += new Vector3(60.0f, 0.0f, 40.0f);
             _player.GetComponent<CharacterController>().enabled = true;
             yield return Run(body, new LocomotionInput(), 3);
-            foreach (Vector3 p in cape.Cloth.Position)
+            foreach (Vector3 p in Drawn(cape))
             {
                 Assert.Less(Vector3.Distance(p, _player.transform.position), 3.0f, "part of the cape was left behind (or flung) when the body was moved");
             }
+            Assert.Less(Mathf.Abs(cape.Swing.Lift), 5.0f, "moved somewhere new, the cape was thrown");
         }
 
         [UnityTest]
@@ -193,10 +231,10 @@ namespace CityX.Tests
             yield return null;
             var cape = _copy.GetComponentInChildren<Cape>();
             Assert.IsNotNull(cape, "the copy wears no cape");
-            Assert.IsNotNull(cape.Cloth, "the copy's cape is not hung on it");
-            Vector3 before = cape.Cloth.Position[Hem];
+            Assert.IsNotNull(cape.Look, "the copy's cape is not hung on it");
+            Vector3 before = Drawn(cape)[Hem];
             for (int i = 0; i < 30; i++) yield return null;
-            Assert.Greater(Vector3.Distance(before, cape.Cloth.Position[Hem]), 0.001f, "the copy's cape does not move (its cloth is not running)");
+            Assert.Greater(Vector3.Distance(before, Drawn(cape)[Hem]), 0.0005f, "the copy's cape does not move (its swing is not running)");
         }
     }
 }

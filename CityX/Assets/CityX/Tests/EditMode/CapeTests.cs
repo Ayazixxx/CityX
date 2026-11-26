@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using CityX.Character;
 using CityX.Items;
 using CityX.Wearables;
@@ -10,8 +9,9 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The cape (docs/CAPE.md; owner, 2026-11-24: "make a basic cape that we can make a bunch of different colorways of easily, make it tied around
-    /// the front. and research how to make good cape physics in video games"): its shape at rest on the standing body, its cloth (hangs without
-    /// stretching, kept out of the body, trails behind a runner), and its colourways.
+    /// the front"): its shape at rest on the standing body and over clothes, how it is skinned (the yoke on the body's bones, the hanging part on
+    /// a chain), how it swings (owner, 2026-11-25: "world of warcraft cape physics ... maybe the back flies up a bit when you jump"), and its
+    /// colourways.
     /// </summary>
     public sealed class CapeTests
     {
@@ -119,7 +119,7 @@ namespace CityX.Tests
             Assert.Less(furthest, 0.045f, "part of the yoke stands well off the body: not fitted like a skin suit");
 
             // Nowhere folded over itself (a fold shows as specks of outline): every triangle of the yoke faces away from the body under it.
-            int[] faces = CapeLook.Faces();
+            int[] faces = CapeSkin.Triangles();
             var folded = new System.Collections.Generic.List<string>();
             for (int t = 0; t < faces.Length; t += 3)
             {
@@ -141,7 +141,7 @@ namespace CityX.Tests
 
         /// <summary>
         /// Over a shirt (owner, 2026-11-25: "make cape fit over shirt without clipping"): every point of the yoke and the collar lies outside the
-        /// shirt under it, and the falling cloth is kept further out by as much as the shirt stands off the back.
+        /// shirt under it, and so does every point of the hanging part near it.
         /// </summary>
         [TestCase("TShirt")]
         [TestCase("LongSleeveTShirt")]
@@ -168,33 +168,109 @@ namespace CityX.Tests
                 Assert.Greater(Vector3.Dot(over[i] - worn[k], wornFacing[k]), 0.0f, $"the yoke is inside the {shirtPrefab} at {over[i]}");
             }
             Assert.Greater(lifted, 0, "nothing of the yoke was lifted over the shirt");
-            float standsOff = CapeShape.StandsOff(skin, worn);
-            Assert.That(standsOff, Is.InRange(0.003f, 0.08f), "the shirt's stand off the back is not measured (or the shirt is not in the body's space)");
-            Assert.AreEqual(0.0f, CapeShape.StandsOff(skin, null));
+
+            Vector3[] clear = CapeShape.ClearHanging(over, worn, wornFacing);
+            for (int i = CapeShape.GridIndex(0, CapeShape.YokeRows); i < CapeShape.GridPoints; i++)
+            {
+                float best = float.MaxValue;
+                int k = -1;
+                for (int j = 0; j < worn.Length; j++)
+                {
+                    float d = (worn[j] - clear[i]).sqrMagnitude;
+                    if (d < best) { best = d; k = j; }
+                }
+                if (Mathf.Sqrt(best) > CapeShape.HangingReach) continue;
+                Assert.Greater(Vector3.Dot(clear[i] - worn[k], wornFacing[k]), CapeShape.CoverGap * 0.5f, $"the hanging part is in the {shirtPrefab} at {clear[i]}");
+            }
+        }
+
+        private static CapeSwing SwungFor(Vector3 velocity, float turning, float seconds)
+        {
+            var swing = new CapeSwing();
+            for (float time = 0.0f; time < seconds; time += 1.0f / 60.0f)
+            {
+                swing.Update(velocity, turning, 0.0f, 1.0f / 60.0f);
+            }
+            return swing;
         }
 
         /// <summary>
-        /// The cape's level of detail (owner: "would that be a risk for performance in an mmo. it doesnt need to be THAT good"): in full close up,
-        /// lighter further off, not worked out far away or off the screen.
+        /// The swing (owner, 2026-11-25: "it really doesnt need to be anything crazy ... maybe the back flies up a bit when you jump"): hanging
+        /// straight standing, lifting back the faster the wearer runs, flying up in a jump or a drop, trailing to the side they turn away from,
+        /// and never swinging in towards the body.
         /// </summary>
         [Test]
-        public void FarOrUnseenTheClothIsWorkedOutLessOrNotAtAll()
+        public void ItLiftsRunningFliesUpJumpingAndTrailsATurn()
         {
-            Assert.AreEqual(CapeDetailLevel.Full, CapeDetail.For(5.0f, true));
-            Assert.AreEqual(CapeDetailLevel.Light, CapeDetail.For(30.0f, true));
-            Assert.AreEqual(CapeDetailLevel.Still, CapeDetail.For(80.0f, true));
-            Assert.AreEqual(CapeDetailLevel.Still, CapeDetail.For(5.0f, false), "a cape nobody sees is worked out");
-            Assert.Less(CapeDetail.IterationsAt(CapeDetailLevel.Light), CapeDetail.IterationsAt(CapeDetailLevel.Full));
-            Assert.AreEqual(0, CapeDetail.IterationsAt(CapeDetailLevel.Still));
+            Assert.AreEqual(0.0f, SwungFor(Vector3.zero, 0.0f, 3.0f).Lift, 0.5f, "standing still it does not hang straight");
+            float walk = SwungFor(new Vector3(0.0f, 0.0f, 4.0f), 0.0f, 3.0f).Lift;
+            float sprint = SwungFor(new Vector3(0.0f, 0.0f, 7.5f), 0.0f, 3.0f).Lift;
+            Assert.That(walk, Is.InRange(10.0f, 25.0f), "walking it does not lift a little");
+            Assert.Greater(sprint, walk + 8.0f, "sprinting it does not lift more than walking");
+            Assert.Greater(SwungFor(new Vector3(0.0f, -8.0f, 0.0f), 0.0f, 1.0f).Lift, 35.0f, "dropping it does not fly up");
+            Assert.Greater(SwungFor(new Vector3(0.0f, 4.5f, 0.0f), 0.0f, 0.4f).Lift, 12.0f, "jumping it does not fly up");
+            Assert.Less(SwungFor(Vector3.zero, 180.0f, 1.0f).Sway, -4.0f, "turning right it does not trail left");
+            Assert.Greater(SwungFor(new Vector3(-3.0f, 0.0f, 0.0f), 0.0f, 1.0f).Sway, 4.0f, "stepping left it does not trail right");
 
-            // The lighter cloth still hangs without stretching (the tethers hold it).
-            CapeCloth cloth = Hanging(out Vector3[] rest);
-            List<(int, Vector3)> pins = Pins(rest);
-            for (int i = 0; i < 240; i++)
+            // Never into the legs: backing up fast, or stopping dead from a sprint.
+            var swing = SwungFor(new Vector3(0.0f, 0.0f, 7.5f), 0.0f, 2.0f);
+            float least = float.MaxValue;
+            for (int i = 0; i < 180; i++)
             {
-                cloth.Step(pins, rest, null, Vector3.zero, -10.0f, CapeDetail.LightIterations);
+                swing.Update(new Vector3(0.0f, 0.0f, -4.0f), 0.0f, 0.0f, 1.0f / 60.0f);
+                least = Mathf.Min(least, swing.Lift);
             }
-            Assert.Less(MostStretch(cloth, rest), 1.1f, "the lighter cloth stretches");
+            Assert.GreaterOrEqual(least, CapeSwing.LeastLift, "it swings in towards the body");
+
+            // Steady however long a frame is.
+            var slow = new CapeSwing();
+            for (int i = 0; i < 100; i++) slow.Update(new Vector3(0.0f, 0.0f, 7.5f), 0.0f, 0.0f, 0.5f);
+            Assert.That(slow.Lift, Is.InRange(0.0f, CapeSwing.MostLift), "a long frame throws it");
+        }
+
+        /// <summary>
+        /// Skinned (owner: "something that will not tank performance in large crowds of people"): every point on four bones at most, adding to
+        /// one; the yoke and the collar on the body's bones alone; the hem on the chain alone; and at rest the skinning puts every point where it
+        /// was fitted (the chain's bind poses agree with where its bones sit).
+        /// </summary>
+        [Test]
+        public void TheYokeIsOnTheBodysBonesAndTheHangingPartOnTheChain()
+        {
+            var onBody = new BoneWeight[CapeShape.Points];
+            for (int i = 0; i < onBody.Length; i++)
+            {
+                onBody[i] = new BoneWeight { boneIndex0 = 1, weight0 = 0.7f, boneIndex1 = 2, weight1 = 0.3f };
+            }
+            const int bodyBones = 5;
+            BoneWeight[] weights = CapeSkin.Weights(onBody, bodyBones);
+            for (int i = 0; i < weights.Length; i++)
+            {
+                BoneWeight w = weights[i];
+                Assert.AreEqual(1.0f, w.weight0 + w.weight1 + w.weight2 + w.weight3, 1e-4f, $"point {i}'s weights do not add to one");
+                if (CapeSkin.Down(i) <= 0.0f)
+                {
+                    Assert.Less(w.boneIndex0, bodyBones, "the yoke is not on the body");
+                }
+            }
+            BoneWeight hem = weights[CapeShape.GridIndex(CapeShape.Columns / 2, CapeShape.Rows - 1)];
+            Assert.GreaterOrEqual(hem.boneIndex0, bodyBones, "the hem is not on the chain");
+            Assert.AreEqual(1.0f, hem.weight0, 1e-4f, "the hem is not on the chain alone");
+
+            // At rest: the anchor where its bind pose puts it, the chain where its own local places put it, each point skinned back onto itself.
+            Vector3[] rest = CapeShape.RestPoints();
+            Matrix4x4 anchorBind = Matrix4x4.TRS(new Vector3(0.0f, -1.2f, 0.05f), Quaternion.Euler(8.0f, 0.0f, 0.0f), Vector3.one);
+            Vector3[] chain = CapeSkin.ChainPoints(rest);
+            Vector3[] local = CapeSkin.ChainLocalPositions(chain, anchorBind);
+            Matrix4x4[] binds = CapeSkin.ChainBindposes(chain, anchorBind);
+            Matrix4x4 bone = anchorBind.inverse;   // the anchor's place in body space at rest
+            for (int k = 0; k < chain.Length; k++)
+            {
+                bone *= Matrix4x4.Translate(local[k]);
+                foreach (Vector3 p in new[] { rest[0], rest[CapeShape.GridIndex(3, CapeShape.Rows - 1)] })
+                {
+                    Assert.Less(Vector3.Distance((bone * binds[k]).MultiplyPoint3x4(p), p), 1e-4f, $"chain bone {k} moves the cape at rest");
+                }
+            }
         }
 
         /// <summary>The outside of the cape faces out (up on the shoulders, ahead on the collar, back down the back), so it is lit from out there.</summary>
@@ -205,7 +281,7 @@ namespace CityX.Tests
             var vertices = new Vector3[rest.Length * 2];
             rest.CopyTo(vertices, 0);
             rest.CopyTo(vertices, rest.Length);
-            var mesh = new Mesh { vertices = vertices, triangles = CapeLook.Faces() };
+            var mesh = new Mesh { vertices = vertices, triangles = CapeSkin.Triangles() };
             mesh.RecalculateNormals();
             Vector3[] normals = mesh.normals;
             Object.DestroyImmediate(mesh);
@@ -215,108 +291,6 @@ namespace CityX.Tests
             Vector3 collar = normals[CapeShape.CollarIndex(CapeShape.CollarPoints / 2, false)];
             Assert.Greater(collar.z + collar.y, 0.5f, $"the collar's outside faces {collar}");
             Assert.Less(Vector3.Dot(normals[0], normals[rest.Length]), -0.9f, "the inside does not face the other way");
-        }
-
-        private static CapeCloth Hanging(out Vector3[] rest)
-        {
-            rest = CapeShape.RestPoints();
-            return CapeShape.MakeCloth(rest);
-        }
-
-        private static List<(int, Vector3)> Pins(Vector3[] at)
-        {
-            var pins = new List<(int, Vector3)>();
-            bool[] held = CapeShape.MakeCloth(CapeShape.RestPoints()).Pinned;
-            for (int i = 0; i < held.Length; i++)
-            {
-                if (held[i]) pins.Add((i, at[i]));
-            }
-            return pins;
-        }
-
-        private static float MostStretch(CapeCloth cloth, Vector3[] rest)
-        {
-            float most = 0.0f;
-            for (int row = 0; row + 1 < CapeShape.Rows; row++)
-            {
-                for (int column = 0; column < CapeShape.Columns; column++)
-                {
-                    int a = CapeShape.GridIndex(column, row), b = CapeShape.GridIndex(column, row + 1);
-                    most = Mathf.Max(most, Vector3.Distance(cloth.Position[a], cloth.Position[b]) / Vector3.Distance(rest[a], rest[b]));
-                }
-            }
-            return most;
-        }
-
-        [Test]
-        public void HangingItSettlesWithoutStretching()
-        {
-            CapeCloth cloth = Hanging(out Vector3[] rest);
-            List<(int, Vector3)> pins = Pins(rest);
-            for (int step = 0; step < 270; step++)
-            {
-                cloth.Step(pins, null, null, Vector3.zero, -10.0f);
-            }
-            float stretch = MostStretch(cloth, rest);
-            Assert.Less(stretch, 1.08f, $"the cloth stretches like rubber ({stretch:0.000} its length)");
-            float moving = 0.0f;
-            for (int i = 0; i < cloth.Position.Length; i++) moving = Mathf.Max(moving, (cloth.Position[i] - cloth.Previous[i]).magnitude / CapeCloth.StepSeconds);
-            Assert.Less(moving, 0.3f, "after three seconds it still swings");
-            Assert.Less(cloth.Position[CapeShape.GridIndex(CapeShape.Columns / 2, CapeShape.Rows - 1)].y, CapeShape.BackEdge[0].y - CapeShape.Length * 0.9f,
-                "the hem does not hang down");
-        }
-
-        [Test]
-        public void TheBodyPushesItOut()
-        {
-            CapeCloth cloth = Hanging(out Vector3[] rest);
-            List<(int, Vector3)> pins = Pins(rest);
-            // A body leaning back into the cape: its trunk a capsule well behind where the cloth hangs.
-            var capsules = new[] { new CapeCloth.Capsule(new Vector3(0.0f, 0.9f, -0.35f), new Vector3(0.0f, 1.6f, -0.2f), 0.3f) };
-            for (int step = 0; step < 180; step++)
-            {
-                cloth.Step(pins, rest, capsules, Vector3.zero, -10.0f);
-            }
-            for (int i = 0; i < cloth.Position.Length; i++)
-            {
-                if (cloth.Pinned[i]) continue;
-                Vector3 pushed = CapeCloth.PushOut(cloth.Position[i], capsules[0]);
-                Assert.Less(Vector3.Distance(pushed, cloth.Position[i]), 0.01f, $"the cloth is inside the body at {cloth.Position[i]}");
-            }
-        }
-
-        [Test]
-        public void RunningItStreamsOutBehind()
-        {
-            CapeCloth cloth = Hanging(out Vector3[] rest);
-            int hem = CapeShape.GridIndex(CapeShape.Columns / 2, CapeShape.Rows - 1);
-            for (int step = 0; step < 180; step++)
-            {
-                cloth.Step(Pins(rest), rest, null, Vector3.zero, -10.0f);
-            }
-            float standingHem = cloth.Position[hem].y;
-            // Running forward (+z) at a sprint for two seconds: the held edge carried along, the cloth behind it.
-            var moved = new Vector3[rest.Length];
-            const float speed = 7.5f;
-            for (int step = 0; step < 180; step++)
-            {
-                float z = speed * CapeCloth.StepSeconds * (step + 1);
-                for (int i = 0; i < rest.Length; i++) moved[i] = rest[i] + Vector3.forward * z;
-                cloth.Step(Pins(moved), moved, null, Vector3.zero, -10.0f);
-            }
-            float topZ = moved[CapeShape.GridIndex(CapeShape.Columns / 2, 0)].z;
-            Assert.Less(cloth.Position[hem].z, topZ - 0.6f, "running, the cape does not stream out behind");
-            Assert.Greater(cloth.Position[hem].y, standingHem + 0.25f, "running, the cape's hem does not lift");
-            Assert.Less(MostStretch(cloth, rest), 1.08f, "running stretches the cloth");
-        }
-
-        [Test]
-        public void ACapsulePushesAPointToItsSurface()
-        {
-            var capsule = new CapeCloth.Capsule(Vector3.zero, Vector3.up, 0.5f);
-            Assert.AreEqual(new Vector3(0.0f, 0.5f, -0.5f), CapeCloth.PushOut(new Vector3(0.0f, 0.5f, -0.1f), capsule));
-            Assert.AreEqual(new Vector3(2.0f, 0.5f, 0.0f), CapeCloth.PushOut(new Vector3(2.0f, 0.5f, 0.0f), capsule), "a point outside moved");
-            Assert.AreEqual(0.5f, CapeCloth.PushOut(new Vector3(0.0f, 1.2f, 0.0f), capsule).y - 1.0f, 1e-5f, "the capsule's rounded end does not push out");
         }
 
         [Test]
