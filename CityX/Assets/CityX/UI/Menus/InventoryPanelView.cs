@@ -140,7 +140,7 @@ namespace CityX.UI
                 return;
             }
 
-            if (keyboard.iKey.wasPressedThisFrame)
+            if (GameControls.Now.Inventory.Pressed)
             {
                 if (IsOpen)
                 {

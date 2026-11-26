@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Character
 {
@@ -97,8 +96,7 @@ namespace CityX.Character
                 return;
             }
             Look();
-            Keyboard keyboard = Keyboard.current;
-            if (Hovered != null && keyboard != null && keyboard.fKey.wasPressedThisFrame)
+            if (Hovered != null && GameControls.Now.Torch.Pressed)   // F, or the controller's D-pad down
             {
                 Open(Hovered);
             }
@@ -240,8 +238,8 @@ namespace CityX.Character
                 Close();
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard != null && (keyboard.fKey.wasPressedThisFrame || keyboard.tabKey.wasPressedThisFrame))
+            GameControls controls = GameControls.Now;
+            if (controls.Torch.Pressed || controls.LockOn.Pressed || controls.PadCancel.Pressed)
             {
                 Close();
                 return;

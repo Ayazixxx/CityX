@@ -92,7 +92,7 @@ namespace CityX.UI
                 return;
             }
 
-            if (keyboard.cKey.wasPressedThisFrame)
+            if (GameControls.Now.PlayerMenu.Pressed)
             {
                 if (IsOpen)
                 {
@@ -105,7 +105,7 @@ namespace CityX.UI
                 return;
             }
 
-            if (IsOpen && keyboard.escapeKey.wasPressedThisFrame)
+            if (IsOpen && GameControls.Now.Cancel.Pressed)
             {
                 Close();
             }

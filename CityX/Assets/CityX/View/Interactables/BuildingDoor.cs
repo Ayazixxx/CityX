@@ -1,7 +1,6 @@
 using CityX.Character;
 using CityX.World;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.View
 {
@@ -417,7 +416,7 @@ namespace CityX.View
 
             if (_player != null)
             {
-                if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame && IsLookedAt(_player))
+                if (GameControls.Now.Interact.Pressed && IsLookedAt(_player))
                 {
                     // Not straight away: the light switch beside the door may be what the player is looking at (InteractionFocus picks one).
                     Transform opener = _player;

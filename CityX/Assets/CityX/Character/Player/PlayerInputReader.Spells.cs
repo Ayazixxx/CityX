@@ -51,9 +51,9 @@ namespace CityX.Character
         /// GLACIER SPIKES (Cryomancer, docs/GLACIER_SPIKES.md): its key arms it, and again puts it away; while armed it is aimed every frame
         /// where the camera looks (flat), which is what keeps it armed.
         /// </summary>
-        private void TickGlacierSpikesKey(Keyboard keyboard, Transform aimSource)
+        private void TickGlacierSpikesKey(GameControls controls, Transform aimSource)
         {
-            bool pressed = _skills.Pressed(SkillCatalog.GlacierSpikes, keyboard);
+            bool pressed = _skills.Pressed(SkillCatalog.GlacierSpikes, controls);
             if (!pressed && !GlacierSpikesArmed)
             {
                 return;
@@ -81,11 +81,11 @@ namespace CityX.Character
         /// While Glacier Spikes is armed the clicks are its own: left casts, right puts it away. The click is then held back from everything
         /// else until it is let go, so it is never also a punch, a swing, a shot or a staff's charge. True while the clicks are taken.
         /// </summary>
-        private bool TakeGlacierSpikesClicks(Mouse mouse)
+        private bool TakeGlacierSpikesClicks(GameControls controls)
         {
             if (_glacierClickHeld)
             {
-                _glacierClickHeld = mouse.leftButton.isPressed || mouse.rightButton.isPressed;
+                _glacierClickHeld = controls.Attack.Held || controls.Aim.Held;
                 if (_glacierClickHeld)
                 {
                     return true;
@@ -95,12 +95,12 @@ namespace CityX.Character
             {
                 return false;
             }
-            if (mouse.leftButton.wasPressedThisFrame)
+            if (controls.Attack.Pressed)
             {
                 _glacierSpikes.TryCast();
                 _glacierClickHeld = true;
             }
-            else if (mouse.rightButton.wasPressedThisFrame)
+            else if (controls.Aim.Pressed)
             {
                 _glacierSpikes.Disarm();
                 _glacierClickHeld = true;

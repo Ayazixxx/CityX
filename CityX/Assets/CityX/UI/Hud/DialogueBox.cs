@@ -320,13 +320,8 @@ namespace CityX.UI
             {
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return;
-            }
-
-            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
+            GameControls controls = GameControls.Now;
+            if (controls.Confirm.Pressed)
             {
                 if (IsChoosing)
                 {
@@ -345,13 +340,11 @@ namespace CityX.UI
             }
 
             int step = 0;
-            if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame
-                || keyboard.aKey.wasPressedThisFrame)
+            if (controls.NavUp.Pressed || controls.NavLeft.Pressed || controls.Key(Key.A).Pressed)
             {
                 step = -1;
             }
-            else if (keyboard.downArrowKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame
-                || keyboard.dKey.wasPressedThisFrame)
+            else if (controls.NavDown.Pressed || controls.NavRight.Pressed || controls.Key(Key.D).Pressed)
             {
                 step = 1;
             }

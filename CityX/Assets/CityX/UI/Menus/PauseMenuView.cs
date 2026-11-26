@@ -107,7 +107,7 @@ namespace CityX.UI
                 return;
             }
 
-            if (keyboard.escapeKey.wasPressedThisFrame)
+            if (IsOpen ? GameControls.Now.Cancel.Pressed : GameControls.Now.Pause.Pressed)   // Escape; on a controller Start, and B backs out
             {
                 if (IsOpen)
                 {

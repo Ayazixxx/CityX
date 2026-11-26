@@ -196,15 +196,11 @@ namespace CityX.Vehicles
             // WASD at all.
             if (_driver != null && !_transitioning)
             {
-                Keyboard keyboard = Keyboard.current;
-                if (keyboard != null)
-                {
-                    if (keyboard.dKey.isPressed) steerInput += 1.0f;
-                    if (keyboard.aKey.isPressed) steerInput -= 1.0f;
-                    if (keyboard.wKey.isPressed) throttleInput += 1.0f;
-                    if (keyboard.sKey.isPressed) throttleInput -= 1.0f;
-                    handbrakeInput = keyboard.spaceKey.isPressed;
-                }
+                // WASD or the left stick steers and drives; on a controller the triggers drive too (RT on, LT back), and A is the handbrake.
+                GameControls controls = GameControls.Now;
+                steerInput = controls.Move.x;
+                throttleInput = Mathf.Clamp(controls.Move.y + controls.Throttle, -1.0f, 1.0f);
+                handbrakeInput = controls.Jump.Held;
             }
 
             TickDriving(steerInput, throttleInput, handbrakeInput, Time.fixedDeltaTime);
@@ -369,8 +365,7 @@ namespace CityX.Vehicles
                 return;
             }
 
-            Keyboard kb = Keyboard.current;
-            if (kb == null || !kb.eKey.wasPressedThisFrame)
+            if (!GameControls.Now.Interact.Pressed)
             {
                 return;
             }

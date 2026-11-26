@@ -90,7 +90,7 @@ namespace CityX.Character
 
         private void Update()
         {
-            Tick(Keyboard.current != null && Keyboard.current.vKey.isPressed);
+            Tick(GameControls.Now.TalkHeld.Held);   // V, or the controller's D-pad left
             ReadMicrophone();
         }
 

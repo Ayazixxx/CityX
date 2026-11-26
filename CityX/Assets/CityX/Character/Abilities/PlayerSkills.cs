@@ -187,23 +187,23 @@ namespace CityX.Character
         /// <summary>The key a slot is on: 1 to 9, then 0.</summary>
         public static Key KeyFor(int slot) => SlotKeys[Mathf.Clamp(slot, 0, Hotbar.SlotCount - 1)];
 
-        /// <summary>The key of the slot holding this skill was pressed this frame (and the skill is learnt).</summary>
-        public bool Pressed(string id, Keyboard keyboard)
+        /// <summary>The button of the slot holding this skill (its number key, or a controller's shoulder and face button) was pressed this frame, and the skill is learnt.</summary>
+        public bool Pressed(string id, GameControls controls)
         {
-            int slot = SlotFor(id, keyboard);
-            return slot >= 0 && keyboard[KeyFor(slot)].wasPressedThisFrame;
+            int slot = SlotFor(id, controls);
+            return slot >= 0 && controls.Slot(slot).Pressed;
         }
 
-        /// <summary>The key of the slot holding this skill is down (the sword spin charges while it is held).</summary>
-        public bool Held(string id, Keyboard keyboard)
+        /// <summary>The button of the slot holding this skill is down (the sword spin charges while it is held).</summary>
+        public bool Held(string id, GameControls controls)
         {
-            int slot = SlotFor(id, keyboard);
-            return slot >= 0 && keyboard[KeyFor(slot)].isPressed;
+            int slot = SlotFor(id, controls);
+            return slot >= 0 && controls.Slot(slot).Held;
         }
 
-        private int SlotFor(string id, Keyboard keyboard)
+        private int SlotFor(string id, GameControls controls)
         {
-            if (keyboard == null || !Book.Knows(id))
+            if (controls == null || !Book.Knows(id))
             {
                 return -1;
             }

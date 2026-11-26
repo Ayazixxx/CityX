@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Character
 {
@@ -266,7 +265,7 @@ namespace CityX.Character
                 _nearbyPlayer = null;
                 return;
             }
-            if (Keyboard.current == null || !Keyboard.current.eKey.wasPressedThisFrame || InteractKey.Typing)
+            if (!GameControls.Now.Interact.Pressed || InteractKey.Typing)
             {
                 return;
             }

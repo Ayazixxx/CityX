@@ -71,12 +71,11 @@ namespace CityX.Character
         /// button), the count (a push-up's XP to the vitals as each one finishes), and the body ticked with no movement, so gravity and the
         /// Animator's phase carry on and other players are sent it.
         /// </summary>
-        private void TickPushUps(Keyboard keyboard, float deltaTime)
+        private void TickPushUps(GameControls controls, float deltaTime)
         {
-            Mouse mouse = Mouse.current;
-            bool stop = RequestsDanceCancel(keyboard) || AnyDigitPressed(keyboard) ||
-                        (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame ||
-                                           mouse.middleButton.wasPressedThisFrame));
+            bool stop = RequestsDanceCancel(controls) || AnyDigitPressed(controls) ||
+                        controls.Attack.Pressed || controls.Aim.Pressed ||
+                        (controls.Mouse != null && controls.Mouse.middleButton.wasPressedThisFrame);
             int reps = _pushUps.Tick(deltaTime, stop);
             if (reps > 0 && _vitals != null)
             {
@@ -86,12 +85,16 @@ namespace CityX.Character
             _locomotion.Tick(new LocomotionInput { YawDegrees = transform.eulerAngles.y, PushUpPhase = _pushUps.AnimatorPhase }, deltaTime);
         }
 
-        private static bool AnyDigitPressed(Keyboard keyboard)
+        private static bool AnyDigitPressed(GameControls controls)
         {
-            return keyboard.digit1Key.wasPressedThisFrame || keyboard.digit2Key.wasPressedThisFrame || keyboard.digit3Key.wasPressedThisFrame ||
-                   keyboard.digit4Key.wasPressedThisFrame || keyboard.digit5Key.wasPressedThisFrame || keyboard.digit6Key.wasPressedThisFrame ||
-                   keyboard.digit7Key.wasPressedThisFrame || keyboard.digit8Key.wasPressedThisFrame || keyboard.digit9Key.wasPressedThisFrame ||
-                   keyboard.digit0Key.wasPressedThisFrame;
+            for (int slot = 0; slot < Hotbar.SlotCount; slot++)
+            {
+                if (controls.Slot(slot).Pressed)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -128,12 +131,12 @@ namespace CityX.Character
         /// punch()/jump()/block() etc. each carry, folded into one check
         /// here instead of one per action.
         /// </summary>
-        private static bool RequestsDanceCancel(Keyboard keyboard)
+        private static bool RequestsDanceCancel(GameControls controls)
         {
-            return keyboard.wKey.isPressed || keyboard.aKey.isPressed ||
-                   keyboard.sKey.isPressed || keyboard.dKey.isPressed ||
-                   keyboard.spaceKey.isPressed || keyboard.leftShiftKey.isPressed ||
-                   keyboard.leftCtrlKey.isPressed;
+            return controls.Forward.Held || controls.Left.Held ||
+                   controls.Back.Held || controls.Right.Held ||
+                   controls.Jump.Held || controls.Sprint.Held ||
+                   controls.Crouch.Held;
         }
     }
 }

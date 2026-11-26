@@ -495,7 +495,7 @@ namespace CityX.UI
             if (keyboard != null)
             {
                 // Escape closes it, and so does C, the key that leads to it.
-                if (keyboard.escapeKey.wasPressedThisFrame || keyboard.cKey.wasPressedThisFrame)
+                if (GameControls.Now.Cancel.Pressed || GameControls.Now.PlayerMenu.Pressed)
                 {
                     Close();
                     return;

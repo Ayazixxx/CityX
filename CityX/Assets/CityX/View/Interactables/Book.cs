@@ -1,6 +1,5 @@
 using CityX.Character;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.View
 {
@@ -158,8 +157,7 @@ namespace CityX.View
                 _nearby = null;
             }
 
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null || _nearby == null || !keyboard.eKey.wasPressedThisFrame)
+            if (_nearby == null || !GameControls.Now.Interact.Pressed)
             {
                 return;
             }

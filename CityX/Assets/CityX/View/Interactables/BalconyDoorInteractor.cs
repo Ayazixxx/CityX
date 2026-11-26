@@ -3,7 +3,6 @@ using CityX.Character;
 using CityX.World;
 using CityX.World.Plan;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.View
 {
@@ -119,8 +118,7 @@ namespace CityX.View
                 }
             }
 
-            bool pressed = (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
-                || (Gamepad.current != null && Gamepad.current.buttonWest.wasPressedThisFrame);
+            bool pressed = GameControls.Now.Interact.Pressed;
             if (!pressed)
             {
                 return;

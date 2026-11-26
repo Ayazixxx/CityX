@@ -1,6 +1,5 @@
 using CityX.Character;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace CityX.UI
@@ -261,7 +260,7 @@ namespace CityX.UI
             }
 
             Refresh();
-            Flash(Keyboard.current, Time.unscaledDeltaTime);
+            Flash(GameControls.Now, Time.unscaledDeltaTime);
         }
 
         /// <summary>Puts the bar's skills in the slots; every frame, since whether a sword is in hand changes without telling anyone.</summary>
@@ -284,13 +283,13 @@ namespace CityX.UI
         }
 
         /// <summary>A slot whose key goes down flashes: the icon swells and settles back over <see cref="FlashSeconds"/>. Not while a menu has the keys.</summary>
-        private void Flash(Keyboard keyboard, float deltaTime)
+        private void Flash(GameControls controls, float deltaTime)
         {
             bool keysAreThePlayers = _skills != null && _skills.GetComponent<PlayerInputReader>() is PlayerInputReader reader && reader.TakesKeys;
             for (int i = 0; i < Hotbar.SlotCount; i++)
             {
                 SlotGraphics slot = Slots[i];
-                if (keyboard != null && keysAreThePlayers && slot.SkillId != null && keyboard[PlayerSkills.KeyFor(i)].wasPressedThisFrame)
+                if (keysAreThePlayers && slot.SkillId != null && controls.Slot(i).Pressed)
                 {
                     slot.Flash = FlashSeconds;
                 }

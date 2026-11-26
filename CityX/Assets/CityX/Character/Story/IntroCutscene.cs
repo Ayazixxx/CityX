@@ -1,7 +1,6 @@
 using CityX.Core;
 using CityX.World;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Character
 {
@@ -352,19 +351,7 @@ namespace CityX.Character
         /// </summary>
         private void Drift(float deltaTime)
         {
-            Keyboard keyboard = Keyboard.current;
-            var input = Vector2.zero;
-            if (keyboard != null)
-            {
-                if (keyboard.wKey.isPressed) input.y += 1.0f;
-                if (keyboard.sKey.isPressed) input.y -= 1.0f;
-                if (keyboard.dKey.isPressed) input.x += 1.0f;
-                if (keyboard.aKey.isPressed) input.x -= 1.0f;
-            }
-            if (Gamepad.current != null)
-            {
-                input += Gamepad.current.leftStick.ReadValue();
-            }
+            Vector2 input = GameControls.Now.Move;
             Vector3 wanted = Vector3.ClampMagnitude(new Vector3(input.x, 0.0f, input.y), 1.0f) * FallDriftSpeed;
             var offset = new Vector2(_ragdoll.Torso.position.x - _spawnPosition.x, _ragdoll.Torso.position.z - _spawnPosition.z);
             if (offset.magnitude > MaxDriftDistance)

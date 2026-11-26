@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Character
 {
@@ -74,8 +73,7 @@ namespace CityX.Character
                 Press.Reset();   // not a let-go either: an E held into the chat must not tap on the way
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            Press.Step(keyboard != null && keyboard.eKey.isPressed, Time.deltaTime);
+            Press.Step(GameControls.Now.Interact.Held, Time.deltaTime);   // E, or a controller's X
         }
     }
 

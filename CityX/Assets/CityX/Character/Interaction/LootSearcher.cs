@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Character
 {
@@ -176,17 +175,14 @@ namespace CityX.Character
                 CloseWindow();
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard != null)
+            GameControls controls = GameControls.Now;
+            if (controls.Forward.Pressed || controls.NavUp.Pressed) List.Move(-1);
+            if (controls.Back.Pressed || controls.NavDown.Pressed) List.Move(1);
+            if (controls.Reload.Pressed) TakeAll();   // R, or the controller's X held
+            if (controls.LockOn.Pressed || controls.Jump.Pressed || controls.PadCancel.Pressed)
             {
-                if (keyboard.wKey.wasPressedThisFrame || keyboard.upArrowKey.wasPressedThisFrame) List.Move(-1);
-                if (keyboard.sKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame) List.Move(1);
-                if (keyboard.rKey.wasPressedThisFrame) TakeAll();
-                if (keyboard.tabKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame)
-                {
-                    CloseWindow();
-                    return;
-                }
+                CloseWindow();
+                return;
             }
             if (InteractKey.Tapped)
             {

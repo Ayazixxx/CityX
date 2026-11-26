@@ -413,8 +413,8 @@ namespace CityX.Character
 
         private void Update()
         {
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
+            GameControls controls = GameControls.Now;
+            if (controls.Keyboard == null && controls.Pad == null)
             {
                 return;
             }
@@ -440,7 +440,7 @@ namespace CityX.Character
                 return;
             }
 
-            if ((_isDancing || _isBreakdancing) && !IsHeld && RequestsDanceCancel(keyboard))
+            if ((_isDancing || _isBreakdancing) && !IsHeld && RequestsDanceCancel(controls))
             {
                 _isDancing = false;
                 _isBreakdancing = false;
@@ -493,7 +493,7 @@ namespace CityX.Character
                 {
                     if (!IsHeld)
                     {
-                        TickPushUps(keyboard, deltaTime);
+                        TickPushUps(controls, deltaTime);
                     }
                     return;
                 }
@@ -537,7 +537,7 @@ namespace CityX.Character
                 bool roped = _grappleSwing != null && _grappleSwing.IsRoped;   // Space lets go of the rope, so it flips nobody up the same frame
                 if (roped && !IsHeld)
                 {
-                    TickRopedSwing(keyboard, deltaTime);   // the rope's controls while the body hangs limp from it (GrappleSwing.Rope.cs)
+                    TickRopedSwing(controls, deltaTime);   // the rope's controls while the body hangs limp from it (GrappleSwing.Rope.cs)
                 }
 
                 // A DEATH RAGDOLL NEVER TICKS ANY OF THIS -- IsDead is
@@ -589,7 +589,7 @@ namespace CityX.Character
 
                     // SPACE GETS A BODY THAT IS DOWN BACK UP: with Recovery learnt, at once, from anywhere, with a flip (Saints Row IV's Ninja
                     // Reflexes, docs/RECOVERY.md); without it, once it has lain still a while, with the get-up.
-                    if (!IsHeld && !roped && keyboard.spaceKey.wasPressedThisFrame)
+                    if (!IsHeld && !roped && controls.Jump.Pressed)
                     {
                         if (!(_skills.Knows(SkillCatalog.Recovery) && _ragdoll.Recover(transform.forward)) && _ragdoll.CanStandUp)
                         {
@@ -635,7 +635,7 @@ namespace CityX.Character
             // the camera.
             if (_arcaneBarrier != null && _arcaneBarrier.IsUp)
             {
-                _arcaneBarrier.Hold(!IsHeld && _skills.Held(SkillCatalog.ArcaneBarrier, keyboard));
+                _arcaneBarrier.Hold(!IsHeld && _skills.Held(SkillCatalog.ArcaneBarrier, controls));
                 _locomotion.Tick(new LocomotionInput { YawDegrees = transform.eulerAngles.y }, deltaTime);
                 _audio?.SilenceFootsteps();
                 return;
@@ -687,8 +687,8 @@ namespace CityX.Character
             // A LADDER OWNS THE FRAME TOO (PlayerLadder): W and S climb, Shift with S slides, Space hops off, Control drops.
             if (_ladder != null && _ladder.IsOn)
             {
-                _ladder.Tick(keyboard.wKey.isPressed, keyboard.sKey.isPressed, keyboard.leftShiftKey.isPressed,
-                    keyboard.spaceKey.wasPressedThisFrame, keyboard.leftCtrlKey.wasPressedThisFrame, deltaTime);
+                _ladder.Tick(controls.Forward.Held, controls.Back.Held, controls.Sprint.Held,
+                    controls.Jump.Pressed, controls.Crouch.Pressed, deltaTime);
                 _audio?.SilenceFootsteps();
                 return;
             }
@@ -715,7 +715,7 @@ namespace CityX.Character
                 // a dash is a deliberate bail-out, worth honouring even on
                 // the exact frame reel/payout also reads the held half of
                 // this same shift key.
-                if (ConsumeDoubleTapShift(keyboard, deltaTime))
+                if (ConsumeDoubleTapShift(controls, deltaTime))
                 {
                     _grappleSwing.Release(false);
                     _audio?.SilenceFootsteps();
@@ -723,44 +723,41 @@ namespace CityX.Character
                 }
 
                 Vector2 swingMove = Vector2.zero;
-                if (keyboard.wKey.isPressed) swingMove.y += 1.0f;
-                if (keyboard.sKey.isPressed) swingMove.y -= 1.0f;
-                if (keyboard.dKey.isPressed) swingMove.x += 1.0f;
-                if (keyboard.aKey.isPressed) swingMove.x -= 1.0f;
+                swingMove += controls.Move;
 
                 Transform swingYawSource = YawSource != null
                     ? YawSource
                     : (Camera.main != null ? Camera.main.transform : null);
                 float swingYaw = swingYawSource != null ? swingYawSource.eulerAngles.y : 0.0f;
 
-                bool boostedRelease = keyboard.spaceKey.wasPressedThisFrame;
-                bool plainRelease = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
-                bool reelHeld = keyboard.leftShiftKey.isPressed;
-                bool payoutHeld = keyboard.leftCtrlKey.isPressed;
+                bool boostedRelease = controls.Jump.Pressed;
+                bool plainRelease = controls.Attack.Pressed;
+                bool reelHeld = controls.Sprint.Held;
+                bool payoutHeld = controls.Crouch.Held;
 
                 // THE GRAPPLE GUN OWNS THE RIGHT HAND, so a cast while
                 // swinging goes through the left instead -- explicit ask:
                 // "it still works just comes from your left hand". Same
                 // digit1Key/origin-height/ignore-colliders shape as the
                 // ordinary ground cast below.
-                if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, keyboard) && swingYawSource != null)
+                if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, controls) && swingYawSource != null)
                 {
                     SpellLaunch(swingYawSource, out Vector3 origin, out Vector3 direction);
                     _fireballCaster.TryCast(origin, direction, GetComponentsInChildren<Collider>());
                 }
-                if (_skills.Pressed(SkillCatalog.IceShards, keyboard))
+                if (_skills.Pressed(SkillCatalog.IceShards, controls))
                 {
                     CastIceShards(swingYawSource);
                 }
-                if (_skills.Pressed(SkillCatalog.ArcaneOrb, keyboard))
+                if (_skills.Pressed(SkillCatalog.ArcaneOrb, controls))
                 {
                     CastArcaneOrb(swingYawSource);
                 }
-                if (_skills.Pressed(SkillCatalog.PoisonBreath, keyboard))
+                if (_skills.Pressed(SkillCatalog.PoisonBreath, controls))
                 {
                     CastPoisonBreath(swingYawSource);
                 }
-                if (_skills.Pressed(SkillCatalog.AcidRain, keyboard))
+                if (_skills.Pressed(SkillCatalog.AcidRain, controls))
                 {
                     CastAcidRain(swingYawSource);
                 }
@@ -798,7 +795,7 @@ namespace CityX.Character
             // doorway never asks. Updated every frame, before the attached branch below, so letting go of the
             // key while hanging on is seen (a grab needs a fresh hold). Not with a jetpack on the back, nor while a
             // parachute has the body (skydiving or under the canopy): Space means thrust or canopy there.
-            _grabIntent.Update(keyboard.spaceKey.isPressed, deltaTime);
+            _grabIntent.Update(controls.Jump.Held, deltaTime);
             // Nor while Grow or Shrink has the body at another size: the grab and the ledge are measured for a 2.6 m body.
             bool wallGrabsAllowed = EquippedFlightGear == null && !ParachuteDrives && !_locomotion.IsResized;
 
@@ -810,9 +807,9 @@ namespace CityX.Character
             // downstream ever runs again to turn them off otherwise.
             if (_climbing != null && _climbing.IsClimbing)
             {
-                _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
-                    keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
-                    dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame, leftHeld: keyboard.aKey.isPressed, rightHeld: keyboard.dKey.isPressed);
+                _climbing.Tick(controls.Jump.Pressed,
+                    controls.Forward.Held, controls.Back.Held, _vitals, deltaTime,
+                    dropPressed: controls.Crouch.Pressed, leftHeld: controls.Left.Held, rightHeld: controls.Right.Held);
                 _audio?.SilenceFootsteps();
                 return;
             }
@@ -832,11 +829,11 @@ namespace CityX.Character
                 !_locomotion.IsDashing)
             {
                 float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
-                if (_climbing.TryStart(_grabIntent, keyboard.wKey.isPressed, stamina))
+                if (_climbing.TryStart(_grabIntent, controls.Forward.Held, stamina))
                 {
-                    _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
-                        keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
-                    dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame, leftHeld: keyboard.aKey.isPressed, rightHeld: keyboard.dKey.isPressed);
+                    _climbing.Tick(controls.Jump.Pressed,
+                        controls.Forward.Held, controls.Back.Held, _vitals, deltaTime,
+                    dropPressed: controls.Crouch.Pressed, leftHeld: controls.Left.Held, rightHeld: controls.Right.Held);
                     _audio?.SilenceFootsteps();
                     return;
                 }
@@ -848,8 +845,8 @@ namespace CityX.Character
             {
                 Transform wishYaw = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
                 float yaw = wishYaw != null ? wishYaw.eulerAngles.y : transform.eulerAngles.y;
-                float wx = (keyboard.dKey.isPressed ? 1.0f : 0.0f) - (keyboard.aKey.isPressed ? 1.0f : 0.0f);
-                float wz = (keyboard.wKey.isPressed ? 1.0f : 0.0f) - (keyboard.sKey.isPressed ? 1.0f : 0.0f);
+                float wx = controls.Move.x;   // the keys as before (-1, 0 or 1); a stick its own way
+                float wz = controls.Move.y;
                 if (wx != 0.0f || wz != 0.0f)
                 {
                     wishDirection = Quaternion.Euler(0.0f, yaw, 0.0f) * new Vector3(wx, 0.0f, wz).normalized;
@@ -858,7 +855,7 @@ namespace CityX.Character
 
             // WALKING INTO A LADDER'S FOOT GETS ON IT (E gets on from anywhere beside it, and from its top: LadderPrompt).
             if (_ladder != null && (_grabCarry == null || !_grabCarry.IsCarrying) && !_locomotion.IsDashing
-                && _ladder.TryWalkOn(keyboard.wKey.isPressed, wishDirection))
+                && _ladder.TryWalkOn(controls.Forward.Held, wishDirection))
             {
                 _audio?.SilenceFootsteps();
                 return;
@@ -866,7 +863,7 @@ namespace CityX.Character
 
             // RUNNING AT A LOW OBSTACLE VAULTS IT (Shift + W; holding Space is still the way to ask for a climb, checked above).
             if (_vaulting != null && !_locomotion.IsDashing && !_locomotion.IsResized && (_grabCarry == null || !_grabCarry.IsCarrying)
-                && _vaulting.TryStart(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, _locomotion.CurrentSpeed, deltaTime, wishDirection))
+                && _vaulting.TryStart(controls.Forward.Held, controls.Sprint.Held, _locomotion.IsGrounded, _locomotion.CurrentSpeed, deltaTime, wishDirection))
             {
                 _vaulting.Tick(deltaTime);
                 _audio?.SilenceFootsteps();
@@ -879,11 +876,11 @@ namespace CityX.Character
                 && (_grabCarry == null || !_grabCarry.IsCarrying))
             {
                 float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
-                if (_climbing.TryStartAuto(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina, deltaTime, wishDirection))
+                if (_climbing.TryStartAuto(controls.Forward.Held, controls.Sprint.Held, _locomotion.IsGrounded, stamina, deltaTime, wishDirection))
                 {
-                    _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
-                        keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
-                        dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame, leftHeld: keyboard.aKey.isPressed, rightHeld: keyboard.dKey.isPressed);
+                    _climbing.Tick(controls.Jump.Pressed,
+                        controls.Forward.Held, controls.Back.Held, _vitals, deltaTime,
+                        dropPressed: controls.Crouch.Pressed, leftHeld: controls.Left.Held, rightHeld: controls.Right.Held);
                     _audio?.SilenceFootsteps();
                     return;
                 }
@@ -894,12 +891,9 @@ namespace CityX.Character
             if (_wallStick != null && _wallStick.IsSticking)
             {
                 Vector2 stickMove = Vector2.zero;
-                if (keyboard.wKey.isPressed) stickMove.y += 1.0f;
-                if (keyboard.sKey.isPressed) stickMove.y -= 1.0f;
-                if (keyboard.dKey.isPressed) stickMove.x += 1.0f;
-                if (keyboard.aKey.isPressed) stickMove.x -= 1.0f;
+                stickMove += controls.Move;
 
-                _wallStick.Tick(keyboard.spaceKey.wasPressedThisFrame, stickMove, _vitals, deltaTime);
+                _wallStick.Tick(controls.Jump.Pressed, stickMove, _vitals, deltaTime);
                 _audio?.SilenceFootsteps();
                 return;
             }
@@ -915,15 +909,12 @@ namespace CityX.Character
                 !_locomotion.IsDashing)
             {
                 float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
-                if (_wallStick.TryStart(_grabIntent, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina))
+                if (_wallStick.TryStart(_grabIntent, controls.Sprint.Held, _locomotion.IsGrounded, stamina))
                 {
                     Vector2 stickMove = Vector2.zero;
-                    if (keyboard.wKey.isPressed) stickMove.y += 1.0f;
-                    if (keyboard.sKey.isPressed) stickMove.y -= 1.0f;
-                    if (keyboard.dKey.isPressed) stickMove.x += 1.0f;
-                    if (keyboard.aKey.isPressed) stickMove.x -= 1.0f;
+                    stickMove += controls.Move;
 
-                    _wallStick.Tick(keyboard.spaceKey.wasPressedThisFrame, stickMove, _vitals, deltaTime);
+                    _wallStick.Tick(controls.Jump.Pressed, stickMove, _vitals, deltaTime);
                     _audio?.SilenceFootsteps();
                     return;
                 }
@@ -943,7 +934,7 @@ namespace CityX.Character
                     _orbitCamera.ReleaseLock();
                 }
             }
-            else if (keyboard.tabKey.wasPressedThisFrame && _orbitCamera != null)
+            else if (controls.LockOn.Pressed && _orbitCamera != null)
             {
                 _orbitCamera.PressLockOn();
             }
@@ -952,7 +943,7 @@ namespace CityX.Character
             // third-person-shooter kit (RE4, Gears, Fortnite): peek round a
             // corner without exposing the body, or clear a wall your usual
             // shoulder is against. Works with anything in hand.
-            if (keyboard.qKey.wasPressedThisFrame && _orbitCamera != null)
+            if (controls.ShoulderSwap.Pressed && _orbitCamera != null)
             {
                 _orbitCamera.ToggleShoulder();
             }
@@ -965,10 +956,7 @@ namespace CityX.Character
             TickCombat(deltaTime);
 
             Vector2 move = Vector2.zero;
-            if (keyboard.wKey.isPressed) move.y += 1.0f;
-            if (keyboard.sKey.isPressed) move.y -= 1.0f;
-            if (keyboard.dKey.isPressed) move.x += 1.0f;
-            if (keyboard.aKey.isPressed) move.x -= 1.0f;
+            move += controls.Move;
 
             Transform yawSource = YawSource != null
                 ? YawSource
@@ -988,7 +976,7 @@ namespace CityX.Character
                 for (int slot = 0; slot < Hotbar.SlotCount; slot++)
                 {
                     string onBar = _skills.Bar[slot];
-                    if (Hotbar.IsBarItem(onBar) && keyboard[PlayerSkills.KeyFor(slot)].wasPressedThisFrame)
+                    if (Hotbar.IsBarItem(onBar) && controls.Slot(slot).Pressed)
                     {
                         HotbarItemPressed(onBar);
                     }
@@ -996,7 +984,7 @@ namespace CityX.Character
             }
 
             // EVERY SPELL NOW CASTS FROM ITS SLOT ON THE BAR (PlayerSkills.Pressed): whichever of the keys 1 to 0 holds it, once learnt.
-            if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, keyboard) && yawSource != null)
+            if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, controls) && yawSource != null)
             {
                 SpellLaunch(yawSource, out Vector3 origin, out Vector3 direction);
                 _fireballCaster.TryCast(origin, direction, GetComponentsInChildren<Collider>());
@@ -1004,66 +992,66 @@ namespace CityX.Character
 
             // 3: ICE SHARDS, innate like the fireball: four shards one after another down the crosshair, each sticking where it lands. The
             // rest of a volley follows the crosshair as it goes out.
-            if (_skills.Pressed(SkillCatalog.IceShards, keyboard))
+            if (_skills.Pressed(SkillCatalog.IceShards, controls))
             {
                 CastIceShards(yawSource);
             }
             // ARCANE ORB (Arcanist): a ball of magenta aura down the crosshair that leaves cursed orbs on whoever it hits (docs/ARCANE_ORB.md).
-            if (_skills.Pressed(SkillCatalog.ArcaneOrb, keyboard))
+            if (_skills.Pressed(SkillCatalog.ArcaneOrb, controls))
             {
                 CastArcaneOrb(yawSource);
             }
             // ARCANE BARRIER (Arcanist): a wall of magenta aura raised before the body, turned to where the camera looks, and held up for as long
             // as its key is (read above, where the wall takes the body).
-            if (_skills.Pressed(SkillCatalog.ArcaneBarrier, keyboard))
+            if (_skills.Pressed(SkillCatalog.ArcaneBarrier, controls))
             {
                 RaiseArcaneBarrier(yawSource);
             }
             // 4: POISON GAS, innate like the fireball: a cloud of purple gas blown out down the crosshair; whatever breathes it is poisoned
             // (never the one who blew it).
-            if (_skills.Pressed(SkillCatalog.PoisonBreath, keyboard))
+            if (_skills.Pressed(SkillCatalog.PoisonBreath, controls))
             {
                 CastPoisonBreath(yawSource);
             }
             // 5: ACID RAIN (a god-tier test spell): a storm of acid over a wide area where the crosshair points; roofs shelter.
-            if (_skills.Pressed(SkillCatalog.AcidRain, keyboard))
+            if (_skills.Pressed(SkillCatalog.AcidRain, controls))
             {
                 CastAcidRain(yawSource);
             }
             // SELF SMITE (Electromancer): Pikachu's Thunder, a bolt from the clouds onto the caster, who bursts with electricity. Not while
             // swinging on the grapple (the swing branch above never reaches here): the move roots the body.
-            if (_skills.Pressed(SkillCatalog.SelfSmite, keyboard) && (_selfSmite != null || (_selfSmite = GetComponent<SelfSmiteAbility>()) != null))
+            if (_skills.Pressed(SkillCatalog.SelfSmite, controls) && (_selfSmite != null || (_selfSmite = GetComponent<SelfSmiteAbility>()) != null))
             {
                 _selfSmite.TryCast();
             }
             // GROW AND SHRINK (Wizard): ten times as big, or a tenth, for 30 s (BodySizeAbility). The same key again ends it early.
-            if (_skills.Pressed(SkillCatalog.Grow, keyboard) && (_bodySize != null || (_bodySize = GetComponent<BodySizeAbility>()) != null))
+            if (_skills.Pressed(SkillCatalog.Grow, controls) && (_bodySize != null || (_bodySize = GetComponent<BodySizeAbility>()) != null))
             {
                 _bodySize.TryGrow();
             }
-            if (_skills.Pressed(SkillCatalog.Shrink, keyboard) && (_bodySize != null || (_bodySize = GetComponent<BodySizeAbility>()) != null))
+            if (_skills.Pressed(SkillCatalog.Shrink, controls) && (_bodySize != null || (_bodySize = GetComponent<BodySizeAbility>()) != null))
             {
                 _bodySize.TryShrink();
             }
             // HEALING AURA (Cleric): a green circle round the body, going where it goes, healing everyone in it slowly (docs/HEALING.md).
-            if (_skills.Pressed(SkillCatalog.HealingAura, keyboard) && (_healingAura != null || (_healingAura = GetComponent<HealingAuraAbility>()) != null))
+            if (_skills.Pressed(SkillCatalog.HealingAura, controls) && (_healingAura != null || (_healingAura = GetComponent<HealingAuraAbility>()) != null))
             {
                 _healingAura.TryCast();
             }
             // FIRE ENHANCEMENT (Pyromancer): the next swing, bullet or arrow burns (docs/FIRE_ENHANCEMENT.md).
-            if (_skills.Pressed(SkillCatalog.FireEnhancement, keyboard)
+            if (_skills.Pressed(SkillCatalog.FireEnhancement, controls)
                 && (_fireEnhancement != null || (_fireEnhancement = GetComponent<FireEnhancementAbility>()) != null))
             {
                 _fireEnhancement.TryCast();
             }
             // GLACIER SPIKES (Cryomancer): the key arms it and the body turns to where the camera looks; a left click casts it (read in TickCombat).
-            TickGlacierSpikesKey(keyboard, yawSource);
+            TickGlacierSpikesKey(controls, yawSource);
             AimIceShards(yawSource);
             AimPoisonBreath(yawSource);
             AimWand(yawSource);
 
             // 8: BLOODRAGE, innate like the fireball (see BloodrageAbility): +25% speed and melee damage, the Bloodrage walk/run/jump, a red aura, 7.5 s.
-            if (_skills.Pressed(SkillCatalog.Bloodrage, keyboard))
+            if (_skills.Pressed(SkillCatalog.Bloodrage, controls))
             {
                 if (_bloodrageAbility == null)
                 {
@@ -1101,7 +1089,7 @@ namespace CityX.Character
             // starting one) -- you cannot run flat out and hold a steady
             // sight picture (Fortnite's sprint puts the weapon away outright).
             bool wantsSprint = !jetpackThrusting && !ParachuteDrives && !_isAimingGun
-                && keyboard.leftShiftKey.isPressed && move.y > 0.0f;
+                && controls.Sprint.Held && move.y > 0.0f;
 
             // Stamina decides, not the key. Asking rather than checking a flag
             // keeps the exhaustion latch in one place.
@@ -1142,7 +1130,7 @@ namespace CityX.Character
             _lastYawDegrees = yawDegrees;
             // A roll goes where the keys were held even out of a swing that
             // was rooting the body -- the pre-rooting input, not the zeroed one.
-            TickDash(keyboard, soulsArmed ? heldMove : move, yawDegrees, deltaTime);
+            TickDash(controls, soulsArmed ? heldMove : move, yawDegrees, deltaTime);
 
             bool chargingJumpNow = false;
             float jumpChargeFraction = 0.0f;
@@ -1164,7 +1152,7 @@ namespace CityX.Character
             // so Space on the ground always means jump, jetpack or not.
             if (_skills.Knows(SkillCatalog.SuperJump) && !spinHoldsTheBody)
             {
-                TickJumpCharge(keyboard, _locomotion.IsGrounded, deltaTime,
+                TickJumpCharge(controls, _locomotion.IsGrounded, deltaTime,
                     out chargingJumpNow, out jumpReleased, out jumpChargeFraction);
                 // The leap's own height never hurts its landing (PlayerVitals.ForgiveFallAbove).
                 if (jumpReleased && jumpChargeFraction > 0.0f && _locomotion.IsGrounded)
@@ -1175,7 +1163,7 @@ namespace CityX.Character
             else
             {
                 _jumpHeld = false;
-                jumpReleased = _locomotion.IsGrounded && keyboard.spaceKey.wasPressedThisFrame && !spinHoldsTheBody;
+                jumpReleased = _locomotion.IsGrounded && controls.Jump.Pressed && !spinHoldsTheBody;
             }
 
             // A JETPACK TAKES SPACE OVER ONLY ONCE ACTUALLY AIRBORNE --
@@ -1209,9 +1197,9 @@ namespace CityX.Character
             {
                 EquippedFlightGear.Tick(new FlightInput
                 {
-                    ThrustHeld = keyboard.spaceKey.isPressed,
-                    DescendHeld = keyboard.leftCtrlKey.isPressed,
-                    BoostHeld = keyboard.leftShiftKey.isPressed,
+                    ThrustHeld = controls.Jump.Held,
+                    DescendHeld = controls.Crouch.Held,
+                    BoostHeld = controls.Sprint.Held,
                     Move = move,
                     CameraPitchDegrees = _orbitCamera != null ? _orbitCamera.Pitch : 0.0f,
                     Airborne = !_locomotion.IsGrounded,
@@ -1236,7 +1224,7 @@ namespace CityX.Character
 
             // THE PARACHUTE (docs/PARACHUTE.md) times every fall, so it is ticked every frame it is worn, grounded or not. Once it has the body
             // (fallen long enough, open, landing) it moves and turns it itself: the walk below is given no keys, and the body no aim to turn to.
-            EquippedParachute?.Tick(keyboard.spaceKey.wasPressedThisFrame, heldMove, deltaTime);
+            EquippedParachute?.Tick(controls.Jump.Pressed, heldMove, deltaTime);
             bool chuteDrives = ParachuteDrives;
 
             // A CAST NO LONGER BORROWS THE GUN'S OWN AIM POSE -- the explicit
@@ -1259,14 +1247,14 @@ namespace CityX.Character
                 Move = chuteDrives ? Vector2.zero : move,
                 YawDegrees = yawDegrees,
                 Sprint = sprinting && !chuteDrives,
-                Crouch = keyboard.leftCtrlKey.isPressed && !jetpackThrusting && !chuteDrives,   // flying, Ctrl sinks the body (FlightInput.DescendHeld)
+                Crouch = controls.Crouch.Held && !jetpackThrusting && !chuteDrives,   // flying, Ctrl sinks the body (FlightInput.DescendHeld)
                 ShieldRaised = _vitals != null && _vitals.ShieldRaised,
                 // Charging kept in the vault for now -- see the dispatch
                 // above (and TickJumpCharge's own doc comment) for why
                 // Space fires a plain, un-charged jump directly instead.
                 ChargingJump = chargingJumpNow,
                 JumpReleased = jumpReleased,
-                JumpHeld = keyboard.spaceKey.isPressed && !spinHoldsTheBody && !chuteDrives,
+                JumpHeld = controls.Jump.Held && !spinHoldsTheBody && !chuteDrives,
                 JumpChargeFraction = jumpChargeFraction,
                 // Gun-aiming only now -- see isCastingFireball's own comment
                 // just above for why a cast no longer sets this too.

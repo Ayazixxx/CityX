@@ -66,7 +66,7 @@ namespace CityX.Character
         /// correct; a future skill-tree unlock can route back through it
         /// exactly as before rather than rebuilding it.
         /// </summary>
-        private void TickJumpCharge(Keyboard keyboard, bool grounded, float deltaTime,
+        private void TickJumpCharge(GameControls controls, bool grounded, float deltaTime,
             out bool chargingJumpNow, out bool jumpReleased, out float chargeFraction)
         {
             chargingJumpNow = false;
@@ -80,7 +80,7 @@ namespace CityX.Character
             }
             _lastJumpChargeFrame = Time.frameCount;
 
-            if (keyboard.spaceKey.wasPressedThisFrame && grounded)
+            if (controls.Jump.Pressed && grounded)
             {
                 _jumpHeld = true;
                 _jumpHeldSeconds = 0.0f;
@@ -91,7 +91,7 @@ namespace CityX.Character
                 return;
             }
 
-            if (!grounded || keyboard.spaceKey.wasReleasedThisFrame)
+            if (!grounded || controls.Jump.Released)
             {
                 _jumpHeld = false;
                 jumpReleased = true;
@@ -101,7 +101,7 @@ namespace CityX.Character
                 return;
             }
 
-            if (keyboard.spaceKey.isPressed)
+            if (controls.Jump.Held)
             {
                 _jumpHeldSeconds = Mathf.Min(_jumpHeldSeconds + deltaTime, ChargedJumpMaxHoldSeconds);
                 chargingJumpNow = true;
@@ -119,11 +119,16 @@ namespace CityX.Character
         /// early-returns), so _sprintTapWindow's own decrement below still
         /// only happens once per frame either way.
         /// </summary>
-        private bool ConsumeDoubleTapShift(Keyboard keyboard, float deltaTime)
+        private bool ConsumeDoubleTapShift(GameControls controls, float deltaTime)
         {
             _sprintTapWindow = Mathf.Max(0.0f, _sprintTapWindow - deltaTime);
 
-            if (!keyboard.leftShiftKey.wasPressedThisFrame)
+            if (controls.Dash.Pressed)
+            {
+                _sprintTapWindow = 0.0f;
+                return true;   // a controller's B, tapped: a dash at once
+            }
+            if (!controls.Sprint.Pressed)
             {
                 return false;
             }
@@ -148,9 +153,9 @@ namespace CityX.Character
         /// choice, and it is the useful one: a dash with no direction is a
         /// dodge, and a dodge goes away from whatever you are facing.
         /// </summary>
-        private void TickDash(Keyboard keyboard, Vector2 move, float yawDegrees, float deltaTime)
+        private void TickDash(GameControls controls, Vector2 move, float yawDegrees, float deltaTime)
         {
-            if (!ConsumeDoubleTapShift(keyboard, deltaTime))
+            if (!ConsumeDoubleTapShift(controls, deltaTime))
             {
                 return;
             }

@@ -3,7 +3,17 @@
 Owner: "id like to have controller integration", "how would the hotbar spells works on controller", "yeah thats what i was thinking like you
 hold r1 or l1 and then it unlocks some sort of mechanism where you can select from there". PC first; consoles only if the game does well on PC.
 
-**Status: plan for the owner to review. Nothing built yet.** Button names below are Xbox / PlayStation.
+**Status (2026-11-25, owner: "make it playable on controller"): first pass built**: walking, the camera, fighting, the hotbar, using things
+in the world, driving and the menus answer a controller, as laid out below. Not yet: the character creator's cursor, button prompts in the
+controller's buttons, aim assist, the lock-on's flick to the next target, slots 9 and 0's chord being the owner's call. Button names below are
+Xbox / PlayStation.
+
+How it is built: `Character/Player/GameControls` is the one place the game asks for its controls ("jump went down", "the stick says
+forward"); it answers from the keyboard and mouse exactly as they were read before, or from a controller, whichever is used.
+`PadLayout` is what a button means when it means more than one thing (a shoulder held, B tapped or held, X held, L3), pure and tested.
+`UI/Menus/PadMenuSelection` chooses a menu's first button while a controller is in use, so the D-pad and A work in every uGUI menu.
+Where the plan below and the build differ: B tapped dashes on the let-go (a tap is only known then), and driving uses the triggers too
+(RT on, LT back, A the handbrake).
 
 ## The spells: hold a shoulder, press a face button
 

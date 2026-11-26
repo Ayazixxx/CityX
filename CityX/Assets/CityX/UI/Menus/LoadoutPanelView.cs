@@ -101,7 +101,7 @@ namespace CityX.UI
                 return;
             }
             Keyboard keyboard = Keyboard.current;
-            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+            if (keyboard != null && GameControls.Now.Cancel.Pressed)
             {
                 Close();
             }

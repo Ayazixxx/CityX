@@ -1,5 +1,5 @@
+using CityX.Character;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.View
 {
@@ -107,8 +107,7 @@ namespace CityX.View
                 _nearby = null;
             }
 
-            if (_nearby != null && Keyboard.current != null &&
-                Keyboard.current.eKey.wasPressedThisFrame)
+            if (_nearby != null && GameControls.Now.Interact.Pressed)
             {
                 Toggle();
             }

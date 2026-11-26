@@ -68,6 +68,10 @@ namespace CityX.Character
         public const float DefaultDistance = 6.0f;
         public float LookDegreesPerPixel = 0.12f;
 
+        [Tooltip("How fast a controller's right stick, pushed all the way, turns the camera round and up and down, degrees a second.")]
+        public float StickYawDegreesPerSecond = 220.0f;
+        public float StickPitchDegreesPerSecond = 140.0f;
+
         /// <summary>The pitch the camera starts at, degrees down: looking a little down on the body, as the game's own camera rests.</summary>
         public const float DefaultPitch = 12.0f;
 
@@ -663,15 +667,14 @@ namespace CityX.Character
             }
             else
             {
-                Mouse mouse = Mouse.current;
-                if (mouse != null)
-                {
-                    Vector2 delta = mouse.delta.ReadValue();
-                    float look = LookDegreesPerPixel * (IsAiming ? AimSensitivityMultiplier : 1.0f);
-                    _yaw += delta.x * look;
-                    _pitch = Mathf.Clamp(
-                        _pitch - delta.y * look, MinPitch, MaxPitch);
-                }
+                // The mouse by the pixel; a controller's right stick by the second (GameControls.LookStick, curved for fine aim).
+                GameControls controls = GameControls.Now;
+                float aim = IsAiming ? AimSensitivityMultiplier : 1.0f;
+                float look = LookDegreesPerPixel * aim;
+                float stickTime = Time.deltaTime * aim;
+                _yaw += controls.LookMouse.x * look + controls.LookStick.x * StickYawDegreesPerSecond * stickTime;
+                _pitch = Mathf.Clamp(
+                    _pitch - controls.LookMouse.y * look - controls.LookStick.y * StickPitchDegreesPerSecond * stickTime, MinPitch, MaxPitch);
             }
 
             DecayRecoil(Time.deltaTime);

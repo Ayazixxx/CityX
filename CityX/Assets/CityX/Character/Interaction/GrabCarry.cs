@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Character
 {
@@ -72,8 +71,7 @@ namespace CityX.Character
 
         private void Update()
         {
-            Mouse mouse = Mouse.current;
-            Tick(InteractKey.HoldBegan, InteractKey.IsDown, mouse != null && mouse.leftButton.wasPressedThisFrame);
+            Tick(InteractKey.HoldBegan, InteractKey.IsDown, GameControls.Now.Attack.Pressed);
         }
 
         /// <summary>

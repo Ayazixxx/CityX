@@ -100,10 +100,7 @@ namespace CityX.Character
         /// </summary>
         private void TickCombat(float deltaTime)
         {
-            if (Mouse.current == null)
-            {
-                return;
-            }
+            GameControls controls = GameControls.Now;
 
             // DEFAULTS OFF, SET BACK ON BELOW WHEREVER RIGHT-CLICK ACTUALLY
             // MEANS AIMING. Every early return below this line (carrying
@@ -123,7 +120,7 @@ namespace CityX.Character
             }
 
             // GLACIER SPIKES ARMED: the clicks are the spell's (left casts, right puts it away), not a weapon's.
-            if (TakeGlacierSpikesClicks(Mouse.current))
+            if (TakeGlacierSpikesClicks(controls))
             {
                 return;
             }
@@ -142,18 +139,18 @@ namespace CityX.Character
             if (ShieldUsable)
             {
                 float open = _vitals.ShieldTraits.OpenToAttackSeconds;
-                if (open > 0.0f && Mouse.current.leftButton.isPressed)
+                if (open > 0.0f && controls.Attack.Held)
                 {
                     _shieldOpenUntil = Time.time + open;
                 }
-                _vitals.ShieldRaised = Mouse.current.rightButton.isPressed && Time.time >= _shieldOpenUntil;
+                _vitals.ShieldRaised = controls.Aim.Held && Time.time >= _shieldOpenUntil;
             }
 
             // SCROLL WHEEL: put the weapon in hand away and take out the other (primary <-> secondary). Not while carrying (returned above), and not
             // mid-aim: a gun being aimed down would otherwise vanish out of the player's hands.
-            if (_inventory != null && !(Mouse.current.rightButton.isPressed))
+            if (_inventory != null && !(controls.Aim.Held))
             {
-                float wheel = Mouse.current.scroll.ReadValue().y;
+                float wheel = controls.WeaponScroll;
                 if (Mathf.Abs(wheel) > 0.01f && Time.unscaledTime >= _nextWeaponSwitch)
                 {
                     if (_inventory.CycleWeapon(gameObject))
@@ -166,7 +163,7 @@ namespace CityX.Character
             // A SPRAY CAN (2026-10-15): right-click at a wall opens the graffiti canvas; nothing is punched or blocked with a can in hand.
             if (EquippedSprayCan != null)
             {
-                if (Mouse.current.rightButton.wasPressedThisFrame)
+                if (controls.Aim.Pressed)
                 {
                     SprayRequested?.Invoke(this);
                 }
@@ -179,7 +176,7 @@ namespace CityX.Character
             {
                 bool raised = EquippedDrink is IAimedThrow aimed
                     && TickAimedThrow(EquippedDrink.CanThrow, EquippedDrink.CanThrow, null, EquippedDrink, aimed);
-                if (!raised && Mouse.current.leftButton.wasPressedThisFrame)
+                if (!raised && controls.Attack.Pressed)
                 {
                     EquippedDrink.Drink();
                 }
@@ -202,16 +199,16 @@ namespace CityX.Character
                 Transform pairYawSource = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
                 if (pairYawSource != null)
                 {
-                    if (EquippedGun.IsAutomatic ? Mouse.current.leftButton.isPressed : Mouse.current.leftButton.wasPressedThisFrame)
+                    if (EquippedGun.IsAutomatic ? controls.Attack.Held : controls.Attack.Pressed)
                     {
                         EquippedGun.Fire(pairYawSource.position, pairYawSource.forward, false, gameObject);
                     }
-                    if (EquippedLeftGun.IsAutomatic ? Mouse.current.rightButton.isPressed : Mouse.current.rightButton.wasPressedThisFrame)
+                    if (EquippedLeftGun.IsAutomatic ? controls.Aim.Held : controls.Aim.Pressed)
                     {
                         EquippedLeftGun.Fire(pairYawSource.position, pairYawSource.forward, false, gameObject);
                     }
                 }
-                if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+                if (controls.Reload.Pressed)
                 {
                     EquippedGun.TryReload();
                 }
@@ -220,7 +217,7 @@ namespace CityX.Character
 
             if (EquippedGun != null)
             {
-                bool aiming = Mouse.current.rightButton.isPressed && !ShieldUsable;   // beside a riot shield right-click is the shield's: shot from the hip
+                bool aiming = controls.Aim.Held && !ShieldUsable;   // beside a riot shield right-click is the shield's: shot from the hip
                 if (_orbitCamera != null)
                 {
                     _orbitCamera.IsAiming = aiming;
@@ -236,19 +233,19 @@ namespace CityX.Character
                     // A drawn weapon (the bow, docs/ARCHERY.md) is told the trigger every frame: it draws while it is held and looses when it is let go.
                     if (gunYawSource != null)
                     {
-                        drawn.Draw(Mouse.current.leftButton.isPressed, gunYawSource.position, gunYawSource.forward, aiming, gameObject, deltaTime);
+                        drawn.Draw(controls.Attack.Held, gunYawSource.position, gunYawSource.forward, aiming, gameObject, deltaTime);
                     }
                 }
                 else
                 {
                     // An automatic (the AK-47) fires for as long as the button is held, at its own rate (the gun gates it); anything else once per press.
-                    bool trigger = EquippedGun.IsAutomatic ? Mouse.current.leftButton.isPressed : Mouse.current.leftButton.wasPressedThisFrame;
+                    bool trigger = EquippedGun.IsAutomatic ? controls.Attack.Held : controls.Attack.Pressed;
                     if (trigger && gunYawSource != null)
                     {
                         EquippedGun.Fire(gunYawSource.position, gunYawSource.forward, aiming, gameObject);
                     }
                 }
-                if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+                if (controls.Reload.Pressed)
                 {
                     EquippedGun.TryReload();
                 }
@@ -266,7 +263,7 @@ namespace CityX.Character
             {
                 // A flashlight also switches on and off with F (the Godot game's key; docs/FLASHLIGHT.md), unless F is about to open the
                 // card of an item in reach (ItemInspector).
-                if (EquippedFlamethrower is ITorch torch && Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame
+                if (EquippedFlamethrower is ITorch torch && controls.Torch.Pressed
                     && !(GetComponent<ItemInspector>() is ItemInspector inspector && inspector.ClaimsF))
                 {
                     torch.Toggle();
@@ -276,7 +273,7 @@ namespace CityX.Character
                     : (Camera.main != null ? Camera.main.transform : null);
                 if (flameYawSource != null)
                 {
-                    EquippedFlamethrower.Tick(Mouse.current.leftButton.isPressed,
+                    EquippedFlamethrower.Tick(controls.Attack.Held,
                         flameYawSource.position, flameYawSource.forward, gameObject, deltaTime);
                 }
                 return;
@@ -291,7 +288,7 @@ namespace CityX.Character
                     : (Camera.main != null ? Camera.main.transform : null);
                 if (staffYawSource != null)
                 {
-                    EquippedStaff.Tick(Mouse.current.leftButton.isPressed, staffYawSource.position, staffYawSource.forward, gameObject, deltaTime);
+                    EquippedStaff.Tick(controls.Attack.Held, staffYawSource.position, staffYawSource.forward, gameObject, deltaTime);
                 }
                 return;
             }
@@ -315,14 +312,14 @@ namespace CityX.Character
                 // the rope whether or not right is held, the same way the
                 // pistol fires regardless of whether `aiming` happens to be
                 // true.
-                bool aimingGrapple = Mouse.current.rightButton.isPressed;
+                bool aimingGrapple = controls.Aim.Held;
                 if (_orbitCamera != null)
                 {
                     _orbitCamera.IsAiming = aimingGrapple;
                 }
                 _isAimingGun = aimingGrapple;
 
-                if (Mouse.current.leftButton.wasPressedThisFrame && Camera.main != null)
+                if (controls.Attack.Pressed && Camera.main != null)
                 {
                     _grappleSwing.TryFire(Camera.main.transform.position, Camera.main.transform.forward);
                 }
@@ -384,9 +381,9 @@ namespace CityX.Character
             if (weapon != null && weapon.CanThrow())
             {
                 WeaponAimInput.Action action = _weaponAim.Tick(
-                    Mouse.current.rightButton.wasPressedThisFrame,
-                    Mouse.current.rightButton.wasReleasedThisFrame,
-                    Mouse.current.leftButton.wasPressedThisFrame);
+                    controls.Aim.Pressed,
+                    controls.Aim.Released,
+                    controls.Attack.Pressed);
                 if (_orbitCamera != null)
                 {
                     _orbitCamera.IsAiming = _weaponAim.IsAiming;
@@ -432,10 +429,10 @@ namespace CityX.Character
             // BARE HANDS: right-click HELD is the guard (FistGuard, the sword's way: its first instant parries, the body walks on at half pace).
             if (weapon == null && !ShieldUsable)
             {
-                _melee.SetGuardHeld(Mouse.current.rightButton.isPressed);
+                _melee.SetGuardHeld(controls.Aim.Held);
             }
             // A club in hand: right-click, timed, NOT holdable. A press throws the block, and the window is exactly as long as the clip.
-            else if (Mouse.current.rightButton.wasPressedThisFrame && _vitals != null && !ShieldUsable)
+            else if (controls.Aim.Pressed && _vitals != null && !ShieldUsable)
             {
                 _vitals.StartBlock();
                 _melee.PlayBlock();
@@ -450,24 +447,24 @@ namespace CityX.Character
             // decide nothing here" split digit1Key's own fireball check
             // above already uses, just scoped to melee instead of an
             // innate ability available regardless of loadout.
-            TickSpinKey(Keyboard.current, canStart: true);
+            TickSpinKey(controls, canStart: true);
 
             // A PUNCH GOES OUT ON THE PRESS, not on the release. It used to wait for the button to come back up (to tell a tap from a hold), which put
             // 100 ms or more between the click and the fist: the "horrible" lag. Now the click throws the punch at once; holding the button on
             // past HeavyPunchHoldSeconds and letting go follows it with the overhand (buffered if the first punch is still going), and held
             // again in the overhand's window, the uppercut.
-            if (Mouse.current.leftButton.wasPressedThisFrame)
+            if (controls.Attack.Pressed)
             {
                 _punchHeld = true;
                 _punchHeldSeconds = 0.0f;
                 _melee.TryAttack();
             }
-            else if (_punchHeld && Mouse.current.leftButton.isPressed)
+            else if (_punchHeld && controls.Attack.Held)
             {
                 _punchHeldSeconds += deltaTime;
             }
 
-            if (_punchHeld && Mouse.current.leftButton.wasReleasedThisFrame)
+            if (_punchHeld && controls.Attack.Released)
             {
                 _punchHeld = false;
                 if (_punchHeldSeconds >= HeavyPunchHoldSeconds)
@@ -482,18 +479,18 @@ namespace CityX.Character
         /// second, for up to 1.6x the damage) and spins when let go; pressed in the air it goes at once, climbing. MeleeAttacker
         /// decides everything else, including that there is a sword in hand.
         /// </summary>
-        private void TickSpinKey(Keyboard keyboard, bool canStart)
+        private void TickSpinKey(GameControls controls, bool canStart)
         {
-            if (keyboard == null || _melee == null)
+            if (_melee == null)
             {
                 return;
             }
             // From whichever slot of the bar holds it (2 by default).
-            if (canStart && _skills.Pressed(SkillCatalog.SwordSpin, keyboard))
+            if (canStart && _skills.Pressed(SkillCatalog.SwordSpin, controls))
             {
                 _melee.TrySpinAttack(charge: true);
             }
-            if (_melee.IsChargingSpin && !_skills.Held(SkillCatalog.SwordSpin, keyboard))
+            if (_melee.IsChargingSpin && !_skills.Held(SkillCatalog.SwordSpin, controls))
             {
                 _melee.ReleaseSpinAttack();
             }
@@ -527,11 +524,11 @@ namespace CityX.Character
         /// </summary>
         private bool TickAimedThrow(bool mayRaise, bool mayKeep, IEquippableWeapon weapon, IHeldDrink drink, IAimedThrow thrown)
         {
-            Mouse mouse = Mouse.current;
+            GameControls controls = GameControls.Now;
             WeaponAimInput.Action action = _weaponAim.Tick(
-                mayRaise && mouse.rightButton.wasPressedThisFrame,
-                mouse.rightButton.wasReleasedThisFrame || (_weaponAim.IsAiming && (!mouse.rightButton.isPressed || !mayKeep)),
-                mouse.leftButton.wasPressedThisFrame);
+                mayRaise && controls.Aim.Pressed,
+                controls.Aim.Released || (_weaponAim.IsAiming && (!controls.Aim.Held || !mayKeep)),
+                controls.Attack.Pressed);
             if (action == WeaponAimInput.Action.Throw && mayKeep)
             {
                 Transform yawSource = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
@@ -565,8 +562,7 @@ namespace CityX.Character
 
         private void TickSoulsSword(SoulsSwordCombat souls)
         {
-            Mouse mouse = Mouse.current;
-            Keyboard keyboard = Keyboard.current;
+            GameControls controls = GameControls.Now;
 
             Transform source = YawSource != null
                 ? YawSource
@@ -591,7 +587,7 @@ namespace CityX.Character
                 float chest = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.55f;
                 Vector3 look = ConvergedDirection(transform.position + Vector3.up * chest, source);
                 _octaslash.Aim(look);
-                if (_skills.Pressed(SkillCatalog.Octaslash, keyboard) && !spinning && !souls.IsCommitted)
+                if (_skills.Pressed(SkillCatalog.Octaslash, controls) && !spinning && !souls.IsCommitted)
                 {
                     _octaslash.TryStart(look);
                 }
@@ -601,7 +597,7 @@ namespace CityX.Character
 
             // THE STAB DASH (Power Thrust), from its slot on the bar with the sword in hand: a short wind-up, then a lunge a dash's length where
             // the camera looks, the blade thrust out. It holds the body from here (PlayerInputReader.Update), so a held guard is let go now.
-            if (_stabDash != null && source != null && !spinning && !souls.IsCommitted && _skills.Pressed(SkillCatalog.StabDash, keyboard)
+            if (_stabDash != null && source != null && !spinning && !souls.IsCommitted && _skills.Pressed(SkillCatalog.StabDash, controls)
                 && _stabDash.TryStart(source.forward))
             {
                 souls.SetBlockHeld(false);
@@ -611,7 +607,7 @@ namespace CityX.Character
             // LEFT CLICK: A TAP IS THE LIGHT, A HOLD THE HEAVY (owner, 2026-10-24: "make it so holding click does a heavy guardbreaking
             // attack"; it was the wheel's click): the overhead with a one-handed sword, the slam with a two-handed one. The light goes out on
             // the press; held on for SoulsSwordCombat.HeavyHoldSeconds it becomes the heavy. F stays unbound -- explicit ask.
-            if (mouse.leftButton.wasPressedThisFrame)
+            if (controls.Attack.Pressed)
             {
                 _swordClickHeld = false;
                 if (octaslashCharging)
@@ -625,7 +621,7 @@ namespace CityX.Character
                     _swordClickHeldSeconds = 0.0f;
                 }
             }
-            else if (_swordClickHeld && mouse.leftButton.isPressed)
+            else if (_swordClickHeld && controls.Attack.Held)
             {
                 _swordClickHeldSeconds += Time.deltaTime;
                 if (_swordClickHeldSeconds >= SoulsSwordCombat.HeavyHoldSeconds)
@@ -644,12 +640,12 @@ namespace CityX.Character
 
             if (!octaslashBusy)
             {
-                TickSpinKey(keyboard, canStart: !souls.IsCommitted);
+                TickSpinKey(controls, canStart: !souls.IsCommitted);
             }
 
             // 7: THE SWORD'S WAVE (a Getsuga Tensho style crescent). The sword swings (a light attack) and a crescent of light leaves the
             // blade down the crosshair, exactly where the fireball would go. Only with the sword in hand, and not mid-swing.
-            if (_skills.Pressed(SkillCatalog.SwordWave, keyboard) && _swordWave != null && source != null
+            if (_skills.Pressed(SkillCatalog.SwordWave, controls) && _swordWave != null && source != null
                 && !spinning && !souls.IsCommitted && _swordWave.CanCast)
             {
                 float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
@@ -660,7 +656,7 @@ namespace CityX.Character
                 }
             }
 
-            souls.SetBlockHeld(mouse.rightButton.isPressed && !spinning && !ShieldUsable);   // with a shield, right-click is the shield's
+            souls.SetBlockHeld(controls.Aim.Held && !spinning && !ShieldUsable);   // with a shield, right-click is the shield's
         }
     }
 }

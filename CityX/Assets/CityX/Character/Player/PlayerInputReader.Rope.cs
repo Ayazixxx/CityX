@@ -10,18 +10,15 @@ namespace CityX.Character
     /// </summary>
     public sealed partial class PlayerInputReader
     {
-        private void TickRopedSwing(Keyboard keyboard, float deltaTime)
+        private void TickRopedSwing(GameControls controls, float deltaTime)
         {
             Vector2 move = Vector2.zero;
-            if (keyboard.wKey.isPressed) move.y += 1.0f;
-            if (keyboard.sKey.isPressed) move.y -= 1.0f;
-            if (keyboard.dKey.isPressed) move.x += 1.0f;
-            if (keyboard.aKey.isPressed) move.x -= 1.0f;
+            move += controls.Move;
             Transform yawSource = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
             float yaw = yawSource != null ? yawSource.eulerAngles.y : 0.0f;
-            bool boostedRelease = keyboard.spaceKey.wasPressedThisFrame;
-            bool plainRelease = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
-            _grappleSwing.Tick(move, yaw, boostedRelease, plainRelease, keyboard.leftShiftKey.isPressed, keyboard.leftCtrlKey.isPressed, deltaTime);
+            bool boostedRelease = controls.Jump.Pressed;
+            bool plainRelease = controls.Attack.Pressed;
+            _grappleSwing.Tick(move, yaw, boostedRelease, plainRelease, controls.Sprint.Held, controls.Crouch.Held, deltaTime);
         }
     }
 }

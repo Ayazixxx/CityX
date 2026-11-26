@@ -52,6 +52,9 @@ conventions down and apply them every time.
    - `Character/Interaction/GroundPickup`: something on the ground picked up with E: who has walked into its trigger, whether they tapped
      E in range, and `Take` into the inventory. Every item and wearable uses it; a pickup that also needs to be looked at asks
      `InteractionReach.CanReach`.
+   - `Character/Player/GameControls.Now`: every control the player uses, from the keyboard and mouse or a controller (docs/CONTROLLER.md).
+     Ask it ("Jump.Pressed", "Move", "Slot(3)"), never `Keyboard.current` or `Mouse.current`: a key read straight from the keyboard
+     is a thing the controller cannot do. `Key(...)` is for what only a keyboard has (typing, the console).
    - `UI/MenuFocus` and `FreedCursor`: what a page that takes over the screen does to the game (the pointer freed, the player's input held,
      the orbit camera resting) and gives back on closing. Thirteen views use one or the other.
    - `UI/Menus/SettingsPage`: the settings a player can change, shared by the pause menu and the title screen.

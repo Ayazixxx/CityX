@@ -1,6 +1,5 @@
 using CityX.Character;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.View
 {
@@ -181,15 +180,11 @@ namespace CityX.View
                 _nearby = null;
             }
 
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return;
-            }
+            GameControls controls = GameControls.Now;
 
             if (_seated == null)
             {
-                if (_nearby != null && keyboard.eKey.wasPressedThisFrame)
+                if (_nearby != null && controls.Interact.Pressed)
                 {
                     Sit(_nearby);
                 }
@@ -200,10 +195,10 @@ namespace CityX.View
             // away is the more natural "get up" gesture than making E do
             // double duty as the only way out; matches how getting off a
             // real bench works, not a deliberate menu action.
-            if (keyboard.eKey.wasPressedThisFrame ||
-                keyboard.wKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame ||
-                keyboard.sKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame ||
-                keyboard.spaceKey.wasPressedThisFrame)
+            if (controls.Interact.Pressed ||
+                controls.Forward.Pressed || controls.Left.Pressed ||
+                controls.Back.Pressed || controls.Right.Pressed ||
+                controls.Jump.Pressed)
             {
                 StandUp();
             }
