@@ -252,7 +252,16 @@ namespace CityX.Character
             using (new Scope(kind, penetration, contactPoint))
             using (StruckByPlayer(striker != null ? PlayerBodies.IsPlayer(BodyOf(striker)) : ByPlayer))
             {
-                response = target.ApplyHit(amount, fromPosition, hitstunSeconds);
+                UnityEngine.GameObject before = StrikerBody;
+                StrikerBody = striker != null ? BodyOf(striker) : null;
+                try
+                {
+                    response = target.ApplyHit(amount, fromPosition, hitstunSeconds);
+                }
+                finally
+                {
+                    StrikerBody = before;
+                }
             }
             DamageDealt.Report(striker, target, amount, hitstunSeconds, kind, contactPoint, response);
             if (wasAlive && !target.IsAlive && striker != null && target is IXpReward reward)
@@ -271,6 +280,12 @@ namespace CityX.Character
         }
 
         /// <summary>The body a striker belongs to: the one with stats above it (a weapon's wielder), or the striker itself.</summary>
+        /// <summary>
+        /// While a blow is being applied: the body of whoever struck it (the wielder of the weapon, the caster of the spell), null when nobody
+        /// was named (a hit forwarded from another machine). The struck body keeps it (PlayerVitals.LastStruckBy).
+        /// </summary>
+        public static UnityEngine.GameObject StrikerBody { get; private set; }
+
         private static UnityEngine.GameObject BodyOf(UnityEngine.GameObject striker)
         {
             PlayerVitals vitals = striker.GetComponentInParent<PlayerVitals>();

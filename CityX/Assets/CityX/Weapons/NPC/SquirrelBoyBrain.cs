@@ -64,6 +64,7 @@ namespace CityX.Weapons
         }
 
         private bool _pinned;
+        private bool _grudge;
         private float _lastGrounded = -10.0f;
         private readonly RaycastHit[] _wallHits = new RaycastHit[16];
         private PlayerLocomotion _locomotion;
@@ -120,6 +121,15 @@ namespace CityX.Weapons
             {
                 _struck = true;
                 _nextFoeSearch = 0.0f;   // he looks round for who did it at once
+            }
+            if (!_pinned)
+            {
+                IOpponent striker = Opponents.WhoStruck(_vitals, NoticeMetres);
+                if (striker != null)
+                {
+                    _foe = striker;   // whoever hit him, not whoever stands nearest; kept while they are about (FindFoe)
+                    _grudge = true;
+                }
             }
         }
 
@@ -280,7 +290,10 @@ namespace CityX.Weapons
 
         private static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0.0f, v.z);
 
-        /// <summary>Once struck, the nearest living opponent (this machine's player, another player's copy, a summon), looked for once a second.</summary>
+        /// <summary>
+        /// Once struck, whoever hit him while they are alive and near (set as he is hurt); else the nearest living opponent (this machine's
+        /// player, another player's copy, a summon), looked for once a second.
+        /// </summary>
         private void FindFoe()
         {
             if (!_struck || (Time.time < _nextFoeSearch && Opponents.Alive(_foe)) || (_pinned && Opponents.Alive(_foe)))
@@ -288,6 +301,11 @@ namespace CityX.Weapons
                 return;
             }
             _nextFoeSearch = Time.time + FoeSearchSeconds;
+            if (_grudge && Opponents.Alive(_foe) && Vector3.Distance(transform.position, _foe.transform.position) <= NoticeMetres)
+            {
+                return;
+            }
+            _grudge = false;
             _foe = Opponents.NearestAlive(transform.position, NoticeMetres);
         }
 

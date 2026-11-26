@@ -136,6 +136,9 @@ namespace CityX.Weapons
         private IEquippableItem _bladeItem;
         private Component _bladeBody;
         private bool _provoked;
+
+        /// <summary>His target is whoever last hit him: kept while they are alive and near, not swapped for the nearest.</summary>
+        private bool _grudge;
         private IOpponent _target;
         private SoulsSwordCombat _targetCombat;
         private MeleeAttacker _targetMelee;
@@ -251,6 +254,20 @@ namespace CityX.Weapons
             {
                 _provoked = true;
                 _nextSearch = 0.0f;   // he looks round for who did it at once
+            }
+            // One calm until hurt (a hobo) goes for whoever hit him, not whoever stands nearest, and keeps at them (FindTarget) until they
+            // are gone (bug sweep 2026-11-25: struck from 10 m, he went for the friend standing 3 m off).
+            if (PeacefulUntilHurt && !_pinned)
+            {
+                IOpponent striker = Opponents.WhoStruck(_vitals, NoticeMetres);
+                if (striker != null)
+                {
+                    _grudge = true;
+                    if (striker != _target)
+                    {
+                        SetTarget(striker);
+                    }
+                }
             }
         }
 
@@ -661,6 +678,11 @@ namespace CityX.Weapons
             {
                 return;   // he minds his own business until somebody hurts him
             }
+            if (_grudge && Opponents.Alive(_target) && Vector3.Distance(transform.position, _target.transform.position) <= NoticeMetres)
+            {
+                return;   // the one who hit him, while they are still about
+            }
+            _grudge = false;
             IOpponent best = Opponents.NearestAlive(transform.position, NoticeMetres);
             if (WaitsToSee && best != null)
             {

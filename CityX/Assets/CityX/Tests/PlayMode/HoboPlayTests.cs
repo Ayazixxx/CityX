@@ -79,6 +79,36 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// Hit from 10 m while a friend stands 3 m from him, he goes for the one who hit him and stays on them (bug sweep 2026-11-25: he went
+        /// for whoever stood nearest).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator HitFromAfarHeGoesForWhoeverHitHimNotTheNearest()
+        {
+#if UNITY_EDITOR
+            PlayerVitals hitter = SetUp("Hobo_1_Machete", 10.0f);
+            _player.GetComponent<PlayerInputReader>().enabled = true;   // players he could take on (PlayerBodies)
+            _copy = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
+                new Vector3(1.0f, 0.05f, 7.0f), Quaternion.identity);
+            var friend = _copy.GetComponent<PlayerVitals>();
+            friend.InfiniteHealth = true;
+            yield return null;
+            var brain = _hobo.GetComponent<SwordsmanBrain>();
+            DamageContext.Strike(_hobo.GetComponent<PlayerVitals>(), 5.0f, _player.transform.position, 0.3f, DamageKind.Physical, 0.0f, null, _player);
+            for (float clock = 0.0f; clock < 3.0f; clock += Dt)
+            {
+                hitter.TickHitstun(Dt);
+                friend.TickHitstun(Dt);
+                yield return null;
+                Assert.AreNotSame(friend, brain.Target, "hit from 10 m, he went for the friend standing 3 m from him");
+            }
+            Assert.AreSame(hitter, brain.Target, "he did not go for the one who hit him");
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator HeLeavesYouAloneUntilYouHurtHim()
         {

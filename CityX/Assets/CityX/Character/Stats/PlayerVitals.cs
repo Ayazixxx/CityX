@@ -373,6 +373,14 @@ namespace CityX.Character
 
         public event Action<float> Damaged;
 
+        /// <summary>
+        /// The last blow taken here: where it came from, and whose body struck it (null when nobody was named: a blow forwarded from another
+        /// machine, a fall). Set before <see cref="Damaged"/> is raised, so whoever hears it can tell who did it (an enemy fights back at
+        /// them: Opponents.WhoStruck).
+        /// </summary>
+        public Vector3 LastBlowFrom { get; private set; }
+        public GameObject LastStruckBy { get; private set; }
+
         /// <summary>Raised with the world position the blow came from.</summary>
         public event Action<Vector3> Hit;
 
@@ -718,6 +726,8 @@ namespace CityX.Character
             {
                 return HitResponse.Ignored;
             }
+            LastBlowFrom = fromPosition;
+            LastStruckBy = DamageContext.StrikerBody;
 
             // What the blow is (DamageContext, said by whoever struck it, or carried here from another player's machine by NetworkedDamage).
             DamageKind kind = DamageContext.Kind;

@@ -86,6 +86,28 @@ namespace CityX.Character
             return best;
         }
 
+        /// <summary>
+        /// Who dealt <paramref name="struck"/> its last blow, to fight back at: the body named as striking it when it is an opponent, else the
+        /// opponent nearest where the blow came from (a blow forwarded from another machine names nobody, and a fist's comes from its
+        /// thrower), within <paramref name="reach"/> metres of the struck body. Null for nobody (bug sweep 2026-11-25: a hit hobo went for
+        /// whoever stood nearest to him, not the one who hit him).
+        /// </summary>
+        public static IOpponent WhoStruck(PlayerVitals struck, float reach)
+        {
+            if (struck == null)
+            {
+                return null;
+            }
+            GameObject body = struck.LastStruckBy;
+            if (body != null && body != struck.gameObject && body.TryGetComponent(out IOpponent named) && Alive(named)
+                && Vector3.Distance(struck.transform.position, body.transform.position) <= reach)
+            {
+                return named;
+            }
+            IOpponent nearest = NearestAlive(struck.LastBlowFrom, reach);
+            return nearest != null && Vector3.Distance(struck.transform.position, nearest.transform.position) <= reach ? nearest : null;
+        }
+
         /// <summary>Still there (not destroyed) and alive: an enemy lets go of one that is not.</summary>
         public static bool Alive(IOpponent opponent) => Here(opponent) && opponent.IsAlive;
 
