@@ -149,6 +149,27 @@ namespace CityX.Tests
             Assert.AreEqual(1, System.Array.FindAll(inventory.Storage, s => s.ItemId == ItemRegistry.BlackTShirt).Length, "the press gave it back twice");
         }
 
+        /// <summary>
+        /// Another player's shirt went into the press while this screen was open: PRESS says the press is busy, keeps the shirt in the bag and
+        /// the screen open (bug sweep 2026-11-25: it said the shirt was not in the bag).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PressingAPressSomeoneElseIsUsingSaysItIsBusy()
+        {
+            (Inventory inventory, HeatPress press, HeatPressView view) = Make();
+            Assert.IsTrue(inventory.AddItem(ItemRegistry.BlackTShirt, 1));
+            yield return null;
+            view.Open(press, _player);
+            Draw(view);
+            press.ShowPressing(ItemRegistry.TShirt, null, null, inventory.PrefabForItem(ItemRegistry.TShirt));   // as another machine tells it
+            yield return null;
+            Assert.IsTrue(press.Pressing, "setup: the press is not busy");
+            Assert.IsFalse(view.PressIt(), "pressed in a busy press");
+            StringAssert.Contains("busy", view.Status, "the screen does not say the press is busy");
+            Assert.IsTrue(inventory.HasItem(ItemRegistry.BlackTShirt), "the shirt left the bag");
+            Assert.IsTrue(view.IsOpen, "the screen closed: the drawing would be lost");
+        }
+
         [UnityTest]
         public IEnumerator ACarriedShirtGoesBackIntoTheBagPrinted()
         {

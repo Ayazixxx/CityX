@@ -57,6 +57,7 @@ namespace CityX.Weapons
             if (!_armedRolled)
             {
                 _armedRolled = true;
+                RollTheBottles();
                 if (Random.value < CalmArmedShare)
                 {
                     DrawWeapon();

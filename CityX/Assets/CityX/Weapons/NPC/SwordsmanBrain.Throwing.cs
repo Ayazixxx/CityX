@@ -35,7 +35,7 @@ namespace CityX.Weapons
         private BottleThrower _thrower;
         private CarriedLoot _carried;
         private bool _lookedForBottles;
-        private BottleWeapon _throwingWith;
+        private bool _throwing;
         private string _spare;
         private float _throwStartedAt;
         private float _nextThrow;
@@ -43,7 +43,7 @@ namespace CityX.Weapons
         /// <summary>Whether he is throwing this frame: a throw going on, or one he begins now.</summary>
         private bool ThrowsABottle(DuelistMind.Senses senses)
         {
-            if (_throwingWith != null)
+            if (_throwing)
             {
                 if (Time.time - _throwStartedAt > ThrowGivenUpSeconds)
                 {
@@ -59,8 +59,7 @@ namespace CityX.Weapons
                 _carried = GetComponent<CarriedLoot>();
             }
             if (_thrower == null || _carried == null || !senses.HasTarget || senses.Stunned || senses.Committed || Time.time < _nextThrow
-                || senses.Distance < ThrowFromMetres || senses.Distance > ThrowToMetres || _locomotion.IsDashing
-                || !(_bladeBody is BottleWeapon held) || held == null)
+                || senses.Distance < ThrowFromMetres || senses.Distance > ThrowToMetres || _locomotion.IsDashing)
             {
                 return false;
             }
@@ -77,10 +76,10 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            _throwingWith = held;
+            _throwing = true;
             _spare = spare;
             _throwStartedAt = Time.time;
-            held.ShowSpare(true);
+            _thrower.ShowSpareInHand(true, spare);   // with a bottle in hand, a whole one shown for it; with anything else, a bottle in its place
             _thrower.Driver.Released += LetTheSpareGo;
             if (!_thrower.BeginThrow(spare: true))
             {
@@ -113,22 +112,23 @@ namespace CityX.Weapons
         /// <summary>The arm's release: the spare leaves the hand, lobbed to come down on whoever he fights, and he carries one fewer.</summary>
         private void LetTheSpareGo()
         {
-            BottleWeapon held = _throwingWith;
             string spare = _spare;
+            bool going = _throwing;
+            Vector3 from = _thrower.SpareInHandAt;
+            Quaternion turned = _thrower.SpareInHandTurn;
             StopThrowing(cutShort: false);   // it leaves now: the Thrown event tells other screens
             _nextThrow = Time.time + SecondsBetweenThrows;
-            if (held == null || !_carried.Spend(spare))
+            if (!going || !_carried.Spend(spare))
             {
                 return;
             }
             int index = System.Array.IndexOf(BottleThrower.Throwables, spare);
             GameObject prefab = index >= 0 && index < _thrower.ThrownPrefabs.Length ? _thrower.ThrownPrefabs[index] : null;
-            Vector3 from = held.BladeTipWorld * 0.5f + held.BladeBaseWorld * 0.5f;
             Vector3 at = Opponents.Alive(_target)
                 ? _target.transform.position + Vector3.up * (BodyRig.StandingHeight * 0.6f)
                 : from + transform.forward * ThrowFromMetres;
             Vector3 velocity = BottleLob.Velocity(from, at, BottleWeapon.ThrowSpeedConst, -Physics.gravity.y);
-            _thrower.Throw(prefab, spare, BottleWeapon.DurabilityState.Intact, from, held.transform.rotation, velocity, BottleWeapon.IntactThrowDamage);
+            _thrower.Throw(prefab, spare, BottleWeapon.DurabilityState.Intact, from, turned, velocity, BottleWeapon.IntactThrowDamage);
             BottlesThrown++;
         }
 
@@ -139,15 +139,34 @@ namespace CityX.Weapons
             {
                 _thrower.Driver.Released -= LetTheSpareGo;
             }
-            if (_throwingWith != null)
+            if (_throwing && _thrower != null)
             {
-                if (cutShort && _throwingWith.ShowsSpare && _thrower != null)
+                if (cutShort && _thrower.ShowsSpareInHand)
                 {
-                    _thrower.TellThrowCutShort();   // the spare never left: other screens' copies show his own bottle again too
+                    _thrower.TellThrowCutShort();   // the spare never left: other screens' copies show what he holds again too
                 }
-                _throwingWith.ShowSpare(false);
+                _thrower.ShowSpareInHand(false);
             }
-            _throwingWith = null;
+            _throwing = false;
+        }
+
+        /// <summary>
+        /// The machine that runs him, once: how many of the bottles his make carries he really has, from one to all of them (owner,
+        /// 2026-11-26: "make it so each hobo carries 1-3 empty bottles in inventory. make it random how many they carry but 3 max"). Other
+        /// screens and the server are told (NetworkedCorpseLoot), so his body lists the same on all.
+        /// </summary>
+        private void RollTheBottles()
+        {
+            CarriedLoot carried = GetComponent<CarriedLoot>();
+            if (!RollsHowManyBottles || carried == null)
+            {
+                return;
+            }
+            int bottles = carried.Items.FindAll(GlassBottleKinds.IsBottle).Count;
+            for (int keep = Random.Range(1, bottles + 1); bottles > keep; bottles--)
+            {
+                carried.Spend(carried.Items.Find(GlassBottleKinds.IsBottle));
+            }
         }
     }
 }

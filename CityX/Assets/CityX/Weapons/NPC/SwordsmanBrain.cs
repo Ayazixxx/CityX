@@ -37,6 +37,12 @@ namespace CityX.Weapons
         [Tooltip("Takes no one on until he is hurt, then whoever is nearest (a hobo: docs/HOBO.md); he wanders till then.")]
         public bool PeacefulUntilHurt;
 
+        [Tooltip("Dashes out of the way as the player does (the swordsman, Crazy Guy). A hobo does not (owner, 2026-11-26: \"make it so hobos dont have dash\").")]
+        public bool CanDash = true;
+
+        [Tooltip("Carries from one up to all of the bottles of his make, rolled when he is spawned (a hobo: owner, 2026-11-26).")]
+        public bool RollsHowManyBottles;
+
         [Tooltip("What he wears (the swordsman the Knight Helmet; Crazy Guy his jeans and sneakers), each put on at spawn as the player puts it on.")]
         public GameObject[] Wearing = new GameObject[0];
 
@@ -479,7 +485,7 @@ namespace CityX.Weapons
                 HasTarget = has,
                 Stamina = _vitals.MaxStamina > 0.0f ? _vitals.Stamina / _vitals.MaxStamina : 0.0f,
                 Committed = _combat != null && _combat.IsCommitted,
-                CanDash = _combat != null && _combat.CanRoll && !_locomotion.IsDashing && _vitals.Stamina > 0.0f && !_vitals.IsExhausted,
+                CanDash = CanDash && _combat != null && _combat.CanRoll && !_locomotion.IsDashing && _vitals.Stamina > 0.0f && !_vitals.IsExhausted,
                 Stunned = _vitals.IsStunned,
                 TookHit = _hurt,
             };
@@ -587,7 +593,7 @@ namespace CityX.Weapons
         /// <summary>The dash with a sword in hand, exactly the player's double-tap of Shift (PlayerInputReader.TickDash, which the sword combat calls its roll): its stamina, cancelling a swing's tail, the moment of invulnerability.</summary>
         private void TryDash(Vector2 direction, float yaw)
         {
-            if (_combat == null || !_combat.CanRoll || _locomotion.IsDashing)
+            if (!CanDash || _combat == null || !_combat.CanRoll || _locomotion.IsDashing)
             {
                 return;
             }

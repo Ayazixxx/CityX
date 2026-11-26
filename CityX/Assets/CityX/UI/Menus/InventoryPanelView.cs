@@ -135,9 +135,9 @@ namespace CityX.UI
 
             if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
                 (Map != null && Map.IsOpen) || (Menu != null && Menu.IsOpen) ||
-                (Chat != null && Chat.IsOpen))
+                (Chat != null && Chat.IsOpen) || HeatPressView.IsAnyOpen)
             {
-                return;
+                return;   // (over the press screen, a shirt swapped in the bag left the press offering one no longer there)
             }
 
             if (GameControls.Now.Inventory.Pressed)

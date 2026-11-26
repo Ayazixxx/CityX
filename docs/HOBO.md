@@ -29,6 +29,11 @@ The first slice of the design in `docs/GAME_DESIGN.md` (Hobos). Not in it yet: o
 - **With the broken bottle** he carries three whole empty ones. When the one he fights is 6 to 24 m off, in front of him and in sight,
   he stops and throws one (a whole bottle shows in his hand while the arm goes back), lobbed to land on them, every 2.5 s at most.
   Nearer, he fights with the broken one. Thrown, a bottle does what a player's does (10).
+- **Every hobo carries empty bottles** (owner, 2026-11-26: "make it so each hobo carries 1-3 empty bottles in inventory. make it random how
+  many they carry but 3 max"), one to three rolled when he is spawned, and throws them as the bottle hobo does: with the one he fights
+  6 to 24 m off, in front of him and in sight, a whole bottle shows in his hand in place of what he holds, is lobbed, and his weapon is back.
+  Other screens see the bottle in the hand and its flight, and how many he carries is kept the same on every screen.
+- **No dash** (owner, 2026-11-26: "make it so hobos dont have dash"): they guard and cut as the swordsman does, but never dash out of the way.
 - **Beaten**: his weapon falls from his hand (the bottle still broken), and his body can be searched: his clothes and **the bottles he
   did not throw**.
 - Worth 40 XP (the swordsman's 80: mine).

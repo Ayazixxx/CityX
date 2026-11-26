@@ -103,7 +103,7 @@ namespace CityX.UI
             }
 
             if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
-                (Menu != null && Menu.IsOpen) || (Chat != null && Chat.IsOpen))
+                (Menu != null && Menu.IsOpen) || (Chat != null && Chat.IsOpen) || HeatPressView.IsAnyOpen)
             {
                 return;
             }

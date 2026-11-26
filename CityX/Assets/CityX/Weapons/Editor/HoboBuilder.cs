@@ -77,7 +77,7 @@ namespace CityX.WeaponsEditor
         {
             (string prefab, string itemId) = WeaponOf(HoboKinds.Weapons[weapon]);
             bool bottle = itemId == Bottle;
-            var carried = new string[bottle ? SpareBottles : 0];
+            var carried = new string[SpareBottles];   // every hobo: 1 to 3 of them, rolled when he is spawned (owner, 2026-11-26)
             for (int i = 0; i < carried.Length; i++)
             {
                 carried[i] = Bottle;
@@ -95,6 +95,8 @@ namespace CityX.WeaponsEditor
                 XpReward = XpReward,
                 SkinName = $"Hobo{HoboKinds.Looks[look]}Skin",   // one painted skin a look, shared by its four
                 PeacefulUntilHurt = true,
+                CanDash = false,   // owner, 2026-11-26: "make it so hobos dont have dash"
+                RollsHowManyBottles = true,
                 CalmArmedShare = HoboKinds.CalmArmedShare,
                 HoodUp = LookHoodUp[look],
                 Carried = carried,

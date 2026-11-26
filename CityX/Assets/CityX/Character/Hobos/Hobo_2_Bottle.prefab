@@ -1446,7 +1446,7 @@ GameObject:
   - component: {fileID: 4070236938796086878}
   - component: {fileID: 3086684096493319575}
   - component: {fileID: 3054727255334481557}
-  - component: {fileID: 4048090174079057509}
+  - component: {fileID: 2352556270341274967}
   m_Layer: 0
   m_Name: Hobo_2_Bottle
   m_TagString: Untagged
@@ -1769,6 +1769,8 @@ MonoBehaviour:
   BladeItemId: glass_bottle
   BladeDurability: 1
   PeacefulUntilHurt: 1
+  CanDash: 0
+  RollsHowManyBottles: 1
   Wearing:
   - {fileID: 5931533627893786738, guid: fdb0894c2a877f243b6090be9d0fefd6, type: 3}
   - {fileID: 1507439274282442899, guid: b3e11f525e06f414d938d032c205cb80, type: 3}
@@ -1814,7 +1816,7 @@ MonoBehaviour:
   - {fileID: 8185852258123393053, guid: 899fd4895c807d049a2d3eade3ff29d4, type: 3}
   - {fileID: 8343226988097854766, guid: 55eb22987f2a36948833f8d4742cb379, type: 3}
   - {fileID: 3681511651364361429, guid: b805037809474b244835eeb8e2979de1, type: 3}
---- !u!114 &4048090174079057509
+--- !u!114 &2352556270341274967
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

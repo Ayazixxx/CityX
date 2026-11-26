@@ -260,6 +260,13 @@ namespace CityX.UI
                 Say("Draw something or add a picture first.");
                 return false;
             }
+            if (_press.Pressing)
+            {
+                // Someone else's shirt is in it (another player started it while this screen was open): before, the design went off to be
+                // kept and the shirt was then refused with "not in your bag" (bug sweep 2026-11-25).
+                Say("The press is busy: someone else's shirt is in it. Press again when it opens.");
+                return false;
+            }
             byte[] front = DesignPng.Encode(Canvas.Composite(ShirtDesignCanvas.Side.Front));
             byte[] back = DesignPng.Encode(Canvas.Composite(ShirtDesignCanvas.Side.Back));
             string designId = front != null && back != null ? DesignLibrary.Publish(ShirtDesignBlob.Pack(front, back)) : null;

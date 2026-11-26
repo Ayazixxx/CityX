@@ -1453,6 +1453,8 @@ MonoBehaviour:
   BladeItemId: 
   BladeDurability: -1
   PeacefulUntilHurt: 0
+  CanDash: 1
+  RollsHowManyBottles: 0
   Wearing:
   - {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
   HoodUp: 0

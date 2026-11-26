@@ -125,21 +125,20 @@ namespace CityX.Tests
                     Assert.IsNotNull(brain.SwordPrefab, prefab.name);
                     Assert.IsNotNull(brain.SwordPrefab.GetComponent<ISwordBlade>(), $"{prefab.name}'s weapon is not swung");
                     bool bottle = HoboKinds.Weapons[weapon] == "bottle";
-                    var carried = prefab.GetComponent<CarriedLoot>();
                     if (bottle)
                     {
                         Assert.AreEqual((int)BottleWeapon.DurabilityState.Broken, brain.BladeDurability, "the bottle in his hand is not broken");
-                        Assert.IsNotNull(carried, "no spare bottles");
-                        Assert.AreEqual(3, carried.Count(GlassBottleKinds.Classic), "not three whole bottles carried");
-                        var thrower = prefab.GetComponent<BottleThrower>();
-                        Assert.IsNotNull(thrower, "his throws are not shown to other players");
-                        int index = System.Array.IndexOf(BottleThrower.Throwables, GlassBottleKinds.Classic);
-                        Assert.IsNotNull(thrower.ThrownPrefabs[index], "nothing to throw");
                     }
-                    else
-                    {
-                        Assert.IsNull(carried, $"{prefab.name} carries bottles without one in his hand");
-                    }
+                    // Every hobo carries empty bottles, one to three rolled at spawn, and throws them (owner, 2026-11-26); none dashes.
+                    var carried = prefab.GetComponent<CarriedLoot>();
+                    Assert.IsNotNull(carried, $"{prefab.name} carries no bottles");
+                    Assert.AreEqual(3, carried.Count(GlassBottleKinds.Classic), $"{prefab.name}'s make does not carry three whole bottles to roll from");
+                    Assert.IsTrue(brain.RollsHowManyBottles, $"{prefab.name} does not roll how many bottles he carries");
+                    var thrower = prefab.GetComponent<BottleThrower>();
+                    Assert.IsNotNull(thrower, $"{prefab.name}'s throws are not shown to other players");
+                    int index = System.Array.IndexOf(BottleThrower.Throwables, GlassBottleKinds.Classic);
+                    Assert.IsNotNull(thrower.ThrownPrefabs[index], $"{prefab.name} has nothing to throw");
+                    Assert.IsFalse(brain.CanDash, $"{prefab.name} dashes (owner, 2026-11-26: \"make it so hobos dont have dash\")");
                     string networked = $"{CityX.WeaponsEditor.HoboBuilder.Folder}/Networked{prefab.name}.prefab";
                     Assert.IsNotNull(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(networked), $"{networked} is missing: not in sessions");
                 }

@@ -44,6 +44,12 @@ namespace CityX.WeaponsEditor
             /// <summary>Takes no one on until he is hurt (a hobo).</summary>
             public bool PeacefulUntilHurt;
 
+            /// <summary>Dashes out of the way (not a hobo: SwordsmanBrain.CanDash).</summary>
+            public bool CanDash = true;
+
+            /// <summary>Carries from one up to all of <see cref="Carried"/>'s bottles, rolled at spawn (a hobo).</summary>
+            public bool RollsHowManyBottles;
+
             /// <summary>The share spawned with the weapon in hand; the rest take it out when the fight starts (SwordsmanBrain.CalmArmedShare).</summary>
             public float CalmArmedShare = 1.0f;
 
@@ -88,13 +94,15 @@ namespace CityX.WeaponsEditor
                 brain.BladeItemId = recipe.BladeItemId;
                 brain.BladeDurability = recipe.BladeDurability;
                 brain.PeacefulUntilHurt = recipe.PeacefulUntilHurt;
+                brain.CanDash = recipe.CanDash;
+                brain.RollsHowManyBottles = recipe.RollsHowManyBottles;
                 brain.CalmArmedShare = recipe.CalmArmedShare;
                 brain.HoodUp = recipe.HoodUp;
                 if (recipe.Carried.Length > 0)
                 {
                     root.AddComponent<CarriedLoot>().Items = new List<string>(recipe.Carried);
                 }
-                if (blade.GetComponent<BottleWeapon>() != null)
+                if (blade.GetComponent<BottleWeapon>() != null || recipe.Carried.Length > 0)
                 {
                     PlayerAbilityWiring.AddBottleThrower(root);   // a bottle's moves, throws and breaking, here and on every other screen
                 }

@@ -1977,7 +1977,7 @@ GameObject:
   - component: {fileID: 4730747669171613795}
   - component: {fileID: 8128505981948085362}
   - component: {fileID: 3819119024568931886}
-  - component: {fileID: 3818265821123649785}
+  - component: {fileID: 6276955974489334598}
   m_Layer: 0
   m_Name: SquirrelBoy
   m_TagString: Untagged
@@ -2318,7 +2318,7 @@ MonoBehaviour:
   - {fileID: 3717271276691646498, guid: f0b4700e8a9d5314bbe35feb52b50c30, type: 3}
   ShirtDesign: {fileID: 4900000, guid: 24f9e79cfb2a82b47b17291b13c983fc, type: 3}
   XpReward: 80
---- !u!114 &3818265821123649785
+--- !u!114 &6276955974489334598
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

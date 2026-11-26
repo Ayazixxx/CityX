@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using CityX.Character;
 using CityX.Items;
 using CityX.Weapons;
@@ -139,6 +140,65 @@ namespace CityX.Tests
             Assert.AreEqual(0, told, "with nothing left in his hand he still told the other screens his weapon is out");
         }
 
+        /// <summary>Each hobo carries one to three empty bottles, how many rolled when he is spawned (owner, 2026-11-26: "3 max").</summary>
+        [UnityTest]
+        public IEnumerator EachHoboCarriesOneToThreeBottles()
+        {
+#if UNITY_EDITOR
+            PlayerVitals vitals = SetUp("Hobo_1_Machete", 40.0f);
+            var many = new List<GameObject>();
+            for (int i = 0; i < 12; i++)
+            {
+                many.Add(Object.Instantiate(Prefab("Hobo_1_Machete"), new Vector3(-30.0f + i * 5.0f, 0.05f, 60.0f), Quaternion.identity));
+            }
+            yield return Run(0.2f, vitals);
+            var seen = new HashSet<int>();
+            foreach (GameObject hobo in many)
+            {
+                int bottles = hobo.GetComponent<CarriedLoot>().Count(GlassBottleKinds.Classic);
+                Assert.That(bottles, Is.InRange(1, 3), $"a hobo carries {bottles} bottles");
+                seen.Add(bottles);
+                Object.Destroy(hobo);
+            }
+            Assert.Greater(seen.Count, 1, "every hobo carries the same number of bottles: it is not random");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// A hobo with a machete throws his bottles too (owner, 2026-11-26): with someone standing off at a distance in his sight, a bottle in
+        /// his hand in place of the machete, thrown, and the machete back in his hand.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AHoboWithAMacheteThrowsABottleFromADistanceAndHasHisMacheteBack()
+        {
+            PlayerVitals vitals = SetUp("Hobo_1_Machete", 14.0f);
+            var brain = _hobo.GetComponent<SwordsmanBrain>();
+            brain.RollsHowManyBottles = false;
+            yield return null;
+            brain.Target = vitals;   // as when the player has hurt him
+            var thrower = _hobo.GetComponent<BottleThrower>();
+            bool bottleShown = false;
+            for (float clock = 0.0f; clock < 7.0f && brain.BottlesThrown == 0; clock += Dt)
+            {
+                vitals.TickHitstun(Dt);
+                yield return null;
+                bottleShown |= thrower.ShowsSpareInHand;
+            }
+            Assert.GreaterOrEqual(brain.BottlesThrown, 1, "from 14 m the machete hobo threw no bottle");
+            Assert.IsTrue(bottleShown, "no bottle was shown in his hand for the throw");
+            yield return Run(0.5f, vitals);
+            Assert.IsFalse(thrower.ShowsSpareInHand, "the bottle stayed in his hand after the throw");
+            var machete = _hobo.GetComponentInChildren<CityX.Items.IEquippableItem>() as Component;
+            Assert.IsNotNull(machete, "he has no machete");
+            foreach (Renderer drawn in machete.GetComponentsInChildren<Renderer>(true))
+            {
+                Assert.IsTrue(drawn.enabled, "his machete is still hidden after the throw");
+            }
+            Assert.AreEqual(2, _hobo.GetComponent<CarriedLoot>().Count(GlassBottleKinds.Classic), "the thrown bottle is still carried");
+        }
+
         [UnityTest]
         public IEnumerator HeLeavesYouAloneUntilYouHurtHim()
         {
@@ -164,6 +224,7 @@ namespace CityX.Tests
             Assert.AreEqual(vitals, brain.Target, "hurt, he did not turn on the one who hurt him");
             Assert.Less(nearest, 4.0f, "hurt, he never came at the one who hurt him");
             Assert.AreNotEqual(DuelistState.Idle, brain.State, "hurt, he does not fight");
+            Assert.AreEqual(0, brain.Dashes, "a hobo dashed (owner, 2026-11-26: \"make it so hobos dont have dash\")");
         }
 
         /// <summary>
@@ -305,6 +366,7 @@ namespace CityX.Tests
         public IEnumerator FromADistanceHeThrowsHisSpareBottlesAndTheRestAreLoot()
         {
             PlayerVitals vitals = SetUp("Hobo_2_Bottle", 14.0f);
+            _hobo.GetComponent<SwordsmanBrain>().RollsHowManyBottles = false;   // all three (how many is rolled is tested apart)
             _copy = Object.Instantiate(Prefab("Hobo_2_Bottle"), new Vector3(30.0f, 0.05f, 0.0f), Quaternion.identity);
             _copy.GetComponent<SwordsmanBrain>().enabled = false;   // another screen's copy: only shown what he does
             var copyDriver = _copy.GetComponent<PlayerAnimationDriver>();

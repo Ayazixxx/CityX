@@ -94,6 +94,12 @@ namespace CityX.UI
             {
                 return;
             }
+            // The heat press's screen has the keys (its Enter places a picture): the chat opening over it took its Enter, and on closing gave the
+            // camera back under the press screen (bug sweep 2026-11-25).
+            if (HeatPressView.IsAnyOpen || HeatPressView.ClosedOnFrame == Time.frameCount)
+            {
+                return;
+            }
 
             if (!IsOpen)
             {

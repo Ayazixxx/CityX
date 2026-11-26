@@ -57,7 +57,9 @@ GameObject:
   - component: {fileID: 1184192180562736159}
   - component: {fileID: 2266012398628619838}
   - component: {fileID: 2603190679090082038}
-  - component: {fileID: 7172254086498626998}
+  - component: {fileID: 146388399308331507}
+  - component: {fileID: 1541390603436875744}
+  - component: {fileID: 640761051616773602}
   m_Layer: 0
   m_Name: Hobo_1_Machete
   m_TagString: Untagged
@@ -380,6 +382,8 @@ MonoBehaviour:
   BladeItemId: machete
   BladeDurability: -1
   PeacefulUntilHurt: 1
+  CanDash: 0
+  RollsHowManyBottles: 1
   Wearing:
   - {fileID: 5931533627893786738, guid: fdb0894c2a877f243b6090be9d0fefd6, type: 3}
   - {fileID: 4837907743950641530, guid: 3b26ef2aa67930043a20e20622909705, type: 3}
@@ -390,7 +394,42 @@ MonoBehaviour:
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &7172254086498626998
+--- !u!114 &146388399308331507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 142299899260309490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf8f307db87d1124ba0a8d1a08114bba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.CarriedLoot
+  Items:
+  - glass_bottle
+  - glass_bottle
+  - glass_bottle
+--- !u!114 &1541390603436875744
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 142299899260309490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf24603d6c864b04382ab412b9ffa519, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.BottleThrower
+  ThrownPrefabs:
+  - {fileID: 4975853551717191964, guid: 9ac9577b8adf4214eb348d89ff62002f, type: 3}
+  - {fileID: 453155573149151686, guid: 5479b6b5e3b3d0543bc3a250cb386751, type: 3}
+  - {fileID: 6274430713240232464, guid: e78e8809ac5069042a0290081913cb63, type: 3}
+  - {fileID: 8185852258123393053, guid: 899fd4895c807d049a2d3eade3ff29d4, type: 3}
+  - {fileID: 8343226988097854766, guid: 55eb22987f2a36948833f8d4742cb379, type: 3}
+  - {fileID: 3681511651364361429, guid: b805037809474b244835eeb8e2979de1, type: 3}
+--- !u!114 &640761051616773602
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
