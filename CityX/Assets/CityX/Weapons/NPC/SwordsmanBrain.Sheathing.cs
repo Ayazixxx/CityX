@@ -70,6 +70,10 @@ namespace CityX.Weapons
             {
                 return;   // one always armed is armed on every machine from the start
             }
+            if (_bladeBody == null)
+            {
+                return;   // gone from his hand (a bottle broken to nothing): a late arrival would be shown a fresh one (bug sweep 2026-11-25)
+            }
             _sinceDrawnTold += deltaTime;
             if (_sinceDrawnTold >= DrawnRepeatSeconds)
             {

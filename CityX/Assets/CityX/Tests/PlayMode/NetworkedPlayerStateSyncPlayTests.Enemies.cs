@@ -33,6 +33,7 @@ namespace CityX.Tests
                 Kind("wraith_summon", "Assets/CityX/Character/NetworkedWraithSummon.prefab"),
                 Kind("giant", "Assets/CityX/Character/NetworkedGiant.prefab"),
                 Kind("crimsonclaw", "Assets/CityX/Character/NetworkedCrimsonClaw.prefab"),
+                Kind("hobo_1_bottle", "Assets/CityX/Character/Hobos/NetworkedHobo_1_Bottle.prefab"),
             };
             foreach (NetworkManager manager in new[] { _server, _clients[0], _clients[1] })
             {
@@ -218,6 +219,40 @@ namespace CityX.Tests
             Assert.AreEqual(0, onB.GetComponentsInChildren<CityX.Wearables.KnightHelmet>().Length, "B still sees the helmet on the body");
             Assert.IsFalse(lootOnA.Give(Items.ItemRegistry.KnightHelmet, aInventory), "A could take the helmet B already has");
             Assert.IsFalse(aInventory.HasItem(Items.ItemRegistry.KnightHelmet), "the helmet went to both players");
+#else
+            Assert.Ignore("needs the editor to load the networked prefabs.");
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// What a hobo still carries reaches every copy of him by itself, not only through the throws a machine saw (bug sweep 2026-11-25: a
+        /// player who joined after his throws listed the thrown bottles on his body, and the server would not give them). Kept by the server
+        /// for whoever arrives later (buffered).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WhatAHoboStillCarriesReachesEveryCopyWithoutTheThrowsBeingSeen()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            yield return StartEnemyNetworks();
+            NetworkObject onA = null, onB = null;
+            yield return SpawnFromA("hobo_1_bottle", new Vector3(0.0f, 0.0f, 8.0f), (a, b) => { onA = a; onB = b; });
+            onA.GetComponent<SwordsmanBrain>().enabled = false;
+            var carriedOnA = onA.GetComponent<CarriedLoot>();
+            var carriedOnB = onB.GetComponent<CarriedLoot>();
+            int at = carriedOnA.Items.Count;
+            Assert.Greater(at, 1, "the bottle hobo carries no spares");
+            Assert.AreEqual(at, carriedOnB.Items.Count);
+            string spare = carriedOnA.Items[0];
+            carriedOnA.Spend(spare);   // two gone on the machine that runs him, with nothing thrown for B to see
+            carriedOnA.Spend(spare);
+            yield return WaitUntil(() => carriedOnB.Items.Count == at - 2, "B's copy of him to carry what he carries");
+
+            onA.GetComponent<PlayerVitals>().TakeDamage(10000.0f);
+            var lootOnB = onB.GetComponent<CorpseLoot>();
+            yield return WaitUntil(() => lootOnB.Container != null, "his body to be searchable on B's machine");
+            Assert.AreEqual(at - 2, lootOnB.Container.Items.FindAll(id => id == spare).Count, "B's view of his body lists bottles he no longer had");
 #else
             Assert.Ignore("needs the editor to load the networked prefabs.");
             yield break;

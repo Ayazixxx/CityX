@@ -29,10 +29,71 @@ namespace CityX.Character
         /// <summary>The takes this machine has been told of (for tests).</summary>
         public int TakesHeard { get; private set; }
 
+        private CarriedLoot _carried;
+        private int _carriedTold;
+
         private void Awake()
         {
             _loot = GetComponent<CorpseLoot>();
             _loot.Relay = this;
+            _carried = GetComponent<CarriedLoot>();
+            _carriedTold = _carried != null ? _carried.Items.Count : 0;
+        }
+
+        /// <summary>
+        /// WHAT HE STILL CARRIES, KEPT THE SAME ON EVERY SCREEN, LATE ARRIVALS INCLUDED (bug sweep 2026-11-25). A copy of a hobo carries one
+        /// bottle fewer as it is told each throw, but a player who joined after a throw was never told: their copy listed bottles already
+        /// thrown on his body, which the server then would not give. The machine that runs him tells the server what he carries whenever it
+        /// goes down; the server keeps it (buffered) for everyone, late arrivals too.
+        /// </summary>
+        private void Update()
+        {
+            if (_carried == null || NetworkObject == null || !IsSpawned || !IsOwner || _carried.Items.Count == _carriedTold)
+            {
+                return;
+            }
+            _carriedTold = _carried.Items.Count;
+            SendCarriedToServer(_carried.Items.ToArray());
+        }
+
+        [ServerRpc(RequireOwnership = true)]
+        private void SendCarriedToServer(string[] items)
+        {
+            if (_carried == null || items == null || !CarriesNoMoreThan(items, _carried.Items))
+            {
+                return;   // what he carries only ever goes down: nothing new appears on him this way
+            }
+            _carried.Items = new List<string>(items);
+            BroadcastCarried(items);
+        }
+
+        [ObserversRpc(BufferLast = true, ExcludeOwner = true)]
+        private void BroadcastCarried(string[] items)
+        {
+            if (_carried != null && items != null)
+            {
+                _carried.Items = new List<string>(items);
+            }
+        }
+
+        /// <summary>Whether <paramref name="items"/> holds no more of anything than <paramref name="had"/> did.</summary>
+        public static bool CarriesNoMoreThan(string[] items, List<string> had)
+        {
+            var left = new Dictionary<string, int>();
+            foreach (string id in had)
+            {
+                left.TryGetValue(id, out int count);
+                left[id] = count + 1;
+            }
+            foreach (string id in items)
+            {
+                if (id == null || !left.TryGetValue(id, out int count) || count == 0)
+                {
+                    return false;
+                }
+                left[id] = count - 1;
+            }
+            return true;
         }
 
         public bool IsShared => NetworkObject != null && IsSpawned;

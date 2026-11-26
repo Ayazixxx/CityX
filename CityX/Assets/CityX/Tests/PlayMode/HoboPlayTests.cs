@@ -109,6 +109,36 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// His bottle broken to nothing, he stops telling the other screens his weapon is out (told every few seconds so a late arrival sees
+        /// it): a player who joined afterwards was shown a fresh bottle in his empty hand (bug sweep 2026-11-25).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WithHisBottleBrokenToNothingHeStopsTellingOthersItIsOut()
+        {
+            PlayerVitals vitals = SetUp("Hobo_1_Bottle", 8.0f);
+            var brain = _hobo.GetComponent<SwordsmanBrain>();
+            brain.CalmArmedShare = 0.0f;   // put away until a fight: told to others when it comes out
+            int told = 0;
+            _hobo.GetComponent<PlayerAnimationDriver>().TimedStatePlayed += (state, speed, start) =>
+            {
+                if (state == PlayerAnimationDriver.WeaponDrawnName) told++;
+            };
+            yield return null;
+            _hobo.GetComponent<PlayerVitals>().TakeDamage(1.0f);   // out for a fight
+            yield return Run(SwordsmanBrain.DrawnRepeatSeconds + 1.0f, vitals);
+            Assert.IsTrue(brain.WeaponDrawn);
+            Assert.Greater(told, 0, "his bottle out, he never told the other screens");
+
+            var bottle = _hobo.GetComponentInChildren<BottleWeapon>();
+            Assert.IsNotNull(bottle, "no bottle in his hand");
+            Object.Destroy(bottle.gameObject);   // broken to nothing (BottleWeapon takes itself away so)
+            yield return null;
+            told = 0;
+            yield return Run(SwordsmanBrain.DrawnRepeatSeconds * 2.0f + 1.0f, vitals);
+            Assert.AreEqual(0, told, "with nothing left in his hand he still told the other screens his weapon is out");
+        }
+
         [UnityTest]
         public IEnumerator HeLeavesYouAloneUntilYouHurtHim()
         {
