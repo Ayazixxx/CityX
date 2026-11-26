@@ -91,6 +91,8 @@ namespace CityX.Tests
             SceneManager.SetActiveScene(world);
             var player = Object.FindFirstObjectByType<PlayerInputReader>();
             var body = player != null ? player.GetComponent<PlayerLocomotion>() : null;
+            for (int i = 0; i < 60; i++) yield return null;   // the load and what streams in just after: the profile keeps its last 2000 frames
+            StopProfile();
             longest = 0.0;
             last = clock.Elapsed.TotalSeconds;
             while (body != null && !body.IsGrounded && clock.Elapsed.TotalSeconds < 60.0)
@@ -99,8 +101,7 @@ namespace CityX.Tests
                 longest = System.Math.Max(longest, clock.Elapsed.TotalSeconds - last);
                 last = clock.Elapsed.TotalSeconds;
             }
-            for (int i = 0; i < 30; i++) yield return null;   // what streams in just after
-            StopProfile();
+
             report.AppendLine($"world: first frame after {firstFrame:F2} s, player standing after {last:F2} s, longest frame after the first {longest * 1000.0:F0} ms");
             yield return Frames("world, standing", report);
             yield return SceneManager.UnloadSceneAsync(world);
