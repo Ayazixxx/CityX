@@ -69,8 +69,33 @@ Plus air: the cloth's face pushed by its own speed through the air (and the bree
 | `Wearables/Capes/CapeLook` | drawn: the yoke, cloth and collar as one sheet with two faces, in one material |
 | `Wearables/Editor/CapeBuilder` | a prefab a colourway: its material and the folded cape |
 
-Numbers (mine, in `CapeShape` and `CapeCloth`): 322 points (the yoke and collar held), about 1,100 links, 8 corrections a step, keeps 98.5% of its speed a step, air push
+Numbers (mine, in `CapeShape` and `CapeCloth`): 463 points (the yoke and collar held), 1,936 links, 8 corrections a step, keeps 98.5% of its speed a step, air push
 2.2, pull to shape 0.06 at the shoulders, 0.002 where it starts to hang, 0.0004 at the hem.
+
+## Over clothes (2026-11-25)
+
+Owner: "make cape fit over shirt without clipping"; then, on a picture from behind, "the shoulders on the cape still clip through and i saw
+some of the lower back as well".
+
+- The yoke and the collar are fitted to the bare body as before, then lifted over what is worn (`CapeShape.FitOver`): under each held
+  point, the clothes within 6 cm along the body and up to 20 cm off it are looked at, and the point is raised to 1.2 cm outside the highest.
+  A lift spreads to its neighbours (never lowered), so the cloth does not crease where a seam or a collar stands out. The clothes are the
+  body's combined worn mesh (`SkinnedGarmentCombiner.CombinedMesh`), which is at rest in the body's own space.
+- The falling cloth is kept further out from the body by as much as the clothes stand off the back between the hips and the shoulder
+  blades (`CapeShape.StandsOff`, added to the torso capsule): it went into a shirt at the small of the back.
+- When the clothes change while the cape is worn (a new combined mesh), it is fitted again and its cloth starts again at rest.
+
+## Cost and level of detail (2026-11-25)
+
+Owner: "the cape physics look really good but would that be a risk for performance in an mmo. it doesnt need to be THAT good".
+
+- Measured (`CapeCostBench`, Explicit, in the editor, which runs scripts slower than a built game): one cape at full detail cost 7.5 ms a
+  frame at 60 fps. The cloth was made cheaper with the same behaviour: links and tethers as plain arrays in plain numbers, and the body
+  pushing the cloth out twice a step (halfway through and at the end) instead of after every one of the 8 corrections. Now 2.4 ms a frame
+  at full detail, 1.3 ms at the lighter one, in the editor. Not measured in a built game.
+- `CapeDetail`: within 20 m of the camera the cloth runs in full; from 20 to 45 m with 3 corrections a step (the tethers still keep it
+  from stretching); further, or off the screen, not at all: the cape is set at rest on the body once and goes where the body goes. With
+  no game camera (tests, pictures) it always runs in full.
 
 ## Not done
 

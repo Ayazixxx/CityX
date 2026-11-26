@@ -17,6 +17,10 @@ namespace CityX.Wearables
     /// into the cloth (<see cref="CarryShare"/>) so a turn or a sprint does not whip it about; a body put somewhere new (a respawn) starts the
     /// cloth again at rest. On another player's copy of the wearer it runs the same from that body's moves (ICosmeticKeepsRunning): a cape is
     /// worn the same on every screen with nothing sent but which cape it is.
+    ///
+    /// The yoke and the collar lie over what is worn under them (a shirt, a coat: CapeShape.FitOver), fitted again whenever the clothes change,
+    /// and the falling cloth keeps as much further out from the body as the clothes stand off it. Far from the camera, or off the screen, the
+    /// cloth is worked out less or not at all (CapeDetail).
     /// </summary>
     [DefaultExecutionOrder(10000)]
     public sealed class Cape : GroundWearable, IEquippableItem, ICosmeticMountable, ICosmeticKeepsRunning
@@ -70,7 +74,17 @@ namespace CityX.Wearables
             }
         }
 
+        /// <summary>How often a body with no clothes yet is looked at for some, seconds.</summary>
+        private const float ClothesLookEvery = 0.5f;
+
         private Transform _body;
+        private Animator _animator;
+        private SkinnedMeshRenderer _skin;
+        private SkinnedGarmentCombiner _clothes;
+        private Mesh _clothesFittedOver;
+        private float _clothesLookedFor;
+        private float _clothesStandOff;
+        private bool _still;
         private Transform _anchor;
         private Vector3[] _restOnAnchor;
         private Vector3[] _shape;
@@ -127,15 +141,25 @@ namespace CityX.Wearables
                 return;   // a body with no skeleton: nothing to hang it from
             }
             _body = body.transform;
+            _animator = animator;
             _anchor = animator.GetBoneTransform(HumanBodyBones.Spine) ?? animator.GetBoneTransform(HumanBodyBones.Hips);
             Transform skinTransform = TransformSearch.FindDeep(body.transform, BodySurface.SkinName);
-            var skin = skinTransform != null ? skinTransform.GetComponent<SkinnedMeshRenderer>() : null;
-            Vector3[] rest = FitTo(skin);
+            _skin = skinTransform != null ? skinTransform.GetComponent<SkinnedMeshRenderer>() : null;
+            _clothes = body.GetComponent<SkinnedGarmentCombiner>();
+            _look = new CapeLook(transform, Fabric);
+            Fit();
+        }
+
+        /// <summary>The cape fitted to the body and over what it wears now, and its cloth started again at rest there.</summary>
+        private void Fit()
+        {
+            _clothesFittedOver = _clothes != null ? _clothes.CombinedMesh : null;
+            Vector3[] rest = FitTo(_skin, _clothesFittedOver);
             Rest = rest;
             _restOnAnchor = new Vector3[rest.Length];
             for (int i = 0; i < rest.Length; i++)
             {
-                _restOnAnchor[i] = OnBone(_anchor, skin, body.transform, rest[i]);
+                _restOnAnchor[i] = OnBone(_anchor, _skin, _body, rest[i]);
             }
             _shape = new Vector3[rest.Length];
             Shape(_anchor.localToWorldMatrix);
@@ -143,21 +167,43 @@ namespace CityX.Wearables
             System.Array.Copy(_skinNow, _skinWas, _skinNow.Length);
             HoldOnSkin(_shape, 1.0f);
             Cloth = CapeShape.MakeCloth(_shape);
-            FindCapsules(animator);
+            FindCapsules(_animator);
             _anchorWas = _anchor.position;
             _anchorTurnWas = _anchor.rotation;
-            _look = new CapeLook(transform, Fabric);
+            _owed = 0.0f;
+            _still = false;
             _look.Draw(Cloth.Position);
+        }
+
+        /// <summary>Fitted again when the clothes under it change (a shirt put on or taken off while it is worn).</summary>
+        private void WatchClothes()
+        {
+            if (_clothes == null)
+            {
+                _clothesLookedFor += Time.deltaTime;
+                if (_clothesLookedFor < ClothesLookEvery)
+                {
+                    return;
+                }
+                _clothesLookedFor = 0.0f;
+                _clothes = _body.GetComponent<SkinnedGarmentCombiner>();
+            }
+            if (_clothes != null && _clothes.CombinedMesh != _clothesFittedOver)
+            {
+                Fit();
+            }
         }
 
         /// <summary>
         /// The cape at rest fitted to this body like a skin suit (CapeShape.FitToBody) when its skin can be read, and each point of the yoke and the
         /// collar set to follow the body's skin under it (the bones and weights of the body's nearest point): the shoulders move with the arms and
-        /// the yoke moves with them. Without a readable skin, the cape as made, held on the Spine bone.
+        /// the yoke moves with them. Without a readable skin, the cape as made, held on the Spine bone. Over <paramref name="clothes"/> (what the body wears, at rest) the
+        /// yoke and the collar are lifted over them (CapeShape.FitOver).
         /// </summary>
-        private Vector3[] FitTo(SkinnedMeshRenderer skin)
+        private Vector3[] FitTo(SkinnedMeshRenderer skin, Mesh clothes)
         {
             Mesh mesh = skin != null ? skin.sharedMesh : null;
+            _clothesStandOff = 0.0f;
             if (mesh == null || !mesh.isReadable)
             {
                 return CapeShape.RestPoints();
@@ -167,12 +213,19 @@ namespace CityX.Wearables
                 fit.fitted = CapeShape.FitToBody(CapeShape.RestPoints(), mesh.vertices, mesh.normals, out fit.nearest);
                 Fits[mesh] = fit;
             }
+            Vector3[] fitted = fit.fitted;
+            if (clothes != null && clothes.isReadable)
+            {
+                Vector3[] worn = clothes.vertices;
+                fitted = CapeShape.FitOver(fit.fitted, fit.nearest, mesh.normals, worn);
+                _clothesStandOff = CapeShape.StandsOff(mesh.vertices, worn);
+            }
             BoneWeight[] weights = mesh.boneWeights;
             Matrix4x4[] binds = mesh.bindposes;
             _skinBones = skin.bones;
             var onSkin = new List<int>();
             var skinning = new List<(int, Vector3, float)[]>();
-            for (int i = 0; i < fit.fitted.Length; i++)
+            for (int i = 0; i < fitted.Length; i++)
             {
                 int k = fit.nearest[i];
                 if (k < 0 || k >= weights.Length) continue;
@@ -182,7 +235,7 @@ namespace CityX.Wearables
                 {
                     if (weight > 0.0f && bone < binds.Length && bone < _skinBones.Length && _skinBones[bone] != null)
                     {
-                        parts.Add((bone, binds[bone].MultiplyPoint3x4(fit.fitted[i]), weight));
+                        parts.Add((bone, binds[bone].MultiplyPoint3x4(fitted[i]), weight));
                     }
                 }
                 if (parts.Count == 0) continue;
@@ -193,7 +246,7 @@ namespace CityX.Wearables
             _skinning = skinning.ToArray();
             _skinNow = new Vector3[_onSkin.Length];
             _skinWas = new Vector3[_onSkin.Length];
-            return fit.fitted;
+            return fitted;
         }
 
         /// <summary>Where the points on the skin are now, as the body's own skin is moved by its bones.</summary>
@@ -248,7 +301,7 @@ namespace CityX.Wearables
                 Transform ta = Bone(a), tb = Bone(b);
                 if (ta != null && tb != null) _bodyCapsules.Add(new BodyCapsule(ta, tb, radius + ClothGap));
             }
-            Add(HumanBodyBones.Hips, HumanBodyBones.Neck, FusedBodyShape.TorsoRadius);
+            Add(HumanBodyBones.Hips, HumanBodyBones.Neck, FusedBodyShape.TorsoRadius + _clothesStandOff);
             Add(HumanBodyBones.Head, HumanBodyBones.Head, FusedBodyShape.HeadRadius);   // the Head bone's pivot is the head ball's middle
             foreach (bool left in new[] { true, false })
             {
@@ -281,6 +334,19 @@ namespace CityX.Wearables
             if (dt <= 0.0f)
             {
                 return;
+            }
+            WatchClothes();
+            CapeDetailLevel detail = DetailNow();
+            if (detail == CapeDetailLevel.Still)
+            {
+                HangStill();
+                return;
+            }
+            if (_still)
+            {
+                // Back in view (or near again): the cloth starts at rest where the body is now, not where it was left.
+                _still = false;
+                Settle();
             }
             Vector3 anchorNow = _anchor.position;
             Quaternion turnNow = _anchor.rotation;
@@ -318,12 +384,48 @@ namespace CityX.Wearables
                 {
                     if (Cloth.Pinned[i]) _pins.Add((i, _shape[i]));   // the yoke and the collar, carried by the body
                 }
-                Cloth.Step(_pins, _shape, _capsules, wind, floor);
+                Cloth.Step(_pins, _shape, _capsules, wind, floor, CapeDetail.IterationsAt(detail));
             }
             _anchorWas = anchorNow;
             _anchorTurnWas = turnNow;
             System.Array.Copy(_skinNow, _skinWas, _skinNow.Length);
             _look.Draw(Cloth.Position);
+        }
+
+        /// <summary>The level of detail for this frame: in full with no game camera (a test, a capture), else by the camera's distance and whether it is seen.</summary>
+        private CapeDetailLevel DetailNow()
+        {
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                return CapeDetailLevel.Full;
+            }
+            return CapeDetail.For(Vector3.Distance(camera.transform.position, _anchor.position), _look.Seen);
+        }
+
+        /// <summary>Not worked out this frame: the cape set at rest once and drawn there (it then goes where the body goes, as its child).</summary>
+        private void HangStill()
+        {
+            if (_still)
+            {
+                return;
+            }
+            _still = true;
+            Settle();
+            _look.Draw(Cloth.Position);
+        }
+
+        /// <summary>The cloth at rest on the body as it stands now, standing still.</summary>
+        private void Settle()
+        {
+            Shape(_anchor.localToWorldMatrix);
+            ReadSkin();
+            System.Array.Copy(_skinNow, _skinWas, _skinNow.Length);
+            HoldOnSkin(_shape, 1.0f);
+            Cloth.Reset(_shape);
+            _anchorWas = _anchor.position;
+            _anchorTurnWas = _anchor.rotation;
+            _owed = 0.0f;
         }
 
         private void ReadCapsules()

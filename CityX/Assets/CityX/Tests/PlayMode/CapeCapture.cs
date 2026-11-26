@@ -40,6 +40,9 @@ namespace CityX.Tests
                 new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
             player.GetComponent<PlayerInputReader>().enabled = false;
             var body = player.GetComponent<PlayerLocomotion>();
+            // Over a white T-shirt, as the owner wears it (2026-11-25: "make cape fit over shirt without clipping").
+            Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/TShirt.prefab"), new Vector3(4.0f, 0.0f, 4.0f),
+                Quaternion.identity).GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);
             GameObject cape = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(CapeColourways.PrefabPath(CapeColourways.RedItemId)),
                 new Vector3(3.0f, 0.0f, 3.0f), Quaternion.identity);
             cape.GetComponent<IEquippableItem>().OnEquip(player, ItemInstanceData.None);
@@ -60,6 +63,9 @@ namespace CityX.Tests
             Vector3 shoulders = player.transform.position + Vector3.up * 1.85f;
             BuildingShapeCapture.Shoot(camera, folder, "cape-shoulders", shoulders + new Vector3(0.0f, 0.2f, 2.8f), shoulders);
             BuildingShapeCapture.Shoot(camera, folder, "cape-shoulders-above", shoulders + new Vector3(0.0f, 1.2f, -2.6f), shoulders);
+            BuildingShapeCapture.Shoot(camera, folder, "cape-shoulders-above-side", shoulders + new Vector3(1.4f, 1.0f, -2.4f), shoulders);
+            Vector3 smallOfBack = player.transform.position + Vector3.up * 1.1f;
+            BuildingShapeCapture.Shoot(camera, folder, "cape-lowerback", smallOfBack + new Vector3(1.6f, 0.1f, -2.6f), smallOfBack);
             // The same from in front with the sun in front too (above, the sun is behind the player and the front is in its shade).
             Quaternion sunWas = sun.transform.rotation;
             sun.transform.rotation = Quaternion.Euler(40.0f, 160.0f, 0.0f);

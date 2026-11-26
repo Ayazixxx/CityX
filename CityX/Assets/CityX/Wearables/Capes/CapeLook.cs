@@ -13,6 +13,7 @@ namespace CityX.Wearables
         private readonly Transform _owner;
         private readonly Mesh _mesh;
         private readonly GameObject _object;
+        private readonly MeshRenderer _renderer;
         private readonly Vector3[] _vertices = new Vector3[CapeShape.Points * 2];
 
         public CapeLook(Transform owner, Material fabric)
@@ -26,8 +27,12 @@ namespace CityX.Wearables
             _object.transform.SetParent(_owner, false);
             _object.layer = _owner.gameObject.layer;
             _object.AddComponent<MeshFilter>().sharedMesh = _mesh;
-            _object.AddComponent<MeshRenderer>().sharedMaterial = fabric;
+            _renderer = _object.AddComponent<MeshRenderer>();
+            _renderer.sharedMaterial = fabric;
         }
+
+        /// <summary>Whether any camera drew it last frame (its shadow counts).</summary>
+        public bool Seen => _renderer != null && _renderer.isVisible;
 
         /// <summary>
         /// Every face, outside and inside: the points' first copy faces away from the body, the second (<see cref="CapeShape.Points"/> on) towards

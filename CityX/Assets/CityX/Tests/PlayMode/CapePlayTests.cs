@@ -96,6 +96,63 @@ namespace CityX.Tests
             Assert.IsNotNull(cape.transform.Find("CapeCloth"), "the cloth is not drawn");
         }
 
+        /// <summary>
+        /// Over a worn shirt (owner, 2026-11-25: "the shoulders on the cape still clip through and i saw some of the lower back as well"), put
+        /// on before the cape or after it: standing, nothing of the shirt comes out through the cape's yoke, collar or back.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator OverAShirtNothingOfItComesThrough([Values(true, false)] bool shirtFirst)
+        {
+            Time.captureFramerate = 60;
+            _ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            _ground.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
+            _player = Object.Instantiate(Asset("Assets/CityX/Character/Player.prefab"), new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            _player.GetComponent<PlayerInputReader>().enabled = false;
+            var shirt = Object.Instantiate(Asset("Assets/CityX/Wearables/TShirt.prefab"), new Vector3(5.0f, 0.0f, 5.0f), Quaternion.identity).GetComponent<SkinnedGarment>();
+            var cape = Object.Instantiate(Asset(CapeColourways.PrefabPath(CapeColourways.RedItemId)), new Vector3(6.0f, 0.0f, 6.0f), Quaternion.identity).GetComponent<Cape>();
+            if (shirtFirst) shirt.OnEquip(_player, ItemInstanceData.None);
+            cape.OnEquip(_player, ItemInstanceData.None);
+            if (!shirtFirst) shirt.OnEquip(_player, ItemInstanceData.None);
+            var body = _player.GetComponent<PlayerLocomotion>();
+            yield return Run(body, new LocomotionInput(), 150);
+
+            SkinnedMeshRenderer worn = _player.GetComponent<SkinnedGarmentCombiner>().GetComponentInChildren<SkinnedMeshRenderer>();
+            var baked = new Mesh();
+            worn.BakeMesh(baked, true);
+            Matrix4x4 toWorld = Matrix4x4.TRS(worn.transform.position, worn.transform.rotation, Vector3.one);
+            Vector3[] shirtPoints = baked.vertices, shirtFacing = baked.normals;
+            for (int j = 0; j < shirtPoints.Length; j++)
+            {
+                shirtPoints[j] = toWorld.MultiplyPoint3x4(shirtPoints[j]);
+                shirtFacing[j] = toWorld.MultiplyVector(shirtFacing[j]).normalized;
+            }
+            Object.Destroy(baked);
+            int through = 0;
+            var where = new System.Collections.Generic.List<string>();
+            float hips = _player.transform.position.y + BodyRig.HipY;
+            for (int i = 0; i < cape.Cloth.Position.Length; i++)
+            {
+                Vector3 p = cape.Cloth.Position[i];
+                if (p.y < hips) continue;   // below the shirt
+                float best = float.MaxValue;
+                int k = -1;
+                for (int j = 0; j < shirtPoints.Length; j++)
+                {
+                    float d = (shirtPoints[j] - p).sqrMagnitude;
+                    if (d < best) { best = d; k = j; }
+                }
+                if (Mathf.Sqrt(best) > 0.05f) continue;   // the shirt is not just under this point
+                if (Vector3.Dot(p - shirtPoints[k], shirtFacing[k]) < -0.003f)
+                {
+                    through++;
+                    if (where.Count < 6) where.Add($"{_player.transform.InverseTransformPoint(p):F3}");
+                }
+            }
+            Assert.AreEqual(0, through, $"the shirt comes out through the cape at {string.Join(", ", where)}");
+            Object.Destroy(shirt.gameObject);
+        }
+
         [UnityTest]
         public IEnumerator SprintingItStreamsOutBehindAndLifts()
         {

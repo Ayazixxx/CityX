@@ -224,17 +224,160 @@ namespace CityX.Wearables
                 }
                 if (pass < 2) SmoothYoke(fitted);
             }
-            // The falling cloth's first rows follow its top, the yoke's back edge, where it moved (the move fading out down the cloth).
+            FollowYoke(fitted, rest);
+            return fitted;
+        }
+
+        /// <summary>The falling cloth's first rows moved with its top, the yoke's back edge, where it moved from <paramref name="before"/> (the move fading out down the cloth).</summary>
+        private static void FollowYoke(Vector3[] fitted, Vector3[] before)
+        {
             for (int column = 0; column < Columns; column++)
             {
-                Vector3 moved = fitted[GridIndex(column, YokeRows - 1)] - rest[GridIndex(column, YokeRows - 1)];
+                Vector3 moved = fitted[GridIndex(column, YokeRows - 1)] - before[GridIndex(column, YokeRows - 1)];
                 for (int row = YokeRows; row < Rows; row++)
                 {
                     float t = (row - (YokeRows - 1)) / (float)HangingRows;
                     fitted[GridIndex(column, row)] += moved * (1.0f - Mathf.SmoothStep(0.0f, 1.0f, t / FallsAway));
                 }
             }
-            return fitted;
+        }
+
+        // ---- over what is worn (owner, 2026-11-25: "make cape fit over shirt without clipping"; "the shoulders on the cape still clip through
+        // ---- and i saw some of the lower back as well") ----
+
+        /// <summary>How far outside the clothes under it (a shirt, a coat) the yoke and the collar lie, metres.</summary>
+        public const float CoverGap = 0.012f;
+
+        /// <summary>How far round a point, along the body, the clothes under it are looked at.</summary>
+        public const float CoverReach = 0.06f;
+
+        /// <summary>How far above the skin clothes are looked for under a point (a hood or a fur collar can stand well out).</summary>
+        public const float CoverHeight = 0.2f;
+
+        /// <summary>
+        /// The cape fitted to the bare body (<see cref="FitToBody"/>: <paramref name="fitted"/>, with each point's nearest body point and the body's
+        /// <paramref name="normals"/>) lifted over the clothes worn on it (<paramref name="cover"/>: their points at rest, in body space): each
+        /// point of the yoke and the collar raised off the skin to <see cref="CoverGap"/> outside the highest of the clothes under it, the lifts
+        /// spread across the yoke so the cloth does not crease where a seam or a collar stands out; the falling cloth's first rows follow.
+        /// </summary>
+        public static Vector3[] FitOver(Vector3[] fitted, int[] nearest, Vector3[] normals, Vector3[] cover)
+        {
+            var lifted = (Vector3[])fitted.Clone();
+            if (cover == null || cover.Length == 0)
+            {
+                return lifted;
+            }
+            var high = new System.Collections.Generic.List<Vector3>();
+            foreach (Vector3 c in cover)
+            {
+                if (c.y > 1.5f) high.Add(c);
+            }
+            var lift = new float[fitted.Length];
+            var up = new Vector3[fitted.Length];
+            for (int i = 0; i < fitted.Length; i++)
+            {
+                if (!IsOnBody(i) || nearest[i] < 0) continue;
+                Vector3 n = normals[nearest[i]].normalized;
+                float gap = i >= GridPoints ? CollarGap : SkinGap;
+                Vector3 foot = fitted[i] - n * gap;
+                float top = float.MinValue;
+                foreach (Vector3 c in high)
+                {
+                    Vector3 d = c - foot;
+                    float h = Vector3.Dot(d, n);
+                    if (h < -0.02f || h > CoverHeight || h <= top) continue;
+                    if ((d - n * h).sqrMagnitude < CoverReach * CoverReach) top = h;
+                }
+                lift[i] = top > float.MinValue ? Mathf.Max(0.0f, top + CoverGap - gap) : 0.0f;
+                up[i] = n;
+            }
+            for (int pass = 0; pass < 2; pass++)
+            {
+                SpreadLift(lift);
+            }
+            for (int i = 0; i < fitted.Length; i++)
+            {
+                lifted[i] += up[i] * lift[i];
+            }
+            FollowYoke(lifted, fitted);
+            return lifted;
+        }
+
+        /// <summary>Each lift raised to its neighbours' mean where that is higher, across the yoke and along the collar: a lift spreads and is never lowered.</summary>
+        private static void SpreadLift(float[] lift)
+        {
+            var was = (float[])lift.Clone();
+            for (int row = 0; row < YokeRows; row++)
+            {
+                for (int column = 0; column < Columns; column++)
+                {
+                    float sum = 0.0f;
+                    int count = 0;
+                    foreach ((int c, int r) in new[] { (column - 1, row), (column + 1, row), (column, row - 1), (column, row + 1) })
+                    {
+                        if (c < 0 || c >= Columns || r < 0 || r >= YokeRows) continue;
+                        sum += was[GridIndex(c, r)];
+                        count++;
+                    }
+                    int i = GridIndex(column, row);
+                    lift[i] = Mathf.Max(was[i], sum / count);
+                }
+            }
+            for (int along = 0; along < CollarPoints; along++)
+            {
+                foreach (bool bottom in new[] { false, true })
+                {
+                    float sum = was[CollarIndex(along, !bottom)];
+                    int count = 1;
+                    if (along > 0)
+                    {
+                        sum += was[CollarIndex(along - 1, bottom)];
+                        count++;
+                    }
+                    if (along + 1 < CollarPoints)
+                    {
+                        sum += was[CollarIndex(along + 1, bottom)];
+                        count++;
+                    }
+                    int i = CollarIndex(along, bottom);
+                    lift[i] = Mathf.Max(was[i], sum / count);
+                }
+            }
+        }
+
+        /// <summary>
+        /// How far the clothes stand out from the body round the back of the torso, metres (0 for none): from the body's upright middle, how far
+        /// the clothes reach against how far the skin does, between the hips and the shoulder blades. The falling cloth is kept this much further
+        /// out from the body (it went into a shirt at the small of the back).
+        /// </summary>
+        public static float StandsOff(Vector3[] skin, Vector3[] cover)
+        {
+            if (cover == null || cover.Length == 0)
+            {
+                return 0.0f;
+            }
+            float clothes = BackReach(cover);
+            return clothes > 0.0f ? Mathf.Max(0.0f, clothes - BackReach(skin)) : 0.0f;
+        }
+
+        /// <summary>How far out from the body's upright middle points reach round the back of the torso (the 95th in a hundred), 0 for none there.</summary>
+        private static float BackReach(Vector3[] points)
+        {
+            float bottom = CityX.Character.BodyRig.HipY, top = CityX.Character.BodyRig.ShoulderY - 0.15f;
+            float side = CityX.Character.FusedBodyShape.TorsoRadius * 1.6f;
+            var reach = new System.Collections.Generic.List<float>();
+            foreach (Vector3 p in points)
+            {
+                // The back half (the body faces +z), not the arms beside it.
+                if (p.y < bottom || p.y > top || p.z > 0.0f || Mathf.Abs(p.x) > side) continue;
+                reach.Add(new Vector2(p.x, p.z).magnitude);
+            }
+            if (reach.Count == 0)
+            {
+                return 0.0f;
+            }
+            reach.Sort();
+            return reach[(int)((reach.Count - 1) * 0.95f)];
         }
 
         private static int Nearest(Vector3 p, Vector3[] skin, System.Collections.Generic.List<int> among)

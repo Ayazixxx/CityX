@@ -17,6 +17,11 @@ namespace CityX.Wearables
     /// </list>
     /// Fixed steps of <see cref="StepSeconds"/>, the same at any frame rate. Pure, so it is tested without a scene: the component
     /// (<see cref="Cape"/>) hands it the pinned points, the body and the shape to keep each frame.
+    ///
+    /// Cheap enough for a crowd (owner, 2026-11-25: "would that be a risk for performance in an mmo"): the links and tethers are worked
+    /// through as plain arrays in plain numbers (Unity's vector operators cost a call each in the editor), and the body pushes the cloth
+    /// out twice a step, halfway through the putting right and at its end (every time round, it was most of the cost), so each step still ends
+    /// with the cloth outside the body.
     /// </summary>
     public sealed class CapeCloth
     {
@@ -73,6 +78,9 @@ namespace CityX.Wearables
 
         private readonly List<Link> _links = new List<Link>();
         private readonly List<Tether> _tethers = new List<Tether>();
+        private Link[] _linkArray = System.Array.Empty<Link>();
+        private Tether[] _tetherArray = System.Array.Empty<Tether>();
+        private float[] _free = System.Array.Empty<float>();
         private readonly Vector3[] _normals;
 
         public CapeCloth(Vector3[] rest, int gridColumns, int gridRows)
@@ -131,9 +139,11 @@ namespace CityX.Wearables
 
         /// <summary>
         /// One step: <paramref name="pins"/> where the held points are now, <paramref name="shape"/> where every point is at rest on the body now
-        /// (drawn towards by <see cref="Drive"/>), the body's <paramref name="capsules"/>, the <paramref name="wind"/>, and the floor's height.
+        /// (drawn towards by <see cref="Drive"/>), the body's <paramref name="capsules"/>, the <paramref name="wind"/>, the floor's height, and how
+        /// many times the links are put right (fewer for a cape far off, CapeDetail).
         /// </summary>
-        public void Step(IReadOnlyList<(int point, Vector3 at)> pins, Vector3[] shape, IReadOnlyList<Capsule> capsules, Vector3 wind, float floor)
+        public void Step(IReadOnlyList<(int point, Vector3 at)> pins, Vector3[] shape, IReadOnlyList<Capsule> capsules, Vector3 wind, float floor,
+            int iterations = Iterations)
         {
             const float dt = StepSeconds;
             foreach ((int point, Vector3 at) in pins)
@@ -160,56 +170,79 @@ namespace CityX.Wearables
                     Position[i] += (shape[i] - Position[i]) * Drive[i];
                 }
             }
-            for (int iteration = 0; iteration < Iterations; iteration++)
+            Compile();
+            int halfway = iterations / 2 - 1;
+            for (int iteration = 0; iteration < iterations; iteration++)
             {
-                foreach (Link link in _links)
+                SolveLinks();
+                SolveTethers();
+                if (iteration == halfway || iteration == iterations - 1)
                 {
-                    Solve(link);
+                    Collide(capsules, floor);
                 }
-                foreach (Tether tether in _tethers)
-                {
-                    Vector3 apart = Position[tether.Point] - Position[tether.Anchor];
-                    float distance = apart.magnitude;
-                    if (distance > tether.Length)
-                    {
-                        Position[tether.Point] -= apart * ((distance - tether.Length) / distance);
-                    }
-                }
-                Collide(capsules, floor);
             }
         }
 
-        private void Solve(Link link)
+        /// <summary>The links and tethers as arrays, and which points move (1) or are held (0), for the putting right.</summary>
+        private void Compile()
         {
-            Vector3 apart = Position[link.B] - Position[link.A];
-            float distance = apart.magnitude;
-            if (distance < 1e-6f)
+            if (_linkArray.Length != _links.Count) _linkArray = _links.ToArray();
+            if (_tetherArray.Length != _tethers.Count) _tetherArray = _tethers.ToArray();
+            if (_free.Length != Position.Length) _free = new float[Position.Length];
+            for (int i = 0; i < Position.Length; i++)
             {
-                return;
+                _free[i] = Pinned[i] ? 0.0f : 1.0f;
             }
-            float wA = Pinned[link.A] ? 0.0f : 1.0f, wB = Pinned[link.B] ? 0.0f : 1.0f;
-            float w = wA + wB;
-            if (w <= 0.0f)
+        }
+
+        private void SolveLinks()
+        {
+            Vector3[] p = Position;
+            for (int l = 0; l < _linkArray.Length; l++)
             {
-                return;
+                Link link = _linkArray[l];
+                float wA = _free[link.A], wB = _free[link.B];
+                float w = wA + wB;
+                if (w <= 0.0f) continue;
+                Vector3 a = p[link.A], b = p[link.B];
+                float dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+                float distance = Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
+                if (distance < 1e-6f) continue;
+                float s = (distance - link.Rest) / distance * link.Stiffness / w;
+                dx *= s;
+                dy *= s;
+                dz *= s;
+                p[link.A] = new Vector3(a.x + dx * wA, a.y + dy * wA, a.z + dz * wA);
+                p[link.B] = new Vector3(b.x - dx * wB, b.y - dy * wB, b.z - dz * wB);
             }
-            Vector3 correction = apart * ((distance - link.Rest) / distance * link.Stiffness / w);
-            Position[link.A] += correction * wA;
-            Position[link.B] -= correction * wB;
+        }
+
+        private void SolveTethers()
+        {
+            Vector3[] p = Position;
+            for (int k = 0; k < _tetherArray.Length; k++)
+            {
+                Tether tether = _tetherArray[k];
+                Vector3 point = p[tether.Point], anchor = p[tether.Anchor];
+                float dx = point.x - anchor.x, dy = point.y - anchor.y, dz = point.z - anchor.z;
+                float squared = dx * dx + dy * dy + dz * dz;
+                if (squared <= tether.Length * tether.Length) continue;
+                float distance = Mathf.Sqrt(squared);
+                float s = (distance - tether.Length) / distance;
+                p[tether.Point] = new Vector3(point.x - dx * s, point.y - dy * s, point.z - dz * s);
+            }
         }
 
         private void Collide(IReadOnlyList<Capsule> capsules, float floor)
         {
+            int count = capsules != null ? capsules.Count : 0;
             for (int i = 0; i < Position.Length; i++)
             {
                 if (Pinned[i]) continue;
                 Vector3 p = Position[i];
-                if (capsules != null)
+                for (int c = 0; c < count; c++)
                 {
-                    foreach (Capsule capsule in capsules)
-                    {
-                        p = PushOut(p, capsule);
-                    }
+                    p = PushOut(p, capsules[c]);
                 }
                 if (p.y < floor) p.y = floor;
                 Position[i] = p;
@@ -219,21 +252,25 @@ namespace CityX.Wearables
         /// <summary>A point pushed out of a capsule to its surface (left where it is when outside).</summary>
         public static Vector3 PushOut(Vector3 p, Capsule capsule)
         {
-            Vector3 axis = capsule.B - capsule.A;
-            float length = axis.sqrMagnitude;
-            float t = length > 1e-8f ? Mathf.Clamp01(Vector3.Dot(p - capsule.A, axis) / length) : 0.0f;
-            Vector3 nearest = capsule.A + axis * t;
-            Vector3 out1 = p - nearest;
-            float distance = out1.magnitude;
-            if (distance >= capsule.Radius)
+            float ax = capsule.B.x - capsule.A.x, ay = capsule.B.y - capsule.A.y, az = capsule.B.z - capsule.A.z;
+            float px = p.x - capsule.A.x, py = p.y - capsule.A.y, pz = p.z - capsule.A.z;
+            float length = ax * ax + ay * ay + az * az;
+            float t = length > 1e-8f ? Mathf.Clamp01((px * ax + py * ay + pz * az) / length) : 0.0f;
+            float ox = px - ax * t, oy = py - ay * t, oz = pz - az * t;
+            float squared = ox * ox + oy * oy + oz * oz;
+            float radius = capsule.Radius;
+            if (squared >= radius * radius)
             {
                 return p;
             }
+            float nx = capsule.A.x + ax * t, ny = capsule.A.y + ay * t, nz = capsule.A.z + az * t;
+            float distance = Mathf.Sqrt(squared);
             if (distance < 1e-5f)
             {
-                return nearest + Vector3.back * capsule.Radius;   // dead centre: out behind (where a cape belongs)
+                return new Vector3(nx, ny, nz - radius);   // dead centre: out behind (where a cape belongs)
             }
-            return nearest + out1 * (capsule.Radius / distance);
+            float s = radius / distance;
+            return new Vector3(nx + ox * s, ny + oy * s, nz + oz * s);
         }
 
         /// <summary>Each grid point's facing, from its neighbours across and down.</summary>

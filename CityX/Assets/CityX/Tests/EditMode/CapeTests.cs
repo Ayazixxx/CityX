@@ -139,6 +139,64 @@ namespace CityX.Tests
             Assert.IsEmpty(folded, $"the yoke folds over itself at {string.Join(", ", folded)}");
         }
 
+        /// <summary>
+        /// Over a shirt (owner, 2026-11-25: "make cape fit over shirt without clipping"): every point of the yoke and the collar lies outside the
+        /// shirt under it, and the falling cloth is kept further out by as much as the shirt stands off the back.
+        /// </summary>
+        [TestCase("TShirt")]
+        [TestCase("LongSleeveTShirt")]
+        public void OverAShirtTheYokeLiesOutsideIt(string shirtPrefab)
+        {
+            var body = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
+            Mesh shirt = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{shirtPrefab}.prefab").GetComponent<SkinnedGarment>().GarmentMesh;
+            Vector3[] skin = body.vertices, facing = body.normals, worn = shirt.vertices, wornFacing = shirt.normals;
+            Vector3[] onSkin = CapeShape.FitToBody(CapeShape.RestPoints(), skin, facing, out int[] nearest);
+            Vector3[] over = CapeShape.FitOver(onSkin, nearest, facing, worn);
+            int lifted = 0;
+            for (int i = 0; i < over.Length; i++)
+            {
+                if (!CapeShape.IsOnBody(i)) continue;
+                if ((over[i] - onSkin[i]).sqrMagnitude > 1e-6f) lifted++;
+                float best = float.MaxValue;
+                int k = -1;
+                for (int j = 0; j < worn.Length; j++)
+                {
+                    float d = (worn[j] - over[i]).sqrMagnitude;
+                    if (d < best) { best = d; k = j; }
+                }
+                if (Mathf.Sqrt(best) > CapeShape.CoverReach) continue;   // no shirt under it here (beside the neck, under the head)
+                Assert.Greater(Vector3.Dot(over[i] - worn[k], wornFacing[k]), 0.0f, $"the yoke is inside the {shirtPrefab} at {over[i]}");
+            }
+            Assert.Greater(lifted, 0, "nothing of the yoke was lifted over the shirt");
+            float standsOff = CapeShape.StandsOff(skin, worn);
+            Assert.That(standsOff, Is.InRange(0.003f, 0.08f), "the shirt's stand off the back is not measured (or the shirt is not in the body's space)");
+            Assert.AreEqual(0.0f, CapeShape.StandsOff(skin, null));
+        }
+
+        /// <summary>
+        /// The cape's level of detail (owner: "would that be a risk for performance in an mmo. it doesnt need to be THAT good"): in full close up,
+        /// lighter further off, not worked out far away or off the screen.
+        /// </summary>
+        [Test]
+        public void FarOrUnseenTheClothIsWorkedOutLessOrNotAtAll()
+        {
+            Assert.AreEqual(CapeDetailLevel.Full, CapeDetail.For(5.0f, true));
+            Assert.AreEqual(CapeDetailLevel.Light, CapeDetail.For(30.0f, true));
+            Assert.AreEqual(CapeDetailLevel.Still, CapeDetail.For(80.0f, true));
+            Assert.AreEqual(CapeDetailLevel.Still, CapeDetail.For(5.0f, false), "a cape nobody sees is worked out");
+            Assert.Less(CapeDetail.IterationsAt(CapeDetailLevel.Light), CapeDetail.IterationsAt(CapeDetailLevel.Full));
+            Assert.AreEqual(0, CapeDetail.IterationsAt(CapeDetailLevel.Still));
+
+            // The lighter cloth still hangs without stretching (the tethers hold it).
+            CapeCloth cloth = Hanging(out Vector3[] rest);
+            List<(int, Vector3)> pins = Pins(rest);
+            for (int i = 0; i < 240; i++)
+            {
+                cloth.Step(pins, rest, null, Vector3.zero, -10.0f, CapeDetail.LightIterations);
+            }
+            Assert.Less(MostStretch(cloth, rest), 1.1f, "the lighter cloth stretches");
+        }
+
         /// <summary>The outside of the cape faces out (up on the shoulders, ahead on the collar, back down the back), so it is lit from out there.</summary>
         [Test]
         public void ItsOutsideFacesOut()
