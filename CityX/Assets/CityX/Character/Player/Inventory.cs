@@ -302,17 +302,31 @@ namespace CityX.Character
             {
                 if (!Storage[i].IsEmpty && Storage[i].ItemId == itemId)
                 {
-                    instanceData = Storage[i].InstanceData;
-                    Storage[i].Count -= count;
-                    if (Storage[i].Count <= 0)
-                    {
-                        Storage[i] = default;
-                    }
-                    return true;
+                    return RemoveFromStorageAt(i, count, out instanceData);
                 }
             }
             instanceData = ItemInstanceData.None;
             return false;
+        }
+
+        /// <summary>
+        /// The same from one bag slot: the one clicked, not the first of its kind (two T-shirts, one printed: clicking the printed one put on
+        /// the plain one, bug sweep 2026-11-25). False for an empty or missing slot.
+        /// </summary>
+        public bool RemoveFromStorageAt(int index, int count, out ItemInstanceData instanceData)
+        {
+            instanceData = ItemInstanceData.None;
+            if (index < 0 || index >= Storage.Length || Storage[index].IsEmpty)
+            {
+                return false;
+            }
+            instanceData = Storage[index].InstanceData;
+            Storage[index].Count -= count;
+            if (Storage[index].Count <= 0)
+            {
+                Storage[index] = default;
+            }
+            return true;
         }
 
         /// <summary>
@@ -580,6 +594,16 @@ namespace CityX.Character
 
         /// <summary>Raised whenever what is IN HAND or ON THE BACK changes (equip, unequip, holster, draw, a thrown bottle): another player's copy shows it.</summary>
         public event System.Action EquipmentChanged;
+
+        /// <summary>
+        /// Raised just before the bag is written to the save (CharacterIdentity.Write): whatever holds one of this bag's things for a moment
+        /// (a heat press with a shirt in it) puts it back first, or the save is written without it (bug sweep 2026-11-25: quitting during a
+        /// pressing lost the shirt for good).
+        /// </summary>
+        public event System.Action Saving;
+
+        /// <summary>Tells whatever holds this bag's things that it is about to be saved (<see cref="Saving"/>).</summary>
+        public void AboutToSave() => Saving?.Invoke();
 
         private void NotifyEquipmentChanged()
         {

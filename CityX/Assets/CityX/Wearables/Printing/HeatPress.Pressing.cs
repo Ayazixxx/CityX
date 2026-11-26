@@ -97,6 +97,7 @@ namespace CityX.Wearables
             }
             _job = new Job { Inventory = inventory, ItemId = itemId, WasWorn = !string.IsNullOrEmpty(wornSlot), Data = data };
             _givenBack = false;
+            inventory.Saving += GiveBack;   // saved mid-pressing (quit to the title, the game closed): the shirt goes back in first, printed
             ShowPressing(itemId, data.DesignId, designId, inventory.PrefabForItem(itemId));
             HeatPressNetwork.TellPressing(this, itemId, data.DesignId, designId);
             return true;
@@ -146,6 +147,10 @@ namespace CityX.Wearables
             _givenBack = true;
             Job job = _job;
             _job = null;
+            if (job.Inventory != null)
+            {
+                job.Inventory.Saving -= GiveBack;
+            }
             ItemInstanceData data = job.Data;
             data.DesignId = _newDesign;
             bool back = job.Inventory != null

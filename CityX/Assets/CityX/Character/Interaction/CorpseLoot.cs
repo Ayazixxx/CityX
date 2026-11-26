@@ -27,7 +27,7 @@ namespace CityX.Character
         private readonly HashSet<string> _gone = new HashSet<string>();
 
         /// <summary>Who on this machine asked the server for a piece: it goes into that inventory when the server says it is theirs.</summary>
-        private readonly Dictionary<string, Inventory> _asked = new Dictionary<string, Inventory>();
+        private readonly LootAsks _asked = new LootAsks();
 
         private void Awake()
         {
@@ -126,7 +126,7 @@ namespace CityX.Character
             }
             if (Relay != null && Relay.IsShared)
             {
-                _asked[itemId] = looter;
+                _asked.Ask(itemId, looter);
                 Relay.AskToTake(itemId);
                 return false;
             }
@@ -148,11 +148,14 @@ namespace CityX.Character
             {
                 return;
             }
-            if (byThisMachine && _asked.TryGetValue(itemId, out Inventory into) && into != null)
+            if (byThisMachine)
             {
-                into.PickUp(itemId);
+                Inventory into = _asked.Answer(itemId);
+                if (into != null)
+                {
+                    into.PickUp(itemId);
+                }
             }
-            _asked.Remove(itemId);
             if (Container != null)
             {
                 Container.Items.Remove(itemId);

@@ -78,6 +78,20 @@ namespace CityX.Tests
             Assert.AreEqual(ItemRegistry.HoodedCloak, _inventory.Storage[0].ItemId);
         }
 
+        /// <summary>Two T-shirts in the bag, the second printed: taking from the second slot takes the printed one (bug sweep 2026-11-25).</summary>
+        [Test]
+        public void TakingFromASlotTakesThatSlotsItemNotTheFirstOfItsKind()
+        {
+            _inventory.AddItem(ItemRegistry.TShirt, 1);
+            _inventory.AddItem(ItemRegistry.TShirt, 1, new ItemInstanceData { DesignId = "0123456789abcdef0123456789abcdef" });
+            int printed = System.Array.FindIndex(_inventory.Storage, s => s.InstanceData.DesignId != null);
+            Assert.Greater(printed, 0, "the printed shirt did not go in a slot of its own");
+            Assert.IsTrue(_inventory.RemoveFromStorageAt(printed, 1, out ItemInstanceData taken));
+            Assert.AreEqual("0123456789abcdef0123456789abcdef", taken.DesignId, "the slot clicked gave another shirt");
+            Assert.IsFalse(_inventory.Storage[0].IsEmpty, "the plain shirt went instead");
+            Assert.IsFalse(_inventory.RemoveFromStorageAt(printed, 1, out _), "an emptied slot gave something");
+        }
+
         [Test]
         public void TwoAddsOfTheSamePlainItemStackIntoOneSlot()
         {

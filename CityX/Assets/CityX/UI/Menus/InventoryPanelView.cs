@@ -206,7 +206,7 @@ namespace CityX.UI
                 return;
             }
 
-            if (!Inventory.RemoveFromStorage(slot.ItemId, 1, out ItemInstanceData instanceData))
+            if (!Inventory.RemoveFromStorageAt(index, 1, out ItemInstanceData instanceData))
             {
                 return;
             }

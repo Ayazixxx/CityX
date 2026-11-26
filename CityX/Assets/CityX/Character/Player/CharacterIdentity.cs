@@ -362,6 +362,7 @@ namespace CityX.Character
             // Only once the saved bag is on the body (Dress): before, the body's empty hands would be written over what the character carries.
             if (_inventory != null && _dressed)
             {
+                _inventory.AboutToSave();
                 _character.Wearing = _inventory.WornClothingIds();
                 _character.PrimaryWeapon = _inventory.EquippedItemId(Inventory.PrimarySlot);
                 _character.Bag = _inventory.ToBag();

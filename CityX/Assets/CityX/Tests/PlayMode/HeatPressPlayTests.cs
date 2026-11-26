@@ -126,6 +126,29 @@ namespace CityX.Tests
             CollectionAssert.Contains(inventory.VisibleItemIds(), ItemRegistry.TShirt + Inventory.DesignMark + shirt.DesignId, "other players are not told the design");
         }
 
+        /// <summary>
+        /// Saved while the shirt is in the press (quit to the title, the game closed: bug sweep 2026-11-25), the shirt goes back into the bag
+        /// first, printed, and the save has it; the press's own give-back later does not make a second.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SavedMidPressingTheShirtIsInTheSave()
+        {
+            (Inventory inventory, HeatPress press, HeatPressView view) = Make();
+            Assert.IsTrue(inventory.AddItem(ItemRegistry.BlackTShirt, 1));
+            yield return null;
+            view.Open(press, _player);
+            Draw(view);
+            Assert.IsTrue(view.PressIt(), view.Status);
+            Assert.IsFalse(inventory.HasItem(ItemRegistry.BlackTShirt));
+            yield return null;
+            inventory.AboutToSave();
+            BagEntry saved =inventory.ToBag().Find(entry => entry.ItemId == ItemRegistry.BlackTShirt);
+            Assert.IsNotNull(saved, "saved mid-pressing, the shirt is not in the save");
+            Assert.IsTrue(DesignStore.IsValidId(saved.DesignId), "saved mid-pressing, the shirt lost its print");
+            yield return ThroughThePress();
+            Assert.AreEqual(1, System.Array.FindAll(inventory.Storage, s => s.ItemId == ItemRegistry.BlackTShirt).Length, "the press gave it back twice");
+        }
+
         [UnityTest]
         public IEnumerator ACarriedShirtGoesBackIntoTheBagPrinted()
         {
