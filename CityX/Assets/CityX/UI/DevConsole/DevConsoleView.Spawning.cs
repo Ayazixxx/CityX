@@ -198,6 +198,16 @@ namespace CityX.UI
                     SpawnLog("spawned Crazy Guy -- a kitchen knife and no guard: he comes in fast and works round to your back. Don't turn it to him");
                     return true;
 
+                case "squirrelboy":
+                    if (SquirrelBoyPrefab == null)
+                    {
+                        Log("no squirrel boy prefab wired");
+                        return false;
+                    }
+                    PutDown("squirrelboy", SquirrelBoyPrefab, origin.position + origin.forward * SwordsmanSpawnDistance + offset, facing);
+                    SpawnLog("spawned Squirrel Boy -- he leaves you alone until you hit him; then fists, and badly hurt he runs up the nearest wall");
+                    return true;
+
                 case HoboKinds.Any:
                 case "hobopole":
                 case "hobobottle":

@@ -2342,7 +2342,7 @@ GameObject:
   - component: {fileID: 7345704671556231043}
   - component: {fileID: 4940644607575994803}
   - component: {fileID: 6945190225208994686}
-  - component: {fileID: 4107658671040448311}
+  - component: {fileID: 5194095708712390133}
   m_Layer: 0
   m_Name: Hobo_3_Chain
   m_TagString: Untagged
@@ -2675,7 +2675,7 @@ MonoBehaviour:
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &4107658671040448311
+--- !u!114 &5194095708712390133
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

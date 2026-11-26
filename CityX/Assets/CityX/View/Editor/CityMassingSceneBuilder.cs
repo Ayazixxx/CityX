@@ -377,6 +377,9 @@ namespace CityX.ViewEditor
             GameObject swordsmanPrefab = CityX.WeaponsEditor.SwordsmanBuilder.Build();
             // --- Crazy Guy (2026-11-16): the swordsman's make in the owner's guycrazy, with the kitchen knife; /spawn crazyguy.
             WearTheLooksHair(CityX.WeaponsEditor.CrazyGuyBuilder.Build(), CityX.WeaponsEditor.CrazyGuyBuilder.LookPath);
+            // --- Squirrel Boy (2026-11-25, docs/SQUIRREL_BOY.md): the owner's squirrel boy in his outfit, fists, up a wall when hurt; /spawn
+            // --- squirrelboy.
+            WearTheLooksHair(CityX.WeaponsEditor.SquirrelBoyBuilder.Build(), CityX.WeaponsEditor.SquirrelBoyBuilder.LookPath);
             // --- the hobos (2026-11-24, docs/HOBO.md): the owner's two hobo characters, each with each of the four weapons; /spawn hobo, and
             // --- in the streets (MobSpawner).
             GameObject[] hoboPrefabs = CityX.WeaponsEditor.HoboBuilder.BuildAll();

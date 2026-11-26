@@ -73,6 +73,9 @@ namespace CityX.UI
         [Tooltip("What /spawn crazyguy puts down -- Crazy Guy: the owner's guycrazy with a kitchen knife, fast, no guard, after your back.")]
         public GameObject CrazyGuyPrefab;
 
+        [Tooltip("What /spawn squirrelboy puts down -- Squirrel Boy: the owner's squirrel boy, calm until struck, then fists; badly hurt, up a wall.")]
+        public GameObject SquirrelBoyPrefab;
+
         [Tooltip("What /spawn hobo puts down, in HoboKinds.All's order: the owner's two hobos, each with each weapon (docs/HOBO.md).")]
         public GameObject[] HoboPrefabs = new GameObject[0];
 

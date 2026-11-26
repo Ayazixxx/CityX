@@ -123,7 +123,7 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>The character's clothes as item prefabs (each as an Inventory would show it), then the extras.</summary>
-        private static GameObject[] Wearing(CharacterSave look, string[] extraPaths)
+        internal static GameObject[] Wearing(CharacterSave look, string[] extraPaths)
         {
             var worn = new List<GameObject>();
             if (look?.Wearing != null)
@@ -157,7 +157,7 @@ namespace CityX.WeaponsEditor
         /// The character's paint on the body, as CharacterIdentity.Apply puts it on the player, baked into a material asset. Compressed (DXT1,
         /// an eighth of the raw size): he is only ever worn, never painted. Null when the character has no paint.
         /// </summary>
-        private static Material PaintedSkin(CharacterSave look, string materialName)
+        internal static Material PaintedSkin(CharacterSave look, string materialName)
         {
             byte[] painted = look.GetPaint();
             var paint = new BodyPaint(look.Skin);

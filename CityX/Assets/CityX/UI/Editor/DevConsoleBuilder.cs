@@ -102,6 +102,7 @@ namespace CityX.UIEditor
             view.ShootaPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Shoota.prefab");
             view.SwordsmanPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Swordsman.prefab");
             view.CrazyGuyPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/CrazyGuy.prefab");
+            view.SquirrelBoyPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(CityX.WeaponsEditor.SquirrelBoyBuilder.PrefabPath);
             view.HoboPrefabs = System.Array.ConvertAll(CityX.Character.HoboKinds.All, kind =>
             {
                 int at = System.Array.IndexOf(CityX.Character.HoboKinds.All, kind);
