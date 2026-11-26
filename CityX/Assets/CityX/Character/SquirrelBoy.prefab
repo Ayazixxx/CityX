@@ -1974,8 +1974,10 @@ GameObject:
   - component: {fileID: 3540711558171939739}
   - component: {fileID: 6262010884467126755}
   - component: {fileID: 7265082556599839901}
+  - component: {fileID: 4730747669171613795}
+  - component: {fileID: 8128505981948085362}
   - component: {fileID: 3819119024568931886}
-  - component: {fileID: 534808030641655957}
+  - component: {fileID: 3818265821123649785}
   m_Layer: 0
   m_Name: SquirrelBoy
   m_TagString: Untagged
@@ -2269,6 +2271,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4c8710201c99894490faa12c5152593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.Chill
+--- !u!114 &4730747669171613795
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7029187988720023226}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5a3ce4ef3dccb64aa18bf7262d8ed21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.ClawTrail
+--- !u!114 &8128505981948085362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7029187988720023226}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 992e33bc500668b4ea1ff771f556c35d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.ClawSwipe
+  SlashMaterial: {fileID: 2100000, guid: b1d4acb9e6f1031448a8777c223b846b, type: 2}
+  SparkMaterial: {fileID: 2100000, guid: eaa97b0387a31754b9e0a36f98cc2673, type: 2}
 --- !u!114 &3819119024568931886
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2290,7 +2318,7 @@ MonoBehaviour:
   - {fileID: 3717271276691646498, guid: f0b4700e8a9d5314bbe35feb52b50c30, type: 3}
   ShirtDesign: {fileID: 4900000, guid: 24f9e79cfb2a82b47b17291b13c983fc, type: 3}
   XpReward: 80
---- !u!114 &534808030641655957
+--- !u!114 &3818265821123649785
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

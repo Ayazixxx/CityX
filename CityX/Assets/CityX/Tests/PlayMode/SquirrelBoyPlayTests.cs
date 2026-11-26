@@ -113,6 +113,69 @@ namespace CityX.Tests
             Assert.IsNull(squirrel.GetComponentInChildren<SwordWeapon>(), "he fights with a weapon");
         }
 
+        /// <summary>
+        /// In a fight he now and then swipes with his claws (owner, 2026-11-25): the Wraith's punch on his upper body, three streaks of light
+        /// behind the claws, a cut on the player in front; and a copy of him on another screen swipes and streaks too, cutting nothing.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator InAFightHeClawsWithThreeStreaksAndACopyOfHimShowsIt()
+        {
+            (SquirrelBoyBrain squirrel, PlayerLocomotion player) = Stage();
+            player.GetComponent<PlayerVitals>().InfiniteHealth = true;   // a long fight
+            var claw = squirrel.GetComponent<ClawSwipe>();
+            Assert.IsNotNull(claw, "he has no claws");
+            Assert.IsNotNull(claw.SlashMaterial, "his claws have nothing to draw their streaks in");
+            Assert.IsNotNull(claw.SparkMaterial, "the sparks off his claws have nothing to be drawn in");
+
+            GameObject copyBody = Object.Instantiate(Asset("Assets/CityX/Character/SquirrelBoy.prefab"), new Vector3(30.0f, 0.05f, 0.0f), Quaternion.identity);
+            _made.Add(copyBody);
+            copyBody.GetComponent<SquirrelBoyBrain>().enabled = false;   // another screen's copy: only shown what he does
+            var copyDriver = copyBody.GetComponent<PlayerAnimationDriver>();
+            squirrel.GetComponent<PlayerAnimationDriver>().TimedStatePlayed += (state, speed, start) => copyDriver.PlayRemoteState(state, speed, start);
+            var copyClaw = copyBody.GetComponent<ClawSwipe>();
+
+            squirrel.GetComponent<PlayerVitals>().TakeDamage(5.0f);
+            int mostStreaks = 0, mostCopyStreaks = 0;
+            bool copySwiped = false;
+            for (int i = 0; i < 60 * 30 && claw.Cuts == 0; i++)
+            {
+                yield return Run(player, 1);
+                mostStreaks = Mathf.Max(mostStreaks, claw.Trail.Streaks);
+                mostCopyStreaks = Mathf.Max(mostCopyStreaks, copyClaw.Trail.Streaks);
+                copySwiped |= copyClaw.IsActive;
+            }
+            Assert.Greater(claw.Cuts, 0, "in thirty seconds of fighting he never cut the player with his claws");
+            var sparkSystem = claw.Trail.GetComponentInChildren<ParticleSystem>();
+            var sparks = new ParticleSystem.Particle[64];
+            bool sparksChecked = false;
+            for (int i = 0; i < 60 && claw.IsActive; i++)
+            {
+                yield return Run(player, 1);
+                mostStreaks = Mathf.Max(mostStreaks, claw.Trail.Streaks);
+                mostCopyStreaks = Mathf.Max(mostCopyStreaks, copyClaw.Trail.Streaks);
+                int flying = sparkSystem != null ? sparkSystem.GetParticles(sparks) : 0;
+                if (flying > 0 && !sparksChecked && claw.Trail.IsShowing)
+                {
+                    sparksChecked = true;
+                    Bounds slashes = claw.Trail.Extent;
+                    slashes.Expand(0.3f);
+                    for (int s = 0; s < flying; s++)
+                    {
+                        Assert.IsTrue(slashes.Contains(sparks[s].position),
+                            $"a spark at {sparks[s].position} is off the slashes ({claw.Trail.Extent.center}, size {claw.Trail.Extent.size})");
+                    }
+                }
+            }
+            Assert.IsTrue(sparksChecked, "no sparks came off the slashes");
+            Assert.AreEqual(ClawTrail.Claws, mostStreaks, "the swipe did not draw three streaks");
+            Assert.IsTrue(copySwiped, "the copy of him on another screen did not swipe");
+            Assert.AreEqual(ClawTrail.Claws, mostCopyStreaks, "the copy's swipe did not draw three streaks");
+            Assert.AreEqual(0, copyClaw.Cuts, "the copy cut too: the blow would land twice");
+
+            yield return Run(player, (int)((ClawTrail.FadeSeconds + 0.3f) * 60));
+            Assert.IsFalse(claw.Trail.IsShowing, "the streaks never faded");
+        }
+
         [UnityTest]
         public IEnumerator BadlyHurtHeRunsToTheWallAndClimbsIt()
         {

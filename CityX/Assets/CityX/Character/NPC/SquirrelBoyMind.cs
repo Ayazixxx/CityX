@@ -24,8 +24,10 @@ namespace CityX.Character
     /// crawl up walls and will run away and crawl up a wall when low health"; docs/SQUIRREL_BOY.md). Pure, so it is tested without a scene: the
     /// body (SquirrelBoyBrain) tells it what it senses each frame and does what it decides.
     /// <list type="bullet">
-    /// <item>Calm until struck; struck, he fights whoever is nearest, with his fists: he closes in (running when far), then throws a combo of
-    /// two to four punches, now and then a heavy one, and pauses before the next.</item>
+    /// <item>Calm until struck; struck, he fights whoever hit him, with his fists: he closes in (running when far), then throws a combo of
+    /// two to four punches, now and then a heavy one, and pauses before the next. Now and then a combo ends with a claw swipe (owner,
+    /// 2026-11-25: "give squirrel boy a claw attack ... you decide how often"): about one combo in three, never twice within
+    /// <see cref="ClawCooldownSeconds"/>.</item>
     /// <item>Below <see cref="FleeBelowHealth"/> of his health he runs for the nearest wall he can climb (or straight away from his foe when
     /// there is none) and goes up it; at the top he stays, out of reach. Followed up there, he runs again.</item>
     /// </list>
@@ -50,6 +52,10 @@ namespace CityX.Character
         public const float BetweenPunches = 0.35f;
         public const float PauseAfterCombo = 0.9f;
 
+        /// <summary>The share of combos that end with a claw swipe, and the least time between two swipes, seconds.</summary>
+        public const float ClawShare = 0.35f;
+        public const float ClawCooldownSeconds = 5.0f;
+
         /// <summary>Within this of the wall he runs into it to climb, metres (PlayerClimbing starts on a wall right ahead).</summary>
         public const float AtTheWallMetres = 1.2f;
 
@@ -73,6 +79,9 @@ namespace CityX.Character
             /// <summary>A punch is still going (the next waits for it).</summary>
             public bool Punching;
 
+            /// <summary>A claw swipe is still going.</summary>
+            public bool Clawing;
+
             public bool Climbing;
 
             /// <summary>He has climbed up and off the top of a wall (topped out) since he started fleeing.</summary>
@@ -92,6 +101,9 @@ namespace CityX.Character
             public bool Punch;
             public bool Heavy;
 
+            /// <summary>A claw swipe now (ClawSwipe), ending a combo.</summary>
+            public bool Claw;
+
             /// <summary>Into the wall at a run, to start climbing it (PlayerClimbing.TryStartAuto).</summary>
             public bool StartClimb;
 
@@ -104,6 +116,9 @@ namespace CityX.Character
         private readonly System.Random _random;
         private int _punchesLeft;
         private float _wait;
+        private float _clawIn;
+        private bool _comboEndsWithClaw;
+        private bool _clawNext;
 
         public SquirrelBoyMind(int seed = 1)
         {
@@ -113,6 +128,7 @@ namespace CityX.Character
         public Intent Tick(Senses senses, float deltaTime)
         {
             _wait -= deltaTime;
+            _clawIn -= deltaTime;
             Decide(senses);
             if (senses.Helpless)
             {
@@ -186,21 +202,43 @@ namespace CityX.Character
             if (senses.FoeDistance > PunchWithinMetres)
             {
                 _punchesLeft = 0;
+                _clawNext = false;
                 return new Intent { Goal = Goal.Foe, Run = senses.FoeDistance > RunBeyondMetres };
             }
             var intent = new Intent { Goal = Goal.Stay };
-            if (senses.Punching || _wait > 0.0f)
+            if (senses.Punching || senses.Clawing || _wait > 0.0f)
             {
+                return intent;
+            }
+            if (_clawNext)
+            {
+                _clawNext = false;
+                intent.Claw = true;
+                _clawIn = ClawCooldownSeconds;
+                _wait = PauseAfterCombo;
                 return intent;
             }
             if (_punchesLeft <= 0)
             {
                 _punchesLeft = _random.Next(FewestPunches, MostPunches + 1);
+                _comboEndsWithClaw = _clawIn <= 0.0f && _random.NextDouble() < ClawShare;
             }
             _punchesLeft--;
             intent.Punch = true;
             intent.Heavy = _random.NextDouble() < HeavyShare;
-            _wait = _punchesLeft > 0 ? BetweenPunches : PauseAfterCombo;
+            if (_punchesLeft > 0)
+            {
+                _wait = BetweenPunches;
+            }
+            else if (_comboEndsWithClaw)
+            {
+                _clawNext = true;   // the swipe after the last punch, as quickly as a punch follows a punch
+                _wait = BetweenPunches;
+            }
+            else
+            {
+                _wait = PauseAfterCombo;
+            }
             return intent;
         }
     }

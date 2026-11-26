@@ -359,6 +359,12 @@ namespace CityX.Character
         /// <summary>The giant this body is a copy of came down from its leap (<see cref="GroundSlamName"/>, from the network): the copy's ground heaves.</summary>
         public event System.Action RemoteSlammed;
 
+        /// <summary>The name a claw swipe is announced by (ClawSwipe: Squirrel Boy's), so every other player's copy swipes and streaks too.</summary>
+        public const string ClawSwipeName = "claw_swipe";
+
+        /// <summary>The body this is a copy of swiped with its claws (<see cref="ClawSwipeName"/>, from the network).</summary>
+        public event System.Action RemoteClawSwiped;
+
         /// <summary>The name an enemy taking his weapon out is announced by (a hobo: SwordsmanBrain.CalmArmedShare), so every copy of him holds it too.</summary>
         public const string WeaponDrawnName = "weapon_drawn";
 
@@ -510,6 +516,11 @@ namespace CityX.Character
             if (stateName == WeaponDrawnName)
             {
                 RemoteWeaponDrawn?.Invoke();
+                return;
+            }
+            if (stateName == ClawSwipeName)
+            {
+                RemoteClawSwiped?.Invoke();
                 return;
             }
             if (HitImpactEffects.TryParse(stateName, out HitDirection woundDirection, out bool woundHeavy))

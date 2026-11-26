@@ -38,6 +38,10 @@ namespace CityX.WeaponsEditor
                 CharacterSave look = DuelistBuilder.Look(LookPath);
                 Material skin = look != null ? DuelistBuilder.PaintedSkin(look, "SquirrelBoySkin") : null;
                 EnemyBody.Reskin(root, skin != null ? skin : CharacterSkin.Ensure("SquirrelBoySkin", FallbackSkin));
+                root.AddComponent<ClawTrail>();
+                var claws = root.AddComponent<ClawSwipe>();   // his claws (owner, 2026-11-25)
+                claws.SlashMaterial = ClawSlashMaterialBuilder.Ensure();
+                claws.SparkMaterial = ClawSlashMaterialBuilder.EnsureSpark();
                 var brain = root.AddComponent<SquirrelBoyBrain>();
                 brain.Wearing = DuelistBuilder.Wearing(look, new string[0]);
                 brain.ShirtDesign = AssetDatabase.LoadAssetAtPath<TextAsset>(ShirtDesignPath);

@@ -2154,7 +2154,7 @@ GameObject:
   - component: {fileID: 6048504705136178754}
   - component: {fileID: 7253286707599332104}
   - component: {fileID: 7779160357327782843}
-  - component: {fileID: 4496924206936584858}
+  - component: {fileID: 4318891644408297672}
   m_Layer: 0
   m_Name: Hobo_1_Bottle
   m_TagString: Untagged
@@ -2522,7 +2522,7 @@ MonoBehaviour:
   - {fileID: 8185852258123393053, guid: 899fd4895c807d049a2d3eade3ff29d4, type: 3}
   - {fileID: 8343226988097854766, guid: 55eb22987f2a36948833f8d4742cb379, type: 3}
   - {fileID: 3681511651364361429, guid: b805037809474b244835eeb8e2979de1, type: 3}
---- !u!114 &4496924206936584858
+--- !u!114 &4318891644408297672
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

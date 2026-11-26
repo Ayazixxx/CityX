@@ -66,6 +66,42 @@ namespace CityX.Tests
                 "he throws a punch before the last one is done");
         }
 
+        /// <summary>
+        /// Now and then a combo ends with a claw swipe (owner, 2026-11-25: "you decide how often"): about a third of them, the swipe right after
+        /// the combo's last punch, never two within the cooldown, and never while a punch or a swipe is still going.
+        /// </summary>
+        [Test]
+        public void NowAndThenACombosEndsWithAClawSwipeNeverTwiceWithinTheCooldown()
+        {
+            var mind = new SquirrelBoyMind(11);
+            int claws = 0, sinceLastPunch = int.MaxValue;
+            float lastClaw = float.NegativeInfinity, clock = 0.0f;
+            for (int i = 0; i < 60 * 120; i++, clock += Dt)
+            {
+                SquirrelBoyMind.Intent intent = mind.Tick(Near(1.5f, true), Dt);
+                sinceLastPunch = intent.Punch ? 0 : sinceLastPunch == int.MaxValue ? int.MaxValue : sinceLastPunch + 1;
+                if (intent.Claw)
+                {
+                    claws++;
+                    Assert.IsFalse(intent.Punch, "a punch and a swipe at once");
+                    Assert.GreaterOrEqual(clock - lastClaw, SquirrelBoyMind.ClawCooldownSeconds - Dt, "two swipes within the cooldown");
+                    Assert.LessOrEqual(sinceLastPunch, (int)(SquirrelBoyMind.BetweenPunches * 60) + 2, "the swipe did not follow a combo's last punch");
+                    lastClaw = clock;
+                }
+            }
+            Assert.Greater(claws, 5, "in two minutes of fighting he hardly ever clawed");
+            Assert.Less(claws, 120 / (int)SquirrelBoyMind.ClawCooldownSeconds + 1, "he clawed more often than the cooldown lets him");
+
+            var busy = new SquirrelBoyMind(11);
+            SquirrelBoyMind.Senses clawing = Near(1.5f, true);
+            clawing.Clawing = true;
+            for (int i = 0; i < 120; i++)
+            {
+                SquirrelBoyMind.Intent intent = busy.Tick(clawing, Dt);
+                Assert.IsFalse(intent.Punch || intent.Claw, "mid swipe he started something else");
+            }
+        }
+
         [Test]
         public void BadlyHurtHeRunsForAWallClimbsItAndStaysUpUntilFollowed()
         {

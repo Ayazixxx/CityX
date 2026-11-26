@@ -2159,7 +2159,7 @@ GameObject:
   - component: {fileID: 6465630482791781524}
   - component: {fileID: 497344477595463450}
   - component: {fileID: 6586042396692067366}
-  - component: {fileID: 857756487316969796}
+  - component: {fileID: 2149348714897440026}
   m_Layer: 0
   m_Name: Hobo_1_Pole
   m_TagString: Untagged
@@ -2492,7 +2492,7 @@ MonoBehaviour:
   Style: 0
   XpReward: 40
   Seed: 0
---- !u!114 &857756487316969796
+--- !u!114 &2149348714897440026
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

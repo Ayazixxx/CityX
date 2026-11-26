@@ -48,6 +48,37 @@ namespace CityX.Tests
             Vector3 face = squirrel.transform.position + Vector3.up * 2.35f;
             BuildingShapeCapture.Shoot(camera, folder, "squirrelboy-face", face + new Vector3(0.0f, 0.1f, 2.2f), face);
 
+            // The claw swipe (owner, 2026-11-25), frame by frame through the swing: from the front-left, from his side, and once against the
+            // dark as the owner's picture has it.
+            var claw = squirrel.GetComponent<ClawSwipe>();
+            float[] moments = { 0.38f, 0.44f, 0.5f, 0.54f, 0.65f };
+            foreach ((string view, Vector3 eye) in new[]
+                     {
+                         ("front", new Vector3(-2.2f, 2.0f, 3.6f)), ("side", new Vector3(-4.2f, 1.8f, 0.4f)), ("dark", new Vector3(-2.2f, 2.0f, 3.6f)),
+                     })
+            {
+                bool dark = view == "dark";
+                camera.backgroundColor = dark ? new Color(0.13f, 0.13f, 0.17f) : new Color(0.62f, 0.68f, 0.76f);
+                sun.intensity = dark ? 0.25f : 1.3f;
+                ground.SetActive(!dark);
+                for (int i = 0; i < 90; i++) yield return null;   // the last swipe's light gone
+                Assert.IsTrue(claw.TryStart(), "he would not swipe");
+                int taken = 0;
+                while (claw.IsActive && taken < moments.Length)
+                {
+                    yield return null;
+                    if (claw.Elapsed >= moments[taken])
+                    {
+                        Vector3 middle = squirrel.transform.position + Vector3.up * 1.6f;
+                        BuildingShapeCapture.Shoot(camera, folder, $"squirrelboy-claw-{view}-{taken}", middle + eye, middle);
+                        taken++;
+                    }
+                }
+            }
+            camera.backgroundColor = new Color(0.62f, 0.68f, 0.76f);
+            sun.intensity = 1.3f;
+            ground.SetActive(true);
+
             GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                 new Vector3(0.0f, 0.05f, -2.0f), Quaternion.identity);
             player.GetComponent<PlayerInputReader>().enabled = false;

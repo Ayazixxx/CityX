@@ -14,7 +14,8 @@ namespace CityX.Weapons
     ///
     /// What he does is SquirrelBoyMind's; this body does it with the player's own moves: the player's fists (MeleeAttacker), the player's
     /// walk and run (PlayerLocomotion), and the player's climb (PlayerClimbing: run into a wall and he goes up it, hand over hand, and over the
-    /// top). He never tires on a wall. In a session the machine that brought him in runs him (NetworkedEnemy) and everyone sees him.
+    /// top); and his own claw swipe (ClawSwipe: the Wraith's punch, three streaks of light). He never tires on a wall. In a session the machine
+    /// that brought him in runs him (NetworkedEnemy) and everyone sees him.
     /// </summary>
     public sealed class SquirrelBoyBrain : MonoBehaviour, IHostile
     {
@@ -71,6 +72,7 @@ namespace CityX.Weapons
         private PlayerVitals _vitals;
         private Ragdoll _ragdoll;
         private MeleeAttacker _fists;
+        private ClawSwipe _claw;
         private PlayerClimbing _climbing;
         private IOpponent _foe;
         private float _nextFoeSearch;
@@ -89,6 +91,7 @@ namespace CityX.Weapons
             _vitals = GetComponent<PlayerVitals>();
             _ragdoll = GetComponent<Ragdoll>();
             _fists = GetComponent<MeleeAttacker>();
+            _claw = GetComponent<ClawSwipe>();
             _climbing = GetComponent<PlayerClimbing>();
             _yaw = transform.eulerAngles.y;
             if (_vitals != null)
@@ -209,6 +212,7 @@ namespace CityX.Weapons
                 Health = _vitals.MaxHealth > 0.0f ? _vitals.Health / _vitals.MaxHealth : 0.0f,
                 Helpless = _vitals.IsStunned,
                 Punching = _fists != null && _fists.IsSwinging,
+                Clawing = _claw != null && _claw.IsActive,
                 Climbing = climbing,
                 ClimbedOver = _climbedOver,
                 HasWall = _hasWall,
@@ -269,6 +273,10 @@ namespace CityX.Weapons
                 {
                     _fists.TryAttack(intent.Heavy);
                 }
+            }
+            if (intent.Claw && _claw != null)
+            {
+                _claw.TryStart();
             }
         }
 
