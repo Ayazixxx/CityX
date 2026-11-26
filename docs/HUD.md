@@ -93,6 +93,10 @@ as well but keep the same idea".
   third-person camera's aim past the shoulder fades out as it goes. It sets off and stops softly (smootherstep, `Smooth`), and the further
   round it goes the longer it takes, at an even pace: 0.25 s plus 1 s for a whole turn, so from straight behind (half a turn) 0.75 s, at most
   1.25 s (`SpinSeconds`, `PlayerMenuCamera.EaseSeconds`).
+- **No needless spin** (owner, 2026-11-26: "make it so the c menu doesnt spin around if you are already looking at the front of your
+  character ... no unnecessary spins"): clockwise as a rule, but with the camera already in front of the player and past the shot (within
+  90 degrees the other way, `ShortWayBackDegrees`), it slides the short way back to it instead of going most of a turn round; on the shot
+  already it does not turn (`PlayerMenuCameraMath.TurnDegrees`; `PlayerMenuSpinTests.AlreadyInFront...`).
 - **The icons**: the same eight pictures, drawn finer (128 pixels at 16 samples each, was 64 at 9): the exclamation, a person (a round head
   with a gap above the shoulders), two people, a map pin (a teardrop with a hole), the vest, the chart, the star, the bag. They are drawn when
   the menu wakes (`MenuIconImage`, all at once in `PlayerMenuView.Awake`, the fly-out's hidden ones too, so the first press of C does not

@@ -65,6 +65,43 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// Already looking at the player's front, a little the other side of the menu's shot, the camera slides the short way to it rather than
+        /// going nearly all the way round (owner, 2026-11-26: "make it so the c menu doesnt spin around if you are already looking at the front
+        /// of your character ... no unnecessary spins"); on the shot already, it does not turn at all.
+        /// </summary>
+        [Test]
+        public void AlreadyInFrontTheCameraGoesTheShortWayAndOnTheShotItDoesNotTurn()
+        {
+            foreach (float facing in new[] { 0.0f, 120.0f, 250.0f })
+            {
+                Vector3 forward = Quaternion.Euler(0.0f, facing, 0.0f) * Vector3.forward;
+                Vector3 to = PlayerMenuCameraMath.CameraPosition(Player, forward);
+                Quaternion toRotation = PlayerMenuCameraMath.CameraRotation(forward);
+                foreach (float off in new[] { 25.0f, 80.0f })
+                {
+                    // In front, `off` degrees past the shot clockwise (seen from above): clockwise it is most of a turn round. A little nearer,
+                    // looking at the player.
+                    Vector3 from = Player + Quaternion.Euler(0.0f, off, 0.0f) * (to - Player) * 0.9f;
+                    Quaternion fromRotation = Quaternion.LookRotation(Player + Vector3.up * 1.6f - from, Vector3.up);
+                    float turn = PlayerMenuCameraMath.TurnDegrees(Player, from, to);
+                    Assert.AreEqual(off, -turn, 0.5f, $"facing {facing}, {off} degrees past the shot: it does not go the short way back");
+                    float travelled = 0.0f, previous = PlayerMenuCameraMath.Bearing(Player, from);
+                    for (int step = 1; step <= 100; step++)
+                    {
+                        PlayerMenuCameraMath.Spin(Player, from, fromRotation, to, toRotation, PlayerMenuCameraMath.Smooth(step / 100.0f),
+                            out Vector3 position, out Quaternion _);
+                        float bearing = PlayerMenuCameraMath.Bearing(Player, position);
+                        travelled += Mathf.DeltaAngle(previous, bearing);
+                        previous = bearing;
+                    }
+                    Assert.AreEqual(-off, travelled, 0.5f, $"facing {facing}, {off} degrees past the shot: the camera spun round");
+                    Assert.Less(PlayerMenuCameraMath.SpinSeconds(turn), 0.6f, "a short slide takes as long as a spin");
+                }
+                Assert.AreEqual(0.0f, PlayerMenuCameraMath.TurnDegrees(Player, to, to), 1e-3f, "on the shot already, the camera turns");
+            }
+        }
+
         [Test]
         public void TheSpinStartsAndEndsWithoutAJoltAndTakesLongerTheFurtherItGoes()
         {

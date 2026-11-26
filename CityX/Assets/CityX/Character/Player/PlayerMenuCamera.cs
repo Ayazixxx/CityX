@@ -45,15 +45,34 @@ namespace CityX.Character
             return Mathf.Repeat(Bearing(player, to) - Bearing(player, from), 360.0f);
         }
 
+        /// <summary>
+        /// Within this of the menu's shot the other way round (anticlockwise), the camera goes the short way back to it, degrees. Clockwise
+        /// round from behind or the side (owner, 2026-11-05: "just make it spin around clockwise forward smoothly"), but never most of a turn
+        /// round to a shot it is already in front of (owner, 2026-11-26: "make it so the c menu doesnt spin around if you are already looking
+        /// at the front of your character ... no unnecessary spins").
+        /// </summary>
+        public const float ShortWayBackDegrees = 90.0f;
+
+        /// <summary>
+        /// How far the camera goes round the player to the shot, degrees: clockwise (positive) as a rule, anticlockwise (negative) when the
+        /// shot is within <see cref="ShortWayBackDegrees"/> that way.
+        /// </summary>
+        public static float TurnDegrees(Vector3 player, Vector3 from, Vector3 to)
+        {
+            float clockwise = ClockwiseDegrees(player, from, to);
+            float back = 360.0f - clockwise;
+            return back <= ShortWayBackDegrees ? -back : clockwise;
+        }
+
         /// <summary>How long the spin round to the front takes: the further round, the longer, at an even pace.</summary>
         public static float SpinSeconds(float degrees)
         {
-            return BaseSeconds + SecondsPerTurn * Mathf.Clamp(degrees, 0.0f, 360.0f) / 360.0f;
+            return BaseSeconds + SecondsPerTurn * Mathf.Clamp(Mathf.Abs(degrees), 0.0f, 360.0f) / 360.0f;
         }
 
         /// <summary>
         /// The camera <paramref name="share"/> of the way (0 to 1, already eased) round the player from where it was to the menu's shot:
-        /// ALONG A CIRCLE ROUND THE PLAYER, clockwise seen from above, its distance and height going from the old ones to the new, and
+        /// ALONG A CIRCLE ROUND THE PLAYER, the way <see cref="TurnDegrees"/> says, its distance and height going from the old ones to the new, and
         /// facing the player all the way (its own aim off the player at the start fading out). A straight line from behind to in front
         /// cut through the body, and the turn went whichever way was shorter.
         /// </summary>
@@ -61,7 +80,7 @@ namespace CityX.Character
             float share, out Vector3 position, out Quaternion rotation)
         {
             float startBearing = Bearing(player, fromPosition);
-            float degrees = ClockwiseDegrees(player, fromPosition, toPosition);
+            float degrees = TurnDegrees(player, fromPosition, toPosition);
             float bearing = startBearing + degrees * share;
 
             Vector3 fromFlat = fromPosition - player, toFlat = toPosition - player;
@@ -133,7 +152,7 @@ namespace CityX.Character
             _startRotation = _camera.rotation;
             _targetPosition = PlayerMenuCameraMath.CameraPosition(_player.position, forward);
             _targetRotation = PlayerMenuCameraMath.CameraRotation(forward);
-            _seconds = PlayerMenuCameraMath.SpinSeconds(PlayerMenuCameraMath.ClockwiseDegrees(_player.position, _startPosition, _targetPosition));
+            _seconds = PlayerMenuCameraMath.SpinSeconds(PlayerMenuCameraMath.TurnDegrees(_player.position, _startPosition, _targetPosition));
             _elapsed = 0.0f;
             _easing = true;
         }
