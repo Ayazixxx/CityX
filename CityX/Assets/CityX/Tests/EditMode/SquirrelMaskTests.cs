@@ -76,7 +76,8 @@ namespace CityX.Tests
                 Vector3[] eye = eyes.Where(v => Mathf.Sign(v.x) == side).ToArray();
                 Assert.IsNotEmpty(eye, side < 0 ? "no left eye" : "no right eye");
                 Vector3 middle = eye.Aggregate(Vector3.zero, (sum, v) => sum + v) / eye.Length;
-                Assert.Greater(middle.z, 0.2f, "an eye is not on the front of the face");
+                // The front half: the owner's grown eyes (their rims made black) reach round the face's side, their middles about 0.17 m forward.
+                Assert.Greater(middle.z, 0.12f, "an eye is not on the front of the face");
                 Assert.That(middle.y, Is.InRange(-0.08f, 0.12f), "an eye is not at the eyes' height");
             }
         }

@@ -35,8 +35,8 @@ HOLE_EDGES = 16             # small holes the cut opened in the fringe are close
 
 WORKING_TRIANGLES = 60000
 # From the owner's trim: Meshy's faces within TRIM_REACH of their surface, cut to TRIM_TRIANGLES and then smoothed TRIM_SMOOTHING times
-# (no shards left, the fur soft); the outline's points relaxed along it so the edge runs smooth. Their skin-coloured faces are left out:
-# the wearer's own head is under the mask, in its own skin.
+# (no shards left, the fur soft); the outline's points relaxed along it so the edge runs smooth. Every face of their trim is mask: the ones
+# coloured skin (a band low at the back, bits under the nose) are fur too (left out at first: "why the fuck is this back panel missing").
 TRIM_REACH = 0.006
 TRIM_WORKING_TRIANGLES = 150000
 TRIM_TRIANGLES = 20000
@@ -47,6 +47,13 @@ EDGE_RELAX_ROUNDS = 12
 # flaps stand off the head, and the game draws no back of a face). The V is closed above the nose's tip; the mask is given an inner side as far
 # as BACK_SIDE_REACH from its open edge (further in, the head covers it).
 BACK_SIDE_REACH = 0.10
+# The owner selected the jagged band of fur round each eye in Blender ("cut that out ... and extend the black eyes to fill the gap"):
+# owner_eye_rims.json holds those faces' corners in Meshy's units (taken off the head's frame they were selected in: scale 1.4024 about
+# (-0.0005, 0.0022, 0.6641)). Fur within EYE_RIM_REACH of them turns black, and the line where black meets fur is relaxed EYE_EDGE_ROUNDS
+# times so it runs smooth.
+EYE_RIMS = os.path.join(HERE, "owner_eye_rims.json")
+EYE_RIM_REACH = 0.002
+EYE_EDGE_ROUNDS = 10
 FINAL_TRIANGLES = 12000     # the fur and the eyes. Over the budget for a mask (2,000 to 5,000, at most 8,000): at 7,200 the fur was gone,
                             # and the owner wants its detail; as the Fur Hooded Parka's 14,600.
 # The final cut takes first where the fur stands out most (the face), so the shallower fur on the sides and back keeps some of its own;
@@ -389,6 +396,41 @@ def close_behind_nose(mask, nose):
     bm.free()
 
 
+def grow_eyes(mask):
+    """The owner's eye rims made black, and the eyes' outlines smoothed."""
+    import json
+    corners = json.load(open(EYE_RIMS))["verts"]
+    rims = BVHTree.FromPolygons([Vector(c) for c in corners], [(i, i + 1, i + 2) for i in range(0, len(corners), 3)])
+    bm = bmesh.new()
+    bm.from_mesh(mask.data)
+    grown = 0
+    for f in bm.faces:
+        if f.material_index == 0 and rims.find_nearest(f.calc_center_median(), EYE_RIM_REACH)[0] is not None:
+            f.material_index = 1
+            grown += 1
+    # Fur faces left alone inside a grown eye (all their neighbours black) go black too.
+    for f in bm.faces:
+        if f.material_index == 0 and all(g.material_index == 1 for e in f.edges for g in e.link_faces if g is not f):
+            f.material_index = 1
+            grown += 1
+
+    def border(e):
+        return len(e.link_faces) == 2 and e.link_faces[0].material_index != e.link_faces[1].material_index
+
+    line = {v for e in bm.edges if border(e) for v in e.verts}
+    for _ in range(EYE_EDGE_ROUNDS):
+        moved = {}
+        for v in line:
+            pair = [e.other_vert(v) for e in v.link_edges if border(e)]
+            if len(pair) == 2:
+                moved[v] = v.co.lerp((pair[0].co + pair[1].co) / 2, 0.5)
+        for v, p in moved.items():
+            v.co = p
+    bm.to_mesh(mask.data)
+    bm.free()
+    print("eyes grown by", grown, "faces")
+
+
 def back_side(mask):
     """An inner side for the mask near its open edge: those faces again, facing in, on their own points (so the shading keeps apart)."""
     bm = bmesh.new()
@@ -458,7 +500,7 @@ def relax_edge(obj):
 
 
 def mask_from_trim(body, trim_file, fur, black):
-    """Meshy's faces under the owner's trimmed mask, coloured as their trim is (fur, black; their skin left out), cut and smoothed."""
+    """Meshy's faces under the owner's trimmed mask, coloured as their trim is (black eyes, fur everywhere else), cut and smoothed."""
     with bpy.data.libraries.load(trim_file) as (source, loaded):
         loaded.objects = ["SquirrelBoy.001", "Nose"]
     trim, nose = loaded.objects
@@ -468,7 +510,7 @@ def mask_from_trim(body, trim_file, fur, black):
     trim_bm.from_mesh(trim.data)
     tree = BVHTree.FromBMesh(trim_bm)
     slot = {m.name.split(".")[0]: i for i, m in enumerate(trim.data.materials)}
-    colour_of = {i: (0 if name == "SquirrelMaskFur" else 1 if name == "SquirrelMaskBlack" else None) for name, i in slot.items()}
+    colour_of = {i: (1 if name == "SquirrelMaskBlack" else 0) for name, i in slot.items()}
     trim_colours = [colour_of[p.material_index] for p in trim.data.polygons]
 
     bm = bmesh.new()
@@ -524,6 +566,7 @@ def build():
 
     if trim_file:
         mask, nose = mask_from_trim(body, trim_file, fur, black)
+        grow_eyes(mask)
         bpy.data.objects.remove(body)
         centre, radius = mask_ball(mask)
     else:

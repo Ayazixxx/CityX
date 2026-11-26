@@ -19,8 +19,8 @@ playermodel it was attached to myself"), trimmed the mask in Blender, and said o
 the face count messed up the fur bad". Three rebuilds were put beside it; they chose "the smoothest one", and the fur "#874d00 brown".
 
 - Meshy's full-detail faces within 6 mm of their trimmed surface are taken (so its outline is theirs), coloured as their trim is: fur, black
-  eyes. Their skin-coloured faces (a band low at the back, bits under the nose) are left out: the wearer's own head is under the mask, in its
-  own skin tone. Their nose is used as they left it.
+  eyes. Their skin-coloured faces (a band low at the back, bits under the nose) are fur too: they are part of the mask as the owner cut it.
+  (Left out at first, taken for bare skin: "why the fuck is this back panel missing".) Their nose is used as they left it.
 - Cut to 20,000 triangles (the cut sparing the eyes and the shallower fur, as below), then smoothed three times: no shards, the fur soft. The
   12,000 versions kept shards. The outline's points are relaxed along it, so the bottom edge runs smooth instead of jagged.
 - Fitted to the head as below (scale 1.40, the mask's ball 0.378 m).
@@ -29,6 +29,9 @@ the face count messed up the fur bad". Three rebuilds were put beside it; they c
   V is closed from the nose's tip up (behind the nose). The side flaps stand off the head and the game draws no back of a face, so the sky
   showed through them: the mask has an inner side as far as 10 cm from its open edge (about 4,000 faces; further in, the head covers it). 24,500
   triangles in all.
+- The eyes: the owner selected the jagged band of fur round each eye in Blender ("cut that out ... and extend the black eyes to fill the
+  gap"). Their selection is kept in `SourceArt/SquirrelMask/owner_eye_rims.json` (in Meshy's units, so it holds whatever the fit does); fur
+  within 2 mm of it turns black, and the line where black meets fur is relaxed along itself so the eyes' outlines run smooth.
 
 ```
 "C:/Program Files/Blender Foundation/Blender 4.2/blender.exe" --background --factory-startup --python CityX/SourceArt/SquirrelMask/squirrel_mask_build.py -- "<Meshy fbx>" --trim "<full path of>/CityX/SourceArt/SquirrelMask/owner_trim.blend"
