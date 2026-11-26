@@ -5,7 +5,8 @@ namespace CityX.Wearables
 {
     /// <summary>
     /// The Squirrel Mask (owner, 2026-11-25: "this mask for my superhero character "squirrel boy""): the furry mask of the owner's Meshy model,
-    /// cut off its figure, with a nose that stands out where Meshy's went in, orange-brown with black eyes and nose (docs/SQUIRREL_MASK.md).
+    /// cut off its figure as the owner trimmed it, with a nose that stands out where Meshy's went in, brown (#874d00) with black eyes and nose
+    /// (docs/SQUIRREL_MASK.md).
     /// Its model (SquirrelMaskBuilder, from SourceArt/SquirrelMask/squirrel_mask_build.py) is made round the head's centre, so it sits on the
     /// Head bone's pivot with no offset.
     /// </summary>

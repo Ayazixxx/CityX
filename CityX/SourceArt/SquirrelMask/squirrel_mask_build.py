@@ -1,8 +1,12 @@
 # The Squirrel Mask (docs/SQUIRREL_MASK.md), from the owner's Meshy model of the character wearing it (2026-11-25, "Foxmancer"): the furry
 # mask cut off the body, its inward nose replaced by one that stands out, cut down for the game and placed round the game's head.
 #
-#   blender --background --factory-startup --python squirrel_mask_build.py -- <Meshy fbx> [out.blend]
+#   blender --background --factory-startup --python squirrel_mask_build.py -- <Meshy fbx> [--trim <owner's blend>] [out.blend]
 #
+# With --trim (what the game uses since 2026-11-25): the owner's own trim of the mask (object "SquirrelBoy.001", and their "Nose"; a copy in
+# owner_trim.blend beside this script, local only as every .blend here) gives the outline; the mask is rebuilt inside it from Meshy's full detail, cut to
+# TRIM_TRIANGLES and smoothed after the cut (the owner chose that one of three: "the smoothest one"). Without it, the mask is cut by this
+# script alone, as first made.
 # Writes Assets/CityX/Wearables/Models/SquirrelMask.glb: two parts in the Head bone's frame (the head's centre at the origin), "Fur" (the
 # mask) and "Black" (the eyes' hollows and the nose). Every height and depth below is in the Meshy model's own units, as it comes in.
 import math
@@ -13,6 +17,7 @@ import bmesh
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector
+from mathutils.bvhtree import BVHTree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GLB = os.path.normpath(os.path.join(HERE, "..", "..", "Assets", "CityX", "Wearables", "Models", "SquirrelMask.glb"))
@@ -25,10 +30,18 @@ NECK_TOP = 0.47             # the bare skin is flooded from the neck, below this
 SKIN_TOP = 0.605            # and never above the nose's foot: the smoother fur at the crown is not skin
 MASK_FROM = 0.49            # the crease where the head meets the neck is rough, but not mask
 SCRAP_FACES = 5000          # loose pieces smaller than this are dropped
-TUFT_FACES = 40             # and after the final cut, tufts it left loose
+TUFT_FACES = 300            # and after the final cut, tufts it left loose
 HOLE_EDGES = 16             # small holes the cut opened in the fringe are closed (the open bottom has hundreds of edges)
 
 WORKING_TRIANGLES = 60000
+# From the owner's trim: Meshy's faces within TRIM_REACH of their surface, cut to TRIM_TRIANGLES and then smoothed TRIM_SMOOTHING times
+# (no shards left, the fur soft); the outline's points relaxed along it so the edge runs smooth. Their skin-coloured faces are left out:
+# the wearer's own head is under the mask, in its own skin.
+TRIM_REACH = 0.006
+TRIM_WORKING_TRIANGLES = 150000
+TRIM_TRIANGLES = 20000
+TRIM_SMOOTHING = 3
+EDGE_RELAX_ROUNDS = 12
 FINAL_TRIANGLES = 12000     # the fur and the eyes. Over the budget for a mask (2,000 to 5,000, at most 8,000): at 7,200 the fur was gone,
                             # and the owner wants its detail; as the Fur Hooded Parka's 14,600.
 # The final cut takes first where the fur stands out most (the face), so the shallower fur on the sides and back keeps some of its own;
@@ -51,7 +64,7 @@ EARS_FROM = 0.84
 CLEARANCE = 0.353
 DIP_SHARE = 2.0             # percent
 
-FUR_COLOUR = (0.647, 0.322, 0.098, 1.0)
+FUR_COLOUR = (0.242, 0.074, 0.0, 1.0)   # the owner's #874d00 (2026-11-25), in Blender's linear colour
 BLACK_COLOUR = (0.03, 0.03, 0.03, 1.0)
 
 
@@ -338,25 +351,123 @@ def unwrap(obj):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
+def drop_islands(bm, smaller_than):
+    seen, small = set(), []
+    for f in bm.faces:
+        if f in seen:
+            continue
+        island, stack = [], [f]
+        seen.add(f)
+        while stack:
+            g = stack.pop()
+            island.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h not in seen:
+                        seen.add(h)
+                        stack.append(h)
+        if len(island) < smaller_than:
+            small.extend(island)
+    bmesh.ops.delete(bm, geom=small, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+
+
+def relax_edge(obj):
+    """The outline: each of its points pulled halfway to its two outline neighbours' middle, EDGE_RELAX_ROUNDS times."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    outline = [v for v in bm.verts if any(e.is_boundary for e in v.link_edges)]
+    for _ in range(EDGE_RELAX_ROUNDS):
+        moved = {}
+        for v in outline:
+            pair = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
+            if len(pair) == 2:
+                moved[v] = v.co.lerp((pair[0].co + pair[1].co) / 2, 0.5)
+        for v, p in moved.items():
+            v.co = p
+    bm.to_mesh(obj.data)
+    bm.free()
+
+
+def mask_from_trim(body, trim_file, fur, black):
+    """Meshy's faces under the owner's trimmed mask, coloured as their trim is (fur, black; their skin left out), cut and smoothed."""
+    with bpy.data.libraries.load(trim_file) as (source, loaded):
+        loaded.objects = ["SquirrelBoy.001", "Nose"]
+    trim, nose = loaded.objects
+    bpy.context.scene.collection.objects.link(nose)
+    nose.data.materials.clear()
+    trim_bm = bmesh.new()
+    trim_bm.from_mesh(trim.data)
+    tree = BVHTree.FromBMesh(trim_bm)
+    slot = {m.name.split(".")[0]: i for i, m in enumerate(trim.data.materials)}
+    colour_of = {i: (0 if name == "SquirrelMaskFur" else 1 if name == "SquirrelMaskBlack" else None) for name, i in slot.items()}
+    trim_colours = [colour_of[p.material_index] for p in trim.data.polygons]
+
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    kept = {}
+    for f in bm.faces:
+        centre = f.calc_center_median()
+        if centre.z > HEAD_FROM:
+            hit = tree.find_nearest(centre, TRIM_REACH)
+            if hit[0] is not None and trim_colours[hit[2]] is not None:
+                kept[f] = trim_colours[hit[2]]
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f not in kept], context="FACES")
+    for f, colour in kept.items():
+        if f.is_valid:
+            f.material_index = colour
+    drop_islands(bm, SCRAP_FACES // 2)
+    mesh = bpy.data.meshes.new("Mask")
+    bm.to_mesh(mesh)
+    bm.free()
+    trim_bm.free()
+    mask = bpy.data.objects.new("Mask", mesh)
+    bpy.context.scene.collection.objects.link(mask)
+    mesh.materials.append(fur)
+    mesh.materials.append(black)
+    print("from the owner's trim:", len(mesh.polygons), "faces of Meshy's")
+
+    decimate(mask, TRIM_WORKING_TRIANGLES)
+    decimate(mask, TRIM_TRIANGLES, cut_order(mask))
+    smoothing = mask.modifiers.new("Smooth", "SMOOTH")
+    smoothing.iterations = TRIM_SMOOTHING
+    smoothing.factor = 0.5
+    bpy.context.view_layer.objects.active = mask
+    bpy.ops.object.modifier_apply(modifier=smoothing.name)
+    relax_edge(mask)
+    return mask, nose
+
+
 def build():
     args = sys.argv[sys.argv.index("--") + 1:]
+    rest = args[1:]
+    trim_file = None
+    if "--trim" in rest:
+        at = rest.index("--trim")
+        trim_file = rest[at + 1]
+        del rest[at:at + 2]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.fbx(filepath=args[0])
     body = next(o for o in bpy.data.objects if o.type == "MESH")
     bpy.context.view_layer.objects.active = body
     body.select_set(True)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-
-    mask = cut_mask(body)
-    bpy.data.objects.remove(body)
-    decimate(mask, WORKING_TRIANGLES)
     fur, black = material("SquirrelMaskFur", FUR_COLOUR), material("SquirrelMaskBlack", BLACK_COLOUR)
-    mask.data.materials.append(fur)
-    mask.data.materials.append(black)
-    mark_eyes(mask, 1)
-    centre, radius = mask_ball(mask)
-    nose = make_nose()
-    decimate(mask, FINAL_TRIANGLES, cut_order(mask))
+
+    if trim_file:
+        mask, nose = mask_from_trim(body, trim_file, fur, black)
+        bpy.data.objects.remove(body)
+        centre, radius = mask_ball(mask)
+    else:
+        mask = cut_mask(body)
+        bpy.data.objects.remove(body)
+        decimate(mask, WORKING_TRIANGLES)
+        mask.data.materials.append(fur)
+        mask.data.materials.append(black)
+        mark_eyes(mask, 1)
+        centre, radius = mask_ball(mask)
+        nose = make_nose()
+        decimate(mask, FINAL_TRIANGLES, cut_order(mask))
     place_on_head([mask, nose], centre, radius)
     tidy(mask)
 
@@ -396,8 +507,8 @@ def build():
     bpy.ops.export_scene.gltf(filepath=GLB, export_format="GLB", use_selection=True, export_apply=True, export_yup=True,
                               export_materials="EXPORT", export_animations=False, export_skins=False)
     print("wrote", GLB, "- fur", len(mask.data.polygons), "triangles, eyes and nose", len(eyes.data.polygons))
-    if len(args) > 1:
-        bpy.ops.wm.save_as_mainfile(filepath=args[1])
+    if rest:
+        bpy.ops.wm.save_as_mainfile(filepath=rest[0])
 
 
 build()

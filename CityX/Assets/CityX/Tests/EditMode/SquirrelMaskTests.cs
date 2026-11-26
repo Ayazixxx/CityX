@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// <summary>
     /// The Squirrel Mask (owner, 2026-11-25: "the nose unintentionally went inward when generating. can you make it protrude ... lower it to a
     /// reasonable face count and separate the mask from the playermodel so we can use it ingame ... make the mask this orange/brown color with
-    /// the eyes black and nose black"): worn over the whole head as a helmet, orange-brown fur with black eyes either side and a black nose that
+    /// the eyes black and nose black"): worn over the whole head as a helmet, brown fur (the owner's #874d00) with black eyes either side and a black nose that
     /// stands out of the snout, outside the head, within its triangle count, and shown to other players.
     /// </summary>
     public sealed class SquirrelMaskTests
@@ -19,10 +19,10 @@ namespace CityX.Tests
         private const string PrefabPath = "Assets/CityX/Wearables/SquirrelMask.prefab";
 
         /// <summary>
-        /// Over a mask's usual 8,000: at about 7,000 the fur Meshy made was gone, and the owner wants it (docs/SQUIRREL_MASK.md). This keeps
-        /// it from growing further.
+        /// Over a mask's usual 8,000: the owner chose the 20,000 rebuild of their trim, smoothed, over the 12,000 ones, which kept shards
+        /// (docs/SQUIRREL_MASK.md). This keeps it from growing further.
         /// </summary>
-        private const int TriangleBudget = 13000;
+        private const int TriangleBudget = 21000;
 
         private static GameObject Prefab()
         {
@@ -58,11 +58,10 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheFurIsOrangeBrownAndTheEyesAndNoseAreBlack()
+        public void TheFurIsTheOwnersBrownAndTheEyesAndNoseAreBlack()
         {
             Color fur = Part(SquirrelMask.FurName).sharedMaterial.GetColor("_BaseColor");
-            Assert.Greater(fur.r, fur.g + 0.2f, "the fur is not orange");
-            Assert.Greater(fur.g, fur.b + 0.1f, "the fur is not orange-brown");
+            Assert.AreEqual("874D00", ColorUtility.ToHtmlStringRGB(fur), "the fur is not the owner's #874d00");
             Color black = Part(SquirrelMask.BlackName).sharedMaterial.GetColor("_BaseColor");
             Assert.Less(Mathf.Max(black.r, Mathf.Max(black.g, black.b)), 0.1f, "the eyes and nose are not black");
         }

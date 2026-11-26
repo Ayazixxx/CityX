@@ -7,7 +7,7 @@ namespace CityX.WearablesEditor
 {
     /// <summary>
     /// Builds the Squirrel Mask (docs/SQUIRREL_MASK.md). Models/SquirrelMask.glb is made in Blender from the owner's Meshy model
-    /// (SourceArt/SquirrelMask/squirrel_mask_build.py) in the Head bone's frame, the head's centre at the origin: the orange-brown Fur and the
+    /// (SourceArt/SquirrelMask/squirrel_mask_build.py) in the Head bone's frame, the head's centre at the origin: the brown Fur and the
     /// Black eyes and nose, each a flat colour with no map.
     /// </summary>
     public static class SquirrelMaskBuilder
@@ -18,8 +18,8 @@ namespace CityX.WearablesEditor
         private const string FurMaterialPath = "Assets/CityX/Wearables/SquirrelMaskFur.mat";
         private const string BlackMaterialPath = "Assets/CityX/Wearables/SquirrelMaskBlack.mat";
 
-        /// <summary>The owner's picture's orange-brown, a little lighter than it reads in their viewer's dim light.</summary>
-        public static readonly Color FurOrange = new Color(0.647f, 0.322f, 0.098f);
+        /// <summary>The owner's brown (2026-11-25: "so that the fur is #874d00 brown").</summary>
+        public static readonly Color FurBrown = new Color(0x87 / 255.0f, 0x4d / 255.0f, 0x00 / 255.0f);
 
         public static readonly Color Black = new Color(0.03f, 0.03f, 0.03f);
 
@@ -46,7 +46,7 @@ namespace CityX.WearablesEditor
             try
             {
                 Part(root.transform, model.transform, SquirrelMask.FurName,
-                    HeldModelBaker.LitMaterial(FurMaterialPath, FurOrange, 0.0f, FurSmoothness));
+                    HeldModelBaker.LitMaterial(FurMaterialPath, FurBrown, 0.0f, FurSmoothness));
                 Part(root.transform, model.transform, SquirrelMask.BlackName,
                     HeldModelBaker.LitMaterial(BlackMaterialPath, Black, 0.0f, BlackSmoothness));
 

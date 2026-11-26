@@ -12,15 +12,30 @@ black."
 go through it. Hair is hidden under it, as under the Claw Skull. `/equip squirrel` (or `squirrelmask`, `squirrel_mask`). My choices, for the
 owner to change: the name, the slot, no armour, and no rarity set (so Common).
 
-## The model
+## The owner's trim (what the game wears)
 
-`SourceArt/SquirrelMask/squirrel_mask_build.py` makes `Wearables/Models/SquirrelMask.glb` from the Meshy file in one run (about 35 s):
+Later the same day the owner asked for the whole figure with the nose and a lower count, uncut ("i will do the trim/separation from the
+playermodel it was attached to myself"), trimmed the mask in Blender, and said of it: "smooth the rough edges they dont look good ... lowering
+the face count messed up the fur bad". Three rebuilds were put beside it; they chose "the smoothest one", and the fur "#874d00 brown".
+
+- Meshy's full-detail faces within 6 mm of their trimmed surface are taken (so its outline is theirs), coloured as their trim is: fur, black
+  eyes. Their skin-coloured faces (a band low at the back, bits under the nose) are left out: the wearer's own head is under the mask, in its
+  own skin tone. Their nose is used as they left it.
+- Cut to 20,000 triangles (the cut sparing the eyes and the shallower fur, as below), then smoothed three times: no shards, the fur soft. The
+  12,000 versions kept shards. The outline's points are relaxed along it, so the bottom edge runs smooth instead of jagged.
+- Fitted to the head as below (scale 1.40, the mask's ball 0.378 m).
 
 ```
-"C:/Program Files/Blender Foundation/Blender 4.2/blender.exe" --background --factory-startup --python CityX/SourceArt/SquirrelMask/squirrel_mask_build.py -- "<Meshy fbx>"
+"C:/Program Files/Blender Foundation/Blender 4.2/blender.exe" --background --factory-startup --python CityX/SourceArt/SquirrelMask/squirrel_mask_build.py -- "<Meshy fbx>" --trim "<full path of>/CityX/SourceArt/SquirrelMask/owner_trim.blend"
 ```
 
-then `SquirrelMaskBuilder` (run by the scene builder) makes the prefab. The Meshy file is 1.2 million triangles, one piece, with no texture.
+`owner_trim.blend` (their objects "SquirrelBoy.001" and "Nose") is local only, as every .blend in SourceArt; their own file is
+`Downloads/SquirrelBoy_mask_nose_lowpoly.blend`. Then `SquirrelMaskBuilder` (run by the scene builder, or `CityX/Rebuild Squirrel Mask`)
+makes the prefab.
+
+## The first build (no --trim)
+
+The script alone makes the mask from the Meshy file (about 35 s). The Meshy file is 1.2 million triangles, one piece, with no texture.
 
 - **Cut off the body by texture of the surface.** Fur is rough, skin smooth: a point is smooth when its surface direction agrees with its
   neighbours'. The bare skin is spread to from the neck over smooth points, never above the nose's foot (the fur at the crown is smoother,
@@ -37,18 +52,19 @@ then `SquirrelMaskBuilder` (run by the scene builder) makes the prefab. The Mesh
 - **On the game's head.** The mask lies on a ball (radius 0.270 in Meshy's units, 7 mm spread). It is centred on the Head bone's pivot and
   scaled (1.39, about the body's own 2.6 m / 1.9 m) so all but its deepest 2% of fur clears the head (0.35 m) by 3 mm; those few points are
   lifted onto that. The mask's ball is then 0.375 m: it stands about 2.5 cm off the head, as a fur mask would.
-- **Colours.** Fur: the owner's picture's orange-brown, which reads about (140, 72, 25) in their viewer's dim light; (165, 82, 25) in the
-  game, so it reads the same in daylight. Eyes and nose: near black, the nose with a little sheen. Flat colours, no texture. It has texture
+- **Colours.** Fur: the owner's #874d00 (first the orange-brown of their picture, (165, 82, 25)). Eyes and nose: near black, the nose with a little sheen. Flat colours, no texture. It has texture
   coordinates, for a texture one day.
 
 ## Model check
 
-`tools/model_qa.py --kind helmet`: triangles FAIL (12,382 against a helmet's 8,000, on purpose, above); three faces lie on others at the ears
-(the cut folding the ears' thin rims; too small to see); holes, floating bits, spikes, broken edges, turned faces and texture coordinates pass.
+`tools/model_qa.py --kind helmet` on the owner's trim: triangles FAIL (20,409 against a helmet's 8,000: the owner's choice, above). Small
+warnings, too small to see in the pictures: 6 edges shared by three faces, 4 small holes and 4 faces on others, mostly along the ears' thin
+rims; 2 flipped edges low on the left cheek. Spikes, floating bits and texture coordinates pass. (The first build: 12,382, three faces on
+others at the ears, the rest passing.)
 
 ## Tests
 
-`SquirrelMaskTests`: the helmet slot, the triangle count (13,000 at most, so it does not grow), orange fur and black eyes and nose, an eye
+`SquirrelMaskTests`: the helmet slot, the triangle count (21,000 at most, so it does not grow), the owner's #874d00 fur and black eyes and nose, an eye
 either side at the eyes' height, the nose standing out of the fur round it, the fur outside the head with ears above it, worn on the Head bone
 with the hair hidden, shown to other players (`NetworkedPlayerWiring.ItemPrefabPaths`, `ICosmeticMountable`), the console's names.
 Pictures: `SquirrelMaskCapture` (`squirrelmask-*.png`).
