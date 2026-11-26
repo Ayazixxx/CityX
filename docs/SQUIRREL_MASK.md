@@ -60,7 +60,8 @@ The script alone makes the mask from the Meshy file (about 35 s). The Meshy file
 - **On the game's head.** The mask lies on a ball (radius 0.270 in Meshy's units, 7 mm spread). It is centred on the Head bone's pivot and
   scaled (1.39, about the body's own 2.6 m / 1.9 m) so all but its deepest 2% of fur clears the head (0.35 m) by 3 mm; those few points are
   lifted onto that. The mask's ball is then 0.375 m: it stands about 2.5 cm off the head, as a fur mask would.
-- **Colours.** Fur: the owner's #874d00 (first the orange-brown of their picture, (165, 82, 25)). Eyes and nose: near black, the nose with a little sheen. Flat colours, no texture. It has texture
+- **Colours.** Fur: a darker brown, the brown gloves' shade (0.36, 0.21, 0.11) (owner: "make the squirrel mask the same brown as the gloves
+  its too orange"; before that #874d00, and first the orange-brown of their picture). Eyes and nose: near black, the nose with a little sheen. Flat colours, no texture. It has texture
   coordinates, for a texture one day.
 
 ## Model check
@@ -72,7 +73,7 @@ others at the ears, the rest passing.)
 
 ## Tests
 
-`SquirrelMaskTests`: the helmet slot, the triangle count (25,000 at most, so it does not grow), the owner's #874d00 fur and black eyes and nose, an eye
+`SquirrelMaskTests`: the helmet slot, the triangle count (25,000 at most, so it does not grow), dark brown fur and black eyes and nose, an eye
 either side at the eyes' height, the nose standing out of the fur round it, the fur outside the head with ears above it, worn on the Head bone
 with the hair hidden, shown to other players (`NetworkedPlayerWiring.ItemPrefabPaths`, `ICosmeticMountable`), the console's names.
 Pictures: `SquirrelMaskCapture` (`squirrelmask-*.png`).

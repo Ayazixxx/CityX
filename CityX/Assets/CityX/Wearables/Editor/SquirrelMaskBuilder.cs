@@ -18,8 +18,11 @@ namespace CityX.WearablesEditor
         private const string FurMaterialPath = "Assets/CityX/Wearables/SquirrelMaskFur.mat";
         private const string BlackMaterialPath = "Assets/CityX/Wearables/SquirrelMaskBlack.mat";
 
-        /// <summary>The owner's brown (2026-11-25: "so that the fur is #874d00 brown").</summary>
-        public static readonly Color FurBrown = new Color(0x87 / 255.0f, 0x4d / 255.0f, 0x00 / 255.0f);
+        /// <summary>
+        /// A darker brown, the brown gloves' shade (owner, 2026-11-25: "make the squirrel mask the same brown as the gloves its too orange";
+        /// #874d00 before that).
+        /// </summary>
+        public static readonly Color FurBrown = new Color(0.36f, 0.21f, 0.11f);
 
         public static readonly Color Black = new Color(0.03f, 0.03f, 0.03f);
 

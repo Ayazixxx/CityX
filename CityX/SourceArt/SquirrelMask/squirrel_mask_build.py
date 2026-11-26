@@ -76,7 +76,7 @@ EARS_FROM = 0.84
 CLEARANCE = 0.353
 DIP_SHARE = 2.0             # percent
 
-FUR_COLOUR = (0.242, 0.074, 0.0, 1.0)   # the owner's #874d00 (2026-11-25), in Blender's linear colour
+FUR_COLOUR = (0.102, 0.037, 0.012, 1.0)   # the game sets its own (SquirrelMaskBuilder.FurBrown); this is that, in linear colour
 BLACK_COLOUR = (0.03, 0.03, 0.03, 1.0)
 
 

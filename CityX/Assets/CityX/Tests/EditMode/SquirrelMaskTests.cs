@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// <summary>
     /// The Squirrel Mask (owner, 2026-11-25: "the nose unintentionally went inward when generating. can you make it protrude ... lower it to a
     /// reasonable face count and separate the mask from the playermodel so we can use it ingame ... make the mask this orange/brown color with
-    /// the eyes black and nose black"): worn over the whole head as a helmet, brown fur (the owner's #874d00) with black eyes either side and a black nose that
+    /// the eyes black and nose black"): worn over the whole head as a helmet, dark brown fur with black eyes either side and a black nose that
     /// stands out of the snout, outside the head, within its triangle count, and shown to other players.
     /// </summary>
     public sealed class SquirrelMaskTests
@@ -58,10 +58,12 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheFurIsTheOwnersBrownAndTheEyesAndNoseAreBlack()
+        public void TheFurIsBrownAndTheEyesAndNoseAreBlack()
         {
             Color fur = Part(SquirrelMask.FurName).sharedMaterial.GetColor("_BaseColor");
-            Assert.AreEqual("874D00", ColorUtility.ToHtmlStringRGB(fur), "the fur is not the owner's #874d00");
+            Assert.Greater(fur.r, fur.g + 0.1f, "the fur is not brown");
+            Assert.Greater(fur.g, fur.b + 0.05f, "the fur is not brown");
+            Assert.Less(fur.r, 0.5f, "the fur is not a dark brown");
             Color black = Part(SquirrelMask.BlackName).sharedMaterial.GetColor("_BaseColor");
             Assert.Less(Mathf.Max(black.r, Mathf.Max(black.g, black.b)), 0.1f, "the eyes and nose are not black");
         }
