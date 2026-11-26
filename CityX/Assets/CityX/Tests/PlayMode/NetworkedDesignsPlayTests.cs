@@ -150,5 +150,46 @@ namespace CityX.Tests
             Assert.IsFalse(DesignStore.Local.Has(DesignStore.IdOf(junk)), "the server kept junk");
             Assert.IsNotNull(b);
         }
+
+        /// <summary>
+        /// A design as big as a real drawing or a photograph (hundreds of KB) from a joined player reaches the server: a client may send no
+        /// more than 20 KB at once, and whole it was refused, so everyone else saw the shirt plain (bug sweep 2026-11-25). Two in a row, the
+        /// second straight after the first, both arrive (the second used to be dropped as too soon).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator APhotographSizedDesignFromAJoinedPlayerReachesTheServerInPieces()
+        {
+            LogAssert.ignoreFailingMessages = true;
+            ushort port = _nextPort++;
+            (NetworkManager server, DesignNetwork _) = Machine("Designs Server");
+            Transport st = server.TransportManager.Transport;
+            st.SetPort(port);
+            st.SetServerBindAddress("127.0.0.1", IPAddressType.IPv4);
+            server.ServerManager.StartConnection(port);
+            yield return WaitUntil(() => server.IsServerStarted, "the server to start");
+            (NetworkManager a, DesignNetwork onA) = Machine("Designs Client A");
+            yield return Join(a, port);
+
+            byte[] photo = Photograph(1), another = Photograph(2);
+            Assert.Greater(photo.Length, 100 * 1024, "the test photograph is not photograph-sized");
+            Assert.IsTrue(ShirtDesignBlob.IsSane(photo), "the test photograph is not a design");
+            onA.Upload(DesignStore.IdOf(photo), photo);
+            onA.Upload(DesignStore.IdOf(another), another);
+            yield return WaitUntil(() => DesignStore.Local.Has(DesignStore.IdOf(photo)), "the server to keep the photograph");
+            yield return WaitUntil(() => DesignStore.Local.Has(DesignStore.IdOf(another)), "the server to keep the second, sent straight after");
+            Assert.IsTrue(onA.AllSent);
+        }
+
+        /// <summary>A design whose front is noise over most of the print area: it barely compresses, as a photograph does not.</summary>
+        private static byte[] Photograph(int seed)
+        {
+            var random = new System.Random(seed);
+            var pixels = new Color32[ShirtDesignArea.Width * ShirtDesignArea.Height];
+            for (int i = 0; i < pixels.Length; i += 2)
+            {
+                pixels[i] = new Color32((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256), 255);
+            }
+            return ShirtDesignBlob.Pack(DesignPng.Encode(pixels), null);
+        }
     }
 }
