@@ -29,7 +29,7 @@ namespace CityX.Wearables
     /// wearer the same way (ICosmeticMountable), and keeps running there
     /// (ICosmeticKeepsRunning) for what it does to the body each frame.
     /// </summary>
-    public abstract class SkinnedGarment : MonoBehaviour, IEquippableItem, ICosmeticMountable, ICosmeticKeepsRunning
+    public abstract class SkinnedGarment : MonoBehaviour, IEquippableItem, ICosmeticMountable, ICosmeticKeepsRunning, IWornItem
     {
         public const float InteractRange = 2.5f;
 
@@ -69,6 +69,12 @@ namespace CityX.Wearables
         [HideInInspector] public byte[] HiddenBodyTrianglesWithShoes;
 
         public abstract string ItemId { get; }
+
+        // Worn on a body that falls, it is listed on the body to be taken (CorpseLoot: owner, 2026-11-26, "make it so players can grab the
+        // shirt jacket and pants" off a hobo), as a hat or shoes are.
+        string IWornItem.WornItemId => ItemId;
+
+        bool IWornItem.IsWorn => _equipped;
 
         private SkinnedGarmentCombiner Combiner { get; set; }
 

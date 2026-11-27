@@ -53,7 +53,7 @@ After many rounds of pictures the owner settled it by playing (2026-11-22): no f
 ## Other players
 
 Everything shown is worked out on the body it is on from what that body does (the attack's name is sent as every swing's is), so a copy's chain
-comes off, swings, burns and winds on with nothing else sent (`ICosmeticMountable`, `NetworkedPlayerWiring`).
+comes off, swings, burns and winds on with nothing else sent (`ICosmeticMountable`, `NetworkedPlayerWiring`). Its script keeps running on the copy (`ICosmeticKeepsRunning`): until 2026-11-26 the copy switched it off with the rest of a copy's item scripts, and other players saw it stay wound on the wrist through every swing.
 
 ## Tests
 

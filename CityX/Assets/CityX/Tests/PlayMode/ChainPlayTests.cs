@@ -79,7 +79,14 @@ namespace CityX.Tests
             _made.Add(_chain.gameObject);
             if (copy)
             {
+                // What NetworkedEquipmentSync does to a copy's item: mounted as a model only, its scripts off but for those that keep running
+                // (switched off, the chain stayed wound on the copy's wrist through every swing: owner, 2026-11-26).
                 _chain.MountCosmetic(_body);
+                InertModel.Strip(_chain.gameObject);
+                foreach (MonoBehaviour behaviour in _chain.GetComponents<MonoBehaviour>())
+                {
+                    if (behaviour is ICosmeticKeepsRunning) behaviour.enabled = true;
+                }
             }
             else
             {

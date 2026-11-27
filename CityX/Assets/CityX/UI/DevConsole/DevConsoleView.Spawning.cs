@@ -337,11 +337,26 @@ namespace CityX.UI
             {
                 return false;
             }
-            GameObject item = Instantiate(prefab, where, Quaternion.identity);
             // The floor under the spot, not the player's feet: the body stands a little above the floor (its controller's skin), and a
             // thing lying flat, a folded shirt, showed the gap as a hover.
             float floor = Physics.Raycast(where + Vector3.up * SpawnFloorSearch, Vector3.down, out RaycastHit hit, 2.0f * SpawnFloorSearch, ~0,
                 QueryTriggerInteraction.Ignore) ? hit.point.y : where.y;
+            string itemName = ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? definition.DisplayName : itemId;
+            if (DroppedItems.Shared.Relay != null)
+            {
+                // In a session it is put down as a dropped item, so every player sees it and only the first to pick it up has it.
+                var drop = new ItemDrop
+                {
+                    ItemId = itemId,
+                    Data = ItemInstanceData.None,
+                    Position = new Vector3(where.x, floor + SharedSpawnDropMetres, where.z),
+                    Rotation = Quaternion.identity,
+                };
+                DroppedItems.Shared.Drop(drop, shared: true, Vitals.gameObject, prefab);
+                SpawnLog($"spawned a {itemName} for everyone -- press E nearby to pick it up");
+                return true;
+            }
+            GameObject item = Instantiate(prefab, where, Quaternion.identity);
             float lowest = float.MaxValue;
             foreach (Renderer part in item.GetComponentsInChildren<Renderer>())
             {
@@ -351,7 +366,7 @@ namespace CityX.UI
             {
                 item.transform.position += Vector3.up * (floor - lowest + SpawnFloorClearance);
             }
-            SpawnLog($"spawned a {(ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? definition.DisplayName : itemId)} -- press E nearby to pick it up");
+            SpawnLog($"spawned a {itemName} -- press E nearby to pick it up");
             return true;
         }
 

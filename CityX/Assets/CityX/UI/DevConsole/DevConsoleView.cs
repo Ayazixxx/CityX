@@ -115,6 +115,9 @@ namespace CityX.UI
         /// <summary>How far over the floor a spawned item's lowest point is set: just clear, so it does not flicker in it.</summary>
         private const float SpawnFloorClearance = 0.003f;
 
+        /// <summary>How far over the floor an item spawned in a session is let go, metres: it falls and settles there as a dropped item.</summary>
+        public const float SharedSpawnDropMetres = 0.5f;
+
         /// <summary>How far ahead /spawn shoota puts him: far enough to see him turn and raise the rifle.</summary>
         public const float ShootaSpawnDistance = 14.0f;
 

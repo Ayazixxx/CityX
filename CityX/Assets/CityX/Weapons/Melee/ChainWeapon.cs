@@ -16,11 +16,13 @@ namespace CityX.Weapons
     /// chain along, its swung length long (<see cref="BladeTipWorld"/>), swept as a sword's blade is.
     ///
     /// EVERYTHING SHOWN IS WORKED OUT ON THE BODY IT IS ON, from what that body is doing (SwordPoseDriver plays the same attack on another
-    /// player's copy), so a copy's chain comes off, swings and winds on with nothing sent (<see cref="ICosmeticMountable"/>).
+    /// player's copy), so a copy's chain comes off, swings and winds on with nothing sent (<see cref="ICosmeticMountable"/>). It keeps running
+    /// there (<see cref="ICosmeticKeepsRunning"/>): switched off like a copy's other items, it would stay wound on the
+    /// wrist through every swing.
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
     [DefaultExecutionOrder(500)]   // after the body's own posing (PlayerLocomotion's LateUpdate): the links hang from the hand where this frame has it
-    public sealed class ChainWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon, ISwordBlade, ICosmeticMountable, IHandGripStyle
+    public sealed class ChainWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon, ISwordBlade, ICosmeticMountable, ICosmeticKeepsRunning, IHandGripStyle
     {
         public const float InteractRange = 2.5f;
         public const float LookDotThreshold = 0.82f;

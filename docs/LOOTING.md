@@ -67,7 +67,7 @@ Owner, 2026-11-06: "i want enemies to be lootable like skyrim how you can grab t
   - A body wearing nothing. It gets no prompt.
 - **How:**
   - `Character/Interaction/CorpseLoot` is on every body made from the player's (PlayerRigBuilder), so it is on every enemy.
-  - At death it lists the body's worn pieces. Each piece is an `Items.IWornItem`, which every `GroundWearable` is.
+  - At death it lists the body's worn pieces. Each piece is an `Items.IWornItem`, which every `GroundWearable` is, and every `SkinnedGarment` (shirts, coats, trousers: 2026-11-26, owner: "make it so players can grab the shirt jacket and pants" off a hobo). A body whose torso bursts throws its clothes off as items, as it does a helmet.
   - It puts a `LootContainer` of the new kind `Body` on the hips, so the container follows the ragdoll and never moves the bone itself.
   - `LootContainer.Taken` tells it which piece to take off.
 - **In a session** (`Character/Network/NetworkedCorpseLoot`, on every networked enemy):

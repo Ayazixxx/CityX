@@ -34,7 +34,7 @@ The first slice of the design in `docs/GAME_DESIGN.md` (Hobos). Not in it yet: o
   6 to 24 m off, in front of him and in sight, a whole bottle shows in his hand in place of what he holds, is lobbed, and his weapon is back.
   Other screens see the bottle in the hand and its flight, and how many he carries is kept the same on every screen.
 - **No dash** (owner, 2026-11-26: "make it so hobos dont have dash"): they guard and cut as the swordsman does, but never dash out of the way.
-- **Beaten**: his weapon falls from his hand (the bottle still broken), and his body can be searched: his clothes and **the bottles he
+- **Beaten**: his weapon falls from his hand (the bottle still broken), and his body can be searched: all his clothes (shirt, coat and trousers too since 2026-11-26, not only gloves and shoes) and **the bottles he
   did not throw**.
 - Worth 40 XP (the swordsman's 80: mine).
 

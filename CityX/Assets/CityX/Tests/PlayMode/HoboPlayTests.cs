@@ -273,6 +273,59 @@ namespace CityX.Tests
             Assert.IsNotNull(vitals);
         }
 
+        /// <summary>
+        /// Beaten, his shirt, coat and trousers are on his body to be taken as his gloves and shoes are (owner, 2026-11-26: "make it so players can
+        /// grab the shirt jacket and pants"), and taken, they come off him and go into the bag.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator HisShirtCoatAndTrousersAreLootAndComeOffHim()
+        {
+            PlayerVitals vitals = SetUp("Hobo_2_Pole", 3.0f);
+            yield return null;
+            string[] clothes = { ItemRegistry.TShirt, ItemRegistry.GreenFurHoodedParka, ItemRegistry.Khakis };
+            _hobo.GetComponent<PlayerVitals>().TakeDamage(10000.0f);
+            yield return null;
+            var loot = _hobo.GetComponent<CorpseLoot>();
+            Assert.IsNotNull(loot.Container, "his body cannot be searched");
+            foreach (string id in clothes)
+            {
+                CollectionAssert.Contains(loot.Container.Items, id, $"his {id} is not on his body to take");
+            }
+            CollectionAssert.Contains(loot.Container.Items, ItemRegistry.BlackSneakers, "his shoes are no longer listed");
+
+            var inventory = _player.GetComponent<Inventory>();
+            if (inventory == null) inventory = _player.AddComponent<Inventory>();
+            var searcher = _player.GetComponent<LootSearcher>();
+            searcher.Search(loot.Container);
+            foreach (string id in clothes)
+            {
+                searcher.List.Move(IndexIn(searcher.List.Items, id) - searcher.List.Selected);
+                Assert.IsTrue(searcher.TakeSelected(), $"his {id} could not be taken");
+            }
+            searcher.CloseWindow();
+            yield return null;
+            foreach (string id in clothes)
+            {
+                Assert.IsTrue(inventory.HasItem(id), $"his {id} did not go into the bag");
+                CollectionAssert.DoesNotContain(loot.Container.Items, id, $"his {id} is still listed on his body");
+            }
+            foreach (CityX.Wearables.SkinnedGarment garment in _hobo.GetComponentsInChildren<CityX.Wearables.SkinnedGarment>())
+            {
+                Assert.IsFalse(System.Array.IndexOf(clothes, garment.ItemId) >= 0, $"his {garment.ItemId} is still on him");
+            }
+            Assert.IsNotNull(vitals);
+        }
+
+        private static int IndexIn(IReadOnlyList<string> items, string id)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (items[i] == id) return i;
+            }
+            Assert.Fail($"{id} is not in the loot window");
+            return -1;
+        }
+
         /// <summary>Each weapon in his hand is swung as the player swings it.</summary>
         [UnityTest]
         public IEnumerator EachWeaponIsInHisHand([Values("Hobo_1_Pole", "Hobo_2_Bottle", "Hobo_1_Chain", "Hobo_2_Machete", "Hobo_1_Plank")] string hobo)
